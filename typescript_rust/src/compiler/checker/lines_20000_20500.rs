@@ -1,20 +1,20 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Gc, GcCell};
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{
-    get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot, SymbolLinks,
-    TransientSymbolInterface, __String, every, for_each_bool, get_check_flags,
-    get_selected_effective_modifier_flags, maybe_map, some, CheckFlags, Diagnostics, IndexInfo,
-    ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult,
-    Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
+    get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot,
+    OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
+    for_each_bool, get_check_flags, get_selected_effective_modifier_flags, maybe_map, some,
+    CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
+    RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -472,7 +472,7 @@ impl TypeChecker {
                             value
                         }
                         .as_deref(),
-                        Some(Rc::new(self.make_unary_type_mapper(param, marker))),
+                        Some(Gc::new(self.make_unary_type_mapper(param, marker))),
                     )
                     .as_deref(),
                     Option::<&Symbol>::None,
@@ -496,25 +496,20 @@ impl TypeChecker {
     ) -> Vec<VarianceFlags> {
         let type_parameters = type_parameters.map_or_else(|| vec![], ToOwned::to_owned);
         let cache = cache.into();
-        if cache.maybe_variances().is_none() {
+        if (*cache.maybe_variances()).borrow().is_none() {
             // tracing?.push(tracing.Phase.CheckTypes, "getVariancesWorker", { arity: typeParameters.length, id: (cache as any).id ?? (cache as any).declaredType?.id ?? -1 });
-            *cache.maybe_variances() = Some(vec![]);
+            *cache.maybe_variances().borrow_mut() = Some(vec![]);
             let mut variances: Vec<VarianceFlags> = vec![];
             for tp in &type_parameters {
                 let unmeasurable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let unreliable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let old_handler = self.maybe_outofband_variance_marker_handler();
-                self.set_outofband_variance_marker_handler(Some(Rc::new({
-                    let unmeasurable = unmeasurable.clone();
-                    let unreliable = unreliable.clone();
-                    move |only_unreliable| {
-                        if only_unreliable {
-                            unreliable.set(true);
-                        } else {
-                            unmeasurable.set(true);
-                        }
-                    }
-                })));
+                self.set_outofband_variance_marker_handler(Some(Gc::new(Box::new(
+                    GetVariancesWorkerOutofbandVarianceMarkerHandler::new(
+                        unmeasurable.clone(),
+                        unreliable.clone(),
+                    ),
+                ))));
                 let type_with_super = create_marker_type(&cache, tp, &self.marker_super_type());
                 let type_with_sub = create_marker_type(&cache, tp, &self.marker_sub_type());
                 let mut variance =
@@ -546,10 +541,10 @@ impl TypeChecker {
                 }
                 variances.push(variance);
             }
-            *cache.maybe_variances() = Some(variances);
+            *cache.maybe_variances().borrow_mut() = Some(variances);
             // tracing?.pop();
         }
-        let ret = cache.maybe_variances().clone().unwrap();
+        let ret = (*cache.maybe_variances()).borrow().clone().unwrap();
         ret
     }
 
@@ -935,13 +930,9 @@ pub(super) enum GetVariancesCache {
 }
 
 impl GetVariancesCache {
-    pub(super) fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>> {
+    pub(super) fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
         match self {
-            Self::SymbolLinks(symbol_links) => {
-                RefMut::map(symbol_links.borrow_mut(), |symbol_links| {
-                    &mut symbol_links.variances
-                })
-            }
+            Self::SymbolLinks(symbol_links) => (**symbol_links).borrow().variances.clone(),
             Self::GenericType(generic_type) => generic_type.as_generic_type().maybe_variances(),
         }
     }
@@ -1003,5 +994,32 @@ impl From<Gc<Type>> for RecursionIdentity {
 impl From<Rc<RefCell<ConditionalRoot>>> for RecursionIdentity {
     fn from(value: Rc<RefCell<ConditionalRoot>>) -> Self {
         Self::ConditionalRoot(value)
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct GetVariancesWorkerOutofbandVarianceMarkerHandler {
+    #[unsafe_ignore_trace]
+    unmeasurable: Rc<Cell<bool>>,
+    #[unsafe_ignore_trace]
+    unreliable: Rc<Cell<bool>>,
+}
+
+impl GetVariancesWorkerOutofbandVarianceMarkerHandler {
+    pub fn new(unmeasurable: Rc<Cell<bool>>, unreliable: Rc<Cell<bool>>) -> Self {
+        Self {
+            unmeasurable,
+            unreliable,
+        }
+    }
+}
+
+impl OutofbandVarianceMarkerHandler for GetVariancesWorkerOutofbandVarianceMarkerHandler {
+    fn call(&self, only_unreliable: bool) {
+        if only_unreliable {
+            self.unreliable.set(true);
+        } else {
+            self.unmeasurable.set(true);
+        }
     }
 }

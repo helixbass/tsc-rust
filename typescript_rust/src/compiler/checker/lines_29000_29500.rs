@@ -227,7 +227,7 @@ impl TypeChecker {
         signature: Gc<Signature>,
         contextual_signature: Gc<Signature>,
         inference_context: Option<&InferenceContext>,
-        compare_types: Option<Rc<dyn TypeComparer>>,
+        compare_types: Option<Gc<Box<dyn TypeComparer>>>,
     ) -> Gc<Signature> {
         let context = self.create_inference_context(
             &signature.maybe_type_parameters().clone().unwrap(),
@@ -409,7 +409,7 @@ impl TypeChecker {
                 context.set_return_mapper(
                     if some(
                         Some(&return_context.inferences()),
-                        Some(|inference: &Rc<InferenceInfo>| {
+                        Some(|inference: &Gc<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),
                     ) {
@@ -434,7 +434,7 @@ impl TypeChecker {
             .as_ref()
             .filter(|rest_type| rest_type.flags().intersects(TypeFlags::TypeParameter))
         {
-            let info = find(&context.inferences(), |info: &Rc<InferenceInfo>, _| {
+            let info = find(&context.inferences(), |info: &Gc<InferenceInfo>, _| {
                 Gc::ptr_eq(&info.type_parameter, rest_type)
             })
             .cloned();

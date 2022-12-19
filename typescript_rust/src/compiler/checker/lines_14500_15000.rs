@@ -8,15 +8,15 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    concatenate, contains_rc, every, filter, find_index,
+    concatenate, contains_gc, contains_rc, every, filter, find_index,
     get_declaration_modifier_flags_from_symbol, get_name_of_declaration, get_object_flags,
-    index_of_rc, is_computed_property_name, is_identifier, is_known_symbol, is_private_identifier,
-    map, ordered_remove_item_at, reduce_left, replace_element, some, symbol_name,
-    unescape_leading_underscores, walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_,
-    Diagnostics, IndexInfo, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, Node,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    index_of_gc, index_of_rc, is_computed_property_name, is_identifier, is_known_symbol,
+    is_private_identifier, map, ordered_remove_item_at, reduce_left, replace_element, some,
+    symbol_name, unescape_leading_underscores, walk_up_parenthesized_types,
+    BaseUnionOrIntersectionType, Debug_, Diagnostics, IndexInfo, IndexType, InternalSymbolName,
+    IntersectionType, ModifierFlags, Node, NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -165,7 +165,7 @@ impl TypeChecker {
             self.add_types_to_intersection(&mut type_membership_map, TypeFlags::None, types);
         let mut type_set: Vec<Gc<Type>> = type_membership_map.values().map(Clone::clone).collect();
         if includes.intersects(TypeFlags::Never) {
-            return if contains_rc(Some(&type_set), &self.silent_never_type()) {
+            return if contains_gc(Some(&type_set), &self.silent_never_type()) {
                 self.silent_never_type()
             } else {
                 self.never_type()
@@ -233,7 +233,7 @@ impl TypeChecker {
             ordered_remove_item_at(&mut type_set, index);
         }
         if includes.intersects(TypeFlags::IncludesMissingType) {
-            let index: usize = index_of_rc(&type_set, &self.undefined_type())
+            let index: usize = index_of_gc(&type_set, &self.undefined_type())
                 .try_into()
                 .unwrap();
             type_set[index] = self.missing_type();
@@ -576,7 +576,7 @@ impl TypeChecker {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
                 name_type,
-                Some(Rc::new(self.append_type_mapping(
+                Some(Gc::new(self.append_type_mapping(
                     type_.as_mapped_type().maybe_mapper(),
                     type_parameter,
                     &key_type,
@@ -947,7 +947,7 @@ impl TypeChecker {
                 self.error_type()
             };
         }
-        if contains_rc(Some(types), &self.wildcard_type()) {
+        if contains_gc(Some(types), &self.wildcard_type()) {
             return self.wildcard_type();
         }
         let mut new_types: Vec<Gc<Type>> = vec![];

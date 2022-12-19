@@ -10,11 +10,12 @@ use super::{
     CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
-    are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map, AccessFlags,
-    DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface, ObjectFlags,
-    ObjectTypeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol,
-    SymbolInterface, Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
-    TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags,
+    are_gc_slices_equal, are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map,
+    AccessFlags, DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler, RelationComparisonResult,
+    Signature, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeComparer,
+    TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface,
+    VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -393,7 +394,7 @@ impl CheckTypeRelatedTo {
                     if saved.intersects(RelationComparisonResult::ReportsUnmeasurable) {
                         self.type_checker.instantiate_type(
                             source,
-                            Some(Rc::new(
+                            Some(Gc::new(
                                 self.type_checker
                                     .make_function_type_mapper(ReportUnmeasurableMarkers),
                             )),
@@ -402,7 +403,7 @@ impl CheckTypeRelatedTo {
                     if saved.intersects(RelationComparisonResult::ReportsUnreliable) {
                         self.type_checker.instantiate_type(
                             source,
-                            Some(Rc::new(
+                            Some(Gc::new(
                                 self.type_checker
                                     .make_function_type_mapper(ReportUnreliableMarkers),
                             )),
@@ -489,7 +490,7 @@ impl CheckTypeRelatedTo {
                 self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Target);
             }
         }
-        let mut original_handler: Option<Rc<dyn Fn(bool)>> = None;
+        let mut original_handler: Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>> = None;
         let propagating_variance_flags: Rc<Cell<RelationComparisonResult>> =
             Rc::new(Cell::new(RelationComparisonResult::None));
         if let Some(outofband_variance_marker_handler) =
@@ -497,21 +498,12 @@ impl CheckTypeRelatedTo {
         {
             original_handler = Some(outofband_variance_marker_handler);
             self.type_checker
-                .set_outofband_variance_marker_handler(Some(Rc::new({
-                    let propagating_variance_flags = propagating_variance_flags.clone();
-                    let original_handler = original_handler.clone();
-                    move |only_unreliable| {
-                        propagating_variance_flags.set(
-                            propagating_variance_flags.get()
-                                | if only_unreliable {
-                                    RelationComparisonResult::ReportsUnreliable
-                                } else {
-                                    RelationComparisonResult::ReportsUnmeasurable
-                                },
-                        );
-                        (original_handler.clone().unwrap())(only_unreliable);
-                    }
-                })));
+                .set_outofband_variance_marker_handler(Some(Gc::new(Box::new(
+                    RecursiveTypeRelatedToOutofbandVarianceMarkerHandler::new(
+                        propagating_variance_flags.clone(),
+                        original_handler.clone().unwrap(),
+                    ),
+                ))));
         }
 
         if self.expanding_flags() == ExpandingFlags::Both {
@@ -669,7 +661,7 @@ impl CheckTypeRelatedTo {
                     source.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
                 );
-                if !are_rc_slices_equal(
+                if !are_gc_slices_equal(
                     &constraints,
                     source.as_union_or_intersection_type_interface().types(),
                 ) {
@@ -1025,7 +1017,7 @@ impl CheckTypeRelatedTo {
                                     mapped_keys.push(
                                         self.type_checker.instantiate_type(
                                             name_type,
-                                            Some(Rc::new(
+                                            Some(Gc::new(
                                                 self.type_checker.append_type_mapping(
                                                     target_type.as_mapped_type().maybe_mapper(),
                                                     &self
@@ -1368,7 +1360,7 @@ impl CheckTypeRelatedTo {
                 }
                 self.type_checker.instantiate_type(
                     &source,
-                    Some(Rc::new(
+                    Some(Gc::new(
                         self.type_checker
                             .make_function_type_mapper(ReportUnreliableMarkers),
                     )),
@@ -1538,9 +1530,9 @@ impl CheckTypeRelatedTo {
                         source_params,
                         None,
                         InferenceFlags::None,
-                        Some(Rc::new(TypeComparerIsRelatedToWorker::new(
+                        Some(Gc::new(Box::new(TypeComparerIsRelatedToWorker::new(
                             self.rc_wrapper(),
-                        ))),
+                        )))),
                     );
                     self.type_checker.infer_types(
                         &ctx.inferences(),
@@ -1821,7 +1813,7 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
                 || ptr::eq(p, &*checker.marker_sub_type())
                 || ptr::eq(p, &*checker.marker_other_type())
             {
-                outofband_variance_marker_handler(false);
+                outofband_variance_marker_handler.call(false);
             }
         }
         p.type_wrapper()
@@ -1839,7 +1831,7 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
                 || ptr::eq(p, &*checker.marker_sub_type())
                 || ptr::eq(p, &*checker.marker_other_type())
             {
-                outofband_variance_marker_handler(true);
+                outofband_variance_marker_handler.call(true);
             }
         }
         p.type_wrapper()
@@ -1852,7 +1844,7 @@ pub(super) struct TypeComparerIsRelatedToWorker {
 }
 
 impl TypeComparerIsRelatedToWorker {
-    pub fn new(check_type_related_to: Rc<CheckTypeRelatedTo>) -> Self {
+    pub fn new(check_type_related_to: Gc<CheckTypeRelatedTo>) -> Self {
         Self {
             check_type_related_to,
         }
@@ -1866,5 +1858,38 @@ impl TypeComparer for TypeComparerIsRelatedToWorker {
             t,
             report_errors.unwrap_or(false), // the default isn't in the Typescript version but that appears to be a type-checking bug there
         )
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
+    #[unsafe_ignore_trace]
+    propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
+    original_handler: Gc<Box<dyn OutofbandVarianceMarkerHandler>>,
+}
+
+impl RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
+    pub fn new(
+        propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
+        original_handler: Gc<Box<dyn OutofbandVarianceMarkerHandler>>,
+    ) -> Self {
+        Self {
+            propagating_variance_flags,
+            original_handler,
+        }
+    }
+}
+
+impl OutofbandVarianceMarkerHandler for RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
+    fn call(&self, only_unreliable: bool) {
+        self.propagating_variance_flags.set(
+            self.propagating_variance_flags.get()
+                | if only_unreliable {
+                    RelationComparisonResult::ReportsUnreliable
+                } else {
+                    RelationComparisonResult::ReportsUnmeasurable
+                },
+        );
+        self.original_handler.call(only_unreliable);
     }
 }

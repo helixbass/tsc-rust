@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ impl TypeChecker {
         });
         let regular_new = self.create_anonymous_type(
             resolved.maybe_symbol(),
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             resolved_as_resolved_type.call_signatures().clone(),
             resolved_as_resolved_type.construct_signatures().clone(),
             resolved_as_resolved_type.index_infos().clone(),
@@ -182,13 +182,13 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             type_.maybe_symbol(),
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             same_map(
                 &self.get_index_infos_of_type(type_),
                 |info: &Gc<IndexInfo>, _| {
-                    Rc::new(self.create_index_info(
+                    Gc::new(self.create_index_info(
                         info.key_type.clone(),
                         self.get_widened_type(&info.type_),
                         info.is_readonly,
@@ -648,19 +648,21 @@ impl TypeChecker {
         type_parameters: &[Gc<Type /*TypeParameter*/>],
         signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
-        compare_types: Option<Rc<dyn TypeComparer>>,
+        compare_types: Option<Gc<Box<dyn TypeComparer>>>,
     ) -> Gc<InferenceContext> {
         self.create_inference_context_worker(
             type_parameters
                 .into_iter()
                 .map(|type_parameter: &Gc<Type>| {
-                    Rc::new(self.create_inference_info(type_parameter))
+                    Gc::new(self.create_inference_info(type_parameter))
                 })
                 .collect(),
             signature,
             flags,
             compare_types.unwrap_or_else(|| {
-                Rc::new(TypeComparerCompareTypesAssignable::new(self.rc_wrapper()))
+                Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
+                    self.rc_wrapper(),
+                )))
             }),
         )
     }
@@ -675,8 +677,8 @@ impl TypeChecker {
             self.create_inference_context_worker(
                 map(
                     &*context.inferences(),
-                    |inference: &Rc<InferenceInfo>, _| {
-                        Rc::new(self.clone_inference_info(inference))
+                    |inference: &Gc<InferenceInfo>, _| {
+                        Gc::new(self.clone_inference_info(inference))
                     },
                 ),
                 context.signature.clone(),
@@ -688,12 +690,12 @@ impl TypeChecker {
 
     pub(super) fn create_inference_context_worker(
         &self,
-        inferences: Vec<Rc<InferenceInfo>>,
+        inferences: Vec<Gc<InferenceInfo>>,
         signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
-        compare_types: Rc<dyn TypeComparer>,
+        compare_types: Gc<Box<dyn TypeComparer>>,
     ) -> Gc<InferenceContext> {
-        let context = Rc::new(InferenceContext::new(
+        let context = Gc::new(InferenceContext::new(
             inferences,
             signature,
             flags,
@@ -703,10 +705,10 @@ impl TypeChecker {
             None,
             None,
         ));
-        context.set_mapper(Rc::new(self.make_function_type_mapper(
+        context.set_mapper(Gc::new(self.make_function_type_mapper(
             CreateInferenceContextWorkerMapperCallback::new(context.clone()),
         )));
-        context.set_non_fixing_mapper(Rc::new(self.make_function_type_mapper(
+        context.set_non_fixing_mapper(Gc::new(self.make_function_type_mapper(
             CreateInferenceContextWorkerNonFixingMapperCallback::new(context.clone()),
         )));
         context
@@ -732,7 +734,7 @@ impl TypeChecker {
         t.type_wrapper()
     }
 
-    pub(super) fn clear_cached_inferences(&self, inferences: &[Rc<InferenceInfo>]) {
+    pub(super) fn clear_cached_inferences(&self, inferences: &[Gc<InferenceInfo>]) {
         for inference in inferences {
             if !inference.is_fixed() {
                 *inference.maybe_inferred_type_mut() = None;
@@ -773,13 +775,13 @@ impl TypeChecker {
         &self,
         context: &InferenceContext,
     ) -> Option<Gc<InferenceContext>> {
-        let inferences = filter(&context.inferences(), |inference: &Rc<InferenceInfo>| {
+        let inferences = filter(&context.inferences(), |inference: &Gc<InferenceInfo>| {
             self.has_inference_candidates(inference)
         });
         if !inferences.is_empty() {
             Some(self.create_inference_context_worker(
-                map(&inferences, |inference: &Rc<InferenceInfo>, _| {
-                    Rc::new(self.clone_inference_info(inference))
+                map(&inferences, |inference: &Gc<InferenceInfo>, _| {
+                    Gc::new(self.clone_inference_info(inference))
                 }),
                 context.signature.clone(),
                 context.flags(),
@@ -919,7 +921,7 @@ impl TypeChecker {
             None
         });
         let index_infos = if type_.flags().intersects(TypeFlags::String) {
-            vec![Rc::new(self.create_index_info(
+            vec![Gc::new(self.create_index_info(
                 self.string_type(),
                 self.empty_object_type(),
                 false,
@@ -930,7 +932,7 @@ impl TypeChecker {
         };
         self.create_anonymous_type(
             Option::<&Symbol>::None,
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             index_infos,

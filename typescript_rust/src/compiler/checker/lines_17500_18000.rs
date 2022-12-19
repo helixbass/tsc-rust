@@ -12,11 +12,11 @@ use super::{
     ErrorReporter, IntersectionState,
 };
 use crate::{
-    are_option_rcs_equal, every, get_object_flags, get_symbol_id, some, symbol_name,
-    DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node, NodeInterface, ObjectFlags,
-    ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface,
-    Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
-    TypePredicateKind,
+    are_option_gcs_equal, are_option_rcs_equal, every, get_object_flags, get_symbol_id, some,
+    symbol_name, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags,
+    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind,
 };
 use local_macros::enum_unwrapped;
 
@@ -85,7 +85,7 @@ impl TypeChecker {
             }
         }
 
-        let related = if are_option_rcs_equal(source.type_.as_ref(), target.type_.as_ref()) {
+        let related = if are_option_gcs_equal(source.type_.as_ref(), target.type_.as_ref()) {
             Ternary::True
         } else if source.type_.is_some() && target.type_.is_some() {
             compare_types(
@@ -515,8 +515,8 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<TErrorNode>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         CheckTypeRelatedTo::new(
             self,

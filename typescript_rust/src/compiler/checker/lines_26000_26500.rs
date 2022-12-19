@@ -742,7 +742,7 @@ impl TypeChecker {
                 inference_context.as_ref().filter(|inference_context| {
                     some(
                         Some(&inference_context.inferences()),
-                        Some(|inference: &Rc<InferenceInfo>| {
+                        Some(|inference: &Gc<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),
                     )

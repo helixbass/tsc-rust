@@ -10,10 +10,10 @@ use std::rc::Rc;
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
-    ordered_remove_item_at, push_if_unique_rc, reduce_left, replace_element, same_map, some,
-    BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
-    Node, ObjectFlags, Signature, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
+    ordered_remove_item_at, push_if_unique_gc, push_if_unique_rc, reduce_left, replace_element,
+    same_map, some, BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType,
+    LiteralTypeInterface, Node, ObjectFlags, Signature, Symbol, SymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeId, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
     UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
 };
 use local_macros::enum_unwrapped;
@@ -661,7 +661,7 @@ impl TypeChecker {
                 if t.maybe_alias_symbol().is_some()
                     || matches!(origin.as_ref(), Some(origin) if !origin.flags().intersects(TypeFlags::Union))
                 {
-                    push_if_unique_rc(named_unions, t);
+                    push_if_unique_gc(named_unions, t);
                 } else if matches!(origin.as_ref(), Some(origin) if origin.flags().intersects(TypeFlags::Union))
                 {
                     self.add_named_unions(named_unions, origin.unwrap().as_union_type().types());

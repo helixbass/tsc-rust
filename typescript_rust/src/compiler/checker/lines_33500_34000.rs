@@ -327,7 +327,7 @@ impl TypeChecker {
                                 return_signature.maybe_type_parameters().is_none()
                                     && !every(
                                         &context.inferences(),
-                                        |inference: &Rc<InferenceInfo>, _| {
+                                        |inference: &Gc<InferenceInfo>, _| {
                                             self.has_inference_candidates(inference)
                                         },
                                     )
@@ -343,7 +343,7 @@ impl TypeChecker {
                                     Some(&unique_type_parameters),
                                 );
                             let inferences =
-                                map(&*context.inferences(), |info: &Rc<InferenceInfo>, _| {
+                                map(&*context.inferences(), |info: &Gc<InferenceInfo>, _| {
                                     Rc::new(self.create_inference_info(&info.type_parameter))
                                 });
                             self.apply_to_parameter_types(
@@ -361,7 +361,7 @@ impl TypeChecker {
                             );
                             if some(
                                 Some(&inferences),
-                                Some(|inference: &Rc<InferenceInfo>| {
+                                Some(|inference: &Gc<InferenceInfo>| {
                                     self.has_inference_candidates(inference)
                                 }),
                             ) {
@@ -422,8 +422,8 @@ impl TypeChecker {
 
     pub(super) fn has_overlapping_inferences(
         &self,
-        a: &[Rc<InferenceInfo>],
-        b: &[Rc<InferenceInfo>],
+        a: &[Gc<InferenceInfo>],
+        b: &[Gc<InferenceInfo>],
     ) -> bool {
         for i in 0..a.len() {
             if self.has_inference_candidates(&a[i]) && self.has_inference_candidates(&b[i]) {
@@ -435,8 +435,8 @@ impl TypeChecker {
 
     pub(super) fn merge_inferences(
         &self,
-        target: &mut Vec<Rc<InferenceInfo>>,
-        source: &[Rc<InferenceInfo>],
+        target: &mut Vec<Gc<InferenceInfo>>,
+        source: &[Gc<InferenceInfo>],
     ) {
         for i in 0..target.len() {
             if !self.has_inference_candidates(&target[i])

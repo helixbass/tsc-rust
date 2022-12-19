@@ -1618,7 +1618,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.instantiations()
                     }
 
-                    fn maybe_variances(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<crate::VarianceFlags>>> {
+                    fn maybe_variances(&self) -> ::std::rc::Rc<::std::cell::RefCell<::std::option::Option<::std::vec::Vec<crate::VarianceFlags>>>> {
                         self.#first_field_name.maybe_variances()
                     }
 
@@ -2273,7 +2273,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_variances(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<crate::VarianceFlags>>> {
+                    fn maybe_variances(&self) -> ::std::rc::Rc<::std::cell::RefCell<::std::option::Option<::std::vec::Vec<crate::VarianceFlags>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_variances()),*
                         }

@@ -81,7 +81,7 @@ impl TypeChecker {
         readonly: bool,
     ) -> Gc<IndexInfo> {
         if info.is_readonly != readonly {
-            Rc::new(self.create_index_info(
+            Gc::new(self.create_index_info(
                 info.key_type.clone(),
                 info.type_.clone(),
                 readonly,
@@ -601,21 +601,21 @@ impl TypeChecker {
     }
 
     pub(super) fn instantiate_list<
-        TItem,
-        TInstantiator: FnMut(&Rc<TItem>, Option<Gc<TypeMapper>>) -> Rc<TItem>,
+        TItem: Trace + Finalize,
+        TInstantiator: FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
     >(
         &self,
-        items: Option<&[Rc<TItem>]>,
+        items: Option<&[Gc<TItem>]>,
         mapper: Option<Gc<TypeMapper>>,
         mut instantiator: TInstantiator,
-    ) -> Option<Vec<Rc<TItem>>> {
+    ) -> Option<Vec<Gc<TItem>>> {
         let items = items?;
         if !items.is_empty() {
             let mut i = 0;
             while i < items.len() {
                 let item = &items[i];
                 let mapped = instantiator(item, mapper.clone());
-                if !Rc::ptr_eq(item, &mapped) {
+                if !Gc::ptr_eq(item, &mapped) {
                     let mut result = if i == 0 {
                         vec![]
                     } else {
@@ -655,7 +655,7 @@ impl TypeChecker {
             Some(signatures),
             Some(mapper),
             |signature: &Gc<Signature>, mapper| {
-                Rc::new(self.instantiate_signature(signature.clone(), mapper.unwrap(), None))
+                Gc::new(self.instantiate_signature(signature.clone(), mapper.unwrap(), None))
             },
         )
         .unwrap()
@@ -694,7 +694,7 @@ impl TypeChecker {
     pub(super) fn get_mapped_type(&self, type_: &Type, mapper: &TypeMapper) -> Gc<Type> {
         match mapper {
             TypeMapper::Simple(mapper) => {
-                if ptr::eq(type_, Rc::as_ptr(&mapper.source)) {
+                if ptr::eq(type_, &*mapper.source) {
                     mapper.target.clone()
                 } else {
                     type_.type_wrapper()
@@ -704,7 +704,7 @@ impl TypeChecker {
                 let sources = &mapper.sources;
                 let targets = &mapper.targets;
                 for (i, source) in sources.iter().enumerate() {
-                    if ptr::eq(type_, Rc::as_ptr(source)) {
+                    if ptr::eq(type_, &**source) {
                         return targets
                             .as_ref()
                             .map_or_else(|| self.any_type(), |targets| targets[i].clone());
@@ -716,7 +716,7 @@ impl TypeChecker {
             TypeMapper::Composite(composite_or_merged_mapper)
             | TypeMapper::Merged(composite_or_merged_mapper) => {
                 let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1);
-                if !ptr::eq(Rc::as_ptr(&t1), type_) && matches!(mapper, TypeMapper::Composite(_)) {
+                if !ptr::eq(&*t1, type_) && matches!(mapper, TypeMapper::Composite(_)) {
                     self.instantiate_type(&t1, Some(composite_or_merged_mapper.mapper2.clone()))
                 } else {
                     self.get_mapped_type(&t1, &composite_or_merged_mapper.mapper2)
@@ -781,7 +781,7 @@ impl TypeChecker {
         mapper2: Gc<TypeMapper>,
     ) -> Gc<TypeMapper> {
         if let Some(mapper1) = mapper1 {
-            Rc::new(self.make_composite_type_mapper(mapper1, mapper2))
+            Gc::new(self.make_composite_type_mapper(mapper1, mapper2))
         } else {
             mapper2
         }
@@ -793,7 +793,7 @@ impl TypeChecker {
         mapper2: Gc<TypeMapper>,
     ) -> Gc<TypeMapper> {
         if let Some(mapper1) = mapper1 {
-            Rc::new(self.make_merged_type_mapper(mapper1, mapper2))
+            Gc::new(self.make_merged_type_mapper(mapper1, mapper2))
         } else {
             mapper2
         }
@@ -808,7 +808,7 @@ impl TypeChecker {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
             Some(mapper) => self.make_merged_type_mapper(
-                Rc::new(self.make_unary_type_mapper(source, target)),
+                Gc::new(self.make_unary_type_mapper(source, target)),
                 mapper,
             ),
         }
@@ -824,7 +824,7 @@ impl TypeChecker {
             None => self.make_unary_type_mapper(source, target),
             Some(mapper) => self.make_merged_type_mapper(
                 mapper,
-                Rc::new(self.make_unary_type_mapper(source, target)),
+                Gc::new(self.make_unary_type_mapper(source, target)),
             ),
         }
     }
@@ -888,7 +888,7 @@ impl TypeChecker {
                         self.clone_type_parameter(&type_parameter)
                     }));
                 mapper = self.combine_type_mappers(
-                    Some(Rc::new(self.create_type_mapper(
+                    Some(Gc::new(self.create_type_mapper(
                         signature_type_parameters,
                         fresh_type_parameters.clone(),
                     ))),
@@ -1094,7 +1094,7 @@ impl TypeChecker {
                 .map(Clone::clone);
             if result.is_none() {
                 let new_mapper =
-                    Rc::new(self.create_type_mapper(type_parameters, Some(type_arguments)));
+                    Gc::new(self.create_type_mapper(type_parameters, Some(type_arguments)));
                 result = Some(
                     if target_as_object_type
                         .object_flags()
@@ -1157,7 +1157,7 @@ impl BackreferenceMapperCallback {
 impl TypeMapperCallback for BackreferenceMapperCallback {
     fn call(&self, checker: &TypeChecker, t: &Type) -> Gc<Type> {
         if matches!(
-            find_index(&self.context_inferences, |info: &Rc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),
+            find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),
             Some(found_index) if found_index >= self.index
         ) {
             checker.unknown_type()

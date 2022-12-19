@@ -492,7 +492,7 @@ impl TypeChecker {
                 }
                 *signature.maybe_resolved_type_predicate_mut() = Some(
                     if let Some(type_) = type_.filter(|type_| is_type_predicate_node(type_)) {
-                        Rc::new(
+                        Gc::new(
                             self.create_type_predicate_from_type_predicate_node(&type_, signature),
                         )
                     } else {
@@ -767,8 +767,8 @@ impl TypeChecker {
                     Some(inferred_type_parameters.to_owned());
                 let new_instantiated_signature = self.clone_signature(&instantiated_signature);
                 *new_instantiated_signature.maybe_resolved_return_type_mut() =
-                    Some(self.get_or_create_type_from_signature(Rc::new(new_return_signature)));
-                return Rc::new(new_instantiated_signature);
+                    Some(self.get_or_create_type_from_signature(Gc::new(new_return_signature)));
+                return Gc::new(new_instantiated_signature);
             }
         }
         instantiated_signature
@@ -787,7 +787,7 @@ impl TypeChecker {
         let id = self.get_type_list_id(type_arguments);
         let mut instantiation = instantiations.get(&id).map(Clone::clone);
         if instantiation.is_none() {
-            instantiation = Some(Rc::new(
+            instantiation = Some(Gc::new(
                 self.create_signature_instantiation(signature.clone(), type_arguments),
             ));
             instantiations.insert(id, instantiation.clone().unwrap());
@@ -802,7 +802,7 @@ impl TypeChecker {
     ) -> Signature {
         self.instantiate_signature(
             signature.clone(),
-            Rc::new(self.create_signature_type_mapper(&signature, type_arguments)),
+            Gc::new(self.create_signature_type_mapper(&signature, type_arguments)),
             Some(true),
         )
     }
@@ -822,7 +822,7 @@ impl TypeChecker {
         if signature.maybe_type_parameters().is_some() {
             if signature.maybe_erased_signature_cache().is_none() {
                 *signature.maybe_erased_signature_cache() =
-                    Some(Rc::new(self.create_erased_signature(signature.clone())));
+                    Some(Gc::new(self.create_erased_signature(signature.clone())));
             }
             signature.maybe_erased_signature_cache().clone().unwrap()
         } else {
@@ -833,7 +833,7 @@ impl TypeChecker {
     pub(super) fn create_erased_signature(&self, signature: Gc<Signature>) -> Signature {
         self.instantiate_signature(
             signature.clone(),
-            Rc::new(self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap())),
+            Gc::new(self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap())),
             Some(true),
         )
     }
@@ -877,8 +877,8 @@ impl TypeChecker {
             {
                 return signature_base_signature_cache;
             }
-            let type_eraser = Rc::new(self.create_type_eraser(type_parameters.clone()));
-            let base_constraint_mapper = Rc::new(self.create_type_mapper(
+            let type_eraser = Gc::new(self.create_type_eraser(type_parameters.clone()));
+            let base_constraint_mapper = Gc::new(self.create_type_mapper(
                 type_parameters.clone(),
                 Some(map(type_parameters, |tp: &Gc<Type>, _| {
                     self.get_constraint_of_type_parameter(tp)
@@ -900,9 +900,9 @@ impl TypeChecker {
             base_constraints = self
                 .instantiate_types(Some(&base_constraints), Some(type_eraser))
                 .unwrap();
-            let ret = Rc::new(self.instantiate_signature(
+            let ret = Gc::new(self.instantiate_signature(
                 signature.clone(),
-                Rc::new(self.create_type_mapper(type_parameters.clone(), Some(base_constraints))),
+                Gc::new(self.create_type_mapper(type_parameters.clone(), Some(base_constraints))),
                 Some(true),
             ));
             *signature.maybe_base_signature_cache() = Some(ret.clone());
@@ -1010,7 +1010,7 @@ impl TypeChecker {
                                 if self.is_valid_index_key_type(key_type)
                                     && self.find_index_info(&index_infos, key_type).is_none()
                                 {
-                                    index_infos.push(Rc::new(self.create_index_info(
+                                    index_infos.push(Gc::new(self.create_index_info(
                                         key_type.type_wrapper(),
                                         if let Some(declaration_type) =
                                             declaration_as_index_signature_declaration.maybe_type()

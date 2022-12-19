@@ -7,8 +7,8 @@ use std::rc::Rc;
 
 use super::{IterationTypeKind, TypeFacts};
 use crate::{
-    get_check_flags, is_outermost_optional_chain, CheckFlags, ElementFlags, Number,
-    SymbolInterface, SymbolTable, TransientSymbolInterface, __String, are_option_rcs_equal,
+    are_option_gcs_equal, get_check_flags, is_outermost_optional_chain, CheckFlags, ElementFlags,
+    Number, SymbolInterface, SymbolTable, TransientSymbolInterface, __String, are_option_rcs_equal,
     compiler::utilities_public::is_expression_of_optional_chain_root, create_symbol_table, every,
     filter, find, get_object_flags, is_optional_chain, last, length, reduce_left_no_initial_value,
     some, Debug_, InterfaceTypeInterface, Node, NodeInterface, ObjectFlags,
@@ -39,7 +39,7 @@ impl TypeChecker {
         }
         if let Some(ref target_type_parameters) = target.maybe_type_parameters().clone() {
             let source_type_parameters = source.maybe_type_parameters().clone().unwrap();
-            let mapper = Rc::new(self.create_type_mapper(
+            let mapper = Gc::new(self.create_type_mapper(
                 source_type_parameters.clone(),
                 Some(target_type_parameters.clone()),
             ));
@@ -72,7 +72,7 @@ impl TypeChecker {
                     return Ternary::False;
                 }
             }
-            source = Rc::new(self.instantiate_signature(source, mapper, Some(true)));
+            source = Gc::new(self.instantiate_signature(source, mapper, Some(true)));
         }
         let mut result = Ternary::True;
         if !ignore_this_types {
@@ -133,7 +133,7 @@ impl TypeChecker {
                 let target = target.borrow();
                 if !self.type_predicate_kinds_match(source, target) {
                     Ternary::False
-                } else if are_option_rcs_equal(source.type_.as_ref(), target.type_.as_ref()) {
+                } else if are_option_gcs_equal(source.type_.as_ref(), target.type_.as_ref()) {
                     Ternary::True
                 } else if let (Some(source_type), Some(target_type)) =
                     (source.type_.as_ref(), target.type_.as_ref())
@@ -330,7 +330,7 @@ impl TypeChecker {
             let target_type_parameters_len = target_type_parameters.len();
             self.instantiate_type(
                 &bases[0],
-                Some(Rc::new(self.create_type_mapper(
+                Some(Gc::new(self.create_type_mapper(
                     target_type_parameters,
                     Some(self.get_type_arguments(type_)[0..target_type_parameters_len].to_owned()),
                 ))),

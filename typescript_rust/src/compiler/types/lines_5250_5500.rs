@@ -649,7 +649,7 @@ pub struct BaseInterfaceType {
     // GenericType fields
     instantiations: GcCell<Option<HashMap<String, Gc<Type /*TypeReference*/>>>>,
     #[unsafe_ignore_trace]
-    variances: RefCell<Option<Vec<VarianceFlags>>>,
+    variances: Rc<RefCell<Option<Vec<VarianceFlags>>>>,
     // TypeReference fields (for GenericType)
     pub target: GcCell<Option<Gc<Type /*GenericType*/>>>,
     pub node: GcCell<Option<Gc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
@@ -812,8 +812,8 @@ impl GenericTypeInterface for BaseInterfaceType {
         })
     }
 
-    fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>> {
-        self.variances.borrow_mut()
+    fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
+        self.variances.clone()
     }
 
     fn set_variances(&self, variances: Vec<VarianceFlags>) {
@@ -966,7 +966,7 @@ pub trait GenericTypeInterface:
     + TypeReferenceInterface
 {
     fn instantiations(&self) -> GcCellRefMut<HashMap<String, Gc<Type /*TypeReference*/>>>;
-    fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>>;
+    fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>>;
     fn set_variances(&self, variances: Vec<VarianceFlags>);
 }
 

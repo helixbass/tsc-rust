@@ -9,14 +9,15 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts,
 };
 use crate::{
-    are_option_rcs_equal, are_rc_slices_equal, contains_rc, every, for_each_child_bool,
-    get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
-    is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
-    is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, some, Debug_,
-    DiagnosticMessage, Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType,
-    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
+    contains_gc, contains_rc, every, for_each_child_bool, get_effective_return_type_node,
+    get_object_flags, has_context_sensitive_parameters, is_function_declaration,
+    is_function_expression_or_arrow_function, is_in_js_file, is_jsx_opening_element,
+    is_object_literal_method, is_part_of_type_node, map, some, Debug_, DiagnosticMessage,
+    Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -165,16 +166,16 @@ impl TypeChecker {
                                         Some(constraint) if self.every_type(constraint, |type_| self.is_array_type(type_) || self.is_tuple_type(type_))
                                     )
                                 } {
-                                    return self.instantiate_mapped_array_type(t, type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
+                                    return self.instantiate_mapped_array_type(t, type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
                                 }
                                 if self.is_generic_tuple_type(t) {
                                     return self.instantiate_mapped_generic_tuple_type(t, type_, type_variable, mapper.clone());
                                 }
                                 if self.is_tuple_type(t) {
-                                    return self.instantiate_mapped_tuple_type(t, type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
+                                    return self.instantiate_mapped_tuple_type(t, type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
                                 }
                             }
-                            return self.instantiate_anonymous_type(type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))), Option::<&Symbol>::None, None);
+                            return self.instantiate_anonymous_type(type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))), Option::<&Symbol>::None, None);
                         }
                         t.type_wrapper()
                     },
@@ -232,7 +233,7 @@ impl TypeChecker {
             };
             self.instantiate_mapped_type(
                 mapped_type,
-                Rc::new(self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone()))),
+                Gc::new(self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone()))),
                 Option::<&Symbol>::None,
                 None,
             )
@@ -309,7 +310,7 @@ impl TypeChecker {
         };
         let new_readonly =
             self.get_modified_readonly_state(tuple_type_target.as_tuple_type().readonly, modifiers);
-        if contains_rc(Some(&element_types), &self.error_type()) {
+        if contains_gc(Some(&element_types), &self.error_type()) {
             self.error_type()
         } else {
             self.create_tuple_type(
@@ -331,7 +332,7 @@ impl TypeChecker {
         is_optional: bool,
         mapper: Gc<TypeMapper>,
     ) -> Gc<Type> {
-        let template_mapper = Rc::new(self.append_type_mapping(
+        let template_mapper = Gc::new(self.append_type_mapping(
             Some(mapper),
             &self.get_type_parameter_from_mapped_type(type_),
             key,
@@ -382,7 +383,7 @@ impl TypeChecker {
             let fresh_type_parameter = self.clone_type_parameter(&orig_type_parameter);
             mapped_type_type_parameter = Some(fresh_type_parameter.clone());
             mapper = self.combine_type_mappers(
-                Some(Rc::new(self.make_unary_type_mapper(
+                Some(Gc::new(self.make_unary_type_mapper(
                     &orig_type_parameter,
                     &fresh_type_parameter,
                 ))),
@@ -442,7 +443,7 @@ impl TypeChecker {
                 .get(&id)
                 .map(Clone::clone);
             if result.is_none() {
-                let new_mapper = Rc::new(self.create_type_mapper(
+                let new_mapper = Gc::new(self.create_type_mapper(
                     root_outer_type_parameters.to_owned(),
                     Some(type_arguments),
                 ));
@@ -466,7 +467,7 @@ impl TypeChecker {
                             &mut |t| {
                                 self.get_conditional_type(
                                     root.clone(),
-                                    Some(Rc::new(self.prepend_type_mapping(
+                                    Some(Gc::new(self.prepend_type_mapping(
                                         &check_type,
                                         t,
                                         Some(new_mapper.clone()),
@@ -579,7 +580,7 @@ impl TypeChecker {
                     return if !match (resolved_type_arguments, new_type_arguments.as_deref()) {
                         (None, None) => true,
                         (Some(resolved_type_arguments), Some(new_type_arguments)) => {
-                            are_rc_slices_equal(new_type_arguments, resolved_type_arguments)
+                            are_gc_slices_equal(new_type_arguments, resolved_type_arguments)
                         }
                         _ => false,
                     } {
@@ -627,8 +628,8 @@ impl TypeChecker {
             let new_types = self
                 .instantiate_types(Some(&types), Some(mapper.clone()))
                 .unwrap();
-            if are_rc_slices_equal(&new_types, &types)
-                && are_option_rcs_equal(alias_symbol.as_ref(), type_.maybe_alias_symbol().as_ref())
+            if are_gc_slices_equal(&new_types, &types)
+                && are_option_gcs_equal(alias_symbol.as_ref(), type_.maybe_alias_symbol().as_ref())
             {
                 return type_.type_wrapper();
             }
@@ -813,7 +814,7 @@ impl TypeChecker {
         info: &IndexInfo,
         mapper: Gc<TypeMapper>,
     ) -> Gc<IndexInfo> {
-        Rc::new(self.create_index_info(
+        Gc::new(self.create_index_info(
             info.key_type.clone(),
             self.instantiate_type(&info.type_, Some(mapper)),
             info.is_readonly,
@@ -1043,8 +1044,8 @@ impl TypeChecker {
         target: &Type,
         error_node: Option<TErrorNode>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_object: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_object: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         self.check_type_related_to(
             source,

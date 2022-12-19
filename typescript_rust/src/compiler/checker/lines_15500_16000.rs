@@ -387,7 +387,7 @@ impl TypeChecker {
                     let type_arguments = map(new_root_outer_type_parameters, |t: &Gc<Type>, _| {
                         self.get_mapped_type(t, &type_param_mapper)
                     });
-                    let new_root_mapper = Rc::new(self.create_type_mapper(
+                    let new_root_mapper = Gc::new(self.create_type_mapper(
                         new_root_outer_type_parameters.clone(),
                         Some(type_arguments),
                     ));
@@ -957,7 +957,7 @@ impl TypeChecker {
         }
         let spread = self.create_anonymous_type(
             type_.maybe_symbol(),
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             self.get_index_infos_of_type(type_),
@@ -1149,7 +1149,7 @@ impl TypeChecker {
 
         let spread = self.create_anonymous_type(
             symbol.as_deref(),
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             same_map(&index_infos, |info: &Gc<IndexInfo>, _| {

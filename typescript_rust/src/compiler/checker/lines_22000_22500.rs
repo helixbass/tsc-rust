@@ -15,7 +15,7 @@ use crate::{
 };
 
 impl InferTypes {
-    pub(super) fn get_inference_info_for_type(&self, type_: &Type) -> Option<Rc<InferenceInfo>> {
+    pub(super) fn get_inference_info_for_type(&self, type_: &Type) -> Option<Gc<InferenceInfo>> {
         if type_.flags().intersects(TypeFlags::TypeVariable) {
             for inference in &self.inferences {
                 if ptr::eq(type_, &*inference.type_parameter) {

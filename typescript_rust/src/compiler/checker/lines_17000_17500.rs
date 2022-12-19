@@ -11,16 +11,17 @@ use super::{
     signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
 };
 use crate::{
-    get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
-    HasInitializerInterface, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary,
-    TypeComparer, __String, add_related_info, are_rc_slices_equal, create_diagnostic_for_node,
-    format_message, get_function_flags, get_semantic_jsx_children, get_text_of_node, has_type,
-    is_block, is_computed_non_literal_name, is_identifier_type_predicate, is_jsx_element,
-    is_jsx_opening_element, is_omitted_expression, is_spread_assignment, length, map, some, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    FunctionLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
-    RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    are_gc_slices_equal, get_source_file_of_node, id_text, is_jsx_spread_attribute,
+    unescape_leading_underscores, HasInitializerInterface, SignatureDeclarationInterface,
+    SymbolFlags, SymbolInterface, Ternary, TypeComparer, __String, add_related_info,
+    are_rc_slices_equal, create_diagnostic_for_node, format_message, get_function_flags,
+    get_semantic_jsx_children, get_text_of_node, has_type, is_block, is_computed_non_literal_name,
+    is_identifier_type_predicate, is_jsx_element, is_jsx_opening_element, is_omitted_expression,
+    is_spread_assignment, length, map, some, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, RelationComparisonResult, Signature,
+    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -34,7 +35,7 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
             source,
@@ -59,8 +60,8 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         if self.is_type_related_to(source, target, relation.clone()) {
             return true;
@@ -105,8 +106,8 @@ impl TypeChecker {
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         if node.is_none() || self.is_or_has_generic_conditional(target) {
             return false;
@@ -213,8 +214,8 @@ impl TypeChecker {
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         let call_signatures = self.get_signatures_of_type(source, SignatureKind::Call);
         let construct_signatures = self.get_signatures_of_type(source, SignatureKind::Construct);
@@ -240,8 +241,9 @@ impl TypeChecker {
                         )
                 }),
             ) {
-                let result_obj = error_output_container
-                    .unwrap_or_else(|| Rc::new(CheckTypeErrorOutputContainerConcrete::new(None)));
+                let result_obj = error_output_container.unwrap_or_else(|| {
+                    Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
+                });
                 self.check_type_assignable_to(
                     source,
                     target,
@@ -280,8 +282,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         let node_as_arrow_function = node.as_arrow_function();
         if is_block(&node_as_arrow_function.maybe_body().unwrap()) {
@@ -334,8 +336,9 @@ impl TypeChecker {
             if elaborated {
                 return elaborated;
             }
-            let result_obj = error_output_container
-                .unwrap_or_else(|| Rc::new(CheckTypeErrorOutputContainerConcrete::new(None)));
+            let result_obj = error_output_container.unwrap_or_else(|| {
+                Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
+            });
             self.check_type_related_to(
                 &source_return,
                 &target_return,
@@ -457,8 +460,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         let mut reported_error = false;
         for status in iterator {
@@ -516,9 +519,9 @@ impl TypeChecker {
                 };
                 reported_error = true;
                 if !elaborated {
-                    let result_obj_default: Rc<dyn CheckTypeErrorOutputContainer> =
-                        Rc::new(CheckTypeErrorOutputContainerConcrete::new(None));
-                    let result_obj: Rc<dyn CheckTypeErrorOutputContainer> =
+                    let result_obj_default: Gc<Box<dyn CheckTypeErrorOutputContainer>> =
+                        Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)));
+                    let result_obj: Gc<Box<dyn CheckTypeErrorOutputContainer>> =
                         error_output_container.clone().unwrap_or(result_obj_default);
                     let specific_source = if let Some(next) = next.as_ref() {
                         self.check_expression_for_mutable_location_with_contextual_type(
@@ -534,7 +537,7 @@ impl TypeChecker {
                             Some(&*target_prop_type),
                         )
                     {
-                        let diag: Gc<Diagnostic> = Rc::new(
+                        let diag: Gc<Diagnostic> = Gc::new(
                             create_diagnostic_for_node(
                                 &prop,
                                 &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target,
@@ -806,8 +809,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         let mut result = self.elaborate_elementwise(
             self.generate_jsx_attributes(node),
@@ -1039,8 +1042,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         if target.flags().intersects(TypeFlags::Primitive) {
             return false;
@@ -1134,8 +1137,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         if target.flags().intersects(TypeFlags::Primitive) {
             return false;
@@ -1156,7 +1159,7 @@ impl TypeChecker {
         target: &Type,
         error_node: &Node,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> bool {
         self.check_type_related_to(
             source,
@@ -1186,7 +1189,9 @@ impl TypeChecker {
             false,
             &mut None,
             Option::<&fn(&Type, &Type)>::None,
-            Rc::new(TypeComparerCompareTypesAssignable::new(self.rc_wrapper())),
+            Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
+                self.rc_wrapper(),
+            ))),
             None,
         ) != Ternary::False
     }
@@ -1217,7 +1222,7 @@ impl TypeChecker {
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
         incompatible_error_reporter: Option<&TIncompatibleErrorReporter>,
-        compare_types: Rc<dyn TypeComparer>,
+        compare_types: Gc<Box<dyn TypeComparer>>,
         report_unreliable_markers: Option<Gc<TypeMapper>>,
     ) -> Ternary {
         if Gc::ptr_eq(&source, &target) {
@@ -1244,7 +1249,7 @@ impl TypeChecker {
             source.maybe_type_parameters().as_ref(),
             Some(source_type_parameters) if !matches!(
                 target.maybe_type_parameters().as_ref(),
-                Some(target_type_parameters) if are_rc_slices_equal(source_type_parameters, target_type_parameters)
+                Some(target_type_parameters) if are_gc_slices_equal(source_type_parameters, target_type_parameters)
             )
         ) {
             target = self.get_canonical_signature(target);
@@ -1572,7 +1577,7 @@ pub(super) struct CheckTypeErrorOutputContainerConcrete {
 impl CheckTypeErrorOutputContainerConcrete {
     pub fn new(skip_logging: Option<bool>) -> Self {
         Self {
-            errors: RefCell::new(vec![]),
+            errors: Default::default(),
             skip_logging,
         }
     }

@@ -9,8 +9,8 @@ use std::rc::Rc;
 
 use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
-    append_if_unique_rc, arrays_equal, contains, contains_rc, create_scanner, every, filter,
-    get_check_flags, get_object_flags, map, some, CheckFlags, ElementFlags, InferenceInfo,
+    append_if_unique_rc, arrays_equal, contains, contains_gc, contains_rc, create_scanner, every,
+    filter, get_check_flags, get_object_flags, map, some, CheckFlags, ElementFlags, InferenceInfo,
     InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
     VarianceFlags,
@@ -32,7 +32,7 @@ impl TypeChecker {
             None,
         );
         let template_type = self.get_template_type_from_mapped_type(target);
-        let inference = Rc::new(self.create_inference_info(&type_parameter));
+        let inference = Gc::new(self.create_inference_info(&type_parameter));
         self.infer_types(
             &vec![inference.clone()],
             source_type,
@@ -489,7 +489,7 @@ impl TypeChecker {
 
     pub(super) fn infer_types(
         &self,
-        inferences: &[Rc<InferenceInfo>],
+        inferences: &[Gc<InferenceInfo>],
         original_source: &Type,
         original_target: &Type,
         priority: Option<InferencePriority>,
@@ -510,7 +510,7 @@ impl TypeChecker {
 
 pub(super) struct InferTypes {
     pub type_checker: Gc<TypeChecker>,
-    pub inferences: Vec<Rc<InferenceInfo>>,
+    pub inferences: Vec<Gc<InferenceInfo>>,
     pub original_target: Gc<Type>,
     priority: Cell<InferencePriority>,
     contravariant: Cell<bool>,
@@ -527,7 +527,7 @@ pub(super) struct InferTypes {
 impl InferTypes {
     pub(super) fn new(
         type_checker: Gc<TypeChecker>,
-        inferences: Vec<Rc<InferenceInfo>>,
+        inferences: Vec<Gc<InferenceInfo>>,
         original_target: Gc<Type>,
         priority: InferencePriority,
         contravariant: bool,
@@ -769,7 +769,7 @@ impl InferTypes {
                             .clone()
                             .unwrap_or_else(|| source.clone());
                         if self.contravariant() && !self.bivariant() {
-                            if !contains_rc(
+                            if !contains_gc(
                                 inference.maybe_contra_candidates().as_deref(),
                                 &candidate,
                             ) {
@@ -783,7 +783,7 @@ impl InferTypes {
                                     .push(candidate);
                                 self.type_checker.clear_cached_inferences(&self.inferences);
                             }
-                        } else if !contains_rc(inference.maybe_candidates().as_deref(), &candidate)
+                        } else if !contains_gc(inference.maybe_candidates().as_deref(), &candidate)
                         {
                             if inference.maybe_candidates().is_none() {
                                 *inference.maybe_candidates_mut() = Some(vec![]);

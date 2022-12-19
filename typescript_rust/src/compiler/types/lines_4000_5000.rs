@@ -1189,7 +1189,8 @@ pub struct SymbolLinks {
     pub specifier_cache: Option<HashMap<String, String>>,
     pub extended_containers: Option<Vec<Gc<Symbol>>>,
     pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Gc<Symbol>>>>,
-    pub variances: Option<Vec<VarianceFlags>>,
+    #[unsafe_ignore_trace]
+    pub variances: Rc<RefCell<Option<Vec<VarianceFlags>>>>,
     pub deferral_constituents: Option<Vec<Gc<Type>>>,
     pub deferral_parent: Option<Gc<Type>>,
     pub cjs_export_merged: Option<Gc<Symbol>>,
@@ -1233,7 +1234,7 @@ impl SymbolLinks {
             specifier_cache: None,
             extended_containers: None,
             extended_containers_by_file: None,
-            variances: None,
+            variances: Default::default(),
             deferral_constituents: None,
             deferral_parent: None,
             cjs_export_merged: None,

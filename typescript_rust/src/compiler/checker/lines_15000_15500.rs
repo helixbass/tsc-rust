@@ -489,7 +489,7 @@ impl TypeChecker {
                                 .flags()
                                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
                         {
-                            self.diagnostics().add(Rc::new(
+                            self.diagnostics().add(Gc::new(
                                 create_diagnostic_for_node(
                                     access_expression,
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
@@ -741,7 +741,7 @@ impl TypeChecker {
                                             self.type_to_string_(object_type, Option::<&Node>::None, None, None),
                                         ])
                                     ));
-                                    self.diagnostics().add(Rc::new(
+                                    self.diagnostics().add(Gc::new(
                                         create_diagnostic_for_node_from_message_chain(
                                             access_expression,
                                             error_info.unwrap(),
@@ -1199,7 +1199,7 @@ impl TypeChecker {
         object_type: &Type, /*MappedType*/
         index: &Type,
     ) -> Gc<Type> {
-        let mapper = Rc::new(self.create_type_mapper(
+        let mapper = Gc::new(self.create_type_mapper(
             vec![self.get_type_parameter_from_mapped_type(object_type)],
             Some(vec![index.type_wrapper()]),
         ));

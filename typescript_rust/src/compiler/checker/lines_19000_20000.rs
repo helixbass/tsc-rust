@@ -13,13 +13,14 @@ use super::{
     SignatureCheckMode, TypeComparerIsRelatedToWorker, TypeFacts,
 };
 use crate::{
-    are_option_rcs_equal, cartesian_product, create_diagnostic_for_node, factory,
-    get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
-    is_named_declaration, is_private_identifier, length, push_if_unique_rc, reduce_left, some,
-    CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,
-    ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
-    TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
+    are_option_gcs_equal, are_option_rcs_equal, cartesian_product, create_diagnostic_for_node,
+    factory, get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
+    is_named_declaration, is_private_identifier, length, push_if_unique_gc, push_if_unique_rc,
+    reduce_left, some, CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    ElementFlags, IndexInfo, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
+    TypeFlags, TypeFormatFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
+    get_object_flags,
 };
 
 impl CheckTypeRelatedTo {
@@ -120,7 +121,7 @@ impl CheckTypeRelatedTo {
                 &self
                     .type_checker
                     .get_constraint_type_from_mapped_type(source),
-                Some(Rc::new(
+                Some(Gc::new(
                     if self
                         .type_checker
                         .get_combined_mapped_type_optionality(source)
@@ -143,7 +144,7 @@ impl CheckTypeRelatedTo {
                 None,
             );
             if result != Ternary::False {
-                let mapper = Rc::new(self.type_checker.create_type_mapper(
+                let mapper = Gc::new(self.type_checker.create_type_mapper(
                     vec![self
                         .type_checker
                         .get_type_parameter_from_mapped_type(source)],
@@ -151,7 +152,7 @@ impl CheckTypeRelatedTo {
                         .type_checker
                         .get_type_parameter_from_mapped_type(target)]),
                 ));
-                if are_option_rcs_equal(
+                if are_option_gcs_equal(
                     self.type_checker
                         .maybe_instantiate_type(
                             self.type_checker.get_name_type_from_mapped_type(source),
@@ -264,7 +265,7 @@ impl CheckTypeRelatedTo {
                         continue 'outer;
                     }
                 }
-                push_if_unique_rc(&mut matching_types, type_);
+                push_if_unique_gc(&mut matching_types, type_);
                 has_match = true;
             }
             if !has_match {
@@ -375,7 +376,7 @@ impl CheckTypeRelatedTo {
         if source_prop_flags.intersects(ModifierFlags::Private)
             || target_prop_flags.intersects(ModifierFlags::Private)
         {
-            if !are_option_rcs_equal(
+            if !are_option_gcs_equal(
                 source_prop.maybe_value_declaration().as_ref(),
                 target_prop.maybe_value_declaration().as_ref(),
             ) {
@@ -1223,7 +1224,7 @@ impl CheckTypeRelatedTo {
         let target_object_flags = get_object_flags(target);
         if source_object_flags.intersects(ObjectFlags::Instantiated)
             && target_object_flags.intersects(ObjectFlags::Instantiated)
-            && are_option_rcs_equal(
+            && are_option_gcs_equal(
                 source.maybe_symbol().as_ref(),
                 target.maybe_symbol().as_ref(),
             )
@@ -1453,8 +1454,10 @@ impl CheckTypeRelatedTo {
                 self.report_error(message, args)
             }),
             Some(&|source: &Type, target: &Type| incompatible_reporter(self, source, target)),
-            Rc::new(TypeComparerIsRelatedToWorker::new(self.rc_wrapper())),
-            Some(Rc::new(
+            Gc::new(Box::new(TypeComparerIsRelatedToWorker::new(
+                self.rc_wrapper(),
+            ))),
+            Some(Gc::new(
                 self.type_checker
                     .make_function_type_mapper(ReportUnreliableMarkers),
             )),

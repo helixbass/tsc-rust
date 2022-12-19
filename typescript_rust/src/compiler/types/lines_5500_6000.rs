@@ -978,10 +978,10 @@ pub struct InferenceContext {
 
 impl InferenceContext {
     pub fn new(
-        inferences: Vec<Rc<InferenceInfo>>,
+        inferences: Vec<Gc<InferenceInfo>>,
         signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
-        compare_types: Rc<dyn TypeComparer>,
+        compare_types: Gc<Box<dyn TypeComparer>>,
         mapper: Option<Gc<TypeMapper>>,
         non_fixing_mapper: Option<Gc<TypeMapper>>,
         return_mapper: Option<Gc<TypeMapper>>,
@@ -999,11 +999,11 @@ impl InferenceContext {
         }
     }
 
-    pub fn inferences(&self) -> Ref<Vec<Rc<InferenceInfo>>> {
+    pub fn inferences(&self) -> Ref<Vec<Gc<InferenceInfo>>> {
         self.inferences.borrow()
     }
 
-    pub fn inferences_mut(&self) -> RefMut<Vec<Rc<InferenceInfo>>> {
+    pub fn inferences_mut(&self) -> RefMut<Vec<Gc<InferenceInfo>>> {
         self.inferences.borrow_mut()
     }
 

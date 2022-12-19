@@ -10,14 +10,15 @@ use super::{anon, get_symbol_id, intrinsic_type_kinds};
 use crate::{
     append, concatenate, declaration_name_to_string, get_check_flags, get_containing_function,
     get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, get_object_flags,
-    index_of_rc, is_entity_name_expression, is_expression_with_type_arguments, is_identifier,
-    is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag,
-    is_statement, is_type_alias, length, map, maybe_concatenate, skip_parentheses,
-    walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, CheckFlags, Diagnostics,
-    HasTypeArgumentsInterface, InterfaceTypeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeMapper, TypeReference, TypeReferenceInterface, TypeSystemPropertyName,
+    index_of_gc, index_of_rc, is_entity_name_expression, is_expression_with_type_arguments,
+    is_identifier, is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature,
+    is_jsdoc_template_tag, is_statement, is_type_alias, length, map, maybe_concatenate,
+    skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType,
+    CheckFlags, Diagnostics, HasTypeArgumentsInterface, InterfaceTypeInterface, Node, NodeFlags,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, SubstitutionType, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeReference, TypeReferenceInterface,
+    TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -44,7 +45,7 @@ impl TypeChecker {
                             let type_parameters =
                                 self.get_type_parameters_for_type_reference(type_reference);
                             if let Some(type_parameters) = type_parameters {
-                                let index: usize = index_of_rc(
+                                let index: usize = index_of_gc(
                                     type_reference
                                         .as_type_reference_node()
                                         .maybe_type_arguments()
@@ -58,7 +59,7 @@ impl TypeChecker {
                                     let declared_constraint = self
                                         .get_constraint_of_type_parameter(&type_parameters[index]);
                                     if let Some(declared_constraint) = declared_constraint {
-                                        let mapper = Rc::new(self.create_type_mapper(
+                                        let mapper = Gc::new(self.create_type_mapper(
                                             type_parameters.clone(),
                                             Some(self.get_effective_type_arguments(
                                                 type_reference,
@@ -157,7 +158,7 @@ impl TypeChecker {
                                 Some(
                                     self.instantiate_type(
                                         &node_type,
-                                        Some(Rc::new(
+                                        Some(Gc::new(
                                             self.make_unary_type_mapper(
                                                 &self.get_declared_type_of_type_parameter(
                                                     &self
@@ -649,7 +650,7 @@ impl TypeChecker {
         if instantiation.is_none() {
             instantiation = Some(self.instantiate_type_with_alias(
                 &type_,
-                Rc::new(self.create_type_mapper(
+                Gc::new(self.create_type_mapper(
                     type_parameters.clone(),
                     self.fill_missing_type_arguments(
                         type_arguments.map(ToOwned::to_owned),
@@ -869,7 +870,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_reference_type(&self, node: &Node, symbol: &Symbol) -> Gc<Type> {
-        if ptr::eq(symbol, Rc::as_ptr(&self.unknown_symbol())) {
+        if ptr::eq(symbol, &*self.unknown_symbol()) {
             return self.error_type();
         }
         let symbol = self
@@ -1130,7 +1131,7 @@ impl TypeChecker {
                                 let index_info = if Gc::ptr_eq(&indexed, &self.string_type())
                                     || Gc::ptr_eq(&indexed, &self.number_type())
                                 {
-                                    vec![Rc::new(
+                                    vec![Gc::new(
                                         self.create_index_info(indexed, target, false, None),
                                     )]
                                 } else {
