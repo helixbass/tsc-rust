@@ -5,6 +5,7 @@ use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::io;
+use std::mem;
 use std::ptr;
 use std::rc::Rc;
 
@@ -392,7 +393,7 @@ impl TypeChecker {
             EmitHint::Unspecified,
             &sig.unwrap(),
             source_file.as_deref(),
-            Gc::new(Box::new(get_trailing_semicolon_deferring_writer(writer))),
+            get_trailing_semicolon_deferring_writer(writer),
         );
         // writer
     }
@@ -408,7 +409,7 @@ impl TypeChecker {
             TypeFormatFlags::AllowUniqueESSymbolType
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
-        let writer = writer.unwrap_or_else(|| Gc::new(Box::new(create_text_writer(""))));
+        let writer = writer.unwrap_or_else(|| create_text_writer("").as_dyn_emit_text_writer());
         let no_truncation = matches!(self.compiler_options.no_error_truncation, Some(true))
             || flags.intersects(TypeFormatFlags::NoTruncation);
         let enclosing_declaration = enclosing_declaration
@@ -700,10 +701,8 @@ impl NodeBuilder {
         let tracker = tracker
             .filter(|tracker| tracker.is_track_symbol_supported())
             .unwrap_or_else(|| {
-                Gc::new(Box::new(DefaultNodeBuilderContextSymbolTracker::new(
-                    self.type_checker.host.clone(),
-                    flags,
-                )))
+                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.host.clone(), flags)
+                    .as_dyn_symbol_tracker()
             });
         let context = Gc::new(GcCell::new(NodeBuilderContext::new(
             enclosing_declaration,
@@ -1561,6 +1560,7 @@ impl NodeBuilder {
 
 #[derive(Trace, Finalize)]
 struct DefaultNodeBuilderContextSymbolTracker {
+    _dyn_rc_wrapper: GcCell<Option<Gc<Box<dyn SymbolTracker>>>>,
     pub module_resolver_host:
         Option<Gc<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
 }
@@ -1569,8 +1569,9 @@ impl DefaultNodeBuilderContextSymbolTracker {
     pub fn new(
         host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Self {
-        Self {
+    ) -> Gc<Box<Self>> {
+        let dyn_rc_wrapper: Gc<Box<dyn SymbolTracker>> = Gc::new(Box::new(Self {
+            _dyn_rc_wrapper: Default::default(),
             module_resolver_host: if matches!(
                 flags,
                 Some(flags) if flags.intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
@@ -1581,7 +1582,14 @@ impl DefaultNodeBuilderContextSymbolTracker {
             } else {
                 None
             },
-        }
+        }));
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_rc_wrapper) };
+        *downcasted._dyn_rc_wrapper.borrow_mut() = Some(dyn_rc_wrapper);
+        downcasted
+    }
+
+    pub fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self._dyn_rc_wrapper.borrow().clone().unwrap()
     }
 }
 

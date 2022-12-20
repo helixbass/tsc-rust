@@ -1,4 +1,4 @@
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -21,9 +21,9 @@ use crate::{
     CharacterCodes, CompilerHost, CompilerOptions, CreateProgram, CreateProgramOptions,
     CreateWatchCompilerHostOfConfigFileInput, CustomTransformers, Diagnostic, DiagnosticReporter,
     Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
-    IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine, Program,
+    IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine, Path, Program,
     ProgramHost, ReportEmitErrorSummary, ScriptTarget, SemanticDiagnosticsBuilderProgram,
-    SolutionBuilderHostBase, System, WatchCompilerHost, WatchOptions, WatchStatusReporter,
+    SolutionBuilderHostBase, System, ToPath, WatchCompilerHost, WatchOptions, WatchStatusReporter,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -52,7 +52,7 @@ pub fn is_build(command_line_args: &[String]) -> bool {
 pub fn execute_command_line<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     mut cb: TCallback,
     command_line_args: &[String],
 ) {
@@ -131,7 +131,7 @@ pub(super) fn report_watch_mode_without_sys_support(
     report_diagnostic: &dyn DiagnosticReporter,
 ) -> bool {
     if !sys.is_watch_file_supported() || !sys.is_watch_directory_supported() {
-        report_diagnostic.call(Rc::new(
+        report_diagnostic.call(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::The_current_host_does_not_support_the_0_option,
                 Some(vec!["--watch".to_owned()]),
@@ -146,7 +146,7 @@ pub(super) fn report_watch_mode_without_sys_support(
 pub(super) fn perform_build<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    sys: Rc<dyn System>,
+    sys: Gc<Box<dyn System>>,
     cb: &mut TCallback,
     build_options: Rc<BuildOptions>,
     watch_options: Option<&WatchOptions>,
@@ -161,7 +161,7 @@ pub(super) fn perform_build<
 
     if let Some(build_options_locale) = build_options.locale.as_ref() {
         if !build_options_locale.is_empty() {
-            validate_locale_and_set_language(build_options_locale, &*sys, Some(&mut errors));
+            validate_locale_and_set_language(build_options_locale, &**sys, Some(&mut errors));
         }
     }
 
@@ -173,17 +173,17 @@ pub(super) fn perform_build<
     }
 
     if matches!(build_options.help, Some(true)) {
-        print_version(&*sys);
+        print_version(&**sys);
         build_opts.with(|build_opts_| {
-            print_build_help(&*sys, &build_opts_);
+            print_build_help(&**sys, &build_opts_);
         });
         sys.exit(Some(ExitStatus::Success));
     }
 
     if projects.is_empty() {
-        print_version(&*sys);
+        print_version(&**sys);
         build_opts.with(|build_opts_| {
-            print_build_help(&*sys, &build_opts_);
+            print_build_help(&**sys, &build_opts_);
         });
         sys.exit(Some(ExitStatus::Success));
     }
@@ -192,7 +192,7 @@ pub(super) fn perform_build<
         || !sys.is_set_modified_time_supported()
         || matches!(build_options.clean, Some(true)) && !sys.is_delete_file_supported()
     {
-        report_diagnostic.call(Rc::new(
+        report_diagnostic.call(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::The_current_host_does_not_support_the_0_option,
                 Some(vec!["--build".to_owned()]),
@@ -203,23 +203,23 @@ pub(super) fn perform_build<
     }
 
     if matches!(build_options.watch, Some(true)) {
-        if report_watch_mode_without_sys_support(&*sys, &*report_diagnostic) {
+        if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic) {
             return;
         }
         let mut build_host = create_solution_builder_with_watch_host(
-            Some(&*sys),
+            Some(&**sys),
             Option::<CreateProgramDummy>::None,
             Some(report_diagnostic.clone()),
             Some(create_builder_status_reporter(
-                &*sys,
-                Some(should_be_pretty(&*sys, build_options.clone().into())),
+                &**sys,
+                Some(should_be_pretty(&**sys, build_options.clone().into())),
             )),
             Some(create_watch_status_reporter(
                 sys.clone(),
                 build_options.clone().into(),
             )),
         );
-        update_solution_builder_host(&*sys, cb, &mut build_host);
+        update_solution_builder_host(&**sys, cb, &mut build_host);
         let builder = create_solution_builder_with_watch(
             &build_host,
             projects,
@@ -236,16 +236,16 @@ pub(super) fn perform_build<
     }
 
     let mut build_host = create_solution_builder_host(
-        Some(&*sys),
+        Some(&**sys),
         Option::<CreateProgramDummy>::None,
         Some(report_diagnostic.clone()),
         Some(create_builder_status_reporter(
-            &*sys,
-            Some(should_be_pretty(&*sys, build_options.clone().into())),
+            &**sys,
+            Some(should_be_pretty(&**sys, build_options.clone().into())),
         )),
         create_report_error_summary(sys.clone(), build_options.clone().into()),
     );
-    update_solution_builder_host(&*sys, cb, &mut build_host);
+    update_solution_builder_host(&**sys, cb, &mut build_host);
     let builder = create_solution_builder(&build_host, projects, &build_options);
     let exit_status = if matches!(build_options.clean, Some(true)) {
         builder.clean(None)
@@ -286,10 +286,10 @@ struct CreateProgramDummy {}
 impl CreateProgram<BuilderProgramDummy> for CreateProgramDummy {}
 
 pub(super) fn create_report_error_summary(
-    sys: Rc<dyn System>,
+    sys: Gc<Box<dyn System>>,
     options: CompilerOptionsOrBuildOptions,
 ) -> Option<Rc<dyn ReportEmitErrorSummary>> {
-    if should_be_pretty(&*sys, options) {
+    if should_be_pretty(&**sys, options) {
         Some(Rc::new(ReportEmitErrorSummaryConcrete::new(sys)))
     } else {
         None
@@ -297,11 +297,11 @@ pub(super) fn create_report_error_summary(
 }
 
 pub(super) struct ReportEmitErrorSummaryConcrete {
-    sys: Rc<dyn System>,
+    sys: Gc<Box<dyn System>>,
 }
 
 impl ReportEmitErrorSummaryConcrete {
-    pub fn new(sys: Rc<dyn System>) -> Self {
+    pub fn new(sys: Gc<Box<dyn System>>) -> Self {
         Self { sys }
     }
 }
@@ -316,35 +316,32 @@ impl ReportEmitErrorSummary for ReportEmitErrorSummaryConcrete {
 pub(super) fn perform_compilation<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    sys: Rc<dyn System>,
+    sys: Gc<Box<dyn System>>,
     mut cb: TCallback,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
 ) {
     let file_names = &config.file_names;
     let options = config.options.clone();
     let project_references = &config.project_references;
-    let host: Gc<Box<dyn CompilerHost>> = Rc::new(create_compiler_host_worker(
+    let host: Gc<Box<dyn CompilerHost>> = Gc::new(Box::new(create_compiler_host_worker(
         options.clone(),
         None,
         Some(sys.clone()),
-    ));
-    let current_directory = CompilerHost::get_current_directory(&*host);
+    )));
+    let current_directory = CompilerHost::get_current_directory(&**host);
     let get_canonical_file_name =
-        create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&*host));
+        create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&**host));
     change_compiler_host_like_to_use_cache(
         host.clone(),
-        Rc::new({
-            move |file_name| {
-                to_path(file_name, Some(&current_directory), |file_name| {
-                    get_canonical_file_name(file_name)
-                })
-            }
-        }),
+        Gc::new(Box::new(PerformCompilationToPath::new(
+            current_directory,
+            get_canonical_file_name,
+        ))),
         None,
     );
 
-    enable_statistics_and_tracing(&*sys, &options, false);
+    enable_statistics_and_tracing(&**sys, &options, false);
 
     let program_options = CreateProgramOptions {
         root_names: config.file_names.clone(),
@@ -365,30 +362,53 @@ pub(super) fn perform_compilation<
         None,
         None,
     );
-    report_statistics(&*sys, &program);
+    report_statistics(&**sys, &program);
     cb(program.into());
     sys.exit(Some(exit_status));
+}
+
+#[derive(Trace, Finalize)]
+struct PerformCompilationToPath {
+    current_directory: String,
+    get_canonical_file_name: fn(&str) -> String,
+}
+
+impl PerformCompilationToPath {
+    pub fn new(current_directory: String, get_canonical_file_name: fn(&str) -> String) -> Self {
+        Self {
+            current_directory,
+            get_canonical_file_name,
+        }
+    }
+}
+
+impl ToPath for PerformCompilationToPath {
+    fn call(&self, file_name: &str) -> Path {
+        to_path(file_name, Some(&self.current_directory), |file_name| {
+            (self.get_canonical_file_name)(file_name)
+        })
+    }
 }
 
 pub(super) fn perform_incremental_compilation<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    sys: Rc<dyn System>,
+    sys: Gc<Box<dyn System>>,
     mut cb: TCallback,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
 ) {
     let options = config.options.clone();
     let file_names = &config.file_names;
     let project_references = &config.project_references;
-    enable_statistics_and_tracing(&*sys, &options, false);
-    let host = Rc::new(create_incremental_compiler_host(
+    enable_statistics_and_tracing(&**sys, &options, false);
+    let host: Gc<Box<dyn CompilerHost>> = Gc::new(Box::new(create_incremental_compiler_host(
         options.clone(),
         Some(sys.clone()),
-    ));
+    )));
     let exit_status = perform_incremental_compilation_(IncrementalCompilationOptions {
         host: Some(host),
-        system: Some(&*sys),
+        system: Some(&**sys),
         root_names: file_names,
         options: &options.clone(),
         config_file_parsing_diagnostics: Some(&get_config_file_parsing_diagnostics(config)),
@@ -398,7 +418,7 @@ pub(super) fn perform_incremental_compilation<
         after_program_emit_and_diagnostics: Some(&|builder_program: Rc<
             dyn EmitAndSemanticDiagnosticsBuilderProgram,
         >| {
-            report_statistics(&*sys, &builder_program.get_program());
+            report_statistics(&**sys, &builder_program.get_program());
             cb(builder_program.into());
         }),
     });
@@ -458,21 +478,21 @@ pub(super) fn update_watch_compilation_host<
 }
 
 pub(super) fn create_watch_status_reporter(
-    sys: Rc<dyn System>,
+    sys: Gc<Box<dyn System>>,
     options: CompilerOptionsOrBuildOptions,
 ) -> Rc<dyn WatchStatusReporter> {
     Rc::new(create_watch_status_reporter_(
         sys.clone(),
-        Some(should_be_pretty(&*sys, options)),
+        Some(should_be_pretty(&**sys, options)),
     ))
 }
 
 pub(super) fn create_watch_of_config_file<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     mut cb: TCallback,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config_parse_result: Rc<ParsedCommandLine>,
     options_to_extend: Gc<CompilerOptions>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
@@ -487,8 +507,8 @@ pub(super) fn create_watch_of_config_file<
                 .unwrap(),
             options_to_extend: Some(&options_to_extend),
             watch_options_to_extend,
-            system: &*system,
-            report_diagnostic: Some(&*report_diagnostic),
+            system: &**system,
+            report_diagnostic: Some(&**report_diagnostic),
             report_watch_status: Some(create_watch_status_reporter(
                 system.clone(),
                 config_parse_result.options.clone().into(),
@@ -496,7 +516,7 @@ pub(super) fn create_watch_of_config_file<
             create_program: Option::<&dyn CreateProgram<BuilderProgramDummy>>::None,
             extra_file_extensions: None,
         });
-    update_watch_compilation_host(&*system, cb, &mut watch_compiler_host);
+    update_watch_compilation_host(&**system, cb, &mut watch_compiler_host);
     // TODO: how to model this?
     // watchCompilerHost.configFileParsingResult = configParseResult;
     // watchCompilerHost.extendedConfigCache = extendedConfigCache;
@@ -508,7 +528,7 @@ pub(super) fn create_watch_of_files_and_compiler_options<
 >(
     system: &dyn System,
     mut cb: TCallback,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     root_files: &[String],
     options: Gc<CompilerOptions>,
     watch_options: Option<Rc<WatchOptions>>,
@@ -520,13 +540,13 @@ pub(super) fn can_report_diagnostics(
     system: &dyn System,
     compiler_options: &CompilerOptions,
 ) -> bool {
-    ptr::eq(system, &*get_sys())
+    ptr::eq(system, &**get_sys())
         && (matches!(compiler_options.diagnostics, Some(true))
             || matches!(compiler_options.extended_diagnostics, Some(true)))
 }
 
 pub(super) fn can_trace(system: &dyn System, compiler_options: &CompilerOptions) -> bool {
-    ptr::eq(system, &*get_sys())
+    ptr::eq(system, &**get_sys())
         && matches!(compiler_options.generate_trace.as_ref(), Some(generate_trace) if !generate_trace.is_empty())
 }
 

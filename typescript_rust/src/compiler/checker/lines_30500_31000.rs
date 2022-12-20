@@ -36,7 +36,7 @@ impl TypeChecker {
         error_target: &Node,
         apparent_type: &Type,
         kind: SignatureKind,
-        related_information: Option<Rc<DiagnosticRelatedInformation>>,
+        related_information: Option<Gc<DiagnosticRelatedInformation>>,
     ) {
         let InvocationErrorDetails {
             message_chain,
@@ -48,7 +48,7 @@ impl TypeChecker {
         if let Some(related_info) = related_info {
             add_related_info(
                 &diagnostic,
-                vec![Rc::new(
+                vec![Gc::new(
                     create_diagnostic_for_node(error_target, related_info, None).into(),
                 )],
             );
@@ -110,7 +110,7 @@ impl TypeChecker {
             add_related_info(
                 diagnostic,
                 vec![
-                    Rc::new(
+                    Gc::new(
                         create_diagnostic_for_node(
                             import_node,
                             &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
@@ -265,7 +265,7 @@ impl TypeChecker {
             if let Some(error_details_related_message) = error_details_related_message {
                 add_related_info(
                     &diag,
-                    vec![Rc::new(
+                    vec![Gc::new(
                         create_diagnostic_for_node(
                             &node_as_decorator.expression,
                             error_details_related_message,

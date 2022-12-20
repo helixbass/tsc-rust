@@ -657,7 +657,7 @@ fn is_void_zero(node: &Node) -> bool {
 pub(crate) fn get_element_or_property_access_argument_expression_or_name(
     node: &Node, /*AccessExpression*/
 ) -> Option<
-    Rc<
+    Gc<
         Node, /*Identifier | PrivateIdentifier | StringLiteralLike | NumericLiteral | ElementAccessExpression*/
     >,
 > {

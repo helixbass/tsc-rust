@@ -388,7 +388,7 @@ impl TypeChecker {
                     add_related_info(
                         &diagnostic,
                         vec![
-                            Rc::new(
+                            Gc::new(
                                 create_diagnostic_for_node(
                                     &lexical_value_decl,
                                     &Diagnostics::The_shadowing_declaration_of_0_is_defined_here,
@@ -397,7 +397,7 @@ impl TypeChecker {
                                     ])
                                 ).into()
                             ),
-                            Rc::new(
+                            Gc::new(
                                 create_diagnostic_for_node(
                                     &type_value_decl,
                                     &Diagnostics::The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here,
@@ -966,7 +966,7 @@ impl TypeChecker {
         if let Some(diagnostic_message) = diagnostic_message.as_ref() {
             add_related_info(
                 diagnostic_message,
-                vec![Rc::new(
+                vec![Gc::new(
                     create_diagnostic_for_node(
                         &value_declaration,
                         &Diagnostics::_0_is_declared_here,
@@ -1067,7 +1067,7 @@ impl TypeChecker {
         is_unchecked_js: bool,
     ) {
         let mut error_info: Option<DiagnosticMessageChain> = None;
-        let mut related_info: Option<Rc<DiagnosticRelatedInformation>> = None;
+        let mut related_info: Option<Gc<DiagnosticRelatedInformation>> = None;
         if !is_private_identifier(prop_node)
             && containing_type.flags().intersects(TypeFlags::Union)
             && !containing_type.flags().intersects(TypeFlags::Primitive)
@@ -1125,7 +1125,7 @@ impl TypeChecker {
                         self.type_to_string_(containing_type, Option::<&Node>::None, None, None),
                     ]),
                 ));
-                related_info = Some(Rc::new(
+                related_info = Some(Gc::new(
                     create_diagnostic_for_node(
                         prop_node,
                         &Diagnostics::Did_you_forget_to_use_await,
@@ -1170,7 +1170,7 @@ impl TypeChecker {
                         ));
                         related_info = suggestion.maybe_value_declaration().as_ref().map(
                             |suggestion_value_declaration| {
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         suggestion_value_declaration,
                                         &Diagnostics::_0_is_declared_here,

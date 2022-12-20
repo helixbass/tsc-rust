@@ -782,7 +782,7 @@ pub fn attach_file_to_diagnostic(
                         Debug_.assert_less_than_or_equal(related.start(), length);
                         Debug_
                             .assert_less_than_or_equal(related.start() + related.length(), length);
-                        Rc::new(
+                        Gc::new(
                             attach_file_to_diagnostic(
                                 related.as_diagnostic_with_detached_location(),
                                 file,
@@ -806,7 +806,7 @@ pub fn attach_file_to_diagnostics(
     diagnostics
         .iter()
         .map(|diagnostic| {
-            Rc::new(
+            Gc::new(
                 attach_file_to_diagnostic(diagnostic.as_diagnostic_with_detached_location(), file)
                     .into(),
             )

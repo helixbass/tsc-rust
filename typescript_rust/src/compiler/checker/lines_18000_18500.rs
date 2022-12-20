@@ -267,7 +267,7 @@ impl CheckTypeRelatedTo {
                 }
             }
 
-            let mut related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
+            let mut related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
             if let Some(head_message) = self.head_message.as_ref() {
                 if let Some(error_node) = self.maybe_error_node().as_ref() {
                     if result == Ternary::False {
@@ -292,7 +292,7 @@ impl CheckTypeRelatedTo {
                                     None,
                                 );
                                 if helpful_retry {
-                                    let diag: Rc<DiagnosticRelatedInformation> = Rc::new(create_diagnostic_for_node(
+                                    let diag: Gc<DiagnosticRelatedInformation> = Gc::new(create_diagnostic_for_node(
                                         &links_originating_import,
                                         &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
                                         None,
@@ -319,7 +319,7 @@ impl CheckTypeRelatedTo {
                 .into(),
             );
             if let Some(related_info) = self.maybe_related_info().clone() {
-                add_related_info(&diag, related_info.into_iter().map(Rc::new).collect());
+                add_related_info(&diag, related_info.into_iter().map(Gc::new).collect());
             }
             if let Some(error_output_container) = self.error_output_container.as_ref() {
                 error_output_container.push_error(diag.clone());

@@ -7,8 +7,8 @@ use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
 use crate::{
-    concatenate, contains_rc, create_file_diagnostic, create_scanner, create_text_span,
-    create_text_span_from_bounds, every, for_each_child, for_each_child_bool,
+    concatenate, contains_gc, contains_rc, create_file_diagnostic, create_scanner,
+    create_text_span, create_text_span_from_bounds, every, for_each_child, for_each_child_bool,
     get_combined_modifier_flags, get_combined_node_flags, get_emit_flags, get_end_line_position,
     get_leading_comment_ranges, get_line_and_character_of_position, get_source_file_of_node,
     get_trailing_comment_ranges, has_effective_readonly_modifier, has_static_modifier, is_accessor,
@@ -64,7 +64,7 @@ pub fn create_diagnostic_for_node_in_source_file(
 pub fn create_diagnostic_for_node_from_message_chain(
     node: &Node,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(Some(node)).unwrap();
     let span = get_error_span_for_node(&source_file, node);
@@ -112,7 +112,7 @@ pub fn create_file_diagnostic_from_message_chain(
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     assert_diagnostic_location(Some(file), start, length);
     DiagnosticWithLocation::new(BaseDiagnostic::new(
@@ -135,7 +135,7 @@ pub fn create_file_diagnostic_from_message_chain(
 pub fn create_diagnostic_for_file_from_message_chain(
     source_file: &Node, /*SourceFile*/
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
@@ -612,7 +612,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                     return Gc::ptr_eq(&node, &parent.as_type_assertion().type_);
                 }
                 SyntaxKind::CallExpression => {
-                    return contains_rc(
+                    return contains_gc(
                         parent
                             .as_call_expression()
                             .maybe_type_arguments()
@@ -621,7 +621,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                     );
                 }
                 SyntaxKind::NewExpression => {
-                    return contains_rc(
+                    return contains_gc(
                         parent.as_new_expression().maybe_type_arguments().as_deref(),
                         &node,
                     );

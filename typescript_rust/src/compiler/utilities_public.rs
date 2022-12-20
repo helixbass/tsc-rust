@@ -324,7 +324,7 @@ pub fn validate_locale_and_set_language(
 
     if match_result.is_none() {
         if let Some(errors) = errors {
-            errors.push(Rc::new(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into()));
+            errors.push(Gc::new(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into()));
         }
         return;
     }
@@ -370,7 +370,7 @@ fn try_set_language_and_territory(
     let file_contents = match sys.read_file(&file_path) {
         Err(_) => {
             if let Some(errors) = errors {
-                errors.push(Rc::new(
+                errors.push(Gc::new(
                     create_compiler_diagnostic(
                         &Diagnostics::Unable_to_open_file_0,
                         Some(vec![file_path]),
@@ -389,7 +389,7 @@ fn try_set_language_and_territory(
         Some(parsed_file_contents) => parsed_file_contents.is_err(),
     } {
         if let Some(errors) = errors {
-            errors.push(Rc::new(
+            errors.push(Gc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Corrupted_locale_file_0,
                     Some(vec![file_path]),

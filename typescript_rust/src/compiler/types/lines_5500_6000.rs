@@ -20,7 +20,7 @@ use super::{
 use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String};
 use local_macros::{enum_unwrapped, type_type};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "UnionOrIntersectionType",
     interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -43,7 +43,7 @@ impl IntersectionType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -51,12 +51,13 @@ impl IntersectionType {
 pub struct MappedType {
     _object_type: BaseObjectType,
     pub declaration: Gc<Node /*MappedTypeNode*/>,
-    type_parameter: RefCell<Option<Gc<Type /*TypeParameter*/>>>,
-    constraint_type: RefCell<Option<Gc<Type>>>,
-    name_type: RefCell<Option<Gc<Type>>>,
-    template_type: RefCell<Option<Gc<Type>>>,
-    modifiers_type: RefCell<Option<Gc<Type>>>,
-    resolved_apparent_type: RefCell<Option<Gc<Type>>>,
+    type_parameter: GcCell<Option<Gc<Type /*TypeParameter*/>>>,
+    constraint_type: GcCell<Option<Gc<Type>>>,
+    name_type: GcCell<Option<Gc<Type>>>,
+    template_type: GcCell<Option<Gc<Type>>>,
+    modifiers_type: GcCell<Option<Gc<Type>>>,
+    resolved_apparent_type: GcCell<Option<Gc<Type>>>,
+    #[unsafe_ignore_trace]
     contains_error: Cell<Option<bool>>,
 }
 
@@ -65,13 +66,13 @@ impl MappedType {
         Self {
             _object_type: object_type,
             declaration,
-            type_parameter: RefCell::new(None),
-            constraint_type: RefCell::new(None),
-            name_type: RefCell::new(None),
-            template_type: RefCell::new(None),
-            modifiers_type: RefCell::new(None),
-            resolved_apparent_type: RefCell::new(None),
-            contains_error: Cell::new(None),
+            type_parameter: Default::default(),
+            constraint_type: Default::default(),
+            name_type: Default::default(),
+            template_type: Default::default(),
+            modifiers_type: Default::default(),
+            resolved_apparent_type: Default::default(),
+            contains_error: Default::default(),
         }
     }
 
@@ -108,7 +109,7 @@ impl MappedType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -116,7 +117,7 @@ impl MappedType {
 pub struct EvolvingArrayType {
     _object_type: BaseObjectType,
     pub element_type: Gc<Type>,
-    final_array_type: RefCell<Option<Gc<Type>>>,
+    final_array_type: GcCell<Option<Gc<Type>>>,
 }
 
 impl EvolvingArrayType {
@@ -124,7 +125,7 @@ impl EvolvingArrayType {
         Self {
             _object_type: base_object_type,
             element_type,
-            final_array_type: RefCell::new(None),
+            final_array_type: Default::default(),
         }
     }
 
@@ -133,7 +134,7 @@ impl EvolvingArrayType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -259,14 +260,14 @@ pub enum IterationTypeCacheKey {
     IterationTypesOfIteratorResult,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type]
 pub struct TypeParameter {
     _type: BaseType,
-    pub constraint: RefCell<Option<Gc<Type>>>,
-    pub default: RefCell<Option<Gc<Type>>>,
+    pub constraint: GcCell<Option<Gc<Type>>>,
+    pub default: GcCell<Option<Gc<Type>>>,
     pub target: Option<Gc<Type /*TypeParameter*/>>,
-    pub mapper: RefCell<Option<Gc<TypeMapper>>>,
+    pub mapper: GcCell<Option<Gc<TypeMapper>>>,
     pub is_this_type: Option<bool>,
 }
 
@@ -274,11 +275,11 @@ impl TypeParameter {
     pub fn new(base_type: BaseType) -> Self {
         Self {
             _type: base_type,
-            constraint: RefCell::new(None),
-            default: RefCell::new(None),
-            target: None,
-            mapper: RefCell::new(None),
-            is_this_type: None,
+            constraint: Default::default(),
+            default: Default::default(),
+            target: Default::default(),
+            mapper: Default::default(),
+            is_this_type: Default::default(),
         }
     }
 
@@ -319,16 +320,17 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type]
 pub struct IndexedAccessType {
     _type: BaseType,
     pub object_type: Gc<Type>,
     pub index_type: Gc<Type>,
+    #[unsafe_ignore_trace]
     pub(crate) access_flags: AccessFlags,
     pub(crate) constraint: Option<Gc<Type>>,
-    simplified_for_reading: RefCell<Option<Gc<Type>>>,
-    simplified_for_writing: RefCell<Option<Gc<Type>>>,
+    simplified_for_reading: GcCell<Option<Gc<Type>>>,
+    simplified_for_writing: GcCell<Option<Gc<Type>>>,
 }
 
 impl IndexedAccessType {
@@ -343,9 +345,9 @@ impl IndexedAccessType {
             object_type,
             index_type,
             access_flags,
-            constraint: None,
-            simplified_for_reading: RefCell::new(None),
-            simplified_for_writing: RefCell::new(None),
+            constraint: Default::default(),
+            simplified_for_reading: Default::default(),
+            simplified_for_writing: Default::default(),
         }
     }
 
@@ -358,7 +360,7 @@ impl IndexedAccessType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type]
 pub struct IndexType {
     _type: BaseType,
@@ -407,7 +409,7 @@ impl ConditionalRoot {
             is_distributive,
             infer_type_parameters,
             outer_type_parameters,
-            instantiations: RefCell::new(None),
+            instantiations: Default::default(),
             alias_symbol,
             alias_type_arguments,
         }
@@ -418,7 +420,7 @@ impl ConditionalRoot {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type]
 pub struct ConditionalType {
     _type: BaseType,
@@ -473,7 +475,7 @@ impl ConditionalType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type]
 pub struct TemplateLiteralType {
     _type: BaseType,
@@ -491,7 +493,7 @@ impl TemplateLiteralType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type]
 pub struct StringMappingType {
     _type: BaseType,
@@ -507,10 +509,11 @@ impl StringMappingType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type]
 pub struct SubstitutionType {
     _type: BaseType,
+    #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
     pub base_type: Gc<Type>,
     pub substitute: Gc<Type>,
@@ -792,7 +795,7 @@ impl TypeMapper {
 
     pub fn new_function<TFunc: 'static + TypeMapperCallback>(func: TFunc) -> Self {
         Self::Function(TypeMapperFunction {
-            func: Rc::new(func),
+            func: Gc::new(Box::new(func)),
         })
     }
 
@@ -832,9 +835,13 @@ pub struct InferenceInfo {
     candidates: GcCell<Option<Vec<Gc<Type>>>>,
     contra_candidates: GcCell<Option<Vec<Gc<Type>>>>,
     inferred_type: GcCell<Option<Gc<Type>>>,
+    #[unsafe_ignore_trace]
     priority: Cell<Option<InferencePriority>>,
+    #[unsafe_ignore_trace]
     top_level: Cell<bool>,
+    #[unsafe_ignore_trace]
     is_fixed: Cell<bool>,
+    #[unsafe_ignore_trace]
     implied_arity: Cell<Option<usize>>,
 }
 
@@ -851,9 +858,9 @@ impl InferenceInfo {
     ) -> Self {
         Self {
             type_parameter,
-            candidates: RefCell::new(candidates),
-            contra_candidates: RefCell::new(contra_candidates),
-            inferred_type: RefCell::new(inferred_type),
+            candidates: GcCell::new(candidates),
+            contra_candidates: GcCell::new(contra_candidates),
+            inferred_type: GcCell::new(inferred_type),
             priority: Cell::new(priority),
             top_level: Cell::new(top_level),
             is_fixed: Cell::new(is_fixed),
@@ -971,6 +978,7 @@ pub trait TypeComparer: Trace + Finalize {
 pub struct InferenceContext {
     inferences: GcCell<Vec<Gc<InferenceInfo>>>,
     pub signature: Option<Gc<Signature>>,
+    #[unsafe_ignore_trace]
     flags: Cell<InferenceFlags>,
     pub compare_types: Gc<Box<dyn TypeComparer>>,
     mapper: GcCell<Option<Gc<TypeMapper>>>,
@@ -991,18 +999,18 @@ impl InferenceContext {
         inferred_type_parameters: Option<Vec<Gc<Type>>>,
     ) -> Self {
         Self {
-            inferences: RefCell::new(inferences),
+            inferences: GcCell::new(inferences),
             signature,
             flags: Cell::new(flags),
             compare_types,
-            mapper: RefCell::new(mapper),
-            non_fixing_mapper: RefCell::new(non_fixing_mapper),
-            return_mapper: RefCell::new(return_mapper),
-            inferred_type_parameters: RefCell::new(inferred_type_parameters),
+            mapper: GcCell::new(mapper),
+            non_fixing_mapper: GcCell::new(non_fixing_mapper),
+            return_mapper: GcCell::new(return_mapper),
+            inferred_type_parameters: GcCell::new(inferred_type_parameters),
         }
     }
 
-    pub fn inferences(&self) -> Ref<Vec<Gc<InferenceInfo>>> {
+    pub fn inferences(&self) -> GcCellRef<Vec<Gc<InferenceInfo>>> {
         self.inferences.borrow()
     }
 
@@ -1042,7 +1050,7 @@ impl InferenceContext {
         *self.return_mapper.borrow_mut() = return_mapper;
     }
 
-    pub fn maybe_inferred_type_parameters(&self) -> Ref<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_inferred_type_parameters(&self) -> GcCellRef<Option<Vec<Gc<Type>>>> {
         self.inferred_type_parameters.borrow()
     }
 
@@ -1176,10 +1184,11 @@ impl Diagnostic {
 }
 
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
-    fn maybe_related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
+    fn maybe_related_information(&self)
+        -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>>;
     fn maybe_related_information_mut(
         &self,
-    ) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
+    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>>;
     fn maybe_skipped_on(&self) -> Ref<Option<String>>;
     fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>>;
 }
@@ -1188,18 +1197,19 @@ pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
     related_information: GcCell<Option<Vec<Gc<DiagnosticRelatedInformation>>>>,
-    skipped_on: GcCell<Option<String /*keyof CompilerOptions*/>>,
+    #[unsafe_ignore_trace]
+    skipped_on: RefCell<Option<String /*keyof CompilerOptions*/>>,
 }
 
 impl BaseDiagnostic {
     pub fn new(
         diagnostic_related_information: BaseDiagnosticRelatedInformation,
-        related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+        related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
     ) -> Self {
         Self {
             _diagnostic_related_information: diagnostic_related_information,
-            related_information: RefCell::new(related_information),
-            skipped_on: RefCell::new(None),
+            related_information: GcCell::new(related_information),
+            skipped_on: Default::default(),
         }
     }
 }
@@ -1255,13 +1265,15 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
 }
 
 impl DiagnosticInterface for BaseDiagnostic {
-    fn maybe_related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn maybe_related_information(
+        &self,
+    ) -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow_mut()
     }
 
@@ -1383,7 +1395,9 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 }
 
 impl DiagnosticInterface for Diagnostic {
-    fn maybe_related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn maybe_related_information(
+        &self,
+    ) -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => {
                 diagnostic.maybe_related_information()
@@ -1397,7 +1411,7 @@ impl DiagnosticInterface for Diagnostic {
 
     fn maybe_related_information_mut(
         &self,
-    ) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => {
                 diagnostic.maybe_related_information_mut()
@@ -1602,11 +1616,15 @@ impl From<Diagnostic> for DiagnosticRelatedInformation {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct BaseDiagnosticRelatedInformation {
+    #[unsafe_ignore_trace]
     category: Cell<DiagnosticCategory>,
     code: u32,
     file: Option<Gc<Node /*SourceFile*/>>,
+    #[unsafe_ignore_trace]
     start: Cell<Option<isize>>,
+    #[unsafe_ignore_trace]
     length: Cell<Option<isize>>,
+    #[unsafe_ignore_trace]
     message_text: DiagnosticMessageText,
 }
 
@@ -1748,13 +1766,15 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithLocation {
-    fn maybe_related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn maybe_related_information(
+        &self,
+    ) -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information_mut()
     }
 
@@ -1847,13 +1867,15 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithDetachedLocation {
-    fn maybe_related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn maybe_related_information(
+        &self,
+    ) -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information_mut()
     }
 

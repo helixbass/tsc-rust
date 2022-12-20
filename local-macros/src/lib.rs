@@ -1614,7 +1614,7 @@ fn get_type_struct_interface_impl(
         "GenericTypeInterface" => {
             quote! {
                 impl crate::GenericTypeInterface for #type_type_name {
-                    fn instantiations(&self) -> ::gc::GcCellRefMut<::std::collections::HashMap<String, ::gc::Gc<crate::Type>>> {
+                    fn instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::gc::Gc<crate::Type>>>, ::std::collections::HashMap<String, ::gc::Gc<crate::Type>>> {
                         self.#first_field_name.instantiations()
                     }
 
@@ -2267,7 +2267,7 @@ fn get_type_enum_interface_impl(
         "GenericTypeInterface" => {
             quote! {
                 impl crate::GenericTypeInterface for #type_type_name {
-                    fn instantiations(&self) -> ::gc::GcCellRefMut<::std::collections::HashMap<String, ::gc::Gc<crate::Type>>> {
+                    fn instantiations(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<String, ::gc::Gc<crate::Type>>>, ::std::collections::HashMap<String, ::gc::Gc<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.instantiations()),*
                         }

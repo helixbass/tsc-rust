@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, Trace};
+use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::io;
@@ -25,6 +26,7 @@ pub struct Printer {
     pub handlers: Gc<Box<dyn PrintHandlers>>,
     pub extended_diagnostics: bool,
     pub new_line: String,
+    #[unsafe_ignore_trace]
     pub module_kind: ModuleKind,
     pub current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
     #[unsafe_ignore_trace]
@@ -37,39 +39,53 @@ pub struct Printer {
     pub generated_names: RefCell<HashSet<String>>,
     #[unsafe_ignore_trace]
     pub temp_flags_stack: RefCell<Vec<TempFlags>>,
+    #[unsafe_ignore_trace]
     pub temp_flags: Cell<TempFlags>,
     #[unsafe_ignore_trace]
     pub reserved_names_stack: RefCell<Vec<Option<Rc<RefCell<HashSet<String>>>>>>,
     #[unsafe_ignore_trace]
     pub reserved_names: RefCell<Option<Rc<RefCell<HashSet<String>>>>>,
+    #[unsafe_ignore_trace]
     pub preserve_source_newlines: Cell<Option<bool>>,
+    #[unsafe_ignore_trace]
     pub next_list_element_pos: Cell<Option<isize>>,
 
     pub writer: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
     pub own_writer: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
+    #[unsafe_ignore_trace]
     pub write: Cell<fn(&Printer, &str)>,
+    #[unsafe_ignore_trace]
     pub is_own_file_emit: Cell<bool>,
     pub bundle_file_info: GcCell<Option<BundleFileInfo>>,
-    pub relative_to_build_info: Option<Rc<dyn Fn(&str) -> String>>,
+    pub relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
     pub record_internal_section: Option<bool>,
+    #[unsafe_ignore_trace]
     pub source_file_text_pos: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub source_file_text_kind: Cell<BundleFileSectionKind>,
 
+    #[unsafe_ignore_trace]
     pub source_maps_disabled: Cell<bool>,
     pub source_map_generator: GcCell<Option<Gc<Box<dyn SourceMapGenerator>>>>,
     pub source_map_source: GcCell<Option<Gc<SourceMapSource>>>,
+    #[unsafe_ignore_trace]
     pub source_map_source_index: Cell<isize>,
     pub most_recently_added_source_map_source: GcCell<Option<Gc<SourceMapSource>>>,
+    #[unsafe_ignore_trace]
     pub most_recently_added_source_map_source_index: Cell<isize>,
-
+    #[unsafe_ignore_trace]
     pub container_pos: Cell<isize>,
+    #[unsafe_ignore_trace]
     pub container_end: Cell<isize>,
+    #[unsafe_ignore_trace]
     pub declaration_list_container_end: Cell<isize>,
     #[unsafe_ignore_trace]
     pub current_line_map: RefCell<Option<Vec<usize>>>,
     #[unsafe_ignore_trace]
     pub detached_comments_info: RefCell<Option<Vec<DetachedCommentInfo>>>,
+    #[unsafe_ignore_trace]
     pub has_written_comment: Cell<bool>,
+    #[unsafe_ignore_trace]
     pub comments_disabled: Cell<bool>,
     pub last_substitution: GcCell<Option<Gc<Node>>>,
     pub current_parenthesizer_rule: GcCell<Option<Gc<Box<dyn CurrentParenthesizerRule>>>>,
@@ -118,8 +134,11 @@ impl BundleFileSectionKind {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFileSectionBase {
+    #[unsafe_ignore_trace]
     pos: Cell<isize>,
+    #[unsafe_ignore_trace]
     end: Cell<isize>,
+    #[unsafe_ignore_trace]
     kind: BundleFileSectionKind,
     data: Option<String>,
 }
@@ -622,14 +641,17 @@ pub trait PrintHandlers: Trace + Finalize {
     fn on_after_emit_token(&self, node: Option<&Node>) {}
 }
 
-#[derive(Builder, Default)]
+#[derive(Builder, Default, Trace, Finalize)]
 #[builder(default)]
 pub struct PrinterOptions {
     pub remove_comments: Option<bool>,
+    #[unsafe_ignore_trace]
     pub new_line: Option<NewLineKind>,
     pub omit_trailing_semicolon: Option<bool>,
     pub no_emit_helpers: Option<bool>,
+    #[unsafe_ignore_trace]
     pub(crate) module: Option<ModuleKind>,
+    #[unsafe_ignore_trace]
     pub(crate) target: Option<ScriptTarget>,
     pub(crate) source_map: Option<bool>,
     pub(crate) inline_source_map: Option<bool>,
@@ -642,7 +664,11 @@ pub struct PrinterOptions {
     pub(crate) strip_internal: Option<bool>,
     pub(crate) preserve_source_newlines: Option<bool>,
     pub(crate) terminate_unterminated_literals: Option<bool>,
-    pub(crate) relative_to_build_info: Option<Rc<dyn Fn(&str) -> String>>,
+    pub(crate) relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
+}
+
+pub trait RelativeToBuildInfo: Trace + Finalize {
+    fn call(&self, file_name: &str) -> String;
 }
 
 #[derive(Debug)]
@@ -821,6 +847,7 @@ pub struct DiagnosticCollection {
     pub non_file_diagnostics: SortedArray<Gc<Diagnostic>>,
     pub files_with_diagnostics: SortedArray<String>,
     pub file_diagnostics: HashMap<String, SortedArray<Gc<Diagnostic /*DiagnosticWithLocation*/>>>,
+    #[unsafe_ignore_trace]
     pub has_read_non_file_diagnostics: Cell<bool>,
 }
 

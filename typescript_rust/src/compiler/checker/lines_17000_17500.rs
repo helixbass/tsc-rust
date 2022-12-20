@@ -255,7 +255,7 @@ impl TypeChecker {
                 let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
                 add_related_info(
                     &diagnostic,
-                    vec![Rc::new(
+                    vec![Gc::new(
                         create_diagnostic_for_node(
                             node,
                             if
@@ -358,7 +358,7 @@ impl TypeChecker {
                         add_related_info(
                             &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         &target_symbol_declarations[0],
                                         &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
@@ -385,7 +385,7 @@ impl TypeChecker {
                 {
                     add_related_info(
                         &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
-                        vec![Rc::new(
+                        vec![Gc::new(
                             create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
@@ -623,7 +623,7 @@ impl TypeChecker {
                                     add_related_info(
                                         &reported_diag,
                                         vec![
-                                            Rc::new(
+                                            Gc::new(
                                                 create_diagnostic_for_node(
                                                     index_info_declaration,
                                                     &Diagnostics::The_expected_type_comes_from_this_index_signature,
@@ -661,7 +661,7 @@ impl TypeChecker {
                                 add_related_info(
                                     &reported_diag,
                                     vec![
-                                        Rc::new(
+                                        Gc::new(
                                             create_diagnostic_for_node(
                                                 &target_node,
                                                 &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,

@@ -589,7 +589,7 @@ impl TypeChecker {
                     );
                     add_related_info(
                         &diagnostic,
-                        vec![Rc::new(
+                        vec![Gc::new(
                             create_diagnostic_for_node(
                                 spread,
                                 &Diagnostics::This_spread_always_overwrites_this_property,

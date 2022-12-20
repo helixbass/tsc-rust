@@ -78,7 +78,7 @@ impl<TBuilderProgram: BuilderProgram> SolutionBuilder<TBuilderProgram> {
 pub fn create_builder_status_reporter(
     system: &dyn System,
     pretty: Option<bool>,
-) -> Rc<dyn DiagnosticReporter> {
+) -> Gc<Box<dyn DiagnosticReporter>> {
     unimplemented!()
 }
 
@@ -88,8 +88,8 @@ pub fn create_solution_builder_host<
 >(
     system: Option<&dyn System>,
     create_program: Option<TCreateProgram>,
-    report_diagnostic: Option<Rc<dyn DiagnosticReporter>>,
-    report_solution_builder_status: Option<Rc<dyn DiagnosticReporter>>,
+    report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    report_solution_builder_status: Option<Gc<Box<dyn DiagnosticReporter>>>,
     report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
 ) -> SolutionBuilderHostConcrete<TBuilderProgram> {
     unimplemented!()
@@ -123,8 +123,8 @@ pub fn create_solution_builder_with_watch_host<
 >(
     system: Option<&dyn System>,
     create_program: Option<TCreateProgram>,
-    report_diagnostic: Option<Rc<dyn DiagnosticReporter>>,
-    report_solution_builder_status: Option<Rc<dyn DiagnosticReporter>>,
+    report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    report_solution_builder_status: Option<Gc<Box<dyn DiagnosticReporter>>>,
     report_watch_status: Option<Rc<dyn WatchStatusReporter>>,
 ) -> SolutionBuilderWithWatchHostConcrete<TBuilderProgram> {
     unimplemented!()

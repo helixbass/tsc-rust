@@ -182,7 +182,7 @@ impl Printer {
     pub(super) fn begin_print(&self) -> Gc<Box<dyn EmitTextWriter>> {
         self.own_writer
             .borrow_mut()
-            .get_or_insert_with(|| Gc::new(Box::new(create_text_writer(&self.new_line))))
+            .get_or_insert_with(|| create_text_writer(&self.new_line).as_dyn_emit_text_writer())
             .clone()
     }
 
@@ -224,9 +224,9 @@ impl Printer {
     ) {
         if let Some(writer_present) = writer.as_ref() {
             if self.printer_options.omit_trailing_semicolon == Some(true) {
-                writer = Some(Gc::new(Box::new(get_trailing_semicolon_deferring_writer(
+                writer = Some(get_trailing_semicolon_deferring_writer(
                     writer_present.clone(),
-                ))));
+                ));
             }
         }
         *self.writer.borrow_mut() = writer.clone();

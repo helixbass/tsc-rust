@@ -821,7 +821,7 @@ impl TypeChecker {
                     {
                         add_related_info(
                             &err,
-                            vec![Rc::new(
+                            vec![Gc::new(
                                 create_diagnostic_for_node(
                                     &base_constructor_type_symbol_declarations[0],
                                     &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1,

@@ -21,8 +21,9 @@ use crate::{
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
     ProjectReference, RawSourceMap, RedirectTargetsMap, ResolvedProjectReference,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags,
-    TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type,
+    TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
+    __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1266,6 +1267,8 @@ impl FilePreprocessingDiagnostics {
 #[derive(Trace, Finalize)]
 pub struct Program {
     pub(crate) _rc_wrapper: GcCell<Option<Gc<Box<Program>>>>,
+    pub(crate) _dyn_type_checker_host_debuggable_wrapper:
+        GcCell<Option<Gc<Box<dyn TypeCheckerHostDebuggable>>>>,
     pub(crate) create_program_options: GcCell<Option<CreateProgramOptions>>,
     #[unsafe_ignore_trace]
     pub(crate) root_names: RefCell<Option<Vec<String>>>,

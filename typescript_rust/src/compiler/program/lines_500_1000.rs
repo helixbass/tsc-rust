@@ -3,6 +3,7 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::io;
+use std::mem;
 use std::rc::Rc;
 
 use super::{
@@ -651,72 +652,86 @@ impl Program {
     ) -> Gc<Box<Self>> {
         let options = create_program_options.options.clone();
         let max_node_module_js_depth = options.max_node_module_js_depth.unwrap_or(0);
-        let rc = Gc::new(Box::new(Program {
-            _rc_wrapper: Default::default(),
-            create_program_options: GcCell::new(Some(create_program_options)),
-            root_names: Default::default(),
-            options,
-            config_file_parsing_diagnostics: Default::default(),
-            project_references: Default::default(),
-            processing_default_lib_files: Default::default(),
-            processing_other_files: Default::default(),
-            files: Default::default(),
-            symlinks: Default::default(),
-            common_source_directory: Default::default(),
-            diagnostics_producing_type_checker: Default::default(),
-            no_diagnostics_type_checker: Default::default(),
-            classifiable_names: Default::default(),
-            ambient_module_name_to_unmodified_file_name: Default::default(),
-            file_reasons: Rc::new(RefCell::new(create_multi_map())),
-            cached_bind_and_check_diagnostics_for_file: Default::default(),
-            cached_declaration_diagnostics_for_file: Default::default(),
+        let dyn_type_checker_host_debuggable_wrapper: Gc<Box<dyn TypeCheckerHostDebuggable>> =
+            Gc::new(Box::new(Self {
+                _rc_wrapper: Default::default(),
+                _dyn_type_checker_host_debuggable_wrapper: Default::default(),
+                create_program_options: GcCell::new(Some(create_program_options)),
+                root_names: Default::default(),
+                options,
+                config_file_parsing_diagnostics: Default::default(),
+                project_references: Default::default(),
+                processing_default_lib_files: Default::default(),
+                processing_other_files: Default::default(),
+                files: Default::default(),
+                symlinks: Default::default(),
+                common_source_directory: Default::default(),
+                diagnostics_producing_type_checker: Default::default(),
+                no_diagnostics_type_checker: Default::default(),
+                classifiable_names: Default::default(),
+                ambient_module_name_to_unmodified_file_name: Default::default(),
+                file_reasons: Rc::new(RefCell::new(create_multi_map())),
+                cached_bind_and_check_diagnostics_for_file: Default::default(),
+                cached_declaration_diagnostics_for_file: Default::default(),
 
-            resolved_type_reference_directives: Default::default(),
-            file_processing_diagnostics: Default::default(),
+                resolved_type_reference_directives: Default::default(),
+                file_processing_diagnostics: Default::default(),
 
-            max_node_module_js_depth,
-            current_node_modules_depth: Default::default(),
+                max_node_module_js_depth,
+                current_node_modules_depth: Default::default(),
 
-            modules_with_elided_imports: Default::default(),
+                modules_with_elided_imports: Default::default(),
 
-            source_files_found_searching_node_modules: Default::default(),
+                source_files_found_searching_node_modules: Default::default(),
 
-            old_program: Default::default(),
-            host: Default::default(),
-            config_parsing_host: Default::default(),
+                old_program: Default::default(),
+                host: Default::default(),
+                config_parsing_host: Default::default(),
 
-            skip_default_lib: Default::default(),
-            get_default_library_file_name_memoized: Default::default(),
-            default_library_path: Default::default(),
-            program_diagnostics: Default::default(),
-            current_directory: Default::default(),
-            supported_extensions: Default::default(),
-            supported_extensions_with_json_if_resolve_json_module: Default::default(),
-            has_emit_blocking_diagnostics: Default::default(),
-            _compiler_options_object_literal_syntax: Default::default(),
-            module_resolution_cache: Default::default(),
-            type_reference_directive_resolution_cache: Default::default(),
-            actual_resolve_module_names_worker: Default::default(),
-            actual_resolve_type_reference_directive_names_worker: Default::default(),
-            package_id_to_source_file: Default::default(),
-            source_file_to_package_name: Default::default(),
-            redirect_targets_map: Rc::new(RefCell::new(create_multi_map())),
-            uses_uri_style_node_core_modules: Default::default(),
-            files_by_name: Default::default(),
-            missing_file_paths: Default::default(),
-            files_by_name_ignore_case: Default::default(),
-            resolved_project_references: Default::default(),
-            project_reference_redirects: Default::default(),
-            map_from_file_to_project_reference_redirects: Default::default(),
-            map_from_to_project_reference_redirect_source: Default::default(),
-            use_source_of_project_reference_redirect: Default::default(),
-            file_exists_rc: Default::default(),
-            directory_exists_rc: Default::default(),
-            should_create_new_source_file: Default::default(),
-            structure_is_reused: Default::default(),
-        }));
-        rc.set_rc_wrapper(Some(rc.clone()));
-        rc
+                skip_default_lib: Default::default(),
+                get_default_library_file_name_memoized: Default::default(),
+                default_library_path: Default::default(),
+                program_diagnostics: Default::default(),
+                current_directory: Default::default(),
+                supported_extensions: Default::default(),
+                supported_extensions_with_json_if_resolve_json_module: Default::default(),
+                has_emit_blocking_diagnostics: Default::default(),
+                _compiler_options_object_literal_syntax: Default::default(),
+                module_resolution_cache: Default::default(),
+                type_reference_directive_resolution_cache: Default::default(),
+                actual_resolve_module_names_worker: Default::default(),
+                actual_resolve_type_reference_directive_names_worker: Default::default(),
+                package_id_to_source_file: Default::default(),
+                source_file_to_package_name: Default::default(),
+                redirect_targets_map: Rc::new(RefCell::new(create_multi_map())),
+                uses_uri_style_node_core_modules: Default::default(),
+                files_by_name: Default::default(),
+                missing_file_paths: Default::default(),
+                files_by_name_ignore_case: Default::default(),
+                resolved_project_references: Default::default(),
+                project_reference_redirects: Default::default(),
+                map_from_file_to_project_reference_redirects: Default::default(),
+                map_from_to_project_reference_redirect_source: Default::default(),
+                use_source_of_project_reference_redirect: Default::default(),
+                file_exists_rc: Default::default(),
+                directory_exists_rc: Default::default(),
+                should_create_new_source_file: Default::default(),
+                structure_is_reused: Default::default(),
+            }));
+        let downcasted: Gc<Box<Self>> =
+            unsafe { mem::transmute(dyn_type_checker_host_debuggable_wrapper.clone()) };
+        *downcasted
+            ._dyn_type_checker_host_debuggable_wrapper
+            .borrow_mut() = Some(dyn_type_checker_host_debuggable_wrapper);
+        downcasted.set_rc_wrapper(Some(downcasted.clone()));
+        downcasted
+    }
+
+    pub fn as_dyn_type_checker_host_debuggable(&self) -> Gc<Box<dyn TypeCheckerHostDebuggable>> {
+        self._dyn_type_checker_host_debuggable_wrapper
+            .borrow()
+            .clone()
+            .unwrap()
     }
 
     pub fn create(&self) {
@@ -1110,12 +1125,6 @@ impl Program {
 
     pub fn rc_wrapper(&self) -> Gc<Box<Program>> {
         self._rc_wrapper.borrow().clone().unwrap()
-    }
-
-    pub fn rc_wrapper_as_dyn_type_checker_host_debuggable(
-        &self,
-    ) -> Gc<Box<dyn TypeCheckerHostDebuggable>> {
-        self._rc_wrapper.borrow().clone().unwrap() as Gc<Box<dyn TypeCheckerHostDebuggable>>
     }
 
     pub(super) fn root_names(&self) -> Ref<Vec<String>> {

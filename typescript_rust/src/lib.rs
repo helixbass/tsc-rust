@@ -223,6 +223,7 @@ pub use compiler::program::{
     format_location, get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
     get_pre_emit_diagnostics, get_resolution_diagnostic, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, FilesByNameValue, FormatDiagnosticsHost,
+    ToPath,
 };
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position,

@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::Hash;
 use std::iter::FromIterator;
+use std::mem;
 use std::ptr;
 use std::rc::Rc;
 
@@ -95,32 +96,41 @@ pub fn is_transient_symbol(symbol: &Symbol) -> bool {
 //     static ref string_writer: Gc<Box<dyn EmitTextWriter>> = create_single_line_string_writer();
 // }
 
+// fn string_writer() -> Gc<Box<dyn EmitTextWriter>> {
 fn string_writer() -> Gc<Box<dyn EmitTextWriter>> {
     create_single_line_string_writer()
 }
 
 fn create_single_line_string_writer() -> Gc<Box<dyn EmitTextWriter>> {
-    Gc::new(Box::new(SingleLineStringWriter::new()))
+    SingleLineStringWriter::new().as_dyn_emit_text_writer()
 }
 
 #[derive(Trace, Finalize)]
 struct SingleLineStringWriter {
-    _rc_wrapper: GcCell<Option<Gc<Box<Self>>>>,
+    _dyn_emit_text_writer_wrapper: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
+    _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
+    #[unsafe_ignore_trace]
     str: RefCell<String>,
 }
 
 impl SingleLineStringWriter {
     pub fn new() -> Gc<Box<Self>> {
-        let rc_wrapper = Gc::new(Box::new(Self {
-            _rc_wrapper: Default::default(),
+        let dyn_wrapper: Gc<Box<dyn EmitTextWriter>> = Gc::new(Box::new(Self {
+            _dyn_emit_text_writer_wrapper: Default::default(),
+            _dyn_symbol_tracker_wrapper: Gc::new(Box::new(SingleLineStringWriterSymbolTracker)),
             str: Default::default(),
         }));
-        *rc_wrapper._rc_wrapper.borrow_mut() = Some(rc_wrapper.clone());
-        rc_wrapper
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
+        *downcasted._dyn_emit_text_writer_wrapper.borrow_mut() = Some(dyn_wrapper);
+        downcasted
     }
 
-    fn rc_wrapper(&self) -> Gc<Box<Self>> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    fn as_dyn_emit_text_writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
+        self._dyn_emit_text_writer_wrapper.borrow().clone().unwrap()
+    }
+
+    fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self._dyn_symbol_tracker_wrapper.clone()
     }
 
     fn str(&self) -> Ref<String> {
@@ -244,11 +254,90 @@ impl SymbolWriter for SingleLineStringWriter {
     }
 
     fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
-        self.rc_wrapper()
+        self.as_dyn_symbol_tracker()
     }
 }
 
 impl SymbolTracker for SingleLineStringWriter {
+    fn track_symbol(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<Gc<Node>>,
+        meaning: SymbolFlags,
+    ) -> Option<bool> {
+        self._dyn_symbol_tracker_wrapper
+            .track_symbol(symbol, enclosing_declaration, meaning)
+    }
+
+    fn is_track_symbol_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
+    }
+
+    fn report_inaccessible_this_error(&self) {
+        self._dyn_symbol_tracker_wrapper
+            .report_inaccessible_this_error()
+    }
+
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_inaccessible_this_error_supported()
+    }
+
+    fn report_inaccessible_unique_symbol_error(&self) {
+        self._dyn_symbol_tracker_wrapper
+            .report_inaccessible_unique_symbol_error()
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_inaccessible_unique_symbol_error_supported()
+    }
+
+    fn report_private_in_base_of_class_expression(&self, _property_name: &str) {
+        self._dyn_symbol_tracker_wrapper
+            .report_private_in_base_of_class_expression(_property_name)
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_private_in_base_of_class_expression_supported()
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_cyclic_structure_error_supported()
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_likely_unsafe_import_required_error_supported()
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_nonlocal_augmentation_supported()
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_non_serializable_property_supported()
+    }
+
+    fn is_module_resolver_host_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_module_resolver_host_supported()
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_track_referenced_ambient_module_supported()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct SingleLineStringWriterSymbolTracker;
+
+impl SymbolTracker for SingleLineStringWriterSymbolTracker {
     fn track_symbol(
         &self,
         symbol: &Symbol,

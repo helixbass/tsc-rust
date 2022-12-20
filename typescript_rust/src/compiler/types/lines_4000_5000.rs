@@ -939,7 +939,7 @@ pub enum Symbol {
 
 impl Symbol {
     pub fn wrap(self) -> Gc<Symbol> {
-        let rc = Rc::new(self);
+        let rc = Gc::new(self);
         rc.set_symbol_wrapper(rc.clone());
         rc
     }
@@ -967,20 +967,28 @@ impl Symbol {
 #[derive(Debug, Finalize, Trace)]
 pub struct BaseSymbol {
     _symbol_wrapper: GcCell<Option<Gc<Symbol>>>,
+    #[unsafe_ignore_trace]
     flags: Cell<SymbolFlags>,
+    #[unsafe_ignore_trace]
     escaped_name: __String,
     declarations: GcCell<Option<Vec<Gc<Node /*Declaration*/>>>>,
     value_declaration: GcCell<Option<Gc<Node>>>,
     members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
     exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
     global_exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    #[unsafe_ignore_trace]
     id: Cell<Option<SymbolId>>,
+    #[unsafe_ignore_trace]
     merge_id: Cell<Option<u32>>,
     parent: GcCell<Option<Gc<Symbol>>>,
     export_symbol: GcCell<Option<Gc<Symbol>>>,
+    #[unsafe_ignore_trace]
     const_enum_only_module: Cell<Option<bool>>,
+    #[unsafe_ignore_trace]
     is_referenced: Cell<Option<SymbolFlags>>,
+    #[unsafe_ignore_trace]
     is_replaceable_by_method: Cell<Option<bool>>,
+    #[unsafe_ignore_trace]
     is_assigned: Cell<Option<bool>>,
     assignment_declaration_members: GcCell<Option<HashMap<NodeId, Gc<Node /*Declaration*/>>>>,
 }
@@ -1186,9 +1194,11 @@ pub struct SymbolLinks {
     pub is_declaration_with_colliding_name: Option<bool>,
     pub binding_element: Option<Gc<Node /*BindingElement*/>>,
     pub exports_some_value: Option<bool>,
+    #[unsafe_ignore_trace]
     pub enum_kind: Option<EnumKind>,
     pub originating_import: Option<Gc<Node /*ImportDeclaration | ImportCall*/>>,
     pub late_symbol: Option<Gc<Symbol>>,
+    #[unsafe_ignore_trace]
     pub specifier_cache: Option<HashMap<String, String>>,
     pub extended_containers: Option<Vec<Gc<Symbol>>>,
     pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Gc<Symbol>>>>,
@@ -1329,6 +1339,7 @@ impl TransientSymbol {
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
     _symbol_links: Gc<GcCell<SymbolLinks>>,
+    #[unsafe_ignore_trace]
     check_flags: Cell<CheckFlags>,
 }
 

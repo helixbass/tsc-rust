@@ -978,13 +978,13 @@ impl TypeChecker {
             && symbol.flags().intersects(SymbolFlags::Function)
         {
             if let Some(declarations) = declarations.as_ref() {
-                let related_diagnostics: Vec<Rc<DiagnosticRelatedInformation>> =
+                let related_diagnostics: Vec<Gc<DiagnosticRelatedInformation>> =
                     filter(declarations, |d: &Gc<Node>| {
                         d.kind() == SyntaxKind::ClassDeclaration
                     })
                     .iter()
                     .map(|d| {
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node(
                                 d,
                                 &Diagnostics::Consider_adding_a_declare_modifier_to_this_class,
@@ -1076,7 +1076,7 @@ impl TypeChecker {
                                 None,
                             ),
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         body_declaration,
                                         &Diagnostics::The_implementation_signature_is_declared_here,

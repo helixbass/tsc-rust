@@ -1086,7 +1086,7 @@ impl BinderType {
                                 }
                             }
 
-                            let mut related_information: Vec<Rc<DiagnosticRelatedInformation>> =
+                            let mut related_information: Vec<Gc<DiagnosticRelatedInformation>> =
                                 vec![];
                             if is_type_alias_declaration(node)
                                 && node_is_missing(Some(&*node.as_type_alias_declaration().type_))
@@ -1095,7 +1095,7 @@ impl BinderType {
                                     SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
                                 )
                             {
-                                related_information.push(Rc::new(
+                                related_information.push(Gc::new(
                                     self.create_diagnostic_for_node(
                                         node,
                                         &Diagnostics::Did_you_mean_0,
@@ -1139,7 +1139,7 @@ impl BinderType {
                                         if multiple_default_exports {
                                             add_related_info(
                                                 &diag,
-                                                vec![Rc::new(
+                                                vec![Gc::new(
                                                 self.create_diagnostic_for_node(
                                                     &declaration_name,
                                                     if index == 0 {
@@ -1158,7 +1158,7 @@ impl BinderType {
                                         },
                                     );
                                     if multiple_default_exports {
-                                        related_information.push(Rc::new(
+                                        related_information.push(Gc::new(
                                             self.create_diagnostic_for_node(
                                                 &decl,
                                                 &Diagnostics::The_first_export_default_is_here,

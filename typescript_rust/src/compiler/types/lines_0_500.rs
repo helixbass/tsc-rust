@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Finalize, Trace};
+use gc::{unsafe_empty_trace, Finalize, Trace};
 use std::cell::Cell;
 use std::ops::Deref;
 
@@ -517,4 +517,9 @@ impl SyntaxKind {
     pub const LastJSDocTagNode: SyntaxKind = SyntaxKind::JSDocPropertyTag;
     pub(crate) const FirstContextualKeyword: SyntaxKind = SyntaxKind::AbstractKeyword;
     pub(crate) const LastContextualKeyword: SyntaxKind = SyntaxKind::OfKeyword;
+}
+
+impl Finalize for SyntaxKind {}
+unsafe impl Trace for SyntaxKind {
+    unsafe_empty_trace!();
 }

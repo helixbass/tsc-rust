@@ -421,7 +421,7 @@ impl TypeChecker {
                         add_related_info(
                             &diag,
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         &container,
                                         &Diagnostics::An_outer_value_of_this_is_shadowed_by_this_container,

@@ -23,12 +23,12 @@ use crate::{
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
 pub struct MappedSymbol {
     _transient_symbol: BaseTransientSymbol,
     pub mapped_type: Gc<Type /*MappedType*/>,
-    key_type: RefCell<Gc<Type>>,
+    key_type: GcCell<Gc<Type>>,
 }
 
 impl MappedSymbol {
@@ -40,7 +40,7 @@ impl MappedSymbol {
         Self {
             _transient_symbol: transient_symbol,
             mapped_type,
-            key_type: RefCell::new(key_type),
+            key_type: GcCell::new(key_type),
         }
     }
 
@@ -53,7 +53,7 @@ impl MappedSymbol {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
 pub struct ReverseMappedSymbol {
     _transient_symbol: BaseTransientSymbol,
@@ -147,7 +147,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeLinksSerializedType {
     pub truncating: Option<bool>,
     pub added_length: usize,
@@ -156,16 +156,19 @@ pub struct NodeLinksSerializedType {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct NodeLinks {
+    #[unsafe_ignore_trace]
     pub flags: NodeCheckFlags,
     pub resolved_type: Option<Gc<Type>>,
     pub resolved_enum_type: Option<Gc<Type>>,
     pub resolved_signature: Option<Gc<Signature>>,
     pub resolved_symbol: Option<Gc<Symbol>>,
     pub effects_signature: Option<Gc<Signature>>,
+    #[unsafe_ignore_trace]
     pub enum_member_value: Option<StringOrNumber>,
     pub is_visible: Option<bool>,
     pub contains_arguments_reference: Option<bool>,
     pub has_reported_statement_in_ambient_context: Option<bool>,
+    #[unsafe_ignore_trace]
     pub jsx_flags: JsxFlags,
     pub resolved_jsx_element_attributes_type: Option<Gc<Type>>,
     pub resolved_jsdoc_type: Option<Gc<Type>>,
@@ -881,18 +884,19 @@ pub trait IntrinsicTypeInterface: TypeInterface {
     fn intrinsic_name(&self) -> &str;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(interfaces = "IntrinsicTypeInterface, ObjectFlagsTypeInterface")]
 pub enum IntrinsicType {
     BaseIntrinsicType(BaseIntrinsicType),
     FreshableIntrinsicType(FreshableIntrinsicType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(ancestors = "IntrinsicType")]
 pub struct BaseIntrinsicType {
     _type: BaseType,
     intrinsic_name: String,
+    #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
 }
 
@@ -922,23 +926,23 @@ impl ObjectFlagsTypeInterface for BaseIntrinsicType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "IntrinsicType",
     interfaces = "IntrinsicTypeInterface, ObjectFlagsTypeInterface"
 )]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
-    pub fresh_type: RefCell<Option<Gc<Type>>>,
-    pub regular_type: RefCell<Option<Gc<Type>>>,
+    pub fresh_type: GcCell<Option<Gc<Type>>>,
+    pub regular_type: GcCell<Option<Gc<Type>>>,
 }
 
 impl FreshableIntrinsicType {
     pub fn new(intrinsic_type: BaseIntrinsicType) -> Self {
         Self {
             _intrinsic_type: intrinsic_type,
-            fresh_type: RefCell::new(None),
-            regular_type: RefCell::new(None),
+            fresh_type: Default::default(),
+            regular_type: Default::default(),
         }
     }
 

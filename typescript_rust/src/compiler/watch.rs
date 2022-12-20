@@ -32,7 +32,7 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 thread_local! {
-    static sys_format_diagnostics_host: Option<Rc<SysFormatDiagnosticsHost>> = /*sys ?*/ Some(Rc::new(SysFormatDiagnosticsHost::new(get_sys())));
+    static sys_format_diagnostics_host: Option<Gc<SysFormatDiagnosticsHost>> = /*sys ?*/ Some(Gc::new(SysFormatDiagnosticsHost::new(get_sys())));
 }
 
 #[derive(Trace, Finalize)]
@@ -42,7 +42,7 @@ struct SysFormatDiagnosticsHost {
 }
 
 impl SysFormatDiagnosticsHost {
-    pub fn new(system: Rc<dyn System>) -> Self {
+    pub fn new(system: Gc<Box<dyn System>>) -> Self {
         let system_use_case_sensitive_file_names = system.use_case_sensitive_file_names();
         Self {
             system,
@@ -70,18 +70,20 @@ impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
 pub fn create_diagnostic_reporter(
     system: Gc<Box<dyn System>>,
     pretty: Option<bool>,
-) -> Rc<dyn DiagnosticReporter> {
-    let host: Rc<SysFormatDiagnosticsHost> =
+) -> Gc<Box<dyn DiagnosticReporter>> {
+    let host: Gc<SysFormatDiagnosticsHost> =
         sys_format_diagnostics_host.with(|sys_format_diagnostics_host_| {
             if Gc::ptr_eq(&system, &get_sys())
             /*&& sysFormatDiagnosticsHost*/
             {
                 sys_format_diagnostics_host_.clone().unwrap()
             } else {
-                Rc::new(SysFormatDiagnosticsHost::new(system.clone()))
+                Gc::new(SysFormatDiagnosticsHost::new(system.clone()))
             }
         });
-    Rc::new(DiagnosticReporterConcrete::new(host, pretty, system))
+    Gc::new(Box::new(DiagnosticReporterConcrete::new(
+        host, pretty, system,
+    )))
 }
 
 #[derive(Trace, Finalize)]
@@ -94,14 +96,14 @@ struct DiagnosticReporterConcrete {
 
 impl DiagnosticReporterConcrete {
     pub fn new(
-        host: Rc<SysFormatDiagnosticsHost>,
+        host: Gc<SysFormatDiagnosticsHost>,
         pretty: Option<bool>,
-        system: Rc<dyn System>,
+        system: Gc<Box<dyn System>>,
     ) -> Self {
         Self {
             host,
             pretty: pretty.unwrap_or(false),
-            diagnostics: RefCell::new(vec![]),
+            diagnostics: Default::default(),
             system,
         }
     }
@@ -165,19 +167,19 @@ pub fn get_locale_time_string(system: &dyn System) -> String {
 }
 
 pub fn create_watch_status_reporter(
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     pretty: Option<bool>,
 ) -> WatchStatusReporterConcrete {
     WatchStatusReporterConcrete::new(system, pretty)
 }
 
 pub struct WatchStatusReporterConcrete {
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     pretty: bool,
 }
 
 impl WatchStatusReporterConcrete {
-    pub fn new(system: Rc<dyn System>, pretty: Option<bool>) -> Self {
+    pub fn new(system: Gc<Box<dyn System>>, pretty: Option<bool>) -> Self {
         Self {
             system,
             pretty: pretty.unwrap_or(false),
@@ -194,11 +196,11 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         _error_count: Option<usize>,
     ) {
         if self.pretty {
-            clear_screen_if_not_watching_for_file_changes(&*self.system, &diagnostic, &options);
+            clear_screen_if_not_watching_for_file_changes(&**self.system, &diagnostic, &options);
             let mut output = format!(
                 "[{}] ",
                 format_color_and_reset(
-                    &get_locale_time_string(&*self.system),
+                    &get_locale_time_string(&**self.system),
                     ForegroundColorEscapeSequences::Grey
                 )
             );
@@ -216,12 +218,12 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         } else {
             let mut output = "".to_owned();
 
-            if !clear_screen_if_not_watching_for_file_changes(&*self.system, &diagnostic, &options)
+            if !clear_screen_if_not_watching_for_file_changes(&**self.system, &diagnostic, &options)
             {
                 output.push_str(new_line);
             }
 
-            output.push_str(&format!("{} - ", get_locale_time_string(&*self.system)));
+            output.push_str(&format!("{} - ", get_locale_time_string(&**self.system)));
             output.push_str(&format!(
                 "{}{}",
                 flatten_diagnostic_message_text(
@@ -242,8 +244,8 @@ pub fn parse_config_file_with_system(
     options_to_extend: Gc<CompilerOptions>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
-    system: Rc<dyn System>,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    system: Gc<Box<dyn System>>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
 ) -> Option<ParsedCommandLine> {
     let host = ParseConfigFileWithSystemHost::new(system, report_diagnostic);
     get_parsed_command_line_of_config_file(
@@ -263,7 +265,10 @@ struct ParseConfigFileWithSystemHost {
 }
 
 impl ParseConfigFileWithSystemHost {
-    pub fn new(system: Rc<dyn System>, report_diagnostic: Rc<dyn DiagnosticReporter>) -> Self {
+    pub fn new(
+        system: Gc<Box<dyn System>>,
+        report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    ) -> Self {
         Self {
             system,
             report_diagnostic,
@@ -313,7 +318,7 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
     fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
-        report_unrecoverable_diagnostic(&*self.system, &*self.report_diagnostic, diagnostic)
+        report_unrecoverable_diagnostic(&**self.system, &**self.report_diagnostic, diagnostic)
     }
 }
 
@@ -816,7 +821,7 @@ struct EmitFilesAndReportErrorsReturn {
 
 fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
     program: Gc<Box<Program>>,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<&dyn WriteFileCallback>,
@@ -911,7 +916,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
 
 pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
     program: Gc<Box<Program>>,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<&dyn WriteFileCallback>,
@@ -1014,7 +1019,7 @@ pub struct IncrementalCompilationOptions<'a> {
     pub config_file_parsing_diagnostics: Option<&'a [Gc<Diagnostic>]>,
     pub project_references: Option<&'a [Rc<ProjectReference>]>,
     pub host: Option<Gc<Box<dyn CompilerHost>>>,
-    pub report_diagnostic: Option<Rc<dyn DiagnosticReporter>>,
+    pub report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
     pub report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     pub after_program_emit_and_diagnostics:
         Option<&'a dyn FnMut(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>)>,

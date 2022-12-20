@@ -216,7 +216,7 @@ impl PartialEq for CompilerOptionsValue {
             ) => {
                 self_value.is_some()
                     && other_value.is_some()
-                    && Rc::ptr_eq(self_value.as_ref().unwrap(), other_value.as_ref().unwrap())
+                    && Gc::ptr_eq(self_value.as_ref().unwrap(), other_value.as_ref().unwrap())
                     || self_value.is_none() && other_value.is_none()
             }
             (
@@ -422,11 +422,13 @@ pub struct CompilerOptions {
     pub generate_trace: Option<String>,
     pub help: Option<bool>,
     pub import_helpers: Option<bool>,
+    #[unsafe_ignore_trace]
     pub imports_not_used_as_values: Option<ImportsNotUsedAsValues>,
     pub init: Option<bool>,
     pub inline_source_map: Option<bool>,
     pub inline_sources: Option<bool>,
     pub isolated_modules: Option<bool>,
+    #[unsafe_ignore_trace]
     pub jsx: Option<JsxEmit>,
     pub keyof_strings_only: Option<bool>,
     pub lib: Option<Vec<String>>,
@@ -437,8 +439,11 @@ pub struct CompilerOptions {
     pub locale: Option<String>,
     pub map_root: Option<String>,
     pub max_node_module_js_depth: Option<usize>,
+    #[unsafe_ignore_trace]
     pub module: Option<ModuleKind>,
+    #[unsafe_ignore_trace]
     pub module_resolution: Option<ModuleResolutionKind>,
+    #[unsafe_ignore_trace]
     pub new_line: Option<NewLineKind>,
     pub no_emit: Option<bool>,
     pub no_emit_for_js_files: Option<bool>,
@@ -463,6 +468,7 @@ pub struct CompilerOptions {
     pub out_file: Option<String>,
     pub paths: Option<MapLike<Vec<String>>>,
     pub paths_base_path: Option<String>,
+    #[unsafe_ignore_trace]
     pub plugins: Option<Vec<PluginImport>>,
     pub preserve_const_enums: Option<bool>,
     pub no_implicit_override: Option<bool>,
@@ -494,6 +500,7 @@ pub struct CompilerOptions {
     pub suppress_excess_property_errors: Option<bool>,
     pub suppress_implicit_any_index_errors: Option<bool>,
     pub suppress_output_path_check: Option<bool>,
+    #[unsafe_ignore_trace]
     pub target: Option<ScriptTarget>,
     pub trace_resolution: Option<bool>,
     pub use_unknown_in_catch_variables: Option<bool>,
@@ -1890,13 +1897,13 @@ pub struct ParsedCommandLineWithBaseOptions {
 impl ParsedCommandLineWithBaseOptions {
     pub fn into_parsed_command_line(self) -> ParsedCommandLine {
         ParsedCommandLine {
-            options: Rc::new(hash_map_to_compiler_options(&self.options)),
+            options: Gc::new(hash_map_to_compiler_options(&self.options)),
             type_acquisition: self.type_acquisition,
             file_names: self.file_names,
             project_references: self.project_references,
             watch_options: self.watch_options,
             raw: self.raw,
-            errors: self.errors,
+            errors: Gc::new(GcCell::new(self.errors)),
             wildcard_directories: self.wildcard_directories,
             compile_on_save: self.compile_on_save,
         }
@@ -1906,12 +1913,17 @@ impl ParsedCommandLineWithBaseOptions {
 #[derive(Debug, Trace, Finalize)]
 pub struct ParsedCommandLine {
     pub options: Gc<CompilerOptions>,
+    #[unsafe_ignore_trace]
     pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub file_names: Vec<String>,
+    #[unsafe_ignore_trace]
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
+    #[unsafe_ignore_trace]
     pub watch_options: Option<Rc<WatchOptions>>,
+    #[unsafe_ignore_trace]
     pub raw: Option<serde_json::Value>,
     pub errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+    #[unsafe_ignore_trace]
     pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
     pub compile_on_save: Option<bool>,
 }

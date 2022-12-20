@@ -60,7 +60,7 @@ impl TypeChecker {
                 ) {
                     add_related_info(
                         &error_output_container.get_error(0).unwrap(),
-                        vec![Rc::new(
+                        vec![Gc::new(
                             create_diagnostic_for_node(
                                 error_node,
                                 &Diagnostics::Did_you_forget_to_use_await,
@@ -572,7 +572,7 @@ impl TypeChecker {
                         None
                     },
                 );
-                add_related_info(&diagnostic, vec![Rc::new(parameter_error.into())]);
+                add_related_info(&diagnostic, vec![Gc::new(parameter_error.into())]);
             }
             diagnostic
         } else {
@@ -827,7 +827,7 @@ impl TypeChecker {
                                 if candidates_for_argument_error_present.len() > 3 {
                                     add_related_info(
                                         d,
-                                        vec![Rc::new(
+                                        vec![Gc::new(
                                             create_diagnostic_for_node(
                                                 last_declaration,
                                                 &Diagnostics::The_last_overload_is_declared_here,
@@ -917,7 +917,7 @@ impl TypeChecker {
                         &Diagnostics::No_overload_matches_this_call,
                         None,
                     );
-                    let related: Vec<Rc<DiagnosticRelatedInformation>> =
+                    let related: Vec<Gc<DiagnosticRelatedInformation>> =
                         flat_map(Some(&*diags), |d: &Gc<Diagnostic>, _| {
                             d.maybe_related_information()
                                 .clone()
@@ -1080,7 +1080,7 @@ impl TypeChecker {
                 add_related_info(
                     diagnostic,
                     vec![
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node(
                                 impl_decl,
                                 &Diagnostics::The_call_would_have_succeeded_against_this_implementation_but_implementation_signatures_of_overloads_are_not_externally_visible,

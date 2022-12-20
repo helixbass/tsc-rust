@@ -949,7 +949,7 @@ impl Program {
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
         let mut file_include_reasons: Option<Vec<DiagnosticMessageChain>> = None;
-        let mut related_info: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
+        let mut related_info: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
         let mut location_reason = if is_referenced_file(file_processing_reason) {
             file_processing_reason
         } else {
@@ -1042,7 +1042,7 @@ impl Program {
         &self,
         file_include_reasons: &mut Option<Vec<DiagnosticMessageChain>>,
         location_reason: &mut Option<&'a FileIncludeReason>,
-        related_info: &mut Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+        related_info: &mut Option<Vec<Gc<DiagnosticRelatedInformation>>>,
         file_processing_reason: &mut Option<&FileIncludeReason>,
         reason: &'a FileIncludeReason,
     ) {
@@ -1106,7 +1106,7 @@ impl Program {
     pub fn file_include_reason_to_related_information(
         &self,
         reason: &FileIncludeReason,
-    ) -> Option<Rc<DiagnosticRelatedInformation /*DiagnosticWithLocation*/>> {
+    ) -> Option<Gc<DiagnosticRelatedInformation /*DiagnosticWithLocation*/>> {
         unimplemented!()
     }
 
@@ -1441,10 +1441,9 @@ impl Program {
             return host_symlink_cache;
         }
         if self.symlinks().is_none() {
-            let host = self.host();
             *self.symlinks() = Some(Gc::new(create_symlink_cache(
                 &self.current_directory(),
-                Rc::new(move |file_name: &str| host.get_canonical_file_name(file_name)),
+                Gc::new(Box::new(HostGetCanonicalFileName::new(self.host()))),
             )));
         }
         let symlinks = self.symlinks().clone().unwrap();
@@ -1461,6 +1460,23 @@ impl Program {
 
     pub fn get_symlink_cache_rc(&self) -> Gc<Box<dyn GetSymlinkCache>> {
         Gc::new(Box::new(ProgramGetSymlinkCache::new(self.rc_wrapper())))
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub struct HostGetCanonicalFileName {
+    host: Gc<Box<dyn CompilerHost>>,
+}
+
+impl HostGetCanonicalFileName {
+    pub fn new(host: Gc<Box<dyn CompilerHost>>) -> Self {
+        Self { host }
+    }
+}
+
+impl GetCanonicalFileName for HostGetCanonicalFileName {
+    fn call(&self, file_name: &str) -> String {
+        self.host.get_canonical_file_name(file_name)
     }
 }
 

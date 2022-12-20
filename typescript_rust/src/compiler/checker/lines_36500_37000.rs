@@ -693,7 +693,7 @@ impl TypeChecker {
             let first_declaration: &Node = first_declaration.borrow();
             add_related_info(
                 &err,
-                vec![Rc::new(
+                vec![Gc::new(
                     create_diagnostic_for_node(
                         first_declaration,
                         &Diagnostics::_0_was_also_declared_here,

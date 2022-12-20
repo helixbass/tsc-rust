@@ -802,7 +802,7 @@ impl TypeChecker {
                 if let Some(diagnostic) = diagnostic {
                     add_related_info(
                         diagnostic,
-                        vec![Rc::new(
+                        vec![Gc::new(
                             create_diagnostic_for_node(
                                 declaration,
                                 &Diagnostics::_0_needs_an_explicit_type_annotation,

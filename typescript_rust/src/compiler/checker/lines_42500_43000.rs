@@ -269,7 +269,7 @@ impl TypeChecker {
                                     None,
                                 ),
                                 vec![
-                                    Rc::new(
+                                    Gc::new(
                                         create_diagnostic_for_node(
                                             use_strict_directive,
                                             &Diagnostics::use_strict_directive_used_here,
@@ -282,11 +282,11 @@ impl TypeChecker {
                         },
                     );
 
-                    let diagnostics: Vec<Rc<DiagnosticRelatedInformation>> = non_simple_parameters
+                    let diagnostics: Vec<Gc<DiagnosticRelatedInformation>> = non_simple_parameters
                         .iter()
                         .enumerate()
                         .map(|(index, parameter)| {
-                            Rc::new(if index == 0 {
+                            Gc::new(if index == 0 {
                                 create_diagnostic_for_node(
                                     parameter,
                                     &Diagnostics::Non_simple_parameter_declared_here,

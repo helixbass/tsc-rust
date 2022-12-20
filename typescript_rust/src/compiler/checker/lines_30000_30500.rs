@@ -412,7 +412,7 @@ impl TypeChecker {
                     )]),
                 );
             } else {
-                let mut related_information: Option<Rc<DiagnosticRelatedInformation>> = None;
+                let mut related_information: Option<Gc<DiagnosticRelatedInformation>> = None;
                 if node_as_call_expression.arguments.len() == 1 {
                     let source_file = get_source_file_of_node(Some(node)).unwrap();
                     let text = source_file.as_source_file().text_as_chars();
@@ -428,7 +428,7 @@ impl TypeChecker {
                         .unwrap()
                             - 1,
                     )) {
-                        related_information = Some(Rc::new(
+                        related_information = Some(Gc::new(
                             create_diagnostic_for_node(
                                 &node_as_call_expression.expression,
                                 &Diagnostics::Are_you_missing_a_semicolon,

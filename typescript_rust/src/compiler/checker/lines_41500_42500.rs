@@ -989,7 +989,7 @@ impl TypeChecker {
                         add_related_info(
                             &diagnostic,
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         second_file,
                                         &Diagnostics::Conflicts_are_in_this_file,
@@ -1015,7 +1015,7 @@ impl TypeChecker {
                         add_related_info(
                             &diagnostic,
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         first_file,
                                         &Diagnostics::Conflicts_are_in_this_file,

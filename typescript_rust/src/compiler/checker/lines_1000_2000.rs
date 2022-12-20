@@ -367,7 +367,7 @@ impl TypeChecker {
     ) -> Gc<Diagnostic> {
         let diagnostic = self.error(Some(location), message, args);
         if maybe_missing_await {
-            let related: Rc<DiagnosticRelatedInformation> = Rc::new(
+            let related: Gc<DiagnosticRelatedInformation> = Gc::new(
                 create_diagnostic_for_node(
                     location,
                     &Diagnostics::Did_you_forget_to_use_await,
@@ -391,7 +391,7 @@ impl TypeChecker {
         if let Some(deprecated_tag) = deprecated_tag {
             add_related_info(
                 &diagnostic,
-                vec![Rc::new(
+                vec![Gc::new(
                     create_diagnostic_for_node(
                         &deprecated_tag,
                         &Diagnostics::The_declaration_was_marked_as_deprecated_here,
@@ -806,7 +806,7 @@ impl TypeChecker {
                         *err_related_information = Some(vec![]);
                     }
                 }
-                let leading_message: Rc<DiagnosticRelatedInformation> = Rc::new(
+                let leading_message: Gc<DiagnosticRelatedInformation> = Gc::new(
                     create_diagnostic_for_node(
                         &adjusted_node,
                         &Diagnostics::_0_was_also_declared_here,
@@ -814,13 +814,13 @@ impl TypeChecker {
                     )
                     .into(),
                 );
-                let follow_on_message: Rc<DiagnosticRelatedInformation> = Rc::new(
+                let follow_on_message: Gc<DiagnosticRelatedInformation> = Gc::new(
                     create_diagnostic_for_node(&adjusted_node, &Diagnostics::and_here, None).into(),
                 );
                 if length(err.maybe_related_information().as_deref()) >= 5
                     || some(
                         err.maybe_related_information().as_deref(),
-                        Some(|r: &Rc<DiagnosticRelatedInformation>| {
+                        Some(|r: &Gc<DiagnosticRelatedInformation>| {
                             compare_diagnostics(&**r, &*follow_on_message) == Comparison::EqualTo
                                 || compare_diagnostics(&**r, &*leading_message)
                                     == Comparison::EqualTo
@@ -2026,7 +2026,7 @@ impl TypeChecker {
                             {
                                 add_related_info(
                                     &diagnostic,
-                                    vec![Rc::new(
+                                    vec![Gc::new(
                                         create_diagnostic_for_node(
                                             &suggestion_value_declaration,
                                             &Diagnostics::_0_is_declared_here,

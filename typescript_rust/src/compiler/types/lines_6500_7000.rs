@@ -181,7 +181,9 @@ pub struct ResolvedModuleFull {
     pub resolved_file_name: String,
     pub is_external_library_import: Option<bool>,
     pub original_path: Option<String>,
+    #[unsafe_ignore_trace]
     pub extension: Option<Extension>,
+    #[unsafe_ignore_trace]
     pub package_id: Option<PackageId>,
 }
 
@@ -280,6 +282,7 @@ pub struct ResolvedTypeReferenceDirective {
     pub primary: bool,
     pub resolved_file_name: Option<String>,
     pub original_path: Option<String>,
+    #[unsafe_ignore_trace]
     pub package_id: Option<PackageId>,
     pub is_external_library_import: Option<bool>,
 }
@@ -514,7 +517,9 @@ bitflags! {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct SourceMapRange {
+    #[unsafe_ignore_trace]
     pos: Cell<isize>,
+    #[unsafe_ignore_trace]
     end: Cell<isize>,
     source: Option<SourceMapSource>,
 }
@@ -579,7 +584,11 @@ pub struct SourceMapSourceConcrete {
     pub file_name: String,
     pub text: String,
     pub(crate) line_map: Vec<usize>,
-    pub skip_trivia: Option<Rc<dyn Fn(usize) -> usize>>,
+    pub skip_trivia: Option<Gc<Box<dyn SkipTrivia>>>,
+}
+
+pub trait SkipTrivia: Trace + Finalize {
+    fn call(&self, something: usize) -> usize;
 }
 
 impl fmt::Debug for SourceMapSourceConcrete {
@@ -633,10 +642,14 @@ pub trait EmitHelperBase {
     fn dependencies(&self) -> Option<&[Gc<EmitHelper>]>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Trace, Finalize)]
 pub enum EmitHelperText {
     String(String),
-    Callback(Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>),
+    Callback(Gc<Box<dyn EmitHelperTextCallback>>),
+}
+
+pub trait EmitHelperTextCallback: Trace + Finalize {
+    fn call(&self, callback: &dyn Fn(&str) -> String) -> String;
 }
 
 impl fmt::Debug for EmitHelperText {
@@ -651,8 +664,8 @@ impl From<String> for EmitHelperText {
     }
 }
 
-impl From<Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>> for EmitHelperText {
-    fn from(value: Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>) -> Self {
+impl From<Gc<Box<dyn EmitHelperTextCallback>>> for EmitHelperText {
+    fn from(value: Gc<Box<dyn EmitHelperTextCallback>>) -> Self {
         Self::Callback(value)
     }
 }

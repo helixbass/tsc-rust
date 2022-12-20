@@ -175,6 +175,7 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 pub struct NodeFactory<TBaseNodeFactory: 'static> {
+    #[unsafe_ignore_trace]
     pub flags: NodeFactoryFlags,
     pub parenthesizer_rules: GcCell<Option<Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>>,
     pub converters: GcCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,

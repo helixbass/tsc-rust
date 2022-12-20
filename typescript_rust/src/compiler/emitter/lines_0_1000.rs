@@ -516,7 +516,7 @@ impl Printer {
     }
 
     pub(super) fn relative_to_build_info(&self, value: &str) -> String {
-        (self.relative_to_build_info.clone().unwrap())(value)
+        self.relative_to_build_info.clone().unwrap().call(value)
     }
 
     pub(super) fn source_file_text_pos(&self) -> usize {

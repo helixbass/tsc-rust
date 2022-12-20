@@ -716,7 +716,7 @@ impl TypeChecker {
                                 add_related_info(
                                     &diagnostic,
                                     vec![
-                                        Rc::new(
+                                        Gc::new(
                                             create_diagnostic_for_node(
                                                 &current_node,
                                                 &Diagnostics::Circularity_originates_in_type_at_this_location,

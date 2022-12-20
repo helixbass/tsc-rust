@@ -23,7 +23,7 @@ pub trait LiteralTypeInterface: TypeInterface {
     fn set_regular_type(&self, regular_type: Gc<Type>);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(interfaces = "LiteralTypeInterface")]
 pub enum LiteralType {
     StringLiteralType(StringLiteralType),
@@ -42,20 +42,20 @@ impl LiteralType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(impl_from = false)]
 pub struct BaseLiteralType {
     _type: BaseType,
-    fresh_type: RefCell<Option<Gc<Type>>>,
-    regular_type: RefCell<Option<Gc<Type>>>,
+    fresh_type: GcCell<Option<Gc<Type>>>,
+    regular_type: GcCell<Option<Gc<Type>>>,
 }
 
 impl BaseLiteralType {
     pub fn new(type_: BaseType) -> Self {
         Self {
             _type: type_,
-            fresh_type: RefCell::new(None),
-            regular_type: RefCell::new(None),
+            fresh_type: Default::default(),
+            regular_type: Default::default(),
         }
     }
 }
@@ -82,10 +82,11 @@ impl LiteralTypeInterface for BaseLiteralType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type]
 pub struct UniqueESSymbolType {
     _type: BaseType,
+    #[unsafe_ignore_trace]
     pub escaped_name: __String,
 }
 
@@ -100,7 +101,7 @@ impl UniqueESSymbolType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(ancestors = "LiteralType")]
 pub struct StringLiteralType {
     _literal_type: BaseLiteralType,
@@ -157,10 +158,11 @@ impl LiteralTypeInterface for StringLiteralType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(ancestors = "LiteralType")]
 pub struct NumberLiteralType {
     _literal_type: BaseLiteralType,
+    #[unsafe_ignore_trace]
     pub value: Number,
 }
 
@@ -214,10 +216,11 @@ impl LiteralTypeInterface for NumberLiteralType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(ancestors = "LiteralType")]
 pub struct BigIntLiteralType {
     _literal_type: BaseLiteralType,
+    #[unsafe_ignore_trace]
     pub value: PseudoBigInt,
 }
 
@@ -338,7 +341,7 @@ pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Gc<Type>>>>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
@@ -619,7 +622,7 @@ impl NotActuallyInterfaceType<'_> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InterfaceTypeInterface, TypeReferenceInterface, GenericTypeInterface, GenericableTypeInterface, FreshObjectLiteralTypeInterface"
@@ -809,8 +812,13 @@ impl GenericableTypeInterface for BaseInterfaceType {
 }
 
 impl GenericTypeInterface for BaseInterfaceType {
-    fn instantiations(&self) -> GcCellRefMut<HashMap<String, Gc<Type /*TypeReference*/>>> {
-        RefMut::map(self.instantiations.borrow_mut(), |instantiations| {
+    fn instantiations(
+        &self,
+    ) -> GcCellRefMut<
+        Option<HashMap<String, Gc<Type /*TypeReference*/>>>,
+        HashMap<String, Gc<Type /*TypeReference*/>>,
+    > {
+        GcCellRefMut::map(self.instantiations.borrow_mut(), |instantiations| {
             instantiations.as_mut().unwrap()
         })
     }
@@ -862,7 +870,7 @@ impl TypeReferenceInterface for BaseInterfaceType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -968,7 +976,12 @@ pub trait GenericTypeInterface:
     + InterfaceTypeInterface
     + TypeReferenceInterface
 {
-    fn instantiations(&self) -> GcCellRefMut<HashMap<String, Gc<Type /*TypeReference*/>>>;
+    fn instantiations(
+        &self,
+    ) -> GcCellRefMut<
+        Option<HashMap<String, Gc<Type /*TypeReference*/>>>,
+        HashMap<String, Gc<Type /*TypeReference*/>>,
+    >;
     fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>>;
     fn set_variances(&self, variances: Vec<VarianceFlags>);
 }
@@ -987,17 +1000,19 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "InterfaceType, ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, GenericableTypeInterface, GenericTypeInterface, InterfaceTypeInterface, TypeReferenceInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct TupleType {
     _interface_type: BaseInterfaceType,
+    #[unsafe_ignore_trace]
     pub element_flags: Vec<ElementFlags>,
     pub min_length: usize,
     pub fixed_length: usize,
     pub has_rest_element: bool,
+    #[unsafe_ignore_trace]
     pub combined_flags: ElementFlags,
     pub readonly: bool,
     pub labeled_element_declarations:
@@ -1037,7 +1052,7 @@ pub trait UnionOrIntersectionTypeInterface: TypeInterface {
     fn maybe_resolved_properties(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
@@ -1046,11 +1061,12 @@ pub enum UnionOrIntersectionType {
     IntersectionType(IntersectionType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(impl_from = false)]
 pub struct BaseUnionOrIntersectionType {
     _type: BaseType,
     pub types: Vec<Gc<Type>>,
+    #[unsafe_ignore_trace]
     pub object_flags: Cell<ObjectFlags>,
     property_cache: GcCell<Option<SymbolTable>>,
     property_cache_without_object_function_property_augment: GcCell<Option<SymbolTable>>,
@@ -1224,29 +1240,30 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
     ancestors = "UnionOrIntersectionType",
     interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct UnionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
-    resolved_reduced_type: RefCell<Option<Gc<Type>>>,
-    regular_type: RefCell<Option<Gc<Type /*UnionType*/>>>,
+    resolved_reduced_type: GcCell<Option<Gc<Type>>>,
+    regular_type: GcCell<Option<Gc<Type /*UnionType*/>>>,
     pub(crate) origin: Option<Gc<Type>>,
+    #[unsafe_ignore_trace]
     key_property_name: RefCell<Option<__String>>,
-    constituent_map: RefCell<Option<HashMap<TypeId, Gc<Type>>>>,
+    constituent_map: GcCell<Option<HashMap<TypeId, Gc<Type>>>>,
 }
 
 impl UnionType {
     pub fn new(union_or_intersection_type: BaseUnionOrIntersectionType) -> Self {
         Self {
             _union_or_intersection_type: union_or_intersection_type,
-            resolved_reduced_type: RefCell::new(None),
-            regular_type: RefCell::new(None),
+            resolved_reduced_type: Default::default(),
+            regular_type: Default::default(),
             origin: None,
-            key_property_name: RefCell::new(None),
-            constituent_map: RefCell::new(None),
+            key_property_name: Default::default(),
+            constituent_map: Default::default(),
         }
     }
 
