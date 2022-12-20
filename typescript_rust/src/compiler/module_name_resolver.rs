@@ -3284,11 +3284,17 @@ fn load_module_from_specific_node_modules_directory(
     )
 }
 
-#[derive(Clone, Trace, Finalize)]
-pub enum PackageJsonInfoOrBool {
-    PackageJsonInfo(Rc<PackageJsonInfo>),
-    Bool(bool),
+mod _PackageJsonInfoOrBoolDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Clone, Trace, Finalize)]
+    pub enum PackageJsonInfoOrBool {
+        PackageJsonInfo(Rc<PackageJsonInfo>),
+        Bool(bool),
+    }
 }
+pub use _PackageJsonInfoOrBoolDeriveTraceScope::PackageJsonInfoOrBool;
 
 impl From<Rc<PackageJsonInfo>> for PackageJsonInfoOrBool {
     fn from(value: Rc<PackageJsonInfo>) -> Self {

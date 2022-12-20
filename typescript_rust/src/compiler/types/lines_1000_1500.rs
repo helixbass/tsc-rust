@@ -14,118 +14,124 @@ use super::{
 };
 use local_macros::ast_type;
 
-#[derive(Clone, Debug, Trace, Finalize)]
-pub struct NodeArray {
-    _nodes: Vec<Gc<Node>>,
-    #[unsafe_ignore_trace]
-    pos: Cell<isize>,
-    #[unsafe_ignore_trace]
-    end: Cell<isize>,
-    pub has_trailing_comma: bool,
-    #[unsafe_ignore_trace]
-    pub(crate) transform_flags: Option<TransformFlags>,
-    pub is_missing_list: bool,
-}
+mod _NodeArrayDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
 
-impl NodeArray {
-    pub fn new(
-        nodes: Vec<Gc<Node>>,
-        pos: isize,
-        end: isize,
-        has_trailing_comma: bool,
-        transform_flags: Option<TransformFlags>,
-    ) -> Self {
-        NodeArray {
-            _nodes: nodes,
-            pos: Cell::new(pos),
-            end: Cell::new(end),
-            has_trailing_comma,
-            transform_flags,
-            is_missing_list: false,
+    #[derive(Clone, Debug, Trace, Finalize)]
+    pub struct NodeArray {
+        _nodes: Vec<Gc<Node>>,
+        #[unsafe_ignore_trace]
+        pos: Cell<isize>,
+        #[unsafe_ignore_trace]
+        end: Cell<isize>,
+        pub has_trailing_comma: bool,
+        #[unsafe_ignore_trace]
+        pub(crate) transform_flags: Option<TransformFlags>,
+        pub is_missing_list: bool,
+    }
+
+    impl NodeArray {
+        pub fn new(
+            nodes: Vec<Gc<Node>>,
+            pos: isize,
+            end: isize,
+            has_trailing_comma: bool,
+            transform_flags: Option<TransformFlags>,
+        ) -> Self {
+            NodeArray {
+                _nodes: nodes,
+                pos: Cell::new(pos),
+                end: Cell::new(end),
+                has_trailing_comma,
+                transform_flags,
+                is_missing_list: false,
+            }
+        }
+
+        pub fn iter(&self) -> NodeArrayIter {
+            NodeArrayIter(Box::new(self._nodes.iter()))
+        }
+
+        pub fn len(&self) -> usize {
+            self._nodes.len()
+        }
+
+        pub fn to_vec(&self) -> Vec<Gc<Node>> {
+            self._nodes.clone()
+        }
+
+        pub fn into_vec(self) -> Vec<Gc<Node>> {
+            self._nodes
         }
     }
 
-    pub fn iter(&self) -> NodeArrayIter {
-        NodeArrayIter(Box::new(self._nodes.iter()))
+    impl ReadonlyTextRange for NodeArray {
+        fn pos(&self) -> isize {
+            self.pos.get()
+        }
+
+        fn set_pos(&self, pos: isize) {
+            self.pos.set(pos);
+        }
+
+        fn end(&self) -> isize {
+            self.end.get()
+        }
+
+        fn set_end(&self, end: isize) {
+            self.end.set(end);
+        }
     }
 
-    pub fn len(&self) -> usize {
-        self._nodes.len()
+    // impl Default for NodeArray {
+    //     fn default() -> Self {
+    //         Self::new(vec![])
+    //     }
+    // }
+
+    impl From<&NodeArray> for Vec<Gc<Node>> {
+        fn from(node_array: &NodeArray) -> Self {
+            node_array._nodes.clone()
+        }
     }
 
-    pub fn to_vec(&self) -> Vec<Gc<Node>> {
-        self._nodes.clone()
+    impl<'node_array> From<&'node_array NodeArray> for &'node_array [Gc<Node>] {
+        fn from(node_array: &'node_array NodeArray) -> Self {
+            &node_array._nodes
+        }
     }
 
-    pub fn into_vec(self) -> Vec<Gc<Node>> {
-        self._nodes
-    }
-}
+    pub struct NodeArrayIter<'node_array>(
+        Box<dyn Iterator<Item = &'node_array Gc<Node>> + 'node_array>,
+    );
 
-impl ReadonlyTextRange for NodeArray {
-    fn pos(&self) -> isize {
-        self.pos.get()
-    }
+    impl<'node_array> Iterator for NodeArrayIter<'node_array> {
+        type Item = &'node_array Gc<Node>;
 
-    fn set_pos(&self, pos: isize) {
-        self.pos.set(pos);
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next()
+        }
     }
 
-    fn end(&self) -> isize {
-        self.end.get()
+    impl<'node_array> IntoIterator for &'node_array NodeArray {
+        type Item = &'node_array Gc<Node>;
+        type IntoIter = NodeArrayIter<'node_array>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.iter()
+        }
     }
 
-    fn set_end(&self, end: isize) {
-        self.end.set(end);
-    }
-}
+    impl Deref for NodeArray {
+        type Target = [Gc<Node>];
 
-// impl Default for NodeArray {
-//     fn default() -> Self {
-//         Self::new(vec![])
-//     }
-// }
-
-impl From<&NodeArray> for Vec<Gc<Node>> {
-    fn from(node_array: &NodeArray) -> Self {
-        node_array._nodes.clone()
-    }
-}
-
-impl<'node_array> From<&'node_array NodeArray> for &'node_array [Gc<Node>] {
-    fn from(node_array: &'node_array NodeArray) -> Self {
-        &node_array._nodes
-    }
-}
-
-pub struct NodeArrayIter<'node_array>(
-    Box<dyn Iterator<Item = &'node_array Gc<Node>> + 'node_array>,
-);
-
-impl<'node_array> Iterator for NodeArrayIter<'node_array> {
-    type Item = &'node_array Gc<Node>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-
-impl<'node_array> IntoIterator for &'node_array NodeArray {
-    type Item = &'node_array Gc<Node>;
-    type IntoIter = NodeArrayIter<'node_array>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        fn deref(&self) -> &Self::Target {
+            &self._nodes
+        }
     }
 }
-
-impl Deref for NodeArray {
-    type Target = [Gc<Node>];
-
-    fn deref(&self) -> &Self::Target {
-        &self._nodes
-    }
-}
+pub use _NodeArrayDeriveTraceScope::NodeArray;
 
 #[derive(Clone, Debug)]
 pub enum NodeArrayOrVec {

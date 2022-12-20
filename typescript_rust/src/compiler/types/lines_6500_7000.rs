@@ -642,11 +642,17 @@ pub trait EmitHelperBase {
     fn dependencies(&self) -> Option<&[Gc<EmitHelper>]>;
 }
 
-#[derive(Clone, Trace, Finalize)]
-pub enum EmitHelperText {
-    String(String),
-    Callback(Gc<Box<dyn EmitHelperTextCallback>>),
+mod _EmitHelperTextDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Clone, Trace, Finalize)]
+    pub enum EmitHelperText {
+        String(String),
+        Callback(Gc<Box<dyn EmitHelperTextCallback>>),
+    }
 }
+pub use _EmitHelperTextDeriveTraceScope::EmitHelperText;
 
 pub trait EmitHelperTextCallback: Trace + Finalize {
     fn call(&self, callback: &dyn Fn(&str) -> String) -> String;

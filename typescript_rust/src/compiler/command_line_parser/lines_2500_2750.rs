@@ -243,14 +243,14 @@ pub(super) fn parse_json_config_file_content_worker<
             extra_file_extensions,
             raw,
             resolution_stack,
-            &mut errors.borrow_mut(),
+            &mut errors.clone().borrow_mut(),
             config_file_name,
             &base_path_for_file_names,
         ),
         project_references: get_project_references(
             raw,
             source_file,
-            &mut errors.borrow_mut(),
+            &mut errors.clone().borrow_mut(),
             &base_path_for_file_names,
         ),
         type_acquisition: Some(
@@ -259,7 +259,7 @@ pub(super) fn parse_json_config_file_content_worker<
                 .unwrap_or_else(|| Rc::new(get_default_type_acquisition(None))),
         ),
         raw: raw.map(Clone::clone),
-        errors,
+        errors: errors.clone(),
         wildcard_directories: Some(get_wildcard_directories(
             &config_file_specs,
             &base_path_for_file_names,

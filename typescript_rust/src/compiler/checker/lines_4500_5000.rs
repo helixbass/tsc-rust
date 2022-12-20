@@ -692,12 +692,6 @@ impl NodeBuilder {
             },
             None,
         );
-        let default_tracker: Option<Gc<Box<DefaultNodeBuilderContextSymbolTracker>>> = match tracker
-            .as_ref()
-            .filter(|tracker| tracker.is_track_symbol_supported())
-        {
-            Some(_) => None,
-        };
         let tracker = tracker
             .filter(|tracker| tracker.is_track_symbol_supported())
             .unwrap_or_else(|| {
@@ -1583,7 +1577,7 @@ impl DefaultNodeBuilderContextSymbolTracker {
                 None
             },
         }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_rc_wrapper) };
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_rc_wrapper.clone()) };
         *downcasted._dyn_rc_wrapper.borrow_mut() = Some(dyn_rc_wrapper);
         downcasted
     }

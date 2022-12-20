@@ -38,6 +38,7 @@ thread_local! {
 #[derive(Trace, Finalize)]
 struct SysFormatDiagnosticsHost {
     system: Gc<Box<dyn System>>,
+    #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
 }
 

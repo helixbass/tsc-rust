@@ -149,7 +149,7 @@ pub(super) fn convert_object_literal_expression_to_json<
             }
         }
         let value = convert_property_value_to_json(
-            errors,
+            errors.clone(),
             source_file,
             json_conversion_notifier,
             return_value,
@@ -216,7 +216,7 @@ pub(super) fn convert_array_literal_expression_to_json<
     if !return_value {
         elements.iter().for_each(|element| {
             convert_property_value_to_json(
-                errors,
+                errors.clone(),
                 source_file,
                 json_conversion_notifier,
                 return_value,
@@ -233,7 +233,7 @@ pub(super) fn convert_array_literal_expression_to_json<
             .iter()
             .filter_map(|element| {
                 convert_property_value_to_json(
-                    errors,
+                    errors.clone(),
                     source_file,
                     json_conversion_notifier,
                     return_value,
@@ -1132,7 +1132,7 @@ fn write_configurations(
     let mut margin_length = 0;
     let mut seen_known_keys = 0;
     let mut entries: Vec<WriteConfigurationsEntry> = vec![];
-    for (category, options) in categorized_options.0 {
+    for (category, options) in categorized_options {
         if !entries.is_empty() {
             entries.push(WriteConfigurationsEntry::new("".to_owned(), None));
         }

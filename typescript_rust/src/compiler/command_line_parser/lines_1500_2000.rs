@@ -554,7 +554,7 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
         json_source_file.as_source_file().parse_diagnostics();
     let config = convert_config_file_to_object(
         &json_source_file,
-        json_source_file_parse_diagnostics,
+        json_source_file_parse_diagnostics.clone(),
         false,
         Option::<&JsonConversionNotifierDummy>::None,
     );

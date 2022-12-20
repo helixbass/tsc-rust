@@ -1209,42 +1209,59 @@ pub fn clone<TValue: Cloneable>(object: &TValue) -> TValue {
     object.cloned()
 }
 
-// TODO: make the nested hash map private and implement iteration on the wrapper
-#[derive(Debug, Trace, Finalize)]
-pub struct MultiMap<TKey: Trace + Finalize, TValue: Trace + Finalize>(
-    pub HashMap<TKey, Vec<TValue>>,
-);
+mod _MultiMapDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
 
-impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> MultiMap<TKey, TValue> {
-    pub fn add(&mut self, key: TKey, value: TValue) {
-        let values = self.0.entry(key).or_insert(vec![]);
-        values.push(value);
-    }
+    #[derive(Debug, Trace, Finalize)]
+    pub struct MultiMap<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+        // TODO: make the nested hash map private and implement iteration on the wrapper
+        pub HashMap<TKey, Vec<TValue>>,
+    );
 
-    pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
-        &mut self,
-        key: TKey,
-        value: &TValue,
-        comparer: TComparer,
-    ) {
-        {
-            let mut values = self.0.entry(key);
-            match values {
-                Entry::Occupied(mut values) => {
-                    unordered_remove_item(values.get_mut(), value, comparer);
-                    if values.get().is_empty() {
-                        values.remove_entry();
+    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> MultiMap<TKey, TValue> {
+        pub fn add(&mut self, key: TKey, value: TValue) {
+            let values = self.0.entry(key).or_insert(vec![]);
+            values.push(value);
+        }
+
+        pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
+            &mut self,
+            key: TKey,
+            value: &TValue,
+            comparer: TComparer,
+        ) {
+            {
+                let mut values = self.0.entry(key);
+                match values {
+                    Entry::Occupied(mut values) => {
+                        unordered_remove_item(values.get_mut(), value, comparer);
+                        if values.get().is_empty() {
+                            values.remove_entry();
+                        }
                     }
+                    _ => (),
                 }
-                _ => (),
             }
+        }
+
+        pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
+            self.0.get(key)
         }
     }
 
-    pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
-        self.0.get(key)
+    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> IntoIterator
+        for MultiMap<TKey, TValue>
+    {
+        type Item = (TKey, Vec<TValue>);
+        type IntoIter = <HashMap<TKey, Vec<TValue>> as IntoIterator>::IntoIter;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.into_iter()
+        }
     }
 }
+pub use _MultiMapDeriveTraceScope::MultiMap;
 
 pub fn create_multi_map<TKey: Trace + Finalize, TValue: Trace + Finalize>() -> MultiMap<TKey, TValue>
 {

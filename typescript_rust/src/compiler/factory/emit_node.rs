@@ -16,7 +16,19 @@ pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
                 if node.kind() == SyntaxKind::SourceFile {
                     let ret = Gc::new(GcCell::new(EmitNode {
                         annotated_nodes: Some(vec![node.node_wrapper()]),
-                        ..Default::default()
+                        // ..Default::default()
+                        flags: Default::default(),
+                        leading_comments: Default::default(),
+                        trailing_comments: Default::default(),
+                        comment_range: Default::default(),
+                        source_map_range: Default::default(),
+                        token_source_map_ranges: Default::default(),
+                        constant_value: Default::default(),
+                        external_helpers_module_name: Default::default(),
+                        external_helpers: Default::default(),
+                        helpers: Default::default(),
+                        starts_on_new_line: Default::default(),
+                        snippet_element: Default::default(),
                     }));
                     *node.maybe_emit_node_mut() = Some(ret.clone());
                     return ret;

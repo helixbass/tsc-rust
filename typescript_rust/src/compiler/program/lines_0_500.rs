@@ -160,6 +160,7 @@ struct CompilerHostConcrete {
     options: Gc<CompilerOptions>,
     new_line: String,
     current_directory: GcCell<Option<String>>,
+    #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
     read_file_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
     file_exists_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,

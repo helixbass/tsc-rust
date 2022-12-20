@@ -3732,3 +3732,65 @@ pub fn type_unwrapped(input: TokenStream) -> TokenStream {
     }
     .into()
 }
+
+// Hack to derive `gc` `Trace` implementations without also generating `Drop` in order to avoid
+// getting E0509 ("cannot move out of type ..., which implements the `Drop` trait") errors
+// This is copied from rust-gc/gc_derive/src/lib.rs
+
+use synstructure::{decl_derive, AddBounds, Structure};
+
+decl_derive!([Trace, attributes(unsafe_ignore_trace)] => derive_trace);
+
+fn derive_trace(mut s: Structure<'_>) -> proc_macro2::TokenStream {
+    s.filter(|bi| {
+        !bi.ast()
+            .attrs
+            .iter()
+            .any(|attr| attr.path.is_ident("unsafe_ignore_trace"))
+    });
+    let trace_body = s.each(|bi| quote!(mark(#bi)));
+
+    s.add_bounds(AddBounds::Fields);
+    let trace_impl = s.unsafe_bound_impl(
+        quote!(::gc::Trace),
+        quote! {
+            #[inline] unsafe fn trace(&self) {
+                #[allow(dead_code)]
+                #[inline]
+                unsafe fn mark<T: ::gc::Trace + ?Sized>(it: &T) {
+                    ::gc::Trace::trace(it);
+                }
+                match *self { #trace_body }
+            }
+            #[inline] unsafe fn root(&self) {
+                #[allow(dead_code)]
+                #[inline]
+                unsafe fn mark<T: ::gc::Trace + ?Sized>(it: &T) {
+                    ::gc::Trace::root(it);
+                }
+                match *self { #trace_body }
+            }
+            #[inline] unsafe fn unroot(&self) {
+                #[allow(dead_code)]
+                #[inline]
+                unsafe fn mark<T: ::gc::Trace + ?Sized>(it: &T) {
+                    ::gc::Trace::unroot(it);
+                }
+                match *self { #trace_body }
+            }
+            #[inline] fn finalize_glue(&self) {
+                ::gc::Finalize::finalize(self);
+                #[allow(dead_code)]
+                #[inline]
+                fn mark<T: ::gc::Trace + ?Sized>(it: &T) {
+                    ::gc::Trace::finalize_glue(it);
+                }
+                match *self { #trace_body }
+            }
+        },
+    );
+
+    quote! {
+        #trace_impl
+    }
+}

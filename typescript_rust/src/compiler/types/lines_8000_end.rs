@@ -641,31 +641,37 @@ pub trait PrintHandlers: Trace + Finalize {
     fn on_after_emit_token(&self, node: Option<&Node>) {}
 }
 
-#[derive(Builder, Default, Trace, Finalize)]
-#[builder(default)]
-pub struct PrinterOptions {
-    pub remove_comments: Option<bool>,
-    #[unsafe_ignore_trace]
-    pub new_line: Option<NewLineKind>,
-    pub omit_trailing_semicolon: Option<bool>,
-    pub no_emit_helpers: Option<bool>,
-    #[unsafe_ignore_trace]
-    pub(crate) module: Option<ModuleKind>,
-    #[unsafe_ignore_trace]
-    pub(crate) target: Option<ScriptTarget>,
-    pub(crate) source_map: Option<bool>,
-    pub(crate) inline_source_map: Option<bool>,
-    pub(crate) inline_sources: Option<bool>,
-    pub(crate) extended_diagnostics: Option<bool>,
-    pub(crate) only_print_js_doc_style: Option<bool>,
-    pub(crate) never_ascii_escape: Option<bool>,
-    pub(crate) write_bundle_file_info: Option<bool>,
-    pub(crate) record_internal_section: Option<bool>,
-    pub(crate) strip_internal: Option<bool>,
-    pub(crate) preserve_source_newlines: Option<bool>,
-    pub(crate) terminate_unterminated_literals: Option<bool>,
-    pub(crate) relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
+mod _PrinterOptionsDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Builder, Default, Trace, Finalize)]
+    #[builder(default)]
+    pub struct PrinterOptions {
+        pub remove_comments: Option<bool>,
+        #[unsafe_ignore_trace]
+        pub new_line: Option<NewLineKind>,
+        pub omit_trailing_semicolon: Option<bool>,
+        pub no_emit_helpers: Option<bool>,
+        #[unsafe_ignore_trace]
+        pub(crate) module: Option<ModuleKind>,
+        #[unsafe_ignore_trace]
+        pub(crate) target: Option<ScriptTarget>,
+        pub(crate) source_map: Option<bool>,
+        pub(crate) inline_source_map: Option<bool>,
+        pub(crate) inline_sources: Option<bool>,
+        pub(crate) extended_diagnostics: Option<bool>,
+        pub(crate) only_print_js_doc_style: Option<bool>,
+        pub(crate) never_ascii_escape: Option<bool>,
+        pub(crate) write_bundle_file_info: Option<bool>,
+        pub(crate) record_internal_section: Option<bool>,
+        pub(crate) strip_internal: Option<bool>,
+        pub(crate) preserve_source_newlines: Option<bool>,
+        pub(crate) terminate_unterminated_literals: Option<bool>,
+        pub(crate) relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
+    }
 }
+pub use _PrinterOptionsDeriveTraceScope::{PrinterOptions, PrinterOptionsBuilder};
 
 pub trait RelativeToBuildInfo: Trace + Finalize {
     fn call(&self, file_name: &str) -> String;

@@ -383,1065 +383,1074 @@ impl From<Option<PollingWatchKind>> for CompilerOptionsValue {
     }
 }
 
-#[derive(Builder, Clone, Debug, Default, Serialize, Trace, Finalize)]
-#[builder(default)]
-pub struct CompilerOptions {
-    pub all: Option<bool>,
-    pub allow_js: Option<bool>,
-    pub allow_non_ts_extensions: Option<bool>,
-    pub allow_synthetic_default_imports: Option<bool>,
-    pub allow_umd_global_access: Option<bool>,
-    pub allow_unreachable_code: Option<bool>,
-    pub allow_unused_labels: Option<bool>,
-    pub always_strict: Option<bool>,
-    pub base_url: Option<String>,
-    #[builder(setter(skip))]
-    pub build: Option<bool>,
-    pub charset: Option<String>,
-    pub check_js: Option<bool>,
-    pub config_file_path: Option<String>,
-    #[serde(skip_serializing)]
-    pub config_file: Option<Gc<Node /*TsConfigSourceFile*/>>,
-    pub declaration: Option<bool>,
-    pub declaration_map: Option<bool>,
-    pub emit_declaration_only: Option<bool>,
-    pub declaration_dir: Option<String>,
-    pub diagnostics: Option<bool>,
-    pub extended_diagnostics: Option<bool>,
-    pub disable_size_limit: Option<bool>,
-    pub disable_source_of_project_reference_redirect: Option<bool>,
-    pub disable_solution_searching: Option<bool>,
-    pub disable_referenced_project_load: Option<bool>,
-    pub downlevel_iteration: Option<bool>,
-    pub emit_bom: Option<bool>,
-    pub emit_decorator_metadata: Option<bool>,
-    pub exact_optional_property_types: Option<bool>,
-    pub experimental_decorators: Option<bool>,
-    pub force_consistent_casing_in_file_names: Option<bool>,
-    pub generate_cpu_profile: Option<String>,
-    pub generate_trace: Option<String>,
-    pub help: Option<bool>,
-    pub import_helpers: Option<bool>,
-    #[unsafe_ignore_trace]
-    pub imports_not_used_as_values: Option<ImportsNotUsedAsValues>,
-    pub init: Option<bool>,
-    pub inline_source_map: Option<bool>,
-    pub inline_sources: Option<bool>,
-    pub isolated_modules: Option<bool>,
-    #[unsafe_ignore_trace]
-    pub jsx: Option<JsxEmit>,
-    pub keyof_strings_only: Option<bool>,
-    pub lib: Option<Vec<String>>,
-    pub list_emitted_files: Option<bool>,
-    pub list_files: Option<bool>,
-    pub explain_files: Option<bool>,
-    pub list_files_only: Option<bool>,
-    pub locale: Option<String>,
-    pub map_root: Option<String>,
-    pub max_node_module_js_depth: Option<usize>,
-    #[unsafe_ignore_trace]
-    pub module: Option<ModuleKind>,
-    #[unsafe_ignore_trace]
-    pub module_resolution: Option<ModuleResolutionKind>,
-    #[unsafe_ignore_trace]
-    pub new_line: Option<NewLineKind>,
-    pub no_emit: Option<bool>,
-    pub no_emit_for_js_files: Option<bool>,
-    pub no_emit_helpers: Option<bool>,
-    pub no_emit_on_error: Option<bool>,
-    pub no_error_truncation: Option<bool>,
-    pub no_fallthrough_cases_in_switch: Option<bool>,
-    pub no_implicit_any: Option<bool>,
-    pub no_implicit_returns: Option<bool>,
-    pub no_implicit_this: Option<bool>,
-    pub no_strict_generic_checks: Option<bool>,
-    pub no_unused_locals: Option<bool>,
-    pub no_unused_parameters: Option<bool>,
-    pub no_implicit_use_strict: Option<bool>,
-    pub no_property_access_from_index_signature: Option<bool>,
-    pub assume_changes_only_affect_direct_dependencies: Option<bool>,
-    pub no_lib: Option<bool>,
-    pub no_resolve: Option<bool>,
-    pub no_unchecked_indexed_access: Option<bool>,
-    pub out: Option<String>,
-    pub out_dir: Option<String>,
-    pub out_file: Option<String>,
-    pub paths: Option<MapLike<Vec<String>>>,
-    pub paths_base_path: Option<String>,
-    #[unsafe_ignore_trace]
-    pub plugins: Option<Vec<PluginImport>>,
-    pub preserve_const_enums: Option<bool>,
-    pub no_implicit_override: Option<bool>,
-    pub preserve_symlinks: Option<bool>,
-    pub preserve_value_imports: Option<bool>,
-    pub preserve_watch_output: Option<bool>,
-    pub project: Option<String>,
-    pub pretty: Option<bool>,
-    pub react_namespace: Option<String>,
-    pub jsx_factory: Option<String>,
-    pub jsx_fragment_factory: Option<String>,
-    pub jsx_import_source: Option<String>,
-    pub composite: Option<bool>,
-    pub incremental: Option<bool>,
-    pub ts_build_info_file: Option<String>,
-    pub remove_comments: Option<bool>,
-    pub root_dir: Option<String>,
-    pub root_dirs: Option<Vec<String>>,
-    pub skip_lib_check: Option<bool>,
-    pub skip_default_lib_check: Option<bool>,
-    pub source_map: Option<bool>,
-    pub source_root: Option<String>,
-    pub strict: Option<bool>,
-    pub strict_function_types: Option<bool>,
-    pub strict_bind_call_apply: Option<bool>,
-    pub strict_null_checks: Option<bool>,
-    pub strict_property_initialization: Option<bool>,
-    pub strip_internal: Option<bool>,
-    pub suppress_excess_property_errors: Option<bool>,
-    pub suppress_implicit_any_index_errors: Option<bool>,
-    pub suppress_output_path_check: Option<bool>,
-    #[unsafe_ignore_trace]
-    pub target: Option<ScriptTarget>,
-    pub trace_resolution: Option<bool>,
-    pub use_unknown_in_catch_variables: Option<bool>,
-    pub resolve_json_module: Option<bool>,
-    pub types: Option<Vec<String>>,
-    pub type_roots: Option<Vec<String>>,
-    pub version: Option<bool>,
-    pub watch: Option<bool>,
-    pub es_module_interop: Option<bool>,
-    pub show_config: Option<bool>,
-    pub use_define_for_class_fields: Option<bool>,
-    // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
-}
+mod _CompilerOptionsDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
 
-impl CompilerOptions {
-    pub fn set_value_from_command_line_option(
-        &mut self,
-        option: &CommandLineOption,
-        value: CompilerOptionsValue,
-    ) {
-        self.set_value(option.name(), value)
+    #[derive(Builder, Clone, Debug, Default, Serialize, Trace, Finalize)]
+    #[builder(default)]
+    pub struct CompilerOptions {
+        pub all: Option<bool>,
+        pub allow_js: Option<bool>,
+        pub allow_non_ts_extensions: Option<bool>,
+        pub allow_synthetic_default_imports: Option<bool>,
+        pub allow_umd_global_access: Option<bool>,
+        pub allow_unreachable_code: Option<bool>,
+        pub allow_unused_labels: Option<bool>,
+        pub always_strict: Option<bool>,
+        pub base_url: Option<String>,
+        #[builder(setter(skip))]
+        pub build: Option<bool>,
+        pub charset: Option<String>,
+        pub check_js: Option<bool>,
+        pub config_file_path: Option<String>,
+        #[serde(skip_serializing)]
+        pub config_file: Option<Gc<Node /*TsConfigSourceFile*/>>,
+        pub declaration: Option<bool>,
+        pub declaration_map: Option<bool>,
+        pub emit_declaration_only: Option<bool>,
+        pub declaration_dir: Option<String>,
+        pub diagnostics: Option<bool>,
+        pub extended_diagnostics: Option<bool>,
+        pub disable_size_limit: Option<bool>,
+        pub disable_source_of_project_reference_redirect: Option<bool>,
+        pub disable_solution_searching: Option<bool>,
+        pub disable_referenced_project_load: Option<bool>,
+        pub downlevel_iteration: Option<bool>,
+        pub emit_bom: Option<bool>,
+        pub emit_decorator_metadata: Option<bool>,
+        pub exact_optional_property_types: Option<bool>,
+        pub experimental_decorators: Option<bool>,
+        pub force_consistent_casing_in_file_names: Option<bool>,
+        pub generate_cpu_profile: Option<String>,
+        pub generate_trace: Option<String>,
+        pub help: Option<bool>,
+        pub import_helpers: Option<bool>,
+        #[unsafe_ignore_trace]
+        pub imports_not_used_as_values: Option<ImportsNotUsedAsValues>,
+        pub init: Option<bool>,
+        pub inline_source_map: Option<bool>,
+        pub inline_sources: Option<bool>,
+        pub isolated_modules: Option<bool>,
+        #[unsafe_ignore_trace]
+        pub jsx: Option<JsxEmit>,
+        pub keyof_strings_only: Option<bool>,
+        pub lib: Option<Vec<String>>,
+        pub list_emitted_files: Option<bool>,
+        pub list_files: Option<bool>,
+        pub explain_files: Option<bool>,
+        pub list_files_only: Option<bool>,
+        pub locale: Option<String>,
+        pub map_root: Option<String>,
+        pub max_node_module_js_depth: Option<usize>,
+        #[unsafe_ignore_trace]
+        pub module: Option<ModuleKind>,
+        #[unsafe_ignore_trace]
+        pub module_resolution: Option<ModuleResolutionKind>,
+        #[unsafe_ignore_trace]
+        pub new_line: Option<NewLineKind>,
+        pub no_emit: Option<bool>,
+        pub no_emit_for_js_files: Option<bool>,
+        pub no_emit_helpers: Option<bool>,
+        pub no_emit_on_error: Option<bool>,
+        pub no_error_truncation: Option<bool>,
+        pub no_fallthrough_cases_in_switch: Option<bool>,
+        pub no_implicit_any: Option<bool>,
+        pub no_implicit_returns: Option<bool>,
+        pub no_implicit_this: Option<bool>,
+        pub no_strict_generic_checks: Option<bool>,
+        pub no_unused_locals: Option<bool>,
+        pub no_unused_parameters: Option<bool>,
+        pub no_implicit_use_strict: Option<bool>,
+        pub no_property_access_from_index_signature: Option<bool>,
+        pub assume_changes_only_affect_direct_dependencies: Option<bool>,
+        pub no_lib: Option<bool>,
+        pub no_resolve: Option<bool>,
+        pub no_unchecked_indexed_access: Option<bool>,
+        pub out: Option<String>,
+        pub out_dir: Option<String>,
+        pub out_file: Option<String>,
+        pub paths: Option<MapLike<Vec<String>>>,
+        pub paths_base_path: Option<String>,
+        #[unsafe_ignore_trace]
+        pub plugins: Option<Vec<PluginImport>>,
+        pub preserve_const_enums: Option<bool>,
+        pub no_implicit_override: Option<bool>,
+        pub preserve_symlinks: Option<bool>,
+        pub preserve_value_imports: Option<bool>,
+        pub preserve_watch_output: Option<bool>,
+        pub project: Option<String>,
+        pub pretty: Option<bool>,
+        pub react_namespace: Option<String>,
+        pub jsx_factory: Option<String>,
+        pub jsx_fragment_factory: Option<String>,
+        pub jsx_import_source: Option<String>,
+        pub composite: Option<bool>,
+        pub incremental: Option<bool>,
+        pub ts_build_info_file: Option<String>,
+        pub remove_comments: Option<bool>,
+        pub root_dir: Option<String>,
+        pub root_dirs: Option<Vec<String>>,
+        pub skip_lib_check: Option<bool>,
+        pub skip_default_lib_check: Option<bool>,
+        pub source_map: Option<bool>,
+        pub source_root: Option<String>,
+        pub strict: Option<bool>,
+        pub strict_function_types: Option<bool>,
+        pub strict_bind_call_apply: Option<bool>,
+        pub strict_null_checks: Option<bool>,
+        pub strict_property_initialization: Option<bool>,
+        pub strip_internal: Option<bool>,
+        pub suppress_excess_property_errors: Option<bool>,
+        pub suppress_implicit_any_index_errors: Option<bool>,
+        pub suppress_output_path_check: Option<bool>,
+        #[unsafe_ignore_trace]
+        pub target: Option<ScriptTarget>,
+        pub trace_resolution: Option<bool>,
+        pub use_unknown_in_catch_variables: Option<bool>,
+        pub resolve_json_module: Option<bool>,
+        pub types: Option<Vec<String>>,
+        pub type_roots: Option<Vec<String>>,
+        pub version: Option<bool>,
+        pub watch: Option<bool>,
+        pub es_module_interop: Option<bool>,
+        pub show_config: Option<bool>,
+        pub use_define_for_class_fields: Option<bool>,
+        // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
     }
 
-    pub fn set_value(&mut self, option_name: &str, value: CompilerOptionsValue) {
-        match option_name {
-            "all" => {
-                self.all = value.into_option_bool();
+    impl CompilerOptions {
+        pub fn set_value_from_command_line_option(
+            &mut self,
+            option: &CommandLineOption,
+            value: CompilerOptionsValue,
+        ) {
+            self.set_value(option.name(), value)
+        }
+
+        pub fn set_value(&mut self, option_name: &str, value: CompilerOptionsValue) {
+            match option_name {
+                "all" => {
+                    self.all = value.into_option_bool();
+                }
+                "allowJs" => {
+                    self.allow_js = value.into_option_bool();
+                }
+                "allowNonTsExtensions" => {
+                    self.allow_non_ts_extensions = value.into_option_bool();
+                }
+                "allowSyntheticDefaultImports" => {
+                    self.allow_synthetic_default_imports = value.into_option_bool();
+                }
+                "allowUmdGlobalAccess" => {
+                    self.allow_umd_global_access = value.into_option_bool();
+                }
+                "allowUnreachableCode" => {
+                    self.allow_unreachable_code = value.into_option_bool();
+                }
+                "allowUnusedLabels" => {
+                    self.allow_unused_labels = value.into_option_bool();
+                }
+                "alwaysStrict" => {
+                    self.always_strict = value.into_option_bool();
+                }
+                "baseUrl" => {
+                    self.base_url = value.into_option_string();
+                }
+                "build" => {
+                    self.build = value.into_option_bool();
+                }
+                "charset" => {
+                    self.charset = value.into_option_string();
+                }
+                "checkJs" => {
+                    self.check_js = value.into_option_bool();
+                }
+                "configFilePath" => {
+                    self.config_file_path = value.into_option_string();
+                }
+                "configFile" => {
+                    self.config_file = value.into_option_rc_node();
+                }
+                "declaration" => {
+                    self.declaration = value.into_option_bool();
+                }
+                "declarationMap" => {
+                    self.declaration_map = value.into_option_bool();
+                }
+                "emitDeclarationOnly" => {
+                    self.emit_declaration_only = value.into_option_bool();
+                }
+                "declarationDir" => {
+                    self.declaration_dir = value.into_option_string();
+                }
+                "diagnostics" => {
+                    self.diagnostics = value.into_option_bool();
+                }
+                "extendedDiagnostics" => {
+                    self.extended_diagnostics = value.into_option_bool();
+                }
+                "disableSizeLimit" => {
+                    self.disable_size_limit = value.into_option_bool();
+                }
+                "disableSourceOfProjectReferenceRedirect" => {
+                    self.disable_source_of_project_reference_redirect = value.into_option_bool();
+                }
+                "disableSolutionSearching" => {
+                    self.disable_solution_searching = value.into_option_bool();
+                }
+                "disableReferencedProjectLoad" => {
+                    self.disable_referenced_project_load = value.into_option_bool();
+                }
+                "downlevelIteration" => {
+                    self.downlevel_iteration = value.into_option_bool();
+                }
+                "emitBom" => {
+                    self.emit_bom = value.into_option_bool();
+                }
+                "emitDecoratorMetadata" => {
+                    self.emit_decorator_metadata = value.into_option_bool();
+                }
+                "exactOptionalPropertyTypes" => {
+                    self.exact_optional_property_types = value.into_option_bool();
+                }
+                "experimentalDecorators" => {
+                    self.experimental_decorators = value.into_option_bool();
+                }
+                "forceConsistentCasingInFileNames" => {
+                    self.force_consistent_casing_in_file_names = value.into_option_bool();
+                }
+                "generateCpuProfile" => {
+                    self.generate_cpu_profile = value.into_option_string();
+                }
+                "generateTrace" => {
+                    self.generate_trace = value.into_option_string();
+                }
+                "help" => {
+                    self.help = value.into_option_bool();
+                }
+                "importHelpers" => {
+                    self.import_helpers = value.into_option_bool();
+                }
+                "importsNotUsedAsValues" => {
+                    self.imports_not_used_as_values =
+                        value.into_option_imports_not_used_as_values();
+                }
+                "init" => {
+                    self.init = value.into_option_bool();
+                }
+                "inlineSourceMap" => {
+                    self.inline_source_map = value.into_option_bool();
+                }
+                "inlineSources" => {
+                    self.inline_sources = value.into_option_bool();
+                }
+                "isolatedModules" => {
+                    self.isolated_modules = value.into_option_bool();
+                }
+                "jsx" => {
+                    self.jsx = value.into_option_jsx_emit();
+                }
+                "keyofStringsOnly" => {
+                    self.keyof_strings_only = value.into_option_bool();
+                }
+                "lib" => {
+                    self.lib = value.into_option_vec_string();
+                }
+                "listEmittedFiles" => {
+                    self.list_emitted_files = value.into_option_bool();
+                }
+                "listFiles" => {
+                    self.list_files = value.into_option_bool();
+                }
+                "explainFiles" => {
+                    self.explain_files = value.into_option_bool();
+                }
+                "listFilesOnly" => {
+                    self.list_files_only = value.into_option_bool();
+                }
+                "locale" => {
+                    self.locale = value.into_option_string();
+                }
+                "mapRoot" => {
+                    self.map_root = value.into_option_string();
+                }
+                "maxNodeModuleJsDepth" => {
+                    self.max_node_module_js_depth = value.into_option_usize();
+                }
+                "module" => {
+                    self.module = value.into_option_module_kind();
+                }
+                "moduleResolution" => {
+                    self.module_resolution = value.into_option_module_resolution_kind();
+                }
+                "newLine" => {
+                    self.new_line = value.into_option_new_line_kind();
+                }
+                "noEmit" => {
+                    self.no_emit = value.into_option_bool();
+                }
+                "noEmitForJsFiles" => {
+                    self.no_emit_for_js_files = value.into_option_bool();
+                }
+                "noEmitHelpers" => {
+                    self.no_emit_helpers = value.into_option_bool();
+                }
+                "noEmitOnError" => {
+                    self.no_emit_on_error = value.into_option_bool();
+                }
+                "noErrorTruncation" => {
+                    self.no_error_truncation = value.into_option_bool();
+                }
+                "noFallthroughCasesInSwitch" => {
+                    self.no_fallthrough_cases_in_switch = value.into_option_bool();
+                }
+                "noImplicitAny" => {
+                    self.no_implicit_any = value.into_option_bool();
+                }
+                "noImplicitReturns" => {
+                    self.no_implicit_returns = value.into_option_bool();
+                }
+                "noImplicitThis" => {
+                    self.no_implicit_this = value.into_option_bool();
+                }
+                "noStrictGenericChecks" => {
+                    self.no_strict_generic_checks = value.into_option_bool();
+                }
+                "noUnusedLocals" => {
+                    self.no_unused_locals = value.into_option_bool();
+                }
+                "noUnusedParameters" => {
+                    self.no_unused_parameters = value.into_option_bool();
+                }
+                "noImplicitUseStrict" => {
+                    self.no_implicit_use_strict = value.into_option_bool();
+                }
+                "noPropertyAccessFromIndexSignature" => {
+                    self.no_property_access_from_index_signature = value.into_option_bool();
+                }
+                "assumeChangesOnlyAffectDirectDependencies" => {
+                    self.assume_changes_only_affect_direct_dependencies = value.into_option_bool();
+                }
+                "noLib" => {
+                    self.no_lib = value.into_option_bool();
+                }
+                "noResolve" => {
+                    self.no_resolve = value.into_option_bool();
+                }
+                "noUncheckedIndexedAccess" => {
+                    self.no_unchecked_indexed_access = value.into_option_bool();
+                }
+                "out" => {
+                    self.out = value.into_option_string();
+                }
+                "outDir" => {
+                    self.out_dir = value.into_option_string();
+                }
+                "outFile" => {
+                    self.out_file = value.into_option_string();
+                }
+                "paths" => {
+                    self.paths = value.into_option_map_like_vec_string();
+                }
+                "pathsBasePath" => {
+                    self.paths_base_path = value.into_option_string();
+                }
+                "plugins" => {
+                    self.plugins = value.into_option_vec_plugin_import();
+                }
+                "preserveConstEnums" => {
+                    self.preserve_const_enums = value.into_option_bool();
+                }
+                "noImplicitOverride" => {
+                    self.no_implicit_override = value.into_option_bool();
+                }
+                "preserveSymlinks" => {
+                    self.preserve_symlinks = value.into_option_bool();
+                }
+                "preserveValueImports" => {
+                    self.preserve_value_imports = value.into_option_bool();
+                }
+                "preserveWatchOutput" => {
+                    self.preserve_watch_output = value.into_option_bool();
+                }
+                "project" => {
+                    self.project = value.into_option_string();
+                }
+                "pretty" => {
+                    self.pretty = value.into_option_bool();
+                }
+                "reactNamespace" => {
+                    self.react_namespace = value.into_option_string();
+                }
+                "jsxFactory" => {
+                    self.jsx_factory = value.into_option_string();
+                }
+                "jsxFragmentFactory" => {
+                    self.jsx_fragment_factory = value.into_option_string();
+                }
+                "jsxImportSource" => {
+                    self.jsx_import_source = value.into_option_string();
+                }
+                "composite" => {
+                    self.composite = value.into_option_bool();
+                }
+                "incremental" => {
+                    self.incremental = value.into_option_bool();
+                }
+                "tsBuildInfoFile" => {
+                    self.ts_build_info_file = value.into_option_string();
+                }
+                "removeComments" => {
+                    self.remove_comments = value.into_option_bool();
+                }
+                "rootDir" => {
+                    self.root_dir = value.into_option_string();
+                }
+                "rootDirs" => {
+                    self.root_dirs = value.into_option_vec_string();
+                }
+                "skipLibCheck" => {
+                    self.skip_lib_check = value.into_option_bool();
+                }
+                "skipDefaultLibCheck" => {
+                    self.skip_default_lib_check = value.into_option_bool();
+                }
+                "sourceMap" => {
+                    self.source_map = value.into_option_bool();
+                }
+                "sourceRoot" => {
+                    self.source_root = value.into_option_string();
+                }
+                "strict" => {
+                    self.strict = value.into_option_bool();
+                }
+                "strictFunctionTypes" => {
+                    self.strict_function_types = value.into_option_bool();
+                }
+                "strictBindCallApply" => {
+                    self.strict_bind_call_apply = value.into_option_bool();
+                }
+                "strictNullChecks" => {
+                    self.strict_null_checks = value.into_option_bool();
+                }
+                "strictPropertyInitialization" => {
+                    self.strict_property_initialization = value.into_option_bool();
+                }
+                "stripInternal" => {
+                    self.strip_internal = value.into_option_bool();
+                }
+                "suppressExcessPropertyErrors" => {
+                    self.suppress_excess_property_errors = value.into_option_bool();
+                }
+                "suppressImplicitAnyIndexErrors" => {
+                    self.suppress_implicit_any_index_errors = value.into_option_bool();
+                }
+                "suppressOutputPathCheck" => {
+                    self.suppress_output_path_check = value.into_option_bool();
+                }
+                "target" => {
+                    self.target = value.into_option_script_target();
+                }
+                "traceResolution" => {
+                    self.trace_resolution = value.into_option_bool();
+                }
+                "useUnknownInCatchVariables" => {
+                    self.use_unknown_in_catch_variables = value.into_option_bool();
+                }
+                "resolveJsonModule" => {
+                    self.resolve_json_module = value.into_option_bool();
+                }
+                "types" => {
+                    self.types = value.into_option_vec_string();
+                }
+                "typeRoots" => {
+                    self.type_roots = value.into_option_vec_string();
+                }
+                "version" => {
+                    self.version = value.into_option_bool();
+                }
+                "watch" => {
+                    self.watch = value.into_option_bool();
+                }
+                "esModuleInterop" => {
+                    self.es_module_interop = value.into_option_bool();
+                }
+                "showConfig" => {
+                    self.show_config = value.into_option_bool();
+                }
+                "useDefineForClassFields" => {
+                    self.use_define_for_class_fields = value.into_option_bool();
+                }
+                _ => panic!("Unknown compiler option: {:?}", option_name),
+            }
+        }
+
+        pub fn get_value(&self, option_name: &str) -> CompilerOptionsValue {
+            match option_name {
+                "all" => self.all.into(),
+                "allowJs" => self.allow_js.into(),
+                "allowNonTsExtensions" => self.allow_non_ts_extensions.into(),
+                "allowSyntheticDefaultImports" => self.allow_synthetic_default_imports.into(),
+                "allowUmdGlobalAccess" => self.allow_umd_global_access.into(),
+                "allowUnreachableCode" => self.allow_unreachable_code.into(),
+                "allowUnusedLabels" => self.allow_unused_labels.into(),
+                "alwaysStrict" => self.always_strict.into(),
+                "baseUrl" => self.base_url.clone().into(),
+                "build" => self.build.into(),
+                "charset" => self.charset.clone().into(),
+                "checkJs" => self.check_js.into(),
+                "configFilePath" => self.config_file_path.clone().into(),
+                "configFile" => self.config_file.clone().into(),
+                "declaration" => self.declaration.into(),
+                "declarationMap" => self.declaration_map.into(),
+                "emitDeclarationOnly" => self.emit_declaration_only.into(),
+                "declarationDir" => self.declaration_dir.clone().into(),
+                "diagnostics" => self.diagnostics.into(),
+                "extendedDiagnostics" => self.extended_diagnostics.into(),
+                "disableSizeLimit" => self.disable_size_limit.into(),
+                "disableSourceOfProjectReferenceRedirect" => {
+                    self.disable_source_of_project_reference_redirect.into()
+                }
+                "disableSolutionSearching" => self.disable_solution_searching.into(),
+                "disableReferencedProjectLoad" => self.disable_referenced_project_load.into(),
+                "downlevelIteration" => self.downlevel_iteration.into(),
+                "emitBom" => self.emit_bom.into(),
+                "emitDecoratorMetadata" => self.emit_decorator_metadata.into(),
+                "exactOptionalPropertyTypes" => self.exact_optional_property_types.into(),
+                "experimentalDecorators" => self.experimental_decorators.into(),
+                "forceConsistentCasingInFileNames" => {
+                    self.force_consistent_casing_in_file_names.into()
+                }
+                "generateCpuProfile" => self.generate_cpu_profile.clone().into(),
+                "generateTrace" => self.generate_trace.clone().into(),
+                "help" => self.help.into(),
+                "importHelpers" => self.import_helpers.into(),
+                "importsNotUsedAsValues" => self.imports_not_used_as_values.into(),
+                "init" => self.init.into(),
+                "inlineSourceMap" => self.inline_source_map.into(),
+                "inlineSources" => self.inline_sources.into(),
+                "isolatedModules" => self.isolated_modules.into(),
+                "jsx" => self.jsx.into(),
+                "keyofStringsOnly" => self.keyof_strings_only.into(),
+                "lib" => self.lib.clone().into(),
+                "listEmittedFiles" => self.list_emitted_files.into(),
+                "listFiles" => self.list_files.into(),
+                "explainFiles" => self.explain_files.into(),
+                "listFilesOnly" => self.list_files_only.into(),
+                "locale" => self.locale.clone().into(),
+                "mapRoot" => self.map_root.clone().into(),
+                "maxNodeModuleJsDepth" => self.max_node_module_js_depth.into(),
+                "module" => self.module.into(),
+                "moduleResolution" => self.module_resolution.into(),
+                "newLine" => self.new_line.into(),
+                "noEmit" => self.no_emit.into(),
+                "noEmitForJsFiles" => self.no_emit_for_js_files.into(),
+                "noEmitHelpers" => self.no_emit_helpers.into(),
+                "noEmitOnError" => self.no_emit_on_error.into(),
+                "noErrorTruncation" => self.no_error_truncation.into(),
+                "noFallthroughCasesInSwitch" => self.no_fallthrough_cases_in_switch.into(),
+                "noImplicitAny" => self.no_implicit_any.into(),
+                "noImplicitReturns" => self.no_implicit_returns.into(),
+                "noImplicitThis" => self.no_implicit_this.into(),
+                "noStrictGenericChecks" => self.no_strict_generic_checks.into(),
+                "noUnusedLocals" => self.no_unused_locals.into(),
+                "noUnusedParameters" => self.no_unused_parameters.into(),
+                "noImplicitUseStrict" => self.no_implicit_use_strict.into(),
+                "noPropertyAccessFromIndexSignature" => {
+                    self.no_property_access_from_index_signature.into()
+                }
+                "assumeChangesOnlyAffectDirectDependencies" => {
+                    self.assume_changes_only_affect_direct_dependencies.into()
+                }
+                "noLib" => self.no_lib.into(),
+                "noResolve" => self.no_resolve.into(),
+                "noUncheckedIndexedAccess" => self.no_unchecked_indexed_access.into(),
+                "out" => self.out.clone().into(),
+                "outDir" => self.out_dir.clone().into(),
+                "outFile" => self.out_file.clone().into(),
+                "paths" => self.paths.clone().into(),
+                "pathsBasePath" => self.paths_base_path.clone().into(),
+                "plugins" => self.plugins.clone().into(),
+                "preserveConstEnums" => self.preserve_const_enums.into(),
+                "noImplicitOverride" => self.no_implicit_override.into(),
+                "preserveSymlinks" => self.preserve_symlinks.into(),
+                "preserveValueImports" => self.preserve_value_imports.into(),
+                "preserveWatchOutput" => self.preserve_watch_output.into(),
+                "project" => self.project.clone().into(),
+                "pretty" => self.pretty.into(),
+                "reactNamespace" => self.react_namespace.clone().into(),
+                "jsxFactory" => self.jsx_factory.clone().into(),
+                "jsxFragmentFactory" => self.jsx_fragment_factory.clone().into(),
+                "jsxImportSource" => self.jsx_import_source.clone().into(),
+                "composite" => self.composite.into(),
+                "incremental" => self.incremental.into(),
+                "tsBuildInfoFile" => self.ts_build_info_file.clone().into(),
+                "removeComments" => self.remove_comments.into(),
+                "rootDir" => self.root_dir.clone().into(),
+                "rootDirs" => self.root_dirs.clone().into(),
+                "skipLibCheck" => self.skip_lib_check.into(),
+                "skipDefaultLibCheck" => self.skip_default_lib_check.into(),
+                "sourceMap" => self.source_map.into(),
+                "sourceRoot" => self.source_root.clone().into(),
+                "strict" => self.strict.into(),
+                "strictFunctionTypes" => self.strict_function_types.into(),
+                "strictBindCallApply" => self.strict_bind_call_apply.into(),
+                "strictNullChecks" => self.strict_null_checks.into(),
+                "strictPropertyInitialization" => self.strict_property_initialization.into(),
+                "stripInternal" => self.strip_internal.into(),
+                "suppressExcessPropertyErrors" => self.suppress_excess_property_errors.into(),
+                "suppressImplicitAnyIndexErrors" => self.suppress_implicit_any_index_errors.into(),
+                "suppressOutputPathCheck" => self.suppress_output_path_check.into(),
+                "target" => self.target.into(),
+                "traceResolution" => self.trace_resolution.into(),
+                "useUnknownInCatchVariables" => self.use_unknown_in_catch_variables.into(),
+                "resolveJsonModule" => self.resolve_json_module.into(),
+                "types" => self.types.clone().into(),
+                "typeRoots" => self.type_roots.clone().into(),
+                "version" => self.version.into(),
+                "watch" => self.watch.into(),
+                "esModuleInterop" => self.es_module_interop.into(),
+                "showConfig" => self.show_config.into(),
+                "useDefineForClassFields" => self.use_define_for_class_fields.into(),
+                _ => panic!("Unknown compiler option: {:?}", option_name),
             }
-            "allowJs" => {
-                self.allow_js = value.into_option_bool();
-            }
-            "allowNonTsExtensions" => {
-                self.allow_non_ts_extensions = value.into_option_bool();
-            }
-            "allowSyntheticDefaultImports" => {
-                self.allow_synthetic_default_imports = value.into_option_bool();
-            }
-            "allowUmdGlobalAccess" => {
-                self.allow_umd_global_access = value.into_option_bool();
-            }
-            "allowUnreachableCode" => {
-                self.allow_unreachable_code = value.into_option_bool();
-            }
-            "allowUnusedLabels" => {
-                self.allow_unused_labels = value.into_option_bool();
-            }
-            "alwaysStrict" => {
-                self.always_strict = value.into_option_bool();
-            }
-            "baseUrl" => {
-                self.base_url = value.into_option_string();
-            }
-            "build" => {
-                self.build = value.into_option_bool();
-            }
-            "charset" => {
-                self.charset = value.into_option_string();
-            }
-            "checkJs" => {
-                self.check_js = value.into_option_bool();
-            }
-            "configFilePath" => {
-                self.config_file_path = value.into_option_string();
-            }
-            "configFile" => {
-                self.config_file = value.into_option_rc_node();
-            }
-            "declaration" => {
-                self.declaration = value.into_option_bool();
-            }
-            "declarationMap" => {
-                self.declaration_map = value.into_option_bool();
-            }
-            "emitDeclarationOnly" => {
-                self.emit_declaration_only = value.into_option_bool();
-            }
-            "declarationDir" => {
-                self.declaration_dir = value.into_option_string();
-            }
-            "diagnostics" => {
-                self.diagnostics = value.into_option_bool();
-            }
-            "extendedDiagnostics" => {
-                self.extended_diagnostics = value.into_option_bool();
-            }
-            "disableSizeLimit" => {
-                self.disable_size_limit = value.into_option_bool();
-            }
-            "disableSourceOfProjectReferenceRedirect" => {
-                self.disable_source_of_project_reference_redirect = value.into_option_bool();
-            }
-            "disableSolutionSearching" => {
-                self.disable_solution_searching = value.into_option_bool();
-            }
-            "disableReferencedProjectLoad" => {
-                self.disable_referenced_project_load = value.into_option_bool();
-            }
-            "downlevelIteration" => {
-                self.downlevel_iteration = value.into_option_bool();
-            }
-            "emitBom" => {
-                self.emit_bom = value.into_option_bool();
-            }
-            "emitDecoratorMetadata" => {
-                self.emit_decorator_metadata = value.into_option_bool();
-            }
-            "exactOptionalPropertyTypes" => {
-                self.exact_optional_property_types = value.into_option_bool();
-            }
-            "experimentalDecorators" => {
-                self.experimental_decorators = value.into_option_bool();
-            }
-            "forceConsistentCasingInFileNames" => {
-                self.force_consistent_casing_in_file_names = value.into_option_bool();
-            }
-            "generateCpuProfile" => {
-                self.generate_cpu_profile = value.into_option_string();
-            }
-            "generateTrace" => {
-                self.generate_trace = value.into_option_string();
-            }
-            "help" => {
-                self.help = value.into_option_bool();
-            }
-            "importHelpers" => {
-                self.import_helpers = value.into_option_bool();
-            }
-            "importsNotUsedAsValues" => {
-                self.imports_not_used_as_values = value.into_option_imports_not_used_as_values();
-            }
-            "init" => {
-                self.init = value.into_option_bool();
-            }
-            "inlineSourceMap" => {
-                self.inline_source_map = value.into_option_bool();
-            }
-            "inlineSources" => {
-                self.inline_sources = value.into_option_bool();
-            }
-            "isolatedModules" => {
-                self.isolated_modules = value.into_option_bool();
-            }
-            "jsx" => {
-                self.jsx = value.into_option_jsx_emit();
-            }
-            "keyofStringsOnly" => {
-                self.keyof_strings_only = value.into_option_bool();
-            }
-            "lib" => {
-                self.lib = value.into_option_vec_string();
-            }
-            "listEmittedFiles" => {
-                self.list_emitted_files = value.into_option_bool();
-            }
-            "listFiles" => {
-                self.list_files = value.into_option_bool();
-            }
-            "explainFiles" => {
-                self.explain_files = value.into_option_bool();
-            }
-            "listFilesOnly" => {
-                self.list_files_only = value.into_option_bool();
-            }
-            "locale" => {
-                self.locale = value.into_option_string();
-            }
-            "mapRoot" => {
-                self.map_root = value.into_option_string();
-            }
-            "maxNodeModuleJsDepth" => {
-                self.max_node_module_js_depth = value.into_option_usize();
-            }
-            "module" => {
-                self.module = value.into_option_module_kind();
-            }
-            "moduleResolution" => {
-                self.module_resolution = value.into_option_module_resolution_kind();
-            }
-            "newLine" => {
-                self.new_line = value.into_option_new_line_kind();
-            }
-            "noEmit" => {
-                self.no_emit = value.into_option_bool();
-            }
-            "noEmitForJsFiles" => {
-                self.no_emit_for_js_files = value.into_option_bool();
-            }
-            "noEmitHelpers" => {
-                self.no_emit_helpers = value.into_option_bool();
-            }
-            "noEmitOnError" => {
-                self.no_emit_on_error = value.into_option_bool();
-            }
-            "noErrorTruncation" => {
-                self.no_error_truncation = value.into_option_bool();
-            }
-            "noFallthroughCasesInSwitch" => {
-                self.no_fallthrough_cases_in_switch = value.into_option_bool();
-            }
-            "noImplicitAny" => {
-                self.no_implicit_any = value.into_option_bool();
-            }
-            "noImplicitReturns" => {
-                self.no_implicit_returns = value.into_option_bool();
-            }
-            "noImplicitThis" => {
-                self.no_implicit_this = value.into_option_bool();
-            }
-            "noStrictGenericChecks" => {
-                self.no_strict_generic_checks = value.into_option_bool();
-            }
-            "noUnusedLocals" => {
-                self.no_unused_locals = value.into_option_bool();
-            }
-            "noUnusedParameters" => {
-                self.no_unused_parameters = value.into_option_bool();
-            }
-            "noImplicitUseStrict" => {
-                self.no_implicit_use_strict = value.into_option_bool();
-            }
-            "noPropertyAccessFromIndexSignature" => {
-                self.no_property_access_from_index_signature = value.into_option_bool();
-            }
-            "assumeChangesOnlyAffectDirectDependencies" => {
-                self.assume_changes_only_affect_direct_dependencies = value.into_option_bool();
-            }
-            "noLib" => {
-                self.no_lib = value.into_option_bool();
-            }
-            "noResolve" => {
-                self.no_resolve = value.into_option_bool();
-            }
-            "noUncheckedIndexedAccess" => {
-                self.no_unchecked_indexed_access = value.into_option_bool();
-            }
-            "out" => {
-                self.out = value.into_option_string();
-            }
-            "outDir" => {
-                self.out_dir = value.into_option_string();
-            }
-            "outFile" => {
-                self.out_file = value.into_option_string();
-            }
-            "paths" => {
-                self.paths = value.into_option_map_like_vec_string();
-            }
-            "pathsBasePath" => {
-                self.paths_base_path = value.into_option_string();
-            }
-            "plugins" => {
-                self.plugins = value.into_option_vec_plugin_import();
-            }
-            "preserveConstEnums" => {
-                self.preserve_const_enums = value.into_option_bool();
-            }
-            "noImplicitOverride" => {
-                self.no_implicit_override = value.into_option_bool();
-            }
-            "preserveSymlinks" => {
-                self.preserve_symlinks = value.into_option_bool();
-            }
-            "preserveValueImports" => {
-                self.preserve_value_imports = value.into_option_bool();
-            }
-            "preserveWatchOutput" => {
-                self.preserve_watch_output = value.into_option_bool();
-            }
-            "project" => {
-                self.project = value.into_option_string();
-            }
-            "pretty" => {
-                self.pretty = value.into_option_bool();
-            }
-            "reactNamespace" => {
-                self.react_namespace = value.into_option_string();
-            }
-            "jsxFactory" => {
-                self.jsx_factory = value.into_option_string();
-            }
-            "jsxFragmentFactory" => {
-                self.jsx_fragment_factory = value.into_option_string();
-            }
-            "jsxImportSource" => {
-                self.jsx_import_source = value.into_option_string();
-            }
-            "composite" => {
-                self.composite = value.into_option_bool();
-            }
-            "incremental" => {
-                self.incremental = value.into_option_bool();
-            }
-            "tsBuildInfoFile" => {
-                self.ts_build_info_file = value.into_option_string();
-            }
-            "removeComments" => {
-                self.remove_comments = value.into_option_bool();
-            }
-            "rootDir" => {
-                self.root_dir = value.into_option_string();
-            }
-            "rootDirs" => {
-                self.root_dirs = value.into_option_vec_string();
-            }
-            "skipLibCheck" => {
-                self.skip_lib_check = value.into_option_bool();
-            }
-            "skipDefaultLibCheck" => {
-                self.skip_default_lib_check = value.into_option_bool();
-            }
-            "sourceMap" => {
-                self.source_map = value.into_option_bool();
-            }
-            "sourceRoot" => {
-                self.source_root = value.into_option_string();
-            }
-            "strict" => {
-                self.strict = value.into_option_bool();
-            }
-            "strictFunctionTypes" => {
-                self.strict_function_types = value.into_option_bool();
-            }
-            "strictBindCallApply" => {
-                self.strict_bind_call_apply = value.into_option_bool();
-            }
-            "strictNullChecks" => {
-                self.strict_null_checks = value.into_option_bool();
-            }
-            "strictPropertyInitialization" => {
-                self.strict_property_initialization = value.into_option_bool();
-            }
-            "stripInternal" => {
-                self.strip_internal = value.into_option_bool();
-            }
-            "suppressExcessPropertyErrors" => {
-                self.suppress_excess_property_errors = value.into_option_bool();
-            }
-            "suppressImplicitAnyIndexErrors" => {
-                self.suppress_implicit_any_index_errors = value.into_option_bool();
-            }
-            "suppressOutputPathCheck" => {
-                self.suppress_output_path_check = value.into_option_bool();
-            }
-            "target" => {
-                self.target = value.into_option_script_target();
-            }
-            "traceResolution" => {
-                self.trace_resolution = value.into_option_bool();
-            }
-            "useUnknownInCatchVariables" => {
-                self.use_unknown_in_catch_variables = value.into_option_bool();
-            }
-            "resolveJsonModule" => {
-                self.resolve_json_module = value.into_option_bool();
-            }
-            "types" => {
-                self.types = value.into_option_vec_string();
-            }
-            "typeRoots" => {
-                self.type_roots = value.into_option_vec_string();
-            }
-            "version" => {
-                self.version = value.into_option_bool();
-            }
-            "watch" => {
-                self.watch = value.into_option_bool();
-            }
-            "esModuleInterop" => {
-                self.es_module_interop = value.into_option_bool();
-            }
-            "showConfig" => {
-                self.show_config = value.into_option_bool();
-            }
-            "useDefineForClassFields" => {
-                self.use_define_for_class_fields = value.into_option_bool();
-            }
-            _ => panic!("Unknown compiler option: {:?}", option_name),
         }
     }
 
-    pub fn get_value(&self, option_name: &str) -> CompilerOptionsValue {
-        match option_name {
-            "all" => self.all.into(),
-            "allowJs" => self.allow_js.into(),
-            "allowNonTsExtensions" => self.allow_non_ts_extensions.into(),
-            "allowSyntheticDefaultImports" => self.allow_synthetic_default_imports.into(),
-            "allowUmdGlobalAccess" => self.allow_umd_global_access.into(),
-            "allowUnreachableCode" => self.allow_unreachable_code.into(),
-            "allowUnusedLabels" => self.allow_unused_labels.into(),
-            "alwaysStrict" => self.always_strict.into(),
-            "baseUrl" => self.base_url.clone().into(),
-            "build" => self.build.into(),
-            "charset" => self.charset.clone().into(),
-            "checkJs" => self.check_js.into(),
-            "configFilePath" => self.config_file_path.clone().into(),
-            "configFile" => self.config_file.clone().into(),
-            "declaration" => self.declaration.into(),
-            "declarationMap" => self.declaration_map.into(),
-            "emitDeclarationOnly" => self.emit_declaration_only.into(),
-            "declarationDir" => self.declaration_dir.clone().into(),
-            "diagnostics" => self.diagnostics.into(),
-            "extendedDiagnostics" => self.extended_diagnostics.into(),
-            "disableSizeLimit" => self.disable_size_limit.into(),
-            "disableSourceOfProjectReferenceRedirect" => {
-                self.disable_source_of_project_reference_redirect.into()
+    impl ToHashMapOfCompilerOptionsValues for CompilerOptions {
+        fn to_hash_map_of_compiler_options_values(
+            &self,
+        ) -> HashMap<&'static str, CompilerOptionsValue> {
+            let mut result = HashMap::new();
+
+            if self.all.is_some() {
+                result.insert("all", self.all.into());
             }
-            "disableSolutionSearching" => self.disable_solution_searching.into(),
-            "disableReferencedProjectLoad" => self.disable_referenced_project_load.into(),
-            "downlevelIteration" => self.downlevel_iteration.into(),
-            "emitBom" => self.emit_bom.into(),
-            "emitDecoratorMetadata" => self.emit_decorator_metadata.into(),
-            "exactOptionalPropertyTypes" => self.exact_optional_property_types.into(),
-            "experimentalDecorators" => self.experimental_decorators.into(),
-            "forceConsistentCasingInFileNames" => self.force_consistent_casing_in_file_names.into(),
-            "generateCpuProfile" => self.generate_cpu_profile.clone().into(),
-            "generateTrace" => self.generate_trace.clone().into(),
-            "help" => self.help.into(),
-            "importHelpers" => self.import_helpers.into(),
-            "importsNotUsedAsValues" => self.imports_not_used_as_values.into(),
-            "init" => self.init.into(),
-            "inlineSourceMap" => self.inline_source_map.into(),
-            "inlineSources" => self.inline_sources.into(),
-            "isolatedModules" => self.isolated_modules.into(),
-            "jsx" => self.jsx.into(),
-            "keyofStringsOnly" => self.keyof_strings_only.into(),
-            "lib" => self.lib.clone().into(),
-            "listEmittedFiles" => self.list_emitted_files.into(),
-            "listFiles" => self.list_files.into(),
-            "explainFiles" => self.explain_files.into(),
-            "listFilesOnly" => self.list_files_only.into(),
-            "locale" => self.locale.clone().into(),
-            "mapRoot" => self.map_root.clone().into(),
-            "maxNodeModuleJsDepth" => self.max_node_module_js_depth.into(),
-            "module" => self.module.into(),
-            "moduleResolution" => self.module_resolution.into(),
-            "newLine" => self.new_line.into(),
-            "noEmit" => self.no_emit.into(),
-            "noEmitForJsFiles" => self.no_emit_for_js_files.into(),
-            "noEmitHelpers" => self.no_emit_helpers.into(),
-            "noEmitOnError" => self.no_emit_on_error.into(),
-            "noErrorTruncation" => self.no_error_truncation.into(),
-            "noFallthroughCasesInSwitch" => self.no_fallthrough_cases_in_switch.into(),
-            "noImplicitAny" => self.no_implicit_any.into(),
-            "noImplicitReturns" => self.no_implicit_returns.into(),
-            "noImplicitThis" => self.no_implicit_this.into(),
-            "noStrictGenericChecks" => self.no_strict_generic_checks.into(),
-            "noUnusedLocals" => self.no_unused_locals.into(),
-            "noUnusedParameters" => self.no_unused_parameters.into(),
-            "noImplicitUseStrict" => self.no_implicit_use_strict.into(),
-            "noPropertyAccessFromIndexSignature" => {
-                self.no_property_access_from_index_signature.into()
+            if self.allow_js.is_some() {
+                result.insert("allowJs", self.allow_js.into());
             }
-            "assumeChangesOnlyAffectDirectDependencies" => {
-                self.assume_changes_only_affect_direct_dependencies.into()
+            if self.allow_non_ts_extensions.is_some() {
+                result.insert("allowNonTsExtensions", self.allow_non_ts_extensions.into());
             }
-            "noLib" => self.no_lib.into(),
-            "noResolve" => self.no_resolve.into(),
-            "noUncheckedIndexedAccess" => self.no_unchecked_indexed_access.into(),
-            "out" => self.out.clone().into(),
-            "outDir" => self.out_dir.clone().into(),
-            "outFile" => self.out_file.clone().into(),
-            "paths" => self.paths.clone().into(),
-            "pathsBasePath" => self.paths_base_path.clone().into(),
-            "plugins" => self.plugins.clone().into(),
-            "preserveConstEnums" => self.preserve_const_enums.into(),
-            "noImplicitOverride" => self.no_implicit_override.into(),
-            "preserveSymlinks" => self.preserve_symlinks.into(),
-            "preserveValueImports" => self.preserve_value_imports.into(),
-            "preserveWatchOutput" => self.preserve_watch_output.into(),
-            "project" => self.project.clone().into(),
-            "pretty" => self.pretty.into(),
-            "reactNamespace" => self.react_namespace.clone().into(),
-            "jsxFactory" => self.jsx_factory.clone().into(),
-            "jsxFragmentFactory" => self.jsx_fragment_factory.clone().into(),
-            "jsxImportSource" => self.jsx_import_source.clone().into(),
-            "composite" => self.composite.into(),
-            "incremental" => self.incremental.into(),
-            "tsBuildInfoFile" => self.ts_build_info_file.clone().into(),
-            "removeComments" => self.remove_comments.into(),
-            "rootDir" => self.root_dir.clone().into(),
-            "rootDirs" => self.root_dirs.clone().into(),
-            "skipLibCheck" => self.skip_lib_check.into(),
-            "skipDefaultLibCheck" => self.skip_default_lib_check.into(),
-            "sourceMap" => self.source_map.into(),
-            "sourceRoot" => self.source_root.clone().into(),
-            "strict" => self.strict.into(),
-            "strictFunctionTypes" => self.strict_function_types.into(),
-            "strictBindCallApply" => self.strict_bind_call_apply.into(),
-            "strictNullChecks" => self.strict_null_checks.into(),
-            "strictPropertyInitialization" => self.strict_property_initialization.into(),
-            "stripInternal" => self.strip_internal.into(),
-            "suppressExcessPropertyErrors" => self.suppress_excess_property_errors.into(),
-            "suppressImplicitAnyIndexErrors" => self.suppress_implicit_any_index_errors.into(),
-            "suppressOutputPathCheck" => self.suppress_output_path_check.into(),
-            "target" => self.target.into(),
-            "traceResolution" => self.trace_resolution.into(),
-            "useUnknownInCatchVariables" => self.use_unknown_in_catch_variables.into(),
-            "resolveJsonModule" => self.resolve_json_module.into(),
-            "types" => self.types.clone().into(),
-            "typeRoots" => self.type_roots.clone().into(),
-            "version" => self.version.into(),
-            "watch" => self.watch.into(),
-            "esModuleInterop" => self.es_module_interop.into(),
-            "showConfig" => self.show_config.into(),
-            "useDefineForClassFields" => self.use_define_for_class_fields.into(),
-            _ => panic!("Unknown compiler option: {:?}", option_name),
+            if self.allow_synthetic_default_imports.is_some() {
+                result.insert(
+                    "allowSyntheticDefaultImports",
+                    self.allow_synthetic_default_imports.into(),
+                );
+            }
+            if self.allow_umd_global_access.is_some() {
+                result.insert("allowUmdGlobalAccess", self.allow_umd_global_access.into());
+            }
+            if self.allow_unreachable_code.is_some() {
+                result.insert("allowUnreachableCode", self.allow_unreachable_code.into());
+            }
+            if self.allow_unused_labels.is_some() {
+                result.insert("allowUnusedLabels", self.allow_unused_labels.into());
+            }
+            if self.always_strict.is_some() {
+                result.insert("alwaysStrict", self.always_strict.into());
+            }
+            if self.base_url.is_some() {
+                result.insert("baseUrl", self.base_url.clone().into());
+            }
+            if self.build.is_some() {
+                result.insert("build", self.build.into());
+            }
+            if self.charset.is_some() {
+                result.insert("charset", self.charset.clone().into());
+            }
+            if self.check_js.is_some() {
+                result.insert("checkJs", self.check_js.into());
+            }
+            if self.config_file_path.is_some() {
+                result.insert("configFilePath", self.config_file_path.clone().into());
+            }
+            if self.config_file.is_some() {
+                result.insert("configFile", self.config_file.clone().into());
+            }
+            if self.declaration.is_some() {
+                result.insert("declaration", self.declaration.into());
+            }
+            if self.declaration_map.is_some() {
+                result.insert("declarationMap", self.declaration_map.into());
+            }
+            if self.emit_declaration_only.is_some() {
+                result.insert("emitDeclarationOnly", self.emit_declaration_only.into());
+            }
+            if self.declaration_dir.is_some() {
+                result.insert("declarationDir", self.declaration_dir.clone().into());
+            }
+            if self.diagnostics.is_some() {
+                result.insert("diagnostics", self.diagnostics.into());
+            }
+            if self.extended_diagnostics.is_some() {
+                result.insert("extendedDiagnostics", self.extended_diagnostics.into());
+            }
+            if self.disable_size_limit.is_some() {
+                result.insert("disableSizeLimit", self.disable_size_limit.into());
+            }
+            if self.disable_source_of_project_reference_redirect.is_some() {
+                result.insert(
+                    "disableSourceOfProjectReferenceRedirect",
+                    self.disable_source_of_project_reference_redirect.into(),
+                );
+            }
+            if self.disable_solution_searching.is_some() {
+                result.insert(
+                    "disableSolutionSearching",
+                    self.disable_solution_searching.into(),
+                );
+            }
+            if self.disable_referenced_project_load.is_some() {
+                result.insert(
+                    "disableReferencedProjectLoad",
+                    self.disable_referenced_project_load.into(),
+                );
+            }
+            if self.downlevel_iteration.is_some() {
+                result.insert("downlevelIteration", self.downlevel_iteration.into());
+            }
+            if self.emit_bom.is_some() {
+                result.insert("emitBom", self.emit_bom.into());
+            }
+            if self.emit_decorator_metadata.is_some() {
+                result.insert("emitDecoratorMetadata", self.emit_decorator_metadata.into());
+            }
+            if self.exact_optional_property_types.is_some() {
+                result.insert(
+                    "exactOptionalPropertyTypes",
+                    self.exact_optional_property_types.into(),
+                );
+            }
+            if self.experimental_decorators.is_some() {
+                result.insert(
+                    "experimentalDecorators",
+                    self.experimental_decorators.into(),
+                );
+            }
+            if self.force_consistent_casing_in_file_names.is_some() {
+                result.insert(
+                    "forceConsistentCasingInFileNames",
+                    self.force_consistent_casing_in_file_names.into(),
+                );
+            }
+            if self.generate_cpu_profile.is_some() {
+                result.insert(
+                    "generateCpuProfile",
+                    self.generate_cpu_profile.clone().into(),
+                );
+            }
+            if self.generate_trace.is_some() {
+                result.insert("generateTrace", self.generate_trace.clone().into());
+            }
+            if self.help.is_some() {
+                result.insert("help", self.help.into());
+            }
+            if self.import_helpers.is_some() {
+                result.insert("importHelpers", self.import_helpers.into());
+            }
+            if self.imports_not_used_as_values.is_some() {
+                result.insert(
+                    "importsNotUsedAsValues",
+                    self.imports_not_used_as_values.into(),
+                );
+            }
+            if self.init.is_some() {
+                result.insert("init", self.init.into());
+            }
+            if self.inline_source_map.is_some() {
+                result.insert("inlineSourceMap", self.inline_source_map.into());
+            }
+            if self.inline_sources.is_some() {
+                result.insert("inlineSources", self.inline_sources.into());
+            }
+            if self.isolated_modules.is_some() {
+                result.insert("isolatedModules", self.isolated_modules.into());
+            }
+            if self.jsx.is_some() {
+                result.insert("jsx", self.jsx.into());
+            }
+            if self.keyof_strings_only.is_some() {
+                result.insert("keyofStringsOnly", self.keyof_strings_only.into());
+            }
+            if self.lib.is_some() {
+                result.insert("lib", self.lib.clone().into());
+            }
+            if self.list_emitted_files.is_some() {
+                result.insert("listEmittedFiles", self.list_emitted_files.into());
+            }
+            if self.list_files.is_some() {
+                result.insert("listFiles", self.list_files.into());
+            }
+            if self.explain_files.is_some() {
+                result.insert("explainFiles", self.explain_files.into());
+            }
+            if self.list_files_only.is_some() {
+                result.insert("listFilesOnly", self.list_files_only.into());
+            }
+            if self.locale.is_some() {
+                result.insert("locale", self.locale.clone().into());
+            }
+            if self.map_root.is_some() {
+                result.insert("mapRoot", self.map_root.clone().into());
+            }
+            if self.max_node_module_js_depth.is_some() {
+                result.insert("maxNodeModuleJsDepth", self.max_node_module_js_depth.into());
+            }
+            if self.module.is_some() {
+                result.insert("module", self.module.into());
+            }
+            if self.module_resolution.is_some() {
+                result.insert("moduleResolution", self.module_resolution.into());
+            }
+            if self.new_line.is_some() {
+                result.insert("newLine", self.new_line.into());
+            }
+            if self.no_emit.is_some() {
+                result.insert("noEmit", self.no_emit.into());
+            }
+            if self.no_emit_for_js_files.is_some() {
+                result.insert("noEmitForJsFiles", self.no_emit_for_js_files.into());
+            }
+            if self.no_emit_helpers.is_some() {
+                result.insert("noEmitHelpers", self.no_emit_helpers.into());
+            }
+            if self.no_emit_on_error.is_some() {
+                result.insert("noEmitOnError", self.no_emit_on_error.into());
+            }
+            if self.no_error_truncation.is_some() {
+                result.insert("noErrorTruncation", self.no_error_truncation.into());
+            }
+            if self.no_fallthrough_cases_in_switch.is_some() {
+                result.insert(
+                    "noFallthroughCasesInSwitch",
+                    self.no_fallthrough_cases_in_switch.into(),
+                );
+            }
+            if self.no_implicit_any.is_some() {
+                result.insert("noImplicitAny", self.no_implicit_any.into());
+            }
+            if self.no_implicit_returns.is_some() {
+                result.insert("noImplicitReturns", self.no_implicit_returns.into());
+            }
+            if self.no_implicit_this.is_some() {
+                result.insert("noImplicitThis", self.no_implicit_this.into());
+            }
+            if self.no_strict_generic_checks.is_some() {
+                result.insert(
+                    "noStrictGenericChecks",
+                    self.no_strict_generic_checks.into(),
+                );
+            }
+            if self.no_unused_locals.is_some() {
+                result.insert("noUnusedLocals", self.no_unused_locals.into());
+            }
+            if self.no_unused_parameters.is_some() {
+                result.insert("noUnusedParameters", self.no_unused_parameters.into());
+            }
+            if self.no_implicit_use_strict.is_some() {
+                result.insert("noImplicitUseStrict", self.no_implicit_use_strict.into());
+            }
+            if self.no_property_access_from_index_signature.is_some() {
+                result.insert(
+                    "noPropertyAccessFromIndexSignature",
+                    self.no_property_access_from_index_signature.into(),
+                );
+            }
+            if self
+                .assume_changes_only_affect_direct_dependencies
+                .is_some()
+            {
+                result.insert(
+                    "assumeChangesOnlyAffectDirectDependencies",
+                    self.assume_changes_only_affect_direct_dependencies.into(),
+                );
+            }
+            if self.no_lib.is_some() {
+                result.insert("noLib", self.no_lib.into());
+            }
+            if self.no_resolve.is_some() {
+                result.insert("noResolve", self.no_resolve.into());
+            }
+            if self.no_unchecked_indexed_access.is_some() {
+                result.insert(
+                    "noUncheckedIndexedAccess",
+                    self.no_unchecked_indexed_access.into(),
+                );
+            }
+            if self.out.is_some() {
+                result.insert("out", self.out.clone().into());
+            }
+            if self.out_dir.is_some() {
+                result.insert("outDir", self.out_dir.clone().into());
+            }
+            if self.out_file.is_some() {
+                result.insert("outFile", self.out_file.clone().into());
+            }
+            if self.paths.is_some() {
+                result.insert("paths", self.paths.clone().into());
+            }
+            if self.paths_base_path.is_some() {
+                result.insert("pathsBasePath", self.paths_base_path.clone().into());
+            }
+            if self.plugins.is_some() {
+                result.insert("plugins", self.plugins.clone().into());
+            }
+            if self.preserve_const_enums.is_some() {
+                result.insert("preserveConstEnums", self.preserve_const_enums.into());
+            }
+            if self.no_implicit_override.is_some() {
+                result.insert("noImplicitOverride", self.no_implicit_override.into());
+            }
+            if self.preserve_symlinks.is_some() {
+                result.insert("preserveSymlinks", self.preserve_symlinks.into());
+            }
+            if self.preserve_value_imports.is_some() {
+                result.insert("preserveValueImports", self.preserve_value_imports.into());
+            }
+            if self.preserve_watch_output.is_some() {
+                result.insert("preserveWatchOutput", self.preserve_watch_output.into());
+            }
+            if self.project.is_some() {
+                result.insert("project", self.project.clone().into());
+            }
+            if self.pretty.is_some() {
+                result.insert("pretty", self.pretty.into());
+            }
+            if self.react_namespace.is_some() {
+                result.insert("reactNamespace", self.react_namespace.clone().into());
+            }
+            if self.jsx_factory.is_some() {
+                result.insert("jsxFactory", self.jsx_factory.clone().into());
+            }
+            if self.jsx_fragment_factory.is_some() {
+                result.insert(
+                    "jsxFragmentFactory",
+                    self.jsx_fragment_factory.clone().into(),
+                );
+            }
+            if self.jsx_import_source.is_some() {
+                result.insert("jsxImportSource", self.jsx_import_source.clone().into());
+            }
+            if self.composite.is_some() {
+                result.insert("composite", self.composite.into());
+            }
+            if self.incremental.is_some() {
+                result.insert("incremental", self.incremental.into());
+            }
+            if self.ts_build_info_file.is_some() {
+                result.insert("tsBuildInfoFile", self.ts_build_info_file.clone().into());
+            }
+            if self.remove_comments.is_some() {
+                result.insert("removeComments", self.remove_comments.into());
+            }
+            if self.root_dir.is_some() {
+                result.insert("rootDir", self.root_dir.clone().into());
+            }
+            if self.root_dirs.is_some() {
+                result.insert("rootDirs", self.root_dirs.clone().into());
+            }
+            if self.skip_lib_check.is_some() {
+                result.insert("skipLibCheck", self.skip_lib_check.into());
+            }
+            if self.skip_default_lib_check.is_some() {
+                result.insert("skipDefaultLibCheck", self.skip_default_lib_check.into());
+            }
+            if self.source_map.is_some() {
+                result.insert("sourceMap", self.source_map.into());
+            }
+            if self.source_root.is_some() {
+                result.insert("sourceRoot", self.source_root.clone().into());
+            }
+            if self.strict.is_some() {
+                result.insert("strict", self.strict.into());
+            }
+            if self.strict_function_types.is_some() {
+                result.insert("strictFunctionTypes", self.strict_function_types.into());
+            }
+            if self.strict_bind_call_apply.is_some() {
+                result.insert("strictBindCallApply", self.strict_bind_call_apply.into());
+            }
+            if self.strict_null_checks.is_some() {
+                result.insert("strictNullChecks", self.strict_null_checks.into());
+            }
+            if self.strict_property_initialization.is_some() {
+                result.insert(
+                    "strictPropertyInitialization",
+                    self.strict_property_initialization.into(),
+                );
+            }
+            if self.strip_internal.is_some() {
+                result.insert("stripInternal", self.strip_internal.into());
+            }
+            if self.suppress_excess_property_errors.is_some() {
+                result.insert(
+                    "suppressExcessPropertyErrors",
+                    self.suppress_excess_property_errors.into(),
+                );
+            }
+            if self.suppress_implicit_any_index_errors.is_some() {
+                result.insert(
+                    "suppressImplicitAnyIndexErrors",
+                    self.suppress_implicit_any_index_errors.into(),
+                );
+            }
+            if self.suppress_output_path_check.is_some() {
+                result.insert(
+                    "suppressOutputPathCheck",
+                    self.suppress_output_path_check.into(),
+                );
+            }
+            if self.target.is_some() {
+                result.insert("target", self.target.into());
+            }
+            if self.trace_resolution.is_some() {
+                result.insert("traceResolution", self.trace_resolution.into());
+            }
+            if self.use_unknown_in_catch_variables.is_some() {
+                result.insert(
+                    "useUnknownInCatchVariables",
+                    self.use_unknown_in_catch_variables.into(),
+                );
+            }
+            if self.resolve_json_module.is_some() {
+                result.insert("resolveJsonModule", self.resolve_json_module.into());
+            }
+            if self.types.is_some() {
+                result.insert("types", self.types.clone().into());
+            }
+            if self.type_roots.is_some() {
+                result.insert("typeRoots", self.type_roots.clone().into());
+            }
+            if self.version.is_some() {
+                result.insert("version", self.version.into());
+            }
+            if self.watch.is_some() {
+                result.insert("watch", self.watch.into());
+            }
+            if self.es_module_interop.is_some() {
+                result.insert("esModuleInterop", self.es_module_interop.into());
+            }
+            if self.show_config.is_some() {
+                result.insert("showConfig", self.show_config.into());
+            }
+            if self.use_define_for_class_fields.is_some() {
+                result.insert(
+                    "useDefineForClassFields",
+                    self.use_define_for_class_fields.into(),
+                );
+            }
+
+            result
         }
     }
 }
+pub use _CompilerOptionsDeriveTraceScope::{CompilerOptions, CompilerOptionsBuilder};
 
 pub trait ToHashMapOfCompilerOptionsValues {
     fn to_hash_map_of_compiler_options_values(&self)
         -> HashMap<&'static str, CompilerOptionsValue>;
-}
-
-impl ToHashMapOfCompilerOptionsValues for CompilerOptions {
-    fn to_hash_map_of_compiler_options_values(
-        &self,
-    ) -> HashMap<&'static str, CompilerOptionsValue> {
-        let mut result = HashMap::new();
-
-        if self.all.is_some() {
-            result.insert("all", self.all.into());
-        }
-        if self.allow_js.is_some() {
-            result.insert("allowJs", self.allow_js.into());
-        }
-        if self.allow_non_ts_extensions.is_some() {
-            result.insert("allowNonTsExtensions", self.allow_non_ts_extensions.into());
-        }
-        if self.allow_synthetic_default_imports.is_some() {
-            result.insert(
-                "allowSyntheticDefaultImports",
-                self.allow_synthetic_default_imports.into(),
-            );
-        }
-        if self.allow_umd_global_access.is_some() {
-            result.insert("allowUmdGlobalAccess", self.allow_umd_global_access.into());
-        }
-        if self.allow_unreachable_code.is_some() {
-            result.insert("allowUnreachableCode", self.allow_unreachable_code.into());
-        }
-        if self.allow_unused_labels.is_some() {
-            result.insert("allowUnusedLabels", self.allow_unused_labels.into());
-        }
-        if self.always_strict.is_some() {
-            result.insert("alwaysStrict", self.always_strict.into());
-        }
-        if self.base_url.is_some() {
-            result.insert("baseUrl", self.base_url.clone().into());
-        }
-        if self.build.is_some() {
-            result.insert("build", self.build.into());
-        }
-        if self.charset.is_some() {
-            result.insert("charset", self.charset.clone().into());
-        }
-        if self.check_js.is_some() {
-            result.insert("checkJs", self.check_js.into());
-        }
-        if self.config_file_path.is_some() {
-            result.insert("configFilePath", self.config_file_path.clone().into());
-        }
-        if self.config_file.is_some() {
-            result.insert("configFile", self.config_file.clone().into());
-        }
-        if self.declaration.is_some() {
-            result.insert("declaration", self.declaration.into());
-        }
-        if self.declaration_map.is_some() {
-            result.insert("declarationMap", self.declaration_map.into());
-        }
-        if self.emit_declaration_only.is_some() {
-            result.insert("emitDeclarationOnly", self.emit_declaration_only.into());
-        }
-        if self.declaration_dir.is_some() {
-            result.insert("declarationDir", self.declaration_dir.clone().into());
-        }
-        if self.diagnostics.is_some() {
-            result.insert("diagnostics", self.diagnostics.into());
-        }
-        if self.extended_diagnostics.is_some() {
-            result.insert("extendedDiagnostics", self.extended_diagnostics.into());
-        }
-        if self.disable_size_limit.is_some() {
-            result.insert("disableSizeLimit", self.disable_size_limit.into());
-        }
-        if self.disable_source_of_project_reference_redirect.is_some() {
-            result.insert(
-                "disableSourceOfProjectReferenceRedirect",
-                self.disable_source_of_project_reference_redirect.into(),
-            );
-        }
-        if self.disable_solution_searching.is_some() {
-            result.insert(
-                "disableSolutionSearching",
-                self.disable_solution_searching.into(),
-            );
-        }
-        if self.disable_referenced_project_load.is_some() {
-            result.insert(
-                "disableReferencedProjectLoad",
-                self.disable_referenced_project_load.into(),
-            );
-        }
-        if self.downlevel_iteration.is_some() {
-            result.insert("downlevelIteration", self.downlevel_iteration.into());
-        }
-        if self.emit_bom.is_some() {
-            result.insert("emitBom", self.emit_bom.into());
-        }
-        if self.emit_decorator_metadata.is_some() {
-            result.insert("emitDecoratorMetadata", self.emit_decorator_metadata.into());
-        }
-        if self.exact_optional_property_types.is_some() {
-            result.insert(
-                "exactOptionalPropertyTypes",
-                self.exact_optional_property_types.into(),
-            );
-        }
-        if self.experimental_decorators.is_some() {
-            result.insert(
-                "experimentalDecorators",
-                self.experimental_decorators.into(),
-            );
-        }
-        if self.force_consistent_casing_in_file_names.is_some() {
-            result.insert(
-                "forceConsistentCasingInFileNames",
-                self.force_consistent_casing_in_file_names.into(),
-            );
-        }
-        if self.generate_cpu_profile.is_some() {
-            result.insert(
-                "generateCpuProfile",
-                self.generate_cpu_profile.clone().into(),
-            );
-        }
-        if self.generate_trace.is_some() {
-            result.insert("generateTrace", self.generate_trace.clone().into());
-        }
-        if self.help.is_some() {
-            result.insert("help", self.help.into());
-        }
-        if self.import_helpers.is_some() {
-            result.insert("importHelpers", self.import_helpers.into());
-        }
-        if self.imports_not_used_as_values.is_some() {
-            result.insert(
-                "importsNotUsedAsValues",
-                self.imports_not_used_as_values.into(),
-            );
-        }
-        if self.init.is_some() {
-            result.insert("init", self.init.into());
-        }
-        if self.inline_source_map.is_some() {
-            result.insert("inlineSourceMap", self.inline_source_map.into());
-        }
-        if self.inline_sources.is_some() {
-            result.insert("inlineSources", self.inline_sources.into());
-        }
-        if self.isolated_modules.is_some() {
-            result.insert("isolatedModules", self.isolated_modules.into());
-        }
-        if self.jsx.is_some() {
-            result.insert("jsx", self.jsx.into());
-        }
-        if self.keyof_strings_only.is_some() {
-            result.insert("keyofStringsOnly", self.keyof_strings_only.into());
-        }
-        if self.lib.is_some() {
-            result.insert("lib", self.lib.clone().into());
-        }
-        if self.list_emitted_files.is_some() {
-            result.insert("listEmittedFiles", self.list_emitted_files.into());
-        }
-        if self.list_files.is_some() {
-            result.insert("listFiles", self.list_files.into());
-        }
-        if self.explain_files.is_some() {
-            result.insert("explainFiles", self.explain_files.into());
-        }
-        if self.list_files_only.is_some() {
-            result.insert("listFilesOnly", self.list_files_only.into());
-        }
-        if self.locale.is_some() {
-            result.insert("locale", self.locale.clone().into());
-        }
-        if self.map_root.is_some() {
-            result.insert("mapRoot", self.map_root.clone().into());
-        }
-        if self.max_node_module_js_depth.is_some() {
-            result.insert("maxNodeModuleJsDepth", self.max_node_module_js_depth.into());
-        }
-        if self.module.is_some() {
-            result.insert("module", self.module.into());
-        }
-        if self.module_resolution.is_some() {
-            result.insert("moduleResolution", self.module_resolution.into());
-        }
-        if self.new_line.is_some() {
-            result.insert("newLine", self.new_line.into());
-        }
-        if self.no_emit.is_some() {
-            result.insert("noEmit", self.no_emit.into());
-        }
-        if self.no_emit_for_js_files.is_some() {
-            result.insert("noEmitForJsFiles", self.no_emit_for_js_files.into());
-        }
-        if self.no_emit_helpers.is_some() {
-            result.insert("noEmitHelpers", self.no_emit_helpers.into());
-        }
-        if self.no_emit_on_error.is_some() {
-            result.insert("noEmitOnError", self.no_emit_on_error.into());
-        }
-        if self.no_error_truncation.is_some() {
-            result.insert("noErrorTruncation", self.no_error_truncation.into());
-        }
-        if self.no_fallthrough_cases_in_switch.is_some() {
-            result.insert(
-                "noFallthroughCasesInSwitch",
-                self.no_fallthrough_cases_in_switch.into(),
-            );
-        }
-        if self.no_implicit_any.is_some() {
-            result.insert("noImplicitAny", self.no_implicit_any.into());
-        }
-        if self.no_implicit_returns.is_some() {
-            result.insert("noImplicitReturns", self.no_implicit_returns.into());
-        }
-        if self.no_implicit_this.is_some() {
-            result.insert("noImplicitThis", self.no_implicit_this.into());
-        }
-        if self.no_strict_generic_checks.is_some() {
-            result.insert(
-                "noStrictGenericChecks",
-                self.no_strict_generic_checks.into(),
-            );
-        }
-        if self.no_unused_locals.is_some() {
-            result.insert("noUnusedLocals", self.no_unused_locals.into());
-        }
-        if self.no_unused_parameters.is_some() {
-            result.insert("noUnusedParameters", self.no_unused_parameters.into());
-        }
-        if self.no_implicit_use_strict.is_some() {
-            result.insert("noImplicitUseStrict", self.no_implicit_use_strict.into());
-        }
-        if self.no_property_access_from_index_signature.is_some() {
-            result.insert(
-                "noPropertyAccessFromIndexSignature",
-                self.no_property_access_from_index_signature.into(),
-            );
-        }
-        if self
-            .assume_changes_only_affect_direct_dependencies
-            .is_some()
-        {
-            result.insert(
-                "assumeChangesOnlyAffectDirectDependencies",
-                self.assume_changes_only_affect_direct_dependencies.into(),
-            );
-        }
-        if self.no_lib.is_some() {
-            result.insert("noLib", self.no_lib.into());
-        }
-        if self.no_resolve.is_some() {
-            result.insert("noResolve", self.no_resolve.into());
-        }
-        if self.no_unchecked_indexed_access.is_some() {
-            result.insert(
-                "noUncheckedIndexedAccess",
-                self.no_unchecked_indexed_access.into(),
-            );
-        }
-        if self.out.is_some() {
-            result.insert("out", self.out.clone().into());
-        }
-        if self.out_dir.is_some() {
-            result.insert("outDir", self.out_dir.clone().into());
-        }
-        if self.out_file.is_some() {
-            result.insert("outFile", self.out_file.clone().into());
-        }
-        if self.paths.is_some() {
-            result.insert("paths", self.paths.clone().into());
-        }
-        if self.paths_base_path.is_some() {
-            result.insert("pathsBasePath", self.paths_base_path.clone().into());
-        }
-        if self.plugins.is_some() {
-            result.insert("plugins", self.plugins.clone().into());
-        }
-        if self.preserve_const_enums.is_some() {
-            result.insert("preserveConstEnums", self.preserve_const_enums.into());
-        }
-        if self.no_implicit_override.is_some() {
-            result.insert("noImplicitOverride", self.no_implicit_override.into());
-        }
-        if self.preserve_symlinks.is_some() {
-            result.insert("preserveSymlinks", self.preserve_symlinks.into());
-        }
-        if self.preserve_value_imports.is_some() {
-            result.insert("preserveValueImports", self.preserve_value_imports.into());
-        }
-        if self.preserve_watch_output.is_some() {
-            result.insert("preserveWatchOutput", self.preserve_watch_output.into());
-        }
-        if self.project.is_some() {
-            result.insert("project", self.project.clone().into());
-        }
-        if self.pretty.is_some() {
-            result.insert("pretty", self.pretty.into());
-        }
-        if self.react_namespace.is_some() {
-            result.insert("reactNamespace", self.react_namespace.clone().into());
-        }
-        if self.jsx_factory.is_some() {
-            result.insert("jsxFactory", self.jsx_factory.clone().into());
-        }
-        if self.jsx_fragment_factory.is_some() {
-            result.insert(
-                "jsxFragmentFactory",
-                self.jsx_fragment_factory.clone().into(),
-            );
-        }
-        if self.jsx_import_source.is_some() {
-            result.insert("jsxImportSource", self.jsx_import_source.clone().into());
-        }
-        if self.composite.is_some() {
-            result.insert("composite", self.composite.into());
-        }
-        if self.incremental.is_some() {
-            result.insert("incremental", self.incremental.into());
-        }
-        if self.ts_build_info_file.is_some() {
-            result.insert("tsBuildInfoFile", self.ts_build_info_file.clone().into());
-        }
-        if self.remove_comments.is_some() {
-            result.insert("removeComments", self.remove_comments.into());
-        }
-        if self.root_dir.is_some() {
-            result.insert("rootDir", self.root_dir.clone().into());
-        }
-        if self.root_dirs.is_some() {
-            result.insert("rootDirs", self.root_dirs.clone().into());
-        }
-        if self.skip_lib_check.is_some() {
-            result.insert("skipLibCheck", self.skip_lib_check.into());
-        }
-        if self.skip_default_lib_check.is_some() {
-            result.insert("skipDefaultLibCheck", self.skip_default_lib_check.into());
-        }
-        if self.source_map.is_some() {
-            result.insert("sourceMap", self.source_map.into());
-        }
-        if self.source_root.is_some() {
-            result.insert("sourceRoot", self.source_root.clone().into());
-        }
-        if self.strict.is_some() {
-            result.insert("strict", self.strict.into());
-        }
-        if self.strict_function_types.is_some() {
-            result.insert("strictFunctionTypes", self.strict_function_types.into());
-        }
-        if self.strict_bind_call_apply.is_some() {
-            result.insert("strictBindCallApply", self.strict_bind_call_apply.into());
-        }
-        if self.strict_null_checks.is_some() {
-            result.insert("strictNullChecks", self.strict_null_checks.into());
-        }
-        if self.strict_property_initialization.is_some() {
-            result.insert(
-                "strictPropertyInitialization",
-                self.strict_property_initialization.into(),
-            );
-        }
-        if self.strip_internal.is_some() {
-            result.insert("stripInternal", self.strip_internal.into());
-        }
-        if self.suppress_excess_property_errors.is_some() {
-            result.insert(
-                "suppressExcessPropertyErrors",
-                self.suppress_excess_property_errors.into(),
-            );
-        }
-        if self.suppress_implicit_any_index_errors.is_some() {
-            result.insert(
-                "suppressImplicitAnyIndexErrors",
-                self.suppress_implicit_any_index_errors.into(),
-            );
-        }
-        if self.suppress_output_path_check.is_some() {
-            result.insert(
-                "suppressOutputPathCheck",
-                self.suppress_output_path_check.into(),
-            );
-        }
-        if self.target.is_some() {
-            result.insert("target", self.target.into());
-        }
-        if self.trace_resolution.is_some() {
-            result.insert("traceResolution", self.trace_resolution.into());
-        }
-        if self.use_unknown_in_catch_variables.is_some() {
-            result.insert(
-                "useUnknownInCatchVariables",
-                self.use_unknown_in_catch_variables.into(),
-            );
-        }
-        if self.resolve_json_module.is_some() {
-            result.insert("resolveJsonModule", self.resolve_json_module.into());
-        }
-        if self.types.is_some() {
-            result.insert("types", self.types.clone().into());
-        }
-        if self.type_roots.is_some() {
-            result.insert("typeRoots", self.type_roots.clone().into());
-        }
-        if self.version.is_some() {
-            result.insert("version", self.version.into());
-        }
-        if self.watch.is_some() {
-            result.insert("watch", self.watch.into());
-        }
-        if self.es_module_interop.is_some() {
-            result.insert("esModuleInterop", self.es_module_interop.into());
-        }
-        if self.show_config.is_some() {
-            result.insert("showConfig", self.show_config.into());
-        }
-        if self.use_define_for_class_fields.is_some() {
-            result.insert(
-                "useDefineForClassFields",
-                self.use_define_for_class_fields.into(),
-            );
-        }
-
-        result
-    }
 }
 
 pub fn extend_compiler_options(a: &CompilerOptions, b: &CompilerOptions) -> CompilerOptions {
@@ -1954,17 +1963,23 @@ impl ConfigFileSpecs {
 
 pub type RequireResult = ();
 
-#[derive(Trace, Finalize)]
-pub struct CreateProgramOptions {
-    #[unsafe_ignore_trace]
-    pub root_names: Vec<String>,
-    pub options: Gc<CompilerOptions>,
-    #[unsafe_ignore_trace]
-    pub project_references: Option<Vec<Rc<ProjectReference>>>,
-    pub host: Option<Gc<Box<dyn CompilerHost>>>,
-    pub old_program: Option<Gc<Box<Program>>>,
-    pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
+mod _CreateProgramOptionsDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Trace, Finalize)]
+    pub struct CreateProgramOptions {
+        #[unsafe_ignore_trace]
+        pub root_names: Vec<String>,
+        pub options: Gc<CompilerOptions>,
+        #[unsafe_ignore_trace]
+        pub project_references: Option<Vec<Rc<ProjectReference>>>,
+        pub host: Option<Gc<Box<dyn CompilerHost>>>,
+        pub old_program: Option<Gc<Box<Program>>>,
+        pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
+    }
 }
+pub use _CreateProgramOptionsDeriveTraceScope::CreateProgramOptions;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CommandLineOptionMapTypeValue {

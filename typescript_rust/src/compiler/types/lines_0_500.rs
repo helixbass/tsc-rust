@@ -4,7 +4,7 @@ use gc::{unsafe_empty_trace, Finalize, Trace};
 use std::cell::Cell;
 use std::ops::Deref;
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Finalize)]
 pub struct Path(String);
 
 impl Path {
@@ -15,6 +15,10 @@ impl Path {
     pub fn into_string(self) -> String {
         self.0
     }
+}
+
+unsafe impl Trace for Path {
+    unsafe_empty_trace!();
 }
 
 impl ToString for Path {

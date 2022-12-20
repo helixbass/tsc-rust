@@ -1471,12 +1471,18 @@ impl GetResolvedProjectReferences for ProgramGetResolvedProjectReferences {
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
-pub enum FilesByNameValue {
-    SourceFile(Gc<Node /*SourceFile*/>),
-    False,
-    Undefined,
+mod _FilesByNameValueDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Clone, Trace, Finalize)]
+    pub enum FilesByNameValue {
+        SourceFile(Gc<Node /*SourceFile*/>),
+        False,
+        Undefined,
+    }
 }
+pub use _FilesByNameValueDeriveTraceScope::FilesByNameValue;
 
 pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
     fn call(

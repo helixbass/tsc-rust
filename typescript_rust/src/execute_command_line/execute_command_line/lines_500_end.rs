@@ -370,6 +370,9 @@ pub(super) fn perform_compilation<
 #[derive(Trace, Finalize)]
 struct PerformCompilationToPath {
     current_directory: String,
+    // TODO: this wasn't compiling but seems like it should've been if fn implementations of Trace
+    // (included in `gc`) were working as expected?
+    #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
 }
 

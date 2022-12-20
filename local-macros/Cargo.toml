@@ -13,3 +13,4 @@ darling = "0.13.1"
 proc-macro2 = "1.0.34"
 quote = "1.0.10"
 syn = { version = "1.0.82" }
+synstructure = "0.12"

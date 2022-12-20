@@ -1301,38 +1301,45 @@ pub trait TransientSymbolInterface: SymbolInterface {
     fn set_check_flags(&self, check_flags: CheckFlags);
 }
 
-#[derive(Debug, Finalize, Trace)]
-#[symbol_type(interfaces = "TransientSymbolInterface")]
-pub enum TransientSymbol {
-    BaseTransientSymbol(BaseTransientSymbol),
-    ReverseMappedSymbol(ReverseMappedSymbol),
-    MappedSymbol(MappedSymbol),
-}
+mod _TransientSymbolTraceDeriveScope {
+    use super::{BaseTransientSymbol, Gc, MappedSymbol, ReverseMappedSymbol, Type};
+    use gc::Finalize;
+    use local_macros::{symbol_type, Trace};
 
-impl TransientSymbol {
-    pub fn into_reverse_mapped_symbol(
-        self,
-        property_type: Gc<Type>,
-        mapped_type: Gc<Type>,
-        constraint_type: Gc<Type>,
-    ) -> Self {
-        match self {
-            Self::BaseTransientSymbol(symbol) => Self::ReverseMappedSymbol(
-                ReverseMappedSymbol::new(symbol, property_type, mapped_type, constraint_type),
-            ),
-            _ => panic!("Should only call into_reverse_mapped_symbol() on BaseTransientSymbol"),
-        }
+    #[derive(Debug, Finalize, Trace)]
+    #[symbol_type(interfaces = "TransientSymbolInterface")]
+    pub enum TransientSymbol {
+        BaseTransientSymbol(BaseTransientSymbol),
+        ReverseMappedSymbol(ReverseMappedSymbol),
+        MappedSymbol(MappedSymbol),
     }
 
-    pub fn into_mapped_symbol(self, mapped_type: Gc<Type>, key_type: Gc<Type>) -> Self {
-        match self {
-            Self::BaseTransientSymbol(symbol) => {
-                Self::MappedSymbol(MappedSymbol::new(symbol, mapped_type, key_type))
+    impl TransientSymbol {
+        pub fn into_reverse_mapped_symbol(
+            self,
+            property_type: Gc<Type>,
+            mapped_type: Gc<Type>,
+            constraint_type: Gc<Type>,
+        ) -> Self {
+            match self {
+                Self::BaseTransientSymbol(symbol) => Self::ReverseMappedSymbol(
+                    ReverseMappedSymbol::new(symbol, property_type, mapped_type, constraint_type),
+                ),
+                _ => panic!("Should only call into_reverse_mapped_symbol() on BaseTransientSymbol"),
             }
-            _ => panic!("Should only call into_mapped_symbol() on BaseTransientSymbol"),
+        }
+
+        pub fn into_mapped_symbol(self, mapped_type: Gc<Type>, key_type: Gc<Type>) -> Self {
+            match self {
+                Self::BaseTransientSymbol(symbol) => {
+                    Self::MappedSymbol(MappedSymbol::new(symbol, mapped_type, key_type))
+                }
+                _ => panic!("Should only call into_mapped_symbol() on BaseTransientSymbol"),
+            }
         }
     }
 }
+pub use _TransientSymbolTraceDeriveScope::TransientSymbol;
 
 #[derive(Debug, Finalize, Trace)]
 #[symbol_type(ancestors = "TransientSymbol")]

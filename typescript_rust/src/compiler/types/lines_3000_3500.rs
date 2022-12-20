@@ -847,11 +847,17 @@ impl JSDocText {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
-pub enum StringOrNodeArray {
-    String(String),
-    NodeArray(NodeArray),
+mod _StringOrNodeArrayDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Debug, Trace, Finalize)]
+    pub enum StringOrNodeArray {
+        String(String),
+        NodeArray(NodeArray),
+    }
 }
+pub use _StringOrNodeArrayDeriveTraceScope::StringOrNodeArray;
 
 impl From<String> for StringOrNodeArray {
     fn from(value: String) -> Self {
