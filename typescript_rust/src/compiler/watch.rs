@@ -689,7 +689,7 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
         }
         FileIncludeReason::ProjectReferenceFile(reason) => {
             let is_output = reason.kind == FileIncludeKind::OutputFromProjectReference;
-            let referenced_resolved_ref: Rc<ResolvedProjectReference> = Debug_.check_defined(
+            let referenced_resolved_ref: Gc<ResolvedProjectReference> = Debug_.check_defined(
                 program.get_resolved_project_references().as_ref().and_then(
                     |resolved_project_references| {
                         resolved_project_references
@@ -1013,7 +1013,7 @@ pub struct IncrementalCompilationOptions<'a> {
     pub options: &'a CompilerOptions,
     pub config_file_parsing_diagnostics: Option<&'a [Gc<Diagnostic>]>,
     pub project_references: Option<&'a [Rc<ProjectReference>]>,
-    pub host: Option<Rc<dyn CompilerHost>>,
+    pub host: Option<Gc<Box<dyn CompilerHost>>>,
     pub report_diagnostic: Option<Rc<dyn DiagnosticReporter>>,
     pub report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     pub after_program_emit_and_diagnostics:

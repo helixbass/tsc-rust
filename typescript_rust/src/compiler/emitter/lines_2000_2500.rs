@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use super::{
     ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule,
+    ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule,
     ParenthesizeLeftSideOfAccessCurrentParenthesizerRule,
     ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule,
     ParenthesizeMemberOfElementTypeCurrentParenthesizerRule,
@@ -82,15 +83,11 @@ impl Printer {
                 node.pos()
             },
             node,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 
@@ -471,14 +468,9 @@ impl Printer {
             Some(node),
             Some(&node.as_union_type_node().types),
             ListFormat::UnionTypeConstituents,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
             None,
             None,
         );
@@ -489,14 +481,9 @@ impl Printer {
             Some(node),
             Some(&node.as_intersection_type_node().types),
             ListFormat::IntersectionTypeConstituents,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
             None,
             None,
         );
@@ -705,15 +692,11 @@ impl Printer {
             node_as_binding_element.maybe_initializer(),
             node_as_binding_element.name().end(),
             node,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 
@@ -732,15 +715,11 @@ impl Printer {
             Some(node),
             Some(elements),
             ListFormat::ArrayLiteralExpressionElements | prefer_new_line,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
             None,
             None,
         );

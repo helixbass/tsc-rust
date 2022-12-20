@@ -90,7 +90,7 @@ impl Program {
     pub(super) fn get_redirect_reference_for_resolution(
         &self,
         file: &Node, /*SourceFile*/
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         let file_as_source_file = file.as_source_file();
         let redirect = self
             .get_resolved_project_reference_to_redirect(&file_as_source_file.original_file_name());
@@ -137,7 +137,7 @@ impl Program {
     pub(super) fn get_redirect_reference_for_resolution_from_source_of_project(
         &self,
         file_path: &Path,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         let source = self.get_source_of_project_reference_redirect(file_path);
         if let Some(SourceOfProjectReferenceRedirect::String(source)) = source.as_ref() {
             return self.get_resolved_project_reference_to_redirect(source);
@@ -145,7 +145,7 @@ impl Program {
         if source.is_none() {
             return None;
         }
-        self.for_each_resolved_project_reference(|resolved_ref: Rc<ResolvedProjectReference>| {
+        self.for_each_resolved_project_reference(|resolved_ref: Gc<ResolvedProjectReference>| {
             let out = out_file(&resolved_ref.command_line.options)?;
             if out.is_empty() {
                 return None;
@@ -564,7 +564,7 @@ impl Program {
 
     pub fn get_resolved_project_references(
         &self,
-    ) -> Ref<Option<Vec<Option<Rc<ResolvedProjectReference>>>>> {
+    ) -> Ref<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
     }
 

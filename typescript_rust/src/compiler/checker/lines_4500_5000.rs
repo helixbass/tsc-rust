@@ -1675,7 +1675,7 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
         self.host.get_current_directory()
     }
 
-    fn get_symlink_cache(&self) -> Option<Rc<SymlinkCache>> {
+    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
         self.host.get_symlink_cache()
     }
 

@@ -1942,11 +1942,14 @@ impl ConfigFileSpecs {
 
 pub type RequireResult = ();
 
+#[derive(Trace, Finalize)]
 pub struct CreateProgramOptions {
+    #[unsafe_ignore_trace]
     pub root_names: Vec<String>,
     pub options: Gc<CompilerOptions>,
+    #[unsafe_ignore_trace]
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
-    pub host: Option<Rc<dyn CompilerHost>>,
+    pub host: Option<Gc<Box<dyn CompilerHost>>>,
     pub old_program: Option<Gc<Program>>,
     pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
 }

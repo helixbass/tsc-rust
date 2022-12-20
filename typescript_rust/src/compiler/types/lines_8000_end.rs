@@ -695,7 +695,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn realpath(&self, path: &str) -> Option<String> {
         None
     }
-    fn get_symlink_cache(&self) -> Option<Rc<SymlinkCache>> {
+    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
         None
     }
     fn get_module_specifier_cache(&self) -> Option<Rc<dyn ModuleSpecifierCache>> {

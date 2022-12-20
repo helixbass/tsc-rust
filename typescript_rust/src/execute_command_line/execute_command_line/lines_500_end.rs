@@ -322,7 +322,7 @@ pub(super) fn perform_compilation<
     let file_names = &config.file_names;
     let options = config.options.clone();
     let project_references = &config.project_references;
-    let host: Rc<dyn CompilerHost> = Rc::new(create_compiler_host_worker(
+    let host: Gc<Box<dyn CompilerHost>> = Rc::new(create_compiler_host_worker(
         options.clone(),
         None,
         Some(sys.clone()),

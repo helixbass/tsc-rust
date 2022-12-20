@@ -25,11 +25,11 @@ use crate::{
     CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
     CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
-    MapLike, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path,
-    Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
-    WatchOptions,
+    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, GetCanonicalFileName,
+    JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray,
+    NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange,
+    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike,
+    TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -840,10 +840,14 @@ pub struct SymlinkedDirectory {
 #[derive(Trace, Finalize)]
 pub struct SymlinkCache {
     cwd: String,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
+    #[unsafe_ignore_trace]
     symlinked_files: RefCell<Option<HashMap<Path, String>>>,
+    #[unsafe_ignore_trace]
     symlinked_directories: RefCell<Option<HashMap<Path, Option<SymlinkedDirectory>>>>,
+    #[unsafe_ignore_trace]
     symlinked_directories_by_realpath: RefCell<Option<MultiMap<Path, String>>>,
+    #[unsafe_ignore_trace]
     has_processed_resolutions: Cell<bool>,
 }
 

@@ -42,15 +42,11 @@ impl Printer {
             Some(node),
             Some(&node_as_call_expression.arguments),
             ListFormat::CallExpressionArguments,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
             None,
             None,
         );
@@ -77,15 +73,11 @@ impl Printer {
             Some(node),
             node_as_new_expression.arguments.as_ref(),
             ListFormat::NewExpressionArguments,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
             None,
             None,
         );
@@ -397,15 +389,11 @@ impl Printer {
         self.emit(node_as_yield_expression.asterisk_token.as_deref(), None);
         self.emit_expression_with_leading_space(
             node_as_yield_expression.expression.as_deref(),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 

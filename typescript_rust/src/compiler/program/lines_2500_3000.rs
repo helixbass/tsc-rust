@@ -691,7 +691,7 @@ impl Program {
     pub fn get_project_reference_redirect_project(
         &self,
         file_name: &str,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         if match self.maybe_resolved_project_references().as_ref() {
             None => true,
             Some(resolved_project_references) => resolved_project_references.is_empty(),
@@ -715,14 +715,14 @@ impl Program {
     pub fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         let mut map_from_file_to_project_reference_redirects =
             self.maybe_map_from_file_to_project_reference_redirects();
         let map_from_file_to_project_reference_redirects =
             map_from_file_to_project_reference_redirects.get_or_insert_with(|| {
                 let mut map_from_file_to_project_reference_redirects = HashMap::new();
                 self.for_each_resolved_project_reference(
-                    |referenced_project: Rc<ResolvedProjectReference>| -> Option<()> {
+                    |referenced_project: Gc<ResolvedProjectReference>| -> Option<()> {
                         let referenced_project_source_file_path =
                             referenced_project.source_file.as_source_file().path();
                         if &self.to_path(self.options.config_file_path.as_ref().unwrap())
@@ -754,7 +754,7 @@ impl Program {
 
     pub fn for_each_resolved_project_reference<
         TReturn,
-        TCallback: FnMut(Rc<ResolvedProjectReference>) -> Option<TReturn>,
+        TCallback: FnMut(Gc<ResolvedProjectReference>) -> Option<TReturn>,
     >(
         &self,
         mut cb: TCallback,
@@ -767,7 +767,7 @@ impl Program {
 
     pub fn for_each_resolved_project_reference_rc(
         &self,
-    ) -> Rc<dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>))> {
+    ) -> Rc<dyn Fn(&mut dyn FnMut(Gc<ResolvedProjectReference>))> {
         let self_clone = self.rc_wrapper();
         Rc::new(move |cb| {
             for_each_resolved_project_reference(
@@ -791,7 +791,7 @@ impl Program {
             .get_or_insert_with(|| {
                 let mut map_from_to_project_reference_redirect_source = HashMap::new();
                 self.for_each_resolved_project_reference(
-                    |resolved_ref: Rc<ResolvedProjectReference>| -> Option<()> {
+                    |resolved_ref: Gc<ResolvedProjectReference>| -> Option<()> {
                         let out = out_file(&resolved_ref.command_line.options);
                         if let Some(out) = out {
                             let output_dts = change_extension(out, Extension::Dts.to_str());
@@ -856,7 +856,7 @@ impl Program {
     pub(super) fn get_resolved_project_reference_by_path(
         &self,
         project_reference_path: &Path,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         unimplemented!()
     }
 

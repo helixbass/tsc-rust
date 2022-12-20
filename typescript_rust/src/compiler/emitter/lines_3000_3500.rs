@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use super::{
     ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule,
+    ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule,
     ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule,
     ParenthesizeRightSideOfBinaryCurrentParenthesizerRule,
 };
@@ -135,15 +136,11 @@ impl Printer {
                 |node_type| node_type.end(),
             ),
             node,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 

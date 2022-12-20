@@ -1250,48 +1250,66 @@ impl FilePreprocessingDiagnostics {
 pub struct Program {
     pub(crate) _rc_wrapper: GcCell<Option<Gc<Program>>>,
     pub(crate) create_program_options: GcCell<Option<CreateProgramOptions>>,
-    pub(crate) root_names: GcCell<Option<Vec<String>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) root_names: RefCell<Option<Vec<String>>>,
     pub(crate) options: Gc<CompilerOptions>,
     pub(crate) config_file_parsing_diagnostics: GcCell<Option<Vec<Gc<Diagnostic>>>>,
-    pub(crate) project_references: GcCell<Option<Vec<Rc<ProjectReference>>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) project_references: RefCell<Option<Vec<Rc<ProjectReference>>>>,
     pub(crate) processing_default_lib_files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
     pub(crate) processing_other_files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
     pub(crate) files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
     pub(crate) symlinks: GcCell<Option<Gc<SymlinkCache>>>,
-    pub(crate) common_source_directory: GcCell<Option<String>>,
+    #[unsafe_ignore_trace]
+    pub(crate) common_source_directory: RefCell<Option<String>>,
     pub(crate) diagnostics_producing_type_checker: GcCell<Option<Gc<TypeChecker>>>,
     pub(crate) no_diagnostics_type_checker: GcCell<Option<Gc<TypeChecker>>>,
-    pub(crate) classifiable_names: GcCell<Option<HashSet<__String>>>,
-    pub(crate) ambient_module_name_to_unmodified_file_name: GcCell<HashMap<String, String>>,
-    pub(crate) file_reasons: Gc<GcCell<MultiMap<Path, FileIncludeReason>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
+    #[unsafe_ignore_trace]
+    pub(crate) file_reasons: Rc<RefCell<MultiMap<Path, FileIncludeReason>>>,
     pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
+    #[unsafe_ignore_trace]
     pub(crate) resolved_type_reference_directives:
-        GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>,
-    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<FilePreprocessingDiagnostics>>>,
+        RefCell<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) file_processing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
 
     pub(crate) max_node_module_js_depth: usize,
+    #[unsafe_ignore_trace]
     pub(crate) current_node_modules_depth: Cell<usize>,
 
-    pub(crate) modules_with_elided_imports: GcCell<HashMap<String, bool>>,
+    #[unsafe_ignore_trace]
+    pub(crate) modules_with_elided_imports: RefCell<HashMap<String, bool>>,
 
-    pub(crate) source_files_found_searching_node_modules: GcCell<HashMap<String, bool>>,
+    #[unsafe_ignore_trace]
+    pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
 
     pub(crate) old_program: GcCell<Option<Gc<Program>>>,
     pub(crate) host: GcCell<Option<Gc<Box<dyn CompilerHost>>>>,
-    pub(crate) config_parsing_host: GcCell<Option<Gc<dyn ParseConfigFileHost>>>,
+    pub(crate) config_parsing_host: GcCell<Option<Gc<Box<dyn ParseConfigFileHost>>>>,
 
+    #[unsafe_ignore_trace]
     pub(crate) skip_default_lib: Cell<Option<bool>>,
-    pub(crate) get_default_library_file_name_memoized: GcCell<Option<String>>,
-    pub(crate) default_library_path: GcCell<Option<String>>,
+    #[unsafe_ignore_trace]
+    pub(crate) get_default_library_file_name_memoized: RefCell<Option<String>>,
+    #[unsafe_ignore_trace]
+    pub(crate) default_library_path: RefCell<Option<String>>,
     pub(crate) program_diagnostics: GcCell<Option<DiagnosticCollection>>,
-    pub(crate) current_directory: GcCell<Option<String>>,
-    pub(crate) supported_extensions: GcCell<Option<Vec<Vec<Extension>>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) current_directory: RefCell<Option<String>>,
+    #[unsafe_ignore_trace]
+    pub(crate) supported_extensions: RefCell<Option<Vec<Vec<Extension>>>>,
+    #[unsafe_ignore_trace]
     pub(crate) supported_extensions_with_json_if_resolve_json_module:
-        GcCell<Option<Vec<Vec<Extension>>>>,
+        RefCell<Option<Vec<Vec<Extension>>>>,
 
-    pub(crate) has_emit_blocking_diagnostics: GcCell<Option<HashMap<Path, bool>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
     pub(crate) _compiler_options_object_literal_syntax:
         GcCell<Option<Option<Gc<Node /*ObjectLiteralExpression*/>>>>,
     pub(crate) module_resolution_cache: GcCell<Option<Gc<ModuleResolutionCache>>>,
@@ -1303,27 +1321,36 @@ pub struct Program {
         GcCell<Option<Gc<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
 
     pub(crate) package_id_to_source_file: GcCell<Option<HashMap<String, Gc<Node /*SourceFile*/>>>>,
-    pub(crate) source_file_to_package_name: GcCell<Option<HashMap<Path, String>>>,
-    pub(crate) redirect_targets_map: Gc<GcCell<RedirectTargetsMap>>,
+    #[unsafe_ignore_trace]
+    pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) redirect_targets_map: Rc<RefCell<RedirectTargetsMap>>,
+    #[unsafe_ignore_trace]
     pub(crate) uses_uri_style_node_core_modules: Cell<Option<bool>>,
 
     pub(crate) files_by_name: GcCell<Option<HashMap<String, FilesByNameValue>>>,
-    pub(crate) missing_file_paths: GcCell<Option<Vec<Path>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) missing_file_paths: RefCell<Option<Vec<Path>>>,
     pub(crate) files_by_name_ignore_case: GcCell<Option<HashMap<String, Gc<Node /*SourceFile*/>>>>,
 
     pub(crate) resolved_project_references:
         GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
     pub(crate) project_reference_redirects:
         GcCell<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>>,
-    pub(crate) map_from_file_to_project_reference_redirects: GcCell<Option<HashMap<Path, Path>>>,
+    #[unsafe_ignore_trace]
+    pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
+    #[unsafe_ignore_trace]
     pub(crate) map_from_to_project_reference_redirect_source:
-        GcCell<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>>,
+        RefCell<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>>,
+    #[unsafe_ignore_trace]
     pub(crate) use_source_of_project_reference_redirect: Cell<Option<bool>>,
 
     pub(crate) file_exists_rc: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
     pub(crate) directory_exists_rc: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
 
+    #[unsafe_ignore_trace]
     pub(crate) should_create_new_source_file: Cell<Option<bool>>,
+    #[unsafe_ignore_trace]
     pub(crate) structure_is_reused: Cell<Option<StructureIsReused>>,
 }
 

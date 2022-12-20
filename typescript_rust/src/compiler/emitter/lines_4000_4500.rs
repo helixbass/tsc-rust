@@ -4,7 +4,10 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::{get_closing_bracket, get_opening_bracket};
+use super::{
+    get_closing_bracket, get_opening_bracket,
+    ParenthesizeMemberOfElementTypeCurrentParenthesizerRule,
+};
 use crate::{
     get_comment_range, get_emit_flags, get_shebang, is_arrow_function, is_block,
     is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
@@ -228,7 +231,7 @@ impl Printer {
         node: Option<TNode /*Expression*/>,
         equal_comment_start_pos: isize,
         container: &Node,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         if let Some(node) = node {
             let node = node.borrow();
@@ -268,7 +271,7 @@ impl Printer {
     pub(super) fn emit_expression_with_leading_space(
         &self,
         node: Option<&Node>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         if let Some(node) = node {
             self.write_space();
@@ -323,14 +326,9 @@ impl Printer {
             Some(parent_node),
             type_arguments,
             ListFormat::TypeArguments,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
             None,
             None,
         );
@@ -476,7 +474,7 @@ impl Printer {
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {
@@ -496,7 +494,7 @@ impl Printer {
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {

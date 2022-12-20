@@ -33,11 +33,12 @@ use crate::{
     Diagnostics, DirectoryStructureHost, Extension, FileIncludeKind, FileIncludeReason,
     FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
-    FileReference, JsxEmit, ModuleKind, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
-    ParseConfigFileHost, ParseConfigHost, Path, Program, ProjectReference, ReferencedFile,
-    ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference, ScriptKind,
-    ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind,
+    FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, Path, Program,
+    ProjectReference, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
+    ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
+    SyntaxKind,
 };
 
 impl Program {
@@ -108,9 +109,9 @@ impl Program {
         self.host().get_canonical_file_name(file_name)
     }
 
-    pub fn get_canonical_file_name_rc(&self) -> Rc<dyn Fn(&str) -> String> {
+    pub fn get_canonical_file_name_rc(&self) -> Gc<Box<dyn GetCanonicalFileName>> {
         let host = self.host();
-        Rc::new(move |file_name| host.get_canonical_file_name(file_name))
+        Gc::new(Box::new(CompilerHostGetCanonicalFileName::new(host)))
     }
 
     pub fn process_imported_modules(&self, file: &Node /*SourceFile*/) {
@@ -212,7 +213,7 @@ impl Program {
     pub fn parse_project_reference_config_file(
         &self,
         ref_: &ProjectReference,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         if self.maybe_project_reference_redirects().is_none() {
             *self.maybe_project_reference_redirects() = Some(HashMap::new());
         }
@@ -1116,7 +1117,7 @@ impl Program {
         for_each_project_reference(
             self.maybe_project_references().as_deref(),
             self.maybe_resolved_project_references().as_deref(),
-            |resolved_ref: Option<Rc<ResolvedProjectReference>>,
+            |resolved_ref: Option<Gc<ResolvedProjectReference>>,
              parent: Option<&ResolvedProjectReference>,
              index|
              -> Option<()> {
@@ -1432,7 +1433,7 @@ impl Program {
         ) == Comparison::EqualTo
     }
 
-    pub fn get_symlink_cache(&self) -> Rc<SymlinkCache> {
+    pub fn get_symlink_cache(&self) -> Gc<SymlinkCache> {
         let host_symlink_cache = self.host().get_symlink_cache();
         if let Some(host_symlink_cache) = host_symlink_cache {
             return host_symlink_cache;
@@ -1456,27 +1457,27 @@ impl Program {
         symlinks
     }
 
-    pub fn get_symlink_cache_rc(&self) -> Rc<dyn Fn() -> Rc<SymlinkCache>> {
+    pub fn get_symlink_cache_rc(&self) -> Rc<dyn Fn() -> Gc<SymlinkCache>> {
         let self_clone = self.rc_wrapper();
         Rc::new(move || self_clone.get_symlink_cache())
     }
 }
 
 pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
-    pub compiler_host: Rc<dyn CompilerHost>,
-    pub get_symlink_cache: Rc<dyn Fn() -> Rc<SymlinkCache>>,
+    pub compiler_host: Gc<Box<dyn CompilerHost>>,
+    pub get_symlink_cache: Rc<dyn Fn() -> Gc<SymlinkCache>>,
     pub use_source_of_project_reference_redirect: bool,
     pub to_path: Rc<dyn Fn(&str) -> Path>,
     pub get_resolved_project_references:
-        Rc<dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+        Rc<dyn Fn() -> Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
     pub for_each_resolved_project_reference:
-        Rc<dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>))>,
+        Rc<dyn Fn(&mut dyn FnMut(Gc<ResolvedProjectReference>))>,
 }
 
 pub(super) fn update_host_for_use_source_of_project_reference_redirect(
     host: HostForUseSourceOfProjectReferenceRedirect,
 ) -> UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
-    let overrider: Rc<dyn ModuleResolutionHostOverrider> = Rc::new(
+    let overrider: Gc<Box<dyn ModuleResolutionHostOverrider>> = Rc::new(
         UpdateHostForUseSourceOfProjectReferenceRedirectOverrider::new(
             host.compiler_host.clone(),
             host.get_symlink_cache.clone(),
@@ -1522,32 +1523,32 @@ pub(super) fn update_host_for_use_source_of_project_reference_redirect(
 
 pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
     pub on_program_create_complete: Rc<dyn Fn()>,
-    pub directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
-    pub file_exists: Rc<dyn ModuleResolutionHostOverrider>,
+    pub directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+    pub file_exists: Gc<Box<dyn ModuleResolutionHostOverrider>>,
 }
 
 #[derive(Trace, Finalize)]
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Gc<Box<dyn CompilerHost>>,
-    pub host_get_symlink_cache: Rc<dyn Fn() -> Rc<SymlinkCache>>,
+    pub host_get_symlink_cache: Rc<dyn Fn() -> Gc<SymlinkCache>>,
     pub host_to_path: Rc<dyn Fn(&str) -> Path>,
     pub host_get_resolved_project_references:
-        Rc<dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+        Rc<dyn Fn() -> Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
     pub host_for_each_resolved_project_reference:
-        Rc<dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>))>,
+        Rc<dyn Fn(&mut dyn FnMut(Gc<ResolvedProjectReference>))>,
     set_of_declaration_directories: GcCell<Option<HashSet<Path>>>,
 }
 
 impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub fn new(
-        host_compiler_host: Rc<dyn CompilerHost>,
-        host_get_symlink_cache: Rc<dyn Fn() -> Rc<SymlinkCache>>,
+        host_compiler_host: Gc<Box<dyn CompilerHost>>,
+        host_get_symlink_cache: Rc<dyn Fn() -> Gc<SymlinkCache>>,
         host_to_path: Rc<dyn Fn(&str) -> Path>,
         host_get_resolved_project_references: Rc<
-            dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
+            dyn Fn() -> Option<Vec<Option<Gc<ResolvedProjectReference>>>>,
         >,
         host_for_each_resolved_project_reference: Rc<
-            dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>)),
+            dyn Fn(&mut dyn FnMut(Gc<ResolvedProjectReference>)),
         >,
     ) -> Self {
         Self {
@@ -1726,7 +1727,7 @@ pub struct CompilerHostLikeRcDynCompilerHost {
 }
 
 impl CompilerHostLikeRcDynCompilerHost {
-    pub fn new(host: Rc<dyn CompilerHost>) -> Self {
+    pub fn new(host: Gc<Box<dyn CompilerHost>>) -> Self {
         Self { host }
     }
 }
@@ -1999,4 +2000,21 @@ pub(crate) fn get_module_name_string_literal_at<TFile: SourceFileImportsList>(
     index: usize,
 ) -> Gc<Node /*StringLiteralLike*/> {
     unimplemented!()
+}
+
+#[derive(Trace, Finalize)]
+struct CompilerHostGetCanonicalFileName {
+    host: Gc<Box<dyn CompilerHost>>,
+}
+
+impl CompilerHostGetCanonicalFileName {
+    pub fn new(host: Gc<Box<dyn CompilerHost>>) -> Self {
+        Self { host }
+    }
+}
+
+impl GetCanonicalFileName for CompilerHostGetCanonicalFileName {
+    fn call(&self, file_name: &str) -> String {
+        self.host.get_canonical_file_name(file_name)
+    }
 }

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -81,7 +81,7 @@ impl ParserType {
             self.source_text_as_chars(),
         );
         let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
-            self.parse_diagnostics().push(Rc::new(
+            self.parse_diagnostics().push(Gc::new(
                 create_detached_diagnostic(self.file_name(), pos, end, diagnostic, None).into(),
             ));
         };
@@ -92,10 +92,9 @@ impl ParserType {
         source_file_as_source_file.set_node_count(self.node_count());
         source_file_as_source_file.set_identifier_count(self.identifier_count());
         source_file_as_source_file.set_identifiers(self.identifiers_rc());
-        source_file_as_source_file.set_parse_diagnostics(attach_file_to_diagnostics(
-            &*self.parse_diagnostics(),
-            &source_file,
-        ));
+        source_file_as_source_file.set_parse_diagnostics(Gc::new(GcCell::new(
+            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file),
+        )));
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
             if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {
@@ -514,7 +513,7 @@ impl ParserType {
             let last_error = last_or_undefined(&*parse_diagnostics);
             if last_error.map_or(true, |last_error| last_error.start() != start) {
                 let file_name = self.file_name().to_string();
-                parse_diagnostics.push(Rc::new(
+                parse_diagnostics.push(Gc::new(
                     create_detached_diagnostic(&file_name, start, length, message, args).into(),
                 ));
             }
