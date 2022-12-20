@@ -642,22 +642,13 @@ impl CompilerHost for CompilerHostConcrete {
 
 pub(crate) fn change_compiler_host_like_to_use_cache(
     host: Gc<Box<dyn CompilerHost>>,
-    to_path: Rc<dyn Fn(&str) -> Path>,
-    get_source_file: Option<
-        Rc<
-            dyn Fn(
-                &str,
-                ScriptTarget,
-                Option<&mut dyn FnMut(&str)>,
-                Option<bool>,
-            ) -> Option<Gc<Node>>,
-        >,
-    >,
+    to_path: Gc<Box<dyn ToPath>>,
+    get_source_file: Option<Gc<Box<dyn GetSourceFile>>>,
 ) /*-> */
 {
-    let overrider: Gc<Box<dyn ModuleResolutionHostOverrider>> = Rc::new(
+    let overrider: Gc<Box<dyn ModuleResolutionHostOverrider>> = Gc::new(Box::new(
         ChangeCompilerHostLikeToUseCacheOverrider::new(host.clone(), to_path, get_source_file),
-    );
+    ));
 
     host.set_overriding_read_file(Some(overrider.clone()));
 
@@ -686,20 +677,14 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
 #[derive(Trace, Finalize)]
 struct ChangeCompilerHostLikeToUseCacheOverrider {
     host: Gc<Box<dyn CompilerHost>>,
-    to_path: Rc<dyn Fn(&str) -> Path>,
-    get_source_file: Option<
-        Rc<
-            dyn Fn(
-                &str,
-                ScriptTarget,
-                Option<&mut dyn FnMut(&str)>,
-                Option<bool>,
-            ) -> Option<Gc<Node>>,
-        >,
-    >,
-    read_file_cache: GcCell<HashMap<String, Option<String>>>,
-    file_exists_cache: GcCell<HashMap<String, bool>>,
-    directory_exists_cache: GcCell<HashMap<String, bool>>,
+    to_path: Gc<Box<dyn ToPath>>,
+    get_source_file: Option<Gc<Box<dyn GetSourceFile>>>,
+    #[unsafe_ignore_trace]
+    read_file_cache: RefCell<HashMap<String, Option<String>>>,
+    #[unsafe_ignore_trace]
+    file_exists_cache: RefCell<HashMap<String, bool>>,
+    #[unsafe_ignore_trace]
+    directory_exists_cache: RefCell<HashMap<String, bool>>,
     source_file_cache: GcCell<HashMap<String, Gc<Node /*SourceFile*/>>>,
     has_get_source_file_with_cache: bool,
 }
@@ -707,32 +692,23 @@ struct ChangeCompilerHostLikeToUseCacheOverrider {
 impl ChangeCompilerHostLikeToUseCacheOverrider {
     pub fn new(
         host: Gc<Box<dyn CompilerHost>>,
-        to_path: Rc<dyn Fn(&str) -> Path>,
-        get_source_file: Option<
-            Rc<
-                dyn Fn(
-                    &str,
-                    ScriptTarget,
-                    Option<&mut dyn FnMut(&str)>,
-                    Option<bool>,
-                ) -> Option<Gc<Node>>,
-            >,
-        >,
+        to_path: Gc<Box<dyn ToPath>>,
+        get_source_file: Option<Gc<Box<dyn GetSourceFile>>>,
     ) -> Self {
         Self {
             host,
             to_path,
             has_get_source_file_with_cache: get_source_file.is_some(),
             get_source_file,
-            read_file_cache: RefCell::new(HashMap::new()),
-            file_exists_cache: RefCell::new(HashMap::new()),
-            directory_exists_cache: RefCell::new(HashMap::new()),
-            source_file_cache: RefCell::new(HashMap::new()),
+            read_file_cache: Default::default(),
+            file_exists_cache: Default::default(),
+            directory_exists_cache: Default::default(),
+            source_file_cache: Default::default(),
         }
     }
 
     fn read_file_with_cache(&self, file_name: &str) -> Option<String> {
-        let key = (self.to_path)(file_name);
+        let key = self.to_path.call(file_name);
         {
             let read_file_cache = self.read_file_cache.borrow();
             let value = read_file_cache.get(&*key);
@@ -756,7 +732,7 @@ impl ChangeCompilerHostLikeToUseCacheOverrider {
 
 impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider {
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
-        let key = (self.to_path)(file_name);
+        let key = self.to_path.call(file_name);
         {
             let read_file_cache = self.read_file_cache.borrow();
             let value = read_file_cache.get(&*key);
@@ -773,7 +749,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     }
 
     fn file_exists(&self, file_name: &str) -> bool {
-        let key = (self.to_path)(file_name);
+        let key = self.to_path.call(file_name);
         {
             let value = self.file_exists_cache.borrow().get(&*key).copied();
             if let Some(value) = value {
@@ -795,7 +771,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ) {
-        let key = (self.to_path)(file_name);
+        let key = self.to_path.call(file_name);
         self.file_exists_cache.borrow_mut().remove(&*key);
 
         let value_is_different = {
@@ -835,7 +811,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     }
 
     fn directory_exists(&self, directory: &str) -> Option<bool> {
-        let key = (self.to_path)(directory);
+        let key = self.to_path.call(directory);
         {
             let directory_exists_cache = self.directory_exists_cache.borrow();
             let value = directory_exists_cache.get(&*key);
@@ -854,7 +830,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     }
 
     fn create_directory(&self, directory: &str) {
-        let key = (self.to_path)(directory);
+        let key = self.to_path.call(directory);
         self.directory_exists_cache.borrow_mut().remove(&*key);
         self.host.create_directory_non_overridden(directory);
     }
@@ -866,6 +842,20 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     fn realpath(&self, s: &str) -> Option<String> {
         unreachable!()
     }
+}
+
+pub trait ToPath: Trace + Finalize {
+    fn call(&self, file_name: &str) -> Path;
+}
+
+pub trait GetSourceFile: Trace + Finalize {
+    fn call(
+        &self,
+        file_name: &str,
+        script_target: ScriptTarget,
+        something: Option<&mut dyn FnMut(&str)>,
+        something_else: Option<bool>,
+    ) -> Option<Gc<Node>>;
 }
 
 pub fn get_pre_emit_diagnostics<TSourceFile: Borrow<Node>>(

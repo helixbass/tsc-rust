@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
 use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
@@ -12,7 +12,7 @@ use super::{
 };
 use local_macros::ast_type;
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -28,7 +28,7 @@ impl ConstructorDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SemicolonClassElement {
     _node: BaseNode,
@@ -54,7 +54,7 @@ impl NamedDeclarationInterface for SemicolonClassElement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -70,7 +70,7 @@ impl GetAccessorDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -86,7 +86,7 @@ impl SetAccessorDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -102,15 +102,15 @@ impl IndexSignatureDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct ClassStaticBlockDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
     pub body: Gc<Node /*Block*/>,
-    end_flow_node: RefCell<Option<Gc<FlowNode>>>,
-    return_flow_node: RefCell<Option<Gc<FlowNode>>>,
+    end_flow_node: GcCell<Option<Gc<FlowNode>>>,
+    return_flow_node: GcCell<Option<Gc<FlowNode>>>,
 }
 
 impl ClassStaticBlockDeclaration {
@@ -118,8 +118,8 @@ impl ClassStaticBlockDeclaration {
         Self {
             _generic_named_declaration: generic_named_declaration,
             body,
-            end_flow_node: RefCell::new(None),
-            return_flow_node: RefCell::new(None),
+            end_flow_node: Default::default(),
+            return_flow_node: Default::default(),
         }
     }
 
@@ -140,7 +140,7 @@ impl ClassStaticBlockDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
@@ -161,7 +161,7 @@ impl VariableDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct VariableDeclarationList {
     _node: BaseNode,
@@ -177,7 +177,7 @@ impl VariableDeclarationList {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
@@ -217,7 +217,7 @@ impl HasQuestionTokenInterface for ParameterDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct KeywordTypeNode {
     _node: BaseNode,
@@ -235,11 +235,12 @@ impl From<BaseNode> for KeywordTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ImportTypeNode {
     _node: BaseNode,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode>*/>>,
+    #[unsafe_ignore_trace]
     is_type_of: Cell<bool>,
     pub argument: Gc<Node /*<TypeNode>*/>,
     pub qualifier: Option<Gc<Node /*<EntityName>*/>>,
@@ -255,7 +256,7 @@ impl ImportTypeNode {
     ) -> Self {
         Self {
             _node: base_node,
-            type_arguments: RefCell::new(type_arguments),
+            type_arguments: GcCell::new(type_arguments),
             is_type_of: Cell::new(is_type_of),
             argument,
             qualifier,
@@ -272,12 +273,12 @@ impl ImportTypeNode {
 }
 
 impl HasTypeArgumentsInterface for ImportTypeNode {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ThisTypeNode {
     _node: BaseNode,
@@ -289,7 +290,7 @@ impl ThisTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
 )]
@@ -305,7 +306,7 @@ impl FunctionTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
 )]
@@ -325,15 +326,15 @@ pub trait HasTypeArgumentsInterface {
     // TODO: changed this from Option<&NodeArray> to Ref<Option<NodeArray>> (and changed everything
     // except Identifier to have an unnecessary RefCell wrapper) because Identifier needs to mutate
     // its type_arguments, don't know if there's "a better way"?
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>>;
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Gc<Node /*EntityName*/>,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode>*/>>,
 }
 
 impl TypeReferenceNode {
@@ -345,18 +346,18 @@ impl TypeReferenceNode {
         Self {
             _node: base_node,
             type_name,
-            type_arguments: RefCell::new(type_arguments),
+            type_arguments: GcCell::new(type_arguments),
         }
     }
 }
 
 impl HasTypeArgumentsInterface for TypeReferenceNode {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TypePredicateNode {
     _node: BaseNode,
@@ -391,7 +392,7 @@ impl HasTypeInterface for TypePredicateNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TypeQueryNode {
     _node: BaseNode,
@@ -411,7 +412,7 @@ pub trait HasMembersInterface {
     fn members(&self) -> &NodeArray;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TypeLiteralNode {
     _node: BaseNode,
@@ -433,7 +434,7 @@ impl HasMembersInterface for TypeLiteralNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ArrayTypeNode {
     _node: BaseNode,
@@ -449,7 +450,7 @@ impl ArrayTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TupleTypeNode {
     _node: BaseNode,
@@ -471,7 +472,7 @@ impl HasElementsInterface for TupleTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct NamedTupleMember {
     _node: BaseNode,
@@ -521,7 +522,7 @@ impl HasQuestionTokenInterface for NamedTupleMember {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct OptionalTypeNode {
     _node: BaseNode,
@@ -547,7 +548,7 @@ impl HasTypeInterface for OptionalTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct RestTypeNode {
     _node: BaseNode,
@@ -577,7 +578,7 @@ pub trait UnionOrIntersectionTypeNodeInterface {
     fn types(&self) -> &NodeArray;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct UnionTypeNode {
     _node: BaseNode,
@@ -599,7 +600,7 @@ impl UnionOrIntersectionTypeNodeInterface for UnionTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct IntersectionTypeNode {
     _node: BaseNode,
@@ -621,7 +622,7 @@ impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ConditionalTypeNode {
     _node: BaseNode,
@@ -649,7 +650,7 @@ impl ConditionalTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct InferTypeNode {
     _node: BaseNode,
@@ -665,7 +666,7 @@ impl InferTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ParenthesizedTypeNode {
     _node: BaseNode,
@@ -691,10 +692,11 @@ impl HasTypeInterface for ParenthesizedTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TypeOperatorNode {
     _node: BaseNode,
+    #[unsafe_ignore_trace]
     pub operator: SyntaxKind, /*SyntaxKind.KeyOfKeyword | SyntaxKind.UniqueKeyword | SyntaxKind.ReadonlyKeyword*/
     pub type_: Gc<Node /*TypeNode*/>,
 }
@@ -719,7 +721,7 @@ impl HasTypeInterface for TypeOperatorNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct IndexedAccessTypeNode {
     _node: BaseNode,
@@ -737,7 +739,7 @@ impl IndexedAccessTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct MappedTypeNode {
     _node: BaseNode,
@@ -787,11 +789,11 @@ impl HasQuestionTokenInterface for MappedTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct LiteralTypeNode {
     _node: BaseNode,
-    pub literal: Gc<Node>, // TODO: should be weak?
+    pub literal: Gc<Node>,
 }
 
 impl LiteralTypeNode {
@@ -803,7 +805,7 @@ impl LiteralTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct StringLiteral {
     _literal_like_node: BaseLiteralLikeNode,
@@ -822,7 +824,7 @@ impl StringLiteral {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TemplateLiteralTypeNode {
     pub _node: BaseNode,
@@ -840,7 +842,7 @@ impl TemplateLiteralTypeNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TemplateLiteralTypeSpan {
     pub _node: BaseNode,
@@ -868,7 +870,7 @@ impl HasTypeInterface for TemplateLiteralTypeSpan {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct OmittedExpression {
     pub _node: BaseNode,
@@ -880,7 +882,7 @@ impl OmittedExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct PartiallyEmittedExpression {
     pub _node: BaseNode,
@@ -907,10 +909,11 @@ pub trait UnaryExpressionInterface {
     fn operand(&self) -> Gc<Node>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
+    #[unsafe_ignore_trace]
     pub operator: SyntaxKind, /*PrefixUnaryOperator*/
     pub operand: Gc<Node /*UnaryExpression*/>,
 }
@@ -934,11 +937,12 @@ impl UnaryExpressionInterface for PrefixUnaryExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct PostfixUnaryExpression {
     pub _node: BaseNode,
     pub operand: Gc<Node /*LeftHandSideExpression*/>,
+    #[unsafe_ignore_trace]
     pub operator: SyntaxKind, /*PostfixUnaryOperator*/
 }
 
@@ -961,7 +965,7 @@ impl UnaryExpressionInterface for PostfixUnaryExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct DeleteExpression {
     _node: BaseNode,
@@ -983,7 +987,7 @@ impl HasExpressionInterface for DeleteExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TypeOfExpression {
     _node: BaseNode,
@@ -1005,7 +1009,7 @@ impl HasExpressionInterface for TypeOfExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct VoidExpression {
     _node: BaseNode,
@@ -1027,7 +1031,7 @@ impl HasExpressionInterface for VoidExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct AwaitExpression {
     _node: BaseNode,
@@ -1049,7 +1053,7 @@ impl HasExpressionInterface for AwaitExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct YieldExpression {
     _node: BaseNode,
@@ -1081,7 +1085,7 @@ impl HasExpressionInterface for YieldExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SyntheticExpression {
     _node: BaseNode,

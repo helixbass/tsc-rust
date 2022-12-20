@@ -129,7 +129,7 @@ pub trait HasStatementsInterface {
     fn statements(&self) -> &NodeArray;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SourceFile {
     _node: BaseNode,
@@ -215,7 +215,7 @@ pub struct SourceFileContents {
         GcCell<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>>,
     imports: GcCell<Option<Vec<Gc<Node /*StringLiteralLike*/>>>>,
     module_augmentations: GcCell<Option<Vec<Gc<Node /*StringLiteral | Identifier*/>>>>,
-    pattern_ambient_modules: GcCell<Option<Vec<Rc<PatternAmbientModule>>>>,
+    pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
     #[unsafe_ignore_trace]
     ambient_module_names: RefCell<Option<Vec<String>>>,
     #[unsafe_ignore_trace]
@@ -558,7 +558,7 @@ impl SourceFile {
     pub fn bind_diagnostics_mut(
         &self,
     ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>, Vec<Gc<Diagnostic>>> {
-        RefMut::map(self.contents.bind_diagnostics.borrow_mut(), |option| {
+        GcCellRefMut::map(self.contents.bind_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
@@ -790,14 +790,17 @@ pub enum CommentDirectiveType {
 
 pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Gc<Symbol>>;
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct Bundle {
     _node: BaseNode,
     pub prepends: Vec<Gc<Node /*InputFiles | UnparsedSource*/>>,
     pub source_files: Vec<Gc<Node /*SourceFile*/>>,
+    #[unsafe_ignore_trace]
     pub(crate) synthetic_file_references: Option<Vec<FileReference>>,
+    #[unsafe_ignore_trace]
     pub(crate) synthetic_type_references: Option<Vec<FileReference>>,
+    #[unsafe_ignore_trace]
     pub(crate) synthetic_lib_references: Option<Vec<FileReference>>,
     pub(crate) has_no_default_lib: Option<bool>,
 }
@@ -816,7 +819,7 @@ impl Bundle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct InputFiles {
     _node: BaseNode,
@@ -829,6 +832,7 @@ pub struct InputFiles {
     pub declaration_map_path: Option<String>,
     pub declaration_map_text: Option<String>,
     pub(crate) build_info_path: Option<String>,
+    #[unsafe_ignore_trace]
     pub(crate) build_info: Option<BuildInfo>,
     pub(crate) old_file_of_current_emit: Option<bool>,
 }
@@ -862,18 +866,23 @@ impl HasOldFileOfCurrentEmitInterface for InputFiles {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct UnparsedSource {
     _node: BaseNode,
     pub file_name: String,
+    #[unsafe_ignore_trace]
     text: RefCell<String>,
+    #[unsafe_ignore_trace]
     text_as_chars: RefCell<SourceTextAsChars>,
     pub prologues: Vec<Gc<Node /*UnparsedPrologue*/>>,
     pub helpers: Option<Vec<Gc<EmitHelper /*UnscopedEmitHelper*/>>>,
 
+    #[unsafe_ignore_trace]
     pub referenced_files: Vec<FileReference>,
+    #[unsafe_ignore_trace]
     pub type_reference_directives: Option<Vec<String>>,
+    #[unsafe_ignore_trace]
     pub lib_reference_directives: Vec<FileReference>,
     pub has_no_default_lib: Option<bool>,
 
@@ -882,6 +891,7 @@ pub struct UnparsedSource {
     pub synthetic_references: Option<Vec<Gc<Node /*UnparsedSyntheticReference*/>>>,
     pub texts: Vec<Gc<Node /*UnparsedSourceText*/>>,
     pub(crate) old_file_of_current_emit: Option<bool>,
+    #[unsafe_ignore_trace]
     pub(crate) parsed_source_map: RefCell<Option<Option<Rc<RawSourceMap>>>>,
 }
 
@@ -961,7 +971,7 @@ pub trait UnparsedSectionInterface {
     fn maybe_data(&self) -> Option<&str>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(impl_from = false)]
 pub struct BaseUnparsedNode {
     _node: BaseNode,
@@ -983,7 +993,7 @@ impl UnparsedSectionInterface for BaseUnparsedNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedPrologue {
     _unparsed_node: BaseUnparsedNode,
@@ -997,7 +1007,7 @@ impl UnparsedPrologue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedPrepend {
     _unparsed_node: BaseUnparsedNode,
@@ -1023,7 +1033,7 @@ impl HasTextsInterface for UnparsedPrepend {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedTextLike {
     _unparsed_node: BaseUnparsedNode,
@@ -1037,7 +1047,7 @@ impl UnparsedTextLike {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedSyntheticReference {
     _unparsed_node: BaseUnparsedNode,
@@ -1136,33 +1146,40 @@ pub enum FileIncludeKind {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct RootFile {
+    #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.RootFile*/
     pub index: usize,
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct LibFile {
+    #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.LibFile*/
     pub index: Option<usize>,
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct ProjectReferenceFile {
+    #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*ProjectReferenceFileKind*/
     pub index: usize,
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct ReferencedFile {
+    #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*ReferencedFileKind*/
+    #[unsafe_ignore_trace]
     pub file: Path,
     pub index: usize,
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct AutomaticTypeDirectiveFile {
+    #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.AutomaticTypeDirectiveFile*/
     pub type_reference: String,
+    #[unsafe_ignore_trace]
     pub package_id: Option<PackageId>,
 }
 
@@ -1248,7 +1265,7 @@ impl FilePreprocessingDiagnostics {
 
 #[derive(Trace, Finalize)]
 pub struct Program {
-    pub(crate) _rc_wrapper: GcCell<Option<Gc<Program>>>,
+    pub(crate) _rc_wrapper: GcCell<Option<Gc<Box<Program>>>>,
     pub(crate) create_program_options: GcCell<Option<CreateProgramOptions>>,
     #[unsafe_ignore_trace]
     pub(crate) root_names: RefCell<Option<Vec<String>>>,
@@ -1289,7 +1306,7 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
 
-    pub(crate) old_program: GcCell<Option<Gc<Program>>>,
+    pub(crate) old_program: GcCell<Option<Gc<Box<Program>>>>,
     pub(crate) host: GcCell<Option<Gc<Box<dyn CompilerHost>>>>,
     pub(crate) config_parsing_host: GcCell<Option<Gc<Box<dyn ParseConfigFileHost>>>>,
 

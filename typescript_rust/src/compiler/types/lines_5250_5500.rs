@@ -351,10 +351,11 @@ pub enum ObjectType {
     ReverseMappedType(ReverseMappedType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(ancestors = "ObjectType")]
 pub struct BaseObjectType {
     _type: BaseType,
+    #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
     members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
     properties: GcCell<Option<Vec<Gc<Symbol>>>>,
@@ -370,6 +371,7 @@ pub struct BaseObjectType {
     regular_type: GcCell<Option<Gc<Type /*ResolvedType*/>>>,
     // "not actually interface type" fields
     not_actually_interface_type_resolved_base_types: GcCell<Option<Gc<Vec<Gc<Type>>>>>,
+    #[unsafe_ignore_trace]
     not_actually_interface_type_base_types_resolved: Cell<Option<bool>>,
     not_actually_interface_type_resolved_base_constructor_type: GcCell<Option<Gc<Type>>>,
 }
@@ -501,11 +503,11 @@ impl ResolvedTypeInterface for BaseObjectType {
     }
 
     fn properties(&self) -> GcCellRef<Vec<Gc<Symbol>>> {
-        Ref::map(self.properties.borrow(), |option| option.as_ref().unwrap())
+        GcCellRef::map(self.properties.borrow(), |option| option.as_ref().unwrap())
     }
 
-    fn properties_mut(&self) -> GcCellRefMut<Vec<Gc<Symbol>>> {
-        RefMut::map(self.properties.borrow_mut(), |option| {
+    fn properties_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>, Vec<Gc<Symbol>>> {
+        GcCellRefMut::map(self.properties.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
@@ -515,7 +517,7 @@ impl ResolvedTypeInterface for BaseObjectType {
     }
 
     fn call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>> {
-        Ref::map(self.call_signatures.borrow(), |option| {
+        GcCellRef::map(self.call_signatures.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
@@ -525,7 +527,7 @@ impl ResolvedTypeInterface for BaseObjectType {
     }
 
     fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>> {
-        Ref::map(self.construct_signatures.borrow(), |option| {
+        GcCellRef::map(self.construct_signatures.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
@@ -535,7 +537,7 @@ impl ResolvedTypeInterface for BaseObjectType {
     }
 
     fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>> {
-        Ref::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
+        GcCellRef::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
     }
 
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Gc<Type>> {
@@ -566,7 +568,7 @@ pub enum NotActuallyInterfaceType<'a> {
 }
 
 impl NotActuallyInterfaceType<'_> {
-    pub fn maybe_resolved_base_types(&self) -> RefMut<Option<Gc<Vec<Gc<Type>>>>> {
+    pub fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Gc<Type>>>>> {
         match self {
             Self::InterfaceType(value) => value.maybe_resolved_base_types(),
             Self::BaseObjectType(value) => {
@@ -607,7 +609,7 @@ impl NotActuallyInterfaceType<'_> {
         }
     }
 
-    pub fn maybe_resolved_base_constructor_type(&self) -> RefMut<Option<Gc<Type>>> {
+    pub fn maybe_resolved_base_constructor_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         match self {
             Self::InterfaceType(value) => value.maybe_resolved_base_constructor_type(),
             Self::BaseObjectType(value) => {
@@ -639,7 +641,8 @@ pub struct BaseInterfaceType {
     local_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
     this_type: GcCell<Option<Gc<Type /*TypeParameter*/>>>,
     resolved_base_constructor_type: GcCell<Option<Gc<Type /*TypeParameter*/>>>,
-    resolved_base_types: GcCell<Option<Rc<Vec<Gc<Type /*BaseType*/>>>>>,
+    resolved_base_types: GcCell<Option<Gc<Vec<Gc<Type /*BaseType*/>>>>>,
+    #[unsafe_ignore_trace]
     base_types_resolved: Cell<Option<bool>>,
     // InterfaceTypeWithDeclaredMembers fields
     declared_properties: GcCell<Option<Vec<Gc<Symbol>>>>,
@@ -672,20 +675,20 @@ impl BaseInterfaceType {
             outer_type_parameters,
             local_type_parameters,
             this_type: GcCell::new(this_type),
-            resolved_base_constructor_type: GcCell::new(None),
-            resolved_base_types: GcCell::new(None),
-            base_types_resolved: Cell::new(None),
-            declared_properties: GcCell::new(None),
-            declared_call_signatures: GcCell::new(None),
-            declared_construct_signatures: GcCell::new(None),
-            declared_index_infos: GcCell::new(None),
-            instantiations: GcCell::new(None),
-            variances: RefCell::new(None),
-            target: GcCell::new(None),
-            node: GcCell::new(None),
-            resolved_type_arguments: GcCell::new(None),
-            literal_type: GcCell::new(None),
-            cached_equivalent_base_type: GcCell::new(None),
+            resolved_base_constructor_type: Default::default(),
+            resolved_base_types: Default::default(),
+            base_types_resolved: Default::default(),
+            declared_properties: Default::default(),
+            declared_call_signatures: Default::default(),
+            declared_construct_signatures: Default::default(),
+            declared_index_infos: Default::default(),
+            instantiations: Default::default(),
+            variances: Default::default(),
+            target: Default::default(),
+            node: Default::default(),
+            resolved_type_arguments: Default::default(),
+            literal_type: Default::default(),
+            cached_equivalent_base_type: Default::default(),
         }
     }
 }
@@ -756,7 +759,7 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
     }
 
     fn declared_call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>> {
-        Ref::map(
+        GcCellRef::map(
             self.declared_call_signatures.borrow(),
             |declared_call_signatures| declared_call_signatures.as_ref().unwrap(),
         )
@@ -767,7 +770,7 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
     }
 
     fn declared_construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>> {
-        Ref::map(
+        GcCellRef::map(
             self.declared_construct_signatures.borrow(),
             |declared_construct_signatures| declared_construct_signatures.as_ref().unwrap(),
         )
@@ -778,7 +781,7 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
     }
 
     fn declared_index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>> {
-        Ref::map(self.declared_index_infos.borrow(), |declared_index_infos| {
+        GcCellRef::map(self.declared_index_infos.borrow(), |declared_index_infos| {
             declared_index_infos.as_ref().unwrap()
         })
     }
@@ -867,10 +870,10 @@ impl TypeReferenceInterface for BaseInterfaceType {
 pub struct TypeReference {
     _object_type: BaseObjectType,
     pub target: Gc<Type /*GenericType*/>,
-    pub node: RefCell<Option<Gc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>, // TODO: should be weak?
-    pub resolved_type_arguments: RefCell<Option<Vec<Gc<Type>>>>,
-    literal_type: RefCell<Option<Gc<Type /*TypeReference*/>>>,
-    cached_equivalent_base_type: RefCell<Option<Gc<Type>>>,
+    pub node: GcCell<Option<Gc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>, // TODO: should be weak?
+    pub resolved_type_arguments: GcCell<Option<Vec<Gc<Type>>>>,
+    literal_type: GcCell<Option<Gc<Type /*TypeReference*/>>>,
+    cached_equivalent_base_type: GcCell<Option<Gc<Type>>>,
 }
 
 impl TypeReference {
@@ -882,10 +885,10 @@ impl TypeReference {
         Self {
             _object_type: object_type,
             target,
-            node: RefCell::new(None),
-            resolved_type_arguments: RefCell::new(resolved_type_arguments),
-            literal_type: RefCell::new(None),
-            cached_equivalent_base_type: RefCell::new(None),
+            node: Default::default(),
+            resolved_type_arguments: GcCell::new(resolved_type_arguments),
+            literal_type: Default::default(),
+            cached_equivalent_base_type: Default::default(),
         }
     }
 }
@@ -1136,11 +1139,11 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
     }
 
     fn properties(&self) -> GcCellRef<Vec<Gc<Symbol>>> {
-        Ref::map(self.properties.borrow(), |option| option.as_ref().unwrap())
+        GcCellRef::map(self.properties.borrow(), |option| option.as_ref().unwrap())
     }
 
-    fn properties_mut(&self) -> GcCellRefMut<Vec<Gc<Symbol>>> {
-        RefMut::map(self.properties.borrow_mut(), |option| {
+    fn properties_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>, Vec<Gc<Symbol>>> {
+        GcCellRefMut::map(self.properties.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
@@ -1150,7 +1153,7 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
     }
 
     fn call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>> {
-        Ref::map(self.call_signatures.borrow(), |option| {
+        GcCellRef::map(self.call_signatures.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
@@ -1160,7 +1163,7 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
     }
 
     fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>> {
-        Ref::map(self.construct_signatures.borrow(), |option| {
+        GcCellRef::map(self.construct_signatures.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
@@ -1170,7 +1173,7 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
     }
 
     fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>> {
-        Ref::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
+        GcCellRef::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
     }
 
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Gc<Type>> {
@@ -1247,11 +1250,11 @@ impl UnionType {
         }
     }
 
-    pub fn maybe_resolved_reduced_type(&self) -> RefMut<Option<Gc<Type>>> {
+    pub fn maybe_resolved_reduced_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.resolved_reduced_type.borrow_mut()
     }
 
-    pub fn maybe_regular_type(&self) -> RefMut<Option<Gc<Type>>> {
+    pub fn maybe_regular_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.regular_type.borrow_mut()
     }
 
@@ -1259,7 +1262,7 @@ impl UnionType {
         self.key_property_name.borrow_mut()
     }
 
-    pub fn maybe_constituent_map(&self) -> RefMut<Option<HashMap<TypeId, Gc<Type>>>> {
+    pub fn maybe_constituent_map(&self) -> GcCellRefMut<Option<HashMap<TypeId, Gc<Type>>>> {
         self.constituent_map.borrow_mut()
     }
 }

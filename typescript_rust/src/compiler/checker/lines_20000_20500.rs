@@ -950,11 +950,12 @@ impl From<Gc<Type>> for GetVariancesCache {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) enum RecursionIdentity {
     Node(Gc<Node>),
     Symbol(Gc<Symbol>),
     Type(Gc<Type>),
-    ConditionalRoot(Rc<RefCell<ConditionalRoot>>),
+    ConditionalRoot(Gc<GcCell<ConditionalRoot>>),
     None,
 }
 
@@ -964,7 +965,7 @@ impl PartialEq for RecursionIdentity {
             (Self::Node(a), Self::Node(b)) => Gc::ptr_eq(a, b),
             (Self::Symbol(a), Self::Symbol(b)) => Gc::ptr_eq(a, b),
             (Self::Type(a), Self::Type(b)) => Gc::ptr_eq(a, b),
-            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Rc::ptr_eq(a, b),
+            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Gc::ptr_eq(a, b),
             (Self::None, Self::None) => true,
             _ => false,
         }
@@ -991,8 +992,8 @@ impl From<Gc<Type>> for RecursionIdentity {
     }
 }
 
-impl From<Rc<RefCell<ConditionalRoot>>> for RecursionIdentity {
-    fn from(value: Rc<RefCell<ConditionalRoot>>) -> Self {
+impl From<Gc<GcCell<ConditionalRoot>>> for RecursionIdentity {
+    fn from(value: Gc<GcCell<ConditionalRoot>>) -> Self {
         Self::ConditionalRoot(value)
     }
 }

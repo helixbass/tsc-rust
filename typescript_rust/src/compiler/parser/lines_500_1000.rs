@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Gc, GcCell};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -259,8 +259,11 @@ pub(crate) fn parse_jsdoc_type_expression_for_tests(
 }
 
 #[allow(non_snake_case)]
+#[derive(Trace, Finalize)]
 pub struct ParserType {
+    #[unsafe_ignore_trace]
     pub(super) scanner: RefCell<Scanner>,
+    #[unsafe_ignore_trace]
     pub(super) disallow_in_and_decorator_context: NodeFlags,
     pub(super) NodeConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) IdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
@@ -269,27 +272,43 @@ pub struct ParserType {
     pub(super) SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) factory: Gc<NodeFactory<ParserType>>,
     pub(super) file_name: Option<String>,
+    #[unsafe_ignore_trace]
     pub(super) source_flags: Cell<Option<NodeFlags>>,
     pub(super) source_text: Option<String>,
+    #[unsafe_ignore_trace]
     pub(super) source_text_as_chars: Option<SourceTextAsChars>,
+    #[unsafe_ignore_trace]
     pub(super) language_version: Option<ScriptTarget>,
+    #[unsafe_ignore_trace]
     pub(super) script_kind: Option<ScriptKind>,
+    #[unsafe_ignore_trace]
     pub(super) language_variant: Option<LanguageVariant>,
     pub(super) parse_diagnostics:
-        RefCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+        GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) js_doc_diagnostics:
-        RefCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
-    pub(super) syntax_cursor: RefCell<Option<IncrementalParserSyntaxCursor>>,
+        GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+    pub(super) syntax_cursor: GcCell<Option<IncrementalParserSyntaxCursor>>,
+    #[unsafe_ignore_trace]
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
+    #[unsafe_ignore_trace]
     pub(super) node_count: Cell<Option<usize>>,
+    #[unsafe_ignore_trace]
     pub(super) identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
+    #[unsafe_ignore_trace]
     pub(super) private_identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
+    #[unsafe_ignore_trace]
     pub(super) identifier_count: Cell<Option<usize>>,
+    #[unsafe_ignore_trace]
     pub(super) parsing_context: Cell<Option<ParsingContext>>,
+    #[unsafe_ignore_trace]
     pub(super) not_parenthesized_arrow: RefCell<Option<HashSet<usize>>>,
+    #[unsafe_ignore_trace]
     pub(super) context_flags: Cell<Option<NodeFlags>>,
+    #[unsafe_ignore_trace]
     pub(super) top_level: Cell<bool>,
+    #[unsafe_ignore_trace]
     pub(super) parse_error_before_next_finished_node: Cell<bool>,
+    #[unsafe_ignore_trace]
     pub(super) has_deprecated_tag: Cell<bool>,
 }
 
@@ -307,37 +326,37 @@ impl ParserType {
             )),
             disallow_in_and_decorator_context: NodeFlags::DisallowInContext
                 | NodeFlags::DecoratorContext,
-            NodeConstructor: None,
-            IdentifierConstructor: None,
-            PrivateIdentifierConstructor: None,
-            TokenConstructor: None,
-            SourceFileConstructor: None,
+            NodeConstructor: Default::default(),
+            IdentifierConstructor: Default::default(),
+            PrivateIdentifierConstructor: Default::default(),
+            TokenConstructor: Default::default(),
+            SourceFileConstructor: Default::default(),
             factory: create_node_factory(
                 NodeFactoryFlags::NoParenthesizerRules
                     | NodeFactoryFlags::NoNodeConverters
                     | NodeFactoryFlags::NoOriginalNode,
             ),
-            file_name: None,
-            source_flags: Cell::new(None),
-            source_text: None,
-            source_text_as_chars: None,
-            language_version: None,
-            script_kind: None,
-            language_variant: None,
-            parse_diagnostics: RefCell::new(None),
-            js_doc_diagnostics: RefCell::new(None),
-            syntax_cursor: RefCell::new(None),
-            current_token: RefCell::new(None),
-            node_count: Cell::new(None),
-            identifiers: RefCell::new(None),
-            private_identifiers: RefCell::new(None),
-            identifier_count: Cell::new(None),
-            parsing_context: Cell::new(None),
-            not_parenthesized_arrow: RefCell::new(None),
-            context_flags: Cell::new(None),
+            file_name: Default::default(),
+            source_flags: Default::default(),
+            source_text: Default::default(),
+            source_text_as_chars: Default::default(),
+            language_version: Default::default(),
+            script_kind: Default::default(),
+            language_variant: Default::default(),
+            parse_diagnostics: Default::default(),
+            js_doc_diagnostics: Default::default(),
+            syntax_cursor: Default::default(),
+            current_token: Default::default(),
+            node_count: Default::default(),
+            identifiers: Default::default(),
+            private_identifiers: Default::default(),
+            identifier_count: Default::default(),
+            parsing_context: Default::default(),
+            not_parenthesized_arrow: Default::default(),
+            context_flags: Default::default(),
             top_level: Cell::new(true),
-            parse_error_before_next_finished_node: Cell::new(false),
-            has_deprecated_tag: Cell::new(false),
+            parse_error_before_next_finished_node: Default::default(),
+            has_deprecated_tag: Default::default(),
         }
     }
 
@@ -469,8 +488,10 @@ impl ParserType {
         self.language_variant = language_variant;
     }
 
-    pub(super) fn parse_diagnostics(&self) -> RefMut<Vec<Gc<Diagnostic>>> {
-        RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
+    pub(super) fn parse_diagnostics(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>, Vec<Gc<Diagnostic>>> {
+        GcCellRefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
@@ -479,12 +500,14 @@ impl ParserType {
         *self.parse_diagnostics.borrow_mut() = parse_diagnostics;
     }
 
-    pub(super) fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Gc<Diagnostic>>>> {
+    pub(super) fn maybe_js_doc_diagnostics(&self) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>> {
         self.js_doc_diagnostics.borrow_mut()
     }
 
-    pub(super) fn js_doc_diagnostics(&self) -> RefMut<Vec<Gc<Diagnostic>>> {
-        RefMut::map(self.js_doc_diagnostics.borrow_mut(), |option| {
+    pub(super) fn js_doc_diagnostics(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>, Vec<Gc<Diagnostic>>> {
+        GcCellRefMut::map(self.js_doc_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
@@ -496,12 +519,12 @@ impl ParserType {
         *self.js_doc_diagnostics.borrow_mut() = js_doc_diagnostics;
     }
 
-    pub(super) fn maybe_syntax_cursor(&self) -> Ref<Option<IncrementalParserSyntaxCursor>> {
+    pub(super) fn maybe_syntax_cursor(&self) -> GcCellRef<Option<IncrementalParserSyntaxCursor>> {
         self.syntax_cursor.borrow()
     }
 
-    pub(super) fn syntax_cursor(&self) -> Ref<IncrementalParserSyntaxCursor> {
-        Ref::map(self.syntax_cursor.borrow(), |option| {
+    pub(super) fn syntax_cursor(&self) -> GcCellRef<IncrementalParserSyntaxCursor> {
+        GcCellRef::map(self.syntax_cursor.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }

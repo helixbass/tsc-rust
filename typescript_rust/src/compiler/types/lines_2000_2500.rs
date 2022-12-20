@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::Gc;
+use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
 use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
@@ -12,13 +12,14 @@ use super::{
 };
 use local_macros::ast_type;
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct BinaryExpression {
     pub _node: BaseNode,
     pub left: Gc<Node>,
     pub operator_token: Gc<Node>,
     pub right: Gc<Node>,
+    #[unsafe_ignore_trace]
     cached_literal_kind: Cell<Option<SyntaxKind>>,
 }
 
@@ -62,7 +63,7 @@ impl HasLeftAndRightInterface for BinaryExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ConditionalExpression {
     _node: BaseNode,
@@ -105,7 +106,7 @@ impl HasQuestionTokenInterface for ConditionalExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -121,7 +122,7 @@ impl FunctionExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -142,12 +143,15 @@ impl ArrowFunction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
     _node: BaseNode,
+    #[unsafe_ignore_trace]
     text: RefCell<String>,
+    #[unsafe_ignore_trace]
     is_unterminated: Cell<Option<bool>>,
+    #[unsafe_ignore_trace]
     has_extended_unicode_escape: Cell<Option<bool>>,
 }
 
@@ -198,11 +202,12 @@ pub trait LiteralLikeNodeInterface {
     fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct TemplateLiteralLikeNode {
     _literal_like_node: BaseLiteralLikeNode,
     pub raw_text: Option<String>,
+    #[unsafe_ignore_trace]
     pub template_flags: Option<TokenFlags>,
 }
 
@@ -235,7 +240,7 @@ pub trait TemplateLiteralLikeNodeInterface: LiteralLikeNodeInterface {
     fn maybe_template_flags(&self) -> Option<TokenFlags>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct RegularExpressionLiteral {
     _literal_like_node: BaseLiteralLikeNode,
@@ -271,10 +276,11 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct NumericLiteral {
     _literal_like_node: BaseLiteralLikeNode,
+    #[unsafe_ignore_trace]
     pub(crate) numeric_literal_flags: TokenFlags,
 }
 
@@ -290,7 +296,7 @@ impl NumericLiteral {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct BigIntLiteral {
     _literal_like_node: BaseLiteralLikeNode,
@@ -304,7 +310,7 @@ impl BigIntLiteral {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TemplateExpression {
     _node: BaseNode,
@@ -322,7 +328,7 @@ impl TemplateExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TemplateSpan {
     _node: BaseNode,
@@ -353,7 +359,7 @@ pub trait HasExpressionInterface {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ParenthesizedExpression {
     _node: BaseNode,
@@ -375,7 +381,7 @@ impl HasExpressionInterface for ParenthesizedExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ArrayLiteralExpression {
     _node: BaseNode,
@@ -399,7 +405,7 @@ impl HasElementsInterface for ArrayLiteralExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SpreadElement {
     _node: BaseNode,
@@ -421,7 +427,7 @@ impl HasExpressionInterface for SpreadElement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ObjectLiteralExpression {
     _node: BaseNode,
@@ -453,7 +459,7 @@ pub trait HasQuestionDotTokenInterface {
     fn maybe_question_dot_token(&self) -> Option<Gc<Node>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct PropertyAccessExpression {
     _node: BaseNode,
@@ -504,7 +510,7 @@ impl HasQuestionDotTokenInterface for PropertyAccessExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ElementAccessExpression {
     _node: BaseNode,
@@ -545,13 +551,13 @@ pub trait HasArgumentsInterface {
     fn maybe_arguments(&self) -> Option<&NodeArray>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct CallExpression {
     _node: BaseNode,
     pub expression: Gc<Node /*LeftHandSideExpression*/>,
     pub question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode>*/>>,
     pub arguments: NodeArray, /*<Expression>*/
 }
 
@@ -567,7 +573,7 @@ impl CallExpression {
             _node: base_node,
             expression,
             question_dot_token,
-            type_arguments: RefCell::new(type_arguments),
+            type_arguments: GcCell::new(type_arguments),
             arguments,
         }
     }
@@ -592,16 +598,16 @@ impl HasArgumentsInterface for CallExpression {
 }
 
 impl HasTypeArgumentsInterface for CallExpression {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ExpressionWithTypeArguments {
     _node: BaseNode,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode>*/>>,
     pub expression: Gc<Node /*LeftHandSideExpression*/>,
 }
 
@@ -614,7 +620,7 @@ impl ExpressionWithTypeArguments {
         Self {
             _node: base_node,
             expression,
-            type_arguments: RefCell::new(type_arguments),
+            type_arguments: GcCell::new(type_arguments),
         }
     }
 }
@@ -626,17 +632,17 @@ impl HasExpressionInterface for ExpressionWithTypeArguments {
 }
 
 impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Gc<Node /*LeftHandSideExpression*/>,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode>*/>>,
     pub arguments: Option<NodeArray /*<Expression>*/>,
 }
 
@@ -650,7 +656,7 @@ impl NewExpression {
         Self {
             _node: base_node,
             expression,
-            type_arguments: RefCell::new(type_arguments),
+            type_arguments: GcCell::new(type_arguments),
             arguments,
         }
     }
@@ -669,17 +675,17 @@ impl HasArgumentsInterface for NewExpression {
 }
 
 impl HasTypeArgumentsInterface for NewExpression {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
     pub tag: Gc<Node /*LeftHandSideExpression*/>,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode>*/>>,
     pub template: Gc<Node /*TemplateLiteral*/>,
     pub(crate) question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
 }
@@ -695,7 +701,7 @@ impl TaggedTemplateExpression {
         Self {
             _node: base_node,
             tag,
-            type_arguments: RefCell::new(type_arguments),
+            type_arguments: GcCell::new(type_arguments),
             template,
             question_dot_token,
         }
@@ -703,12 +709,12 @@ impl TaggedTemplateExpression {
 }
 
 impl HasTypeArgumentsInterface for TaggedTemplateExpression {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct AsExpression {
     _node: BaseNode,
@@ -742,7 +748,7 @@ impl HasTypeInterface for AsExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TypeAssertion {
     _node: BaseNode,
@@ -776,7 +782,7 @@ impl HasTypeInterface for TypeAssertion {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct NonNullExpression {
     _node: BaseNode,

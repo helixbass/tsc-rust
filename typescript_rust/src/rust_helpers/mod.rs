@@ -4,6 +4,7 @@ use std::mem;
 use std::rc::Rc;
 
 pub mod debugging;
+pub mod deref;
 pub mod number;
 pub mod sys;
 pub mod weak_self;

@@ -1,9 +1,9 @@
-use gc::Gc;
+use gc::{Finalize, Gc, GcCellRef, Trace};
 use std::cell::Ref;
 use std::ptr;
 use std::rc::Rc;
 
-use super::filter_semantic_diagnostics;
+use super::{filter_semantic_diagnostics, ToPath};
 use crate::{
     compare_values, concatenate, contains, contains_path, create_type_checker,
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
@@ -200,7 +200,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub fn get_source_files(&self) -> Ref<Vec<Gc<Node>>> {
+    pub fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node>>> {
         self.files()
     }
 
@@ -270,9 +270,8 @@ impl Program {
         })
     }
 
-    pub fn to_path_rc(&self) -> Rc<dyn Fn(&str) -> Path> {
-        let self_clone = self.rc_wrapper();
-        Rc::new(move |file_name| self_clone.to_path(file_name))
+    pub fn to_path_rc(&self) -> Gc<Box<dyn ToPath>> {
+        Gc::new(Box::new(ProgramToPath::new(self.rc_wrapper())))
     }
 
     pub fn get_common_source_directory(&self) -> String {
@@ -564,7 +563,7 @@ impl Program {
 
     pub fn get_resolved_project_references(
         &self,
-    ) -> Ref<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
     }
 
@@ -592,8 +591,10 @@ impl Program {
         let mut diagnostics_producing_type_checker =
             self.diagnostics_producing_type_checker.borrow_mut();
         if diagnostics_producing_type_checker.is_none() {
-            *diagnostics_producing_type_checker =
-                Some(create_type_checker(self.rc_wrapper(), true));
+            *diagnostics_producing_type_checker = Some(create_type_checker(
+                self.rc_wrapper_as_dyn_type_checker_host_debuggable(),
+                true,
+            ));
         }
         diagnostics_producing_type_checker.as_ref().unwrap().clone()
     }
@@ -668,7 +669,9 @@ impl Program {
         // refactor eg get_diagnostics_helper() to use closures instead?
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
-        source_file.as_source_file().parse_diagnostics().clone()
+        (*source_file.as_source_file().parse_diagnostics())
+            .borrow()
+            .clone()
     }
 
     pub(super) fn get_semantic_diagnostics_for_file(
@@ -690,4 +693,21 @@ impl Program {
 pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
     ResolvedModuleFull(Rc<ResolvedModuleFull>),
     PredictedToResolveToAmbientModuleMarker,
+}
+
+#[derive(Trace, Finalize)]
+pub struct ProgramToPath {
+    program: Gc<Box<Program>>,
+}
+
+impl ProgramToPath {
+    pub fn new(program: Gc<Box<Program>>) -> Self {
+        Self { program }
+    }
+}
+
+impl ToPath for ProgramToPath {
+    fn call(&self, file_name: &str) -> Path {
+        self.program.to_path(file_name)
+    }
 }

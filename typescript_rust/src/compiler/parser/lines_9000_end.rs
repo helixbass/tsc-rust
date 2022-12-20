@@ -1,4 +1,4 @@
-use gc::Gc;
+use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
 use regex::{Captures, Regex};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -28,6 +28,7 @@ pub trait IncrementalParserSyntaxCursorInterface {
     fn current_node(&self, parser: &ParserType, position: usize) -> Option<Gc<Node>>;
 }
 
+#[derive(Trace, Finalize)]
 pub enum IncrementalParserSyntaxCursor {
     Created(IncrementalParserSyntaxCursorCreated),
     ReparseTopLevelAwait(IncrementalParserSyntaxCursorReparseTopLevelAwait),
@@ -52,11 +53,14 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorCreated {
     source_file: Gc<Node /*SourceFile*/>,
-    current_array: RefCell<Option<NodeArray>>,
+    current_array: GcCell<Option<NodeArray>>,
+    #[unsafe_ignore_trace]
     current_array_index: Cell<Option<usize>>,
-    current: RefCell<Option<Gc<Node>>>,
+    current: GcCell<Option<Gc<Node>>>,
+    #[unsafe_ignore_trace]
     last_queried_position: Cell<Option<usize>>,
 }
 
@@ -69,15 +73,15 @@ impl IncrementalParserSyntaxCursorCreated {
         Debug_.assert(current_array_index < current_array.len(), None);
         Self {
             source_file: source_file.clone(),
-            current_array: RefCell::new(Some(current_array.clone())),
+            current_array: GcCell::new(Some(current_array.clone())),
             current_array_index: Cell::new(Some(current_array_index)),
-            current: RefCell::new(Some(current_array[current_array_index].clone())),
-            last_queried_position: Cell::new(None), /*InvalidPosition::Value*/
+            current: GcCell::new(Some(current_array[current_array_index].clone())),
+            last_queried_position: Default::default(), /*InvalidPosition::Value*/
         }
     }
 
-    fn current_array(&self) -> Ref<NodeArray> {
-        Ref::map(self.current_array.borrow(), |option| {
+    fn current_array(&self) -> GcCellRef<NodeArray> {
+        GcCellRef::map(self.current_array.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }

@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::Gc;
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -274,37 +274,51 @@ pub fn transform_nodes(
     transformation_result
 }
 
+// #[derive(Trace, Finalize)]
 pub struct TransformNodesTransformationResult {
-    transformed: RefCell<Vec<Gc<Node>>>,
+    transformed: GcCell<Vec<Gc<Node>>>,
+    // #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
     nodes: Vec<Gc<Node>>,
+    // rc_wrapper: GcCell<Option<Gc<TransformNodesTransformationResult>>>,
     rc_wrapper: RefCell<Option<Weak<TransformNodesTransformationResult>>>,
+    // #[unsafe_ignore_trace]
     enabled_syntax_kind_features: RefCell<HashMap<SyntaxKind, SyntaxKindFeatureFlags>>,
     lexical_environment_variable_declarations:
-        RefCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
+        GcCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
     lexical_environment_function_declarations:
-        RefCell<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>,
-    lexical_environment_statements: RefCell<Option<Vec<Gc<Node /*Statement*/>>>>,
+        GcCell<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>,
+    lexical_environment_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
+    // #[unsafe_ignore_trace]
     lexical_environment_flags: Cell<LexicalEnvironmentFlags>,
     lexical_environment_variable_declarations_stack:
-        RefCell<Option<Vec<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>>>,
+        GcCell<Option<Vec<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>>>,
     lexical_environment_function_declarations_stack:
-        RefCell<Option<Vec<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>>>,
-    lexical_environment_statements_stack: RefCell<Option<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>>,
+        GcCell<Option<Vec<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>>>,
+    lexical_environment_statements_stack: GcCell<Option<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>>,
+    // #[unsafe_ignore_trace]
     lexical_environment_flags_stack: RefCell<Option<Vec<LexicalEnvironmentFlags>>>,
+    // #[unsafe_ignore_trace]
     lexical_environment_suspended: Cell<bool>,
     block_scoped_variable_declarations_stack:
-        RefCell<Option<Vec<Option<Vec<Gc<Node /*Identifier*/>>>>>>,
+        GcCell<Option<Vec<Option<Vec<Gc<Node /*Identifier*/>>>>>>,
+    // #[unsafe_ignore_trace]
     block_scope_stack_offset: Cell<usize>,
-    block_scoped_variable_declarations: RefCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
-    emit_helpers: RefCell<Option<Vec<Gc<EmitHelper>>>>,
-    diagnostics: RefCell<Vec<Gc<Diagnostic>>>,
+    block_scoped_variable_declarations: GcCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
+    emit_helpers: GcCell<Option<Vec<Gc<EmitHelper>>>>,
+    diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
+    // TODO: this should become trace-able, just didn't want to do all the transformer stuff right
+    // now
+    // #[unsafe_ignore_trace]
     transformers_with_context: RefCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
     options: Gc<CompilerOptions>,
+    // resolver: Option<Gc<Box<dyn EmitResolver>>>,
     resolver: Option<Rc<dyn EmitResolver>>,
+    // host: Option<Gc<Box<dyn EmitHost>>>,
     host: Option<Rc<dyn EmitHost>>,
+    // #[unsafe_ignore_trace]
     created_emit_helper_factory: RefCell<Option<Rc<EmitHelperFactory>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
 }
@@ -328,40 +342,40 @@ impl TransformNodesTransformationResult {
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     ) -> Rc<Self> {
         let rc = Rc::new(Self {
-            transformed: RefCell::new(transformed),
+            transformed: GcCell::new(transformed),
             state: Cell::new(state),
             nodes,
-            rc_wrapper: RefCell::new(None),
-            lexical_environment_variable_declarations: RefCell::new(
+            rc_wrapper: Default::default(),
+            lexical_environment_variable_declarations: GcCell::new(
                 lexical_environment_variable_declarations,
             ),
-            lexical_environment_function_declarations: RefCell::new(
+            lexical_environment_function_declarations: GcCell::new(
                 lexical_environment_function_declarations,
             ),
-            lexical_environment_statements: RefCell::new(Some(vec![])),
-            lexical_environment_variable_declarations_stack: RefCell::new(Some(
+            lexical_environment_statements: GcCell::new(Some(vec![])),
+            lexical_environment_variable_declarations_stack: GcCell::new(Some(
                 lexical_environment_variable_declarations_stack,
             )),
-            lexical_environment_function_declarations_stack: RefCell::new(Some(
+            lexical_environment_function_declarations_stack: GcCell::new(Some(
                 lexical_environment_function_declarations_stack,
             )),
-            lexical_environment_statements_stack: RefCell::new(Some(vec![])),
+            lexical_environment_statements_stack: GcCell::new(Some(vec![])),
             lexical_environment_flags_stack: RefCell::new(Some(vec![])),
-            emit_helpers: RefCell::new(emit_helpers),
-            diagnostics: RefCell::new(diagnostics),
+            emit_helpers: GcCell::new(emit_helpers),
+            diagnostics: GcCell::new(diagnostics),
             transformers,
-            transformers_with_context: RefCell::new(None),
+            transformers_with_context: Default::default(),
             allow_dts_files,
-            enabled_syntax_kind_features: RefCell::new(HashMap::new()),
+            enabled_syntax_kind_features: Default::default(),
             lexical_environment_flags: Cell::new(LexicalEnvironmentFlags::None),
-            lexical_environment_suspended: Cell::new(false),
-            block_scoped_variable_declarations_stack: RefCell::new(Some(vec![])),
-            block_scoped_variable_declarations: RefCell::new(Some(vec![])),
-            block_scope_stack_offset: Cell::new(0),
+            lexical_environment_suspended: Default::default(),
+            block_scoped_variable_declarations_stack: GcCell::new(Some(vec![])),
+            block_scoped_variable_declarations: GcCell::new(Some(vec![])),
+            block_scope_stack_offset: Default::default(),
             options,
             resolver,
             host,
-            created_emit_helper_factory: RefCell::new(None),
+            created_emit_helper_factory: Default::default(),
             factory,
         });
         rc.set_rc_wrapper(rc.clone());
@@ -377,15 +391,10 @@ impl TransformNodesTransformationResult {
     }
 
     fn rc_wrapper(&self) -> Rc<TransformNodesTransformationResult> {
-        self.rc_wrapper
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .upgrade()
-            .unwrap()
+        self.rc_wrapper.borrow().clone().unwrap().upgrade().unwrap()
     }
 
-    fn lexical_environment_variable_declarations(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
+    fn lexical_environment_variable_declarations(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.lexical_environment_variable_declarations.borrow_mut()
     }
 
@@ -397,7 +406,7 @@ impl TransformNodesTransformationResult {
             lexical_environment_variable_declarations;
     }
 
-    fn lexical_environment_function_declarations(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
+    fn lexical_environment_function_declarations(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.lexical_environment_function_declarations.borrow_mut()
     }
 
@@ -409,7 +418,7 @@ impl TransformNodesTransformationResult {
             lexical_environment_function_declarations;
     }
 
-    fn lexical_environment_statements(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
+    fn lexical_environment_statements(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.lexical_environment_statements.borrow_mut()
     }
 
@@ -422,8 +431,8 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_variable_declarations_stack(
         &self,
-    ) -> RefMut<Vec<Option<Vec<Gc<Node>>>>> {
-        RefMut::map(
+    ) -> GcCellRefMut<Option<Vec<Option<Vec<Gc<Node>>>>>, Vec<Option<Vec<Gc<Node>>>>> {
+        GcCellRefMut::map(
             self.lexical_environment_variable_declarations_stack
                 .borrow_mut(),
             |option| option.as_mut().unwrap(),
@@ -441,8 +450,8 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_function_declarations_stack(
         &self,
-    ) -> RefMut<Vec<Option<Vec<Gc<Node>>>>> {
-        RefMut::map(
+    ) -> GcCellRefMut<Option<Vec<Option<Vec<Gc<Node>>>>>, Vec<Option<Vec<Gc<Node>>>>> {
+        GcCellRefMut::map(
             self.lexical_environment_function_declarations_stack
                 .borrow_mut(),
             |option| option.as_mut().unwrap(),
@@ -458,8 +467,10 @@ impl TransformNodesTransformationResult {
             .borrow_mut() = lexical_environment_function_declarations_stack;
     }
 
-    fn lexical_environment_statements_stack(&self) -> RefMut<Vec<Option<Vec<Gc<Node>>>>> {
-        RefMut::map(
+    fn lexical_environment_statements_stack(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Option<Vec<Gc<Node>>>>>, Vec<Option<Vec<Gc<Node>>>>> {
+        GcCellRefMut::map(
             self.lexical_environment_statements_stack.borrow_mut(),
             |option| option.as_mut().unwrap(),
         )
@@ -472,8 +483,10 @@ impl TransformNodesTransformationResult {
         )
     }
 
-    fn block_scoped_variable_declarations_stack(&self) -> RefMut<Vec<Option<Vec<Gc<Node>>>>> {
-        RefMut::map(
+    fn block_scoped_variable_declarations_stack(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Option<Vec<Gc<Node>>>>>, Vec<Option<Vec<Gc<Node>>>>> {
+        GcCellRefMut::map(
             self.block_scoped_variable_declarations_stack.borrow_mut(),
             |option| option.as_mut().unwrap(),
         )
@@ -487,7 +500,7 @@ impl TransformNodesTransformationResult {
             block_scoped_variable_declarations_stack;
     }
 
-    fn block_scoped_variable_declarations(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
+    fn block_scoped_variable_declarations(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.block_scoped_variable_declarations.borrow_mut()
     }
 
@@ -502,7 +515,7 @@ impl TransformNodesTransformationResult {
         self.emit_helpers.borrow().clone()
     }
 
-    fn emit_helpers_mut(&self) -> RefMut<Option<Vec<Gc<EmitHelper>>>> {
+    fn emit_helpers_mut(&self) -> GcCellRefMut<Option<Vec<Gc<EmitHelper>>>> {
         self.emit_helpers.borrow_mut()
     }
 
@@ -514,7 +527,7 @@ impl TransformNodesTransformationResult {
         self.state.set(state);
     }
 
-    fn diagnostics(&self) -> RefMut<Vec<Gc<Diagnostic>>> {
+    fn diagnostics(&self) -> GcCellRefMut<Vec<Gc<Diagnostic>>> {
         self.diagnostics.borrow_mut()
     }
 
@@ -528,7 +541,7 @@ impl TransformNodesTransformationResult {
         *self.transformers_with_context.borrow_mut() = Some(transformers_with_context);
     }
 
-    fn transformed(&self) -> RefMut<Vec<Gc<Node>>> {
+    fn transformed(&self) -> GcCellRefMut<Vec<Gc<Node>>> {
         self.transformed.borrow_mut()
     }
 
@@ -1169,7 +1182,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
     }
 
     fn get_compiler_options(&self) -> Gc<CompilerOptions> {
-        Rc::new(Default::default())
+        Gc::new(Default::default())
     }
 
     fn start_lexical_environment(&self) {}

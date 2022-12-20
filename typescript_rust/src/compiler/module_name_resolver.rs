@@ -529,7 +529,7 @@ pub fn resolve_type_reference_directive(
     mut options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    cache: Option<Rc<TypeReferenceDirectiveResolutionCache>>,
+    cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
 ) -> Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
     let trace_enabled = is_trace_enabled(&options, host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
@@ -909,7 +909,7 @@ pub trait PerDirectoryResolutionCache<TValue: Trace + Finalize> {
         &self,
         directory_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Rc<ModeAwareCache<TValue>>;
+    ) -> Gc<ModeAwareCache<TValue>>;
     fn clear(&self);
     fn update(&self, options: &CompilerOptions);
 }
@@ -930,7 +930,7 @@ pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
         non_relative_module_name: &str,
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Rc<PerModuleNameCache>;
+    ) -> Gc<PerModuleNameCache>;
     fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache;
 }
 
@@ -1132,7 +1132,7 @@ impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
         &self,
         directory_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Rc<ModeAwareCache<TValue>> {
+    ) -> Gc<ModeAwareCache<TValue>> {
         let path = to_path(directory_name, Some(&self.current_directory), |path| {
             self.get_canonical_file_name.call(path)
         });
@@ -1372,7 +1372,7 @@ impl PerDirectoryResolutionCache<Rc<ResolvedModuleWithFailedLookupLocations>>
         &self,
         directory_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Rc<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>> {
+    ) -> Gc<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }
@@ -1392,7 +1392,7 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
         non_relative_module_name: &str,
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Rc<PerModuleNameCache> {
+    ) -> Gc<PerModuleNameCache> {
         Debug_.assert(
             !is_external_module_name_relative(non_relative_module_name),
             None,
@@ -1439,7 +1439,7 @@ pub fn create_type_reference_directive_resolution_cache(
     options: Option<Gc<CompilerOptions>>,
     package_json_info_cache: Option<Gc<Box<dyn PackageJsonInfoCache>>>,
     directory_to_module_name_map: Option<
-        Rc<
+        Gc<
             CacheWithRedirects<
                 ModeAwareCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
             >,
@@ -1478,7 +1478,7 @@ impl PerDirectoryResolutionCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLook
         &self,
         directory_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Rc<ModeAwareCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+    ) -> Gc<ModeAwareCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }

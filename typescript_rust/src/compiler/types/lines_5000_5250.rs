@@ -588,12 +588,15 @@ pub trait TypeInterface {
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct BaseType {
     _type_wrapper: GcCell<Option<Gc<Type>>>,
+    #[unsafe_ignore_trace]
     flags: Cell<TypeFlags>,
+    #[unsafe_ignore_trace]
     pub id: Option<TypeId>,
     symbol: GcCell<Option<Gc<Symbol>>>,
     pattern: GcCell<Option<Gc<Node>>>,
     alias_symbol: GcCell<Option<Gc<Symbol>>>,
     alias_type_arguments: GcCell<Option<Vec<Gc<Type>>>>,
+    #[unsafe_ignore_trace]
     alias_type_arguments_contains_marker: Cell<Option<bool>>,
     permissive_instantiation: GcCell<Option<Gc<Type>>>,
     restrictive_instantiation: GcCell<Option<Gc<Type>>>,
@@ -868,7 +871,7 @@ impl From<BaseType> for Type {
 
 impl From<BaseType> for Gc<Type> {
     fn from(value: BaseType) -> Gc<Type> {
-        let rc = Rc::new(Type::BaseType(value));
+        let rc = Gc::new(Type::BaseType(value));
         rc.set_type_wrapper(rc.clone());
         rc
     }

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Gc, GcCell, GcCellRef, GcCellRefMut};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -14,10 +14,11 @@ use super::{
 };
 use local_macros::ast_type;
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct MetaProperty {
     _node: BaseNode,
+    #[unsafe_ignore_trace]
     pub keyword_token: SyntaxKind, /*SyntaxKind.NewKeyword | SyntaxKind.ImportKeyword*/
     pub name: Gc<Node /*Identifier*/>,
 }
@@ -36,7 +37,7 @@ pub trait HasChildrenInterface {
     fn children(&self) -> &NodeArray;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxElement {
     _node: BaseNode,
@@ -67,7 +68,7 @@ impl HasChildrenInterface for JsxElement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxAttributes {
     _node: BaseNode,
@@ -89,12 +90,12 @@ impl HasPropertiesInterface for JsxAttributes {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxOpeningElement {
     _node: BaseNode,
     pub tag_name: Gc<Node /*JsxTagNameExpression*/>,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode>*/>>,
     pub attributes: Gc<Node /*JsxAttributes*/>,
 }
 
@@ -108,7 +109,7 @@ impl JsxOpeningElement {
         Self {
             _node: base_node,
             tag_name,
-            type_arguments: RefCell::new(type_arguments),
+            type_arguments: GcCell::new(type_arguments),
             attributes,
         }
     }
@@ -135,17 +136,17 @@ impl JsxOpeningLikeElementInterface for JsxOpeningElement {
 }
 
 impl HasTypeArgumentsInterface for JsxOpeningElement {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxSelfClosingElement {
     _node: BaseNode,
     pub tag_name: Gc<Node /*JsxTagNameExpression*/>,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode>*/>>,
     pub attributes: Gc<Node /*JsxAttributes*/>,
 }
 
@@ -159,7 +160,7 @@ impl JsxSelfClosingElement {
         Self {
             _node: base_node,
             tag_name,
-            type_arguments: RefCell::new(type_arguments),
+            type_arguments: GcCell::new(type_arguments),
             attributes,
         }
     }
@@ -178,12 +179,12 @@ impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
 }
 
 impl HasTypeArgumentsInterface for JsxSelfClosingElement {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxFragment {
     _node: BaseNode,
@@ -214,7 +215,7 @@ impl HasChildrenInterface for JsxFragment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxOpeningFragment {
     _node: BaseNode,
@@ -226,7 +227,7 @@ impl JsxOpeningFragment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxClosingFragment {
     _node: BaseNode,
@@ -238,7 +239,7 @@ impl JsxClosingFragment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxAttribute {
     _node: BaseNode,
@@ -280,7 +281,7 @@ impl HasInitializerInterface for JsxAttribute {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxSpreadAttribute {
     _node: BaseNode,
@@ -302,7 +303,7 @@ impl HasExpressionInterface for JsxSpreadAttribute {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxClosingElement {
     _node: BaseNode,
@@ -324,7 +325,7 @@ impl HasTagNameInterface for JsxClosingElement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxExpression {
     _node: BaseNode,
@@ -356,12 +357,15 @@ impl HasExpressionInterface for JsxExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JsxText {
     _node: BaseNode,
+    #[unsafe_ignore_trace]
     text: RefCell<String>,
+    #[unsafe_ignore_trace]
     pub is_unterminated: Cell<Option<bool>>,
+    #[unsafe_ignore_trace]
     pub has_extended_unicode_escape: Cell<Option<bool>>,
     pub contains_only_trivia_white_spaces: bool,
 }
@@ -405,7 +409,7 @@ impl LiteralLikeNodeInterface for JsxText {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct CommaListExpression {
     _node: BaseNode,
@@ -427,7 +431,7 @@ impl HasElementsInterface for CommaListExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct EmptyStatement {
     _node: BaseNode,
@@ -439,7 +443,7 @@ impl EmptyStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct DebuggerStatement {
     _node: BaseNode,
@@ -451,7 +455,7 @@ impl DebuggerStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct MissingDeclaration {
     _node: BaseNode,
@@ -463,7 +467,7 @@ impl MissingDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct Block {
     _node: BaseNode,
@@ -487,11 +491,11 @@ impl HasStatementsInterface for Block {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct VariableStatement {
     _node: BaseNode,
-    pub declaration_list: Rc</*VariableDeclarationList*/ Node>,
+    pub declaration_list: Gc<Node /*VariableDeclarationList*/>,
 }
 
 impl VariableStatement {
@@ -503,11 +507,11 @@ impl VariableStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ExpressionStatement {
     _node: BaseNode,
-    pub expression: Rc</*Expression*/ Node>,
+    pub expression: Gc<Node /*Expression*/>,
 }
 
 impl ExpressionStatement {
@@ -525,13 +529,13 @@ impl HasExpressionInterface for ExpressionStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct IfStatement {
     _node: BaseNode,
-    pub expression: Rc</*Expression*/ Node>,
-    pub then_statement: Rc</*Statement*/ Node>,
-    pub else_statement: Option<Rc</*Statement*/ Node>>,
+    pub expression: Gc<Node /*Expression*/>,
+    pub then_statement: Gc<Node /*Statement*/>,
+    pub else_statement: Option<Gc<Node /*Statement*/>>,
 }
 
 impl IfStatement {
@@ -556,12 +560,12 @@ impl HasExpressionInterface for IfStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct DoStatement {
     _node: BaseNode,
-    pub statement: Rc</*Statement*/ Node>,
-    pub expression: Rc</*Expression*/ Node>,
+    pub statement: Gc<Node /*Statement*/>,
+    pub expression: Gc<Node /*Expression*/>,
 }
 
 impl DoStatement {
@@ -580,12 +584,12 @@ impl HasExpressionInterface for DoStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct WhileStatement {
     _node: BaseNode,
-    pub statement: Rc</*Statement*/ Node>,
-    pub expression: Rc</*Expression*/ Node>,
+    pub statement: Gc<Node /*Statement*/>,
+    pub expression: Gc<Node /*Expression*/>,
 }
 
 impl WhileStatement {
@@ -608,7 +612,7 @@ pub trait HasConditionInterface {
     fn maybe_condition(&self) -> Option<Gc<Node>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ForStatement {
     _node: BaseNode,
@@ -656,7 +660,7 @@ pub trait HasStatementInterface {
     fn statement(&self) -> Gc<Node>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ForInStatement {
     _node: BaseNode,
@@ -703,7 +707,7 @@ impl HasExpressionInterface for ForInStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ForOfStatement {
     _node: BaseNode,
@@ -757,7 +761,7 @@ pub trait HasLabelInterface {
     fn maybe_label(&self) -> Option<Gc<Node>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct BreakStatement {
     _node: BaseNode,
@@ -779,7 +783,7 @@ impl HasLabelInterface for BreakStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ContinueStatement {
     _node: BaseNode,
@@ -801,11 +805,11 @@ impl HasLabelInterface for ContinueStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ReturnStatement {
     _node: BaseNode,
-    pub expression: Option<Rc</*Expression*/ Node>>,
+    pub expression: Option<Gc<Node /*Expression*/>>,
 }
 
 impl ReturnStatement {
@@ -827,7 +831,7 @@ impl HasExpressionInterface for ReturnStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct WithStatement {
     _node: BaseNode,
@@ -851,12 +855,13 @@ impl HasExpressionInterface for WithStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SwitchStatement {
     _node: BaseNode,
     pub expression: Gc<Node /*Expression*/>,
     pub case_block: Gc<Node /*CaseBlock*/>,
+    #[unsafe_ignore_trace]
     possibly_exhaustive: Cell<Option<bool>>,
 }
 
@@ -881,7 +886,7 @@ impl HasExpressionInterface for SwitchStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct CaseBlock {
     _node: BaseNode,
@@ -897,13 +902,13 @@ impl CaseBlock {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct CaseClause {
     _node: BaseNode,
     pub expression: Gc<Node /*Expression*/>,
     pub statements: NodeArray, /*<Statement>*/
-    fallthrough_flow_node: RefCell<Option<Gc<FlowNode>>>,
+    fallthrough_flow_node: GcCell<Option<Gc<FlowNode>>>,
 }
 
 impl CaseClause {
@@ -912,7 +917,7 @@ impl CaseClause {
             _node: base_node,
             expression,
             statements,
-            fallthrough_flow_node: RefCell::new(None),
+            fallthrough_flow_node: Default::default(),
         }
     }
 }
@@ -944,12 +949,12 @@ impl HasExpressionInterface for CaseClause {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct DefaultClause {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/
-    fallthrough_flow_node: RefCell<Option<Gc<FlowNode>>>,
+    fallthrough_flow_node: GcCell<Option<Gc<FlowNode>>>,
 }
 
 impl DefaultClause {
@@ -957,7 +962,7 @@ impl DefaultClause {
         Self {
             _node: base_node,
             statements,
-            fallthrough_flow_node: RefCell::new(None),
+            fallthrough_flow_node: Default::default(),
         }
     }
 }
@@ -978,7 +983,7 @@ impl CaseOrDefaultClauseInterface for DefaultClause {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct LabeledStatement {
     _node: BaseNode,
@@ -996,7 +1001,7 @@ impl LabeledStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ThrowStatement {
     _node: BaseNode,
@@ -1018,7 +1023,7 @@ impl HasExpressionInterface for ThrowStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TryStatement {
     _node: BaseNode,
@@ -1043,7 +1048,7 @@ impl TryStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct CatchClause {
     _node: BaseNode,
@@ -1065,7 +1070,7 @@ impl CatchClause {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface"
 )]
@@ -1099,7 +1104,7 @@ pub trait HasQuestionTokenInterface {
     fn maybe_question_token(&self) -> Option<Gc<Node>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct PropertySignature {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
@@ -1153,7 +1158,7 @@ impl BindingLikeDeclarationInterface for PropertySignature {}
 
 impl VariableLikeDeclarationInterface for PropertySignature {}
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
@@ -1183,7 +1188,7 @@ impl HasQuestionTokenInterface for PropertyDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct PropertyAssignment {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
@@ -1219,7 +1224,7 @@ impl HasQuestionTokenInterface for PropertyAssignment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct ShorthandPropertyAssignment {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
@@ -1250,7 +1255,7 @@ impl HasQuestionTokenInterface for ShorthandPropertyAssignment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SpreadAssignment {
     _node: BaseNode,
@@ -1290,7 +1295,7 @@ pub trait HasElementsInterface: NodeInterface {
     fn elements(&self) -> &NodeArray;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ObjectBindingPattern {
     _node: BaseNode,
@@ -1312,7 +1317,7 @@ impl HasElementsInterface for ObjectBindingPattern {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ArrayBindingPattern {
     _node: BaseNode,
@@ -1344,7 +1349,7 @@ pub trait GenericNamedDeclarationInterface:
 {
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
     _named_declaration: BaseNamedDeclaration,
@@ -1379,7 +1384,7 @@ pub trait InterfaceOrClassLikeDeclarationInterface {
     fn maybe_heritage_clauses(&self) -> Option<&NodeArray>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     impl_from = false,
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
@@ -1416,7 +1421,7 @@ pub trait ClassLikeDeclarationInterface:
     fn members(&self) -> &NodeArray;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     impl_from = false,
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface"
@@ -1444,7 +1449,7 @@ impl ClassLikeDeclarationInterface for ClassLikeDeclarationBase {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface"
 )]
@@ -1460,7 +1465,7 @@ impl ClassDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface"
 )]
@@ -1476,7 +1481,7 @@ impl ClassExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface"
 )]
@@ -1503,12 +1508,13 @@ impl HasMembersInterface for InterfaceDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct HeritageClause {
     _node: BaseNode,
+    #[unsafe_ignore_trace]
     pub token: SyntaxKind, /*SyntaxKind.ExtendsKeyword | SyntaxKind.ImplementsKeyword*/
-    pub types: NodeArray,  /*<ExpressionWithTypeArguments>*/
+    pub types: NodeArray, /*<ExpressionWithTypeArguments>*/
 }
 
 impl HeritageClause {
@@ -1521,7 +1527,7 @@ impl HeritageClause {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
@@ -1552,7 +1558,7 @@ impl HasTypeInterface for TypeAliasDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct EnumMember {
     _node: BaseNode,
@@ -1594,7 +1600,7 @@ impl HasInitializerInterface for EnumMember {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct EnumDeclaration {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
@@ -1610,7 +1616,7 @@ impl EnumDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ModuleDeclaration {
     _node: BaseNode,
@@ -1642,7 +1648,7 @@ impl NamedDeclarationInterface for ModuleDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JSDocNamespaceDeclaration {
     _node: BaseNode,
@@ -1674,7 +1680,7 @@ impl NamedDeclarationInterface for JSDocNamespaceDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ModuleBlock {
     _node: BaseNode,
@@ -1700,7 +1706,7 @@ pub trait HasIsTypeOnlyInterface {
     fn is_type_only(&self) -> bool;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct ImportEqualsDeclaration {
     _named_declaration: BaseNamedDeclaration,

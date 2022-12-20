@@ -578,6 +578,8 @@ pub struct BundleFileInfo {
     pub sources: Option<SourceFileInfo>,
 }
 
+// TODO: remove the #[unsafe_ignore_trace] in InputFiles if BuildInfo ends up needing to be traversed
+// #[derive(Trace, Finalize)]
 pub(crate) type BuildInfo = ();
 
 pub trait PrintHandlers: Trace + Finalize {
@@ -822,7 +824,7 @@ pub struct DiagnosticCollection {
     pub has_read_non_file_diagnostics: Cell<bool>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SyntaxList {
     _node: BaseNode,

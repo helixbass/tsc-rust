@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Gc, GcCell};
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -149,7 +149,7 @@ impl ParserType {
         let saved_syntax_cursor = self.take_syntax_cursor();
         let base_syntax_cursor = IncrementalParser().create_syntax_cursor(source_file);
         self.set_syntax_cursor(Some(
-            IncrementalParserSyntaxCursorReparseTopLevelAwait::new(Rc::new(base_syntax_cursor))
+            IncrementalParserSyntaxCursorReparseTopLevelAwait::new(Gc::new(base_syntax_cursor))
                 .into(),
         ));
 
@@ -1437,12 +1437,13 @@ lazy_static! {
         .collect();
 }
 
+#[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorReparseTopLevelAwait {
-    base_syntax_cursor: Rc<IncrementalParserSyntaxCursor>,
+    base_syntax_cursor: Gc<IncrementalParserSyntaxCursor>,
 }
 
 impl IncrementalParserSyntaxCursorReparseTopLevelAwait {
-    pub fn new(base_syntax_cursor: Rc<IncrementalParserSyntaxCursor>) -> Self {
+    pub fn new(base_syntax_cursor: Gc<IncrementalParserSyntaxCursor>) -> Self {
         Self { base_syntax_cursor }
     }
 }

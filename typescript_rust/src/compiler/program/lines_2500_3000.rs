@@ -1,4 +1,4 @@
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 use regex::Regex;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use super::{
     for_each_resolved_project_reference, get_implied_node_format_for_file, is_referenced_file,
-    resolve_tripleslash_reference, FilesByNameValue,
+    resolve_tripleslash_reference, FilesByNameValue, ForEachResolvedProjectReference,
 };
 use crate::{
     append, change_extension, combine_paths, file_extension_is, flatten, for_each, for_each_bool,
@@ -20,7 +20,7 @@ use crate::{
     is_string_literal, is_string_literal_like, maybe_for_each, maybe_map, node_modules_path_part,
     out_file, package_id_to_string, resolve_module_name, set_parent_recursive,
     set_resolved_type_reference_directive, starts_with, string_contains, to_file_name_lower_case,
-    CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
+    AsDoubleDeref, CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
     FileIncludeKind, FileIncludeReason, FileReference, LiteralLikeNodeInterface, ModifierFlags,
     ModuleResolutionKind, Node, NodeArray, NodeInterface, PackageId, Path, Program,
     ReadonlyTextRange, ReferencedFile, ResolvedProjectReference, ResolvedTypeReferenceDirective,
@@ -580,13 +580,13 @@ impl Program {
                     .map(|module_resolution_cache| {
                         module_resolution_cache.get_package_json_info_cache()
                     })
-                    .as_deref(),
+                    .as_double_deref(),
                 self.host().as_dyn_module_resolution_host(),
                 &self.options,
             ));
             self.add_file_include_reason(Some(&**file), reason);
 
-            if CompilerHost::use_case_sensitive_file_names(&*self.host()) {
+            if CompilerHost::use_case_sensitive_file_names(&**self.host()) {
                 let path_lower_case = to_file_name_lower_case(&path);
                 let existing_file = self
                     .files_by_name_ignore_case()
@@ -767,17 +767,10 @@ impl Program {
 
     pub fn for_each_resolved_project_reference_rc(
         &self,
-    ) -> Rc<dyn Fn(&mut dyn FnMut(Gc<ResolvedProjectReference>))> {
-        let self_clone = self.rc_wrapper();
-        Rc::new(move |cb| {
-            for_each_resolved_project_reference(
-                self_clone.maybe_resolved_project_references().as_deref(),
-                |resolved_project_reference, _parent| -> Option<()> {
-                    cb(resolved_project_reference);
-                    None
-                },
-            );
-        })
+    ) -> Gc<Box<dyn ForEachResolvedProjectReference>> {
+        Gc::new(Box::new(ProgramForEachResolvedProjectReference::new(
+            self.rc_wrapper(),
+        )))
     }
 
     pub(super) fn get_source_of_project_reference_redirect(
@@ -810,7 +803,9 @@ impl Program {
                                 let got_common_source_directory =
                                     Some(get_common_source_directory_of_config(
                                         &resolved_ref.command_line,
-                                        !CompilerHost::use_case_sensitive_file_names(&*self.host()),
+                                        !CompilerHost::use_case_sensitive_file_names(
+                                            &**self.host(),
+                                        ),
                                     ));
                                 got_common_source_directory.clone().unwrap()
                             };
@@ -824,7 +819,7 @@ impl Program {
                                             file_name,
                                             &resolved_ref.command_line,
                                             !CompilerHost::use_case_sensitive_file_names(
-                                                &*self.host(),
+                                                &**self.host(),
                                             ),
                                             Some(&mut get_common_source_directory),
                                         );
@@ -1069,7 +1064,7 @@ impl Program {
         let local_override_module_result = resolve_module_name(
             &format!("@typescript/lib-{}", path),
             &resolve_from,
-            Rc::new(
+            Gc::new(
                 CompilerOptionsBuilder::default()
                     .module_resolution(Some(ModuleResolutionKind::NodeJs))
                     .build()
@@ -1088,5 +1083,28 @@ impl Program {
                 .clone();
         }
         combine_paths(&self.default_library_path(), &[Some(lib_file_name)])
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct ProgramForEachResolvedProjectReference {
+    program: Gc<Box<Program>>,
+}
+
+impl ProgramForEachResolvedProjectReference {
+    pub fn new(program: Gc<Box<Program>>) -> Self {
+        Self { program }
+    }
+}
+
+impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference {
+    fn call(&self, cb: &mut dyn FnMut(Gc<ResolvedProjectReference>)) {
+        for_each_resolved_project_reference(
+            self.program.maybe_resolved_project_references().as_deref(),
+            |resolved_project_reference, _parent| -> Option<()> {
+                cb(resolved_project_reference);
+                None
+            },
+        );
     }
 }

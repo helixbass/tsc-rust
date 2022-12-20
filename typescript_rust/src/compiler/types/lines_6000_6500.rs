@@ -1950,7 +1950,7 @@ pub struct CreateProgramOptions {
     #[unsafe_ignore_trace]
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub host: Option<Gc<Box<dyn CompilerHost>>>,
-    pub old_program: Option<Gc<Program>>,
+    pub old_program: Option<Gc<Box<Program>>>,
     pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
 }
 

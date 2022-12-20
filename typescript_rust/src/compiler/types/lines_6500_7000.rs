@@ -865,7 +865,7 @@ pub trait SourceFileMayBeEmittedHost {
 }
 
 pub trait EmitHost:
-    ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost
+    ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost + Trace + Finalize
 {
     fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
     fn use_case_sensitive_file_names(&self) -> bool;

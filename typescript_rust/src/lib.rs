@@ -636,6 +636,7 @@ pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };
+pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,

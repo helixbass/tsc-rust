@@ -106,7 +106,7 @@ impl TypeChecker {
 
     pub(super) fn is_typical_nondistributive_conditional(
         &self,
-        root: Rc<RefCell<ConditionalRoot>>,
+        root: Gc<GcCell<ConditionalRoot>>,
     ) -> bool {
         !(*root).borrow().is_distributive
             && self.is_singleton_tuple_type(
@@ -138,7 +138,7 @@ impl TypeChecker {
 
     pub(super) fn unwrap_nondistributive_conditional_tuple(
         &self,
-        root: Rc<RefCell<ConditionalRoot>>,
+        root: Gc<GcCell<ConditionalRoot>>,
         type_: &Type,
     ) -> Gc<Type> {
         if self.is_typical_nondistributive_conditional(root) && self.is_tuple_type(type_) {
@@ -150,7 +150,7 @@ impl TypeChecker {
 
     pub(super) fn get_conditional_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
-        root: Rc<RefCell<ConditionalRoot>>,
+        root: Gc<GcCell<ConditionalRoot>>,
         mut mapper: Option<Gc<TypeMapper>>,
         alias_symbol: Option<TAliasSymbol>,
         mut alias_type_arguments: Option<&[Gc<Type>]>,
@@ -363,7 +363,7 @@ impl TypeChecker {
 
     pub(super) fn can_tail_recurse(
         &self,
-        root: &mut Rc<RefCell<ConditionalRoot>>,
+        root: &mut Gc<GcCell<ConditionalRoot>>,
         mapper: &mut Option<Gc<TypeMapper>>,
         alias_symbol: &mut Option<Gc<Symbol>>,
         alias_type_arguments: &mut Option<&[Gc<Type>]>,
@@ -570,7 +570,7 @@ impl TypeChecker {
                     self.is_type_parameter_possibly_referenced(tp, node)
                 })
             };
-            let root = Rc::new(RefCell::new(ConditionalRoot::new(
+            let root = Gc::new(GcCell::new(ConditionalRoot::new(
                 node.node_wrapper(),
                 check_type.clone(),
                 self.get_type_from_type_node_(&node_as_conditional_type_node.extends_type),

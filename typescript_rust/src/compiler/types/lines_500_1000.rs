@@ -198,7 +198,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>>;
     fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
     fn locals(&self) -> Gc<GcCell<SymbolTable>>;
-    fn locals_mut(&self) -> GcCellRefMut<Gc<GcCell<SymbolTable>>>;
+    fn locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>, Gc<GcCell<SymbolTable>>>;
     fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>);
     fn maybe_next_container(&self) -> Option<Gc<Node>>;
     fn set_next_container(&self, next_container: Option<Gc<Node>>);
@@ -415,7 +415,7 @@ pub enum Node {
 
 impl Node {
     pub fn wrap(self) -> Gc<Node> {
-        let rc = Rc::new(self);
+        let rc = Gc::new(self);
         rc.set_node_wrapper(rc.clone());
         rc
     }
@@ -1671,16 +1671,23 @@ impl Node {
 #[derive(Debug, Finalize, Trace)]
 pub struct BaseNode {
     _node_wrapper: GcCell<Option<Gc<Node>>>,
+    #[unsafe_ignore_trace]
     pub kind: SyntaxKind,
+    #[unsafe_ignore_trace]
     flags: Cell<NodeFlags>,
+    #[unsafe_ignore_trace]
     modifier_flags_cache: Cell<ModifierFlags>,
+    #[unsafe_ignore_trace]
     transform_flags: Cell<TransformFlags>,
     pub decorators: GcCell<Option<NodeArray /*<Decorator>*/>>,
     pub modifiers: GcCell<Option<ModifiersArray>>,
+    #[unsafe_ignore_trace]
     pub id: Cell<Option<NodeId>>,
     pub parent: GcCell<Option<Gc<Node>>>,
     pub original: GcCell<Option<Gc<Node>>>,
+    #[unsafe_ignore_trace]
     pub pos: Cell<isize>,
+    #[unsafe_ignore_trace]
     pub end: Cell<isize>,
     pub symbol: GcCell<Option<Gc<Symbol>>>,
     pub locals: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
@@ -1692,6 +1699,7 @@ pub struct BaseNode {
     flow_node: GcCell<Option<Gc<FlowNode>>>,
     js_doc: GcCell<Option<Vec<Gc<Node>>>>,
     js_doc_cache: GcCell<Option<Vec<Gc<Node>>>>,
+    #[unsafe_ignore_trace]
     intersects_change: Cell<Option<bool>>,
 }
 
@@ -1704,29 +1712,29 @@ impl BaseNode {
         end: isize,
     ) -> Self {
         Self {
-            _node_wrapper: RefCell::new(None),
+            _node_wrapper: Default::default(),
             kind,
             flags: Cell::new(flags),
             modifier_flags_cache: Cell::new(ModifierFlags::None),
             transform_flags: Cell::new(transform_flags),
-            decorators: RefCell::new(None),
-            modifiers: RefCell::new(None),
-            id: Cell::new(None),
-            parent: RefCell::new(None),
-            original: RefCell::new(None),
+            decorators: Default::default(),
+            modifiers: Default::default(),
+            id: Default::default(),
+            parent: Default::default(),
+            original: Default::default(),
             pos: Cell::new(pos),
             end: Cell::new(end),
-            symbol: RefCell::new(None),
-            locals: RefCell::new(None),
-            next_container: RefCell::new(None),
-            local_symbol: RefCell::new(None),
-            emit_node: RefCell::new(None),
-            contextual_type: RefCell::new(None),
-            inference_context: RefCell::new(None),
-            flow_node: RefCell::new(None),
-            js_doc: RefCell::new(None),
-            js_doc_cache: RefCell::new(None),
-            intersects_change: Cell::new(None),
+            symbol: Default::default(),
+            locals: Default::default(),
+            next_container: Default::default(),
+            local_symbol: Default::default(),
+            emit_node: Default::default(),
+            contextual_type: Default::default(),
+            inference_context: Default::default(),
+            flow_node: Default::default(),
+            js_doc: Default::default(),
+            js_doc_cache: Default::default(),
+            intersects_change: Default::default(),
         }
     }
 }
@@ -1844,8 +1852,8 @@ impl NodeInterface for BaseNode {
         self.locals.borrow().clone().unwrap()
     }
 
-    fn locals_mut(&self) -> GcCellRefMut<Gc<GcCell<SymbolTable>>> {
-        RefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
+    fn locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>, Gc<GcCell<SymbolTable>>> {
+        GcCellRefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
     fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>) {
@@ -1951,7 +1959,7 @@ impl From<BaseNode> for Node {
 
 impl From<BaseNode> for Gc<Node> {
     fn from(base_node: BaseNode) -> Self {
-        let rc = Rc::new(Node::BaseNode(base_node));
+        let rc = Gc::new(Node::BaseNode(base_node));
         rc.set_node_wrapper(rc.clone());
         rc
     }

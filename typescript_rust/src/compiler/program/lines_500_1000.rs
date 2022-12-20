@@ -9,7 +9,7 @@ use super::{
     create_compiler_host, get_module_name_string_literal_at,
     parse_config_host_from_compiler_host_like,
     update_host_for_use_source_of_project_reference_redirect, CompilerHostLikeRcDynCompilerHost,
-    HostForUseSourceOfProjectReferenceRedirect,
+    GetResolvedProjectReferences, HostForUseSourceOfProjectReferenceRedirect,
     UpdateHostForUseSourceOfProjectReferenceRedirectReturn,
 };
 use crate::{
@@ -22,16 +22,17 @@ use crate::{
     is_import_equals_declaration, is_logging, map_defined, maybe_for_each, options_have_changes,
     resolve_module_name, resolve_type_reference_directive, skip_trivia,
     source_file_affecting_compiler_options, stable_sort, to_file_name_lower_case,
-    walk_up_parenthesized_expressions, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions,
-    CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection, Extension, FileIncludeKind,
-    FileIncludeReason, FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, LibFile,
-    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId,
-    PackageJsonInfoCache, ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange,
-    RedirectTargetsMap, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
-    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
-    TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    walk_up_parenthesized_expressions, AsDoubleDeref, AutomaticTypeDirectiveFile, CompilerHost,
+    CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection, Extension,
+    FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    FilePreprocessingDiagnosticsKind, LibFile, ModuleKind, ModuleResolutionCache,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId, PackageJsonInfoCache,
+    ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange, RedirectTargetsMap,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    RootFile, ScriptReferenceHost, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
 };
 use local_macros::enum_unwrapped;
 
@@ -56,7 +57,7 @@ impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
         options: Gc<CompilerOptions>,
         host: Gc<Box<dyn CompilerHost>>,
         type_reference_directive_resolution_cache: Option<
-            Rc<TypeReferenceDirectiveResolutionCache>,
+            Gc<TypeReferenceDirectiveResolutionCache>,
         >,
     ) -> Self {
         Self {
@@ -368,6 +369,7 @@ fn for_each_project_reference_worker<
 
 pub(crate) const inferred_types_containing_file: &str = "__inferred type names__.ts";
 
+#[derive(Trace, Finalize)]
 pub(crate) struct DiagnosticCache {
     pub per_file: Option<HashMap<Path, Vec<Gc<Diagnostic>>>>,
     pub all_diagnostics: Option<Vec<Gc<Diagnostic>>>,
@@ -632,7 +634,7 @@ fn should_program_create_new_source_files(
     })
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions) -> Gc<Program> {
+pub fn create_program(root_names_or_options: CreateProgramOptions) -> Gc<Box<Program>> {
     let create_program_options = root_names_or_options;
     let program = Program::new(create_program_options);
     program.create();
@@ -646,12 +648,12 @@ impl Program {
         // files: Vec<Gc<Node>>,
         // current_directory: String,
         // host: Gc<Box<dyn CompilerHost>>,
-    ) -> Gc<Self> {
+    ) -> Gc<Box<Self>> {
         let options = create_program_options.options.clone();
         let max_node_module_js_depth = options.max_node_module_js_depth.unwrap_or(0);
-        let rc = Gc::new(Program {
+        let rc = Gc::new(Box::new(Program {
             _rc_wrapper: Default::default(),
-            create_program_options: RefCell::new(Some(create_program_options)),
+            create_program_options: GcCell::new(Some(create_program_options)),
             root_names: Default::default(),
             options,
             config_file_parsing_diagnostics: Default::default(),
@@ -665,7 +667,7 @@ impl Program {
             no_diagnostics_type_checker: Default::default(),
             classifiable_names: Default::default(),
             ambient_module_name_to_unmodified_file_name: Default::default(),
-            file_reasons: Gc::new(GcCell::new(create_multi_map())),
+            file_reasons: Rc::new(RefCell::new(create_multi_map())),
             cached_bind_and_check_diagnostics_for_file: Default::default(),
             cached_declaration_diagnostics_for_file: Default::default(),
 
@@ -698,7 +700,7 @@ impl Program {
             actual_resolve_type_reference_directive_names_worker: Default::default(),
             package_id_to_source_file: Default::default(),
             source_file_to_package_name: Default::default(),
-            redirect_targets_map: Gc::new(GcCell::new(create_multi_map())),
+            redirect_targets_map: Rc::new(RefCell::new(create_multi_map())),
             uses_uri_style_node_core_modules: Default::default(),
             files_by_name: Default::default(),
             missing_file_paths: Default::default(),
@@ -712,7 +714,7 @@ impl Program {
             directory_exists_rc: Default::default(),
             should_create_new_source_file: Default::default(),
             structure_is_reused: Default::default(),
-        });
+        }));
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
     }
@@ -734,13 +736,17 @@ impl Program {
         // tracing?.push(tracing.Phase.Program, "createProgram", { configFilePath: options.configFilePath, rootDir: options.rootDir }, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeProgram");
 
-        *self.host.borrow_mut() =
-            Some(host.unwrap_or_else(|| Rc::new(create_compiler_host(self.options.clone(), None))));
-        *self.config_parsing_host.borrow_mut() =
-            Some(Rc::new(parse_config_host_from_compiler_host_like(
-                Rc::new(CompilerHostLikeRcDynCompilerHost::new(self.host())),
+        *self.host.borrow_mut() = Some(host.unwrap_or_else(|| {
+            Gc::new(Box::new(create_compiler_host(self.options.clone(), None)))
+        }));
+        *self.config_parsing_host.borrow_mut() = Some(Gc::new(Box::new(
+            parse_config_host_from_compiler_host_like(
+                Gc::new(Box::new(CompilerHostLikeRcDynCompilerHost::new(
+                    self.host(),
+                ))),
                 None,
-            )));
+            ),
+        )));
 
         self.skip_default_lib.set(self.options.no_lib);
         *self.default_library_path.borrow_mut() = Some(
@@ -750,7 +756,7 @@ impl Program {
         );
         *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection());
         *self.current_directory.borrow_mut() =
-            Some(CompilerHost::get_current_directory(&*self.host()));
+            Some(CompilerHost::get_current_directory(&**self.host()));
         *self.supported_extensions.borrow_mut() =
             Some(get_supported_extensions(Some(&self.options), None));
         *self
@@ -782,7 +788,9 @@ impl Program {
                 self.maybe_module_resolution_cache().clone(),
             );
             *self.actual_resolve_module_names_worker.borrow_mut() = Some(Gc::new(Box::new(
-                ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(Rc::new(loader)),
+                ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(Gc::new(Box::new(
+                    loader,
+                ))),
             )));
         }
 
@@ -797,7 +805,7 @@ impl Program {
             )));
         } else {
             *self.type_reference_directive_resolution_cache.borrow_mut() =
-                Some(Rc::new(create_type_reference_directive_resolution_cache(
+                Some(Gc::new(create_type_reference_directive_resolution_cache(
                     &self.current_directory(),
                     self.get_canonical_file_name_rc(),
                     None,
@@ -816,11 +824,11 @@ impl Program {
             );
             *self
                 .actual_resolve_type_reference_directive_names_worker
-                .borrow_mut() = Some(Rc::new(
-                ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(Rc::new(
-                    loader,
+                .borrow_mut() = Some(Gc::new(Box::new(
+                ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(Gc::new(
+                    Box::new(loader),
                 )),
-            ));
+            )));
         }
 
         *self.package_id_to_source_file.borrow_mut() = Some(HashMap::new());
@@ -850,10 +858,9 @@ impl Program {
                 use_source_of_project_reference_redirect: self
                     .use_source_of_project_reference_redirect(),
                 to_path: self.to_path_rc(),
-                get_resolved_project_references: {
-                    let self_clone = self.rc_wrapper();
-                    Rc::new(move || self_clone.get_resolved_project_references().clone())
-                },
+                get_resolved_project_references: Gc::new(Box::new(
+                    ProgramGetResolvedProjectReferences::new(self.rc_wrapper()),
+                )),
                 for_each_resolved_project_reference: self.for_each_resolved_project_reference_rc(),
             },
         );
@@ -863,7 +870,7 @@ impl Program {
         // tracing?.push(tracing.Phase.Program, "shouldProgramCreateNewSourceFiles", { hasOldProgram: !!oldProgram });
         self.should_create_new_source_file
             .set(Some(should_program_create_new_source_files(
-                self.maybe_old_program().as_deref(),
+                self.maybe_old_program().as_double_deref(),
                 &self.options,
             )));
         // tracing?.pop();
@@ -1097,12 +1104,18 @@ impl Program {
         // tracing?.pop();
     }
 
-    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Gc<Program>>) {
+    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Gc<Box<Program>>>) {
         *self._rc_wrapper.borrow_mut() = rc_wrapper;
     }
 
-    pub fn rc_wrapper(&self) -> Gc<Program> {
+    pub fn rc_wrapper(&self) -> Gc<Box<Program>> {
         self._rc_wrapper.borrow().clone().unwrap()
+    }
+
+    pub fn rc_wrapper_as_dyn_type_checker_host_debuggable(
+        &self,
+    ) -> Gc<Box<dyn TypeCheckerHostDebuggable>> {
+        self._rc_wrapper.borrow().clone().unwrap() as Gc<Box<dyn TypeCheckerHostDebuggable>>
     }
 
     pub(super) fn root_names(&self) -> Ref<Vec<String>> {
@@ -1179,11 +1192,11 @@ impl Program {
         self.source_files_found_searching_node_modules.borrow_mut()
     }
 
-    pub(super) fn maybe_old_program(&self) -> Option<Gc<Program>> {
+    pub(super) fn maybe_old_program(&self) -> Option<Gc<Box<Program>>> {
         self.old_program.borrow().clone()
     }
 
-    pub(super) fn set_old_program(&self, old_program: Option<Gc<Program>>) {
+    pub(super) fn set_old_program(&self, old_program: Option<Gc<Box<Program>>>) {
         *self.old_program.borrow_mut() = old_program;
     }
 
@@ -1296,7 +1309,7 @@ impl Program {
 
     pub(super) fn maybe_type_reference_directive_resolution_cache(
         &self,
-    ) -> GcCellRefMut<Option<Rc<TypeReferenceDirectiveResolutionCache>>> {
+    ) -> GcCellRefMut<Option<Gc<TypeReferenceDirectiveResolutionCache>>> {
         self.type_reference_directive_resolution_cache.borrow_mut()
     }
 
@@ -1357,8 +1370,11 @@ impl Program {
             .set(Some(uses_uri_style_node_core_modules));
     }
 
-    pub(super) fn files_by_name(&self) -> RefMut<HashMap<String, FilesByNameValue>> {
-        RefMut::map(self.files_by_name.borrow_mut(), |files_by_name| {
+    pub(super) fn files_by_name(
+        &self,
+    ) -> GcCellRefMut<Option<HashMap<String, FilesByNameValue>>, HashMap<String, FilesByNameValue>>
+    {
+        GcCellRefMut::map(self.files_by_name.borrow_mut(), |files_by_name| {
             files_by_name.as_mut().unwrap()
         })
     }
@@ -1367,8 +1383,10 @@ impl Program {
         self.missing_file_paths.borrow_mut()
     }
 
-    pub(super) fn files_by_name_ignore_case(&self) -> RefMut<HashMap<String, Gc<Node>>> {
-        RefMut::map(
+    pub(super) fn files_by_name_ignore_case(
+        &self,
+    ) -> GcCellRefMut<Option<HashMap<String, Gc<Node>>>, HashMap<String, Gc<Node>>> {
+        GcCellRefMut::map(
             self.files_by_name_ignore_case.borrow_mut(),
             |files_by_name_ignore_case| files_by_name_ignore_case.as_mut().unwrap(),
         )
@@ -1376,13 +1394,13 @@ impl Program {
 
     pub(super) fn maybe_resolved_project_references(
         &self,
-    ) -> RefMut<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRefMut<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow_mut()
     }
 
     pub(super) fn maybe_project_reference_redirects(
         &self,
-    ) -> RefMut<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRefMut<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>> {
         self.project_reference_redirects.borrow_mut()
     }
 
@@ -1424,6 +1442,23 @@ impl Program {
 
     pub(super) fn set_structure_is_reused(&self, structure_is_reused: StructureIsReused) {
         self.structure_is_reused.set(Some(structure_is_reused));
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct ProgramGetResolvedProjectReferences {
+    program: Gc<Box<Program>>,
+}
+
+impl ProgramGetResolvedProjectReferences {
+    pub fn new(program: Gc<Box<Program>>) -> Self {
+        Self { program }
+    }
+}
+
+impl GetResolvedProjectReferences for ProgramGetResolvedProjectReferences {
+    fn call(&self) -> Option<Vec<Option<Gc<ResolvedProjectReference>>>> {
+        self.program.get_resolved_project_references().clone()
     }
 }
 
@@ -1500,7 +1535,7 @@ struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
 
 impl ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
     pub fn new(
-        loader: Rc<dyn LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>>,
+        loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>>>,
     ) -> Self {
         Self { loader }
     }
@@ -1520,7 +1555,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
             containing_file,
             containing_file_name,
             redirected_reference,
-            &*self.loader,
+            &**self.loader,
         )
     }
 }
@@ -1573,7 +1608,7 @@ struct ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
     pub fn new(
-        loader: Rc<dyn LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>>,
+        loader: Gc<Box<dyn LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>>>,
     ) -> Self {
         Self { loader }
     }
@@ -1592,7 +1627,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
             /*Debug.checkEachDefined(*/ type_reference_directive_names, /*)*/
             containing_file,
             redirected_reference,
-            &*self.loader,
+            &**self.loader,
         )
         .into_iter()
         .map(Some)
@@ -1667,7 +1702,7 @@ impl TypeCheckerHost for Program {
         self.options.clone()
     }
 
-    fn get_source_files(&self) -> Ref<Vec<Gc<Node>>> {
+    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node>>> {
         self.files()
     }
 

@@ -120,7 +120,7 @@ pub struct EmitResult {
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
 
-    fn get_source_files(&self) -> Ref<Vec<Gc<Node /*SourceFile*/>>>;
+    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
     fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
@@ -184,7 +184,7 @@ pub struct TypeChecker {
     pub(crate) exact_optional_property_types: Option<bool>,
     pub(crate) check_binary_expression: GcCell<Option<Gc<CheckBinaryExpression>>>,
     pub(crate) emit_resolver: Option<Gc<Box<dyn EmitResolverDebuggable>>>,
-    pub(crate) node_builder: RefCell<Option<Gc<NodeBuilder>>>,
+    pub(crate) node_builder: GcCell<Option<Gc<NodeBuilder>>>,
     pub(crate) globals: Gc<GcCell<SymbolTable>>,
     pub(crate) undefined_symbol: Option<Gc<Symbol>>,
     pub(crate) global_this_symbol: Option<Gc<Symbol>>,
@@ -286,7 +286,9 @@ pub struct TypeChecker {
     pub(crate) any_iteration_types_except_next: Option<Gc<IterationTypes>>,
     pub(crate) default_iteration_types: Option<Gc<IterationTypes>>,
 
+    #[unsafe_ignore_trace]
     pub(crate) async_iteration_types_resolver: IterationTypesResolver,
+    #[unsafe_ignore_trace]
     pub(crate) sync_iteration_types_resolver: IterationTypesResolver,
 
     pub(crate) amalgamated_duplicates: GcCell<Option<HashMap<String, DuplicateInfoForFiles>>>,
@@ -585,6 +587,7 @@ pub enum TypePredicateKind {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct TypePredicate {
+    #[unsafe_ignore_trace]
     pub kind: TypePredicateKind,
     pub parameter_name: Option<String>,
     pub parameter_index: Option<usize>,
@@ -657,7 +660,7 @@ pub enum TypeReferenceSerializationKind {
     ObjectType,
 }
 
-pub trait EmitResolver {
+pub trait EmitResolver: Trace + Finalize {
     fn has_global_name(&self, name: &str) -> bool;
     fn get_referenced_export_container(
         &self,
@@ -800,7 +803,7 @@ pub trait EmitResolver {
     fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool;
 }
 
-pub trait EmitResolverDebuggable: EmitResolver + fmt::Debug + Trace + Finalize {}
+pub trait EmitResolverDebuggable: EmitResolver + fmt::Debug {}
 
 bitflags! {
     pub struct SymbolFlags: u32 {

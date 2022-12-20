@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -17,9 +17,12 @@ use local_macros::ast_type;
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeArray {
     _nodes: Vec<Gc<Node>>,
+    #[unsafe_ignore_trace]
     pos: Cell<isize>,
+    #[unsafe_ignore_trace]
     end: Cell<isize>,
     pub has_trailing_comma: bool,
+    #[unsafe_ignore_trace]
     pub(crate) transform_flags: Option<TransformFlags>,
     pub is_missing_list: bool,
 }
@@ -194,17 +197,22 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct Identifier {
     _node: BaseNode,
+    #[unsafe_ignore_trace]
     pub escaped_text: __String,
+    #[unsafe_ignore_trace]
     pub original_keyword_kind: Option<SyntaxKind>,
+    #[unsafe_ignore_trace]
     pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
     pub(crate) auto_generate_id: Option<usize>,
-    generated_import_reference: RefCell<Option<Gc<Node /*ImportSpecifier*/>>>,
+    generated_import_reference: GcCell<Option<Gc<Node /*ImportSpecifier*/>>>,
+    #[unsafe_ignore_trace]
     is_in_jsdoc_namespace: Cell<Option<bool>>,
-    type_arguments: RefCell<Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>>,
+    type_arguments: GcCell<Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>>,
+    #[unsafe_ignore_trace]
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
@@ -213,13 +221,13 @@ impl Identifier {
         Self {
             _node: base_node,
             escaped_text,
-            original_keyword_kind: None,
-            auto_generate_flags: None,
-            auto_generate_id: None,
-            generated_import_reference: RefCell::new(None),
-            is_in_jsdoc_namespace: Cell::new(None),
-            type_arguments: RefCell::new(None),
-            jsdoc_dot_pos: Cell::new(None),
+            original_keyword_kind: Default::default(),
+            auto_generate_flags: Default::default(),
+            auto_generate_id: Default::default(),
+            generated_import_reference: Default::default(),
+            is_in_jsdoc_namespace: Default::default(),
+            type_arguments: Default::default(),
+            jsdoc_dot_pos: Default::default(),
         }
     }
 
@@ -227,7 +235,7 @@ impl Identifier {
         self.auto_generate_flags.clone()
     }
 
-    pub fn maybe_generated_import_reference(&self) -> RefMut<Option<Gc<Node>>> {
+    pub fn maybe_generated_import_reference(&self) -> GcCellRefMut<Option<Gc<Node>>> {
         self.generated_import_reference.borrow_mut()
     }
 
@@ -239,7 +247,7 @@ impl Identifier {
         self.is_in_jsdoc_namespace.set(is_in_jsdoc_namespace);
     }
 
-    pub fn maybe_type_arguments_mut(&self) -> RefMut<Option<NodeArray>> {
+    pub fn maybe_type_arguments_mut(&self) -> GcCellRefMut<Option<NodeArray>> {
         self.type_arguments.borrow_mut()
     }
 }
@@ -266,19 +274,20 @@ impl HasJSDocDotPosInterface for Identifier {
 }
 
 impl HasTypeArgumentsInterface for Identifier {
-    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_arguments.borrow()
     }
 }
 
 pub type ModifiersArray = NodeArray; /*<Modifier>*/
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct QualifiedName {
     _node: BaseNode,
     pub left: Gc<Node /*EntityName*/>,
     pub right: Gc<Node /*Identifier*/>,
+    #[unsafe_ignore_trace]
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
@@ -323,7 +332,7 @@ pub trait NamedDeclarationInterface: NodeInterface {
     fn set_name(&mut self, name: Gc<Node>);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(impl_from = false)]
 pub struct BaseNamedDeclaration {
     _node: BaseNode,
@@ -358,7 +367,7 @@ pub trait BindingLikeDeclarationInterface:
 {
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseBindingLikeDeclaration {
     _named_declaration: BaseNamedDeclaration,
@@ -394,7 +403,7 @@ pub trait VariableLikeDeclarationInterface:
 {
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     impl_from = false,
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface"
@@ -428,7 +437,7 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
 
 impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ComputedPropertyName {
     _node: BaseNode,
@@ -450,10 +459,11 @@ impl HasExpressionInterface for ComputedPropertyName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct PrivateIdentifier {
     _node: BaseNode,
+    #[unsafe_ignore_trace]
     pub escaped_text: __String,
 }
 
@@ -472,7 +482,7 @@ impl MemberNameInterface for PrivateIdentifier {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct Decorator {
     _node: BaseNode,
@@ -494,7 +504,7 @@ impl HasExpressionInterface for Decorator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct TypeParameterDeclaration {
     _named_declaration: BaseNamedDeclaration,
@@ -528,7 +538,7 @@ impl HasExpressionInterface for TypeParameterDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, HasTypeParametersInterface"
 )]
@@ -542,7 +552,7 @@ pub trait SignatureDeclarationInterface:
     fn parameters(&self) -> &NodeArray /*<ParameterDeclaration>*/;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     impl_from = false,
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
@@ -585,7 +595,7 @@ impl SignatureDeclarationInterface for BaseSignatureDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -601,7 +611,7 @@ impl CallSignatureDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -617,7 +627,7 @@ impl ConstructSignatureDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     ancestors = "SignatureDeclarationBase",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
@@ -638,7 +648,7 @@ pub trait FunctionLikeDeclarationInterface:
     fn set_return_flow_node(&self, return_flow_node: Option<Gc<FlowNode>>);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     ancestors = "FunctionLikeDeclarationBase, SignatureDeclarationBase",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
@@ -703,7 +713,7 @@ impl HasQuestionTokenInterface for BaseFunctionLikeDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -719,7 +729,7 @@ impl FunctionDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -746,7 +756,7 @@ impl HasQuestionTokenInterface for MethodSignature {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]

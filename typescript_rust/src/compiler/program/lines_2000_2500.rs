@@ -120,7 +120,7 @@ impl Program {
         );
 
         for error_expectation in directives.get_unused_expectations() {
-            diagnostics.push(Rc::new(
+            diagnostics.push(Gc::new(
                 create_diagnostic_for_range(
                     source_file,
                     &error_expectation.range,

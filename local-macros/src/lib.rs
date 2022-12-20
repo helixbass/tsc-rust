@@ -176,7 +176,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.locals()
                     }
 
-                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::gc::Gc<::gc::GcCell<crate::SymbolTable>>> {
+                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<::gc::GcCell<crate::SymbolTable>>>, ::gc::Gc<::gc::GcCell<crate::SymbolTable>>> {
                         self.#first_field_name.locals_mut()
                     }
 
@@ -664,7 +664,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::gc::Gc<::gc::GcCell<crate::SymbolTable>>> {
+                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<::gc::GcCell<crate::SymbolTable>>>, ::gc::Gc<::gc::GcCell<crate::SymbolTable>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.locals_mut()),*
                         }
@@ -1151,7 +1151,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             impl ::std::convert::From<#ast_type_name> for ::gc::Gc<crate::Node> {
                 fn from(concrete: #ast_type_name) -> Self {
-                    let rc = ::std::rc::Rc::new(#construct_variant);
+                    let rc = ::gc::Gc::new(#construct_variant);
                     crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
                     rc
                 }
@@ -1492,7 +1492,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.properties()
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>, ::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
                         self.#first_field_name.properties_mut()
                     }
 
@@ -2099,7 +2099,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>, ::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties_mut()),*
                         }
@@ -2502,7 +2502,7 @@ pub fn type_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             impl ::std::convert::From<#type_type_name> for ::gc::Gc<crate::Type> {
                 fn from(concrete: #type_type_name) -> Self {
-                    let rc = ::std::rc::Rc::new(#construct_variant);
+                    let rc = ::gc::Gc::new(#construct_variant);
                     crate::TypeInterface::set_type_wrapper(&*rc, rc.clone());
                     rc
                 }

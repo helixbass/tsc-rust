@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
@@ -508,19 +508,27 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct InferTypes {
     pub type_checker: Gc<TypeChecker>,
     pub inferences: Vec<Gc<InferenceInfo>>,
     pub original_target: Gc<Type>,
+    #[unsafe_ignore_trace]
     priority: Cell<InferencePriority>,
+    #[unsafe_ignore_trace]
     contravariant: Cell<bool>,
+    #[unsafe_ignore_trace]
     bivariant: Cell<bool>,
-    propagation_type: RefCell<Option<Gc<Type>>>,
+    propagation_type: GcCell<Option<Gc<Type>>>,
+    #[unsafe_ignore_trace]
     inference_priority: Cell<InferencePriority>,
+    #[unsafe_ignore_trace]
     allow_complex_constraint_inference: Cell<bool>,
+    #[unsafe_ignore_trace]
     visited: RefCell<Option<HashMap<String, InferencePriority>>>,
-    source_stack: RefCell<Option<Vec<RecursionIdentity>>>,
-    target_stack: RefCell<Option<Vec<RecursionIdentity>>>,
+    source_stack: GcCell<Option<Vec<RecursionIdentity>>>,
+    target_stack: GcCell<Option<Vec<RecursionIdentity>>>,
+    #[unsafe_ignore_trace]
     expanding_flags: Cell<ExpandingFlags>,
 }
 
@@ -538,13 +546,13 @@ impl InferTypes {
             original_target,
             priority: Cell::new(priority),
             contravariant: Cell::new(contravariant),
-            bivariant: Cell::new(false),
-            propagation_type: RefCell::new(None),
+            bivariant: Default::default(),
+            propagation_type: Default::default(),
             inference_priority: Cell::new(InferencePriority::MaxValue),
             allow_complex_constraint_inference: Cell::new(true),
-            visited: RefCell::new(None),
-            source_stack: RefCell::new(None),
-            target_stack: RefCell::new(None),
+            visited: Default::default(),
+            source_stack: Default::default(),
+            target_stack: Default::default(),
             expanding_flags: Cell::new(ExpandingFlags::None),
         }
     }
@@ -573,7 +581,7 @@ impl InferTypes {
         self.bivariant.set(bivariant);
     }
 
-    pub(super) fn maybe_propagation_type(&self) -> RefMut<Option<Gc<Type>>> {
+    pub(super) fn maybe_propagation_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.propagation_type.borrow_mut()
     }
 
@@ -601,11 +609,11 @@ impl InferTypes {
         self.visited.borrow_mut()
     }
 
-    pub(super) fn maybe_source_stack(&self) -> RefMut<Option<Vec<RecursionIdentity>>> {
+    pub(super) fn maybe_source_stack(&self) -> GcCellRefMut<Option<Vec<RecursionIdentity>>> {
         self.source_stack.borrow_mut()
     }
 
-    pub(super) fn maybe_target_stack(&self) -> RefMut<Option<Vec<RecursionIdentity>>> {
+    pub(super) fn maybe_target_stack(&self) -> GcCellRefMut<Option<Vec<RecursionIdentity>>> {
         self.target_stack.borrow_mut()
     }
 

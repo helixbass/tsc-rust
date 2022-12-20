@@ -8,7 +8,9 @@ use std::iter::FromIterator;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{for_each_project_reference, get_mode_for_resolution_at_index, SourceFileImportsList};
+use super::{
+    for_each_project_reference, get_mode_for_resolution_at_index, SourceFileImportsList, ToPath,
+};
 use crate::{
     chain_diagnostic_messages, chain_diagnostic_messages_multiple, compare_paths, contains_path,
     create_compiler_diagnostic, create_compiler_diagnostic_from_message_chain,
@@ -371,7 +373,7 @@ impl Program {
             && is_option_str_empty(self.options.config_file_path.as_deref())
         {
             self.program_diagnostics_mut().add(
-                Rc::new(
+                Gc::new(
                     create_compiler_diagnostic(
                         &Diagnostics::Option_incremental_can_only_be_specified_using_tsconfig_emitting_to_single_file_or_when_option_tsBuildInfoFile_is_specified,
                         None,
@@ -600,7 +602,7 @@ impl Program {
                     first_non_external_module_source_file,
                 );
                 self.program_diagnostics_mut().add(
-                    Rc::new(
+                    Gc::new(
                         create_file_diagnostic(
                             first_non_external_module_source_file,
                             span.start,
@@ -627,7 +629,7 @@ impl Program {
                     first_non_ambient_external_module_source_file,
                 );
                 self.program_diagnostics_mut().add(
-                    Rc::new(
+                    Gc::new(
                         create_file_diagnostic(
                             first_non_ambient_external_module_source_file,
                             span.start,
@@ -670,7 +672,7 @@ impl Program {
                             .unwrap(),
                     );
                     self.program_diagnostics_mut().add(
-                        Rc::new(
+                        Gc::new(
                             create_file_diagnostic(
                                 first_non_ambient_external_module_source_file,
                                 span.start,
@@ -747,7 +749,7 @@ impl Program {
         }
 
         if self.options.check_js == Some(true) && !get_allow_js_compiler_option(&self.options) {
-            self.program_diagnostics_mut().add(Rc::new(
+            self.program_diagnostics_mut().add(Gc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
                     Some(vec!["checkJs".to_owned(), "allowJs".to_owned()]),
@@ -1018,7 +1020,7 @@ impl Program {
         };
         if let Some(location) = location.filter(|location| is_reference_file_location(location)) {
             let location_as_reference_file_location = location.as_reference_file_location();
-            Rc::new(
+            Gc::new(
                 create_file_diagnostic_from_message_chain(
                     &location_as_reference_file_location.file,
                     location_as_reference_file_location.pos.try_into().unwrap(),
@@ -1032,7 +1034,7 @@ impl Program {
                 .into(),
             )
         } else {
-            Rc::new(create_compiler_diagnostic_from_message_chain(chain, related_info).into())
+            Gc::new(create_compiler_diagnostic_from_message_chain(chain, related_info).into())
         }
     }
 
@@ -1300,7 +1302,7 @@ impl Program {
 
         if need_compiler_diagnostic {
             self.program_diagnostics_mut()
-                .add(Rc::new(create_compiler_diagnostic(message, args).into()));
+                .add(Gc::new(create_compiler_diagnostic(message, args).into()));
         }
     }
 
@@ -1339,7 +1341,7 @@ impl Program {
     ) -> bool {
         let props = get_property_assignment(object_literal, key1, key2);
         for prop in &props {
-            self.program_diagnostics_mut().add(Rc::new(
+            self.program_diagnostics_mut().add(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     self.options.config_file.as_ref().unwrap(),
                     &*if on_key {
@@ -1387,7 +1389,7 @@ impl Program {
                 options_declaration_dir,
                 &*file_path,
                 Some(self.current_directory().clone()),
-                Some(!CompilerHost::use_case_sensitive_file_names(&*self.host()))
+                Some(!CompilerHost::use_case_sensitive_file_names(&**self.host()))
             )
         ) {
             return true;
@@ -1398,7 +1400,7 @@ impl Program {
                 options_out_dir,
                 &*file_path,
                 Some(self.current_directory().clone()),
-                Some(CompilerHost::use_case_sensitive_file_names(&*self.host())),
+                Some(CompilerHost::use_case_sensitive_file_names(&**self.host())),
             );
         }
 
@@ -1429,7 +1431,7 @@ impl Program {
             file1,
             file2,
             Some(self.current_directory().clone()),
-            Some(!CompilerHost::use_case_sensitive_file_names(&*self.host())),
+            Some(!CompilerHost::use_case_sensitive_file_names(&**self.host())),
         ) == Comparison::EqualTo
     }
 
@@ -1440,7 +1442,7 @@ impl Program {
         }
         if self.symlinks().is_none() {
             let host = self.host();
-            *self.symlinks() = Some(Rc::new(create_symlink_cache(
+            *self.symlinks() = Some(Gc::new(create_symlink_cache(
                 &self.current_directory(),
                 Rc::new(move |file_name: &str| host.get_canonical_file_name(file_name)),
             )));
@@ -1457,27 +1459,41 @@ impl Program {
         symlinks
     }
 
-    pub fn get_symlink_cache_rc(&self) -> Rc<dyn Fn() -> Gc<SymlinkCache>> {
-        let self_clone = self.rc_wrapper();
-        Rc::new(move || self_clone.get_symlink_cache())
+    pub fn get_symlink_cache_rc(&self) -> Gc<Box<dyn GetSymlinkCache>> {
+        Gc::new(Box::new(ProgramGetSymlinkCache::new(self.rc_wrapper())))
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub struct ProgramGetSymlinkCache {
+    program: Gc<Box<Program>>,
+}
+
+impl ProgramGetSymlinkCache {
+    pub fn new(program: Gc<Box<Program>>) -> Self {
+        Self { program }
+    }
+}
+
+impl GetSymlinkCache for ProgramGetSymlinkCache {
+    fn call(&self) -> Gc<SymlinkCache> {
+        self.program.get_symlink_cache()
     }
 }
 
 pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
     pub compiler_host: Gc<Box<dyn CompilerHost>>,
-    pub get_symlink_cache: Rc<dyn Fn() -> Gc<SymlinkCache>>,
+    pub get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
     pub use_source_of_project_reference_redirect: bool,
-    pub to_path: Rc<dyn Fn(&str) -> Path>,
-    pub get_resolved_project_references:
-        Rc<dyn Fn() -> Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
-    pub for_each_resolved_project_reference:
-        Rc<dyn Fn(&mut dyn FnMut(Gc<ResolvedProjectReference>))>,
+    pub to_path: Gc<Box<dyn ToPath>>,
+    pub get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
+    pub for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
 }
 
 pub(super) fn update_host_for_use_source_of_project_reference_redirect(
     host: HostForUseSourceOfProjectReferenceRedirect,
 ) -> UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
-    let overrider: Gc<Box<dyn ModuleResolutionHostOverrider>> = Rc::new(
+    let overrider: Gc<Box<dyn ModuleResolutionHostOverrider>> = Gc::new(Box::new(
         UpdateHostForUseSourceOfProjectReferenceRedirectOverrider::new(
             host.compiler_host.clone(),
             host.get_symlink_cache.clone(),
@@ -1485,7 +1501,7 @@ pub(super) fn update_host_for_use_source_of_project_reference_redirect(
             host.get_resolved_project_references.clone(),
             host.for_each_resolved_project_reference.clone(),
         ),
-    );
+    ));
 
     if !host.use_source_of_project_reference_redirect {
         return UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
@@ -1530,26 +1546,21 @@ pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
 #[derive(Trace, Finalize)]
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Gc<Box<dyn CompilerHost>>,
-    pub host_get_symlink_cache: Rc<dyn Fn() -> Gc<SymlinkCache>>,
-    pub host_to_path: Rc<dyn Fn(&str) -> Path>,
-    pub host_get_resolved_project_references:
-        Rc<dyn Fn() -> Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
-    pub host_for_each_resolved_project_reference:
-        Rc<dyn Fn(&mut dyn FnMut(Gc<ResolvedProjectReference>))>,
-    set_of_declaration_directories: GcCell<Option<HashSet<Path>>>,
+    pub host_get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
+    pub host_to_path: Gc<Box<dyn ToPath>>,
+    pub host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
+    pub host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
+    #[unsafe_ignore_trace]
+    set_of_declaration_directories: RefCell<Option<HashSet<Path>>>,
 }
 
 impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub fn new(
         host_compiler_host: Gc<Box<dyn CompilerHost>>,
-        host_get_symlink_cache: Rc<dyn Fn() -> Gc<SymlinkCache>>,
-        host_to_path: Rc<dyn Fn(&str) -> Path>,
-        host_get_resolved_project_references: Rc<
-            dyn Fn() -> Option<Vec<Option<Gc<ResolvedProjectReference>>>>,
-        >,
-        host_for_each_resolved_project_reference: Rc<
-            dyn Fn(&mut dyn FnMut(Gc<ResolvedProjectReference>)),
-        >,
+        host_get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
+        host_to_path: Gc<Box<dyn ToPath>>,
+        host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
+        host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
     ) -> Self {
         Self {
             host_compiler_host,
@@ -1557,7 +1568,7 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
             host_to_path,
             host_get_resolved_project_references,
             host_for_each_resolved_project_reference,
-            set_of_declaration_directories: RefCell::new(None),
+            set_of_declaration_directories: Default::default(),
         }
     }
 
@@ -1579,7 +1590,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         if self.host_compiler_host.file_exists_non_overridden(file) {
             return true;
         }
-        if (self.host_get_resolved_project_references)().is_none() {
+        if self.host_get_resolved_project_references.call().is_none() {
             return false;
         }
         if !is_declaration_file_name(file) {
@@ -1602,7 +1613,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             return Some(true);
         }
 
-        if (self.host_get_resolved_project_references)().is_none() {
+        if self.host_get_resolved_project_references.call().is_none() {
             return Some(false);
         }
 
@@ -1611,23 +1622,25 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
                 self.set_of_declaration_directories.borrow_mut();
             *set_of_declaration_directories = Some(HashSet::new());
             let set_of_declaration_directories = set_of_declaration_directories.as_mut().unwrap();
-            (self.host_for_each_resolved_project_reference)(&mut |ref_| {
-                let out = out_file(&ref_.command_line.options);
-                if let Some(out) = out {
-                    set_of_declaration_directories
-                        .insert(get_directory_path(&(self.host_to_path)(out)).into());
-                } else {
-                    let declaration_dir = ref_
-                        .command_line
-                        .options
-                        .declaration_dir
-                        .as_ref()
-                        .or_else(|| ref_.command_line.options.out_dir.as_ref());
-                    if let Some(declaration_dir) = declaration_dir {
-                        set_of_declaration_directories.insert((self.host_to_path)(declaration_dir));
+            self.host_for_each_resolved_project_reference
+                .call(&mut |ref_| {
+                    let out = out_file(&ref_.command_line.options);
+                    if let Some(out) = out {
+                        set_of_declaration_directories
+                            .insert(get_directory_path(&self.host_to_path.call(out)).into());
+                    } else {
+                        let declaration_dir = ref_
+                            .command_line
+                            .options
+                            .declaration_dir
+                            .as_ref()
+                            .or_else(|| ref_.command_line.options.out_dir.as_ref());
+                        if let Some(declaration_dir) = declaration_dir {
+                            set_of_declaration_directories
+                                .insert(self.host_to_path.call(declaration_dir));
+                        }
                     }
-                }
-            });
+                });
         }
 
         Some(self.file_or_directory_exists_using_source(path, false))
@@ -1637,7 +1650,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         if !self.host_compiler_host.is_get_directories_supported() {
             return None;
         }
-        if (self.host_get_resolved_project_references)().is_none()
+        if self.host_get_resolved_project_references.call().is_none()
             || self
                 .host_compiler_host
                 .directory_exists_non_overridden(path)
@@ -1653,10 +1666,11 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         if !self.host_compiler_host.is_realpath_supported() {
             return None;
         }
-        (self.host_get_symlink_cache)()
+        self.host_get_symlink_cache
+            .call()
             .get_symlinked_files()
             .as_ref()
-            .and_then(|symlinked_files| symlinked_files.get(&(self.host_to_path)(s)).cloned())
+            .and_then(|symlinked_files| symlinked_files.get(&self.host_to_path.call(s)).cloned())
             .or_else(|| self.host_compiler_host.realpath_non_overridden(s))
     }
 
@@ -1678,6 +1692,18 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
     fn create_directory(&self, directory: &str) {
         unreachable!()
     }
+}
+
+pub trait GetSymlinkCache: Trace + Finalize {
+    fn call(&self) -> Gc<SymlinkCache>;
+}
+
+pub trait GetResolvedProjectReferences: Trace + Finalize {
+    fn call(&self) -> Option<Vec<Option<Gc<ResolvedProjectReference>>>>;
+}
+
+pub trait ForEachResolvedProjectReference: Trace + Finalize {
+    fn call(&self, callback: &mut dyn FnMut(Gc<ResolvedProjectReference>));
 }
 
 pub(super) fn filter_semantic_diagnostics(
@@ -1734,11 +1760,11 @@ impl CompilerHostLikeRcDynCompilerHost {
 
 impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
     fn use_case_sensitive_file_names(&self) -> bool {
-        CompilerHost::use_case_sensitive_file_names(&*self.host)
+        CompilerHost::use_case_sensitive_file_names(&**self.host)
     }
 
     fn get_current_directory(&self) -> String {
-        CompilerHost::get_current_directory(&*self.host)
+        CompilerHost::get_current_directory(&**self.host)
     }
 
     fn file_exists(&self, file_name: &str) -> bool {
@@ -1762,7 +1788,7 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
     }
 
     fn trace(&self, s: &str) {
-        self.host.trace(s)
+        ModuleResolutionHost::trace(&**self.host, s)
     }
 
     fn is_trace_supported(&self) -> bool {
@@ -1802,7 +1828,7 @@ pub struct DirectoryStructureHostRcDynCompilerHostLike {
 }
 
 impl DirectoryStructureHostRcDynCompilerHostLike {
-    pub fn new(host: Rc<dyn CompilerHostLike>) -> Self {
+    pub fn new(host: Gc<Box<dyn CompilerHostLike>>) -> Self {
         Self { host }
     }
 }
@@ -1851,13 +1877,13 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
 }
 
 pub(crate) fn parse_config_host_from_compiler_host_like(
-    host: Rc<dyn CompilerHostLike>,
-    directory_structure_host: Option<Rc<dyn DirectoryStructureHost>>,
+    host: Gc<Box<dyn CompilerHostLike>>,
+    directory_structure_host: Option<Gc<Box<dyn DirectoryStructureHost>>>,
 ) -> ParseConfigHostFromCompilerHostLike {
     let directory_structure_host = directory_structure_host.unwrap_or_else(|| {
-        Rc::new(DirectoryStructureHostRcDynCompilerHostLike::new(
+        Gc::new(Box::new(DirectoryStructureHostRcDynCompilerHostLike::new(
             host.clone(),
-        ))
+        )))
     });
     ParseConfigHostFromCompilerHostLike::new(host, directory_structure_host)
 }
@@ -1870,8 +1896,8 @@ pub struct ParseConfigHostFromCompilerHostLike {
 
 impl ParseConfigHostFromCompilerHostLike {
     pub fn new(
-        host: Rc<dyn CompilerHostLike>,
-        directory_structure_host: Rc<dyn DirectoryStructureHost>,
+        host: Gc<Box<dyn CompilerHostLike>>,
+        directory_structure_host: Gc<Box<dyn DirectoryStructureHost>>,
     ) -> Self {
         Self {
             host,
@@ -1914,7 +1940,7 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
     }
 
     fn trace(&self, s: &str) {
-        self.host.trace(s)
+        CompilerHostLike::trace(&**self.host, s)
     }
 
     fn is_trace_supported(&self) -> bool {
