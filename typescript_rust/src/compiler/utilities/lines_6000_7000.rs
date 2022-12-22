@@ -961,7 +961,7 @@ impl SymlinkCache {
         &self,
         files: &[Gc<Node /*SourceFile*/>],
         type_reference_directives: Option<
-            &HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>,
+            &HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>,
         >,
     ) {
         Debug_.assert(!self.has_processed_resolutions(), None);
@@ -1028,8 +1028,8 @@ impl SymlinkCache {
 }
 
 enum ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    ResolvedModuleFull(Rc<ResolvedModuleFull>),
-    ResolvedTypeReferenceDirective(Rc<ResolvedTypeReferenceDirective>),
+    ResolvedModuleFull(Gc<ResolvedModuleFull>),
+    ResolvedTypeReferenceDirective(Gc<ResolvedTypeReferenceDirective>),
 }
 
 impl ResolvedModuleFullOrResolvedTypeReferenceDirective {
@@ -1048,16 +1048,16 @@ impl ResolvedModuleFullOrResolvedTypeReferenceDirective {
     }
 }
 
-impl From<Rc<ResolvedModuleFull>> for ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    fn from(value: Rc<ResolvedModuleFull>) -> Self {
+impl From<Gc<ResolvedModuleFull>> for ResolvedModuleFullOrResolvedTypeReferenceDirective {
+    fn from(value: Gc<ResolvedModuleFull>) -> Self {
         Self::ResolvedModuleFull(value)
     }
 }
 
-impl From<Rc<ResolvedTypeReferenceDirective>>
+impl From<Gc<ResolvedTypeReferenceDirective>>
     for ResolvedModuleFullOrResolvedTypeReferenceDirective
 {
-    fn from(value: Rc<ResolvedTypeReferenceDirective>) -> Self {
+    fn from(value: Gc<ResolvedTypeReferenceDirective>) -> Self {
         Self::ResolvedTypeReferenceDirective(value)
     }
 }

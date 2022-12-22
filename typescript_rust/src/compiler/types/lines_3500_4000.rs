@@ -211,9 +211,9 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     comment_directives: RefCell<Option<Vec<Rc<CommentDirective>>>>,
     resolved_modules:
-        GcCell<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull /*| undefined*/>>>>>,
+        GcCell<Option<ModeAwareCache<Option<Gc<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
-        GcCell<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>>,
+        GcCell<Option<ModeAwareCache<Option<Gc<ResolvedTypeReferenceDirective>>>>>,
     imports: GcCell<Option<Vec<Gc<Node /*StringLiteralLike*/>>>>,
     module_augmentations: GcCell<Option<Vec<Gc<Node /*StringLiteral | Identifier*/>>>>,
     pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
@@ -611,13 +611,13 @@ impl SourceFile {
 
     pub fn maybe_resolved_modules(
         &self,
-    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull>>>>> {
+    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Gc<ResolvedModuleFull>>>>> {
         self.contents.resolved_modules.borrow_mut()
     }
 
     pub fn maybe_resolved_type_reference_directive_names(
         &self,
-    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>> {
+    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Gc<ResolvedTypeReferenceDirective>>>>> {
         self.contents
             .resolved_type_reference_directive_names
             .borrow_mut()
@@ -1295,7 +1295,7 @@ pub struct Program {
 
     #[unsafe_ignore_trace]
     pub(crate) resolved_type_reference_directives:
-        RefCell<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>>,
+        RefCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>,
     #[unsafe_ignore_trace]
     pub(crate) file_processing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
 

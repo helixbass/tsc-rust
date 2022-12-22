@@ -5646,9 +5646,9 @@ fn option_value(
 }
 
 thread_local! {
-    static options_index: RefCell<Option<HashMap<String, Rc<CommandLineOption>>>> = RefCell::new(None);
+    static options_index: RefCell<Option<HashMap<String, Gc<CommandLineOption>>>> = RefCell::new(None);
 }
-fn get_command_line_option(name: &str) -> Option<Rc<CommandLineOption>> {
+fn get_command_line_option(name: &str) -> Option<Gc<CommandLineOption>> {
     options_index.with(|options_index_| {
         options_index_
             .borrow_mut()

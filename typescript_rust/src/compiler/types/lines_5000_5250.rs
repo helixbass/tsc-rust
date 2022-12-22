@@ -107,6 +107,7 @@ pub type SymbolTable = IndexMap<__String, Gc<Symbol>>;
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct PatternAmbientModule {
+    #[unsafe_ignore_trace]
     pub pattern: Rc<Pattern>,
     pub symbol: Gc<Symbol>,
 }

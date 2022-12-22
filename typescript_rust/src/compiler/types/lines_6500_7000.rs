@@ -272,7 +272,7 @@ impl AsRef<str> for Extension {
 
 #[derive(Trace, Finalize)]
 pub struct ResolvedModuleWithFailedLookupLocations {
-    pub resolved_module: Option<Rc<ResolvedModuleFull>>,
+    pub resolved_module: Option<Gc<ResolvedModuleFull>>,
     #[unsafe_ignore_trace]
     pub failed_lookup_locations: RefCell<Vec<String>>,
 }
@@ -289,7 +289,7 @@ pub struct ResolvedTypeReferenceDirective {
 
 #[derive(Trace, Finalize)]
 pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
-    pub resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>>,
+    pub resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
     pub failed_lookup_locations: Vec<String>,
 }
 
@@ -378,7 +378,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         containing_file: &str,
         redirected_reference: Option<&ResolvedProjectReference>,
         options: &CompilerOptions,
-    ) -> Option<Vec<Option<Rc<ResolvedTypeReferenceDirective>>>> {
+    ) -> Option<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
         None
     }
     fn get_environment_variable(&self, name: &str) -> Option<String> {
