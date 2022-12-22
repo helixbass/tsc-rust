@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use regex::Regex;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -24,8 +25,10 @@ pub enum CompilerTestType {
 
 pub type CompilerFileBasedTest = FileBasedTest;
 
+#[derive(Trace, Finalize)]
 pub struct CompilerBaselineRunner {
     base_path: String,
+    #[unsafe_ignore_trace]
     test_suite_name: TestRunnerKind,
     emit: bool,
     pub options: Option<String>,
@@ -52,7 +55,7 @@ impl CompilerBaselineRunner {
     }
 
     pub fn new_runner_base(test_type: CompilerTestType) -> RunnerBase {
-        RunnerBase::new(Gc::new(Self::new(test_type)))
+        RunnerBase::new(Gc::new(Box::new(Self::new(test_type))))
     }
 
     fn check_test_code_output(&self, file_name: &str, test: Option<&CompilerFileBasedTest>) {
@@ -222,10 +225,10 @@ struct CompilerTest {
     harness_settings: TestCaseParser::CompilerSettings,
     has_non_dts_files: bool,
     result: compiler::CompilationResult,
-    options: Rc<CompilerOptions>,
-    ts_config_files: Vec<Rc<Compiler::TestFile>>,
-    to_be_compiled: Vec<Rc<Compiler::TestFile>>,
-    other_files: Vec<Rc<Compiler::TestFile>>,
+    options: Gc<CompilerOptions>,
+    ts_config_files: Vec<Gc<Compiler::TestFile>>,
+    to_be_compiled: Vec<Gc<Compiler::TestFile>>,
+    other_files: Vec<Gc<Compiler::TestFile>>,
 }
 
 impl CompilerTest {
@@ -263,8 +266,8 @@ impl CompilerTest {
 
         let units = &test_case_content.test_unit_data;
         let mut harness_settings = test_case_content.settings.clone();
-        let mut ts_config_options: Option<Rc<CompilerOptions>> = None;
-        let mut ts_config_files: Vec<Rc<Compiler::TestFile>> = vec![];
+        let mut ts_config_options: Option<Gc<CompilerOptions>> = None;
+        let mut ts_config_files: Vec<Gc<Compiler::TestFile>> = vec![];
         if let Some(test_case_content_ts_config) = test_case_content.ts_config.as_ref() {
             assert!(
                 test_case_content_ts_config.file_names.is_empty(),
@@ -279,7 +282,7 @@ impl CompilerTest {
             );
 
             ts_config_options = Some(test_case_content_ts_config.options.clone());
-            ts_config_files.push(Rc::new(Self::create_harness_test_file(
+            ts_config_files.push(Gc::new(Self::create_harness_test_file(
                 test_case_content.ts_config_file_unit_data.as_ref().unwrap(),
                 &root_dir,
                 Some(&combine_paths(
@@ -305,8 +308,8 @@ impl CompilerTest {
         let has_non_dts_files = units
             .iter()
             .any(|unit| !file_extension_is(&unit.name, Extension::Dts.to_str()));
-        let mut to_be_compiled: Vec<Rc<Compiler::TestFile>> = vec![];
-        let mut other_files: Vec<Rc<Compiler::TestFile>> = vec![];
+        let mut to_be_compiled: Vec<Gc<Compiler::TestFile>> = vec![];
+        let mut other_files: Vec<Gc<Compiler::TestFile>> = vec![];
 
         if test_case_content
             .settings
@@ -327,12 +330,12 @@ impl CompilerTest {
                 reference_path_regex.is_match(&last_unit.content)
             }
         {
-            to_be_compiled.push(Rc::new(Self::create_harness_test_file(
+            to_be_compiled.push(Gc::new(Self::create_harness_test_file(
                 &last_unit, &root_dir, None,
             )));
             for unit in units {
                 if unit.name != last_unit.name {
-                    other_files.push(Rc::new(Self::create_harness_test_file(
+                    other_files.push(Gc::new(Self::create_harness_test_file(
                         unit, &root_dir, None,
                     )));
                 }
@@ -340,7 +343,7 @@ impl CompilerTest {
         } else {
             to_be_compiled = units
                 .into_iter()
-                .map(|unit| Rc::new(Self::create_harness_test_file(unit, &root_dir, None)))
+                .map(|unit| Gc::new(Self::create_harness_test_file(unit, &root_dir, None)))
                 .collect();
         }
 
@@ -359,7 +362,7 @@ impl CompilerTest {
                 .unwrap()
                 .as_source_file()
                 .set_file_name(options.config_file_path.clone().unwrap());
-            ts_config_options = Some(Rc::new(options));
+            ts_config_options = Some(Gc::new(options));
         }
 
         let result = Compiler::compile_files(

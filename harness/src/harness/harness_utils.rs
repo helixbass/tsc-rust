@@ -1,8 +1,9 @@
+use gc::{Finalize, Gc, GcCell, Trace};
 use once_cell::sync::Lazy;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use typescript_rust::{
-    are_option_rcs_equal, create_get_canonical_file_name, for_each_child, Node, NodeArray,
+    are_option_gcs_equal, create_get_canonical_file_name, for_each_child, Node, NodeArray,
     NodeInterface, ReadonlyTextRange,
 };
 
@@ -29,7 +30,7 @@ pub fn canonicalize_for_harness(file_name: &str) -> String {
 }
 
 pub fn assert_invariants(node: Option<&Node>, parent: Option<&Node>) {
-    let mut queue: Vec<(Option<Rc<Node>>, Option<Rc<Node>>)> = vec![(
+    let mut queue: Vec<(Option<Gc<Node>>, Option<Gc<Node>>)> = vec![(
         node.map(|node| node.node_wrapper()),
         parent.map(|parent| parent.node_wrapper()),
     )];
@@ -42,7 +43,7 @@ pub fn assert_invariants(node: Option<&Node>, parent: Option<&Node>) {
 }
 
 fn assert_invariants_worker(
-    queue: &mut Vec<(Option<Rc<Node>>, Option<Rc<Node>>)>,
+    queue: &mut Vec<(Option<Gc<Node>>, Option<Gc<Node>>)>,
     node: Option<&Node>,
     parent: Option<&Node>,
 ) {
@@ -51,7 +52,7 @@ fn assert_invariants_worker(
         assert!(!(node.end() < 0), "node.end < 0");
         assert!(!(node.end() < node.pos()), "node.end < node.pos");
         assert!(
-            are_option_rcs_equal(
+            are_option_gcs_equal(
                 node.maybe_parent().as_ref(),
                 parent.map(|parent| parent.node_wrapper()).as_ref()
             ),
@@ -95,7 +96,7 @@ fn assert_invariants_worker(
             }),
         );
 
-        let child_nodes_and_arrays: RefCell<Vec<RcNodeOrNodeArray>> = Default::default();
+        let child_nodes_and_arrays: GcCell<Vec<RcNodeOrNodeArray>> = Default::default();
         for_each_child(
             node,
             |child: &Node| {
@@ -125,13 +126,14 @@ fn assert_invariants_worker(
     }
 }
 
+#[derive(Trace, Finalize)]
 enum RcNodeOrNodeArray {
-    RcNode(Rc<Node>),
+    RcNode(Gc<Node>),
     NodeArray(NodeArray),
 }
 
-impl From<Rc<Node>> for RcNodeOrNodeArray {
-    fn from(value: Rc<Node>) -> Self {
+impl From<Gc<Node>> for RcNodeOrNodeArray {
+    fn from(value: Gc<Node>) -> Self {
         Self::RcNode(value)
     }
 }

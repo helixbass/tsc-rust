@@ -1,5 +1,5 @@
 pub mod vfs {
-    use gc::{Finalize, Gc, GcCell, Trace, GcCellRefMut};
+    use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
     use local_macros::enum_unwrapped;
     use std::borrow::Cow;
     use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -59,12 +59,13 @@ pub mod vfs {
     #[derive(Trace, Finalize)]
     pub struct FileSystem {
         pub ignore_case: bool,
+        #[unsafe_ignore_trace]
         pub string_comparer: Rc<dyn Fn(&str, &str) -> Comparison>,
         _lazy: FileSystemLazy,
 
         #[unsafe_ignore_trace]
         _cwd: RefCell<Option<String>>,
-        _time: RefCell<TimestampOrNowOrSystemTimeOrCallback>,
+        _time: GcCell<TimestampOrNowOrSystemTimeOrCallback>,
         _shadow_root: Option<Gc<FileSystem>>,
         #[unsafe_ignore_trace]
         _dir_stack: RefCell<Option<Vec<String>>>,
@@ -92,12 +93,12 @@ pub mod vfs {
                         vpath::compare_case_sensitive(a, b)
                     }
                 }),
-                _time: RefCell::new(time),
-                _cwd: RefCell::new(None),
-                _dir_stack: RefCell::new(None),
+                _time: GcCell::new(time),
+                _cwd: Default::default(),
+                _dir_stack: Default::default(),
                 _lazy: Default::default(),
-                _shadow_root: None,
-                _is_readonly: Cell::new(false),
+                _shadow_root: Default::default(),
+                _is_readonly: Default::default(),
             };
 
             if let Some(meta) = meta {
@@ -175,31 +176,31 @@ pub mod vfs {
             self._shadow_root.clone()
         }
 
-        pub fn shadow(self: Gc<Self>, ignore_case: Option<bool>) -> Self {
-            let ignore_case = ignore_case.unwrap_or(self.ignore_case);
-            if !self.is_readonly() {
+        pub fn shadow(this: Gc<Self>, ignore_case: Option<bool>) -> Self {
+            let ignore_case = ignore_case.unwrap_or(this.ignore_case);
+            if !this.is_readonly() {
                 panic!("Cannot shadow a mutable file system.");
             }
-            if ignore_case && !self.ignore_case {
+            if ignore_case && !this.ignore_case {
                 panic!("Cannot create a case-insensitive file system from a case-sensitive one.");
             }
             let mut fs = FileSystem::new(
                 ignore_case,
                 Some(FileSystemOptions {
-                    time: Some(self._time.borrow().clone()),
+                    time: Some(this._time.borrow().clone()),
                     files: None,
                     cwd: None,
                     meta: None,
                 }),
             );
-            fs._shadow_root = Some(self.clone());
-            fs.set_cwd(self.maybe_cwd().clone());
+            fs._shadow_root = Some(this.clone());
+            fs.set_cwd(this.maybe_cwd().clone());
             fs
         }
 
         pub fn time(&self) -> u128 {
             let result = match self._time.borrow().clone() {
-                TimestampOrNowOrSystemTimeOrCallback::Callback(_time) => _time(),
+                TimestampOrNowOrSystemTimeOrCallback::Callback(_time) => _time.call(),
                 TimestampOrNowOrSystemTimeOrCallback::Timestamp(_time) => _time.into(),
                 TimestampOrNowOrSystemTimeOrCallback::Now => TimestampOrNowOrSystemTime::Now,
                 TimestampOrNowOrSystemTimeOrCallback::SystemTime(_time) => _time.into(),
@@ -680,7 +681,7 @@ pub mod vfs {
                         collections::SortOptions {
                             comparer: {
                                 let string_comparer = self.string_comparer.clone();
-                                Gc::new(move |a: &String, b: &String| string_comparer(a, b))
+                                Rc::new(move |a: &String, b: &String| string_comparer(a, b))
                             },
                             sort: None,
                         },
@@ -1093,7 +1094,7 @@ pub mod vfs {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Trace, Finalize)]
     pub enum MetaValue {
         RcTextDocument(Gc<documents::TextDocument>),
         RcNode(Gc<Node>),
@@ -1168,16 +1169,23 @@ pub mod vfs {
     struct FileSystemLazy {
         links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>>,
         shadows: GcCell<Option<HashMap<u32, Gc<Inode>>>>,
-        meta: Gc<GcCell<Option<Gc<RefCell<collections::Metadata<String>>>>>>,
+        meta: Gc<GcCell<Option<Gc<GcCell<collections::Metadata<String>>>>>>,
     }
 
-    #[derive(Clone)]
+    // TODO: revisit this, SystemTime Trace wasn't implemented and unsafe_ignore_trace didn't seem
+    // to work I guess on an enum variant?
+    #[derive(Clone /*, Trace, Finalize*/)]
     pub enum TimestampOrNowOrSystemTimeOrCallback {
         Timestamp(u128),
         Now,
+        // #[unsafe_ignore_trace]
         SystemTime(SystemTime),
         Callback(Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>),
     }
+    unsafe impl Trace for TimestampOrNowOrSystemTimeOrCallback {
+        gc::unsafe_empty_trace!();
+    }
+    impl Finalize for TimestampOrNowOrSystemTimeOrCallback {}
 
     pub trait TimestampOrNowOrSystemTimeOrCallbackCallback: Trace + Finalize {
         fn call(&self) -> TimestampOrNowOrSystemTime;
@@ -1195,7 +1203,9 @@ pub mod vfs {
         }
     }
 
-    impl From<Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>> for TimestampOrNowOrSystemTimeOrCallback {
+    impl From<Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>>
+        for TimestampOrNowOrSystemTimeOrCallback
+    {
         fn from(value: Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>) -> Self {
             Self::Callback(value)
         }
@@ -1304,7 +1314,7 @@ pub mod vfs {
             time,
             meta,
         } = options.unwrap_or_default();
-        let fs = get_built_local(host, ignore_case).shadow(None);
+        let fs = FileSystem::shadow(get_built_local(host, ignore_case), None);
         if let Some(meta) = meta {
             for key in meta.keys() {
                 fs.meta()
@@ -1795,7 +1805,9 @@ pub mod vfs {
             }
         }
 
-        pub fn meta_mut(&self) -> RefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(
+            &self,
+        ) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
             match self {
                 Self::FileInode(value) => value.meta_mut(),
                 Self::DirectoryInode(value) => value.meta_mut(),
@@ -1962,7 +1974,9 @@ pub mod vfs {
             *self.resolver.borrow_mut() = resolver;
         }
 
-        pub fn meta_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(
+            &self,
+        ) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }
@@ -2041,9 +2055,7 @@ pub mod vfs {
             self.nlink.set(self.nlink.get() + 1);
         }
 
-        pub fn maybe_links(
-            &self,
-        ) -> Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>> {
+        pub fn maybe_links(&self) -> Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>> {
             self.links.borrow().clone()
         }
 
@@ -2070,7 +2082,9 @@ pub mod vfs {
             *self.resolver.borrow_mut() = resolver;
         }
 
-        pub fn meta_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(
+            &self,
+        ) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }
@@ -2148,7 +2162,9 @@ pub mod vfs {
             self.symlink.as_ref().unwrap()
         }
 
-        pub fn meta_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(
+            &self,
+        ) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }
@@ -2218,7 +2234,10 @@ pub mod vfs {
         })
     }
 
-    fn get_built_local(host: Gc<Box<dyn FileSystemResolverHost>>, ignore_case: bool) -> Gc<FileSystem> {
+    fn get_built_local(
+        host: Gc<Box<dyn FileSystemResolverHost>>,
+        ignore_case: bool,
+    ) -> Gc<FileSystem> {
         if !matches!(
             maybe_built_local_host().as_ref(),
             Some(built_local_host) if Gc::ptr_eq(
@@ -2295,9 +2314,10 @@ pub mod vfs {
             return maybe_built_local_ci().unwrap();
         }
         if maybe_built_local_cs().is_none() {
-            set_built_local_cs(Some(Gc::new(
-                maybe_built_local_ci().unwrap().shadow(Some(false)),
-            )));
+            set_built_local_cs(Some(Gc::new(FileSystem::shadow(
+                maybe_built_local_ci().unwrap(),
+                Some(false),
+            ))));
             maybe_built_local_cs().unwrap().make_readonly();
         }
         maybe_built_local_cs().unwrap()

@@ -1,9 +1,10 @@
 pub mod fakes {
-    use gc::{Finalize, Gc, GcCell, Trace};
+    use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
     use std::borrow::Cow;
     use std::cell::{Cell, Ref, RefCell};
     use std::collections::HashMap;
     use std::io;
+    use std::mem;
     use std::rc::Rc;
     use std::time::SystemTime;
 
@@ -44,7 +45,7 @@ pub mod fakes {
     }
 
     impl System {
-        pub fn new(vfs: Rc<vfs::FileSystem>, options: Option<SystemOptions>) -> Self {
+        pub fn new(vfs: Gc<vfs::FileSystem>, options: Option<SystemOptions>) -> Self {
             let SystemOptions {
                 executing_file_path,
                 new_line,
@@ -57,7 +58,7 @@ pub mod fakes {
                 output: Default::default(),
                 exit_code: Default::default(),
                 vfs: if vfs.is_readonly() {
-                    Rc::new(vfs.shadow(None))
+                    Gc::new(vfs::FileSystem::shadow(vfs, None))
                 } else {
                     vfs
                 },
@@ -344,6 +345,7 @@ pub mod fakes {
         }
     }
 
+    #[derive(Trace, Finalize)]
     pub struct ParseConfigHost {
         pub sys: Gc<System>,
     }
@@ -353,7 +355,7 @@ pub mod fakes {
             let sys = sys.into();
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
-                RcSystemOrRcFileSystem::RcFileSystem(sys) => Rc::new(System::new(sys, None)),
+                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)),
             };
             Self { sys }
         }
@@ -361,10 +363,11 @@ pub mod fakes {
 
     #[derive(Trace, Finalize)]
     pub struct CompilerHost {
+        _dyn_wrapper: GcCell<Option<Gc<Box<dyn typescript_rust::CompilerHost>>>>,
         pub sys: Gc<System>,
         pub default_lib_location: String,
         #[unsafe_ignore_trace]
-        outputs: RefCell<Vec<Rc<documents::TextDocument>>>,
+        outputs: GcCell<Vec<Gc<documents::TextDocument>>>,
         #[unsafe_ignore_trace]
         _outputs_map: RefCell<collections::SortedMap<String, usize>>,
         #[unsafe_ignore_trace]
@@ -373,31 +376,32 @@ pub mod fakes {
 
         _set_parent_nodes: bool,
         _source_files: GcCell<collections::SortedMap<String, Gc<Node /*SourceFile*/>>>,
-        _parse_config_host: RefCell<Option<Rc<ParseConfigHost>>>,
+        _parse_config_host: GcCell<Option<Gc<ParseConfigHost>>>,
         _new_line: String,
 
-        file_exists_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-        directory_exists_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-        read_file_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-        write_file_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-        realpath_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-        get_directories_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+        file_exists_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+        directory_exists_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+        read_file_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+        write_file_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+        realpath_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+        get_directories_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
     }
 
     impl CompilerHost {
         pub fn new<TSys: Into<RcSystemOrRcFileSystem>>(
             sys: TSys,
-            options: Option<Rc<CompilerOptions>>,
+            options: Option<Gc<CompilerOptions>>,
             set_parent_nodes: Option<bool>,
-        ) -> Self {
+        ) -> Gc<Box<Self>> {
             let sys = sys.into();
-            let options = options.unwrap_or_else(|| Rc::new(get_default_compiler_options()));
+            let options = options.unwrap_or_else(|| Gc::new(get_default_compiler_options()));
             let set_parent_nodes = set_parent_nodes.unwrap_or(false);
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
-                RcSystemOrRcFileSystem::RcFileSystem(sys) => Rc::new(System::new(sys, None)),
+                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)),
             };
-            Self {
+            let dyn_wrapper: Gc<Box<dyn typescript_rust::CompilerHost>> = Gc::new(Box::new(Self {
+                _dyn_wrapper: Default::default(),
                 sys: sys.clone(),
                 default_lib_location: {
                     let value = sys
@@ -412,7 +416,7 @@ pub mod fakes {
                     options.new_line,
                     Some(|| sys.new_line.to_owned()),
                 ),
-                _source_files: RefCell::new(collections::SortedMap::new(
+                _source_files: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: {
                             let sys_vfs_string_comparer = sys.vfs.string_comparer.clone();
@@ -420,7 +424,7 @@ pub mod fakes {
                         },
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
-                    Option::<HashMap<String, Rc<Node>>>::None,
+                    Option::<HashMap<String, Gc<Node>>>::None,
                 )),
                 _set_parent_nodes: set_parent_nodes,
                 _outputs_map: RefCell::new(collections::SortedMap::new(
@@ -443,45 +447,56 @@ pub mod fakes {
                 write_file_override: Default::default(),
                 realpath_override: Default::default(),
                 get_directories_override: Default::default(),
-            }
+            }));
+            let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
+            *downcasted._dyn_wrapper.borrow_mut() = Some(dyn_wrapper);
+            downcasted
         }
 
-        pub fn outputs(&self) -> Ref<Vec<Rc<documents::TextDocument>>> {
+        pub fn as_dyn_compiler_host(&self) -> Gc<Box<dyn typescript_rust::CompilerHost>> {
+            self._dyn_wrapper.borrow().clone().unwrap()
+        }
+
+        pub fn outputs(&self) -> GcCellRef<Vec<Gc<documents::TextDocument>>> {
             self.outputs.borrow()
         }
 
-        fn maybe_file_exists_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        fn maybe_file_exists_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
             self.file_exists_override.borrow().clone()
         }
 
-        fn maybe_directory_exists_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        fn maybe_directory_exists_override(
+            &self,
+        ) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
             self.directory_exists_override.borrow().clone()
         }
 
-        fn maybe_read_file_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        fn maybe_read_file_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
             self.read_file_override.borrow().clone()
         }
 
-        fn maybe_write_file_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        fn maybe_write_file_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
             self.write_file_override.borrow().clone()
         }
 
-        fn maybe_realpath_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        fn maybe_realpath_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
             self.realpath_override.borrow().clone()
         }
 
-        fn maybe_get_directories_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        fn maybe_get_directories_override(
+            &self,
+        ) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
             self.get_directories_override.borrow().clone()
         }
 
-        pub fn vfs(&self) -> Rc<vfs::FileSystem> {
+        pub fn vfs(&self) -> Gc<vfs::FileSystem> {
             self.sys.vfs.clone()
         }
 
-        pub fn parse_config_host(&self) -> Rc<ParseConfigHost> {
+        pub fn parse_config_host(&self) -> Gc<ParseConfigHost> {
             self._parse_config_host
                 .borrow_mut()
-                .get_or_insert_with(|| Rc::new(ParseConfigHost::new(self.sys.clone())))
+                .get_or_insert_with(|| Gc::new(ParseConfigHost::new(self.sys.clone())))
                 .clone()
         }
 
@@ -547,7 +562,7 @@ pub mod fakes {
             data: &str,
             write_byte_order_mark: bool,
             on_error: Option<&mut dyn FnMut(&str)>,
-            source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+            source_files: Option<&[Gc<Node /*SourceFile*/>]>,
         ) {
             if let Some(write_file_override) = self.maybe_write_file_override() {
                 write_file_override.write_file(
@@ -574,7 +589,7 @@ pub mod fakes {
             content: &str,
             write_byte_order_mark: bool,
             on_error: Option<&mut dyn FnMut(&str)>,
-            source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+            source_files: Option<&[Gc<Node /*SourceFile*/>]>,
         ) {
             let mut content = content.to_owned();
             if write_byte_order_mark {
@@ -586,7 +601,7 @@ pub mod fakes {
             document
                 .meta
                 .insert("fileName".to_owned(), file_name.to_owned());
-            let document = Rc::new(document);
+            let document = Gc::new(document);
             self.vfs()
                 .filemeta(file_name)
                 .borrow_mut()
@@ -607,7 +622,7 @@ pub mod fakes {
 
         fn set_overriding_write_file(
             &self,
-            overriding_write_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+            overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut write_file_override = self.write_file_override.borrow_mut();
             if write_file_override.is_some() && overriding_write_file.is_some() {
@@ -638,7 +653,7 @@ pub mod fakes {
             language_version: ScriptTarget,
             on_error: Option<&mut dyn FnMut(&str)>,
             should_create_new_source_file: Option<bool>,
-        ) -> Option<Rc<Node /*SourceFile*/>> {
+        ) -> Option<Gc<Node /*SourceFile*/>> {
             let canonical_file_name = self.get_canonical_file_name(&vpath::resolve(
                 &typescript_rust::CompilerHost::get_current_directory(self),
                 &[Some(file_name)],
@@ -721,7 +736,7 @@ pub mod fakes {
                     // }
                 }
 
-                if !Rc::ptr_eq(&fs, &self.vfs()) {
+                if !Gc::ptr_eq(&fs, &self.vfs()) {
                     fs.filemeta(&canonical_file_name)
                         .borrow_mut()
                         .set(cache_key, parsed.clone().into());
@@ -753,7 +768,7 @@ pub mod fakes {
 
         fn set_overriding_create_directory(
             &self,
-            overriding_create_directory: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+            overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -774,7 +789,7 @@ pub mod fakes {
 
         fn set_overriding_file_exists(
             &self,
-            overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+            overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut file_exists_override = self.file_exists_override.borrow_mut();
             if file_exists_override.is_some() && overriding_file_exists.is_some() {
@@ -803,7 +818,7 @@ pub mod fakes {
 
         fn set_overriding_directory_exists(
             &self,
-            overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+            overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut directory_exists_override = self.directory_exists_override.borrow_mut();
             if directory_exists_override.is_some() && overriding_directory_exists.is_some() {
@@ -832,7 +847,7 @@ pub mod fakes {
 
         fn set_overriding_get_directories(
             &self,
-            overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+            overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut get_directories_override = self.get_directories_override.borrow_mut();
             if get_directories_override.is_some() && overriding_get_directories.is_some() {
@@ -853,7 +868,7 @@ pub mod fakes {
 
         fn set_overriding_read_file(
             &self,
-            overriding_read_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+            overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut read_file_override = self.read_file_override.borrow_mut();
             if read_file_override.is_some() && overriding_read_file.is_some() {
@@ -894,7 +909,7 @@ pub mod fakes {
 
         fn set_overriding_realpath(
             &self,
-            overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+            overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut realpath_override = self.realpath_override.borrow_mut();
             if realpath_override.is_some() && overriding_realpath.is_some() {
@@ -913,18 +928,18 @@ pub mod fakes {
     }
 
     pub enum RcSystemOrRcFileSystem {
-        RcSystem(Rc<System>),
-        RcFileSystem(Rc<vfs::FileSystem>),
+        RcSystem(Gc<System>),
+        RcFileSystem(Gc<vfs::FileSystem>),
     }
 
-    impl From<Rc<System>> for RcSystemOrRcFileSystem {
-        fn from(value: Rc<System>) -> Self {
+    impl From<Gc<System>> for RcSystemOrRcFileSystem {
+        fn from(value: Gc<System>) -> Self {
             Self::RcSystem(value)
         }
     }
 
-    impl From<Rc<vfs::FileSystem>> for RcSystemOrRcFileSystem {
-        fn from(value: Rc<vfs::FileSystem>) -> Self {
+    impl From<Gc<vfs::FileSystem>> for RcSystemOrRcFileSystem {
+        fn from(value: Gc<vfs::FileSystem>) -> Self {
             Self::RcFileSystem(value)
         }
     }

@@ -1,8 +1,10 @@
 pub mod documents {
+    use gc::{Finalize, Trace};
     use std::collections::HashMap;
 
     use crate::Compiler;
 
+    #[derive(Trace, Finalize)]
     pub struct TextDocument {
         pub meta: HashMap<String, String>,
         pub file: String,

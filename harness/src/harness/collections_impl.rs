@@ -20,16 +20,20 @@ pub mod collections {
         Comparison,
     }
 
-    pub struct SortedMap<TKey, TValue> {
+    #[derive(Trace, Finalize)]
+    pub struct SortedMap<TKey: Trace + Finalize, TValue: Trace + Finalize> {
+        // TODO: revisit this?
+        #[unsafe_ignore_trace]
         _comparer: Rc<dyn Fn(&TKey, &TKey) -> Comparison>,
         _keys: Vec<TKey>,
         _values: Vec<TValue>,
         _order: Option<Vec<usize>>,
         _version: usize,
+        #[unsafe_ignore_trace]
         _copy_on_write: Cell<bool>,
     }
 
-    impl<TKey, TValue> SortedMap<TKey, TValue> {
+    impl<TKey: Trace + Finalize, TValue: Trace + Finalize> SortedMap<TKey, TValue> {
         pub fn new<TIterable: IntoIterator<Item = (TKey, TValue)>>(
             comparer: SortOptions<TKey>,
             iterable: Option<TIterable>,
@@ -187,7 +191,11 @@ pub mod collections {
         }
     }
 
-    pub struct Keys<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> {
+    pub struct Keys<
+        'sorted_map,
+        TKey: 'sorted_map + Trace + Finalize,
+        TValue: 'sorted_map + Trace + Finalize,
+    > {
         _keys: &'sorted_map Vec<TKey>,
         indices: Option<Vec<usize>>,
         version: usize,
@@ -195,7 +203,12 @@ pub mod collections {
         current_index: usize,
     }
 
-    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Keys<'sorted_map, TKey, TValue> {
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Keys<'sorted_map, TKey, TValue>
+    {
         pub fn new(
             _keys: &'sorted_map Vec<TKey>,
             indices: Option<Vec<usize>>,
@@ -212,8 +225,11 @@ pub mod collections {
         }
     }
 
-    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Iterator
-        for Keys<'sorted_map, TKey, TValue>
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Iterator for Keys<'sorted_map, TKey, TValue>
     {
         type Item = &'sorted_map TKey;
 
@@ -231,7 +247,12 @@ pub mod collections {
         }
     }
 
-    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Drop for Keys<'sorted_map, TKey, TValue> {
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Drop for Keys<'sorted_map, TKey, TValue>
+    {
         fn drop(&mut self) {
             if self.version == self.sorted_map._version {
                 self.sorted_map.set_copy_on_write(false);
@@ -239,7 +260,11 @@ pub mod collections {
         }
     }
 
-    pub struct Entries<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> {
+    pub struct Entries<
+        'sorted_map,
+        TKey: 'sorted_map + Trace + Finalize,
+        TValue: 'sorted_map + Trace + Finalize,
+    > {
         _keys: &'sorted_map Vec<TKey>,
         _values: &'sorted_map Vec<TValue>,
         indices: Option<Vec<usize>>,
@@ -248,7 +273,12 @@ pub mod collections {
         current_index: usize,
     }
 
-    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Entries<'sorted_map, TKey, TValue> {
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Entries<'sorted_map, TKey, TValue>
+    {
         pub fn new(
             _keys: &'sorted_map Vec<TKey>,
             _values: &'sorted_map Vec<TValue>,
@@ -267,8 +297,11 @@ pub mod collections {
         }
     }
 
-    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Iterator
-        for Entries<'sorted_map, TKey, TValue>
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Iterator for Entries<'sorted_map, TKey, TValue>
     {
         type Item = (&'sorted_map TKey, &'sorted_map TValue);
 
@@ -292,8 +325,11 @@ pub mod collections {
         }
     }
 
-    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Drop
-        for Entries<'sorted_map, TKey, TValue>
+    impl<
+            'sorted_map,
+            TKey: 'sorted_map + Trace + Finalize,
+            TValue: 'sorted_map + Trace + Finalize,
+        > Drop for Entries<'sorted_map, TKey, TValue>
     {
         fn drop(&mut self) {
             if self.version == self.sorted_map._version {
@@ -312,19 +348,29 @@ pub mod collections {
         }
     }
 
-    #[derive(Trace, Finalize)]
-    pub struct Metadata<TValue: Trace + Finalize> {
+    // #[derive(Trace, Finalize)]
+    pub struct Metadata<TValue: Trace + Finalize + 'static> {
         _parent: Option<Gc<GcCell<Metadata<TValue>>>>,
         _map: HashMap<String, TValue>,
         _version: usize,
-        #[unsafe_ignore_trace]
+        // #[unsafe_ignore_trace]
         _size: Cell<Option<usize>>,
-        #[unsafe_ignore_trace]
+        // #[unsafe_ignore_trace]
         _parent_version: Cell<Option<usize>>,
     }
+    // TODO: did this to avoid a compiler overflow trying to resolve traits
+    unsafe impl<TValue: Trace + Finalize + 'static> Trace for Metadata<TValue> {
+        gc::custom_trace!(this, {
+            unsafe {
+                this._parent.trace();
+                this._map.trace();
+            }
+        });
+    }
+    impl<TValue: Trace + Finalize + 'static> Finalize for Metadata<TValue> {}
 
-    impl<TValue: Clone + Trace + Finalize> Metadata<TValue> {
-        pub fn new(parent: Option<Rc<RefCell<Metadata<TValue>>>>) -> Self {
+    impl<TValue: Clone + Trace + Finalize + 'static> Metadata<TValue> {
+        pub fn new(parent: Option<Gc<GcCell<Metadata<TValue>>>>) -> Self {
             Self {
                 _parent: parent,
                 _map: HashMap::new(),
@@ -355,7 +401,7 @@ pub mod collections {
             self._size.get().unwrap()
         }
 
-        pub fn parent(&self) -> Option<Rc<RefCell<Metadata<TValue>>>> {
+        pub fn parent(&self) -> Option<Gc<GcCell<Metadata<TValue>>>> {
             self._parent.clone()
         }
 

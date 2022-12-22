@@ -1,9 +1,10 @@
-use gc::Gc;
+use gc::{Finalize, Gc, GcCell, Trace};
 use regex::Regex;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io;
 use std::iter::FromIterator;
+use std::mem;
 use std::path::{Path as StdPath, PathBuf};
 use std::rc::Rc;
 
@@ -44,26 +45,41 @@ pub struct ListFilesOptions {
 }
 
 thread_local! {
-    static IO_: GcCell<Gc<Box<dyn IO>>> = GcCell::new(Gc::new(Box::new(create_node_io())));
+    // static IO_: GcCell<Gc<Box<dyn IO>>> = GcCell::new(create_node_io());
+    static IO_: GcCell<Gc<Box<NodeIO>>> = GcCell::new(create_node_io());
 }
 
 pub fn with_io<TReturn, TCallback: FnMut(&dyn IO) -> TReturn>(mut callback: TCallback) -> TReturn {
     IO_.with(|io| callback(&***io.borrow()))
 }
 
-pub fn get_io() -> Gc<Box<dyn IO>> {
+// pub fn get_io() -> Gc<Box<dyn IO>> {
+pub fn get_io() -> Gc<Box<NodeIO>> {
     IO_.with(|io| io.borrow().clone())
 }
 
 pub const harness_new_line: &'static str = "\r\n";
 
-fn create_node_io() -> NodeIO {
-    NodeIO {}
+fn create_node_io() -> Gc<Box<NodeIO>> {
+    NodeIO::new()
 }
 
-struct NodeIO {}
+#[derive(Trace, Finalize)]
+// struct NodeIO {
+pub struct NodeIO {
+    _dyn_wrapper: GcCell<Option<Gc<Box<dyn vfs::FileSystemResolverHost>>>>,
+}
 
 impl NodeIO {
+    pub fn new() -> Gc<Box<Self>> {
+        let dyn_wrapper: Gc<Box<dyn vfs::FileSystemResolverHost>> = Gc::new(Box::new(Self {
+            _dyn_wrapper: Default::default(),
+        }));
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
+        *downcasted._dyn_wrapper.borrow_mut() = Some(dyn_wrapper);
+        downcasted
+    }
+
     fn files_in_folder<TFolder: AsRef<StdPath>>(
         &self,
         spec: Option<&Regex>,
@@ -154,7 +170,7 @@ impl IO for NodeIO {
     }
 
     fn as_file_system_resolver_host(&self) -> Gc<Box<dyn vfs::FileSystemResolverHost>> {
-        self
+        self._dyn_wrapper.borrow().clone().unwrap()
     }
 }
 
@@ -243,7 +259,7 @@ pub fn set_light_mode(flag: bool) {
 }
 
 pub mod Compiler {
-    use gc::Gc;
+    use gc::{Finalize, Gc, Trace};
     use regex::Regex;
     use std::cell::RefCell;
     use std::cmp;
@@ -268,7 +284,7 @@ pub mod Compiler {
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
 
-    use crate::{compiler, documents, fakes, get_io, vfs, vpath, with_io, Utils};
+    use crate::{compiler, documents, fakes, get_io, vfs, vpath, with_io, Utils, IO};
 
     pub fn get_canonical_file_name(file_name: &str) -> String {
         file_name.to_owned()
@@ -357,7 +373,7 @@ pub mod Compiler {
     }
 
     thread_local! {
-        pub(crate) static harness_option_declarations: Vec<Rc<CommandLineOption>> = vec![
+        pub(crate) static harness_option_declarations: Vec<Gc<CommandLineOption>> = vec![
             CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
                 _command_line_option_wrapper: RefCell::new(None),
                 name: "allowNonTsExtensions".to_string(),
@@ -684,9 +700,9 @@ pub mod Compiler {
     }
 
     thread_local! {
-        static options_index: RefCell<Option<HashMap<String, Rc<CommandLineOption>>>> = RefCell::new(None);
+        static options_index: RefCell<Option<HashMap<String, Gc<CommandLineOption>>>> = RefCell::new(None);
     }
-    fn get_command_line_option(name: &str) -> Option<Rc<CommandLineOption>> {
+    fn get_command_line_option(name: &str) -> Option<Gc<CommandLineOption>> {
         options_index.with(|options_index_| {
             options_index_
                 .borrow_mut()
@@ -760,6 +776,7 @@ pub mod Compiler {
         }
     }
 
+    #[derive(Trace, Finalize)]
     pub struct TestFile {
         pub unit_name: String,
         pub content: String,
@@ -857,11 +874,8 @@ pub mod Compiler {
         if let Some(symlinks) = symlinks {
             fs.apply(symlinks);
         }
-        let host = Gc::new(Box::new(fakes::CompilerHost::new(
-            fs,
-            Some(Rc::new(options.compiler_options.clone())),
-            None,
-        )));
+        let host =
+            fakes::CompilerHost::new(fs, Some(Gc::new(options.compiler_options.clone())), None);
         let mut result =
             compiler::compile_files(host, Some(&program_file_names), &options.compiler_options);
         result.symlinks = symlinks.cloned();
@@ -1323,7 +1337,7 @@ pub mod Compiler {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Trace, Finalize)]
 pub struct FileBasedTest {
     pub file: String, /*PathBuf*/
     pub configurations: Option<Vec<FileBasedTestConfiguration>>,
@@ -1463,14 +1477,14 @@ fn compute_file_based_test_configuration_variations(
 }
 
 thread_local! {
-    static boolean_vary_by_star_setting_values: RefCell<Option<HashMap<&'static str, CommandLineOptionMapTypeValueOrUsize>>> = RefCell::new(None);
+    static boolean_vary_by_star_setting_values: RefCell<Option<HashMap<&'static str, CommandLineOptionMapTypeValueOrUsize>>> = Default::default();
 }
 
 fn get_vary_by_star_setting_values(
     vary_by: &str,
 ) -> Option<HashMap<&'static str, CommandLineOptionMapTypeValueOrUsize>> {
     let option = option_declarations.with(|option_declarations_| {
-        for_each(option_declarations_, |decl: &Rc<CommandLineOption>, _| {
+        for_each(option_declarations_, |decl: &Gc<CommandLineOption>, _| {
             if equate_strings_case_insensitive(decl.name(), vary_by) {
                 Some(decl.clone())
             } else {

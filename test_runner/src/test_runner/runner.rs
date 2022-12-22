@@ -41,7 +41,7 @@ fn run_tests(runners: &[RunnerBase]) {
             /*runner instanceof CompilerBaselineRunner || runner instanceof FourSlashRunner*/
             {
                 for sf in runner.enumerate_test_files() {
-                    let full = match sf {
+                    let full = match &sf {
                         StringOrFileBasedTest::String(sf) => sf.clone(),
                         StringOrFileBasedTest::FileBasedTest(sf) => sf.file.clone(),
                     };
