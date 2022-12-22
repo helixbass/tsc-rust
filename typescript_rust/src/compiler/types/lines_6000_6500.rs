@@ -2054,8 +2054,8 @@ pub enum StringOrDiagnosticMessage {
 }
 
 pub trait CommandLineOptionInterface {
-    fn command_line_option_wrapper(&self) -> Rc<CommandLineOption>;
-    fn set_command_line_option_wrapper(&self, wrapper: Rc<CommandLineOption>);
+    fn command_line_option_wrapper(&self) -> Gc<CommandLineOption>;
+    fn set_command_line_option_wrapper(&self, wrapper: Gc<CommandLineOption>);
     fn name(&self) -> &str;
     fn type_(&self) -> &CommandLineOptionType;
     fn is_file_path(&self) -> bool;
@@ -2089,7 +2089,7 @@ pub trait CommandLineOptionInterface {
 }
 
 pub struct CommandLineOptionBase {
-    pub _command_line_option_wrapper: RefCell<Option<Rc<CommandLineOption>>>,
+    pub _command_line_option_wrapper: RefCell<Option<Gc<CommandLineOption>>>,
     pub name: String,
     pub type_: CommandLineOptionType,
     pub is_file_path: Option<bool>,
@@ -2113,11 +2113,11 @@ pub struct CommandLineOptionBase {
 }
 
 impl CommandLineOptionInterface for CommandLineOptionBase {
-    fn command_line_option_wrapper(&self) -> Rc<CommandLineOption> {
+    fn command_line_option_wrapper(&self) -> Gc<CommandLineOption> {
         self._command_line_option_wrapper.borrow().clone().unwrap()
     }
 
-    fn set_command_line_option_wrapper(&self, wrapper: Rc<CommandLineOption>) {
+    fn set_command_line_option_wrapper(&self, wrapper: Gc<CommandLineOption>) {
         *self._command_line_option_wrapper.borrow_mut() = Some(wrapper);
     }
 
@@ -2273,7 +2273,7 @@ pub struct AlternateModeDiagnostics {
 
 pub trait DidYouMeanOptionsDiagnostics {
     fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>>;
-    fn option_declarations(&self) -> Vec<Rc<CommandLineOption>>;
+    fn option_declarations(&self) -> Vec<Gc<CommandLineOption>>;
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
 }
@@ -2281,7 +2281,7 @@ pub trait DidYouMeanOptionsDiagnostics {
 #[command_line_option_type]
 pub struct TsConfigOnlyOption {
     _command_line_option_base: CommandLineOptionBase,
-    pub element_options: Option<Rc<HashMap<String, Rc<CommandLineOption>>>>,
+    pub element_options: Option<Rc<HashMap<String, Gc<CommandLineOption>>>>,
     pub extra_key_diagnostics:
         Option<RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics>,
 }
@@ -2289,7 +2289,7 @@ pub struct TsConfigOnlyOption {
 impl TsConfigOnlyOption {
     pub(crate) fn new(
         command_line_option_base: CommandLineOptionBase,
-        element_options: Option<Rc<HashMap<String, Rc<CommandLineOption>>>>,
+        element_options: Option<Rc<HashMap<String, Gc<CommandLineOption>>>>,
         extra_key_diagnostics: Option<
             RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics,
         >,
@@ -2337,13 +2337,13 @@ impl From<Rc<dyn ParseCommandLineWorkerDiagnostics>>
 #[command_line_option_type]
 pub struct CommandLineOptionOfListType {
     _command_line_option_base: CommandLineOptionBase,
-    pub element: Rc<CommandLineOption>,
+    pub element: Gc<CommandLineOption>,
 }
 
 impl CommandLineOptionOfListType {
     pub(crate) fn new(
         command_line_option_base: CommandLineOptionBase,
-        element: Rc<CommandLineOption>,
+        element: Gc<CommandLineOption>,
     ) -> Self {
         Self {
             _command_line_option_base: command_line_option_base,

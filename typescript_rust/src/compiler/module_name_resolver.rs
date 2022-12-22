@@ -126,8 +126,8 @@ fn create_resolved_module_with_failed_lookup_locations(
     resolved: Option<Resolved>,
     is_external_library_import: Option<bool>,
     mut failed_lookup_locations: Vec<String>,
-    result_from_cache: Option<Rc<ResolvedModuleWithFailedLookupLocations>>,
-) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+    result_from_cache: Option<Gc<ResolvedModuleWithFailedLookupLocations>>,
+) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     if let Some(result_from_cache) = result_from_cache {
         result_from_cache
             .failed_lookup_locations
@@ -135,7 +135,7 @@ fn create_resolved_module_with_failed_lookup_locations(
             .append(&mut failed_lookup_locations);
         return result_from_cache;
     }
-    Rc::new(ResolvedModuleWithFailedLookupLocations {
+    Gc::new(ResolvedModuleWithFailedLookupLocations {
         resolved_module: resolved.map(|resolved| {
             let Resolved {
                 path: resolved_path,
@@ -143,7 +143,7 @@ fn create_resolved_module_with_failed_lookup_locations(
                 package_id: resolved_package_id,
                 original_path: resolved_original_path,
             } = resolved;
-            Rc::new(ResolvedModuleFull {
+            Gc::new(ResolvedModuleFull {
                 resolved_file_name: resolved_path,
                 original_path: resolved_original_path.and_then(|resolved_original_path| {
                     match resolved_original_path {
@@ -167,7 +167,7 @@ pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {
     pub compiler_options: Gc<CompilerOptions>,
     pub trace_enabled: bool,
     pub failed_lookup_locations: RefCell<Vec<String>>,
-    pub result_from_cache: RefCell<Option<Rc<ResolvedModuleWithFailedLookupLocations>>>,
+    pub result_from_cache: RefCell<Option<Gc<ResolvedModuleWithFailedLookupLocations>>>,
     pub package_json_info_cache:
         Option<&'host_and_package_json_info_cache dyn PackageJsonInfoCache>,
     pub features: NodeResolutionFeatures,
@@ -530,7 +530,7 @@ pub fn resolve_type_reference_directive(
     host: &dyn ModuleResolutionHost,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
-) -> Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+) -> Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
     let trace_enabled = is_trace_enabled(&options, host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
         options = redirected_reference.command_line.options.clone();
@@ -687,7 +687,7 @@ pub fn resolve_type_reference_directive(
         primary = false;
     }
 
-    let mut resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>> = None;
+    let mut resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>> = None;
     if let Some(resolved) = resolved {
         let PathAndPackageId {
             file_name,
@@ -698,7 +698,7 @@ pub fn resolve_type_reference_directive(
         } else {
             real_path(&file_name, host, trace_enabled)
         };
-        resolved_type_reference_directive = Some(Rc::new(ResolvedTypeReferenceDirective {
+        resolved_type_reference_directive = Some(Gc::new(ResolvedTypeReferenceDirective {
             primary,
             resolved_file_name: Some(resolved_file_name.clone()),
             original_path: if are_paths_equal(&file_name, &resolved_file_name, host) {
@@ -710,7 +710,7 @@ pub fn resolve_type_reference_directive(
             is_external_library_import: Some(path_contains_node_modules(&file_name)),
         }));
     }
-    result = Some(Rc::new(
+    result = Some(Gc::new(
         ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
             resolved_type_reference_directive,
             failed_lookup_locations: module_resolution_state
@@ -892,7 +892,7 @@ pub fn get_automatic_type_directive_names(
 #[derive(Trace, Finalize)]
 pub struct TypeReferenceDirectiveResolutionCache {
     pub pre_directory_resolution_cache: PerDirectoryResolutionCacheConcrete<
-        Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
+        Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
     >,
     pub package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
 }
@@ -919,7 +919,7 @@ pub struct ModuleResolutionCache {
     current_directory: String,
     get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
     pre_directory_resolution_cache:
-        PerDirectoryResolutionCacheConcrete<Rc<ResolvedModuleWithFailedLookupLocations>>,
+        PerDirectoryResolutionCacheConcrete<Gc<ResolvedModuleWithFailedLookupLocations>>,
     module_name_to_directory_map: Gc<CacheWithRedirects<PerModuleNameCache>>,
     package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
 }
@@ -945,7 +945,7 @@ pub trait PackageJsonInfoCache: Trace + Finalize {
 pub struct PerModuleNameCache {
     current_directory: String,
     get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
-    directory_path_map: GcCell<HashMap<String, Rc<ResolvedModuleWithFailedLookupLocations>>>,
+    directory_path_map: GcCell<HashMap<String, Gc<ResolvedModuleWithFailedLookupLocations>>>,
 }
 
 #[derive(Trace, Finalize)]
@@ -1223,7 +1223,7 @@ pub fn create_module_resolution_cache(
     get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
     options: Option<Gc<CompilerOptions>>,
     directory_to_module_name_map: Option<
-        Gc<CacheWithRedirects<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>>>,
+        Gc<CacheWithRedirects<ModeAwareCache<Gc<ResolvedModuleWithFailedLookupLocations>>>>,
     >,
     module_name_to_directory_map: Option<Gc<CacheWithRedirects<PerModuleNameCache>>>,
 ) -> ModuleResolutionCache {
@@ -1278,7 +1278,7 @@ impl PerModuleNameCache {
         }
     }
 
-    pub fn get(&self, directory: &str) -> Option<Rc<ResolvedModuleWithFailedLookupLocations>> {
+    pub fn get(&self, directory: &str) -> Option<Gc<ResolvedModuleWithFailedLookupLocations>> {
         self.directory_path_map
             .borrow()
             .get(&*to_path(
@@ -1289,7 +1289,7 @@ impl PerModuleNameCache {
             .cloned()
     }
 
-    pub fn set(&self, directory: &str, result: Rc<ResolvedModuleWithFailedLookupLocations>) {
+    pub fn set(&self, directory: &str, result: Gc<ResolvedModuleWithFailedLookupLocations>) {
         let path = to_path(directory, Some(&self.current_directory), |path| {
             self.get_canonical_file_name.call(path)
         });
@@ -1365,14 +1365,14 @@ impl PerModuleNameCache {
     }
 }
 
-impl PerDirectoryResolutionCache<Rc<ResolvedModuleWithFailedLookupLocations>>
+impl PerDirectoryResolutionCache<Gc<ResolvedModuleWithFailedLookupLocations>>
     for ModuleResolutionCache
 {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Gc<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>> {
+    ) -> Gc<ModeAwareCache<Gc<ResolvedModuleWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }
@@ -1441,7 +1441,7 @@ pub fn create_type_reference_directive_resolution_cache(
     directory_to_module_name_map: Option<
         Gc<
             CacheWithRedirects<
-                ModeAwareCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
+                ModeAwareCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
             >,
         >,
     >,
@@ -1471,14 +1471,14 @@ impl TypeReferenceDirectiveResolutionCache {
     }
 }
 
-impl PerDirectoryResolutionCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>
+impl PerDirectoryResolutionCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>
     for TypeReferenceDirectiveResolutionCache
 {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Gc<ModeAwareCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+    ) -> Gc<ModeAwareCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }
@@ -1520,7 +1520,7 @@ pub fn resolve_module_name(
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     let trace_enabled = is_trace_enabled(&compiler_options, host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
         compiler_options = redirected_reference.command_line.options.clone();
@@ -1995,7 +1995,7 @@ fn node12_module_name_resolver(
     cache: Option<&ModuleResolutionCache>,
     redirected_reference: Option<&ResolvedProjectReference>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     unimplemented!()
 }
 
@@ -2007,7 +2007,7 @@ fn node_next_module_name_resolver(
     cache: Option<&ModuleResolutionCache>,
     redirected_reference: Option<&ResolvedProjectReference>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     unimplemented!()
 }
 
@@ -2030,7 +2030,7 @@ pub fn node_module_name_resolver(
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     lookup_config: Option<bool>,
-) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     node_module_name_resolver_worker(
         NodeResolutionFeatures::None,
         module_name,
@@ -2058,7 +2058,7 @@ fn node_module_name_resolver_worker(
     cache: Option<Gc<ModuleResolutionCache>>,
     extensions: &[Extensions],
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     let trace_enabled = is_trace_enabled(&compiler_options, host);
 
     let failed_lookup_locations: Vec<String> = vec![];
@@ -2650,7 +2650,7 @@ pub(crate) fn get_package_scope_for_path(
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
     options: &CompilerOptions,
-) -> Option<Rc<PackageJsonInfo>> {
+) -> Option<Gc<PackageJsonInfo>> {
     unimplemented!()
 }
 
@@ -2658,7 +2658,7 @@ pub(crate) fn get_package_json_info(
     package_directory: &str,
     only_record_failures: bool,
     state: &ModuleResolutionState,
-) -> Option<Rc<PackageJsonInfo>> {
+) -> Option<Gc<PackageJsonInfo>> {
     let host = state.host;
     let trace_enabled = state.trace_enabled;
     let package_json_path = combine_paths(package_directory, &[Some("package.json")]);
@@ -2721,7 +2721,7 @@ pub(crate) fn get_package_json_info(
             );
         }
         let version_paths = read_package_json_types_version_paths(&package_json_content, state);
-        let result = Rc::new(PackageJsonInfo {
+        let result = Gc::new(PackageJsonInfo {
             package_directory: package_directory.to_owned(),
             package_json_content,
             version_paths: version_paths.map(Rc::new),
@@ -3290,14 +3290,14 @@ mod _PackageJsonInfoOrBoolDeriveTraceScope {
 
     #[derive(Clone, Trace, Finalize)]
     pub enum PackageJsonInfoOrBool {
-        PackageJsonInfo(Rc<PackageJsonInfo>),
+        PackageJsonInfo(Gc<PackageJsonInfo>),
         Bool(bool),
     }
 }
 pub use _PackageJsonInfoOrBoolDeriveTraceScope::PackageJsonInfoOrBool;
 
-impl From<Rc<PackageJsonInfo>> for PackageJsonInfoOrBool {
-    fn from(value: Rc<PackageJsonInfo>) -> Self {
+impl From<Gc<PackageJsonInfo>> for PackageJsonInfoOrBool {
+    fn from(value: Gc<PackageJsonInfo>) -> Self {
         Self::PackageJsonInfo(value)
     }
 }
@@ -3460,7 +3460,7 @@ pub fn classic_name_resolver<TCache: NonRelativeModuleNameResolutionCache>(
     host: &dyn ModuleResolutionHost,
     cache: Option<&TCache>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     let trace_enabled = is_trace_enabled(&compiler_options, host);
     let failed_lookup_locations: RefCell<Vec<String>> = RefCell::new(vec![]);
     let state = ModuleResolutionState {

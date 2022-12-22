@@ -9,7 +9,7 @@ use super::{
     ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine,
 };
 use crate::{
-    combine_paths, compare_strings_case_insensitive, contains, contains_rc,
+    combine_paths, compare_strings_case_insensitive, contains, contains_gc, contains_rc,
     convert_to_options_with_absolute_paths, convert_to_tsconfig, create_compiler_diagnostic,
     create_diagnostic_reporter, file_extension_is, file_extension_is_one_of, filter,
     find_config_file, for_each, format_message, get_diagnostic_text, get_line_starts,
@@ -149,7 +149,7 @@ pub(super) fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuild
     options.pretty().unwrap()
 }
 
-pub(super) fn get_options_for_help(command_line: &ParsedCommandLine) -> Vec<Rc<CommandLineOption>> {
+pub(super) fn get_options_for_help(command_line: &ParsedCommandLine) -> Vec<Gc<CommandLineOption>> {
     option_declarations.with(|option_declarations_| {
         if matches!(command_line.options.all, Some(true)) {
             sort(option_declarations_, |a, b| {
@@ -157,7 +157,7 @@ pub(super) fn get_options_for_help(command_line: &ParsedCommandLine) -> Vec<Rc<C
             })
             .to_vec()
         } else {
-            filter(option_declarations_, |v: &Rc<CommandLineOption>| {
+            filter(option_declarations_, |v: &Gc<CommandLineOption>| {
                 v.show_in_simplified_help_view()
             })
         }
@@ -510,7 +510,7 @@ pub(super) fn get_possible_values(option: &CommandLineOption) -> String {
 
 pub(super) fn generate_group_option_output(
     sys: &dyn System,
-    options_list: &[Rc<CommandLineOption>],
+    options_list: &[Gc<CommandLineOption>],
 ) -> Vec<String> {
     let mut max_length = 0;
     for option in options_list {
@@ -543,7 +543,7 @@ pub(super) fn generate_group_option_output(
 pub(super) fn generate_section_options_output(
     sys: &dyn System,
     section_name: &str,
-    options: &[Rc<CommandLineOption>],
+    options: &[Gc<CommandLineOption>],
     sub_category: bool,
     before_options_description: Option<&str>,
     after_options_description: Option<&str>,
@@ -599,7 +599,7 @@ pub(super) fn generate_section_options_output(
     res
 }
 
-pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Rc<CommandLineOption>]) {
+pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Gc<CommandLineOption>]) {
     let colors = create_colors(sys);
     let mut output = get_header(
         sys,
@@ -657,7 +657,7 @@ pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Rc<CommandLine
     let cli_commands = simple_options.iter().filter(|opt| opt.is_command_line_only() || matches!(opt.maybe_category(), Some(category) if category == &*Diagnostics::Command_line_Options)).map(Clone::clone).collect::<Vec<_>>();
     let config_opts = simple_options
         .iter()
-        .filter(|opt| !contains_rc(Some(&cli_commands), opt))
+        .filter(|opt| !contains_gc(Some(&cli_commands), opt))
         .map(Clone::clone)
         .collect::<Vec<_>>();
 
@@ -708,9 +708,9 @@ pub(super) fn example(
 
 pub(super) fn print_all_help(
     sys: &dyn System,
-    compiler_options: &[Rc<CommandLineOption>],
-    build_options: &[Rc<CommandLineOption>],
-    watch_options: &[Rc<CommandLineOption>],
+    compiler_options: &[Gc<CommandLineOption>],
+    build_options: &[Gc<CommandLineOption>],
+    watch_options: &[Gc<CommandLineOption>],
 ) {
     let mut output = get_header(
         sys,
@@ -757,7 +757,7 @@ pub(super) fn print_all_help(
     }
 }
 
-pub(super) fn print_build_help(sys: &dyn System, build_options: &[Rc<CommandLineOption>]) {
+pub(super) fn print_build_help(sys: &dyn System, build_options: &[Gc<CommandLineOption>]) {
     let mut output = get_header(
         sys,
         &format!(

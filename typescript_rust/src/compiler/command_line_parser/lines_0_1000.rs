@@ -14,7 +14,7 @@ use crate::{
 };
 
 thread_local! {
-    pub(crate) static compile_on_save_command_line_option_: Rc<CommandLineOption> =
+    pub(crate) static compile_on_save_command_line_option_: Gc<CommandLineOption> =
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "compileOnSave".to_string(),
@@ -40,7 +40,7 @@ thread_local! {
         .into();
 }
 
-pub(crate) fn compile_on_save_command_line_option() -> Rc<CommandLineOption> {
+pub(crate) fn compile_on_save_command_line_option() -> Gc<CommandLineOption> {
     compile_on_save_command_line_option_
         .with(|compile_on_save_command_line_option| compile_on_save_command_line_option.clone())
 }
@@ -147,7 +147,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static options_for_watch: Vec<Rc<CommandLineOption>> = vec![
+    pub(crate) static options_for_watch: Vec<Gc<CommandLineOption>> = vec![
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "watchFile".to_string(),
@@ -362,7 +362,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static common_options_with_build: Vec<Rc<CommandLineOption>> = vec![
+    pub(crate) static common_options_with_build: Vec<Gc<CommandLineOption>> = vec![
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "help".to_string(),
@@ -735,7 +735,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static target_option_declaration: Rc<CommandLineOption /*CommandLineOptionOfCustomType*/> =
+    pub(crate) static target_option_declaration: Gc<CommandLineOption /*CommandLineOptionOfCustomType*/> =
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "target".to_string(),
@@ -775,7 +775,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static command_options_without_build: Vec<Rc<CommandLineOption>> = vec![
+    pub(crate) static command_options_without_build: Vec<Gc<CommandLineOption>> = vec![
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "all".to_string(),

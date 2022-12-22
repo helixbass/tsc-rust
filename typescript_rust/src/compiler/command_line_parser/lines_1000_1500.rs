@@ -21,7 +21,7 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 thread_local! {
-    pub static option_declarations: Vec<Rc<CommandLineOption>> =
+    pub static option_declarations: Vec<Gc<CommandLineOption>> =
         common_options_with_build.with(|common_options_with_build_| {
             command_options_without_build.with(|command_options_without_build_| {
                 common_options_with_build_
@@ -34,7 +34,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static semantic_diagnostics_option_declarations: Vec<Rc<CommandLineOption>> =
+    pub(crate) static semantic_diagnostics_option_declarations: Vec<Gc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
@@ -45,7 +45,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static affects_emit_option_declarations: Vec<Rc<CommandLineOption>> =
+    pub(crate) static affects_emit_option_declarations: Vec<Gc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
@@ -56,7 +56,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static module_resolution_option_declarations: Vec<Rc<CommandLineOption>> =
+    pub(crate) static module_resolution_option_declarations: Vec<Gc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
@@ -67,7 +67,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static source_file_affecting_compiler_options: Vec<Rc<CommandLineOption>> =
+    pub(crate) static source_file_affecting_compiler_options: Vec<Gc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
@@ -82,7 +82,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static options_affecting_program_structure: Vec<Rc<CommandLineOption>> =
+    pub(crate) static options_affecting_program_structure: Vec<Gc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
@@ -93,7 +93,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static transpile_option_value_compiler_options: Vec<Rc<CommandLineOption>> =
+    pub(crate) static transpile_option_value_compiler_options: Vec<Gc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
@@ -104,7 +104,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static options_for_build: Vec<Rc<CommandLineOption>> = vec![
+    pub(crate) static options_for_build: Vec<Gc<CommandLineOption>> = vec![
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "verbose".to_string(),
@@ -201,7 +201,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static build_opts: Vec<Rc<CommandLineOption>> =
+    pub(crate) static build_opts: Vec<Gc<CommandLineOption>> =
         common_options_with_build.with(|common_options_with_build_| {
             options_for_build.with(|options_for_build_| {
                 common_options_with_build_
@@ -214,7 +214,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static type_acquisition_declarations: Vec<Rc<CommandLineOption>> = vec![
+    pub(crate) static type_acquisition_declarations: Vec<Gc<CommandLineOption>> = vec![
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "enableAutoDiscovery".to_string(),
@@ -382,12 +382,12 @@ thread_local! {
 }
 
 pub struct OptionsNameMap {
-    pub options_name_map: HashMap<String, Rc<CommandLineOption>>,
+    pub options_name_map: HashMap<String, Gc<CommandLineOption>>,
     pub short_option_names: HashMap<String, String>,
 }
 
 pub(crate) fn create_option_name_map(
-    option_declarations_: &[Rc<CommandLineOption>],
+    option_declarations_: &[Gc<CommandLineOption>],
 ) -> OptionsNameMap {
     let mut options_name_map = HashMap::new();
     let mut short_option_names = HashMap::new();

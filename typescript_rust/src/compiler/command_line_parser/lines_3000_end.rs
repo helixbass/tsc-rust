@@ -263,7 +263,7 @@ pub(crate) fn convert_watch_options_from_json_worker(
 }
 
 pub(super) fn convert_options_from_json_compiler_options(
-    options_name_map: &HashMap<String, Rc<CommandLineOption>>,
+    options_name_map: &HashMap<String, Gc<CommandLineOption>>,
     json_options: Option<&serde_json::Value>,
     base_path: &str,
     default_options: &mut CompilerOptions,
@@ -300,7 +300,7 @@ pub(super) fn convert_options_from_json_compiler_options(
 }
 
 pub(super) fn convert_options_from_json_type_acquisition(
-    options_name_map: &HashMap<String, Rc<CommandLineOption>>,
+    options_name_map: &HashMap<String, Gc<CommandLineOption>>,
     json_options: Option<&serde_json::Value>,
     base_path: &str,
     default_options: &mut TypeAcquisition,
@@ -338,7 +338,7 @@ pub(super) fn convert_options_from_json_type_acquisition(
 }
 
 pub(super) fn convert_options_from_json_watch_options(
-    options_name_map: &HashMap<String, Rc<CommandLineOption>>,
+    options_name_map: &HashMap<String, Gc<CommandLineOption>>,
     json_options: Option<&serde_json::Value>,
     base_path: &str,
     // default_options: &mut WatchOptions,
