@@ -1,3 +1,4 @@
+use gc::Gc;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use pretty_assertions::assert_str_eq;
@@ -5576,12 +5577,12 @@ fn run_compiler_baseline(#[case] case_filename: &str) {
     );
     options.no_error_truncation = Some(true);
     options.skip_default_lib_check = Some(options.skip_default_lib_check.unwrap_or(true));
-    let options = Rc::new(options);
+    let options = Gc::new(options);
     let host = create_compiler_host_worker(options.clone(), None, Some(get_sys()));
     let program = create_program(CreateProgramOptions {
         root_names: vec![case_file_path],
         options: options.clone(),
-        host: Some(Rc::new(host)),
+        host: Some(Gc::new(Box::new(host))),
         project_references: None,
         old_program: None,
         config_file_parsing_diagnostics: None,
