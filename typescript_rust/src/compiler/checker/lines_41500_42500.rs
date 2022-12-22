@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -8,27 +9,28 @@ use std::rc::Rc;
 
 use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, are_option_rcs_equal, concatenate, create_diagnostic_for_node,
-    escape_leading_underscores, external_helpers_module_name_text, for_each_child_bool,
-    for_each_entry_bool, get_all_accessor_declarations, get_declaration_of_kind,
-    get_effective_modifier_flags, get_external_module_name, get_first_identifier,
-    get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_declaration, is_declaration_readonly, is_effective_external_module,
-    is_entity_name, is_enum_const, is_expression, is_function_declaration, is_function_like,
-    is_generated_identifier, is_get_accessor, is_global_scope_augmentation, is_identifier,
-    is_jsdoc_parameter_tag, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_property_access_expression, is_property_declaration, is_qualified_name, is_set_accessor,
-    is_string_literal, is_type_only_import_or_export_declaration, is_var_const,
-    is_variable_declaration, is_variable_like_or_accessor, maybe_is_class_like, modifier_to_flag,
-    node_can_be_decorated, node_is_present, parse_isolated_entity_name,
-    should_preserve_const_enums, some, token_to_string, try_cast,
-    with_synthetic_factory_and_factory, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType, ModifierFlags,
-    NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, ObjectFlags,
-    PragmaArgumentName, PragmaName, Signature, SignatureKind, SymbolInterface, SymbolTracker,
-    SyntaxKind, TypeFlags, TypeInterface, TypeReferenceSerializationKind, __String,
-    bind_source_file, is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, Node,
-    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    add_related_info, are_option_gcs_equal, are_option_rcs_equal, concatenate,
+    create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text,
+    for_each_child_bool, for_each_entry_bool, get_all_accessor_declarations,
+    get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name,
+    get_first_identifier, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
+    is_ambient_module, is_binding_pattern, is_declaration, is_declaration_readonly,
+    is_effective_external_module, is_entity_name, is_enum_const, is_expression,
+    is_function_declaration, is_function_like, is_generated_identifier, is_get_accessor,
+    is_global_scope_augmentation, is_identifier, is_jsdoc_parameter_tag, is_named_declaration,
+    is_private_identifier_class_element_declaration, is_property_access_expression,
+    is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
+    is_type_only_import_or_export_declaration, is_var_const, is_variable_declaration,
+    is_variable_like_or_accessor, maybe_is_class_like, modifier_to_flag, node_can_be_decorated,
+    node_is_present, parse_isolated_entity_name, should_preserve_const_enums, some,
+    token_to_string, try_cast, with_synthetic_factory_and_factory, Debug_, Diagnostics,
+    ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType,
+    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags,
+    NodeFlags, ObjectFlags, PragmaArgumentName, PragmaName, Signature, SignatureKind,
+    SymbolInterface, SymbolTracker, SyntaxKind, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
+    Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -42,7 +44,7 @@ impl TypeChecker {
         let symbol = symbol.unwrap();
         let symbol = symbol.borrow();
         let ref target = self.resolve_alias(symbol);
-        if Rc::ptr_eq(target, &self.unknown_symbol()) {
+        if Gc::ptr_eq(target, &self.unknown_symbol()) {
             return true;
         }
         target.flags().intersects(SymbolFlags::Value)
@@ -175,7 +177,7 @@ impl TypeChecker {
         }
         for_each_entry_bool(
             &*(*self.get_exports_of_symbol(symbol)).borrow(),
-            |p: &Rc<Symbol>, _| {
+            |p: &Gc<Symbol>, _| {
                 p.flags().intersects(SymbolFlags::Value)
                     && matches!(
                         p.maybe_value_declaration().as_ref(),
@@ -188,7 +190,7 @@ impl TypeChecker {
     pub(super) fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
         if declaration.is_none() {
             return vec![];
@@ -341,7 +343,7 @@ impl TypeChecker {
         if let Some(resolved_symbol) = resolved_symbol.as_ref().filter(|resolved_symbol| {
             matches!(
                 type_symbol.as_ref(),
-                Some(type_symbol) if Rc::ptr_eq(
+                Some(type_symbol) if Gc::ptr_eq(
                     *resolved_symbol,
                     type_symbol
                 )
@@ -350,7 +352,7 @@ impl TypeChecker {
             let global_promise_symbol = self.get_global_promise_constructor_symbol(false);
             if matches!(
                 global_promise_symbol.as_ref(),
-                Some(global_promise_symbol) if Rc::ptr_eq(
+                Some(global_promise_symbol) if Gc::ptr_eq(
                     resolved_symbol,
                     global_promise_symbol
                 )
@@ -419,9 +421,9 @@ impl TypeChecker {
         declaration_in: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
         enclosing_declaration: &Node,
         mut flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         let declaration = get_parse_tree_node(
             Some(declaration_in),
             Some(|node: &Node| is_variable_like_or_accessor(node)),
@@ -447,7 +449,7 @@ impl TypeChecker {
             self.error_type()
         };
         if type_.flags().intersects(TypeFlags::UniqueESSymbol)
-            && are_option_rcs_equal(type_.maybe_symbol().as_ref(), symbol.as_ref())
+            && are_option_gcs_equal(type_.maybe_symbol().as_ref(), symbol.as_ref())
         {
             flags |= NodeBuilderFlags::AllowUniqueESSymbolType;
         }
@@ -467,8 +469,8 @@ impl TypeChecker {
         signature_declaration_in: &Node, /*SignatureDeclaration*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+        tracker: Gc<Box<dyn SymbolTracker>>,
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         let signature_declaration = get_parse_tree_node(
             Some(signature_declaration_in),
             Some(|node: &Node| is_function_like(Some(node))),
@@ -497,8 +499,8 @@ impl TypeChecker {
         expr_in: &Node, /*Expression*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+        tracker: Gc<Box<dyn SymbolTracker>>,
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
             return Some(with_synthetic_factory_and_factory(
@@ -528,7 +530,7 @@ impl TypeChecker {
         &self,
         reference: &Node, /*Identifier*/
         start_in_declaration_container: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let resolved_symbol = (*self.get_node_links(reference))
             .borrow()
             .resolved_symbol
@@ -558,7 +560,7 @@ impl TypeChecker {
             &reference.as_identifier().escaped_text,
             SymbolFlags::Value | SymbolFlags::ExportValue | SymbolFlags::Alias,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             true,
             None,
         )
@@ -567,7 +569,7 @@ impl TypeChecker {
     pub(super) fn get_referenced_value_declaration(
         &self,
         reference_in: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         if !is_generated_identifier(reference_in) {
             let reference =
                 get_parse_tree_node(Some(reference_in), Some(|node: &Node| is_identifier(node)));
@@ -601,8 +603,8 @@ impl TypeChecker {
         &self,
         type_: &Type, /*FreshableType*/
         enclosing: &Node,
-        tracker: &dyn SymbolTracker,
-    ) -> Rc<Node /*Expression*/> {
+        tracker: Gc<Box<dyn SymbolTracker>>,
+    ) -> Gc<Node /*Expression*/> {
         let enum_result = if type_.flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
                 &type_.symbol(),
@@ -654,8 +656,8 @@ impl TypeChecker {
     pub(super) fn create_literal_const_value(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-        tracker: &dyn SymbolTracker,
-    ) -> Rc<Node> {
+        tracker: Gc<Box<dyn SymbolTracker>>,
+    ) -> Gc<Node> {
         let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap());
         self.literal_type_to_node(type_, node, tracker)
     }
@@ -663,7 +665,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_factory_entity(
         &self,
         location: &Node,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         /*location ?*/
         self.get_jsx_namespace_(Some(location));
         get_source_file_of_node(Some(location))
@@ -678,7 +680,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_fragment_factory_entity(
         &self,
         location: &Node,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         // if (location) {
         let file = get_source_file_of_node(Some(location));
         if let Some(file) = file.as_ref() {
@@ -720,18 +722,18 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn create_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
-        Rc::new(EmitResolverCreateResolver::new())
+    pub(super) fn create_resolver(&self) -> Gc<Box<dyn EmitResolverDebuggable>> {
+        Gc::new(Box::new(EmitResolverCreateResolver::new()))
     }
 
     pub(super) fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*AnyImportOrReExport | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Rc<Node /*SourceFile*/>> {
+    ) -> Option<Gc<Node /*SourceFile*/>> {
         let specifier = if declaration.kind() == SyntaxKind::ModuleDeclaration {
             try_cast(
                 declaration.as_module_declaration().name(),
-                |node: &Rc<Node>| is_string_literal(node),
+                |node: &Gc<Node>| is_string_literal(node),
             )
         } else {
             get_external_module_name(declaration)
@@ -753,7 +755,7 @@ impl TypeChecker {
 
         *self.maybe_amalgamated_duplicates() = Some(HashMap::new());
 
-        let mut augmentations: Option<Vec<Vec<Rc<Node /*StringLiteral | Identifier*/>>>> = None;
+        let mut augmentations: Option<Vec<Vec<Gc<Node /*StringLiteral | Identifier*/>>>> = None;
         for file in &*self.host.get_source_files() {
             let file_as_source_file = file.as_source_file();
             if file_as_source_file.maybe_redirect_info().is_some() {
@@ -769,7 +771,7 @@ impl TypeChecker {
                 {
                     for declaration in file_global_this_symbol_declarations {
                         self.diagnostics().add(
-                            Rc::new(
+                            Gc::new(
                                 create_diagnostic_for_node(
                                     declaration,
                                     &Diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
@@ -781,7 +783,7 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(self.globals_rc(), &RefCell::borrow(&file.locals()), None);
+                self.merge_symbol_table(self.globals_rc(), &(*file.locals()).borrow(), None);
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations().clone()
@@ -892,7 +894,7 @@ impl TypeChecker {
         *self.any_array_type.borrow_mut() = Some(self.create_array_type(&self.any_type(), None));
 
         *self.auto_array_type.borrow_mut() = Some(self.create_array_type(&self.auto_type(), None));
-        if Rc::ptr_eq(&self.auto_array_type(), &self.empty_object_type()) {
+        if Gc::ptr_eq(&self.auto_array_type(), &self.empty_object_type()) {
             *self.auto_array_type.borrow_mut() = Some(self.create_anonymous_type(
                 Option::<&Symbol>::None,
                 self.empty_symbols(),
@@ -975,7 +977,7 @@ impl TypeChecker {
                     .join(", ");
                 self.diagnostics().add(
                     {
-                        let diagnostic: Rc<Diagnostic> = Rc::new(
+                        let diagnostic: Gc<Diagnostic> = Gc::new(
                             create_diagnostic_for_node(
                                 first_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
@@ -987,7 +989,7 @@ impl TypeChecker {
                         add_related_info(
                             &diagnostic,
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         second_file,
                                         &Diagnostics::Conflicts_are_in_this_file,
@@ -1001,7 +1003,7 @@ impl TypeChecker {
                 );
                 self.diagnostics().add(
                     {
-                        let diagnostic: Rc<Diagnostic> = Rc::new(
+                        let diagnostic: Gc<Diagnostic> = Gc::new(
                             create_diagnostic_for_node(
                                 second_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
@@ -1013,7 +1015,7 @@ impl TypeChecker {
                         add_related_info(
                             &diagnostic,
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         first_file,
                                         &Diagnostics::Conflicts_are_in_this_file,
@@ -1043,7 +1045,7 @@ impl TypeChecker {
                 && !location.flags().intersects(NodeFlags::Ambient)
             {
                 let helpers_module = self.resolve_helpers_module(&source_file, location);
-                if !Rc::ptr_eq(&helpers_module, &self.unknown_symbol()) {
+                if !Gc::ptr_eq(&helpers_module, &self.unknown_symbol()) {
                     let unchecked_helpers = helpers & !self.requested_external_emit_helpers();
                     let mut helper = ExternalEmitHelpers::FirstEmitHelper;
                     while helper <= ExternalEmitHelpers::LastEmitHelper {
@@ -1070,7 +1072,7 @@ impl TypeChecker {
                                     {
                                         if !some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
-                                            Some(|signature: &Rc<Signature>| {
+                                            Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 3
                                             }),
                                         ) {
@@ -1089,7 +1091,7 @@ impl TypeChecker {
                                     {
                                         if !some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
-                                            Some(|signature: &Rc<Signature>| {
+                                            Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 4
                                             }),
                                         ) {
@@ -1106,7 +1108,7 @@ impl TypeChecker {
                                     } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
                                         if !some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
-                                            Some(|signature: &Rc<Signature>| {
+                                            Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 2
                                             }),
                                         ) {
@@ -1168,7 +1170,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SourceFile*/
         error_node: &Node,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let mut external_helpers_module = self.maybe_external_helpers_module();
         if external_helpers_module.is_none() {
             *external_helpers_module = Some(
@@ -1243,11 +1245,11 @@ impl TypeChecker {
             return quick_result;
         }
 
-        let mut last_static: Option<Rc<Node>> = None;
-        let mut last_declare: Option<Rc<Node>> = None;
-        let mut last_async: Option<Rc<Node>> = None;
-        let mut last_readonly: Option<Rc<Node>> = None;
-        let mut last_override: Option<Rc<Node>> = None;
+        let mut last_static: Option<Gc<Node>> = None;
+        let mut last_declare: Option<Gc<Node>> = None;
+        let mut last_async: Option<Gc<Node>> = None;
+        let mut last_readonly: Option<Gc<Node>> = None;
+        let mut last_override: Option<Gc<Node>> = None;
         let mut flags = ModifierFlags::None;
         for modifier in node.maybe_modifiers().as_ref().unwrap() {
             if modifier.kind() != SyntaxKind::ReadonlyKeyword {

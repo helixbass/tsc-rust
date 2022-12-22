@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::Gc;
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
@@ -23,7 +24,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*ExportAssignment*/> {
+    ) -> Gc<Node /*ExportAssignment*/> {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);
         let mut is_export_equals: Option<bool> = None;
@@ -55,7 +56,7 @@ impl ParserType {
         );
     }
 
-    pub(super) fn is_an_external_module_indicator_node(&self, node: &Node) -> Option<Rc<Node>> {
+    pub(super) fn is_an_external_module_indicator_node(&self, node: &Node) -> Option<Gc<Node>> {
         if self.has_modifier_of_kind(node, SyntaxKind::ExportKeyword)
             || is_import_equals_declaration(node)
                 && is_external_module_reference(
@@ -74,7 +75,7 @@ impl ParserType {
     pub(super) fn get_import_meta_if_necessary(
         &self,
         source_file: &Node, /*SourceFile*/
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         if source_file
             .flags()
             .intersects(NodeFlags::PossiblyContainsImportMeta)
@@ -85,25 +86,25 @@ impl ParserType {
         }
     }
 
-    pub(super) fn walk_tree_for_external_module_indicators(&self, node: &Node) -> Option<Rc<Node>> {
+    pub(super) fn walk_tree_for_external_module_indicators(&self, node: &Node) -> Option<Gc<Node>> {
         if self.is_import_meta(node) {
             Some(node.node_wrapper())
         } else {
             for_each_child_returns(
                 node,
                 |child| self.walk_tree_for_external_module_indicators(child),
-                Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+                Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
             )
         }
     }
 
     pub(super) fn has_modifier_of_kind(&self, node: &Node, kind: SyntaxKind) -> bool {
         let modifiers = node.maybe_modifiers();
-        let modifiers: Option<&[Rc<Node>]> = modifiers.as_ref().map(|node_array| {
-            let slice_ref: &[Rc<Node>] = node_array;
+        let modifiers: Option<&[Gc<Node>]> = modifiers.as_ref().map(|node_array| {
+            let slice_ref: &[Gc<Node>] = node_array;
             slice_ref
         });
-        some(modifiers, Some(|m: &Rc<Node>| m.kind() == kind))
+        some(modifiers, Some(|m: &Gc<Node>| m.kind() == kind))
     }
 
     pub(super) fn is_import_meta(&self, node: &Node) -> bool {
@@ -176,7 +177,7 @@ impl ParserType {
     pub fn JSDocParser_parse_jsdoc_type_expression(
         &self,
         may_omit_braces: Option<bool>,
-    ) -> Rc<Node /*JSDocTypeExpression*/> {
+    ) -> Gc<Node /*JSDocTypeExpression*/> {
         let may_omit_braces = may_omit_braces.unwrap_or(false);
         let pos = self.get_node_pos();
         let has_brace = if may_omit_braces {
@@ -189,17 +190,17 @@ impl ParserType {
             self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
         }
 
-        let result = Into::<Rc<Node>>::into(self.factory.create_jsdoc_type_expression(self, type_));
+        let result = Into::<Gc<Node>>::into(self.factory.create_jsdoc_type_expression(self, type_));
         self.fixup_parent_references(&result);
         self.finish_node_ref(&*result, pos, None);
         result
     }
 
-    pub fn JSDocParser_parse_jsdoc_name_reference(&self) -> Rc<Node /*JSDocNameReference*/> {
+    pub fn JSDocParser_parse_jsdoc_name_reference(&self) -> Gc<Node /*JSDocNameReference*/> {
         let pos = self.get_node_pos();
         let has_brace = self.parse_optional(SyntaxKind::OpenBraceToken);
         let p2 = self.get_node_pos();
-        let mut entity_name: Rc<Node /*EntityName | JSDocMemberName*/> =
+        let mut entity_name: Gc<Node /*EntityName | JSDocMemberName*/> =
             self.parse_entity_name(false, None).wrap();
         while self.token() == SyntaxKind::PrivateIdentifier {
             self.re_scan_hash_token();
@@ -221,7 +222,7 @@ impl ParserType {
         }
 
         let result =
-            Into::<Rc<Node>>::into(self.factory.create_jsdoc_name_reference(self, entity_name));
+            Into::<Gc<Node>>::into(self.factory.create_jsdoc_name_reference(self, entity_name));
         self.fixup_parent_references(&result);
         self.finish_node_ref(&*result, pos, None);
         result
@@ -240,7 +241,7 @@ impl ParserType {
             None,
             ScriptKind::JS,
         );
-        let js_doc: Option<Rc<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
+        let js_doc: Option<Gc<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
             self.JSDocParser_parse_jsdoc_comment_worker(start, length)
                 .map(Into::into)
         });
@@ -274,13 +275,13 @@ impl ParserType {
         parent: &Node,
         start: usize,
         length: usize,
-    ) -> Option<Rc<Node /*JSDoc*/>> {
+    ) -> Option<Gc<Node /*JSDoc*/>> {
         let save_token = self.current_token();
         let save_parse_diagnostics_length = self.parse_diagnostics().len();
         let save_parse_error_before_next_finished_node =
             self.parse_error_before_next_finished_node();
 
-        let comment: Option<Rc<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
+        let comment: Option<Gc<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
             self.JSDocParser_parse_jsdoc_comment_worker(Some(start), Some(length))
                 .map(Into::into)
         });
@@ -337,13 +338,13 @@ pub(super) struct ParseJSDocCommentWorker<'parser> {
     pub(super) length: usize,
     pub(super) content_str: &'parser str,
     pub(super) content: &'parser SourceTextAsChars,
-    pub(super) tags: Option<Vec<Rc<Node /*JSDocTag*/>>>,
+    pub(super) tags: Option<Vec<Gc<Node /*JSDocTag*/>>>,
     pub(super) tags_pos: Option<isize>,
     pub(super) tags_end: Option<isize>,
     pub(super) link_end: Option<usize>,
     pub(super) comments_pos: Option<isize>,
     pub(super) comments: RefCell<Vec<String>>,
-    pub(super) parts: Vec<Rc<Node /*JSDocComment*/>>,
+    pub(super) parts: Vec<Gc<Node /*JSDocComment*/>>,
 }
 
 impl<'parser> ParseJSDocCommentWorker<'parser> {
@@ -372,7 +373,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         }
     }
 
-    pub(super) fn tags(&mut self) -> &mut Vec<Rc<Node>> {
+    pub(super) fn tags(&mut self) -> &mut Vec<Gc<Node>> {
         self.tags.as_mut().unwrap()
     }
 
@@ -494,7 +495,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 } {
                                     self.remove_leading_newlines(&mut self.comments());
                                 }
-                                let part: Rc<Node> =
+                                let part: Gc<Node> =
                                     self.parser.finish_node(
                                         self.parser.factory.create_jsdoc_text(
                                             self.parser,
@@ -524,7 +525,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 }
                 self.remove_trailing_whitespace(&mut self.comments());
                 if !self.parts.is_empty() && !self.comments().is_empty() {
-                    let part: Rc<Node> =
+                    let part: Gc<Node> =
                         self.parser.finish_node(
                             self.parser.factory.create_jsdoc_text(self.parser, self.comments().join("")),
                             self.link_end.unwrap_or(self.start).try_into().unwrap(),
@@ -657,7 +658,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let start = self.parser.scanner().get_token_pos();
         self.parser.next_token_jsdoc();
 
-        let tag_name: Rc<Node> = self.parse_jsdoc_identifier_name(None).wrap();
+        let tag_name: Gc<Node> = self.parse_jsdoc_identifier_name(None).wrap();
         let indent_text = self.skip_whitespace_or_asterisk();
 
         let mut tag: Option<Node> = None;
@@ -896,7 +897,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     ) -> Option<StringOrNodeArray> {
         let comments_pos = self.parser.get_node_pos();
         let mut comments: Vec<String> = vec![];
-        let mut parts: Vec<Rc<Node /*JSDocComment*/>> = vec![];
+        let mut parts: Vec<Gc<Node /*JSDocComment*/>> = vec![];
         let mut link_end: Option<usize> = None;
         let mut state = JSDocState::BeginningOfLine;
         let mut previous_whitespace = false;
@@ -961,7 +962,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     state = JSDocState::SavingComments;
                     let comment_end = self.parser.scanner().get_start_pos();
                     let link_start = self.parser.scanner().get_text_pos() - 1;
-                    let link: Option<Rc<Node>> = self.parse_jsdoc_link(link_start).map(Node::wrap);
+                    let link: Option<Gc<Node>> = self.parse_jsdoc_link(link_start).map(Node::wrap);
                     if let Some(link) = link {
                         parts.push(
                             self.parser
@@ -1085,13 +1086,13 @@ bitflags! {
 }
 
 pub struct ParsedJSDocTypeExpression {
-    pub js_doc_type_expression: Rc<Node /*JSDocTypeExpression*/>,
-    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub js_doc_type_expression: Gc<Node /*JSDocTypeExpression*/>,
+    pub diagnostics: Vec<Gc<Diagnostic>>,
 }
 
 pub struct ParsedIsolatedJSDocComment {
-    pub js_doc: Rc<Node /*JSDoc*/>,
-    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub js_doc: Gc<Node /*JSDoc*/>,
+    pub diagnostics: Vec<Gc<Diagnostic>>,
 }
 
 impl BaseNodeFactory for ParserType {

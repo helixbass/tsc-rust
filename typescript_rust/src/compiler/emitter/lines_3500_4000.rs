@@ -1,8 +1,10 @@
+use gc::Gc;
 use regex::Regex;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::rc::Rc;
 
+use super::ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule;
 use crate::{
     find_index, for_each, for_each_leading_comment_range, for_each_trailing_comment_range,
     get_comment_range, get_emit_flags, get_line_and_character_of_position,
@@ -259,15 +261,11 @@ impl Printer {
         let node_as_case_clause = node.as_case_clause();
         self.emit_expression(
             Some(&*node_as_case_clause.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
 
         self.emit_case_or_default_clause_rest(
@@ -395,15 +393,11 @@ impl Printer {
         }
         self.emit_expression(
             Some(&**initializer),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 
@@ -427,17 +421,11 @@ impl Printer {
             self.write_space();
             self.emit_expression(
                 Some(&**node_object_assignment_initializer),
-                Some(Rc::new({
-                    let parenthesizer = self.parenthesizer();
-                    move |node: &Node| {
-                        with_synthetic_factory(|synthetic_factory| {
-                            parenthesizer.parenthesize_expression_for_disallowed_comma(
-                                synthetic_factory,
-                                node,
-                            )
-                        })
-                    }
-                })),
+                Some(Gc::new(Box::new(
+                    ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                        self.parenthesizer(),
+                    ),
+                ))),
             );
         }
     }
@@ -454,15 +442,11 @@ impl Printer {
         );
         self.emit_expression(
             Some(&*node_as_spread_assignment.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         // }
     }
@@ -474,15 +458,11 @@ impl Printer {
             node_as_enum_member.initializer.as_deref(),
             node_as_enum_member.name.end(),
             node,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 
@@ -816,7 +796,7 @@ impl Printer {
             if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                 bundle_file_info
                     .sections
-                    .push(Rc::new(BundleFileSection::new_has_no_default_lib(
+                    .push(Gc::new(BundleFileSection::new_has_no_default_lib(
                         None,
                         pos.try_into().unwrap(),
                         self.writer().get_text_pos().try_into().unwrap(),
@@ -873,7 +853,7 @@ impl Printer {
             if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                 bundle_file_info
                     .sections
-                    .push(Rc::new(BundleFileSection::new_reference(
+                    .push(Gc::new(BundleFileSection::new_reference(
                         BundleFileSectionKind::Reference,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
@@ -891,7 +871,7 @@ impl Printer {
             if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                 bundle_file_info
                     .sections
-                    .push(Rc::new(BundleFileSection::new_reference(
+                    .push(Gc::new(BundleFileSection::new_reference(
                         BundleFileSectionKind::Type,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
@@ -909,7 +889,7 @@ impl Printer {
             if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                 bundle_file_info
                     .sections
-                    .push(Rc::new(BundleFileSection::new_reference(
+                    .push(Gc::new(BundleFileSection::new_reference(
                         BundleFileSectionKind::Lib,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
@@ -923,14 +903,14 @@ impl Printer {
     pub(super) fn emit_source_file_worker(&self, node: &Node /*SourceFile*/) {
         let statements = node.as_source_file().statements();
         self.push_name_generation_scope(Some(node));
-        for_each(statements, |statement: &Rc<Node>, _| -> Option<()> {
+        for_each(statements, |statement: &Gc<Node>, _| -> Option<()> {
             self.generate_names(Some(&**statement));
             None
         });
         self.emit_helpers(node);
         let index = find_index(
             statements,
-            |statement: &Rc<Node>, _| !is_prologue_directive(statement),
+            |statement: &Gc<Node>, _| !is_prologue_directive(statement),
             None,
         );
         self.emit_triple_slash_directives_if_needed(node);
@@ -968,7 +948,7 @@ impl Printer {
 
     pub(super) fn emit_prologue_directives(
         &self,
-        statements: &[Rc<Node>],
+        statements: &[Gc<Node>],
         source_file: Option<&Node /*SourceFile*/>,
         seen_prologue_directives: &mut Option<HashSet<String>>,
         record_bundle_file_section: Option<bool /*true*/>,
@@ -999,7 +979,7 @@ impl Printer {
                     self.emit(Some(&**statement), None);
                     if record_bundle_file_section == Some(true) {
                         if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                            bundle_file_info.sections.push(Rc::new(
+                            bundle_file_info.sections.push(Gc::new(
                                 BundleFileSection::new_prologue(
                                     statement
                                         .as_expression_statement()

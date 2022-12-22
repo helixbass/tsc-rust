@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -63,7 +64,7 @@ impl BinderType {
         &self,
         node: &Node, /*VariableDeclaration | ArrayBindingElement*/
     ) {
-        let name: Option<Rc<Node>> = if !is_omitted_expression(node) {
+        let name: Option<Gc<Node>> = if !is_omitted_expression(node) {
             node.as_named_declaration().maybe_name()
         } else {
             None
@@ -134,8 +135,8 @@ impl BinderType {
     pub(super) fn bind_optional_expression(
         &self,
         node: &Node, /*expression*/
-        true_target: Rc<FlowNode /*FlowLabel*/>,
-        false_target: Rc<FlowNode /*FlowLabel*/>,
+        true_target: Gc<FlowNode /*FlowLabel*/>,
+        false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         self.do_with_conditional_branches(
             |node| self.bind(Some(node)),
@@ -194,8 +195,8 @@ impl BinderType {
     pub(super) fn bind_optional_chain(
         &self,
         node: &Node, /*OptionalChain*/
-        true_target: Rc<FlowNode /*FlowLabel*/>,
-        false_target: Rc<FlowNode /*FlowLabel*/>,
+        true_target: Gc<FlowNode /*FlowLabel*/>,
+        false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         let pre_chain_label = if is_optional_chain_root(node) {
             Some(self.create_branch_label())
@@ -422,7 +423,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         match self.container().kind() {
             SyntaxKind::ModuleDeclaration => {
                 Some(self.declare_module_member(node, symbol_flags, symbol_excludes))
@@ -497,7 +498,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         if is_static(node) {
             self.declare_symbol(
                 &mut *self.container().symbol().exports().borrow_mut(),
@@ -526,7 +527,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         if is_external_module(&self.file()) {
             self.declare_module_member(node, symbol_flags, symbol_excludes)
         } else {
@@ -546,7 +547,7 @@ impl BinderType {
         &self,
         node: &Node, /*ModuleDeclaration | SourceFile*/
     ) -> bool {
-        let body: Option<Rc<Node>> = if is_source_file(node) {
+        let body: Option<Gc<Node>> = if is_source_file(node) {
             Some(node.node_wrapper())
         } else {
             node.as_module_declaration()
@@ -619,7 +620,7 @@ impl BinderType {
                     pattern_ambient_modules.as_mut().unwrap(),
                     match pattern {
                         Some(StringOrPattern::Pattern(pattern)) => {
-                            Some(Rc::new(PatternAmbientModule::new(pattern, symbol)))
+                            Some(Gc::new(PatternAmbientModule::new(pattern, symbol)))
                         }
                         _ => None,
                     },
@@ -640,6 +641,7 @@ impl BinderType {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(crate) struct BindBinaryExpressionFlow {
     trampoline: BinaryExpressionTrampoline<BindBinaryExpressionFlowStateMachine>,
 }
@@ -660,22 +662,23 @@ pub struct WorkArea {
     pub stack_index: isize,
     pub skip: bool,
     pub in_strict_mode_stack: Vec<Option<bool>>,
-    pub parent_stack: Vec<Option<Rc<Node>>>,
+    pub parent_stack: Vec<Option<Gc<Node>>>,
 }
 
+#[derive(Trace, Finalize)]
 pub(crate) struct BindBinaryExpressionFlowStateMachine {
-    binder: Rc<BinderType>,
+    binder: Gc<BinderType>,
 }
 
 impl BindBinaryExpressionFlowStateMachine {
-    pub fn new(binder: Rc<BinderType>) -> Self {
+    pub fn new(binder: Gc<BinderType>) -> Self {
         Self { binder }
     }
 
     pub fn maybe_bind(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         if
         /*node &&*/
         is_binary_expression(node) && !is_destructuring_assignment(node) {
@@ -752,7 +755,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         left: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         if !(*state).borrow().skip {
             return self.maybe_bind(left);
         }
@@ -779,7 +782,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         right: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         if !(*state).borrow().skip {
             return self.maybe_bind(right);
         }

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
@@ -11,11 +12,11 @@ use super::{
     ErrorReporter, IntersectionState,
 };
 use crate::{
-    are_option_rcs_equal, every, get_object_flags, get_symbol_id, some, symbol_name,
-    DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node, NodeInterface, ObjectFlags,
-    ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface,
-    Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
-    TypePredicateKind,
+    are_option_gcs_equal, are_option_rcs_equal, every, get_object_flags, get_symbol_id, some,
+    symbol_name, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags,
+    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind,
 };
 use local_macros::enum_unwrapped;
 
@@ -84,7 +85,7 @@ impl TypeChecker {
             }
         }
 
-        let related = if are_option_rcs_equal(source.type_.as_ref(), target.type_.as_ref()) {
+        let related = if are_option_gcs_equal(source.type_.as_ref(), target.type_.as_ref()) {
             Ternary::True
         } else if source.type_.is_some() && target.type_.is_some() {
             compare_types(
@@ -109,15 +110,15 @@ impl TypeChecker {
 
     pub(super) fn is_implementation_compatible_with_overload(
         &self,
-        implementation: Rc<Signature>,
-        overload: Rc<Signature>,
+        implementation: Gc<Signature>,
+        overload: Gc<Signature>,
     ) -> bool {
         let erased_source = self.get_erased_signature(implementation.clone());
         let erased_target = self.get_erased_signature(overload.clone());
 
         let source_return_type = self.get_return_type_of_signature(erased_source.clone());
         let target_return_type = self.get_return_type_of_signature(erased_target.clone());
-        if Rc::ptr_eq(&target_return_type, &self.void_type())
+        if Gc::ptr_eq(&target_return_type, &self.void_type())
             || self.is_type_related_to(
                 &target_return_type,
                 &source_return_type,
@@ -154,12 +155,12 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::Union) {
             some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
-                Some(|type_: &Rc<Type>| self.is_empty_object_type(type_)),
+                Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
             )
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             every(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| self.is_empty_object_type(type_),
+                |type_: &Gc<Type>, _| self.is_empty_object_type(type_),
             )
         } else {
             false
@@ -187,7 +188,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && every(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |type_: &Rc<Type>, _| self.is_string_index_signature_only_type(type_),
+                    |type_: &Gc<Type>, _| self.is_string_index_signature_only_type(type_),
                 )
             || false
     }
@@ -403,7 +404,7 @@ impl TypeChecker {
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
         }
-        if Rc::ptr_eq(&source, &target) {
+        if Gc::ptr_eq(&source, &target) {
             return true;
         }
         if !Rc::ptr_eq(&relation, &self.identity_relation) {
@@ -463,10 +464,10 @@ impl TypeChecker {
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
-    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> Rc<Type> {
+    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> Gc<Type> {
         let mut type_ = type_.type_wrapper();
         loop {
-            let mut t: Rc<Type> = if self.is_fresh_literal_type(&type_) {
+            let mut t: Gc<Type> = if self.is_fresh_literal_type(&type_) {
                 match &*type_ {
                     Type::IntrinsicType(intrinsic_type) => {
                         enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
@@ -499,7 +500,7 @@ impl TypeChecker {
             t = self
                 .get_single_base_for_non_augmenting_subtype(&t)
                 .unwrap_or(t);
-            if Rc::ptr_eq(&t, &type_) {
+            if Gc::ptr_eq(&t, &type_) {
                 break;
             }
             type_ = t.clone();
@@ -514,8 +515,8 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<TErrorNode>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         CheckTypeRelatedTo::new(
             self,

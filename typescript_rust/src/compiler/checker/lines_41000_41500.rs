@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
@@ -28,7 +29,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_index_infos_at_location_(&self, node: &Node) -> Option<Vec<Rc<IndexInfo>>> {
+    pub(super) fn get_index_infos_at_location_(&self, node: &Node) -> Option<Vec<Gc<IndexInfo>>> {
         if is_identifier(node)
             && is_property_access_expression(&node.parent())
             && ptr::eq(&*node.parent().as_property_access_expression().name, node)
@@ -41,8 +42,8 @@ impl TypeChecker {
             } else {
                 vec![object_type.clone()]
             };
-            return Some(flat_map(Some(&object_types), |t: &Rc<Type>, _| {
-                filter(&self.get_index_infos_of_type(t), |info: &Rc<IndexInfo>| {
+            return Some(flat_map(Some(&object_types), |t: &Gc<Type>, _| {
+                filter(&self.get_index_infos_of_type(t), |info: &Gc<IndexInfo>| {
                     self.is_applicable_index_type(key_type, &info.key_type)
                 })
             }));
@@ -53,7 +54,7 @@ impl TypeChecker {
     pub(super) fn get_shorthand_assignment_value_symbol_<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if let Some(location) = location {
             let location: &Node = location.borrow();
             if location.kind() == SyntaxKind::ShorthandPropertyAssignment {
@@ -72,7 +73,7 @@ impl TypeChecker {
     pub(super) fn get_export_specifier_local_target_symbol_(
         &self,
         node: &Node, /*Identifier | ExportSpecifier*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if is_export_specifier(node) {
             let node_as_export_specifier = node.as_export_specifier();
             if node
@@ -112,7 +113,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_of_node(&self, node: &Node) -> Rc<Type> {
+    pub(super) fn get_type_of_node(&self, node: &Node) -> Gc<Type> {
         if is_source_file(node) && !is_external_module(node) {
             return self.error_type();
         }
@@ -218,7 +219,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_assignment_pattern_(
         &self,
         expr: &Node, /*AssignmentPattern*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         Debug_.assert(
             matches!(
                 expr.kind(),
@@ -246,7 +247,7 @@ impl TypeChecker {
             ));
         }
         if expr.parent().kind() == SyntaxKind::PropertyAssignment {
-            let ref node = cast_present(expr.parent().parent(), |node: &Rc<Node>| {
+            let ref node = cast_present(expr.parent().parent(), |node: &Gc<Node>| {
                 is_object_literal_expression(node)
             });
             let ref type_of_parent_object_literal = self
@@ -264,7 +265,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let node = cast_present(expr.parent(), |node: &Rc<Node>| {
+        let node = cast_present(expr.parent(), |node: &Gc<Node>| {
             is_array_literal_expression(node)
         });
         let ref type_of_array_literal = self
@@ -296,10 +297,10 @@ impl TypeChecker {
     pub(super) fn get_property_symbol_of_destructuring_assignment_(
         &self,
         location: &Node, /*Identifier*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let type_of_object_literal = self.get_type_of_assignment_pattern_(&*cast_present(
             location.parent().parent(),
-            |node: &Rc<Node>| is_assignment_pattern(node),
+            |node: &Gc<Node>| is_assignment_pattern(node),
         ));
         type_of_object_literal
             .as_ref()
@@ -315,7 +316,7 @@ impl TypeChecker {
     pub(super) fn get_regular_type_of_expression(
         &self,
         expr: &Node, /*Expression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let mut expr = expr.node_wrapper();
         if is_right_side_of_qualified_name_or_property_access(&expr) {
             expr = expr.parent();
@@ -326,7 +327,7 @@ impl TypeChecker {
     pub(super) fn get_parent_type_of_class_element(
         &self,
         node: &Node, /*ClassElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let ref class_symbol = self.get_symbol_of_node(&node.parent()).unwrap();
         if is_static(node) {
             self.get_type_of_symbol(class_symbol)
@@ -338,7 +339,7 @@ impl TypeChecker {
     pub(super) fn get_class_element_property_key_type(
         &self,
         element: &Node, /*ClassElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let ref name = element.as_named_declaration().name();
         match name.kind() {
             SyntaxKind::Identifier => self.get_string_literal_type(&id_text(name)),
@@ -357,7 +358,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_augmented_properties_of_type(&self, type_: &Type) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_augmented_properties_of_type(&self, type_: &Type) -> Vec<Gc<Symbol>> {
         let ref type_ = self.get_apparent_type(type_);
         let mut props_by_name = create_symbol_table(Some(&self.get_properties_of_type(type_)));
         let function_type = if !self
@@ -376,7 +377,7 @@ impl TypeChecker {
         if let Some(function_type) = function_type.as_ref() {
             for_each(
                 &self.get_properties_of_type(function_type),
-                |p: &Rc<Symbol>, _| -> Option<()> {
+                |p: &Gc<Symbol>, _| -> Option<()> {
                     if !props_by_name.contains_key(p.escaped_name()) {
                         props_by_name.insert(p.escaped_name().to_owned(), p.clone());
                     }
@@ -391,10 +392,10 @@ impl TypeChecker {
         type_has_call_or_construct_signatures(type_, self)
     }
 
-    pub(super) fn get_root_symbols(&self, symbol: &Symbol) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_root_symbols(&self, symbol: &Symbol) -> Vec<Gc<Symbol>> {
         let roots = self.get_immediate_root_symbols(symbol);
         if let Some(roots) = roots.as_ref() {
-            flat_map(Some(roots), |root: &Rc<Symbol>, _| {
+            flat_map(Some(roots), |root: &Gc<Symbol>, _| {
                 self.get_root_symbols(root)
             })
         } else {
@@ -402,7 +403,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_immediate_root_symbols(&self, symbol: &Symbol) -> Option<Vec<Rc<Symbol>>> {
+    pub(super) fn get_immediate_root_symbols(&self, symbol: &Symbol) -> Option<Vec<Gc<Symbol>>> {
         if get_check_flags(symbol).intersects(CheckFlags::Synthetic) {
             return Some(map_defined(
                 Some(
@@ -414,7 +415,7 @@ impl TypeChecker {
                         .as_union_or_intersection_type_interface()
                         .types(),
                 ),
-                |type_: &Rc<Type>, _| {
+                |type_: &Gc<Type>, _| {
                     self.get_property_of_type_(type_, symbol.escaped_name(), None)
                 },
             ));
@@ -439,9 +440,9 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn try_get_alias_target(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
-        let mut target: Option<Rc<Symbol>> = None;
-        let mut next: Option<Rc<Symbol>> = Some(symbol.symbol_wrapper());
+    pub(super) fn try_get_alias_target(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
+        let mut target: Option<Gc<Symbol>> = None;
+        let mut next: Option<Gc<Symbol>> = Some(symbol.symbol_wrapper());
         while {
             next = (*self.get_symbol_links(next.as_ref().unwrap()))
                 .borrow()
@@ -470,14 +471,14 @@ impl TypeChecker {
         let ref parent = parent.unwrap();
         let is_property_name = (is_property_access_expression(parent)
             || is_property_assignment(parent))
-            && Rc::ptr_eq(&parent.as_named_declaration().name(), node);
+            && Gc::ptr_eq(&parent.as_named_declaration().name(), node);
         !is_property_name
             && matches!(
                 self.get_referenced_value_symbol(
                     node,
                     None,
                 ).as_ref(),
-                Some(referenced_value_symbol) if Rc::ptr_eq(
+                Some(referenced_value_symbol) if Gc::ptr_eq(
                     referenced_value_symbol,
                     &self.arguments_symbol()
                 )
@@ -513,7 +514,7 @@ impl TypeChecker {
             } else {
                 for_each_entry_bool(
                     &*(*self.get_exports_of_module_(module_symbol)).borrow(),
-                    |s: &Rc<Symbol>, _| self.is_value(s),
+                    |s: &Gc<Symbol>, _| self.is_value(s),
                 )
             });
         }
@@ -541,7 +542,7 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> Option<Rc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
+    ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
         let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
         if let Some(node) = node.as_ref() {
             let symbol = self.get_referenced_value_symbol(
@@ -576,7 +577,7 @@ impl TypeChecker {
                             let symbol_file = parent_symbol_value_declaration;
                             let ref reference_file =
                                 get_source_file_of_node(Some(&**node)).unwrap();
-                            let symbol_is_umd_export = !Rc::ptr_eq(symbol_file, reference_file);
+                            let symbol_is_umd_export = !Gc::ptr_eq(symbol_file, reference_file);
                             return if symbol_is_umd_export {
                                 None
                             } else {
@@ -588,7 +589,7 @@ impl TypeChecker {
                         is_module_or_enum_declaration(n)
                             && matches!(
                                 self.get_symbol_of_node(n).as_ref(),
-                                Some(symbol) if Rc::ptr_eq(
+                                Some(symbol) if Gc::ptr_eq(
                                     symbol,
                                     parent_symbol
                                 )
@@ -603,7 +604,7 @@ impl TypeChecker {
     pub(super) fn get_referenced_import_declaration(
         &self,
         node_in: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         if let Some(node_in_generated_import_reference) = node_in
             .as_identifier()
             .maybe_generated_import_reference()
@@ -662,7 +663,7 @@ impl TypeChecker {
                                 symbol.escaped_name(),
                                 SymbolFlags::Value,
                                 None,
-                                Option::<Rc<Node>>::None,
+                                Option::<Gc<Node>>::None,
                                 false,
                                 None,
                             )
@@ -704,7 +705,7 @@ impl TypeChecker {
     pub(super) fn get_referenced_declaration_with_colliding_name(
         &self,
         node_in: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         if !is_generated_identifier(node_in) {
             let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
             if let Some(node) = node.as_ref() {
@@ -761,7 +762,7 @@ impl TypeChecker {
                     Some(export_clause) if is_namespace_export(export_clause) ||
                         some(
                             Some(&*export_clause.as_named_exports().elements),
-                            Some(|element: &Rc<Node>| self.is_value_alias_declaration(element))
+                            Some(|element: &Gc<Node>| self.is_value_alias_declaration(element))
                         )
                 )
             }

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -23,7 +24,7 @@ impl TypeChecker {
         has_computed_string_property: bool,
         node: &Node,
         offset: usize,
-        properties_array: &[Rc<Symbol>],
+        properties_array: &[Gc<Symbol>],
         has_computed_number_property: bool,
         has_computed_symbol_property: bool,
         properties_table: &SymbolTable,
@@ -31,10 +32,10 @@ impl TypeChecker {
         is_js_object_literal: bool,
         pattern_with_computed_properties: bool,
         in_destructuring_pattern: bool,
-    ) -> Rc<Type> {
-        let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+    ) -> Gc<Type> {
+        let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         if has_computed_string_property {
-            index_infos.push(Rc::new(self.get_object_literal_index_info(
+            index_infos.push(Gc::new(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -42,7 +43,7 @@ impl TypeChecker {
             )));
         }
         if has_computed_number_property {
-            index_infos.push(Rc::new(self.get_object_literal_index_info(
+            index_infos.push(Gc::new(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -50,7 +51,7 @@ impl TypeChecker {
             )));
         }
         if has_computed_symbol_property {
-            index_infos.push(Rc::new(self.get_object_literal_index_info(
+            index_infos.push(Gc::new(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -59,7 +60,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             node.maybe_symbol(),
-            Rc::new(RefCell::new(properties_table.clone())),
+            Gc::new(GcCell::new(properties_table.clone())),
             vec![],
             vec![],
             index_infos,
@@ -107,7 +108,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && every(
                     &type_.as_union_or_intersection_type_interface().types(),
-                    |type_: &Rc<Type>, _| self.is_valid_spread_type(type_),
+                    |type_: &Gc<Type>, _| self.is_valid_spread_type(type_),
                 )
     }
 
@@ -122,7 +123,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxSelfClosingElement*/
         _check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.check_node_deferred(node);
         self.get_jsx_element_type_at(node) /*|| anyType*/
     }
@@ -158,13 +159,13 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxElement*/
         _check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.check_node_deferred(node);
 
         self.get_jsx_element_type_at(node) /*|| anyType*/
     }
 
-    pub(super) fn check_jsx_fragment(&self, node: &Node /*JsxFragment*/) -> Rc<Type> {
+    pub(super) fn check_jsx_fragment(&self, node: &Node /*JsxFragment*/) -> Gc<Type> {
         let node_as_jsx_fragment = node.as_jsx_fragment();
         self.check_jsx_opening_like_element_or_opening_fragment(
             &node_as_jsx_fragment.opening_fragment,
@@ -213,7 +214,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxAttribute*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if let Some(node_initializer) = node.as_jsx_attribute().initializer.as_ref() {
             self.check_expression_for_mutable_location(
                 node_initializer,
@@ -230,7 +231,7 @@ impl TypeChecker {
         &self,
         opening_like_element: &Node, /*JsxOpeningLikeElement*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let opening_like_element_as_jsx_opening_like_element =
             opening_like_element.as_jsx_opening_like_element();
         let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
@@ -239,10 +240,10 @@ impl TypeChecker {
         } else {
             None
         };
-        let attributes_table = Rc::new(RefCell::new(create_symbol_table(None)));
+        let attributes_table = Gc::new(GcCell::new(create_symbol_table(None)));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
-        let mut type_to_intersect: Option<Rc<Type>> = None;
+        let mut type_to_intersect: Option<Gc<Type>> = None;
         let mut explicitly_specify_children_attribute = false;
         let mut object_flags = ObjectFlags::JsxAttributes;
         let jsx_children_property_name = self.get_jsx_element_children_property_name(
@@ -256,7 +257,7 @@ impl TypeChecker {
                 object_flags |= get_object_flags(&expr_type) & ObjectFlags::PropagatingFlags;
 
                 let member = member.unwrap();
-                let attribute_symbol: Rc<Symbol> = self
+                let attribute_symbol: Gc<Symbol> = self
                     .create_symbol(
                         SymbolFlags::Property | member.flags(),
                         member.escaped_name().to_owned(),
@@ -412,7 +413,7 @@ impl TypeChecker {
                                 jsx_children_property_name,
                             )
                         });
-                    let children_prop_symbol: Rc<Symbol> = self
+                    let children_prop_symbol: Gc<Symbol> = self
                         .create_symbol(
                             SymbolFlags::Property,
                             jsx_children_property_name.clone(),
@@ -480,7 +481,7 @@ impl TypeChecker {
                         &spread,
                         &self.create_anonymous_type(
                             attributes.maybe_symbol(),
-                            Rc::new(RefCell::new(child_prop_map)),
+                            Gc::new(GcCell::new(child_prop_map)),
                             vec![],
                             vec![],
                             vec![],
@@ -497,7 +498,7 @@ impl TypeChecker {
             return self.any_type();
         }
         if let Some(type_to_intersect) = type_to_intersect.as_ref() {
-            if !Rc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
+            if !Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
                 return self.get_intersection_type(
                     &[type_to_intersect.clone(), spread.clone()],
                     Option::<&Symbol>::None,
@@ -506,7 +507,7 @@ impl TypeChecker {
             }
         }
         type_to_intersect.unwrap_or_else(|| {
-            if Rc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
+            if Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
                 self.create_jsx_attributes_type(
                     &mut object_flags,
                     &attributes,
@@ -522,8 +523,8 @@ impl TypeChecker {
         &self,
         object_flags: &mut ObjectFlags,
         attributes: &Node,
-        attributes_table: Rc<RefCell<SymbolTable>>,
-    ) -> Rc<Type> {
+        attributes_table: Gc<GcCell<SymbolTable>>,
+    ) -> Gc<Type> {
         *object_flags |= self.fresh_object_literal_flag;
         let result = self.create_anonymous_type(
             attributes.maybe_symbol(),
@@ -546,8 +547,8 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxElement | JsxFragment*/
         check_mode: Option<CheckMode>,
-    ) -> Vec<Rc<Type>> {
-        let mut children_types: Vec<Rc<Type>> = vec![];
+    ) -> Vec<Gc<Type>> {
+        let mut children_types: Vec<Gc<Type>> = vec![];
         for child in node.as_has_children().children() {
             if child.kind() == SyntaxKind::JsxText {
                 if !child.as_jsx_text().contains_only_trivia_white_spaces {
@@ -588,7 +589,7 @@ impl TypeChecker {
                     );
                     add_related_info(
                         &diagnostic,
-                        vec![Rc::new(
+                        vec![Gc::new(
                             create_diagnostic_for_node(
                                 spread,
                                 &Diagnostics::This_spread_always_overwrites_this_property,
@@ -606,7 +607,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxAttributes*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.create_jsx_attributes_type_from_attributes_property(&node.parent(), check_mode)
     }
 
@@ -614,7 +615,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         location: Option<TLocation>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let namespace = self.get_jsx_namespace_at(location.as_deref());
         let exports = namespace
@@ -633,7 +634,7 @@ impl TypeChecker {
     pub(super) fn get_intrinsic_tag_symbol(
         &self,
         node: &Node, /*JsxOpeningLikeElement | JsxClosingElement*/
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let links = self.get_node_links(node);
         let node_as_has_tag_name = node.as_has_tag_name();
         if (*links).borrow().resolved_symbol.is_none() {
@@ -695,7 +696,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_namespace_container_for_implicit_import<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let file = location
             .as_ref()
@@ -736,7 +737,7 @@ impl TypeChecker {
         );
         let result = mod_
             .as_ref()
-            .filter(|mod_| !Rc::ptr_eq(mod_, &self.unknown_symbol()))
+            .filter(|mod_| !Gc::ptr_eq(mod_, &self.unknown_symbol()))
             .map(|mod_| {
                 self.get_merged_symbol(self.resolve_symbol(Some(&**mod_), None))
                     .unwrap()
@@ -750,7 +751,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_namespace_at<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let links = location
             .as_ref()
@@ -774,7 +775,7 @@ impl TypeChecker {
 
             if match resolved_namespace.as_ref() {
                 None => true,
-                Some(resolved_namespace) => Rc::ptr_eq(resolved_namespace, &self.unknown_symbol()),
+                Some(resolved_namespace) => Gc::ptr_eq(resolved_namespace, &self.unknown_symbol()),
             } {
                 let namespace_name = self.get_jsx_namespace_(location.as_deref());
                 resolved_namespace = self.resolve_name_(
@@ -804,7 +805,7 @@ impl TypeChecker {
                 );
                 if let Some(candidate) = candidate
                     .as_ref()
-                    .filter(|candidate| !Rc::ptr_eq(candidate, &self.unknown_symbol()))
+                    .filter(|candidate| !Gc::ptr_eq(candidate, &self.unknown_symbol()))
                 {
                     if let Some(links) = links.as_ref() {
                         links.borrow_mut().jsx_namespace = Some(Some(candidate.clone()));
@@ -822,7 +823,7 @@ impl TypeChecker {
         );
         if matches!(
             s.as_ref(),
-            Some(s) if Rc::ptr_eq(
+            Some(s) if Gc::ptr_eq(
                 s,
                 &self.unknown_symbol()
             )

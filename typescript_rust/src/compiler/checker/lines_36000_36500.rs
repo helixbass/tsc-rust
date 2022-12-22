@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
 use std::ptr;
@@ -128,7 +129,7 @@ impl TypeChecker {
     pub(super) fn get_identifier_from_entity_name_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Rc<Node /*Identifier | PrivateIdentifier*/>> {
+    ) -> Option<Gc<Node /*Identifier | PrivateIdentifier*/>> {
         match node.kind() {
             SyntaxKind::Identifier => Some(node.node_wrapper()),
             SyntaxKind::PropertyAccessExpression => {
@@ -246,10 +247,10 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_identifiers<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
-        potentially_unused_identifiers: &[Rc<Node /*PotentiallyUnusedIdentifier*/>],
+        potentially_unused_identifiers: &[Gc<Node /*PotentiallyUnusedIdentifier*/>],
         mut add_diagnostic: TAddDiagnostic, /*AddUnusedDiagnostic*/
     ) {
         for node in potentially_unused_identifiers {
@@ -299,7 +300,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn error_unused_local<TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>)>(
+    pub(super) fn error_unused_local<TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>)>(
         &self,
         declaration: &Node, /*Declaration*/
         name: &str,
@@ -315,7 +316,7 @@ impl TypeChecker {
         add_diagnostic(
             declaration,
             UnusedKind::Local,
-            Rc::new(create_diagnostic_for_node(&node, message, Some(vec![name.to_owned()])).into()),
+            Gc::new(create_diagnostic_for_node(&node, message, Some(vec![name.to_owned()])).into()),
         );
     }
 
@@ -324,7 +325,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_class_members<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         node: &Node, /*ClassDeclaration | ClassExpression*/
@@ -351,7 +352,7 @@ impl TypeChecker {
                             add_diagnostic(
                                 member,
                                 UnusedKind::Local,
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         &member.as_named_declaration().name(),
                                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -381,7 +382,7 @@ impl TypeChecker {
                             add_diagnostic(
                                 parameter,
                                 UnusedKind::Local,
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         &parameter.as_parameter_declaration().name(),
                                         &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
@@ -403,7 +404,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_infer_type_parameter<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         node: &Node, /*InferTypeNode*/
@@ -414,7 +415,7 @@ impl TypeChecker {
             add_diagnostic(
                 node,
                 UnusedKind::Parameter,
-                Rc::new(
+                Gc::new(
                     create_diagnostic_for_node(
                         node,
                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -430,7 +431,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_type_parameters<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         node: &Node, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
@@ -465,7 +466,7 @@ impl TypeChecker {
                     .into_iter()
                     .all(|type_parameter| self.is_type_parameter_unused(type_parameter))
             {
-                if try_add_to_set(&mut seen_parents_with_every_unused, Rc::as_ptr(&parent)) {
+                if try_add_to_set(&mut seen_parents_with_every_unused, &*parent) {
                     let source_file = get_source_file_of_node(Some(&*parent)).unwrap();
                     let range = if is_jsdoc_template_tag(&parent) {
                         range_of_node(&parent)
@@ -499,7 +500,7 @@ impl TypeChecker {
                     add_diagnostic(
                         type_parameter,
                         UnusedKind::Parameter,
-                        Rc::new(
+                        Gc::new(
                             create_file_diagnostic(
                                 &source_file,
                                 range.pos(),
@@ -515,7 +516,7 @@ impl TypeChecker {
                 add_diagnostic(
                     type_parameter,
                     UnusedKind::Parameter,
-                    Rc::new(
+                    Gc::new(
                         create_diagnostic_for_node(
                             type_parameter,
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -555,8 +556,8 @@ impl TypeChecker {
     pub(super) fn try_get_root_parameter_declaration(
         &self,
         node: &Node,
-    ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
-        try_cast(get_root_declaration(node), |root_declaration: &Rc<Node>| {
+    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
+        try_cast(get_root_declaration(node), |root_declaration: &Gc<Node>| {
             is_parameter(root_declaration)
         })
     }
@@ -586,7 +587,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_locals_and_parameters<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         node_with_locals: &Node,
@@ -595,22 +596,22 @@ impl TypeChecker {
         let mut unused_imports: HashMap<
             String,
             (
-                Rc<Node /*ImportClause*/>,
-                Vec<Rc<Node /*ImportedDeclaration*/>>,
+                Gc<Node /*ImportClause*/>,
+                Vec<Gc<Node /*ImportedDeclaration*/>>,
             ),
         > = HashMap::new();
         let mut unused_destructures: HashMap<
             String,
             (
-                Rc<Node /*BindingPattern*/>,
-                Vec<Rc<Node /*BindingElement*/>>,
+                Gc<Node /*BindingPattern*/>,
+                Vec<Gc<Node /*BindingElement*/>>,
             ),
         > = HashMap::new();
         let mut unused_variables: HashMap<
             String,
             (
-                Rc<Node /*VariableDeclarationList*/>,
-                Vec<Rc<Node /*VariableDeclaration*/>>,
+                Gc<Node /*VariableDeclarationList*/>,
+                Vec<Gc<Node /*VariableDeclaration*/>>,
             ),
         > = HashMap::new();
         for local in (*node_with_locals.locals()).borrow().values() {
@@ -640,7 +641,7 @@ impl TypeChecker {
                             &mut unused_imports,
                             self.import_clause_from_imported(declaration),
                             declaration.clone(),
-                            |key: &Rc<Node>| get_node_id(key).to_string(),
+                            |key: &Gc<Node>| get_node_id(key).to_string(),
                         );
                     } else if is_binding_element(declaration)
                         && is_object_binding_pattern(&declaration.parent())
@@ -648,7 +649,7 @@ impl TypeChecker {
                         let declaration_parent = declaration.parent();
                         let last_element =
                             last(&declaration_parent.as_object_binding_pattern().elements);
-                        if Rc::ptr_eq(declaration, last_element)
+                        if Gc::ptr_eq(declaration, last_element)
                             || last(&declaration_parent.as_object_binding_pattern().elements)
                                 .as_binding_element()
                                 .dot_dot_dot_token
@@ -658,7 +659,7 @@ impl TypeChecker {
                                 &mut unused_destructures,
                                 declaration_parent.clone(),
                                 declaration.clone(),
-                                |key: &Rc<Node>| get_node_id(key).to_string(),
+                                |key: &Gc<Node>| get_node_id(key).to_string(),
                             );
                         }
                     } else if is_variable_declaration(declaration) {
@@ -666,7 +667,7 @@ impl TypeChecker {
                             &mut unused_variables,
                             declaration.parent(),
                             declaration.clone(),
-                            |key: &Rc<Node>| get_node_id(key).to_string(),
+                            |key: &Gc<Node>| get_node_id(key).to_string(),
                         );
                     } else {
                         let parameter = local.maybe_value_declaration().as_ref().and_then(
@@ -691,13 +692,13 @@ impl TypeChecker {
                                         &mut unused_destructures,
                                         declaration.parent(),
                                         declaration.clone(),
-                                        |key: &Rc<Node>| get_node_id(key).to_string(),
+                                        |key: &Gc<Node>| get_node_id(key).to_string(),
                                     );
                                 } else {
                                     add_diagnostic(
                                         parameter,
                                         UnusedKind::Parameter,
-                                        Rc::new(
+                                        Gc::new(
                                             create_diagnostic_for_node(
                                                 name,
                                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -745,7 +746,7 @@ impl TypeChecker {
                 add_diagnostic(
                     &import_decl,
                     UnusedKind::Local,
-                    Rc::new(if unuseds.len() == 1 {
+                    Gc::new(if unuseds.len() == 1 {
                         create_diagnostic_for_node(
                             &import_decl,
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -792,13 +793,13 @@ impl TypeChecker {
                         &mut unused_variables,
                         binding_pattern.parent().parent(),
                         binding_pattern.parent(),
-                        |key: &Rc<Node>| get_node_id(key).to_string(),
+                        |key: &Gc<Node>| get_node_id(key).to_string(),
                     );
                 } else {
                     add_diagnostic(
                         binding_pattern,
                         kind,
-                        Rc::new(if binding_elements.len() == 1 {
+                        Gc::new(if binding_elements.len() == 1 {
                             create_diagnostic_for_node(
                                 binding_pattern,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -824,7 +825,7 @@ impl TypeChecker {
                     add_diagnostic(
                         e,
                         kind,
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node(
                                 e,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -848,7 +849,7 @@ impl TypeChecker {
                 add_diagnostic(
                     declaration_list,
                     UnusedKind::Local,
-                    Rc::new(if declarations.len() == 1 {
+                    Gc::new(if declarations.len() == 1 {
                         create_diagnostic_for_node(
                             &first(declarations).as_variable_declaration().name(),
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -877,7 +878,7 @@ impl TypeChecker {
                     add_diagnostic(
                         decl,
                         UnusedKind::Local,
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node(
                                 decl,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -903,7 +904,7 @@ impl TypeChecker {
                 .binding_name_text(
                     &*cast_present(
                         first(&**name.as_has_elements().elements()),
-                        |element: &&Rc<Node>| is_binding_element(element),
+                        |element: &&Gc<Node>| is_binding_element(element),
                     )
                     .as_binding_element()
                     .name(),
@@ -924,7 +925,7 @@ impl TypeChecker {
     pub(super) fn import_clause_from_imported(
         &self,
         decl: &Node, /*ImportedDeclaration*/
-    ) -> Rc<Node /*ImportClause*/> {
+    ) -> Gc<Node /*ImportClause*/> {
         if decl.kind() == SyntaxKind::ImportClause {
             decl.node_wrapper()
         } else if decl.kind() == SyntaxKind::NamespaceImport {
@@ -974,7 +975,7 @@ impl TypeChecker {
 
         for_each(
             node.as_signature_declaration().parameters(),
-            |p: &Rc<Node>, _| -> Option<()> {
+            |p: &Gc<Node>, _| -> Option<()> {
                 if matches!(
                     p.as_parameter_declaration().maybe_name().as_ref(),
                     Some(p_name) if !is_binding_pattern(Some(&**p_name)) &&

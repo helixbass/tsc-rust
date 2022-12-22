@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -183,6 +184,15 @@ pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {
 pub fn contains_rc<TItem>(array: Option<&[Rc<TItem>]>, value: &Rc<TItem>) -> bool {
     array.map_or(false, |array| {
         array.iter().any(|item| Rc::ptr_eq(item, value))
+    })
+}
+
+pub fn contains_gc<TItem: Trace + Finalize>(
+    array: Option<&[Gc<TItem>]>,
+    value: &Gc<TItem>,
+) -> bool {
+    array.map_or(false, |array| {
+        array.iter().any(|item| Gc::ptr_eq(item, value))
     })
 }
 
@@ -481,6 +491,14 @@ enum ComparerOrEqualityComparer<'closure, TItem> {
     EqualityComparer(&'closure dyn Fn(&TItem, &TItem) -> bool),
 }
 
+fn deduplicate_equality_gc<TItem: Trace + Finalize>(array: &[Gc<TItem>]) -> Vec<Gc<TItem>> {
+    let mut result = vec![];
+    for item in array {
+        push_if_unique_gc(&mut result, item);
+    }
+    result
+}
+
 fn deduplicate_equality_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
     let mut result = vec![];
     for item in array {
@@ -499,7 +517,17 @@ pub fn deduplicate_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
     }
 }
 
-fn deduplicate_sorted<TItem: Clone>(
+pub fn deduplicate_gc<TItem: Trace + Finalize>(array: &[Gc<TItem>]) -> Vec<Gc<TItem>> {
+    if array.is_empty() {
+        vec![]
+    } else if array.len() == 1 {
+        vec![array[0].clone()]
+    } else {
+        deduplicate_equality_gc(array)
+    }
+}
+
+fn deduplicate_sorted<TItem: Clone + Trace + Finalize>(
     array: &SortedArray<TItem>,
     comparer: ComparerOrEqualityComparer<TItem>,
 ) -> SortedArray<TItem> {
@@ -535,7 +563,9 @@ fn deduplicate_sorted<TItem: Clone>(
     SortedArray::new(deduplicated)
 }
 
-pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
+pub fn insert_sorted<
+    TItem: Trace + Finalize, /*, TComparer: Comparer<&'array_or_item TItem>*/
+>(
     array: &mut SortedArray<TItem>,
     insert: TItem,
     // compare: Comparer<&'array_or_item TItem>,
@@ -554,7 +584,7 @@ pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
 }
 
 pub fn sort_and_deduplicate<
-    TItem: Clone,
+    TItem: Clone + Trace + Finalize,
     TComparer: Fn(&TItem, &TItem) -> Comparison,
     TEqualityComparer: Fn(&TItem, &TItem) -> bool,
 >(
@@ -712,8 +742,27 @@ pub fn push_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) 
     }
 }
 
+pub fn push_if_unique_gc<TItem: Trace + Finalize>(
+    array: &mut Vec<Gc<TItem>>,
+    to_add: &Gc<TItem>,
+) -> bool {
+    if contains_gc(Some(array), to_add) {
+        false
+    } else {
+        array.push(to_add.clone());
+        true
+    }
+}
+
 pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) {
     push_if_unique_rc(array, to_add);
+}
+
+pub fn append_if_unique_gc<TItem: Trace + Finalize>(
+    array: &mut Vec<Gc<TItem>>,
+    to_add: &Gc<TItem>,
+) {
+    push_if_unique_gc(array, to_add);
 }
 
 pub fn maybe_append_if_unique_rc<TItem>(
@@ -722,6 +771,18 @@ pub fn maybe_append_if_unique_rc<TItem>(
 ) -> Vec<Rc<TItem>> {
     if let Some(mut array) = array {
         push_if_unique_rc(&mut array, to_add);
+        array
+    } else {
+        vec![to_add.clone()]
+    }
+}
+
+pub fn maybe_append_if_unique_gc<TItem: Trace + Finalize>(
+    array: Option<Vec<Gc<TItem>>>,
+    to_add: &Gc<TItem>,
+) -> Vec<Gc<TItem>> {
+    if let Some(mut array) = array {
+        push_if_unique_gc(&mut array, to_add);
         array
     } else {
         vec![to_add.clone()]
@@ -761,7 +822,7 @@ pub fn stable_sort_indices<TItem, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     });
 }
 
-pub fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
@@ -789,7 +850,22 @@ pub fn range_equals_rc<TItem>(
     true
 }
 
-pub fn stable_sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn range_equals_gc<TItem: Trace + Finalize>(
+    array1: &[Gc<TItem>],
+    array2: &[Gc<TItem>],
+    mut pos: usize,
+    end: usize,
+) -> bool {
+    while pos < end {
+        if !Gc::ptr_eq(&array1[pos], &array2[pos]) {
+            return false;
+        }
+        pos += 1;
+    }
+    true
+}
+
+pub fn stable_sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
@@ -1133,48 +1209,69 @@ pub fn clone<TValue: Cloneable>(object: &TValue) -> TValue {
     object.cloned()
 }
 
-// TODO: make the nested hash map private and implement iteration on the wrapper
-#[derive(Debug)]
-pub struct MultiMap<TKey, TValue>(pub HashMap<TKey, Vec<TValue>>);
+mod _MultiMapDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
 
-impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
-    pub fn add(&mut self, key: TKey, value: TValue) {
-        let values = self.0.entry(key).or_insert(vec![]);
-        values.push(value);
-    }
+    #[derive(Debug, Trace, Finalize)]
+    pub struct MultiMap<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+        // TODO: make the nested hash map private and implement iteration on the wrapper
+        pub HashMap<TKey, Vec<TValue>>,
+    );
 
-    pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
-        &mut self,
-        key: TKey,
-        value: &TValue,
-        comparer: TComparer,
-    ) {
-        {
-            let mut values = self.0.entry(key);
-            match values {
-                Entry::Occupied(mut values) => {
-                    unordered_remove_item(values.get_mut(), value, comparer);
-                    if values.get().is_empty() {
-                        values.remove_entry();
+    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> MultiMap<TKey, TValue> {
+        pub fn add(&mut self, key: TKey, value: TValue) {
+            let values = self.0.entry(key).or_insert(vec![]);
+            values.push(value);
+        }
+
+        pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
+            &mut self,
+            key: TKey,
+            value: &TValue,
+            comparer: TComparer,
+        ) {
+            {
+                let mut values = self.0.entry(key);
+                match values {
+                    Entry::Occupied(mut values) => {
+                        unordered_remove_item(values.get_mut(), value, comparer);
+                        if values.get().is_empty() {
+                            values.remove_entry();
+                        }
                     }
+                    _ => (),
                 }
-                _ => (),
             }
+        }
+
+        pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
+            self.0.get(key)
         }
     }
 
-    pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
-        self.0.get(key)
+    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> IntoIterator
+        for MultiMap<TKey, TValue>
+    {
+        type Item = (TKey, Vec<TValue>);
+        type IntoIter = <HashMap<TKey, Vec<TValue>> as IntoIterator>::IntoIter;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.into_iter()
+        }
     }
 }
+pub use _MultiMapDeriveTraceScope::MultiMap;
 
-pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue> {
+pub fn create_multi_map<TKey: Trace + Finalize, TValue: Trace + Finalize>() -> MultiMap<TKey, TValue>
+{
     MultiMap(HashMap::new())
 }
 
-pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
+pub type UnderscoreEscapedMultiMap<TValue: Trace + Finalize> = MultiMap<__String, TValue>;
 
-pub fn create_underscore_escaped_multi_map<TValue>() -> UnderscoreEscapedMultiMap<TValue> {
+pub fn create_underscore_escaped_multi_map<TValue: Trace + Finalize>(
+) -> UnderscoreEscapedMultiMap<TValue> {
     create_multi_map()
 }
 
@@ -1518,7 +1615,7 @@ pub fn identity_str_to_owned(str_: &str) -> String {
     str_.to_owned()
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct Pattern {
     pub prefix: String,
     pub suffix: String,

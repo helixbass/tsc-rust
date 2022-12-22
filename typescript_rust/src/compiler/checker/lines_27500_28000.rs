@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -84,7 +85,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_library_managed_attributes<TJsxNamespace: Borrow<Symbol>>(
         &self,
         jsx_namespace: Option<TJsxNamespace>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let jsx_namespace = jsx_namespace?;
         let jsx_namespace = jsx_namespace.borrow();
         let ret = self.get_symbol(
@@ -119,7 +120,7 @@ impl TypeChecker {
         &self,
         element_type: &Type,
         caller: &Node, /*JsxOpeningLikeElement*/
-    ) -> Vec<Rc<Signature>> {
+    ) -> Vec<Gc<Signature>> {
         if element_type.flags().intersects(TypeFlags::String) {
             return vec![self.any_signature()];
         } else if element_type.flags().intersects(TypeFlags::StringLiteral) {
@@ -153,7 +154,7 @@ impl TypeChecker {
         if signatures.is_empty() && apparent_elem_type.flags().intersects(TypeFlags::Union) {
             signatures = self.get_union_signatures(&map(
                 apparent_elem_type.as_union_type().types(),
-                |t: &Rc<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
+                |t: &Gc<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
             ));
         }
         signatures
@@ -163,7 +164,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*StringLiteralType*/
         location: &Node,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let intrinsic_elements_type =
             self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location));
         if !self.is_error_type(&intrinsic_elements_type) {
@@ -208,9 +209,9 @@ impl TypeChecker {
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(Rc::new(GenerateInitialErrorChain::new(
+                    Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
                         opening_like_element.node_wrapper(),
-                    ))),
+                    )))),
                     None,
                 );
             }
@@ -229,9 +230,9 @@ impl TypeChecker {
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(Rc::new(GenerateInitialErrorChain::new(
+                    Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
                         opening_like_element.node_wrapper(),
-                    ))),
+                    )))),
                     None,
                 );
             }
@@ -263,9 +264,9 @@ impl TypeChecker {
                 Some(Cow::Borrowed(
                     &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
                 )),
-                Some(Rc::new(GenerateInitialErrorChain::new(
+                Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
                     opening_like_element.node_wrapper(),
-                ))),
+                )))),
                 None,
             );
         }
@@ -274,7 +275,7 @@ impl TypeChecker {
     pub(super) fn get_intrinsic_attributes_type_from_jsx_opening_like_element(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         Debug_.assert(
             self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()),
@@ -322,7 +323,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_jsx_element_class_type_at(&self, location: &Node) -> Option<Rc<Type>> {
+    pub(super) fn get_jsx_element_class_type_at(&self, location: &Node) -> Option<Gc<Type>> {
         let type_ = self.get_jsx_type(&JsxNames::ElementClass, Some(location));
         if self.is_error_type(&type_) {
             return None;
@@ -330,11 +331,11 @@ impl TypeChecker {
         Some(type_)
     }
 
-    pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> Rc<Type> {
+    pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> Gc<Type> {
         self.get_jsx_type(&JsxNames::Element, Some(location))
     }
 
-    pub(super) fn get_jsx_stateless_element_type_at(&self, location: &Node) -> Option<Rc<Type>> {
+    pub(super) fn get_jsx_stateless_element_type_at(&self, location: &Node) -> Option<Gc<Type>> {
         let jsx_element_type = self.get_jsx_element_type_at(location);
         // if (jsxElementType) {
         Some(self.get_union_type(
@@ -347,7 +348,7 @@ impl TypeChecker {
         // }
     }
 
-    pub(super) fn get_jsx_intrinsic_tag_names_at(&self, location: &Node) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_jsx_intrinsic_tag_names_at(&self, location: &Node) -> Vec<Gc<Symbol>> {
         let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location));
         /*intrinsics ?*/
         self.get_properties_of_type(&intrinsics) /*: emptyArray*/
@@ -399,7 +400,7 @@ impl TypeChecker {
                 node.node_wrapper()
             };
 
-            let mut jsx_factory_sym: Option<Rc<Symbol>> = None;
+            let mut jsx_factory_sym: Option<Gc<Symbol>> = None;
             if !(is_jsx_opening_fragment(node) && jsx_factory_namespace == "null") {
                 jsx_factory_sym = self.resolve_name_(
                     Some(&*jsx_factory_location),
@@ -499,12 +500,12 @@ impl TypeChecker {
             || (type_.flags().intersects(TypeFlags::Union)
                 && some(
                     Some(type_.as_union_type().types()),
-                    Some(|type_: &Rc<Type>| self.is_excess_property_check_target(type_)),
+                    Some(|type_: &Gc<Type>| self.is_excess_property_check_target(type_)),
                 ))
             || (type_.flags().intersects(TypeFlags::Intersection)
                 && every(
                     type_.as_intersection_type().types(),
-                    |type_: &Rc<Type>, _| self.is_excess_property_check_target(type_),
+                    |type_: &Gc<Type>, _| self.is_excess_property_check_target(type_),
                 ))
     }
 
@@ -512,13 +513,13 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.check_grammar_jsx_expression(node);
         let node_as_jsx_expression = node.as_jsx_expression();
         if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
             let type_ = self.check_expression(node_expression, check_mode, None);
             if node_as_jsx_expression.dot_dot_dot_token.is_some()
-                && !Rc::ptr_eq(&type_, &self.any_type())
+                && !Gc::ptr_eq(&type_, &self.any_type())
                 && !self.is_array_type(&type_)
             {
                 self.error(
@@ -712,7 +713,7 @@ impl TypeChecker {
                 }
             });
         if enclosing_class.is_none() {
-            let mut this_parameter: Option<Rc<Node /*ParameterDeclaration*/>> = None;
+            let mut this_parameter: Option<Gc<Node /*ParameterDeclaration*/>> = None;
             if flags.intersects(ModifierFlags::Static) || {
                 this_parameter = self.get_this_parameter_from_node_context(location);
                 match this_parameter.as_ref() {
@@ -819,12 +820,13 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct GenerateInitialErrorChain {
-    opening_like_element: Rc<Node>,
+    opening_like_element: Gc<Node>,
 }
 
 impl GenerateInitialErrorChain {
-    pub fn new(opening_like_element: Rc<Node>) -> Self {
+    pub fn new(opening_like_element: Gc<Node>) -> Self {
         Self {
             opening_like_element,
         }

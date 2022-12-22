@@ -1,9 +1,10 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{unsafe_empty_trace, Finalize, Trace};
 use std::cell::Cell;
 use std::ops::Deref;
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Finalize)]
 pub struct Path(String);
 
 impl Path {
@@ -14,6 +15,10 @@ impl Path {
     pub fn into_string(self) -> String {
         self.0
     }
+}
+
+unsafe impl Trace for Path {
+    unsafe_empty_trace!();
 }
 
 impl ToString for Path {
@@ -41,6 +46,35 @@ pub trait ReadonlyTextRange {
     fn set_pos(&self, pos: isize);
     fn end(&self) -> isize;
     fn set_end(&self, end: isize);
+}
+
+pub struct ReadonlyTextRangeConcrete {
+    pos: isize,
+    end: isize,
+}
+
+impl ReadonlyTextRangeConcrete {
+    pub fn new(pos: isize, end: isize) -> Self {
+        Self { pos, end }
+    }
+}
+
+impl ReadonlyTextRange for ReadonlyTextRangeConcrete {
+    fn pos(&self) -> isize {
+        self.pos
+    }
+
+    fn set_pos(&self, pos: isize) {
+        unreachable!()
+    }
+
+    fn end(&self) -> isize {
+        self.end
+    }
+
+    fn set_end(&self, end: isize) {
+        unreachable!()
+    }
 }
 
 pub trait TextRange {
@@ -487,4 +521,9 @@ impl SyntaxKind {
     pub const LastJSDocTagNode: SyntaxKind = SyntaxKind::JSDocPropertyTag;
     pub(crate) const FirstContextualKeyword: SyntaxKind = SyntaxKind::AbstractKeyword;
     pub(crate) const LastContextualKeyword: SyntaxKind = SyntaxKind::OfKeyword;
+}
+
+impl Finalize for SyntaxKind {}
+unsafe impl Trace for SyntaxKind {
+    unsafe_empty_trace!();
 }

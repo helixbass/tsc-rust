@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -6,11 +7,11 @@ use super::PipelinePhase;
 use crate::{
     cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node,
     is_binary_expression, is_block, is_expression, is_json_source_file, node_is_synthesized,
-    positions_are_on_same_line, skip_trivia, with_synthetic_factory, BinaryExpressionStateMachine,
-    BinaryExpressionTrampoline, Debug_, EmitFlags, EmitHint, HasTypeArgumentsInterface,
-    HasTypeInterface, HasTypeParametersInterface, LeftOrRight, ListFormat,
-    NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
-    SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
+    positions_are_on_same_line, skip_trivia, with_synthetic_factory, BaseNodeFactorySynthetic,
+    BinaryExpressionStateMachine, BinaryExpressionTrampoline, CurrentParenthesizerRule, Debug_,
+    EmitFlags, EmitHint, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    LeftOrRight, ListFormat, NamedDeclarationInterface, Node, NodeInterface, ParenthesizerRules,
+    Printer, ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
 };
 
 impl Printer {
@@ -25,14 +26,9 @@ impl Printer {
         let node_as_call_expression = node.as_call_expression();
         self.emit_expression(
             Some(&*node_as_call_expression.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
         if indirect_call {
             self.write_punctuation(")");
@@ -46,15 +42,11 @@ impl Printer {
             Some(node),
             Some(&node_as_call_expression.arguments),
             ListFormat::CallExpressionArguments,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
             None,
             None,
         );
@@ -72,29 +64,20 @@ impl Printer {
         let node_as_new_expression = node.as_new_expression();
         self.emit_expression(
             Some(&*node_as_new_expression.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_expression_of_new(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionOfNewCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
         self.emit_type_arguments(node, node_as_new_expression.maybe_type_arguments().as_ref());
         self.emit_expression_list(
             Some(node),
             node_as_new_expression.arguments.as_ref(),
             ListFormat::NewExpressionArguments,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
             None,
             None,
         );
@@ -114,14 +97,9 @@ impl Printer {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         self.emit_expression(
             Some(&*node_as_tagged_template_expression.tag),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
         if indirect_call {
             self.write_punctuation(")");
@@ -143,14 +121,9 @@ impl Printer {
         self.write_punctuation(">");
         self.emit_expression(
             Some(&*node_as_type_assertion.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
     }
 
@@ -212,14 +185,9 @@ impl Printer {
         self.write_space();
         self.emit_expression(
             Some(&*node.as_delete_expression().expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
     }
 
@@ -234,14 +202,9 @@ impl Printer {
         self.write_space();
         self.emit_expression(
             Some(&*node.as_type_of_expression().expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
     }
 
@@ -256,14 +219,9 @@ impl Printer {
         self.write_space();
         self.emit_expression(
             Some(&*node.as_void_expression().expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
     }
 
@@ -278,14 +236,9 @@ impl Printer {
         self.write_space();
         self.emit_expression(
             Some(&*node.as_await_expression().expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
     }
 
@@ -301,14 +254,9 @@ impl Printer {
         }
         self.emit_expression(
             Some(&*node_as_prefix_unary_expression.operand),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
     }
 
@@ -338,14 +286,11 @@ impl Printer {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         self.emit_expression(
             Some(&*node_as_postfix_unary_expression.operand),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_operand_of_postfix_unary(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.write_token_text(
             node_as_postfix_unary_expression.operator,
@@ -386,32 +331,22 @@ impl Printer {
 
         self.emit_expression(
             Some(&*node_as_conditional_expression.condition),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_condition_of_conditional_expression(
-                            synthetic_factory,
-                            node,
-                        )
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.write_lines_and_indent(lines_before_question, true);
         self.emit(Some(&*node_as_conditional_expression.question_token), None);
         self.write_lines_and_indent(lines_after_question, true);
         self.emit_expression(
             Some(&*node_as_conditional_expression.when_true),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_branch_of_conditional_expression(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.decrease_indent_if(lines_before_question != 0, Some(lines_after_question != 0));
 
@@ -420,15 +355,11 @@ impl Printer {
         self.write_lines_and_indent(lines_after_colon, true);
         self.emit_expression(
             Some(&*node_as_conditional_expression.when_false),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_branch_of_conditional_expression(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.decrease_indent_if(lines_before_colon != 0, Some(lines_after_colon != 0));
     }
@@ -458,15 +389,11 @@ impl Printer {
         self.emit(node_as_yield_expression.asterisk_token.as_deref(), None);
         self.emit_expression_with_leading_space(
             node_as_yield_expression.expression.as_deref(),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 
@@ -480,15 +407,11 @@ impl Printer {
         );
         self.emit_expression(
             Some(&*node.as_spread_element().expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 
@@ -505,14 +428,9 @@ impl Printer {
         let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
         self.emit_expression(
             Some(&*node_as_expression_with_type_arguments.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
         self.emit_type_arguments(
             node,
@@ -537,14 +455,9 @@ impl Printer {
         let node_as_non_null_expression = node.as_non_null_expression();
         self.emit_expression(
             Some(&*node_as_non_null_expression.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
         self.write_operator("!");
     }
@@ -627,17 +540,11 @@ impl Printer {
         let node_as_expression_statement = node.as_expression_statement();
         self.emit_expression(
             Some(&*node_as_expression_statement.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_expression_of_expression_statement(
-                            synthetic_factory,
-                            node,
-                        )
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         if !is_json_source_file(&self.current_source_file())
             || node_is_synthesized(&*node_as_expression_statement.expression)
@@ -1021,6 +928,7 @@ impl Printer {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct EmitBinaryExpression {
     trampoline: BinaryExpressionTrampoline<EmitBinaryExpressionStateMachine>,
 }
@@ -1045,12 +953,13 @@ pub struct WorkArea {
     pub should_emit_source_maps_stack: Vec<bool>,
 }
 
+#[derive(Trace, Finalize)]
 pub struct EmitBinaryExpressionStateMachine {
-    printer: Rc<Printer>,
+    printer: Gc<Printer>,
 }
 
 impl EmitBinaryExpressionStateMachine {
-    pub fn new(printer: Rc<Printer>) -> Self {
+    pub fn new(printer: Gc<Printer>) -> Self {
         Self { printer }
     }
 
@@ -1059,39 +968,13 @@ impl EmitBinaryExpressionStateMachine {
         next: &Node,   /*Expression*/
         parent: &Node, /*BinaryExpression*/
         side: LeftOrRight,
-    ) -> Option<Rc<Node>> {
-        let parenthesizer_rule: Rc<dyn Fn(&Node) -> Rc<Node>> = if side == LeftOrRight::Left {
-            Rc::new({
-                let parenthesizer = self.printer.parenthesizer();
-                let parent_operator_token_kind =
-                    parent.as_binary_expression().operator_token.kind();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_binary(
-                            synthetic_factory,
-                            parent_operator_token_kind,
-                            node,
-                        )
-                    })
-                }
-            })
-        } else {
-            Rc::new({
-                let parenthesizer = self.printer.parenthesizer();
-                let parent_operator_token_kind =
-                    parent.as_binary_expression().operator_token.kind();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_right_side_of_binary(
-                            synthetic_factory,
-                            parent_operator_token_kind,
-                            None,
-                            node,
-                        )
-                    })
-                }
-            })
-        };
+    ) -> Option<Gc<Node>> {
+        let parenthesizer_rule: Gc<Box<dyn CurrentParenthesizerRule>> =
+            Gc::new(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
+                side,
+                self.printer.parenthesizer(),
+                parent.as_binary_expression().operator_token.kind(),
+            )));
 
         let mut pipeline_phase = self.printer.get_pipeline_phase(
             PipelinePhase::Notification,
@@ -1102,9 +985,9 @@ impl EmitBinaryExpressionStateMachine {
         // per https://users.rust-lang.org/t/compare-function-pointers-for-equality/52339/3
         if pipeline_phase as usize == Printer::pipeline_emit_with_substitution as usize {
             Debug_.assert_is_defined(&self.printer.maybe_last_substitution(), None);
-            next = parenthesizer_rule(&*cast(
+            next = parenthesizer_rule.call(&*cast(
                 self.printer.maybe_last_substitution(),
-                |node: &Rc<Node>| is_expression(node),
+                |node: &Gc<Node>| is_expression(node),
             ));
             pipeline_phase = self.printer.get_next_pipeline_phase(
                 PipelinePhase::Substitution,
@@ -1184,7 +1067,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         next: &Node, /*Expression*/
         _work_area: Rc<RefCell<WorkArea>>,
         parent: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         self.maybe_emit_expression(next, parent, LeftOrRight::Left)
     }
 
@@ -1229,7 +1112,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         next: &Node, /*Expression*/
         _state: Rc<RefCell<WorkArea>>,
         parent: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         self.maybe_emit_expression(next, parent, LeftOrRight::Right)
     }
 
@@ -1291,5 +1174,363 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
 
     fn implements_fold_state(&self) -> bool {
         false
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct MaybeEmitExpressionCurrentParenthesizerRule {
+    #[unsafe_ignore_trace]
+    side: LeftOrRight,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    #[unsafe_ignore_trace]
+    parent_operator_token_kind: SyntaxKind,
+}
+
+impl MaybeEmitExpressionCurrentParenthesizerRule {
+    pub fn new(
+        side: LeftOrRight,
+        parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+        parent_operator_token_kind: SyntaxKind,
+    ) -> Self {
+        Self {
+            side,
+            parenthesizer,
+            parent_operator_token_kind,
+        }
+    }
+}
+
+impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        if self.side == LeftOrRight::Left {
+            with_synthetic_factory(|synthetic_factory| {
+                self.parenthesizer.parenthesize_left_side_of_binary(
+                    synthetic_factory,
+                    self.parent_operator_token_kind,
+                    node,
+                )
+            })
+        } else {
+            with_synthetic_factory(|synthetic_factory| {
+                self.parenthesizer.parenthesize_right_side_of_binary(
+                    synthetic_factory,
+                    self.parent_operator_token_kind,
+                    None,
+                    node,
+                )
+            })
+        }
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_operand_of_prefix_unary(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_operand_of_postfix_unary(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_left_side_of_access(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeExpressionOfNewCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeExpressionOfNewCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_expression_of_new(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_member_of_element_type(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_member_of_conditional_type(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_element_type_of_array_type(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule
+    for ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule
+{
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_expression_of_computed_property_name(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_expression_of_export_default(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer.parenthesize_right_side_of_binary(
+                synthetic_factory,
+                SyntaxKind::EqualsToken,
+                None,
+                node,
+            )
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_concise_body_of_arrow_function(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule
+    for ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule
+{
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_expression_of_expression_statement(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule
+    for ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule
+{
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_branch_of_conditional_expression(synthetic_factory, node)
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+}
+
+impl ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
+    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+        Self { parenthesizer }
+    }
+}
+
+impl CurrentParenthesizerRule
+    for ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule
+{
+    fn call(&self, node: &Node) -> Gc<Node> {
+        with_synthetic_factory(|synthetic_factory| {
+            self.parenthesizer
+                .parenthesize_condition_of_conditional_expression(synthetic_factory, node)
+        })
     }
 }

@@ -1,25 +1,27 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
 use super::IterationUse;
 use crate::{
-    add_related_info, are_option_rcs_equal, create_diagnostic_for_node, declaration_name_to_string,
-    find_ancestor, for_each, for_each_child_bool, get_ancestor, get_combined_node_flags,
-    get_containing_function, get_effective_initializer, get_enclosing_block_scope_container,
-    get_module_instance_state, get_name_of_declaration, get_selected_effective_modifier_flags,
-    get_source_file_of_node, has_question_token, is_array_binding_pattern, is_binary_expression,
-    is_binding_element, is_binding_pattern, is_call_expression, is_class_expression, is_class_like,
-    is_enum_declaration, is_external_or_common_js_module, is_function_expression, is_function_like,
-    is_identifier, is_in_js_file, is_module_declaration, is_named_declaration,
-    is_object_binding_pattern, is_object_literal_expression, is_parameter_declaration,
-    is_property_access_expression, is_prototype_access, is_require_variable_declaration,
-    is_variable_like, node_is_missing, some, ClassLikeDeclarationInterface, Debug_, Diagnostics,
-    ExternalEmitHelpers, HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind,
-    Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    add_related_info, are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node,
+    declaration_name_to_string, find_ancestor, for_each, for_each_child_bool, get_ancestor,
+    get_combined_node_flags, get_containing_function, get_effective_initializer,
+    get_enclosing_block_scope_container, get_module_instance_state, get_name_of_declaration,
+    get_selected_effective_modifier_flags, get_source_file_of_node, has_question_token,
+    is_array_binding_pattern, is_binary_expression, is_binding_element, is_binding_pattern,
+    is_call_expression, is_class_expression, is_class_like, is_enum_declaration,
+    is_external_or_common_js_module, is_function_expression, is_function_like, is_identifier,
+    is_in_js_file, is_module_declaration, is_named_declaration, is_object_binding_pattern,
+    is_object_literal_expression, is_parameter_declaration, is_property_access_expression,
+    is_prototype_access, is_require_variable_declaration, is_variable_like, node_is_missing, some,
+    ClassLikeDeclarationInterface, Debug_, Diagnostics, ExternalEmitHelpers,
+    HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind, Node, NodeArray,
+    NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -318,7 +320,7 @@ impl TypeChecker {
                 &node_name.as_identifier().escaped_text,
                 SymbolFlags::Variable,
                 None,
-                Option::<Rc<Node>>::None,
+                Option::<Gc<Node>>::None,
                 false,
                 None,
             );
@@ -326,7 +328,7 @@ impl TypeChecker {
                 local_declaration_symbol
                     .as_ref()
                     .filter(|local_declaration_symbol| {
-                        !Rc::ptr_eq(local_declaration_symbol, &symbol)
+                        !Gc::ptr_eq(local_declaration_symbol, &symbol)
                             && local_declaration_symbol
                                 .flags()
                                 .intersects(SymbolFlags::BlockScopedVariable)
@@ -381,7 +383,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Gc<Type> {
         if ptr::eq(type_, &*self.auto_type()) {
             self.any_type()
         } else if ptr::eq(type_, &*self.auto_array_type()) {
@@ -478,7 +480,7 @@ impl TypeChecker {
 
             for_each(
                 node_name.as_has_elements().elements(),
-                |element: &Rc<Node>, _| -> Option<()> {
+                |element: &Gc<Node>, _| -> Option<()> {
                     self.check_source_element(Some(&**element));
                     None
                 },
@@ -586,7 +588,7 @@ impl TypeChecker {
             {
                 if some(
                     Some(symbol_declarations),
-                    Some(|d: &Rc<Node>| {
+                    Some(|d: &Gc<Node>| {
                         !ptr::eq(&**d, node)
                             && is_variable_like(d)
                             && !self.are_declaration_flags_identical(d, node)
@@ -691,7 +693,7 @@ impl TypeChecker {
             let first_declaration: &Node = first_declaration.borrow();
             add_related_info(
                 &err,
-                vec![Rc::new(
+                vec![Gc::new(
                     create_diagnostic_for_node(
                         first_declaration,
                         &Diagnostics::_0_was_also_declared_here,
@@ -923,7 +925,7 @@ impl TypeChecker {
                         || tested_expression_present.kind() == SyntaxKind::ThisKeyword
                             && child_expression_present.kind() == SyntaxKind::ThisKeyword
                     {
-                        return are_option_rcs_equal(
+                        return are_option_gcs_equal(
                             self.get_symbol_at_location_(tested_expression_present, None)
                                 .as_ref(),
                             self.get_symbol_at_location_(child_expression_present, None)
@@ -936,7 +938,7 @@ impl TypeChecker {
                             tested_expression_present.as_property_access_expression();
                         let child_expression_present_as_property_access_expression =
                             child_expression_present.as_property_access_expression();
-                        if !are_option_rcs_equal(
+                        if !are_option_gcs_equal(
                             self.get_symbol_at_location_(
                                 &tested_expression_present_as_property_access_expression.name,
                                 None,

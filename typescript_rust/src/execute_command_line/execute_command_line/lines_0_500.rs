@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -97,11 +98,11 @@ pub(super) fn get_count_key(program: &Program, file: &Node /*SourceFile*/) -> &'
 }
 
 pub(super) fn update_report_diagnostic(
-    sys: Rc<dyn System>,
-    existing: Rc<dyn DiagnosticReporter>,
+    sys: Gc<Box<dyn System>>,
+    existing: Gc<Box<dyn DiagnosticReporter>>,
     options: CompilerOptionsOrBuildOptions,
-) -> Rc<dyn DiagnosticReporter> {
-    if should_be_pretty(&*sys, options) {
+) -> Gc<Box<dyn DiagnosticReporter>> {
+    if should_be_pretty(&**sys, options) {
         create_diagnostic_reporter(sys, Some(true))
     } else {
         existing
@@ -109,7 +110,7 @@ pub(super) fn update_report_diagnostic(
 }
 
 pub(super) enum CompilerOptionsOrBuildOptions {
-    CompilerOptions(Rc<CompilerOptions>),
+    CompilerOptions(Gc<CompilerOptions>),
     BuildOptions(Rc<BuildOptions>),
 }
 
@@ -122,8 +123,8 @@ impl CompilerOptionsOrBuildOptions {
     }
 }
 
-impl From<Rc<CompilerOptions>> for CompilerOptionsOrBuildOptions {
-    fn from(value: Rc<CompilerOptions>) -> Self {
+impl From<Gc<CompilerOptions>> for CompilerOptionsOrBuildOptions {
+    fn from(value: Gc<CompilerOptions>) -> Self {
         Self::CompilerOptions(value)
     }
 }
@@ -837,13 +838,13 @@ pub(super) fn print_help(sys: &dyn System, command_line: &ParsedCommandLine) {
 pub(super) fn execute_command_line_worker<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    sys: Rc<dyn System>,
+    sys: Gc<Box<dyn System>>,
     cb: &mut TCallback,
     command_line: &mut ParsedCommandLine,
 ) {
     let mut report_diagnostic = create_diagnostic_reporter(sys.clone(), None);
     if matches!(command_line.options.build, Some(true)) {
-        report_diagnostic.call(Rc::new(
+        report_diagnostic.call(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Option_build_must_be_the_first_command_line_argument,
                 None,
@@ -858,15 +859,15 @@ pub(super) fn execute_command_line_worker<
         if !command_line_options_locale.is_empty() {
             validate_locale_and_set_language(
                 command_line_options_locale,
-                &*sys,
-                Some(&mut command_line.errors),
+                &**sys,
+                Some(&mut command_line.errors.borrow_mut()),
             );
         }
     }
 
-    if !command_line.errors.is_empty() {
-        command_line
-            .errors
+    if !(*command_line.errors).borrow().is_empty() {
+        (*command_line.errors)
+            .borrow()
             .iter()
             .for_each(|error| report_diagnostic.call(error.clone()));
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
@@ -874,8 +875,8 @@ pub(super) fn execute_command_line_worker<
 
     if matches!(command_line.options.init, Some(true)) {
         write_config_file(
-            &*sys,
-            &*report_diagnostic,
+            &**sys,
+            &**report_diagnostic,
             &command_line.options,
             &command_line.file_names,
         );
@@ -883,21 +884,21 @@ pub(super) fn execute_command_line_worker<
     }
 
     if matches!(command_line.options.version, Some(true)) {
-        print_version(&*sys);
+        print_version(&**sys);
         sys.exit(Some(ExitStatus::Success));
     }
 
     if matches!(command_line.options.help, Some(true))
         || matches!(command_line.options.all, Some(true))
     {
-        print_help(&*sys, &command_line);
+        print_help(&**sys, &command_line);
         sys.exit(Some(ExitStatus::Success));
     }
 
     if matches!(command_line.options.watch, Some(true))
         && matches!(command_line.options.list_files_only, Some(true))
     {
-        report_diagnostic.call(Rc::new(
+        report_diagnostic.call(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Options_0_and_1_cannot_be_combined,
                 Some(vec!["watch".to_owned(), "listFilesOnly".to_owned()]),
@@ -909,7 +910,7 @@ pub(super) fn execute_command_line_worker<
 
     if let Some(command_line_options_project) = command_line.options.project.as_ref() {
         if !command_line.file_names.is_empty() {
-            report_diagnostic.call(Rc::new(
+            report_diagnostic.call(Gc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Option_project_cannot_be_mixed_with_source_files_on_a_command_line,
                     None
@@ -926,7 +927,7 @@ pub(super) fn execute_command_line_worker<
                 &vec![Some("tsconfig.json")],
             ));
             if !sys.file_exists(config_file_name.as_ref().unwrap()) {
-                report_diagnostic.call(Rc::new(
+                report_diagnostic.call(Gc::new(
                     create_compiler_diagnostic(
                         &Diagnostics::Cannot_find_a_tsconfig_json_file_at_the_specified_directory_Colon_0,
                         Some(vec![command_line_options_project.to_owned()])
@@ -938,7 +939,7 @@ pub(super) fn execute_command_line_worker<
         } else {
             config_file_name = Some(file_or_directory);
             if !sys.file_exists(config_file_name.as_ref().unwrap()) {
-                report_diagnostic.call(Rc::new(
+                report_diagnostic.call(Gc::new(
                     create_compiler_diagnostic(
                         &Diagnostics::The_specified_path_does_not_exist_Colon_0,
                         Some(vec![command_line_options_project.to_owned()]),
@@ -956,7 +957,7 @@ pub(super) fn execute_command_line_worker<
 
     if command_line.file_names.is_empty() && config_file_name.is_none() {
         if matches!(command_line.options.show_config, Some(true)) {
-            report_diagnostic.call(Rc::new(
+            report_diagnostic.call(Gc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0,
                     Some(vec![normalize_path(&sys.get_current_directory())]),
@@ -964,8 +965,8 @@ pub(super) fn execute_command_line_worker<
                 .into(),
             ));
         } else {
-            print_version(&*sys);
-            print_help(&*sys, &command_line);
+            print_version(&**sys);
+            print_help(&**sys, &command_line);
         }
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
@@ -990,14 +991,14 @@ pub(super) fn execute_command_line_worker<
             .unwrap(),
         );
         if matches!(command_line.options.show_config, Some(true)) {
-            if !config_parse_result.errors.is_empty() {
+            if !(*config_parse_result.errors).borrow().is_empty() {
                 report_diagnostic = update_report_diagnostic(
                     sys.clone(),
                     report_diagnostic,
                     config_parse_result.options.clone().into(),
                 );
-                config_parse_result
-                    .errors
+                (*config_parse_result.errors)
+                    .borrow()
                     .iter()
                     .for_each(|error| report_diagnostic.call(error.clone()));
                 sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
@@ -1020,7 +1021,7 @@ pub(super) fn execute_command_line_worker<
             config_parse_result.options.clone().into(),
         );
         if is_watch_set(&config_parse_result.options) {
-            if report_watch_mode_without_sys_support(&*sys, &*report_diagnostic) {
+            if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic) {
                 return;
             }
             create_watch_of_config_file(
@@ -1062,11 +1063,11 @@ pub(super) fn execute_command_line_worker<
             command_line_options.clone().into(),
         );
         if is_watch_set(&command_line_options) {
-            if report_watch_mode_without_sys_support(&*sys, &*report_diagnostic) {
+            if report_watch_mode_without_sys_support(&**sys, &**report_diagnostic) {
                 return;
             }
             create_watch_of_files_and_compiler_options(
-                &*sys,
+                &**sys,
                 cb,
                 report_diagnostic,
                 &command_line.file_names,

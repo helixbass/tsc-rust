@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
@@ -9,36 +10,36 @@ use std::rc::Rc;
 
 use super::{ambient_module_symbol_regex, get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    are_option_rcs_equal, array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
-    first, get_check_flags, get_declaration_of_kind, get_emit_module_resolution_kind,
-    get_first_identifier, get_name_from_index_info, get_non_augmentation_declaration,
-    get_original_node, get_source_file_of_node, get_text_of_jsdoc_comment, is_ambient_module,
-    is_binding_element, is_computed_property_name, is_entity_name, is_identifier,
-    is_identifier_type_reference, is_indexed_access_type_node, is_jsdoc_parameter_tag,
-    is_rest_parameter, is_transient_symbol, length, maybe_filter, maybe_first_defined,
-    maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers, node_is_synthesized,
-    null_transformation_context, out_file, path_is_relative, set_comment_range, set_emit_flags,
-    set_synthetic_leading_comments, some, symbol_name, unescape_leading_underscores,
-    visit_each_child, with_factory, with_synthetic_factory_and_factory, CheckFlags,
-    CompilerOptions, Debug_, EmitFlags, IndexInfo, InternalSymbolName, ModifierFlags,
-    ModuleResolutionKind, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature,
-    SignatureFlags, StrOrNodeArrayRef, StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
-    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
-    VisitResult,
+    are_option_gcs_equal, are_option_rcs_equal, array_is_homogeneous, cast_present,
+    create_underscore_escaped_multi_map, first, get_check_flags, get_declaration_of_kind,
+    get_emit_module_resolution_kind, get_first_identifier, get_name_from_index_info,
+    get_non_augmentation_declaration, get_original_node, get_source_file_of_node,
+    get_text_of_jsdoc_comment, is_ambient_module, is_binding_element, is_computed_property_name,
+    is_entity_name, is_identifier, is_identifier_type_reference, is_indexed_access_type_node,
+    is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, length, maybe_filter,
+    maybe_first_defined, maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers,
+    node_is_synthesized, null_transformation_context, out_file, path_is_relative,
+    set_comment_range, set_emit_flags, set_synthetic_leading_comments, some, symbol_name,
+    unescape_leading_underscores, visit_each_child, with_factory,
+    with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags, IndexInfo,
+    InternalSymbolName, ModifierFlags, ModuleResolutionKind, Node, NodeArray, NodeBuilder,
+    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef, StrOrRcNode,
+    StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
+    SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
+    UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
 };
 
 impl NodeBuilder {
     pub(super) fn preserve_comments_on(
         &self,
         property_symbol: &Symbol,
-        node: Rc<Node>,
-    ) -> Rc<Node> {
+        node: Gc<Node>,
+    ) -> Gc<Node> {
         if some(
             property_symbol.maybe_declarations().as_deref(),
-            Some(|d: &Rc<Node>| d.kind() == SyntaxKind::JSDocPropertyTag),
+            Some(|d: &Gc<Node>| d.kind() == SyntaxKind::JSDocPropertyTag),
         ) {
-            let d: Rc<Node> = property_symbol
+            let d: Gc<Node> = property_symbol
                 .maybe_declarations()
                 .as_ref()
                 .unwrap()
@@ -78,10 +79,10 @@ impl NodeBuilder {
 
     pub(super) fn map_to_type_nodes(
         &self,
-        types: Option<&[Rc<Type>]>,
+        types: Option<&[Gc<Type>]>,
         context: &NodeBuilderContext,
         is_bare_list: Option<bool>,
-    ) -> Option<Vec<Rc<Node /*TypeNode*/>>> {
+    ) -> Option<Vec<Gc<Node /*TypeNode*/>>> {
         if let Some(types) = types {
             if !types.is_empty()
             /*some(types)*/
@@ -120,13 +121,13 @@ impl NodeBuilder {
                 let may_have_name_collisions = !context
                     .flags()
                     .intersects(NodeBuilderFlags::UseFullyQualifiedType);
-                let mut seen_names: Option<UnderscoreEscapedMultiMap<(Rc<Type>, usize)>> =
+                let mut seen_names: Option<UnderscoreEscapedMultiMap<(Gc<Type>, usize)>> =
                     if may_have_name_collisions {
                         Some(create_underscore_escaped_multi_map())
                     } else {
                         None
                     };
-                let mut result: Vec<Rc<Node /*TypeNode*/>> = vec![];
+                let mut result: Vec<Gc<Node /*TypeNode*/>> = vec![];
                 let mut i = 0;
                 for type_ in types {
                     i += 1;
@@ -197,9 +198,9 @@ impl NodeBuilder {
     pub(super) fn types_are_same_reference(&self, a: &Type, b: &Type) -> bool {
         ptr::eq(a, b)
             || a.maybe_symbol().is_some()
-                && are_option_rcs_equal(a.maybe_symbol().as_ref(), b.maybe_symbol().as_ref())
+                && are_option_gcs_equal(a.maybe_symbol().as_ref(), b.maybe_symbol().as_ref())
             || a.maybe_alias_symbol().is_some()
-                && are_option_rcs_equal(
+                && are_option_gcs_equal(
                     a.maybe_alias_symbol().as_ref(),
                     b.maybe_alias_symbol().as_ref(),
                 )
@@ -210,11 +211,11 @@ impl NodeBuilder {
         index_info: &IndexInfo,
         context: &NodeBuilderContext,
         type_node: Option<TTypeNode /*TypeNode*/>,
-    ) -> Rc<Node /*IndexSignatureDeclaration*/> {
+    ) -> Gc<Node /*IndexSignatureDeclaration*/> {
         let name = get_name_from_index_info(index_info).unwrap_or_else(|| Cow::Borrowed("x"));
         let indexer_type_node = self.type_to_type_node_helper(Some(&*index_info.key_type), context);
 
-        let indexing_parameter: Rc<Node> =
+        let indexing_parameter: Gc<Node> =
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_parameter_declaration(
@@ -259,11 +260,11 @@ impl NodeBuilder {
 
     pub(super) fn signature_to_signature_declaration_helper<TPrivateSymbolVisitor: Fn(&Symbol)>(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         kind: SyntaxKind,
         context: &NodeBuilderContext,
         options: Option<SignatureToSignatureDeclarationOptions<TPrivateSymbolVisitor>>,
-    ) -> Rc<Node /*SignatureDeclaration*/> {
+    ) -> Gc<Node /*SignatureDeclaration*/> {
         let suppress_any = context
             .flags()
             .intersects(NodeBuilderFlags::SuppressAnyReturnType);
@@ -271,8 +272,8 @@ impl NodeBuilder {
             context.set_flags(context.flags() & !NodeBuilderFlags::SuppressAnyReturnType);
         }
         context.increment_approximate_length_by(3);
-        let mut type_parameters: Option<Vec<Rc<Node /*TypeParameterDeclaration(*/>>> = None;
-        let mut type_arguments: Option<Vec<Rc<Node /*TypeNode(*/>>> = None;
+        let mut type_parameters: Option<Vec<Gc<Node /*TypeParameterDeclaration(*/>>> = None;
+        let mut type_arguments: Option<Vec<Gc<Node /*TypeNode(*/>>> = None;
         let mut passed_if_condition = false;
         if context
             .flags()
@@ -326,8 +327,8 @@ impl NodeBuilder {
             .unwrap();
         let mut parameters = if some(
             Some(&*expanded_params),
-            Some(|p: &Rc<Symbol>| {
-                !Rc::ptr_eq(p, &expanded_params[expanded_params.len() - 1])
+            Some(|p: &Gc<Symbol>| {
+                !Gc::ptr_eq(p, &expanded_params[expanded_params.len() - 1])
                     && get_check_flags(p).intersects(CheckFlags::RestParameter)
             }),
         ) {
@@ -359,12 +360,12 @@ impl NodeBuilder {
             parameters.insert(0, this_parameter);
         }
 
-        let mut return_type_node: Option<Rc<Node /*TypeNode*/>> = None;
+        let mut return_type_node: Option<Gc<Node /*TypeNode*/>> = None;
         let type_predicate = self
             .type_checker
             .get_type_predicate_of_signature(&signature);
         if let Some(type_predicate) = type_predicate.as_ref() {
-            let asserts_modifier: Option<Rc<Node>> = if matches!(
+            let asserts_modifier: Option<Gc<Node>> = if matches!(
                 type_predicate.kind,
                 TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
             ) {
@@ -463,7 +464,7 @@ impl NodeBuilder {
             ));
         }
 
-        let node: Rc<Node> =
+        let node: Gc<Node> =
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| match kind {
                 SyntaxKind::CallSignature => factory_
                     .create_call_signature(
@@ -595,7 +596,7 @@ impl NodeBuilder {
                             factory_
                                 .create_type_reference_node(
                                     synthetic_factory_,
-                                    Into::<Rc<Node>>::into(factory_.create_identifier(
+                                    Into::<Gc<Node>>::into(factory_.create_identifier(
                                         synthetic_factory_,
                                         "",
                                         Option::<NodeArray>::None,
@@ -617,7 +618,7 @@ impl NodeBuilder {
                             factory_
                                 .create_type_reference_node(
                                     synthetic_factory_,
-                                    Into::<Rc<Node>>::into(factory_.create_identifier(
+                                    Into::<Gc<Node>>::into(factory_.create_identifier(
                                         synthetic_factory_,
                                         "",
                                         Option::<NodeArray>::None,
@@ -640,7 +641,7 @@ impl NodeBuilder {
                                 .as_ref()
                                 .and_then(|options| options.name.clone())
                                 .map(|name| {
-                                    cast_present(name, |name: &Rc<Node>| is_identifier(name))
+                                    cast_present(name, |name: &Gc<Node>| is_identifier(name))
                                 })
                                 .unwrap_or_else(|| {
                                     factory_
@@ -669,7 +670,7 @@ impl NodeBuilder {
                                 .as_ref()
                                 .and_then(|options| options.name.clone())
                                 .map(|name| {
-                                    cast_present(name, |name: &Rc<Node>| is_identifier(name))
+                                    cast_present(name, |name: &Gc<Node>| is_identifier(name))
                                 })
                                 .unwrap_or_else(|| {
                                     factory_
@@ -721,8 +722,8 @@ impl NodeBuilder {
         &self,
         type_: &Type, /*TypeParameter*/
         context: &NodeBuilderContext,
-        constraint_node: Option<Rc<Node>>,
-    ) -> Rc<Node /*TypeParameterDeclaration*/> {
+        constraint_node: Option<Gc<Node>>,
+    ) -> Gc<Node /*TypeParameterDeclaration*/> {
         let saved_context_flags = context.flags();
         context.set_flags(context.flags() & !NodeBuilderFlags::WriteTypeParametersInQualifiedName);
         let name = self.type_parameter_to_name(type_, context);
@@ -747,8 +748,8 @@ impl NodeBuilder {
         &self,
         type_: &Type, /*TypeParameter*/
         context: &NodeBuilderContext,
-        constraint: Option<Rc<Type>>,
-    ) -> Rc<Node /*TypeParameterDeclaration*/> {
+        constraint: Option<Gc<Type>>,
+    ) -> Gc<Node /*TypeParameterDeclaration*/> {
         let constraint =
             constraint.or_else(|| self.type_checker.get_constraint_of_type_parameter(type_));
         let constraint_node = constraint
@@ -764,9 +765,9 @@ impl NodeBuilder {
         preserve_modifier_flags: Option<bool>,
         private_symbol_visitor: Option<&TPrivateSymbolVisitor>,
         bundled_imports: Option<bool>,
-    ) -> Rc<Node /*ParameterDeclaration*/> {
+    ) -> Gc<Node /*ParameterDeclaration*/> {
         let mut parameter_declaration: Option<
-            Rc<Node /*ParameterDeclaration | JSDocParameterTag*/>,
+            Gc<Node /*ParameterDeclaration | JSDocParameterTag*/>,
         > = get_declaration_of_kind(parameter_symbol, SyntaxKind::Parameter);
         if parameter_declaration.is_none() && !is_transient_symbol(parameter_symbol) {
             parameter_declaration =
@@ -802,7 +803,7 @@ impl NodeBuilder {
             bundled_imports,
         );
 
-        let modifiers: Option<Vec<Rc<Node>>> = if !context
+        let modifiers: Option<Vec<Gc<Node>>> = if !context
             .flags()
             .intersects(NodeBuilderFlags::OmitParameterModifiers)
             && preserve_modifier_flags == Some(true)
@@ -830,7 +831,7 @@ impl NodeBuilder {
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if is_rest_parameter(parameter_declaration)
         ) || get_check_flags(parameter_symbol).intersects(CheckFlags::RestParameter);
-        let dot_dot_dot_token: Option<Rc<Node>> = if is_rest {
+        let dot_dot_dot_token: Option<Gc<Node>> = if is_rest {
             Some(with_synthetic_factory_and_factory(
                 |synthetic_factory_, factory_| {
                     factory_
@@ -881,7 +882,7 @@ impl NodeBuilder {
             Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)
         ) || get_check_flags(parameter_symbol)
             .intersects(CheckFlags::OptionalParameter);
-        let question_token: Option<Rc<Node>> = if is_optional {
+        let question_token: Option<Gc<Node>> = if is_optional {
             Some(with_synthetic_factory_and_factory(
                 |synthetic_factory_, factory_| {
                     factory_
@@ -892,7 +893,7 @@ impl NodeBuilder {
         } else {
             None
         };
-        let parameter_node: Rc<Node> =
+        let parameter_node: Gc<Node> =
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_parameter_declaration(
@@ -915,7 +916,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         node: &Node, /*BindingName*/
-    ) -> Rc<Node /*BIndingName*/> {
+    ) -> Gc<Node /*BIndingName*/> {
         self.elide_initializer_and_set_emit_flags(context, node)
             .unwrap()
             .into_iter()
@@ -927,7 +928,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         node: &Node,
-    ) -> Option<Vec<Rc<Node>>> {
+    ) -> Option<Vec<Gc<Node>>> {
         if context.tracker.is_track_symbol_supported()
             && is_computed_property_name(node)
             && self.type_checker.is_late_bindable_name(node)
@@ -957,8 +958,8 @@ impl NodeBuilder {
                     Option<&Node>,
                     Option<fn(&Node) -> VisitResult>,
                     Option<fn(&Node) -> bool>,
-                    Option<fn(&[Rc<Node>]) -> Rc<Node>>,
-                ) -> Option<Rc<Node>>,
+                    Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                ) -> Option<Gc<Node>>,
             >::None,
         )
         .into_iter()
@@ -993,7 +994,7 @@ impl NodeBuilder {
             &first_identifier.as_identifier().escaped_text,
             SymbolFlags::Value | SymbolFlags::ExportValue,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             true,
             None,
         );
@@ -1013,7 +1014,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         context.tracker.track_symbol(
             symbol,
             context.maybe_enclosing_declaration(),
@@ -1031,8 +1032,8 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
-    ) -> Vec<Rc<Symbol>> {
-        let chain: Vec<Rc<Symbol>>;
+    ) -> Vec<Gc<Symbol>> {
+        let chain: Vec<Gc<Symbol>>;
         let is_type_parameter = symbol.flags().intersects(SymbolFlags::TypeParameter);
         if !is_type_parameter
             && (context.maybe_enclosing_declaration().is_some()
@@ -1061,7 +1062,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         meaning: Option<SymbolFlags>,
         end_of_chain: bool,
-    ) -> Option<Vec<Rc<Symbol>>> {
+    ) -> Option<Vec<Gc<Symbol>>> {
         let mut accessible_symbol_chain = self.type_checker.get_accessible_symbol_chain(
             Some(symbol),
             context.maybe_enclosing_declaration(),
@@ -1107,7 +1108,7 @@ impl NodeBuilder {
                     .map(|symbol| {
                         if some(
                             symbol.maybe_declarations().as_deref(),
-                            Some(|declaration: &Rc<Node>| {
+                            Some(|declaration: &Gc<Node>| {
                                 self.type_checker
                                     .has_non_global_augmentation_external_module_symbol(declaration)
                             }),
@@ -1172,7 +1173,7 @@ impl NodeBuilder {
                 && yield_module_symbol != Some(true)
                 && maybe_for_each_bool(
                     symbol.maybe_declarations().as_ref(),
-                    |declaration: &Rc<Node>, _| {
+                    |declaration: &Gc<Node>, _| {
                         self.type_checker
                             .has_non_global_augmentation_external_module_symbol(declaration)
                     },
@@ -1240,7 +1241,7 @@ impl NodeBuilder {
                         self.type_checker
                             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)
                             .as_ref(),
-                        |tp: &Rc<Type>, _| self.type_parameter_to_declaration_(tp, context, None),
+                        |tp: &Gc<Type>, _| self.type_parameter_to_declaration_(tp, context, None),
                     ),
                     None,
                 )
@@ -1251,10 +1252,10 @@ impl NodeBuilder {
 
     pub(super) fn lookup_type_parameter_nodes(
         &self,
-        chain: &[Rc<Symbol>],
+        chain: &[Gc<Symbol>],
         index: usize,
         context: &NodeBuilderContext,
-    ) -> Option<Vec<Rc<Node>>> {
+    ) -> Option<Vec<Gc<Node>>> {
         Debug_.assert(/*chain && 0 <= index &&*/ index < chain.len(), None);
         let symbol = &chain[index];
         let symbol_id = get_symbol_id(symbol);
@@ -1272,7 +1273,7 @@ impl NodeBuilder {
             .get_or_insert_with(|| HashSet::new())
             .insert(symbol_id);
         let mut type_parameter_nodes: Option<
-            Vec<Rc<Node /*TypeNode[] | TypeParameterDeclaration[]*/>>,
+            Vec<Gc<Node /*TypeNode[] | TypeParameterDeclaration[]*/>>,
         > = None;
         if context
             .flags()
@@ -1293,7 +1294,7 @@ impl NodeBuilder {
                             parent_symbol.clone()
                         });
                 type_parameter_nodes = self.map_to_type_nodes(
-                    maybe_map(params.as_ref(), |t: &Rc<Type>, _| {
+                    maybe_map(params.as_ref(), |t: &Gc<Type>, _| {
                         self.type_checker.get_mapped_type(
                             t,
                             (*next_symbol.as_transient_symbol().symbol_links())
@@ -1319,7 +1320,7 @@ impl NodeBuilder {
     pub(super) fn get_topmost_indexed_access_type(
         &self,
         top: &Node, /*IndexedAccessTypeNode*/
-    ) -> Rc<Node /*IndexedAccessTypeNode*/> {
+    ) -> Gc<Node /*IndexedAccessTypeNode*/> {
         let top_as_indexed_access_type_node = top.as_indexed_access_type_node();
         if is_indexed_access_type_node(&top_as_indexed_access_type_node.object_type) {
             return self
@@ -1336,7 +1337,7 @@ impl NodeBuilder {
         let mut file = get_declaration_of_kind(symbol, SyntaxKind::SourceFile);
         if file.is_none() {
             let equivalent_file_symbol =
-                maybe_first_defined(symbol.maybe_declarations().as_ref(), |d: &Rc<Node>, _| {
+                maybe_first_defined(symbol.maybe_declarations().as_ref(), |d: &Gc<Node>, _| {
                     self.type_checker
                         .get_file_symbol_if_file_symbol_export_equals_container(d, symbol)
                 });
@@ -1357,7 +1358,7 @@ impl NodeBuilder {
             {
                 let ambient_decls = maybe_filter(
                     symbol.maybe_declarations().as_deref(),
-                    |declaration: &Rc<Node>| is_ambient_module(declaration),
+                    |declaration: &Gc<Node>| is_ambient_module(declaration),
                 );
                 if length(ambient_decls.as_deref()) > 0 {
                     for decl in ambient_decls.as_ref().unwrap() {
@@ -1385,7 +1386,7 @@ impl NodeBuilder {
         }
         let context_file = get_source_file_of_node(get_original_node(
             context.maybe_enclosing_declaration(),
-            Option::<fn(Option<Rc<Node>>) -> bool>::None,
+            Option::<fn(Option<Gc<Node>>) -> bool>::None,
         ))
         .unwrap();
         let links = self.type_checker.get_symbol_links(symbol);
@@ -1406,7 +1407,7 @@ impl NodeBuilder {
             );
             let module_resolver_host = context.tracker.module_resolver_host().unwrap();
             let specifier_compiler_options = if is_bundle {
-                Rc::new(CompilerOptions {
+                Gc::new(CompilerOptions {
                     base_url: Some(module_resolver_host.get_common_source_directory()),
                     ..(*self.type_checker.compiler_options).clone()
                 })
@@ -1448,8 +1449,8 @@ impl NodeBuilder {
         specifier.unwrap()
     }
 
-    pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Rc<Node /*EntityName*/> {
-        let identifier: Rc<Node> =
+    pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Gc<Node /*EntityName*/> {
+        let identifier: Gc<Node> =
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_identifier(
@@ -1480,8 +1481,8 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
-        override_type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
-    ) -> Rc<Node /*TypeNode*/> {
+        override_type_arguments: Option<&[Gc<Node /*TypeNode*/>]>,
+    ) -> Gc<Node /*TypeNode*/> {
         let chain = self.lookup_symbol_chain(
             symbol,
             context,
@@ -1496,7 +1497,7 @@ impl NodeBuilder {
         let is_type_of = meaning == SymbolFlags::Value;
         if some(
             chain[0].maybe_declarations().as_deref(),
-            Some(|declaration: &Rc<Node>| {
+            Some(|declaration: &Gc<Node>| {
                 self.type_checker
                     .has_non_global_augmentation_external_module_symbol(declaration)
             }),
@@ -1528,7 +1529,7 @@ impl NodeBuilder {
                     .tracker
                     .report_likely_unsafe_import_required_error(&specifier);
             }
-            let lit: Rc<Node> =
+            let lit: Gc<Node> =
                 with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                     factory_
                         .create_literal_type_node(
@@ -1632,9 +1633,9 @@ impl NodeBuilder {
 }
 
 pub(super) struct SignatureToSignatureDeclarationOptions<TPrivateSymbolVisitor: Fn(&Symbol)> {
-    pub modifiers: Option<Vec<Rc<Node /*Modifier*/>>>,
-    pub name: Option<Rc<Node /*PropertyName*/>>,
-    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    pub modifiers: Option<Vec<Gc<Node /*Modifier*/>>>,
+    pub name: Option<Gc<Node /*PropertyName*/>>,
+    pub question_token: Option<Gc<Node /*QuestionToken*/>>,
     pub private_symbol_visitor: Option<TPrivateSymbolVisitor>,
     pub bundled_imports: Option<bool>,
 }

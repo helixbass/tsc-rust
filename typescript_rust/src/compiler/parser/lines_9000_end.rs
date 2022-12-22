@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
 use regex::{Captures, Regex};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -24,22 +25,23 @@ impl IncrementalParserType {
 }
 
 pub trait IncrementalParserSyntaxCursorInterface {
-    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Rc<Node>>;
+    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Gc<Node>>;
 }
 
+#[derive(Trace, Finalize)]
 pub enum IncrementalParserSyntaxCursor {
     Created(IncrementalParserSyntaxCursorCreated),
     ReparseTopLevelAwait(IncrementalParserSyntaxCursorReparseTopLevelAwait),
 }
 
 impl IncrementalParserSyntaxCursor {
-    pub fn create(source_file: Rc<Node>) -> Self {
+    pub fn create(source_file: Gc<Node>) -> Self {
         Self::Created(IncrementalParserSyntaxCursorCreated::new(source_file))
     }
 }
 
 impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
-    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Rc<Node>> {
+    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Gc<Node>> {
         match self {
             IncrementalParserSyntaxCursor::Created(incremental_parser_syntax_cursor) => {
                 incremental_parser_syntax_cursor.current_node(parser, position)
@@ -51,16 +53,19 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorCreated {
-    source_file: Rc<Node /*SourceFile*/>,
-    current_array: RefCell<Option<NodeArray>>,
+    source_file: Gc<Node /*SourceFile*/>,
+    current_array: GcCell<Option<NodeArray>>,
+    #[unsafe_ignore_trace]
     current_array_index: Cell<Option<usize>>,
-    current: RefCell<Option<Rc<Node>>>,
+    current: GcCell<Option<Gc<Node>>>,
+    #[unsafe_ignore_trace]
     last_queried_position: Cell<Option<usize>>,
 }
 
 impl IncrementalParserSyntaxCursorCreated {
-    pub fn new(source_file: Rc<Node>) -> Self {
+    pub fn new(source_file: Gc<Node>) -> Self {
         let source_file_as_source_file = source_file.as_source_file();
         let current_array = source_file_as_source_file.statements();
         let current_array_index = 0;
@@ -68,15 +73,15 @@ impl IncrementalParserSyntaxCursorCreated {
         Debug_.assert(current_array_index < current_array.len(), None);
         Self {
             source_file: source_file.clone(),
-            current_array: RefCell::new(Some(current_array.clone())),
+            current_array: GcCell::new(Some(current_array.clone())),
             current_array_index: Cell::new(Some(current_array_index)),
-            current: RefCell::new(Some(current_array[current_array_index].clone())),
-            last_queried_position: Cell::new(None), /*InvalidPosition::Value*/
+            current: GcCell::new(Some(current_array[current_array_index].clone())),
+            last_queried_position: Default::default(), /*InvalidPosition::Value*/
         }
     }
 
-    fn current_array(&self) -> Ref<NodeArray> {
-        Ref::map(self.current_array.borrow(), |option| {
+    fn current_array(&self) -> GcCellRef<NodeArray> {
+        GcCellRef::map(self.current_array.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
@@ -93,15 +98,15 @@ impl IncrementalParserSyntaxCursorCreated {
         self.current_array_index.set(current_array_index)
     }
 
-    fn maybe_current(&self) -> Option<Rc<Node>> {
+    fn maybe_current(&self) -> Option<Gc<Node>> {
         self.current.borrow().as_ref().map(|option| option.clone())
     }
 
-    fn current(&self) -> Rc<Node> {
+    fn current(&self) -> Gc<Node> {
         self.current.borrow().clone().unwrap()
     }
 
-    fn set_current(&self, current: Option<Rc<Node>>) {
+    fn set_current(&self, current: Option<Gc<Node>>) {
         *self.current.borrow_mut() = current;
     }
 
@@ -167,7 +172,7 @@ impl IncrementalParserSyntaxCursorCreated {
 }
 
 impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCreated {
-    fn current_node(&self, _parser: &ParserType, position: usize) -> Option<Rc<Node>> {
+    fn current_node(&self, _parser: &ParserType, position: usize) -> Option<Gc<Node>> {
         let position_as_isize: isize = position.try_into().unwrap();
         if match self.maybe_last_queried_position() {
             None => true,

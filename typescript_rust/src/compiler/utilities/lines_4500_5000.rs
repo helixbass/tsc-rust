@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cmp;
 use std::convert::TryInto;
@@ -26,7 +27,7 @@ use crate::{
     ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
-pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
+pub fn get_effective_type_annotation_node(node: &Node) -> Option<Gc<Node /*TypeNode*/>> {
     if !is_in_js_file(Some(node)) && is_function_declaration(node) {
         return None;
     }
@@ -46,14 +47,14 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeN
     }
 }
 
-pub fn get_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
+pub fn get_type_annotation_node(node: &Node) -> Option<Gc<Node /*TypeNode*/>> {
     node.maybe_as_has_type()
         .and_then(|has_type| has_type.maybe_type())
 }
 
 pub fn get_effective_return_type_node(
     node: &Node, /*SignatureDeclaration | JSDocSignature*/
-) -> Option<Rc<Node /*TypeNode*/>> {
+) -> Option<Gc<Node /*TypeNode*/>> {
     if is_jsdoc_signature(node) {
         node.as_jsdoc_signature()
             .type_
@@ -73,7 +74,7 @@ pub fn get_effective_return_type_node(
 
 pub fn get_jsdoc_type_parameter_declarations(
     node: &Node, /*DeclarationWithTypeParameters*/
-) -> Vec<Rc<Node /*TypeParameterDeclaration*/>> {
+) -> Vec<Gc<Node /*TypeParameterDeclaration*/>> {
     flat_map(Some(get_jsdoc_tags(node)), |tag, _| {
         if is_non_type_alias_template(&tag) {
             tag.as_jsdoc_template_tag().type_parameters.to_vec()
@@ -93,7 +94,7 @@ pub fn is_non_type_alias_template(tag: &Node /*JSDocTag*/) -> bool {
 
 pub fn get_effective_set_accessor_type_annotation_node(
     node: &Node, /*SetAccessorDeclaration*/
-) -> Option<Rc<Node /*TypeNode*/>> {
+) -> Option<Gc<Node /*TypeNode*/>> {
     let parameter = get_set_accessor_value_parameter(node);
     parameter.and_then(|parameter| get_effective_type_annotation_node(&parameter))
 }
@@ -534,7 +535,7 @@ fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
     flags
 }
 
-pub fn modifiers_to_flags(modifiers: Option<&[Rc<Node /*Modifier*/>]>) -> ModifierFlags {
+pub fn modifiers_to_flags(modifiers: Option<&[Gc<Node /*Modifier*/>]>) -> ModifierFlags {
     let mut flags = ModifierFlags::None;
     if let Some(modifiers) = modifiers {
         for modifier in modifiers {
@@ -610,13 +611,13 @@ pub fn is_assignment_operator(token: SyntaxKind) -> bool {
 
 pub fn try_get_class_extending_expression_with_type_arguments(
     node: &Node,
-) -> Option<Rc<Node /*ClassLikeDeclaration*/>> {
+) -> Option<Gc<Node /*ClassLikeDeclaration*/>> {
     let cls = try_get_class_implementing_or_extending_expression_with_type_arguments(node);
     cls.filter(|cls| !cls.is_implements).map(|cls| cls.class)
 }
 
 pub struct ClassImplementingOrExtendingExpressionWithTypeArguments {
-    pub class: Rc<Node /*ClassLikeDeclaration*/>,
+    pub class: Gc<Node /*ClassLikeDeclaration*/>,
     pub is_implements: bool,
 }
 pub fn try_get_class_implementing_or_extending_expression_with_type_arguments(

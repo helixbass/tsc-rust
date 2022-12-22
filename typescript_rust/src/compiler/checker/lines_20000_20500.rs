@@ -1,19 +1,20 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{
-    get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot, SymbolLinks,
-    TransientSymbolInterface, __String, every, for_each_bool, get_check_flags,
-    get_selected_effective_modifier_flags, maybe_map, some, CheckFlags, Diagnostics, IndexInfo,
-    ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult,
-    Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
+    get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot,
+    OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
+    for_each_bool, get_check_flags, get_selected_effective_modifier_flags, maybe_map, some,
+    CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
+    RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -32,7 +33,7 @@ impl CheckTypeRelatedTo {
             None,
         );
         if related == Ternary::False && report_errors {
-            if Rc::ptr_eq(&source_info.key_type, &target_info.key_type) {
+            if Gc::ptr_eq(&source_info.key_type, &target_info.key_type) {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::_0_index_signatures_are_incompatible),
                     Some(vec![self.type_checker.type_to_string_(
@@ -79,8 +80,8 @@ impl CheckTypeRelatedTo {
         let index_infos = self.type_checker.get_index_infos_of_type(target);
         let target_has_string_index = some(
             Some(&index_infos),
-            Some(|info: &Rc<IndexInfo>| {
-                Rc::ptr_eq(&info.key_type, &self.type_checker.string_type())
+            Some(|info: &Gc<IndexInfo>| {
+                Gc::ptr_eq(&info.key_type, &self.type_checker.string_type())
             }),
         );
         let mut result = Ternary::True;
@@ -244,7 +245,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             return for_each_bool(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| self.type_could_have_top_level_singleton_types(type_),
+                |type_: &Gc<Type>, _| self.type_could_have_top_level_singleton_types(type_),
             );
         }
 
@@ -265,13 +266,13 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         if self.is_tuple_type(source) && self.is_tuple_type(target) {
             return vec![];
         }
         self.get_properties_of_type(target)
             .into_iter()
-            .filter(|target_prop: &Rc<Symbol>| {
+            .filter(|target_prop: &Gc<Symbol>| {
                 self.is_exact_optional_property_mismatch(
                     self.get_type_of_property_of_type_(source, target_prop.escaped_name()),
                     Some(self.get_type_of_symbol(target_prop)),
@@ -298,10 +299,10 @@ impl TypeChecker {
         self.maybe_type_of_kind(source, TypeFlags::Undefined) && self.contains_missing_type(target)
     }
 
-    pub(super) fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Gc<Symbol>> {
         self.get_properties_of_type(type_)
             .into_iter()
-            .filter(|target_prop: &Rc<Symbol>| {
+            .filter(|target_prop: &Gc<Symbol>| {
                 self.contains_missing_type(&self.get_type_of_symbol(target_prop))
             })
             .collect()
@@ -312,7 +313,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type, /*UnionOrIntersectionType*/
         is_related_to: Option<TIsRelatedTo>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let is_related_to = |source: &Type, target: &Type| match is_related_to.as_ref() {
             None => self.compare_types_assignable(source, target),
             Some(is_related_to) => is_related_to(source, target),
@@ -330,11 +331,11 @@ impl TypeChecker {
     >(
         &self,
         target: &Type, /*UnionType*/
-        discriminators: &[(Box<dyn Fn() -> Rc<Type>>, __String)],
+        discriminators: &[(Box<dyn Fn() -> Gc<Type>>, __String)],
         mut related: TRelated,
         default_value: Option<TDefaultValue>,
         skip_partial: Option<bool>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let target_as_union_type = target.as_union_type();
         let target_types = target_as_union_type.types();
         let mut discriminable: Vec<Option<bool>> = target_types
@@ -405,13 +406,13 @@ impl TypeChecker {
                 && !resolved_as_resolved_type.properties().is_empty()
                 && every(
                     &*resolved_as_resolved_type.properties(),
-                    |p: &Rc<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
+                    |p: &Gc<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
                 );
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
             return every(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| self.is_weak_type(type_),
+                |type_: &Gc<Type>, _| self.is_weak_type(type_),
             );
         }
         false
@@ -436,12 +437,12 @@ impl TypeChecker {
         type_: &Type,  /*GenericType*/
         source: &Type, /*TypeParameter*/
         target: &Type,
-    ) -> Rc<Type /*TypeReference*/> {
+    ) -> Gc<Type /*TypeReference*/> {
         let result = self.create_type_reference(
             type_,
             maybe_map(
                 type_.as_generic_type().maybe_type_parameters(),
-                |t: &Rc<Type>, _| {
+                |t: &Gc<Type>, _| {
                     if ptr::eq(&**t, source) {
                         target.type_wrapper()
                     } else {
@@ -471,7 +472,7 @@ impl TypeChecker {
                             value
                         }
                         .as_deref(),
-                        Some(Rc::new(self.make_unary_type_mapper(param, marker))),
+                        Some(Gc::new(self.make_unary_type_mapper(param, marker))),
                     )
                     .as_deref(),
                     Option::<&Symbol>::None,
@@ -486,34 +487,29 @@ impl TypeChecker {
 
     pub(super) fn get_variances_worker<
         TCache: Into<GetVariancesCache>,
-        TCreateMarkerType: FnMut(&GetVariancesCache, &Type /*TypeParameter*/, &Type) -> Rc<Type>,
+        TCreateMarkerType: FnMut(&GetVariancesCache, &Type /*TypeParameter*/, &Type) -> Gc<Type>,
     >(
         &self,
-        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
         cache: TCache,
         mut create_marker_type: TCreateMarkerType,
     ) -> Vec<VarianceFlags> {
         let type_parameters = type_parameters.map_or_else(|| vec![], ToOwned::to_owned);
         let cache = cache.into();
-        if cache.maybe_variances().is_none() {
+        if (*cache.maybe_variances()).borrow().is_none() {
             // tracing?.push(tracing.Phase.CheckTypes, "getVariancesWorker", { arity: typeParameters.length, id: (cache as any).id ?? (cache as any).declaredType?.id ?? -1 });
-            *cache.maybe_variances() = Some(vec![]);
+            *cache.maybe_variances().borrow_mut() = Some(vec![]);
             let mut variances: Vec<VarianceFlags> = vec![];
             for tp in &type_parameters {
                 let unmeasurable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let unreliable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let old_handler = self.maybe_outofband_variance_marker_handler();
-                self.set_outofband_variance_marker_handler(Some(Rc::new({
-                    let unmeasurable = unmeasurable.clone();
-                    let unreliable = unreliable.clone();
-                    move |only_unreliable| {
-                        if only_unreliable {
-                            unreliable.set(true);
-                        } else {
-                            unmeasurable.set(true);
-                        }
-                    }
-                })));
+                self.set_outofband_variance_marker_handler(Some(Gc::new(Box::new(
+                    GetVariancesWorkerOutofbandVarianceMarkerHandler::new(
+                        unmeasurable.clone(),
+                        unreliable.clone(),
+                    ),
+                ))));
                 let type_with_super = create_marker_type(&cache, tp, &self.marker_super_type());
                 let type_with_sub = create_marker_type(&cache, tp, &self.marker_sub_type());
                 let mut variance =
@@ -545,10 +541,10 @@ impl TypeChecker {
                 }
                 variances.push(variance);
             }
-            *cache.maybe_variances() = Some(variances);
+            *cache.maybe_variances().borrow_mut() = Some(variances);
             // tracing?.pop();
         }
-        let ret = cache.maybe_variances().clone().unwrap();
+        let ret = (*cache.maybe_variances()).borrow().clone().unwrap();
         ret
     }
 
@@ -581,7 +577,7 @@ impl TypeChecker {
 
     pub(super) fn has_covariant_void_argument(
         &self,
-        type_arguments: &[Rc<Type>],
+        type_arguments: &[Gc<Type>],
         variances: &[VarianceFlags],
     ) -> bool {
         for i in 0..variances.len() {
@@ -608,7 +604,7 @@ impl TypeChecker {
         self.is_non_deferred_type_reference(type_)
             && some(
                 Some(&*self.get_type_arguments(type_)),
-                Some(|t: &Rc<Type>| {
+                Some(|t: &Gc<Type>| {
                     t.flags().intersects(TypeFlags::TypeParameter)
                         || self.is_type_reference_with_generic_arguments(t)
                 }),
@@ -618,7 +614,7 @@ impl TypeChecker {
     pub(super) fn get_type_reference_id(
         &self,
         type_: &Type, /*TypeReference*/
-        type_parameters: &mut Vec<Rc<Type>>,
+        type_parameters: &mut Vec<Gc<Type>>,
         depth: Option<usize>,
     ) -> String {
         let depth = depth.unwrap_or(0);
@@ -631,7 +627,7 @@ impl TypeChecker {
             if self.is_unconstrained_type_parameter(t) {
                 let mut index = type_parameters
                     .iter()
-                    .position(|type_| Rc::ptr_eq(type_, t));
+                    .position(|type_| Gc::ptr_eq(type_, t));
                 if index.is_none() {
                     index = Some(type_parameters.len());
                     type_parameters.push(t.clone());
@@ -672,7 +668,7 @@ impl TypeChecker {
         if self.is_type_reference_with_generic_arguments(&source)
             && self.is_type_reference_with_generic_arguments(&target)
         {
-            let mut type_parameters: Vec<Rc<Type>> = vec![];
+            let mut type_parameters: Vec<Gc<Type>> = vec![];
             return format!(
                 "{},{}{}",
                 self.get_type_reference_id(&source, &mut type_parameters, None),
@@ -723,7 +719,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn get_declaring_class(&self, prop: &Symbol) -> Option<Rc<Type /*InterfaceType*/>> {
+    pub(super) fn get_declaring_class(&self, prop: &Symbol) -> Option<Gc<Type /*InterfaceType*/>> {
         prop.maybe_parent()
             .filter(|prop_parent| prop_parent.flags().intersects(SymbolFlags::Class))
             .map(|_prop_parent| {
@@ -731,7 +727,7 @@ impl TypeChecker {
             })
     }
 
-    pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Rc<Type>> {
+    pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Gc<Type>> {
         let class_type = self.get_declaring_class(property);
         let base_class_type = class_type
             .as_ref()
@@ -774,7 +770,7 @@ impl TypeChecker {
         check_class: &Type,
         prop: &Symbol,
         writing: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if self.for_each_property_bool(prop, &mut |p: &Symbol| {
             if get_declaration_modifier_flags_from_symbol(p, Some(writing))
                 .intersects(ModifierFlags::Protected)
@@ -793,7 +789,7 @@ impl TypeChecker {
     pub(super) fn is_deeply_nested_type(
         &self,
         type_: &Type,
-        stack: &[Rc<Type>],
+        stack: &[Gc<Type>],
         depth: usize,
         max_depth: Option<usize>,
     ) -> bool {
@@ -881,7 +877,7 @@ impl TypeChecker {
             return Ternary::False;
         }
         if source_prop_accessibility != ModifierFlags::None {
-            if !Rc::ptr_eq(
+            if !Gc::ptr_eq(
                 &self.get_target_symbol(source_prop),
                 &self.get_target_symbol(target_prop),
             ) {
@@ -929,50 +925,47 @@ impl TypeChecker {
 }
 
 pub(super) enum GetVariancesCache {
-    SymbolLinks(Rc<RefCell<SymbolLinks>>),
-    GenericType(Rc<Type /*GenericType*/>),
+    SymbolLinks(Gc<GcCell<SymbolLinks>>),
+    GenericType(Gc<Type /*GenericType*/>),
 }
 
 impl GetVariancesCache {
-    pub(super) fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>> {
+    pub(super) fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
         match self {
-            Self::SymbolLinks(symbol_links) => {
-                RefMut::map(symbol_links.borrow_mut(), |symbol_links| {
-                    &mut symbol_links.variances
-                })
-            }
+            Self::SymbolLinks(symbol_links) => (**symbol_links).borrow().variances.clone(),
             Self::GenericType(generic_type) => generic_type.as_generic_type().maybe_variances(),
         }
     }
 }
 
-impl From<Rc<RefCell<SymbolLinks>>> for GetVariancesCache {
-    fn from(value: Rc<RefCell<SymbolLinks>>) -> Self {
+impl From<Gc<GcCell<SymbolLinks>>> for GetVariancesCache {
+    fn from(value: Gc<GcCell<SymbolLinks>>) -> Self {
         Self::SymbolLinks(value)
     }
 }
 
-impl From<Rc<Type>> for GetVariancesCache {
-    fn from(value: Rc<Type>) -> Self {
+impl From<Gc<Type>> for GetVariancesCache {
+    fn from(value: Gc<Type>) -> Self {
         Self::GenericType(value)
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) enum RecursionIdentity {
-    Node(Rc<Node>),
-    Symbol(Rc<Symbol>),
-    Type(Rc<Type>),
-    ConditionalRoot(Rc<RefCell<ConditionalRoot>>),
+    Node(Gc<Node>),
+    Symbol(Gc<Symbol>),
+    Type(Gc<Type>),
+    ConditionalRoot(Gc<GcCell<ConditionalRoot>>),
     None,
 }
 
 impl PartialEq for RecursionIdentity {
     fn eq(&self, other: &RecursionIdentity) -> bool {
         match (self, other) {
-            (Self::Node(a), Self::Node(b)) => Rc::ptr_eq(a, b),
-            (Self::Symbol(a), Self::Symbol(b)) => Rc::ptr_eq(a, b),
-            (Self::Type(a), Self::Type(b)) => Rc::ptr_eq(a, b),
-            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Rc::ptr_eq(a, b),
+            (Self::Node(a), Self::Node(b)) => Gc::ptr_eq(a, b),
+            (Self::Symbol(a), Self::Symbol(b)) => Gc::ptr_eq(a, b),
+            (Self::Type(a), Self::Type(b)) => Gc::ptr_eq(a, b),
+            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Gc::ptr_eq(a, b),
             (Self::None, Self::None) => true,
             _ => false,
         }
@@ -981,26 +974,53 @@ impl PartialEq for RecursionIdentity {
 
 impl Eq for RecursionIdentity {}
 
-impl From<Rc<Node>> for RecursionIdentity {
-    fn from(value: Rc<Node>) -> Self {
+impl From<Gc<Node>> for RecursionIdentity {
+    fn from(value: Gc<Node>) -> Self {
         Self::Node(value)
     }
 }
 
-impl From<Rc<Symbol>> for RecursionIdentity {
-    fn from(value: Rc<Symbol>) -> Self {
+impl From<Gc<Symbol>> for RecursionIdentity {
+    fn from(value: Gc<Symbol>) -> Self {
         Self::Symbol(value)
     }
 }
 
-impl From<Rc<Type>> for RecursionIdentity {
-    fn from(value: Rc<Type>) -> Self {
+impl From<Gc<Type>> for RecursionIdentity {
+    fn from(value: Gc<Type>) -> Self {
         Self::Type(value)
     }
 }
 
-impl From<Rc<RefCell<ConditionalRoot>>> for RecursionIdentity {
-    fn from(value: Rc<RefCell<ConditionalRoot>>) -> Self {
+impl From<Gc<GcCell<ConditionalRoot>>> for RecursionIdentity {
+    fn from(value: Gc<GcCell<ConditionalRoot>>) -> Self {
         Self::ConditionalRoot(value)
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct GetVariancesWorkerOutofbandVarianceMarkerHandler {
+    #[unsafe_ignore_trace]
+    unmeasurable: Rc<Cell<bool>>,
+    #[unsafe_ignore_trace]
+    unreliable: Rc<Cell<bool>>,
+}
+
+impl GetVariancesWorkerOutofbandVarianceMarkerHandler {
+    pub fn new(unmeasurable: Rc<Cell<bool>>, unreliable: Rc<Cell<bool>>) -> Self {
+        Self {
+            unmeasurable,
+            unreliable,
+        }
+    }
+}
+
+impl OutofbandVarianceMarkerHandler for GetVariancesWorkerOutofbandVarianceMarkerHandler {
+    fn call(&self, only_unreliable: bool) {
+        if only_unreliable {
+            self.unreliable.set(true);
+        } else {
+            self.unmeasurable.set(true);
+        }
     }
 }

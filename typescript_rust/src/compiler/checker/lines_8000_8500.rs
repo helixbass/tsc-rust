@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -9,18 +10,18 @@ use std::rc::Rc;
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    are_option_rcs_equal, create_printer, create_symbol_table, declaration_name_to_string,
-    escape_string, factory, find_ancestor, first_defined, get_check_flags,
-    get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
+    are_option_gcs_equal, are_option_rcs_equal, create_printer, create_symbol_table,
+    declaration_name_to_string, escape_string, factory, find_ancestor, first_defined,
+    get_check_flags, get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
     get_emit_script_target, get_first_identifier, get_name_of_declaration, get_root_declaration,
     get_source_file_of_node, has_effective_modifier, is_ambient_module,
     is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
     is_computed_property_name, is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
-    map, maybe_for_each, parse_base_node_factory, parse_node_factory, push_if_unique_rc,
-    set_parent, set_text_range, starts_with, symbol_name, synthetic_factory, try_add_to_set,
-    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
-    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    map, maybe_for_each, parse_base_node_factory, parse_node_factory, push_if_unique_gc,
+    push_if_unique_rc, set_parent, set_text_range, starts_with, symbol_name, synthetic_factory,
+    try_add_to_set, walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint,
+    EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
     ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
@@ -34,11 +35,11 @@ impl TypeChecker {
         type_predicate: &TypePredicate,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: TypeFormatFlags,
-        writer: Rc<dyn EmitTextWriter>,
+        writer: Gc<Box<dyn EmitTextWriter>>,
     ) {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let predicate: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+        let predicate: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
             factory.with(|factory_| {
                 factory_
                     .create_type_predicate_node(
@@ -59,7 +60,7 @@ impl TypeChecker {
                             type_predicate.kind,
                             TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
                         ) {
-                            Into::<Rc<Node>>::into(factory_.create_identifier(
+                            Into::<Gc<Node>>::into(factory_.create_identifier(
                                 synthetic_factory_,
                                 type_predicate.parameter_name.as_ref().unwrap(),
                                 Option::<NodeArray>::None,
@@ -103,8 +104,8 @@ impl TypeChecker {
         // return writer;
     }
 
-    pub(super) fn format_union_types(&self, types: &[Rc<Type>]) -> Vec<Rc<Type>> {
-        let mut result: Vec<Rc<Type>> = vec![];
+    pub(super) fn format_union_types(&self, types: &[Gc<Type>]) -> Vec<Gc<Type>> {
+        let mut result: Vec<Gc<Type>> = vec![];
         let mut flags: TypeFlags = TypeFlags::None;
         let mut i = 0;
         while i < types.len() {
@@ -123,7 +124,7 @@ impl TypeChecker {
                         let base_type_as_union_type = base_type.as_union_type();
                         let count = base_type_as_union_type.types().len();
                         if i + count <= types.len()
-                            && Rc::ptr_eq(
+                            && Gc::ptr_eq(
                                 &self.get_regular_type_of_literal_type(&*types[i + count - 1]),
                                 &self.get_regular_type_of_literal_type(
                                     &base_type_as_union_type.types()[count - 1],
@@ -159,7 +160,7 @@ impl TypeChecker {
         "public"
     }
 
-    pub(super) fn get_type_alias_for_type_literal(&self, type_: &Type) -> Option<Rc<Symbol>> {
+    pub(super) fn get_type_alias_for_type_literal(&self, type_: &Type) -> Option<Gc<Symbol>> {
         if let Some(type_symbol) = type_.maybe_symbol() {
             if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) {
                 if let Some(type_symbol_declarations) = type_symbol.maybe_declarations().as_deref()
@@ -192,7 +193,8 @@ impl TypeChecker {
         symbol: &Symbol,
         context: Option<&NodeBuilderContext>,
     ) -> Option<String> {
-        let name_type = RefCell::borrow(&self.get_symbol_links(symbol))
+        let name_type = (*self.get_symbol_links(symbol))
+            .borrow()
             .name_type
             .clone()?;
         if name_type
@@ -250,7 +252,7 @@ impl TypeChecker {
                         None => true,
                         Some(symbol_declarations) => matches!(
                             context.maybe_enclosing_declaration().as_deref(),
-                            Some(context_enclosing_declaration) if are_option_rcs_equal(
+                            Some(context_enclosing_declaration) if are_option_gcs_equal(
                                 find_ancestor(symbol_declarations.get(0).map(Clone::clone), |declaration| self.is_default_binding_context(declaration)).as_ref(),
                                 find_ancestor(Some(context_enclosing_declaration), |declaration| self.is_default_binding_context(declaration)).as_ref(),
                             )
@@ -262,7 +264,7 @@ impl TypeChecker {
         }
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
             if !symbol_declarations.is_empty() {
-                let mut declaration = first_defined(symbol_declarations, |d: &Rc<Node>, _| {
+                let mut declaration = first_defined(symbol_declarations, |d: &Gc<Node>, _| {
                     if get_name_of_declaration(Some(&**d)).is_some() {
                         Some(d)
                     } else {
@@ -281,9 +283,8 @@ impl TypeChecker {
                         if is_computed_property_name(&name)
                             && !get_check_flags(symbol).intersects(CheckFlags::Late)
                         {
-                            let name_type = RefCell::borrow(&self.get_symbol_links(symbol))
-                                .name_type
-                                .clone();
+                            let name_type =
+                                (*self.get_symbol_links(symbol)).borrow().name_type.clone();
                             if matches!(name_type, Some(name_type) if name_type.flags().intersects(TypeFlags::StringOrNumberLiteral))
                             {
                                 let result =
@@ -342,10 +343,10 @@ impl TypeChecker {
     pub(super) fn is_declaration_visible(&self, node: &Node) -> bool {
         // if (node) {
         let links = self.get_node_links(node);
-        if RefCell::borrow(&links).is_visible.is_none() {
+        if (*links).borrow().is_visible.is_none() {
             links.borrow_mut().is_visible = Some(self.determine_if_declaration_is_visible(node));
         }
-        let ret = RefCell::borrow(&links).is_visible.unwrap();
+        let ret = (*links).borrow().is_visible.unwrap();
         ret
         // }
 
@@ -445,8 +446,8 @@ impl TypeChecker {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> Option<Vec<Rc<Node>>> {
-        let mut export_symbol: Option<Rc<Symbol>> = None;
+    ) -> Option<Vec<Gc<Node>>> {
+        let mut export_symbol: Option<Gc<Symbol>> = None;
         if
         /*node.parent &&*/
         node.parent().kind() == SyntaxKind::ExportAssignment {
@@ -472,7 +473,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let result: RefCell<Option<Vec<Rc<Node>>>> = RefCell::new(None);
+        let result: RefCell<Option<Vec<Gc<Node>>>> = RefCell::new(None);
         if let Some(export_symbol) = export_symbol {
             let mut visited: HashSet<SymbolId> = HashSet::new();
             visited.insert(get_symbol_id(&export_symbol));
@@ -489,11 +490,11 @@ impl TypeChecker {
     pub(super) fn build_visible_node_list(
         &self,
         set_visibility: bool,
-        result: &RefCell<Option<Vec<Rc<Node>>>>,
+        result: &RefCell<Option<Vec<Gc<Node>>>>,
         visited: &mut HashSet<SymbolId>,
-        declarations: Option<&[Rc<Node /*Declaration*/>]>,
+        declarations: Option<&[Gc<Node /*Declaration*/>]>,
     ) {
-        maybe_for_each(declarations, |declaration: &Rc<Node>, _| {
+        maybe_for_each(declarations, |declaration: &Gc<Node>, _| {
             let result_node = self
                 .get_any_import_syntax(declaration)
                 .unwrap_or_else(|| declaration.node_wrapper());
@@ -504,7 +505,7 @@ impl TypeChecker {
                 if result.is_none() {
                     *result = Some(vec![]);
                 }
-                push_if_unique_rc(result.as_mut().unwrap(), &result_node);
+                push_if_unique_gc(result.as_mut().unwrap(), &result_node);
             }
 
             if is_internal_module_import_equals_declaration(declaration) {
@@ -516,7 +517,7 @@ impl TypeChecker {
                     &first_identifier.as_identifier().escaped_text,
                     SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                     None,
-                    Option::<Rc<Node>>::None,
+                    Option::<Gc<Node>>::None,
                     false,
                     None,
                 );
@@ -594,16 +595,14 @@ impl TypeChecker {
                 .borrow()
                 .type_
                 .is_some(),
-            TypeSystemPropertyName::EnumTagType => {
-                RefCell::borrow(&self.get_node_links(target.as_node()))
-                    .resolved_enum_type
-                    .is_some()
-            }
-            TypeSystemPropertyName::DeclaredType => {
-                RefCell::borrow(&self.get_symbol_links(target.as_symbol()))
-                    .declared_type
-                    .is_some()
-            }
+            TypeSystemPropertyName::EnumTagType => (*self.get_node_links(target.as_node()))
+                .borrow()
+                .resolved_enum_type
+                .is_some(),
+            TypeSystemPropertyName::DeclaredType => (*self.get_symbol_links(target.as_symbol()))
+                .borrow()
+                .declared_type
+                .is_some(),
             TypeSystemPropertyName::ResolvedBaseConstructorType => target
                 .as_type()
                 .as_not_actually_interface_type()
@@ -637,7 +636,7 @@ impl TypeChecker {
         self.resolution_results().pop().unwrap()
     }
 
-    pub(super) fn get_declaration_container(&self, node: &Node) -> Rc<Node> {
+    pub(super) fn get_declaration_container(&self, node: &Node) -> Gc<Node> {
         find_ancestor(Some(get_root_declaration(node)), |node| {
             !matches!(
                 node.kind(),
@@ -653,7 +652,7 @@ impl TypeChecker {
         .parent()
     }
 
-    pub(super) fn get_type_of_prototype_property(&self, prototype: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_prototype_property(&self, prototype: &Symbol) -> Gc<Type> {
         let class_type =
             self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype).unwrap());
         if let Some(class_type_type_parameters) = class_type
@@ -674,7 +673,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let prop = self.get_property_of_type_(type_, name, None)?;
         Some(self.get_type_of_symbol(&prop))
     }
@@ -683,7 +682,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.get_type_of_property_of_type_(type_, name)
             .or_else(|| {
                 self.get_applicable_index_info_for_name(type_, name)
@@ -710,7 +709,7 @@ impl TypeChecker {
     pub(super) fn get_type_for_binding_element_parent(
         &self,
         node: &Node, /*BindingElementGrandparent*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let symbol = self.get_symbol_of_node(node);
         symbol
             .as_ref()
@@ -721,9 +720,9 @@ impl TypeChecker {
     pub(super) fn get_rest_type<TSymbol: Borrow<Symbol>>(
         &self,
         source: &Type,
-        properties: &[Rc<Node /*PropertyName*/>],
+        properties: &[Gc<Node /*PropertyName*/>],
         symbol: Option<TSymbol>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let source = self.filter_type(source, |t| !t.flags().intersects(TypeFlags::Nullable));
         if source.flags().intersects(TypeFlags::Never) {
             return self.empty_object_type();
@@ -739,7 +738,7 @@ impl TypeChecker {
                 .unwrap();
         }
         let omit_key_type = self.get_union_type(
-            map(properties, |property: &Rc<Node>, _| {
+            map(properties, |property: &Gc<Node>, _| {
                 self.get_literal_type_from_property_name(property)
             }),
             None,
@@ -785,7 +784,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             symbol,
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             self.get_index_infos_of_type(&source),
@@ -807,7 +806,7 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> Gc<Type> {
         let type_or_constraint = if self.some_type(type_, |type_| {
             self.is_generic_type_with_undefined_constraint(type_)
         }) {
@@ -833,7 +832,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
         declared_type: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let reference = self.get_synthetic_element_access(node);
         if let Some(reference) = reference {
             self.get_flow_type_of_reference(
@@ -850,14 +849,14 @@ impl TypeChecker {
     pub(super) fn get_synthetic_element_access(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
-    ) -> Option<Rc<Node /*ElementAccessExpression*/>> {
+    ) -> Option<Gc<Node /*ElementAccessExpression*/>> {
         let parent_access = self.get_parent_element_access(node)?;
         let ret = parent_access
             .maybe_flow_node()
             .clone()
             .and_then(|parent_access_flow_node| {
                 let prop_name = self.get_destructuring_property_name(node)?;
-                let literal: Rc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
+                let literal: Gc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
                     parse_node_factory.with(|parse_node_factory_| {
                         parse_node_factory_
                             .create_string_literal(parse_base_node_factory_, prop_name, None, None)
@@ -879,7 +878,7 @@ impl TypeChecker {
                         })
                     })
                 };
-                let result: Rc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
+                let result: Gc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
                     parse_node_factory.with(|parse_node_factory_| {
                         parse_node_factory_
                             .create_element_access_expression(
@@ -893,7 +892,7 @@ impl TypeChecker {
                 set_text_range(&*result, Some(node));
                 set_parent(&literal, Some(&*result));
                 set_parent(&result, Some(node));
-                if !Rc::ptr_eq(&lhs_expr, &parent_access) {
+                if !Gc::ptr_eq(&lhs_expr, &parent_access) {
                     set_parent(&lhs_expr, Some(&*result));
                 }
                 result.set_flow_node(Some(parent_access_flow_node));

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -144,7 +145,7 @@ impl BinderType {
                 .left
                 .as_has_expression()
                 .expression(),
-        ) && matches!(self.maybe_container(), Some(container) if Rc::ptr_eq(&container, &self.file()))
+        ) && matches!(self.maybe_container(), Some(container) if Gc::ptr_eq(&container, &self.file()))
             && is_exports_or_module_exports_or_alias(
                 &self.file(),
                 &node_as_binary_expression
@@ -196,7 +197,7 @@ impl BinderType {
         is_toplevel: bool,
         is_prototype_property: bool,
         container_is_class: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let mut namespace_symbol =
             namespace_symbol.map(|namespace_symbol| namespace_symbol.borrow().symbol_wrapper());
         if matches!(namespace_symbol.as_ref(), Some(namespace_symbol) if namespace_symbol.flags().intersects(SymbolFlags::Alias))
@@ -231,7 +232,7 @@ impl BinderType {
                                 file.as_source_file().maybe_js_global_augmentations();
                             if file_js_global_augmentations.is_none() {
                                 *file_js_global_augmentations =
-                                    Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                                    Some(Gc::new(GcCell::new(create_symbol_table(None))));
                             }
                             Some(self.declare_symbol(
                                 &mut file_js_global_augmentations.clone().unwrap().borrow_mut(),
@@ -284,13 +285,13 @@ impl BinderType {
         let symbol_table = if is_prototype_property {
             let mut namespace_symbol_members = namespace_symbol.maybe_members_mut();
             if namespace_symbol_members.is_none() {
-                *namespace_symbol_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                *namespace_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
             }
             namespace_symbol_members
         } else {
             let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
             if namespace_symbol_exports.is_none() {
-                *namespace_symbol_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                *namespace_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
             }
             namespace_symbol_exports
         };
@@ -313,7 +314,7 @@ impl BinderType {
                         .as_object_literal_expression()
                         .properties,
                 ),
-                Some(|p: &Rc<Node>| {
+                Some(|p: &Gc<Node>| {
                     let id = get_name_of_declaration(Some(&**p));
                     matches!(id, Some(id) if is_identifier(&id) && id_text(&id) == "set")
                 }),
@@ -327,7 +328,7 @@ impl BinderType {
                         .as_object_literal_expression()
                         .properties,
                 ),
-                Some(|p: &Rc<Node>| {
+                Some(|p: &Gc<Node>| {
                     let id = get_name_of_declaration(Some(&**p));
                     matches!(id, Some(id) if is_identifier(&id) && id_text(&id) == "get")
                 }),
@@ -447,7 +448,7 @@ impl BinderType {
         false
     }
 
-    pub(super) fn get_parent_of_binary_expression(&self, expr: &Node) -> Rc<Node> {
+    pub(super) fn get_parent_of_binary_expression(&self, expr: &Node) -> Gc<Node> {
         let mut expr = expr.node_wrapper();
         while is_binary_expression(&expr.parent()) {
             expr = expr.parent();
@@ -459,7 +460,7 @@ impl BinderType {
         &self,
         node: &Node, /*BindableStaticNameExpression*/
         lookup_container: Option<TLookupContainer>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let lookup_container =
             lookup_container.map(|lookup_container| lookup_container.borrow().node_wrapper());
         let lookup_container = lookup_container.unwrap_or_else(|| self.container());
@@ -474,7 +475,7 @@ impl BinderType {
                 .and_then(|symbol| symbol.maybe_exports().clone())
                 .and_then(|exports| {
                     get_element_or_property_access_name(node)
-                        .and_then(|name| RefCell::borrow(&*exports).get(&*name).cloned())
+                        .and_then(|name| (*exports).borrow().get(&*name).cloned())
                 })
         }
     }
@@ -483,15 +484,15 @@ impl BinderType {
         TParent: Borrow<Symbol>,
         TAction: FnMut(
             &Node, /*Declaration*/
-            Option<Rc<Symbol>>,
-            Option<Rc<Symbol>>,
-        ) -> Option<Rc<Symbol>>,
+            Option<Gc<Symbol>>,
+            Option<Gc<Symbol>>,
+        ) -> Option<Gc<Symbol>>,
     >(
         &self,
         e: &Node, /*BindableStaticNameExpression*/
         parent: Option<TParent>,
         action: &mut TAction,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
         if is_exports_or_module_exports_or_alias(&self.file(), e) {
             self.file().maybe_symbol()
@@ -517,7 +518,7 @@ impl BinderType {
                     .and_then(|s| s.maybe_exports().clone())
                     .and_then(|exports| {
                         get_element_or_property_access_name(e)
-                            .and_then(|name| RefCell::borrow(&*exports).get(&*name).cloned())
+                            .and_then(|name| (*exports).borrow().get(&*name).cloned())
                     }),
                 s,
             )
@@ -575,7 +576,7 @@ impl BinderType {
             self.file()
                 .as_source_file()
                 .bind_diagnostics_mut()
-                .push(Rc::new(
+                .push(Gc::new(
                     self.create_diagnostic_for_node(
                         &symbol_export.maybe_declarations().as_ref().unwrap()[0],
                         &Diagnostics::Duplicate_identifier_0,
@@ -673,7 +674,7 @@ impl BinderType {
                     index_of(
                         &*node.parent().as_signature_declaration().parameters(),
                         &node.node_wrapper(),
-                        |a, b| Rc::ptr_eq(a, b)
+                        |a, b| Gc::ptr_eq(a, b)
                     )
                 ),
             );
@@ -733,7 +734,7 @@ impl BinderType {
     pub(super) fn bind_function_expression(
         &self,
         node: &Node, /*FunctionExpression (actually also ArrowFunction)*/
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
         {
@@ -757,7 +758,7 @@ impl BinderType {
         node: &Node,
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
             && is_async_function(node)
@@ -785,7 +786,7 @@ impl BinderType {
     pub(super) fn get_infer_type_container(
         &self,
         node: &Node,
-    ) -> Option<Rc<Node /*ConditionalTypeNode*/>> {
+    ) -> Option<Gc<Node /*ConditionalTypeNode*/>> {
         let extends_type = find_ancestor(
             Some(node),
             |n| matches!(n.maybe_parent(), Some(parent) if is_conditional_type_node(&parent) && ptr::eq(&*parent.as_conditional_type_node().extends_type, n)),
@@ -799,7 +800,7 @@ impl BinderType {
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
-                    *container_locals = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                    *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(None))));
                 }
                 self.declare_symbol(
                     &mut container_locals.as_ref().unwrap().borrow_mut(),
@@ -822,7 +823,7 @@ impl BinderType {
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
-                    *container_locals = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                    *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(None))));
                 }
                 self.declare_symbol(
                     &mut container_locals.as_ref().unwrap().borrow_mut(),
@@ -867,7 +868,7 @@ impl BinderType {
         {
             return false;
         }
-        if Rc::ptr_eq(&self.current_flow(), &self.unreachable_flow()) {
+        if Gc::ptr_eq(&self.current_flow(), &self.unreachable_flow()) {
             let report_error = is_statement_but_not_declaration(node)
                 && node.kind() != SyntaxKind::EmptyStatement
                 || node.kind() == SyntaxKind::ClassDeclaration
@@ -914,7 +915,7 @@ fn each_unreachable_range<TCallback: FnMut(&Node, &Node)>(node: &Node, mut cb: T
     if is_statement(node) && is_executable_statement(node) && is_block(&node.parent()) {
         let node_parent = node.parent();
         let statements = &node_parent.as_block().statements;
-        let slice = slice_after(statements, &node.node_wrapper(), |a, b| Rc::ptr_eq(a, b));
+        let slice = slice_after(statements, &node.node_wrapper(), |a, b| Gc::ptr_eq(a, b));
         get_ranges_where(
             slice,
             |node| is_executable_statement(node),
@@ -996,11 +997,11 @@ pub fn is_exports_or_module_exports_or_alias(
 pub(super) fn lookup_symbol_for_name(
     container: &Node,
     name: &str, /*__String*/
-) -> Option<Rc<Symbol>> {
+) -> Option<Gc<Symbol>> {
     let container_locals = container.maybe_locals();
     let local = container_locals
         .as_ref()
-        .and_then(|locals| RefCell::borrow(locals).get(name).map(Clone::clone));
+        .and_then(|locals| (**locals).borrow().get(name).cloned());
     if let Some(local) = local {
         return Some(local.maybe_export_symbol().unwrap_or_else(|| local.clone()));
     }
@@ -1010,17 +1011,14 @@ pub(super) fn lookup_symbol_for_name(
             .maybe_js_global_augmentations()
             .as_ref()
         {
-            let container_js_global_augmentations =
-                RefCell::borrow(&*container_js_global_augmentations);
+            let container_js_global_augmentations = (**container_js_global_augmentations).borrow();
             if container_js_global_augmentations.contains_key(name) {
-                return container_js_global_augmentations
-                    .get(name)
-                    .map(Clone::clone);
+                return container_js_global_augmentations.get(name).cloned();
             }
         }
     }
     container
         .maybe_symbol()
         .and_then(|symbol| symbol.maybe_exports().clone())
-        .and_then(|exports| RefCell::borrow(&*exports).get(name).map(Clone::clone))
+        .and_then(|exports| (*exports).borrow().get(name).cloned())
 }

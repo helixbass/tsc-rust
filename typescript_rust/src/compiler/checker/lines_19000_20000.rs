@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::collections::HashSet;
@@ -12,13 +13,14 @@ use super::{
     SignatureCheckMode, TypeComparerIsRelatedToWorker, TypeFacts,
 };
 use crate::{
-    are_option_rcs_equal, cartesian_product, create_diagnostic_for_node, factory,
-    get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
-    is_named_declaration, is_private_identifier, length, push_if_unique_rc, reduce_left, some,
-    CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,
-    ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
-    TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
+    are_option_gcs_equal, are_option_rcs_equal, cartesian_product, create_diagnostic_for_node,
+    factory, get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
+    is_named_declaration, is_private_identifier, length, push_if_unique_gc, push_if_unique_rc,
+    reduce_left, some, CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    ElementFlags, IndexInfo, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
+    TypeFlags, TypeFormatFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
+    get_object_flags,
 };
 
 impl CheckTypeRelatedTo {
@@ -47,8 +49,8 @@ impl CheckTypeRelatedTo {
         original_error_info: &mut Option<Rc<DiagnosticMessageChain>>,
         save_error_info: &ErrorCalculationState,
         variance_check_failed: &mut bool,
-        source_type_arguments: Option<&[Rc<Type>]>,
-        target_type_arguments: Option<&[Rc<Type>]>,
+        source_type_arguments: Option<&[Gc<Type>]>,
+        target_type_arguments: Option<&[Gc<Type>]>,
         variances: &[VarianceFlags],
         intersection_state: IntersectionState,
     ) -> Option<Ternary> {
@@ -119,7 +121,7 @@ impl CheckTypeRelatedTo {
                 &self
                     .type_checker
                     .get_constraint_type_from_mapped_type(source),
-                Some(Rc::new(
+                Some(Gc::new(
                     if self
                         .type_checker
                         .get_combined_mapped_type_optionality(source)
@@ -142,7 +144,7 @@ impl CheckTypeRelatedTo {
                 None,
             );
             if result != Ternary::False {
-                let mapper = Rc::new(self.type_checker.create_type_mapper(
+                let mapper = Gc::new(self.type_checker.create_type_mapper(
                     vec![self
                         .type_checker
                         .get_type_parameter_from_mapped_type(source)],
@@ -150,7 +152,7 @@ impl CheckTypeRelatedTo {
                         .type_checker
                         .get_type_parameter_from_mapped_type(target)]),
                 ));
-                if are_option_rcs_equal(
+                if are_option_gcs_equal(
                     self.type_checker
                         .maybe_instantiate_type(
                             self.type_checker.get_name_type_from_mapped_type(source),
@@ -209,7 +211,7 @@ impl CheckTypeRelatedTo {
             }
         }
 
-        let mut source_discriminant_types: Vec<Vec<Rc<Type>>> =
+        let mut source_discriminant_types: Vec<Vec<Gc<Type>>> =
             Vec::with_capacity(source_properties_filtered.len());
         let mut excluded_properties: HashSet<__String> = HashSet::new();
         for (i, source_property) in source_properties_filtered.iter().enumerate() {
@@ -230,7 +232,7 @@ impl CheckTypeRelatedTo {
         }
 
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
-        let mut matching_types: Vec<Rc<Type>> = vec![];
+        let mut matching_types: Vec<Gc<Type>> = vec![];
         for combination in &discriminant_combinations {
             let mut has_match = false;
             'outer: for type_ in target.as_union_or_intersection_type_interface().types() {
@@ -244,7 +246,7 @@ impl CheckTypeRelatedTo {
                         continue 'outer;
                     }
                     let target_property = target_property.unwrap();
-                    if Rc::ptr_eq(source_property, &target_property) {
+                    if Gc::ptr_eq(source_property, &target_property) {
                         continue;
                     }
                     let related = self.property_related_to(
@@ -263,7 +265,7 @@ impl CheckTypeRelatedTo {
                         continue 'outer;
                     }
                 }
-                push_if_unique_rc(&mut matching_types, type_);
+                push_if_unique_gc(&mut matching_types, type_);
                 has_match = true;
             }
             if !has_match {
@@ -308,14 +310,14 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn exclude_properties(
         &self,
-        properties: &[Rc<Symbol>],
+        properties: &[Gc<Symbol>],
         excluded_properties: Option<&HashSet<__String>>,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         if excluded_properties.is_none() || properties.is_empty() {
             return properties.to_owned();
         }
         let excluded_properties = excluded_properties.unwrap();
-        let mut result: Option<Vec<Rc<Symbol>>> = None;
+        let mut result: Option<Vec<Gc<Symbol>>> = None;
         for i in 0..properties.len() {
             if !excluded_properties.contains(properties[i].escaped_name()) {
                 if let Some(result) = result.as_mut() {
@@ -329,7 +331,7 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn is_property_symbol_type_related<
-        TGetTypeOfSourceProperty: FnMut(&Symbol) -> Rc<Type>,
+        TGetTypeOfSourceProperty: FnMut(&Symbol) -> Gc<Type>,
     >(
         &self,
         source_prop: &Symbol,
@@ -358,7 +360,7 @@ impl CheckTypeRelatedTo {
         )
     }
 
-    pub(super) fn property_related_to<TGetTypeOfSourceProperty: FnMut(&Symbol) -> Rc<Type>>(
+    pub(super) fn property_related_to<TGetTypeOfSourceProperty: FnMut(&Symbol) -> Gc<Type>>(
         &self,
         source: &Type,
         target: &Type,
@@ -374,7 +376,7 @@ impl CheckTypeRelatedTo {
         if source_prop_flags.intersects(ModifierFlags::Private)
             || target_prop_flags.intersects(ModifierFlags::Private)
         {
-            if !are_option_rcs_equal(
+            if !are_option_gcs_equal(
                 source_prop.maybe_value_declaration().as_ref(),
                 target_prop.maybe_value_declaration().as_ref(),
             ) {
@@ -683,7 +685,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         ),
-                        (&props[0..4]).into_iter().map(|p: &Rc<Symbol>|
+                        (&props[0..4]).into_iter().map(|p: &Gc<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
@@ -707,7 +709,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         ),
-                        props.iter().map(|p: &Rc<Symbol>|
+                        props.iter().map(|p: &Gc<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
@@ -1074,7 +1076,7 @@ impl CheckTypeRelatedTo {
             {
                 let source_prop = self.type_checker.get_property_of_type_(source, name, None);
                 if let Some(source_prop) = source_prop {
-                    if !Rc::ptr_eq(&source_prop, &target_prop) {
+                    if !Gc::ptr_eq(&source_prop, &target_prop) {
                         let related = self.property_related_to(
                             source,
                             target,
@@ -1222,7 +1224,7 @@ impl CheckTypeRelatedTo {
         let target_object_flags = get_object_flags(target);
         if source_object_flags.intersects(ObjectFlags::Instantiated)
             && target_object_flags.intersects(ObjectFlags::Instantiated)
-            && are_option_rcs_equal(
+            && are_option_gcs_equal(
                 source.maybe_symbol().as_ref(),
                 target.maybe_symbol().as_ref(),
             )
@@ -1267,7 +1269,7 @@ impl CheckTypeRelatedTo {
                     Some(source_signature_declaration) if source_signature_declaration.kind() == SyntaxKind::Constructor
                 ))
             {
-                let construct_signature_to_string = |signature: Rc<Signature>| -> String {
+                let construct_signature_to_string = |signature: Gc<Signature>| -> String {
                     self.type_checker.signature_to_string_(
                         signature,
                         Option::<&Node>::None,
@@ -1424,8 +1426,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn signature_related_to(
         &self,
-        source: Rc<Signature>,
-        target: Rc<Signature>,
+        source: Gc<Signature>,
+        target: Gc<Signature>,
         erase: bool,
         report_errors: bool,
         incompatible_reporter: fn(&Self, &Type, &Type),
@@ -1452,8 +1454,10 @@ impl CheckTypeRelatedTo {
                 self.report_error(message, args)
             }),
             Some(&|source: &Type, target: &Type| incompatible_reporter(self, source, target)),
-            Rc::new(TypeComparerIsRelatedToWorker::new(self.rc_wrapper())),
-            Some(Rc::new(
+            Gc::new(Box::new(TypeComparerIsRelatedToWorker::new(
+                self.rc_wrapper(),
+            ))),
+            Some(Gc::new(
                 self.type_checker
                     .make_function_type_mapper(ReportUnreliableMarkers),
             )),
@@ -1520,7 +1524,7 @@ impl CheckTypeRelatedTo {
                 let prop_type = self.type_checker.get_non_missing_type_of_symbol(prop);
                 let type_ = if matches!(self.type_checker.exact_optional_property_types, Some(true))
                     || prop_type.flags().intersects(TypeFlags::Undefined)
-                    || Rc::ptr_eq(key_type, &self.type_checker.number_type())
+                    || Gc::ptr_eq(key_type, &self.type_checker.number_type())
                     || !prop.flags().intersects(SymbolFlags::Optional)
                 {
                     prop_type

@@ -1,25 +1,29 @@
+use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::{get_closing_bracket, get_opening_bracket};
+use super::{
+    get_closing_bracket, get_opening_bracket,
+    ParenthesizeMemberOfElementTypeCurrentParenthesizerRule,
+};
 use crate::{
     get_comment_range, get_emit_flags, get_shebang, is_arrow_function, is_block,
     is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
     is_unparsed_source, range_is_on_single_line, single_or_undefined, some, with_synthetic_factory,
-    BundleFileSection, BundleFileSectionKind, Debug_, EmitFlags, EmitHint, HasInitializerInterface,
-    HasStatementsInterface, HasTypeInterface, HasTypeParametersInterface, ListFormat,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, SourceFileLike, SourceFilePrologueDirective,
-    SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange,
-    UnparsedSectionInterface,
+    BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags,
+    EmitHint, HasInitializerInterface, HasStatementsInterface, HasTypeInterface,
+    HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
+    SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
+    Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
 };
 
 impl Printer {
     pub(super) fn emit_unparsed_prologues(
         &self,
-        prologues: &[Rc<Node /*UnparsedPrologue*/>],
+        prologues: &[Gc<Node /*UnparsedPrologue*/>],
         seen_prologue_directives: &mut HashSet<String>,
     ) {
         for prologue in prologues {
@@ -33,7 +37,7 @@ impl Printer {
                 if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                     bundle_file_info
                         .sections
-                        .push(Rc::new(BundleFileSection::new_prologue(
+                        .push(Gc::new(BundleFileSection::new_prologue(
                             prologue_as_unparsed_prologue
                                 .maybe_data()
                                 .unwrap()
@@ -227,7 +231,7 @@ impl Printer {
         node: Option<TNode /*Expression*/>,
         equal_comment_start_pos: isize,
         container: &Node,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         if let Some(node) = node {
             let node = node.borrow();
@@ -267,7 +271,7 @@ impl Printer {
     pub(super) fn emit_expression_with_leading_space(
         &self,
         node: Option<&Node>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         if let Some(node) = node {
             self.write_space();
@@ -322,14 +326,9 @@ impl Printer {
             Some(parent_node),
             type_arguments,
             ListFormat::TypeArguments,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
             None,
             None,
         );
@@ -386,23 +385,23 @@ impl Printer {
                     parent_node_as_arrow_function.maybe_type().is_none() &&
                         !some(
                             parent_node.maybe_decorators().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
                             parent_node.maybe_modifiers().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
                             parent_node_as_arrow_function.maybe_type_parameters().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
                             parameter.maybe_decorators().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
                             parameter.maybe_modifiers().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         parameter_as_parameter_declaration.dot_dot_dot_token.is_none() &&
                         parameter_as_parameter_declaration.question_token.is_none() &&
@@ -475,7 +474,7 @@ impl Printer {
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {
@@ -495,7 +494,7 @@ impl Printer {
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {
@@ -512,11 +511,11 @@ impl Printer {
 
     pub(super) fn emit_node_list<TNode: Borrow<Node>>(
         &self,
-        emit: fn(&Printer, Option<&Node>, Option<Rc<dyn Fn(&Node) -> Rc<Node>>>),
+        emit: fn(&Printer, Option<&Node>, Option<Gc<Box<dyn CurrentParenthesizerRule>>>),
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {
@@ -590,7 +589,7 @@ impl Printer {
                 self.increase_indent();
             }
 
-            let mut previous_sibling: Option<Rc<Node>> = None;
+            let mut previous_sibling: Option<Gc<Node>> = None;
             let mut previous_source_file_text_kind: Option<BundleFileSectionKind> = None;
             let mut should_decrease_indent_after_emit = false;
             for i in 0..count {

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
@@ -112,7 +113,7 @@ impl TypeChecker {
         &self,
         name: &str,
         base_type: &Type,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.get_spelling_suggestion_for_name(
             name,
             &self.get_properties_of_type(base_type),
@@ -127,7 +128,7 @@ impl TypeChecker {
         &self,
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let mut props = self.get_properties_of_type(containing_type);
         let mut name = name.into();
         let name_inner_rc_node = match name.clone() {
@@ -137,7 +138,7 @@ impl TypeChecker {
         if let Some(name_inner_rc_node) = name_inner_rc_node.as_ref() {
             let parent = name_inner_rc_node.parent();
             if is_property_access_expression(&parent) {
-                props = filter(&props, |prop: &Rc<Symbol>| {
+                props = filter(&props, |prop: &Gc<Symbol>| {
                     self.is_valid_property_access_for_completions_(&parent, containing_type, prop)
                 });
             }
@@ -154,7 +155,7 @@ impl TypeChecker {
         &self,
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let name = name.into();
         let str_name = match &name {
             StrOrRcNode::Str(name) => *name,
@@ -162,9 +163,9 @@ impl TypeChecker {
         };
         let properties = self.get_properties_of_type(containing_type);
         let jsx_specific = if str_name == "for" {
-            find(&properties, |x: &Rc<Symbol>, _| symbol_name(x) == "htmlFor").cloned()
+            find(&properties, |x: &Gc<Symbol>, _| symbol_name(x) == "htmlFor").cloned()
         } else if str_name == "class" {
-            find(&properties, |x: &Rc<Symbol>, _| {
+            find(&properties, |x: &Gc<Symbol>, _| {
                 symbol_name(x) == "className"
             })
             .cloned()
@@ -195,7 +196,7 @@ impl TypeChecker {
         location: Option<TLocation>,
         outer_name: &str, /*__String*/
         meaning: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         // Debug.assert(outerName !== undefined, "outername should always be defined");
         let result = self.resolve_name_helper(
             location,
@@ -216,7 +217,7 @@ impl TypeChecker {
                 if symbol.is_some() {
                     return symbol;
                 }
-                let candidates: Vec<Rc<Symbol>>;
+                let candidates: Vec<Gc<Symbol>>;
                 if ptr::eq(symbols, &*self.globals()) {
                     let primitives = map_defined(
                         Some(["string", "number", "boolean", "object", "bigint", "symbol"]),
@@ -265,7 +266,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*Identifier*/
         target_module: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if target_module.maybe_exports().is_some() {
             self.get_spelling_suggestion_for_name(
                 &id_text(name),
@@ -341,7 +342,7 @@ impl TypeChecker {
         &self,
         source: &Type, /*StringLiteralType*/
         target: &Type, /*UnionType*/
-    ) -> Option<Rc<Type /*StringLiteralType*/>> {
+    ) -> Option<Gc<Type /*StringLiteralType*/>> {
         let candidates = target
             .as_union_type()
             .types()
@@ -352,7 +353,7 @@ impl TypeChecker {
         get_spelling_suggestion(
             &source.as_string_literal_type().value,
             &candidates,
-            |type_: &Rc<Type>| Some(type_.as_string_literal_type().value.clone()),
+            |type_: &Gc<Type>| Some(type_.as_string_literal_type().value.clone()),
         )
         .cloned()
     }
@@ -360,10 +361,10 @@ impl TypeChecker {
     pub(super) fn get_spelling_suggestion_for_name(
         &self,
         name: &str,
-        symbols: &[Rc<Symbol>],
+        symbols: &[Gc<Symbol>],
         meaning: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
-        let get_candidate_name = |candidate: &Rc<Symbol>| {
+    ) -> Option<Gc<Symbol>> {
+        let get_candidate_name = |candidate: &Gc<Symbol>| {
             let candidate_name = symbol_name(candidate);
             if starts_with(&candidate_name, "\"") {
                 return None;
@@ -463,7 +464,7 @@ impl TypeChecker {
             || matches!(
                 parent.as_ref(),
                 Some(parent) if is_entity_name_expression(name) &&
-                    Rc::ptr_eq(
+                    Gc::ptr_eq(
                         parent,
                         &self.get_resolved_symbol(
                             &get_first_identifier(name)
@@ -599,7 +600,7 @@ impl TypeChecker {
     pub(super) fn get_for_in_variable_symbol(
         &self,
         node: &Node, /*ForInStatement*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let initializer = &node.as_for_in_statement().initializer;
         if initializer.kind() == SyntaxKind::VariableDeclarationList {
             let variable = initializer
@@ -638,10 +639,10 @@ impl TypeChecker {
                 while let Some(node_present) = node.as_ref() {
                     if node_present.kind() == SyntaxKind::ForInStatement && {
                         let node_as_for_in_statement = node_present.as_for_in_statement();
-                        Rc::ptr_eq(&child, &node_as_for_in_statement.statement)
+                        Gc::ptr_eq(&child, &node_as_for_in_statement.statement)
                             && matches!(
                                 self.get_for_in_variable_symbol(node_present).as_ref(),
-                                Some(for_in_variable_symbol) if Rc::ptr_eq(
+                                Some(for_in_variable_symbol) if Gc::ptr_eq(
                                     for_in_variable_symbol,
                                     &symbol
                                 )
@@ -664,7 +665,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ElementAccessExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_element_access_chain(node, check_mode)
         } else {
@@ -680,7 +681,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ElementAccessChain*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_element_access_expression = node.as_element_access_expression();
         let expr_type =
             self.check_expression(&node_as_element_access_expression.expression, None, None);
@@ -698,7 +699,7 @@ impl TypeChecker {
                 check_mode,
             ),
             node,
-            !Rc::ptr_eq(&non_optional_type, &expr_type),
+            !Gc::ptr_eq(&non_optional_type, &expr_type),
         )
     }
 
@@ -707,7 +708,7 @@ impl TypeChecker {
         node: &Node, /*ElementAccessExpression*/
         expr_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let object_type = if get_assignment_target_kind(node) != AssignmentKind::None
             || self.is_method_access_for_call(node)
         {
@@ -719,7 +720,7 @@ impl TypeChecker {
         let index_expression = &node_as_element_access_expression.argument_expression;
         let index_type = self.check_expression(index_expression, None, None);
 
-        if self.is_error_type(&object_type) || Rc::ptr_eq(&object_type, &self.silent_never_type()) {
+        if self.is_error_type(&object_type) || Gc::ptr_eq(&object_type, &self.silent_never_type()) {
             return object_type;
         }
 
@@ -788,11 +789,11 @@ impl TypeChecker {
     pub(super) fn resolve_untyped_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         if self.call_like_expression_may_have_type_arguments(node) {
             maybe_for_each(
                 node.as_has_type_arguments().maybe_type_arguments().as_ref(),
-                |type_argument: &Rc<Node>, _| -> Option<()> {
+                |type_argument: &Gc<Node>, _| -> Option<()> {
                     self.check_source_element(Some(&**type_argument));
                     None
                 },
@@ -806,7 +807,7 @@ impl TypeChecker {
         } else if node.kind() != SyntaxKind::Decorator {
             maybe_for_each(
                 node.as_has_arguments().maybe_arguments(),
-                |argument: &Rc<Node>, _| -> Option<()> {
+                |argument: &Gc<Node>, _| -> Option<()> {
                     self.check_expression(argument, None, None);
                     None
                 },
@@ -818,19 +819,19 @@ impl TypeChecker {
     pub(super) fn resolve_error_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         self.resolve_untyped_call(node);
         self.unknown_signature()
     }
 
     pub(super) fn reorder_candidates(
         &self,
-        signatures: &[Rc<Signature>],
-        result: &mut Vec<Rc<Signature>>,
+        signatures: &[Gc<Signature>],
+        result: &mut Vec<Gc<Signature>>,
         call_chain_flags: SignatureFlags,
     ) {
-        let mut last_parent: Option<Rc<Node>> = None;
-        let mut last_symbol: Option<Rc<Symbol>> = None;
+        let mut last_parent: Option<Gc<Node>> = None;
+        let mut last_symbol: Option<Gc<Symbol>> = None;
         let mut cutoff_index = 0;
         let mut index: Option<usize> = None;
         let mut specialized_index: isize = -1;
@@ -849,7 +850,7 @@ impl TypeChecker {
                 None => true,
                 Some(last_symbol) => matches!(
                     symbol.as_ref(),
-                    Some(symbol) if Rc::ptr_eq(
+                    Some(symbol) if Gc::ptr_eq(
                         symbol,
                         last_symbol,
                     )
@@ -859,7 +860,7 @@ impl TypeChecker {
                     last_parent.as_ref(),
                     Some(last_parent) if matches!(
                         parent.as_ref(),
-                        Some(parent) if Rc::ptr_eq(
+                        Some(parent) if Gc::ptr_eq(
                             parent,
                             last_parent,
                         )

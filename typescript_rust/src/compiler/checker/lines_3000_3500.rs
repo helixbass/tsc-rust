@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -36,7 +37,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAssignment*/
         dont_recursively_resolve: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let expression = &node.as_property_assignment().initializer;
         self.get_target_of_alias_like_expression(expression, dont_recursively_resolve)
     }
@@ -45,7 +46,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*AccessExpression*/
         dont_recursively_resolve: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let node_parent = node.parent();
         if !(is_binary_expression(&node_parent)) {
             return None;
@@ -67,7 +68,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Declaration*/
         dont_recursively_resolve: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let dont_recursively_resolve = dont_recursively_resolve.unwrap_or(false);
         match node.kind() {
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
@@ -134,7 +135,7 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if !matches!(dont_resolve_alias, Some(true))
             && self.is_non_local_alias(symbol.clone(), None)
         {
@@ -144,13 +145,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn resolve_alias(&self, symbol: &Symbol) -> Rc<Symbol> {
+    pub(super) fn resolve_alias(&self, symbol: &Symbol) -> Gc<Symbol> {
         Debug_.assert(
             symbol.flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
-        if RefCell::borrow(&links).target.is_none() {
+        if (*links).borrow().target.is_none() {
             links.borrow_mut().target = Some(self.resolving_symbol());
             let node = self.get_declaration_of_alias_symbol(symbol);
             if node.is_none() {
@@ -158,8 +159,8 @@ impl TypeChecker {
             }
             let node = node.unwrap();
             let target = self.get_target_of_alias_declaration(&node, None);
-            if Rc::ptr_eq(
-                RefCell::borrow(&links).target.as_ref().unwrap(),
+            if Gc::ptr_eq(
+                (*links).borrow().target.as_ref().unwrap(),
                 &self.resolving_symbol(),
             ) {
                 links.borrow_mut().target = Some(target.unwrap_or_else(|| self.unknown_symbol()));
@@ -176,21 +177,21 @@ impl TypeChecker {
                     )]),
                 );
             }
-        } else if Rc::ptr_eq(
-            RefCell::borrow(&links).target.as_ref().unwrap(),
+        } else if Gc::ptr_eq(
+            (*links).borrow().target.as_ref().unwrap(),
             &self.resolving_symbol(),
         ) {
             links.borrow_mut().target = Some(self.unknown_symbol());
         }
-        let ret = RefCell::borrow(&links).target.clone().unwrap();
+        let ret = (*links).borrow().target.clone().unwrap();
         ret
     }
 
-    pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
+    pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
         let links = self.get_symbol_links(symbol);
         if !matches!(
-            RefCell::borrow(&links).target.as_ref(),
-            Some(target) if Rc::ptr_eq(target, &self.resolving_symbol())
+            (*links).borrow().target.as_ref(),
+            Some(target) if Gc::ptr_eq(target, &self.resolving_symbol())
         ) {
             return Some(self.resolve_alias(symbol));
         }
@@ -239,7 +240,7 @@ impl TypeChecker {
 
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only_worker<TTarget: Borrow<Symbol>>(
         &self,
-        alias_declaration_links: &RefCell<SymbolLinks>,
+        alias_declaration_links: &GcCell<SymbolLinks>,
         target: Option<TTarget>,
         overwrite_empty: bool,
     ) -> bool {
@@ -270,14 +271,15 @@ impl TypeChecker {
                         .maybe_declarations()
                         .as_deref()
                         .and_then(|declarations| {
-                            find(declarations, |declaration: &Rc<Node>, _| {
+                            find(declarations, |declaration: &Gc<Node>, _| {
                                 is_type_only_import_or_export_declaration(declaration)
                             })
                             .map(Clone::clone)
                         });
                 alias_declaration_links.borrow_mut().type_only_declaration =
                     Some(type_only.or_else(|| {
-                        match RefCell::borrow(&self.get_symbol_links(&export_symbol))
+                        match (*self.get_symbol_links(&export_symbol))
+                            .borrow()
                             .type_only_declaration
                             .clone()
                         {
@@ -299,12 +301,12 @@ impl TypeChecker {
     pub(super) fn get_type_only_alias_declaration(
         &self,
         symbol: &Symbol,
-    ) -> Option<Rc<Node /*TypeOnlyAliasDeclaration*/>> {
+    ) -> Option<Gc<Node /*TypeOnlyAliasDeclaration*/>> {
         if !symbol.flags().intersects(SymbolFlags::Alias) {
             return None;
         }
         let links = self.get_symbol_links(symbol);
-        let ret = match RefCell::borrow(&links).type_only_declaration.as_ref() {
+        let ret = match (*links).borrow().type_only_declaration.as_ref() {
             Some(Some(type_only_declaration)) => Some(type_only_declaration.clone()),
             _ => None,
         };
@@ -318,7 +320,7 @@ impl TypeChecker {
         let symbol = self.get_symbol_of_node(node).unwrap();
         let target = self.resolve_alias(&symbol);
         // if (target) {
-        let mark_alias = Rc::ptr_eq(&target, &self.unknown_symbol())
+        let mark_alias = Gc::ptr_eq(&target, &self.unknown_symbol())
             || target.flags().intersects(SymbolFlags::Value)
                 && !self.is_const_enum_or_const_enum_only_module(&target)
                 && self.get_type_only_alias_declaration(&symbol).is_none();
@@ -331,7 +333,7 @@ impl TypeChecker {
 
     pub(super) fn mark_alias_symbol_as_referenced(&self, symbol: &Symbol) {
         let links = self.get_symbol_links(symbol);
-        if !matches!(RefCell::borrow(&links).referenced, Some(true)) {
+        if !matches!((*links).borrow().referenced, Some(true)) {
             links.borrow_mut().referenced = Some(true);
             let node = self.get_declaration_of_alias_symbol(symbol);
             if node.is_none() {
@@ -340,7 +342,7 @@ impl TypeChecker {
             let node = node.unwrap();
             if is_internal_module_import_equals_declaration(&node) {
                 let target = self.resolve_symbol(Some(symbol), None).unwrap();
-                if Rc::ptr_eq(&target, &self.unknown_symbol())
+                if Gc::ptr_eq(&target, &self.unknown_symbol())
                     || target.flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(
@@ -354,7 +356,7 @@ impl TypeChecker {
 
     pub(super) fn mark_const_enum_alias_as_referenced(&self, symbol: &Symbol) {
         let links = self.get_symbol_links(symbol);
-        if !matches!(RefCell::borrow(&links).const_enum_referenced, Some(true)) {
+        if !matches!((*links).borrow().const_enum_referenced, Some(true)) {
             links.borrow_mut().const_enum_referenced = Some(true);
         }
     }
@@ -363,7 +365,7 @@ impl TypeChecker {
         &self,
         entity_name: &Node, /*EntityName*/
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let mut entity_name = entity_name.node_wrapper();
         if entity_name.kind() == SyntaxKind::Identifier
             && is_right_side_of_qualified_name_or_property_access(&entity_name)
@@ -423,7 +425,7 @@ impl TypeChecker {
     pub(super) fn get_containing_qualified_name_node(
         &self,
         node: &Node, /*QualifiedName*/
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let mut node = node.node_wrapper();
         while is_qualified_name(&node.parent()) {
             node = node.parent();
@@ -434,7 +436,7 @@ impl TypeChecker {
     pub(super) fn try_get_qualified_name_as_value(
         &self,
         node: &Node, /*QualifiedName*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let mut left = get_first_identifier(node);
         let mut symbol = self.resolve_name_(
             Some(&*left),
@@ -469,7 +471,7 @@ impl TypeChecker {
         ignore_errors: Option<bool>,
         dont_resolve_alias: Option<bool>,
         location: Option<TLocation>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let ignore_errors_unwrapped = ignore_errors.unwrap_or(false);
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
         if node_is_missing(Some(name)) {
@@ -482,7 +484,7 @@ impl TypeChecker {
             } else {
                 SymbolFlags::None
             };
-        let symbol: Option<Rc<Symbol>>;
+        let symbol: Option<Gc<Symbol>>;
         let location = location.map(|location| location.borrow().node_wrapper());
         if name.kind() == SyntaxKind::Identifier {
             let message = if meaning == namespace_meaning || node_is_synthesized(name) {
@@ -535,7 +537,7 @@ impl TypeChecker {
             )?;
             if node_is_missing(Some(&**right)) {
                 return None;
-            } else if Rc::ptr_eq(&namespace, &self.unknown_symbol()) {
+            } else if Gc::ptr_eq(&namespace, &self.unknown_symbol()) {
                 return Some(namespace);
             }
             if let Some(namespace_value_declaration) = namespace.maybe_value_declaration() {
@@ -568,7 +570,7 @@ impl TypeChecker {
                 }
             }
             symbol = self.get_merged_symbol(self.get_symbol(
-                &RefCell::borrow(&self.get_exports_of_symbol(&namespace)),
+                &(*self.get_exports_of_symbol(&namespace)).borrow(),
                 &right.as_identifier().escaped_text,
                 meaning,
             ));
@@ -624,7 +626,7 @@ impl TypeChecker {
                         && is_qualified_name(&name.parent())
                     {
                         let exported_type_symbol = self.get_merged_symbol(self.get_symbol(
-                            &RefCell::borrow(&self.get_exports_of_symbol(&namespace)),
+                            &(*self.get_exports_of_symbol(&namespace)).borrow(),
                             &right.as_identifier().escaped_text,
                             SymbolFlags::Type,
                         ));
@@ -680,7 +682,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*Identifier*/
         meaning: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if self.is_jsdoc_type_reference(&name.parent()) {
             let secondary_location = self.get_assignment_declaration_location(&name.parent());
             if let Some(secondary_location) = secondary_location {
@@ -701,7 +703,7 @@ impl TypeChecker {
     pub(super) fn get_assignment_declaration_location(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let type_alias = find_ancestor(Some(node), |node| {
             if !(is_jsdoc_node(node) || node.flags().intersects(NodeFlags::JSDoc)) {
                 FindAncestorCallbackReturn::Quit
@@ -758,7 +760,7 @@ impl TypeChecker {
     pub(super) fn get_declaration_of_js_prototype_container(
         &self,
         symbol: &Symbol,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let decl = symbol.maybe_parent().unwrap().maybe_value_declaration()?;
         let initializer = if is_assignment_declaration(&decl) {
             get_assigned_expando_initializer(Some(&*decl))
@@ -770,7 +772,7 @@ impl TypeChecker {
         Some(initializer.unwrap_or(decl))
     }
 
-    pub(super) fn get_expando_symbol(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
+    pub(super) fn get_expando_symbol(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
         let decl = symbol.maybe_value_declaration()?;
         if !is_in_js_file(Some(&*decl))
             || symbol.flags().intersects(SymbolFlags::TypeAlias)
@@ -797,7 +799,7 @@ impl TypeChecker {
         location: &Node,
         module_reference_expression: &Node, /*Expression*/
         ignore_errors: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
             == ModuleResolutionKind::Classic;
         let error_message = if is_classic {
@@ -823,7 +825,7 @@ impl TypeChecker {
         module_reference_expression: &Node, /*Expression*/
         module_not_found_error: Option<&DiagnosticMessage>,
         is_for_augmentation: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let is_for_augmentation = is_for_augmentation.unwrap_or(false);
         if is_string_literal_like(module_reference_expression) {
             self.resolve_external_module(
@@ -845,7 +847,7 @@ impl TypeChecker {
         module_not_found_error: Option<&DiagnosticMessage>,
         error_node: &Node,
         is_for_augmentation: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let is_for_augmentation = is_for_augmentation.unwrap_or(false);
         if starts_with(module_reference, "@types/") {
             let diag = &Diagnostics::Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1;
@@ -1026,7 +1028,7 @@ impl TypeChecker {
         if let Some(module_not_found_error) = module_not_found_error {
             if let Some(resolved_module) = resolved_module.as_ref() {
                 let redirect = TypeCheckerHost::get_project_reference_redirect(
-                    &*self.host,
+                    &**self.host,
                     &resolved_module.resolved_file_name,
                 );
                 if let Some(redirect) = redirect {

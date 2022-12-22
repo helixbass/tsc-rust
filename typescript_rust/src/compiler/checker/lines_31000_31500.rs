@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -49,18 +50,18 @@ impl TypeChecker {
                 "Symbol",
                 SymbolFlags::Value,
                 None,
-                Option::<Rc<Node>>::None,
+                Option::<Gc<Node>>::None,
                 false,
                 None,
             ).as_ref(),
-            Some(resolved_name) if Rc::ptr_eq(
+            Some(resolved_name) if Gc::ptr_eq(
                 global_es_symbol,
                 resolved_name
             )
         )
     }
 
-    pub(super) fn check_import_call_expression(&self, node: &Node /*ImportCall*/) -> Rc<Type> {
+    pub(super) fn check_import_call_expression(&self, node: &Node /*ImportCall*/) -> Gc<Type> {
         let node_as_call_expression = node.as_call_expression();
         if !self.check_grammar_arguments(Some(&node_as_call_expression.arguments)) {
             self.check_grammar_import_call_expression(node);
@@ -99,7 +100,7 @@ impl TypeChecker {
 
         if let Some(options_type) = options_type.as_ref() {
             let import_call_options_type = self.get_global_import_call_options_type(true);
-            if !Rc::ptr_eq(&import_call_options_type, &self.empty_object_type()) {
+            if !Gc::ptr_eq(&import_call_options_type, &self.empty_object_type()) {
                 self.check_type_assignable_to(
                     options_type,
                     &self.get_nullable_type(&import_call_options_type, TypeFlags::Undefined),
@@ -144,9 +145,9 @@ impl TypeChecker {
         symbol: &Symbol,
         original_symbol: &Symbol,
         anonymous_symbol: Option<TAnonymousSymbol>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let mut member_table = create_symbol_table(None);
-        let new_symbol: Rc<Symbol> = self
+        let new_symbol: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Alias,
                 InternalSymbolName::Default.to_owned(),
@@ -163,7 +164,7 @@ impl TypeChecker {
         member_table.insert(InternalSymbolName::Default.to_owned(), new_symbol);
         self.create_anonymous_type(
             anonymous_symbol,
-            Rc::new(RefCell::new(member_table)),
+            Gc::new(GcCell::new(member_table)),
             vec![],
             vec![],
             vec![],
@@ -176,7 +177,7 @@ impl TypeChecker {
         symbol: &Symbol,
         original_symbol: &Symbol,
         module_specifier: &Node, /*Expression*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let has_default_only = self.is_only_imported_as_default(module_specifier);
         if has_default_only {
             if
@@ -203,7 +204,7 @@ impl TypeChecker {
         symbol: &Symbol,
         original_symbol: &Symbol,
         module_specifier: &Node, /*Expression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
             let synth_type = type_;
             if synth_type.maybe_synthetic_type().is_none() {
@@ -222,7 +223,7 @@ impl TypeChecker {
                     module_specifier,
                 );
                 if has_synthetic_default {
-                    let anonymous_symbol: Rc<Symbol> = self
+                    let anonymous_symbol: Gc<Symbol> = self
                         .create_symbol(
                             SymbolFlags::TypeLiteral,
                             InternalSymbolName::Type.to_owned(),
@@ -279,12 +280,12 @@ impl TypeChecker {
                     .escaped_text,
                 SymbolFlags::Value,
                 None,
-                Option::<Rc<Node>>::None,
+                Option::<Gc<Node>>::None,
                 true,
                 None,
             )
             .unwrap();
-        if Rc::ptr_eq(&resolved_require, &self.require_symbol()) {
+        if Gc::ptr_eq(&resolved_require, &self.require_symbol()) {
             return true;
         }
         if resolved_require.flags().intersects(SymbolFlags::Alias) {
@@ -312,7 +313,7 @@ impl TypeChecker {
     pub(super) fn check_tagged_template_expression(
         &self,
         node: &Node, /*TaggedTemplateExpression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         if !self.check_grammar_tagged_template_chain(node) {
             self.check_grammar_type_arguments(
@@ -330,7 +331,7 @@ impl TypeChecker {
         self.get_return_type_of_signature(signature)
     }
 
-    pub(super) fn check_assertion(&self, node: &Node /*AssertionExpression*/) -> Rc<Type> {
+    pub(super) fn check_assertion(&self, node: &Node /*AssertionExpression*/) -> Gc<Type> {
         if node.kind() == SyntaxKind::TypeAssertionExpression {
             let file = get_source_file_of_node(Some(node));
             if matches!(
@@ -403,7 +404,7 @@ impl TypeChecker {
         type_: &Node,      /*TypeNode*/
         expression: &Node, /*UnaryExpression | Expression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let mut expr_type = self.check_expression(expression, check_mode, None);
         if is_const_type_reference(type_) {
             if !self.is_valid_const_assertion_argument(expression) {
@@ -434,21 +435,21 @@ impl TypeChecker {
         target_type
     }
 
-    pub(super) fn check_non_null_chain(&self, node: &Node /*NonNullChain*/) -> Rc<Type> {
+    pub(super) fn check_non_null_chain(&self, node: &Node /*NonNullChain*/) -> Gc<Type> {
         let left_type = self.check_expression(&node.as_has_expression().expression(), None, None);
         let non_optional_type =
             self.get_optional_expression_type(&left_type, &node.as_has_expression().expression());
         self.propagate_optional_type_marker(
             &self.get_non_nullable_type(&non_optional_type),
             node,
-            !Rc::ptr_eq(&non_optional_type, &left_type),
+            !Gc::ptr_eq(&non_optional_type, &left_type),
         )
     }
 
     pub(super) fn check_non_null_assertion(
         &self,
         node: &Node, /*NonNullExpression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_non_null_chain(node)
         } else {
@@ -460,7 +461,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_meta_property(&self, node: &Node /*MetaProperty*/) -> Rc<Type> {
+    pub(super) fn check_meta_property(&self, node: &Node /*MetaProperty*/) -> Gc<Type> {
         self.check_grammar_meta_property(node);
 
         let node_as_meta_property = node.as_meta_property();
@@ -478,7 +479,7 @@ impl TypeChecker {
     pub(super) fn check_meta_property_keyword(
         &self,
         node: &Node, /*MetaProperty*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         match node.as_meta_property().keyword_token {
             SyntaxKind::ImportKeyword => self.get_global_import_meta_expression_type(),
             SyntaxKind::NewKeyword => {
@@ -496,7 +497,7 @@ impl TypeChecker {
     pub(super) fn check_new_target_meta_property(
         &self,
         node: &Node, /*MetaProperty*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let container = get_new_target_container(node);
         match container.as_ref() {
             None => {
@@ -521,7 +522,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_import_meta_property(&self, node: &Node /*MetaProperty*/) -> Rc<Type> {
+    pub(super) fn check_import_meta_property(&self, node: &Node /*MetaProperty*/) -> Gc<Type> {
         if matches!(self.module_kind, ModuleKind::Node12 | ModuleKind::NodeNext) {
             if get_source_file_of_node(Some(node))
                 .unwrap()
@@ -555,7 +556,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> Gc<Type> {
         let type_ = self.get_type_of_symbol(symbol);
         if self.strict_null_checks {
             let declaration = symbol.maybe_value_declaration();
@@ -699,7 +700,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         pos: usize,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let param_count = signature.parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
@@ -734,7 +735,7 @@ impl TypeChecker {
             })
     }
 
-    pub(super) fn get_type_at_position(&self, signature: &Signature, pos: usize) -> Rc<Type> {
+    pub(super) fn get_type_at_position(&self, signature: &Signature, pos: usize) -> Gc<Type> {
         self.try_get_type_at_position(signature, pos)
             .unwrap_or_else(|| self.any_type())
     }
@@ -743,7 +744,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         pos: usize,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let param_count = signature.parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
@@ -775,7 +776,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_rest_type_at_position(&self, source: &Signature, pos: usize) -> Rc<Type> {
+    pub(super) fn get_rest_type_at_position(&self, source: &Signature, pos: usize) -> Gc<Type> {
         let parameter_count = self.get_parameter_count(source);
         let min_argument_count = self.get_min_argument_count(source, None);
         let rest_type = self.get_effective_rest_type(source);
@@ -939,7 +940,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_effective_rest_type(&self, signature: &Signature) -> Option<Rc<Type>> {
+    pub(super) fn get_effective_rest_type(&self, signature: &Signature) -> Option<Gc<Type>> {
         if signature_has_rest_parameter(signature) {
             let rest_type =
                 self.get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1]);
@@ -959,7 +960,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_non_array_rest_type(&self, signature: &Signature) -> Option<Rc<Type>> {
+    pub(super) fn get_non_array_rest_type(&self, signature: &Signature) -> Option<Gc<Type>> {
         let rest_type = self.get_effective_rest_type(signature);
         rest_type.filter(|rest_type| {
             !self.is_array_type(rest_type)
@@ -974,7 +975,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_first_parameter_of_signature(
         &self,
         signature: &Signature,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.get_type_of_first_parameter_of_signature_with_fallback(signature, &self.never_type())
     }
 }

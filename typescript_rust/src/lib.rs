@@ -36,27 +36,28 @@ pub use compiler::command_line_parser::{
     ParseConfigFileHost,
 };
 pub use compiler::core::{
-    add_range, append, append_if_unique_rc, array_of, array_to_map, arrays_equal, binary_search,
-    binary_search_copy_key, cartesian_product, cast, cast_present, clear, clone,
-    compare_strings_case_insensitive, compare_strings_case_sensitive,
+    add_range, append, append_if_unique_gc, append_if_unique_rc, array_of, array_to_map,
+    arrays_equal, binary_search, binary_search_copy_key, cartesian_product, cast, cast_present,
+    clear, clone, compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, comparison_to_ordering, concatenate,
-    contains, contains_rc, count_where, create_get_canonical_file_name, create_multi_map,
-    create_underscore_escaped_multi_map, deduplicate_rc, ends_with,
-    equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
-    filter_iter, filter_mutate, filter_owning, find, find_best_pattern_match, find_index,
-    find_last, find_last_index, find_last_index_returns_isize, first, first_defined,
+    contains, contains_gc, contains_rc, count_where, create_get_canonical_file_name,
+    create_multi_map, create_underscore_escaped_multi_map, deduplicate_gc, deduplicate_rc,
+    ends_with, equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values,
+    every, filter, filter_iter, filter_mutate, filter_owning, find, find_best_pattern_match,
+    find_index, find_last, find_last_index, find_last_index_returns_isize, first, first_defined,
     first_or_undefined, flat_map, flat_map_to_mutable, flatten, for_each, for_each_bool,
     get_or_update, get_ranges_where, get_spelling_suggestion, get_string_comparer,
     identity_str_to_cow, identity_str_to_owned, index_of_any_char_code, insert_sorted, last,
     last_or_undefined, length, map, map_defined, matched_text, maybe_add_range,
-    maybe_append_if_unique_rc, maybe_concatenate, maybe_every, maybe_filter, maybe_first_defined,
-    maybe_for_each, maybe_for_each_bool, maybe_map, maybe_same_map, not_implemented,
-    ordered_remove_item_at, pad_left, pad_right, pattern_text, push_if_unique_rc, range_equals_rc,
-    reduce_left, reduce_left_no_initial_value, reduce_left_no_initial_value_optional,
-    relative_complement, remove_prefix, remove_suffix, replace_element, same_map, set_ui_locale,
-    single_element_array, single_or_undefined, some, sort, sort_and_deduplicate, stable_sort,
-    starts_with, string_contains, sum, to_file_name_lower_case, trim_string, trim_string_end,
-    trim_string_start, try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap, Pattern,
+    maybe_append_if_unique_gc, maybe_append_if_unique_rc, maybe_concatenate, maybe_every,
+    maybe_filter, maybe_first_defined, maybe_for_each, maybe_for_each_bool, maybe_map,
+    maybe_same_map, not_implemented, ordered_remove_item_at, pad_left, pad_right, pattern_text,
+    push_if_unique_gc, push_if_unique_rc, range_equals_gc, range_equals_rc, reduce_left,
+    reduce_left_no_initial_value, reduce_left_no_initial_value_optional, relative_complement,
+    remove_prefix, remove_suffix, replace_element, same_map, set_ui_locale, single_element_array,
+    single_or_undefined, some, sort, sort_and_deduplicate, stable_sort, starts_with,
+    string_contains, sum, to_file_name_lower_case, trim_string, trim_string_end, trim_string_start,
+    try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap, Pattern,
     UnderscoreEscapedMultiMap,
 };
 pub use compiler::core_public::{
@@ -175,8 +176,8 @@ use compiler::module_name_resolver::{
 pub use compiler::module_name_resolver::{
     create_module_resolution_cache, create_type_reference_directive_resolution_cache,
     get_automatic_type_directive_names, node_module_name_resolver, resolve_module_name,
-    resolve_type_reference_directive, ModeAwareCache, ModuleResolutionCache, PackageJsonInfoCache,
-    TypeReferenceDirectiveResolutionCache,
+    resolve_type_reference_directive, GetCanonicalFileName, ModeAwareCache, ModuleResolutionCache,
+    PackageJsonInfoCache, TypeReferenceDirectiveResolutionCache,
 };
 pub use compiler::module_specifiers;
 pub use compiler::parser::{
@@ -222,6 +223,7 @@ pub use compiler::program::{
     format_location, get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
     get_pre_emit_diagnostics, get_resolution_diagnostic, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, FilesByNameValue, FormatDiagnosticsHost,
+    ToPath,
 };
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position,
@@ -290,10 +292,10 @@ pub use compiler::types::{
     ComputedPropertyName, ConditionalExpression, ConditionalRoot, ConditionalType,
     ConditionalTypeNode, ConfigFileSpecs, ConstructSignatureDeclaration, ConstructorDeclaration,
     ConstructorTypeNode, ContextFlags, ContinueStatement, CoreTransformationContext,
-    CreateProgramOptions, CustomTransformer, CustomTransformerFactory, CustomTransformers,
-    DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DetachedCommentInfo, Diagnostic,
-    DiagnosticCategory, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    CreateProgramOptions, CurrentParenthesizerRule, CustomTransformer, CustomTransformerFactory,
+    CustomTransformers, DebuggerStatement, Decorator, DefaultClause, DeleteExpression,
+    DetachedCommentInfo, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     DidYouMeanOptionsDiagnostics, DoStatement, ElementAccessExpression, ElementFlags, EmitFlags,
     EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, EmitHost, EmitResolver,
@@ -354,10 +356,11 @@ pub use compiler::types::{
     PragmaPseudoMapEntry, PragmaSpec, PragmaValue, PrefixUnaryExpression, PrintHandlers, Printer,
     PrinterOptions, PrinterOptionsBuilder, PrivateIdentifier, Program, ProjectReference,
     PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange, RedirectTargetsMap,
-    RegularExpressionLiteral, RelationComparisonResult, RequireResult, ResolvableTypeInterface,
-    ResolvedConfigFileName, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeInterface, ResolvedTypeReferenceDirective,
+    PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, RedirectTargetsMap, RegularExpressionLiteral,
+    RelationComparisonResult, RequireResult, ResolvableTypeInterface, ResolvedConfigFileName,
+    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeInterface, ResolvedTypeReferenceDirective,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, RestTypeNode, ReturnStatement,
     ReverseMappedSymbol, ReverseMappedType, RootFile, ScriptKind, ScriptReferenceHost,
     ScriptTarget, SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment,
@@ -395,8 +398,8 @@ pub use compiler::types::{
 use compiler::types::{
     AccessFlags, CommentDirectivesMap, EmitNode, ExternalEmitHelpers, FileIncludeKind,
     FileIncludeReason, IterationTypes, IterationTypesKey, JsxReferenceKind, MemberOverrideStatus,
-    ModulePath, RawSourceMap, ReadonlyPragmaMap, ReferencedFile, SourceOfProjectReferenceRedirect,
-    WideningContext,
+    ModulePath, OutofbandVarianceMarkerHandler, RawSourceMap, ReadonlyPragmaMap, ReferencedFile,
+    SourceOfProjectReferenceRedirect, WideningContext,
 };
 pub use compiler::utilities::{
     add_related_info, array_is_homogeneous, attach_file_to_diagnostics, chain_diagnostic_messages,
@@ -634,6 +637,7 @@ pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };
+pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
@@ -642,7 +646,8 @@ pub use rust_helpers::sys::{
 };
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
-    are_option_rcs_equal, are_rc_slices_equal, capitalize, index_of, index_of_rc,
-    is_option_str_empty, is_same_variant, last_index_of, last_index_of_returns_isize,
-    push_or_replace, uncapitalize, UsizeOrNegativeInfinity,
+    are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
+    capitalize, index_of, index_of_gc, index_of_rc, is_option_str_empty, is_same_variant,
+    last_index_of, last_index_of_returns_isize, push_or_replace, uncapitalize,
+    UsizeOrNegativeInfinity,
 };

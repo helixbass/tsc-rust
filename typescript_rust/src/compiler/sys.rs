@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Cow;
 use std::env;
 use std::fs::{self, File};
@@ -45,7 +46,7 @@ pub(crate) enum FileSystemEntryKind {
 
 pub type Buffer = Vec<u8>;
 
-pub trait System: ConvertToTSConfigHost {
+pub trait System: ConvertToTSConfigHost + Trace + Finalize {
     fn args(&self) -> &[String];
     fn new_line(&self) -> &str;
     fn write(&self, s: &str);
@@ -170,6 +171,7 @@ pub trait FileWatcher {
 
 const byte_order_mark_indicator: &'static str = "\u{FEFF}";
 
+#[derive(Trace, Finalize)]
 struct SystemConcrete {
     args: Vec<String>,
     use_case_sensitive_file_names: bool,
@@ -450,13 +452,13 @@ impl System for SystemConcrete {
 }
 
 thread_local! {
-    static SYS: Rc<dyn System> = Rc::new(SystemConcrete::new(
+    static SYS: Gc<Box<dyn System>> = Gc::new(Box::new(SystemConcrete::new(
         env::args().skip(1).collect(),
         is_file_system_case_sensitive(),
-    ));
+    )));
 }
 
-pub fn get_sys() -> Rc<dyn System> {
+pub fn get_sys() -> Gc<Box<dyn System>> {
     SYS.with(|sys| sys.clone())
 }
 

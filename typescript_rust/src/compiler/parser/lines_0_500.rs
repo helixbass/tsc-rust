@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -100,7 +101,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub static parse_node_factory: Rc<NodeFactory<ParseBaseNodeFactory>> = create_node_factory::<ParseBaseNodeFactory>(
+    pub static parse_node_factory: Gc<NodeFactory<ParseBaseNodeFactory>> = create_node_factory::<ParseBaseNodeFactory>(
         NodeFactoryFlags::NoParenthesizerRules,
         /*parse_base_node_factory.with(|_parse_base_node_factory| _parse_base_node_factory)*/
     );

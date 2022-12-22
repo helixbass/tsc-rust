@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -307,10 +308,10 @@ impl Printer {
     pub(super) fn get_node_for_generated_name(
         &self,
         name: &Node, /*GeneratedIdentifier*/
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let auto_generate_id = name.as_identifier().auto_generate_id;
-        let mut node: Rc<Node> = name.node_wrapper();
-        let mut original: Option<Rc<Node>> = node.maybe_original();
+        let mut node: Gc<Node> = name.node_wrapper();
+        let mut original: Option<Gc<Node>> = node.maybe_original();
         while let Some(ref original_present) = original {
             node = original_present.clone();
 
@@ -503,7 +504,7 @@ impl Printer {
         write_comment_range(
             text_as_chars,
             line_map.as_ref().unwrap(),
-            &*self.writer(),
+            &**self.writer(),
             0,
             text_as_chars.len(),
             &self.new_line,
@@ -560,15 +561,15 @@ impl Printer {
 
     pub(super) fn original_nodes_have_same_parent(&self, node_a: &Node, node_b: &Node) -> bool {
         let ref node_a =
-            get_original_node(Some(node_a), Option::<fn(Option<Rc<Node>>) -> bool>::None).unwrap();
+            get_original_node(Some(node_a), Option::<fn(Option<Gc<Node>>) -> bool>::None).unwrap();
         matches!(
             node_a.maybe_parent().as_ref(),
             Some(node_a_parent) if matches!(
                 get_original_node(
                     Some(node_b),
-                    Option::<fn(Option<Rc<Node>>) -> bool>::None
+                    Option::<fn(Option<Gc<Node>>) -> bool>::None
                 ).unwrap().maybe_parent().as_ref(),
-                Some(node_b_parent) if Rc::ptr_eq(
+                Some(node_b_parent) if Gc::ptr_eq(
                     node_a_parent,
                     node_b_parent,
                 )
@@ -587,12 +588,12 @@ impl Printer {
 
         let ref previous_node = get_original_node(
             Some(previous_node),
-            Option::<fn(Option<Rc<Node>>) -> bool>::None,
+            Option::<fn(Option<Gc<Node>>) -> bool>::None,
         )
         .unwrap();
         let ref next_node = get_original_node(
             Some(next_node),
-            Option::<fn(Option<Rc<Node>>) -> bool>::None,
+            Option::<fn(Option<Gc<Node>>) -> bool>::None,
         )
         .unwrap();
         let parent = previous_node.maybe_parent();
@@ -600,7 +601,7 @@ impl Printer {
             None => true,
             Some(parent) => !matches!(
                 next_node.maybe_parent().as_ref(),
-                Some(next_node_parent) if Rc::ptr_eq(
+                Some(next_node_parent) if Gc::ptr_eq(
                     parent,
                     next_node_parent,
                 )
@@ -613,13 +614,13 @@ impl Printer {
         let prev_node_index = parent_node_array.as_ref().and_then(|parent_node_array| {
             parent_node_array
                 .into_iter()
-                .position(|node| Rc::ptr_eq(node, previous_node))
+                .position(|node| Gc::ptr_eq(node, previous_node))
         });
         matches!(
             prev_node_index,
             Some(prev_node_index) if matches!(
                 parent_node_array.as_ref().and_then(|parent_node_array| {
-                    parent_node_array.into_iter().position(|node| Rc::ptr_eq(node, next_node))
+                    parent_node_array.into_iter().position(|node| Gc::ptr_eq(node, next_node))
                 }),
                 Some(value) if value == prev_node_index + 1
             )
@@ -741,7 +742,7 @@ impl Printer {
         if !self.has_written_comment() {
             emit_new_line_before_leading_comment_of_position(
                 &self.get_current_line_map(),
-                &*self.writer(),
+                &**self.writer(),
                 range_pos,
                 comment_pos,
             );
@@ -752,7 +753,7 @@ impl Printer {
         write_comment_range(
             &self.current_source_file().as_source_file().text_as_chars(),
             &self.get_current_line_map(),
-            &*self.writer(),
+            &**self.writer(),
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
             &self.new_line,

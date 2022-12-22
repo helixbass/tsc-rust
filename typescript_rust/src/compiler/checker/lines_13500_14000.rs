@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -21,7 +22,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_jsdoc_nullable_type_node(
         &self,
         node: &Node, /*JSDocNullableType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap());
         if self.strict_null_checks {
@@ -34,7 +35,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             if is_const_type_reference(node) && is_assertion_expression(&node.parent()) {
@@ -44,14 +45,14 @@ impl TypeChecker {
                 links.borrow_mut().resolved_type = Some(ret.clone());
                 return ret;
             }
-            let mut symbol: Option<Rc<Symbol>> = None;
-            let mut type_: Option<Rc<Type>> = None;
+            let mut symbol: Option<Gc<Symbol>> = None;
+            let mut type_: Option<Gc<Type>> = None;
             let meaning = SymbolFlags::Type;
             if self.is_jsdoc_type_reference(node) {
                 type_ = self.get_intended_type_from_jsdoc_type_reference(node);
                 if type_.is_none() {
                     symbol = Some(self.resolve_type_reference_name(node, meaning, Some(true)));
-                    if Rc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
+                    if Gc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
                         symbol = Some(self.resolve_type_reference_name(
                             node,
                             meaning | SymbolFlags::Value,
@@ -80,7 +81,7 @@ impl TypeChecker {
     pub(super) fn type_arguments_from_type_reference_node(
         &self,
         node: &Node, /*NodeWithTypeArguments*/
-    ) -> Option<Vec<Rc<Type>>> {
+    ) -> Option<Vec<Gc<Type>>> {
         maybe_map(
             node.as_has_type_arguments().maybe_type_arguments().as_ref(),
             |type_argument, _| self.get_type_from_type_node_(&**type_argument),
@@ -90,7 +91,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_type_query_node(
         &self,
         node: &Node, /*TypeQueryNode*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_type_query_node = node.as_type_query_node();
@@ -110,7 +111,7 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
         arity: usize,
-    ) -> Rc<Type /*ObjectType*/> {
+    ) -> Gc<Type /*ObjectType*/> {
         if symbol.is_none() {
             return if arity != 0 {
                 self.empty_generic_type()
@@ -153,7 +154,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_type_declaration(&self, symbol: &Symbol) -> Option<Rc<Node /*Declaration*/>> {
+    pub(super) fn get_type_declaration(&self, symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
         let declarations = symbol.maybe_declarations();
         declarations.as_ref().and_then(|declarations| {
             for declaration in declarations {
@@ -174,7 +175,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         report_errors: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.get_global_symbol(
             name,
             SymbolFlags::Value,
@@ -190,7 +191,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         report_errors: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.get_global_symbol(
             name,
             SymbolFlags::Type,
@@ -207,7 +208,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let symbol = self.get_global_symbol(
             name,
             SymbolFlags::Type,
@@ -230,7 +231,7 @@ impl TypeChecker {
                 let decl = symbol_declarations
                     .as_deref()
                     .and_then(|symbol_declarations| {
-                        find(symbol_declarations, |declaration: &Rc<Node>, _| {
+                        find(symbol_declarations, |declaration: &Gc<Node>, _| {
                             is_type_alias_declaration(declaration)
                         })
                         .map(Clone::clone)
@@ -251,7 +252,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         meaning: SymbolFlags,
         diagnostic: Option<&DiagnosticMessage>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.resolve_name_(
             Option::<&Node>::None,
             name,
@@ -268,7 +269,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let symbol = self.get_global_type_symbol(name, report_errors);
         if symbol.is_some() || report_errors {
             Some(self.get_type_of_global_symbol(symbol, arity))
@@ -277,7 +278,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_global_typed_property_descriptor_type(&self) -> Rc<Type> {
+    pub(super) fn get_global_typed_property_descriptor_type(&self) -> Gc<Type> {
         if self
             .maybe_deferred_global_typed_property_descriptor_type()
             .is_none()
@@ -292,7 +293,7 @@ impl TypeChecker {
             .unwrap()
     }
 
-    pub(super) fn get_global_template_strings_array_type(&self) -> Rc<Type> {
+    pub(super) fn get_global_template_strings_array_type(&self) -> Gc<Type> {
         if self
             .maybe_deferred_global_template_strings_array_type()
             .is_none()
@@ -307,7 +308,7 @@ impl TypeChecker {
             .unwrap()
     }
 
-    pub(super) fn get_global_import_meta_type(&self) -> Rc<Type> {
+    pub(super) fn get_global_import_meta_type(&self) -> Gc<Type> {
         if self.maybe_deferred_global_import_meta_type().is_none() {
             *self.maybe_deferred_global_import_meta_type() = Some(
                 self.get_global_type("ImportMeta", 0, true)
@@ -319,17 +320,17 @@ impl TypeChecker {
             .unwrap()
     }
 
-    pub(super) fn get_global_import_meta_expression_type(&self) -> Rc<Type> {
+    pub(super) fn get_global_import_meta_expression_type(&self) -> Gc<Type> {
         if self
             .maybe_deferred_global_import_meta_expression_type()
             .is_none()
         {
-            let symbol: Rc<Symbol> = self
+            let symbol: Gc<Symbol> = self
                 .create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
                 .into();
             let import_meta_type = self.get_global_import_meta_type();
 
-            let meta_property_symbol: Rc<Symbol> = self
+            let meta_property_symbol: Gc<Symbol> = self
                 .create_symbol(
                     SymbolFlags::Property,
                     "meta".to_owned(),
@@ -343,7 +344,7 @@ impl TypeChecker {
                 .borrow_mut()
                 .type_ = Some(import_meta_type);
 
-            let members = Rc::new(RefCell::new(create_symbol_table(Some(&vec![
+            let members = Gc::new(GcCell::new(create_symbol_table(Some(&vec![
                 meta_property_symbol,
             ]))));
             *symbol.maybe_members_mut() = Some(members.clone());
@@ -356,7 +357,7 @@ impl TypeChecker {
             .unwrap()
     }
 
-    pub(super) fn get_global_import_call_options_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_import_call_options_type(&self, report_errors: bool) -> Gc<Type> {
         if self
             .maybe_deferred_global_import_call_options_type()
             .is_none()
@@ -372,7 +373,7 @@ impl TypeChecker {
     pub(super) fn get_global_es_symbol_constructor_symbol(
         &self,
         report_errors: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if self
             .maybe_deferred_global_es_symbol_constructor_symbol()
             .is_none()
@@ -387,7 +388,7 @@ impl TypeChecker {
     pub(super) fn get_global_es_symbol_constructor_type_symbol(
         &self,
         report_errors: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if self
             .maybe_deferred_global_es_symbol_constructor_type_symbol()
             .is_none()
@@ -399,7 +400,7 @@ impl TypeChecker {
             .clone()
     }
 
-    pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> Gc<Type> {
         if self.maybe_deferred_global_es_symbol_type().is_none() {
             *self.maybe_deferred_global_es_symbol_type() =
                 self.get_global_type("Symbol", 0, report_errors);
@@ -409,7 +410,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_object_type())
     }
 
-    pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
+    pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Gc<Type /*GenericType*/> {
         if self.maybe_deferred_global_promise_type().is_none() {
             *self.maybe_deferred_global_promise_type() =
                 self.get_global_type("Promise", 1, report_errors);
@@ -422,7 +423,7 @@ impl TypeChecker {
     pub(super) fn get_global_promise_like_type(
         &self,
         report_errors: bool,
-    ) -> Rc<Type /*GenericType*/> {
+    ) -> Gc<Type /*GenericType*/> {
         if self.maybe_deferred_global_promise_like_type().is_none() {
             *self.maybe_deferred_global_promise_like_type() =
                 self.get_global_type("PromiseLike", 1, report_errors);
@@ -435,7 +436,7 @@ impl TypeChecker {
     pub(super) fn get_global_promise_constructor_symbol(
         &self,
         report_errors: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if self
             .maybe_deferred_global_promise_constructor_symbol()
             .is_none()
@@ -450,7 +451,7 @@ impl TypeChecker {
     pub(super) fn get_global_promise_constructor_like_type(
         &self,
         report_errors: bool,
-    ) -> Rc<Type /*GenericType*/> {
+    ) -> Gc<Type /*GenericType*/> {
         if self
             .maybe_deferred_global_promise_constructor_like_type()
             .is_none()
@@ -463,7 +464,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_object_type())
     }
 
-    pub(super) fn get_global_async_iterable_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_async_iterable_type(&self, report_errors: bool) -> Gc<Type> {
         if self.maybe_deferred_global_async_iterable_type().is_none() {
             *self.maybe_deferred_global_async_iterable_type() =
                 self.get_global_type("AsyncIterable", 1, report_errors);
@@ -473,7 +474,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_async_iterator_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_async_iterator_type(&self, report_errors: bool) -> Gc<Type> {
         if self.maybe_deferred_global_async_iterator_type().is_none() {
             *self.maybe_deferred_global_async_iterator_type() =
                 self.get_global_type("AsyncIterator", 3, report_errors);
@@ -483,7 +484,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_async_iterable_iterator_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_async_iterable_iterator_type(&self, report_errors: bool) -> Gc<Type> {
         if self
             .maybe_deferred_global_async_iterable_iterator_type()
             .is_none()
@@ -496,7 +497,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_async_generator_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_async_generator_type(&self, report_errors: bool) -> Gc<Type> {
         if self.maybe_deferred_global_async_generator_type().is_none() {
             *self.maybe_deferred_global_async_generator_type() =
                 self.get_global_type("AsyncGenerator", 3, report_errors);
@@ -506,7 +507,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_iterable_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_iterable_type(&self, report_errors: bool) -> Gc<Type> {
         if self.maybe_deferred_global_iterable_type().is_none() {
             *self.maybe_deferred_global_iterable_type() =
                 self.get_global_type("Iterable", 1, report_errors);
@@ -516,7 +517,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_iterator_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_iterator_type(&self, report_errors: bool) -> Gc<Type> {
         if self.maybe_deferred_global_iterator_type().is_none() {
             *self.maybe_deferred_global_iterator_type() =
                 self.get_global_type("Iterator", 3, report_errors);
@@ -526,7 +527,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_iterable_iterator_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_iterable_iterator_type(&self, report_errors: bool) -> Gc<Type> {
         if self
             .maybe_deferred_global_iterable_iterator_type()
             .is_none()
@@ -539,7 +540,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_generator_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_generator_type(&self, report_errors: bool) -> Gc<Type> {
         if self.maybe_deferred_global_generator_type().is_none() {
             *self.maybe_deferred_global_generator_type() =
                 self.get_global_type("Generator", 3, report_errors);
@@ -549,7 +550,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_iterator_yield_result_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_iterator_yield_result_type(&self, report_errors: bool) -> Gc<Type> {
         if self
             .maybe_deferred_global_iterator_yield_result_type()
             .is_none()
@@ -562,7 +563,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_generic_type())
     }
 
-    pub(super) fn get_global_iterator_return_result_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_iterator_return_result_type(&self, report_errors: bool) -> Gc<Type> {
         if self
             .maybe_deferred_global_iterator_return_result_type()
             .is_none()
@@ -579,13 +580,13 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         arity: Option<usize>,
-    ) -> Option<Rc<Type /*ObjectType*/>> {
+    ) -> Option<Gc<Type /*ObjectType*/>> {
         let arity = arity.unwrap_or(0);
         let symbol = self.get_global_symbol(name, SymbolFlags::Type, None);
         symbol.map(|symbol| self.get_type_of_global_symbol(Some(symbol), arity))
     }
 
-    pub(super) fn get_global_extract_symbol(&self) -> Option<Rc<Symbol>> {
+    pub(super) fn get_global_extract_symbol(&self) -> Option<Gc<Symbol>> {
         if self.maybe_deferred_global_extract_symbol().is_none() {
             *self.maybe_deferred_global_extract_symbol() = Some(
                 self.get_global_type_alias_symbol("Extract", 2, true)
@@ -596,11 +597,11 @@ impl TypeChecker {
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_extract_symbol| {
-                !Rc::ptr_eq(deferred_global_extract_symbol, &self.unknown_symbol())
+                !Gc::ptr_eq(deferred_global_extract_symbol, &self.unknown_symbol())
             })
     }
 
-    pub(super) fn get_global_omit_symbol(&self) -> Option<Rc<Symbol>> {
+    pub(super) fn get_global_omit_symbol(&self) -> Option<Gc<Symbol>> {
         if self.maybe_deferred_global_omit_symbol().is_none() {
             *self.maybe_deferred_global_omit_symbol() = Some(
                 self.get_global_type_alias_symbol("Omit", 2, true)
@@ -611,11 +612,11 @@ impl TypeChecker {
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_omit_symbol| {
-                !Rc::ptr_eq(deferred_global_omit_symbol, &self.unknown_symbol())
+                !Gc::ptr_eq(deferred_global_omit_symbol, &self.unknown_symbol())
             })
     }
 
-    pub(super) fn get_global_awaited_symbol(&self, report_errors: bool) -> Option<Rc<Symbol>> {
+    pub(super) fn get_global_awaited_symbol(&self, report_errors: bool) -> Option<Gc<Symbol>> {
         if self.maybe_deferred_global_awaited_symbol().is_none() {
             *self.maybe_deferred_global_awaited_symbol() = self
                 .get_global_type_alias_symbol("Awaited", 1, report_errors)
@@ -631,11 +632,11 @@ impl TypeChecker {
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_awaited_symbol| {
-                !Rc::ptr_eq(deferred_global_awaited_symbol, &self.unknown_symbol())
+                !Gc::ptr_eq(deferred_global_awaited_symbol, &self.unknown_symbol())
             })
     }
 
-    pub(super) fn get_global_big_int_type(&self, report_errors: bool) -> Rc<Type> {
+    pub(super) fn get_global_big_int_type(&self, report_errors: bool) -> Gc<Type> {
         if self.maybe_deferred_global_big_int_type().is_none() {
             *self.maybe_deferred_global_big_int_type() =
                 self.get_global_type("BigInt", 0, report_errors);
@@ -648,8 +649,8 @@ impl TypeChecker {
     pub(super) fn create_type_from_generic_global_type(
         &self,
         generic_global_type: &Type, /*GenericType*/
-        type_arguments: Vec<Rc<Type>>,
-    ) -> Rc<Type /*ObjectType*/> {
+        type_arguments: Vec<Gc<Type>>,
+    ) -> Gc<Type /*ObjectType*/> {
         if !ptr::eq(generic_global_type, &*self.empty_generic_type()) {
             self.create_type_reference(generic_global_type, Some(type_arguments))
         } else {
@@ -657,14 +658,14 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_typed_property_descriptor_type(&self, property_type: &Type) -> Rc<Type> {
+    pub(super) fn create_typed_property_descriptor_type(&self, property_type: &Type) -> Gc<Type> {
         self.create_type_from_generic_global_type(
             &self.get_global_typed_property_descriptor_type(),
             vec![property_type.type_wrapper()],
         )
     }
 
-    pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> Rc<Type> {
+    pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> Gc<Type> {
         self.create_type_from_generic_global_type(
             &self.get_global_iterable_type(true),
             vec![iterated_type.type_wrapper()],
@@ -675,7 +676,7 @@ impl TypeChecker {
         &self,
         element_type: &Type,
         readonly: Option<bool>,
-    ) -> Rc<Type /*ObjectType*/> {
+    ) -> Gc<Type /*ObjectType*/> {
         self.create_type_from_generic_global_type(
             &*if matches!(readonly, Some(true)) {
                 self.global_readonly_array_type()
@@ -721,7 +722,7 @@ impl TypeChecker {
     pub(super) fn get_array_or_tuple_target_type(
         &self,
         node: &Node, /*ArrayTypeNode | TupleTypeNode*/
-    ) -> Rc<Type /*GenericType*/> {
+    ) -> Gc<Type /*GenericType*/> {
         let readonly = self.is_readonly_type_operator(&node.parent());
         let element_type = self.get_array_element_type_node(node);
         if element_type.is_some() {
@@ -734,11 +735,11 @@ impl TypeChecker {
         let node_as_tuple_type_node = node.as_tuple_type_node();
         let element_flags = map(
             &node_as_tuple_type_node.elements,
-            |element: &Rc<Node>, _| self.get_tuple_element_flags(element),
+            |element: &Gc<Node>, _| self.get_tuple_element_flags(element),
         );
         let missing_name = some(
             Some(&node_as_tuple_type_node.elements),
-            Some(|e: &Rc<Node>| e.kind() != SyntaxKind::NamedTupleMember),
+            Some(|e: &Gc<Node>| e.kind() != SyntaxKind::NamedTupleMember),
         );
         self.get_tuple_target_type(
             &element_flags,
@@ -763,7 +764,7 @@ impl TypeChecker {
                 } else if node.kind() == SyntaxKind::TupleType {
                     some(
                         Some(&node.as_tuple_type_node().elements),
-                        Some(|element: &Rc<Node>| self.may_resolve_type_alias(element)),
+                        Some(|element: &Gc<Node>| self.may_resolve_type_alias(element)),
                     )
                 } else {
                     matches!(has_default_type_arguments, Some(true))
@@ -771,7 +772,7 @@ impl TypeChecker {
                             node.as_type_reference_node()
                                 .maybe_type_arguments()
                                 .as_deref(),
-                            Some(|type_argument: &Rc<Node>| {
+                            Some(|type_argument: &Gc<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),
                         )
@@ -832,7 +833,7 @@ impl TypeChecker {
             }
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => some(
                 Some(node.as_union_or_intersection_type_node().types()),
-                Some(|type_: &Rc<Node>| self.may_resolve_type_alias(type_)),
+                Some(|type_: &Gc<Node>| self.may_resolve_type_alias(type_)),
             ),
             SyntaxKind::IndexedAccessType => {
                 let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
@@ -853,16 +854,16 @@ impl TypeChecker {
     pub(super) fn get_type_from_array_or_tuple_type_node(
         &self,
         node: &Node, /*ArrayTypeNode*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let target = self.get_array_or_tuple_target_type(node);
-            if Rc::ptr_eq(&target, &self.empty_generic_type()) {
+            if Gc::ptr_eq(&target, &self.empty_generic_type()) {
                 links.borrow_mut().resolved_type = Some(self.empty_object_type());
             } else if !(node.kind() == SyntaxKind::TupleType
                 && some(
                     Some(&*node.as_tuple_type_node().elements),
-                    Some(|e: &Rc<Node>| {
+                    Some(|e: &Gc<Node>| {
                         self.get_tuple_element_flags(e)
                             .intersects(ElementFlags::Variadic)
                     }),
@@ -890,7 +891,7 @@ impl TypeChecker {
                 } else {
                     map(
                         &node.as_tuple_type_node().elements,
-                        |element: &Rc<Node>, _| self.get_type_from_type_node_(element),
+                        |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
                     )
                 };
                 links.borrow_mut().resolved_type =
@@ -908,11 +909,11 @@ impl TypeChecker {
 
     pub(super) fn create_tuple_type(
         &self,
-        element_types: &[Rc<Type>],
+        element_types: &[Gc<Type>],
         element_flags: Option<&[ElementFlags]>,
         readonly: Option<bool>,
-        named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Rc<Type> {
+        named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+    ) -> Gc<Type> {
         let readonly = readonly.unwrap_or(false);
         let tuple_target = self.get_tuple_target_type(
             &element_flags
@@ -921,7 +922,7 @@ impl TypeChecker {
             readonly,
             named_member_declarations,
         );
-        if Rc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+        if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
             self.empty_object_type()
         } else if !element_types.is_empty() {
             self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))
@@ -934,8 +935,8 @@ impl TypeChecker {
         &self,
         element_flags: &[ElementFlags],
         readonly: bool,
-        named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Rc<Type /*GenericType*/> {
+        named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+    ) -> Gc<Type /*GenericType*/> {
         if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::Rest) {
             return if readonly {
                 self.global_readonly_array_type()
@@ -965,7 +966,7 @@ impl TypeChecker {
                     ",{}",
                     map(
                         named_member_declarations,
-                        |named_member_declaration: &Rc<Node>, _| get_node_id(
+                        |named_member_declaration: &Gc<Node>, _| get_node_id(
                             named_member_declaration
                         )
                         .to_string()
@@ -992,14 +993,14 @@ impl TypeChecker {
         &self,
         element_flags: &[ElementFlags],
         readonly: bool,
-        named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Rc<Type /*TupleType*/> {
+        named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+    ) -> Gc<Type /*TupleType*/> {
         let arity = element_flags.len();
         let min_length = count_where(Some(element_flags), |f: &ElementFlags, _| {
             f.intersects(ElementFlags::Required | ElementFlags::Variadic)
         });
-        let mut type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
-        let mut properties: Vec<Rc<Symbol>> = vec![];
+        let mut type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
+        let mut properties: Vec<Gc<Symbol>> = vec![];
         let mut combined_flags = ElementFlags::None;
         if arity > 0 {
             type_parameters = Some(vec![]);
@@ -1010,7 +1011,7 @@ impl TypeChecker {
                 let flags = element_flags[i];
                 combined_flags |= flags;
                 if !combined_flags.intersects(ElementFlags::Variable) {
-                    let property: Rc<Symbol> = self
+                    let property: Gc<Symbol> = self
                         .create_symbol(
                             SymbolFlags::Property
                                 | if flags.intersects(ElementFlags::Optional) {
@@ -1038,7 +1039,7 @@ impl TypeChecker {
             }
         }
         let fixed_length = properties.len();
-        let length_symbol: Rc<Symbol> = self
+        let length_symbol: Gc<Symbol> = self
             .create_symbol(SymbolFlags::Property, "length".to_owned(), None)
             .into();
         if combined_flags.intersects(ElementFlags::Variable) {
@@ -1071,7 +1072,7 @@ impl TypeChecker {
         );
         let mut this_type = self.create_type_parameter(Option::<&Symbol>::None);
         this_type.is_this_type = Some(true);
-        let this_type: Rc<Type> = this_type.into();
+        let this_type: Gc<Type> = this_type.into();
         let type_ = BaseInterfaceType::new(
             type_,
             type_parameters.clone(),
@@ -1079,7 +1080,7 @@ impl TypeChecker {
             type_parameters.clone(),
             Some(this_type.clone()),
         );
-        let type_: Rc<Type> = TupleType::new(
+        let type_: Gc<Type> = TupleType::new(
             type_,
             element_flags.to_owned(),
             min_length,

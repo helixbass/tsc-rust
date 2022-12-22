@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -27,8 +28,8 @@ fn is_use_strict_prologue(node: &Node /*ExpressionStatement*/) -> bool {
 }
 
 pub fn find_use_strict_prologue(
-    statements: &[Rc<Node /*Statement*/>],
-) -> Option<Rc<Node /*Statement*/>> {
+    statements: &[Gc<Node /*Statement*/>],
+) -> Option<Gc<Node /*Statement*/>> {
     for statement in statements {
         if is_prologue_directive(statement) {
             if is_use_strict_prologue(statement) {
@@ -41,7 +42,7 @@ pub fn find_use_strict_prologue(
     None
 }
 
-pub fn starts_with_use_strict(statements: &[Rc<Node>]) -> bool {
+pub fn starts_with_use_strict(statements: &[Gc<Node>]) -> bool {
     let first_statement = first_or_undefined(statements);
     if first_statement.is_none() {
         return false;
@@ -62,7 +63,7 @@ pub fn is_jsdoc_type_assertion(node: &Node) -> bool {
         && get_jsdoc_type_tag(node).is_some()
 }
 
-pub fn get_jsdoc_type_assertion_type(node: &Node /*JSDocTypeAssertion*/) -> Rc<Node> {
+pub fn get_jsdoc_type_assertion_type(node: &Node /*JSDocTypeAssertion*/) -> Gc<Node> {
     unimplemented!()
 }
 
@@ -88,7 +89,7 @@ pub fn is_outer_expression(node: &Node, kinds: Option<OuterExpressionKinds>) -> 
     }
 }
 
-pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) -> Rc<Node> {
+pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) -> Gc<Node> {
     let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
     let mut node = node.node_wrapper();
     while is_outer_expression(&node, Some(kinds)) {
@@ -97,7 +98,7 @@ pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) 
     node
 }
 
-pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Rc<Node>> {
+pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Gc<Node>> {
     unimplemented!()
 }
 
@@ -107,7 +108,7 @@ pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool 
 
 pub fn get_target_of_binding_or_assignment_element(
     binding_element: &Node, /*BindingOrAssignmentElement*/
-) -> Option<Rc<Node /*BindingOrAssignmentElementTarget*/>> {
+) -> Option<Gc<Node /*BindingOrAssignmentElementTarget*/>> {
     if is_declaration_binding_element(binding_element) {
         return binding_element.as_named_declaration().maybe_name();
     }
@@ -157,7 +158,7 @@ pub fn get_target_of_binding_or_assignment_element(
 
 pub fn get_elements_of_binding_or_assignment_pattern(
     name: &Node, /*BindingOrAssignmentPattern*/
-) -> Vec<Rc<Node /*BindingOrAssignmentElement*/>> {
+) -> Vec<Gc<Node /*BindingOrAssignmentElement*/>> {
     match name.kind() {
         SyntaxKind::ObjectBindingPattern
         | SyntaxKind::ArrayBindingPattern
@@ -171,7 +172,7 @@ pub fn get_elements_of_binding_or_assignment_pattern(
 
 pub(crate) fn get_jsdoc_type_alias_name<TFullName: Borrow<Node>>(
     full_name: Option<TFullName /*JSDocNamespaceBody*/>,
-) -> Option<Rc<Node /*Identifier*/>> {
+) -> Option<Gc<Node /*Identifier*/>> {
     full_name.map(|full_name| {
         let full_name = full_name.borrow();
         let mut right_node = full_name.node_wrapper();
@@ -209,7 +210,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
@@ -276,7 +277,7 @@ fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
@@ -309,7 +310,7 @@ fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
@@ -348,7 +349,7 @@ fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
@@ -379,7 +380,7 @@ fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
@@ -418,7 +419,7 @@ fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     mut stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     _outer_state: TMachine::TOuterState,
@@ -466,7 +467,7 @@ fn binary_expression_state_done<TMachine: BinaryExpressionStateMachine>(
     machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
@@ -521,7 +522,7 @@ fn binary_expression_state_next_state<TMachine: BinaryExpressionStateMachine>(
 fn binary_expression_state_push_stack<TState>(
     mut stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TState>>,
     node: &Node, /*BinaryExpression*/
 ) -> usize {
@@ -534,7 +535,7 @@ fn binary_expression_state_push_stack<TState>(
 
 fn binary_expression_state_check_circularity(
     mut stack_index: usize,
-    node_stack: &[Rc<Node /*BinaryExpression*/>],
+    node_stack: &[Gc<Node /*BinaryExpression*/>],
     node: &Node, /*BinaryExpression*/
 ) {
     if Debug_.should_assert(AssertionLevel::Aggressive) {
@@ -548,7 +549,7 @@ fn binary_expression_state_check_circularity(
     }
 }
 
-pub trait BinaryExpressionStateMachine {
+pub trait BinaryExpressionStateMachine: Trace + Finalize {
     type TResult: Clone;
     type TOuterState: Clone;
     type TState: Clone;
@@ -565,7 +566,7 @@ pub trait BinaryExpressionStateMachine {
         left: &Node, /*Expression*/
         user_state: Self::TState,
         node: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         panic!("Shouldn't call default on_left()")
     }
 
@@ -583,7 +584,7 @@ pub trait BinaryExpressionStateMachine {
         right: &Node, /*Expression*/
         user_state: Self::TState,
         node: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         panic!("Shouldn't call default on_left()")
     }
 
@@ -620,7 +621,7 @@ pub fn create_binary_expression_trampoline<TMachine: BinaryExpressionStateMachin
     BinaryExpressionTrampoline::new(machine)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct BinaryExpressionTrampoline<TMachine: BinaryExpressionStateMachine> {
     machine: TMachine,
 }
@@ -637,7 +638,7 @@ impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine
     ) -> TMachine::TResult {
         let result_holder: Rc<RefCell<Option<TMachine::TResult>>> = Rc::new(RefCell::new(None));
         let mut state_stack: Vec<BinaryExpressionState> = vec![BinaryExpressionState::Enter];
-        let mut node_stack: Vec<Rc<Node /*BinaryExpression*/>> = vec![node.node_wrapper()];
+        let mut node_stack: Vec<Gc<Node /*BinaryExpression*/>> = vec![node.node_wrapper()];
         let mut user_state_stack: Vec<Option<TMachine::TState>> = vec![None];
         let mut stack_index = 0;
         while state_stack[stack_index] != BinaryExpressionState::Done {

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -24,7 +25,7 @@ use crate::{
 
 pub fn try_get_import_from_module_specifier(
     node: &Node, /*StringLiteralLike*/
-) -> Option<Rc<Node /*AnyValidImportOrReExport*/>> {
+) -> Option<Gc<Node /*AnyValidImportOrReExport*/>> {
     let node_parent = node.parent();
     match node_parent.kind() {
         SyntaxKind::ImportDeclaration | SyntaxKind::ExportDeclaration => Some(node_parent),
@@ -46,7 +47,7 @@ pub fn try_get_import_from_module_specifier(
 
 pub fn get_external_module_name(
     node: &Node, /*AnyImportOrReExport | ImportTypeNode | ImportCall | ModuleDeclaration*/
-) -> Option<Rc<Node /*Expression*/>> {
+) -> Option<Gc<Node /*Expression*/>> {
     match node.kind() {
         SyntaxKind::ImportDeclaration => {
             Some(node.as_import_declaration().module_specifier.clone())
@@ -96,7 +97,7 @@ pub fn get_external_module_name(
 
 pub fn get_namespace_declaration_node(
     node: &Node, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
-) -> Option<Rc<Node /*ImportEqualsDeclaration | NamespaceImport | NamespaceExport*/>> {
+) -> Option<Gc<Node /*ImportEqualsDeclaration | NamespaceImport | NamespaceExport*/>> {
     match node.kind() {
         SyntaxKind::ImportDeclaration => {
             let node_import_clause = node.as_import_declaration().import_clause.as_ref();
@@ -190,7 +191,7 @@ pub fn has_question_token(node: &Node) -> bool {
 }
 
 pub fn is_jsdoc_construct_signature(node: &Node) -> bool {
-    let param: Option<Rc<Node>> = if is_jsdoc_function_type(node) {
+    let param: Option<Gc<Node>> = if is_jsdoc_function_type(node) {
         first_or_undefined(node.as_jsdoc_function_type().parameters()).map(Clone::clone)
     } else {
         None
@@ -220,7 +221,7 @@ pub fn is_type_alias(node: &Node) -> bool {
     is_jsdoc_type_alias(node) || is_type_alias_declaration(node)
 }
 
-fn get_source_of_assignment(node: &Node) -> Option<Rc<Node>> {
+fn get_source_of_assignment(node: &Node) -> Option<Gc<Node>> {
     if !is_expression_statement(node) {
         return None;
     }
@@ -240,7 +241,7 @@ fn get_source_of_assignment(node: &Node) -> Option<Rc<Node>> {
     }
 }
 
-fn get_source_of_defaulted_assignment(node: &Node) -> Option<Rc<Node>> {
+fn get_source_of_defaulted_assignment(node: &Node) -> Option<Gc<Node>> {
     if !is_expression_statement(node) {
         return None;
     }
@@ -276,7 +277,7 @@ fn get_source_of_defaulted_assignment(node: &Node) -> Option<Rc<Node>> {
 
 pub fn get_single_initializer_of_variable_statement_or_property_declaration(
     node: &Node,
-) -> Option<Rc<Node /*Expression*/>> {
+) -> Option<Gc<Node /*Expression*/>> {
     match node.kind() {
         SyntaxKind::VariableStatement => {
             let v = get_single_variable_of_variable_statement(node);
@@ -291,7 +292,7 @@ pub fn get_single_initializer_of_variable_statement_or_property_declaration(
 
 pub fn get_single_variable_of_variable_statement(
     node: &Node,
-) -> Option<Rc<Node /*VariableDeclaration*/>> {
+) -> Option<Gc<Node /*VariableDeclaration*/>> {
     if is_variable_statement(node) {
         first_or_undefined(
             &node
@@ -306,7 +307,7 @@ pub fn get_single_variable_of_variable_statement(
     }
 }
 
-fn get_nested_module_declaration(node: &Node) -> Option<Rc<Node>> {
+fn get_nested_module_declaration(node: &Node) -> Option<Gc<Node>> {
     if is_module_declaration(node)
         && matches!(node.as_module_declaration().body.as_ref(), Some(body) if body.kind() == SyntaxKind::ModuleDeclaration)
     {
@@ -319,9 +320,9 @@ fn get_nested_module_declaration(node: &Node) -> Option<Rc<Node>> {
 pub fn get_jsdoc_comments_and_tags(
     host_node: &Node,
     no_cache: Option<bool>,
-) -> Vec<Rc<Node /*JSDoc | JSDocTag*/>> {
+) -> Vec<Gc<Node /*JSDoc | JSDocTag*/>> {
     let no_cache = no_cache.unwrap_or(false);
-    let mut result: Option<Vec<Rc<Node>>> = None;
+    let mut result: Option<Vec<Gc<Node>>> = None;
     if is_variable_like(host_node)
         && has_initializer(host_node)
         && has_jsdoc_nodes(&host_node.as_has_initializer().maybe_initializer().unwrap())
@@ -348,7 +349,7 @@ pub fn get_jsdoc_comments_and_tags(
         );
     }
 
-    let mut node: Option<Rc<Node>> = Some(host_node.node_wrapper());
+    let mut node: Option<Gc<Node>> = Some(host_node.node_wrapper());
     while matches!(node.as_ref(), Some(node) if node.maybe_parent().is_some()) {
         let node_present = node.as_ref().unwrap();
         if has_jsdoc_nodes(node_present) {
@@ -408,7 +409,7 @@ pub fn get_jsdoc_comments_and_tags(
 fn filter_owned_jsdoc_tags(
     host_node: &Node,
     js_doc: &Node, /*JSDoc | JSDocTag*/
-) -> Option<Vec<Rc<Node /*JSDoc | JSDocTag*/>>> {
+) -> Option<Vec<Gc<Node /*JSDoc | JSDocTag*/>>> {
     if is_jsdoc(js_doc) {
         let owned_tags = maybe_filter(js_doc.as_jsdoc().tags.as_deref(), |tag| {
             owns_jsdoc_tag(host_node, tag)
@@ -438,7 +439,7 @@ fn owns_jsdoc_tag(host_node: &Node, tag: &Node /*JSDocTag*/) -> bool {
         || matches!(tag.parent().maybe_parent(), Some(grandparent) if ptr::eq(&*grandparent, host_node))
 }
 
-pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Rc<Node>> {
+pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Gc<Node>> {
     let parent = node.maybe_parent();
     if matches!(
         parent.as_ref(),
@@ -486,7 +487,7 @@ pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Rc<Node>> {
     None
 }
 
-pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Option<Rc<Symbol>> {
+pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Option<Gc<Symbol>> {
     if node.maybe_symbol().is_some() {
         return node.maybe_symbol();
     }
@@ -509,7 +510,7 @@ pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Op
 
 pub fn get_effective_container_for_jsdoc_template_tag(
     node: &Node, /*JSDocTemplateTag*/
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let node_parent = node.parent();
     if is_jsdoc(&node_parent) {
         if let Some(node_parent_tags) = node_parent.as_jsdoc().tags.as_ref() {
@@ -522,12 +523,12 @@ pub fn get_effective_container_for_jsdoc_template_tag(
     get_host_signature_from_jsdoc(node)
 }
 
-pub fn get_host_signature_from_jsdoc(node: &Node) -> Option<Rc<Node /*SignatureDeclaration*/>> {
+pub fn get_host_signature_from_jsdoc(node: &Node) -> Option<Gc<Node /*SignatureDeclaration*/>> {
     let host = get_effective_jsdoc_host(node);
     host.filter(|host| is_function_like(Some(&**host)))
 }
 
-pub fn get_effective_jsdoc_host(node: &Node) -> Option<Rc<Node>> {
+pub fn get_effective_jsdoc_host(node: &Node) -> Option<Gc<Node>> {
     let host = get_jsdoc_host(node);
     let host = host?;
     get_source_of_defaulted_assignment(&host).or_else(|| {
@@ -542,7 +543,7 @@ pub fn get_effective_jsdoc_host(node: &Node) -> Option<Rc<Node>> {
     })
 }
 
-pub fn get_jsdoc_host(node: &Node) -> Option<Rc<Node /*HasJSDoc*/>> {
+pub fn get_jsdoc_host(node: &Node) -> Option<Gc<Node /*HasJSDoc*/>> {
     let js_doc = get_jsdoc_root(node)?;
 
     let host = js_doc.maybe_parent();
@@ -553,17 +554,17 @@ pub fn get_jsdoc_host(node: &Node) -> Option<Rc<Node /*HasJSDoc*/>> {
         }
         let host_js_doc = host_js_doc.unwrap();
         // TODO: seems weird that .maybe_js_doc() is returning a Vec rather than a slice?
-        matches!(last_or_undefined(&host_js_doc), Some(last) if Rc::ptr_eq(&js_doc, last))
+        matches!(last_or_undefined(&host_js_doc), Some(last) if Gc::ptr_eq(&js_doc, last))
     })
 }
 
-pub fn get_jsdoc_root(node: &Node) -> Option<Rc<Node /*JSDoc*/>> {
+pub fn get_jsdoc_root(node: &Node) -> Option<Gc<Node /*JSDoc*/>> {
     find_ancestor(node.maybe_parent(), |node| is_jsdoc(node))
 }
 
 pub fn get_type_parameter_from_js_doc(
     node: &Node, /*TypeParameterDeclaration & { parent: JSDocTemplateTag }*/
-) -> Option<Rc<Node /*TypeParameterDeclaration*/>> {
+) -> Option<Gc<Node /*TypeParameterDeclaration*/>> {
     let node_name = node.as_type_parameter_declaration().name();
     let name = &node_name.as_identifier().escaped_text;
     let node_parent_parent_parent = node.parent().parent().parent();
@@ -597,7 +598,7 @@ pub fn has_rest_parameter(node: &Node /*SignatureDeclaration | JSDocSignature*/)
 }
 
 pub fn is_rest_parameter(node: &Node /*ParameterDeclaration | JSDocParameterTag*/) -> bool {
-    let type_: Option<Rc<Node>> = if is_jsdoc_parameter_tag(node) {
+    let type_: Option<Gc<Node>> = if is_jsdoc_parameter_tag(node) {
         node.as_jsdoc_property_like_tag()
             .type_expression
             .as_ref()
@@ -634,7 +635,7 @@ pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
                 let parent_as_binary_expression = parent.as_binary_expression();
                 let binary_operator = parent_as_binary_expression.operator_token.kind();
                 return if is_assignment_operator(binary_operator)
-                    && Rc::ptr_eq(&parent_as_binary_expression.left, &node)
+                    && Gc::ptr_eq(&parent_as_binary_expression.left, &node)
                 {
                     if binary_operator == SyntaxKind::EqualsToken
                         || is_logical_or_coalescing_assignment_operator(binary_operator)
@@ -670,14 +671,14 @@ pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
                 };
             }
             SyntaxKind::ForInStatement => {
-                return if Rc::ptr_eq(&parent.as_for_in_statement().initializer, &node) {
+                return if Gc::ptr_eq(&parent.as_for_in_statement().initializer, &node) {
                     AssignmentKind::Definite
                 } else {
                     AssignmentKind::None
                 };
             }
             SyntaxKind::ForOfStatement => {
-                return if Rc::ptr_eq(&parent.as_for_of_statement().initializer, &node) {
+                return if Gc::ptr_eq(&parent.as_for_of_statement().initializer, &node) {
                     AssignmentKind::Definite
                 } else {
                     AssignmentKind::None
@@ -693,13 +694,13 @@ pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
                 node = parent.parent();
             }
             SyntaxKind::ShorthandPropertyAssignment => {
-                if !Rc::ptr_eq(&parent.as_shorthand_property_assignment().name(), &node) {
+                if !Gc::ptr_eq(&parent.as_shorthand_property_assignment().name(), &node) {
                     return AssignmentKind::None;
                 }
                 node = parent.parent();
             }
             SyntaxKind::PropertyAssignment => {
-                if Rc::ptr_eq(&parent.as_property_assignment().name(), &node) {
+                if Gc::ptr_eq(&parent.as_property_assignment().name(), &node) {
                     return AssignmentKind::None;
                 }
                 node = parent.parent();
@@ -746,7 +747,7 @@ pub fn is_value_signature_declaration(node: &Node) -> bool {
         || is_constructor_declaration(node)
 }
 
-fn walk_up(node: &Node, kind: SyntaxKind) -> Option<Rc<Node>> {
+fn walk_up(node: &Node, kind: SyntaxKind) -> Option<Gc<Node>> {
     let mut node = Some(node.node_wrapper());
     loop {
         if let Some(node_present) = node.as_ref() {
@@ -762,19 +763,19 @@ fn walk_up(node: &Node, kind: SyntaxKind) -> Option<Rc<Node>> {
     node
 }
 
-pub fn walk_up_parenthesized_types(node: &Node) -> Option<Rc<Node>> {
+pub fn walk_up_parenthesized_types(node: &Node) -> Option<Gc<Node>> {
     walk_up(node, SyntaxKind::ParenthesizedType)
 }
 
-pub fn walk_up_parenthesized_expressions(node: &Node) -> Option<Rc<Node>> {
+pub fn walk_up_parenthesized_expressions(node: &Node) -> Option<Gc<Node>> {
     walk_up(node, SyntaxKind::ParenthesizedExpression)
 }
 
 pub fn walk_up_parenthesized_types_and_get_parent_and_child(
     node: &Node,
-) -> (Option<Rc<Node /*ParenthesizedTypeNode*/>>, Option<Rc<Node>>) {
-    let mut child: Option<Rc<Node>> = None;
-    let mut node: Option<Rc<Node>> = Some(node.node_wrapper());
+) -> (Option<Gc<Node /*ParenthesizedTypeNode*/>>, Option<Gc<Node>>) {
+    let mut child: Option<Gc<Node>> = None;
+    let mut node: Option<Gc<Node>> = Some(node.node_wrapper());
     while matches!(node.as_ref(), Some(node) if node.kind() == SyntaxKind::ParenthesizedType) {
         let node_parent = node.as_ref().unwrap().maybe_parent();
         child = node;
@@ -783,7 +784,7 @@ pub fn walk_up_parenthesized_types_and_get_parent_and_child(
     (child, node)
 }
 
-pub fn skip_parentheses(node: &Node, exclude_jsdoc_type_assertions: Option<bool>) -> Rc<Node> {
+pub fn skip_parentheses(node: &Node, exclude_jsdoc_type_assertions: Option<bool>) -> Gc<Node> {
     let exclude_jsdoc_type_assertions = exclude_jsdoc_type_assertions.unwrap_or(false);
     let flags = if exclude_jsdoc_type_assertions {
         OuterExpressionKinds::Parentheses | OuterExpressionKinds::ExcludeJSDocTypeAssertion
@@ -830,7 +831,7 @@ pub fn is_declaration_name(name: &Node) -> bool {
         && matches!(name.parent().as_named_declaration().maybe_name(), Some(parent_name) if ptr::eq(&*parent_name, name))
 }
 
-pub fn get_declaration_from_name(name: &Node) -> Option<Rc<Node /*Declaration*/>> {
+pub fn get_declaration_from_name(name: &Node) -> Option<Gc<Node /*Declaration*/>> {
     let parent = name.parent();
     match name.kind() {
         SyntaxKind::StringLiteral
@@ -849,7 +850,7 @@ pub fn get_declaration_from_name(name: &Node) -> Option<Rc<Node /*Declaration*/>
             } else if is_qualified_name(&parent) {
                 let tag = parent.parent();
                 if is_jsdoc_parameter_tag(&tag)
-                    && Rc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
+                    && Gc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
                 {
                     Some(tag)
                 } else {
@@ -880,7 +881,7 @@ pub fn get_declaration_from_name(name: &Node) -> Option<Rc<Node /*Declaration*/>
             } else if is_qualified_name(&parent) {
                 let tag = parent.parent();
                 if is_jsdoc_parameter_tag(&tag)
-                    && Rc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
+                    && Gc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
                 {
                     Some(tag)
                 } else {

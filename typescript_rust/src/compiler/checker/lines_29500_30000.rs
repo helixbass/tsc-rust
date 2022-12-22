@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
 use std::cmp;
@@ -8,7 +9,7 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
 use crate::{
-    add_related_info, are_option_rcs_equal, chain_diagnostic_messages,
+    add_related_info, are_option_gcs_equal, are_option_rcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
     create_file_diagnostic, every, factory, filter, find, first, flat_map, flatten, for_each,
@@ -32,7 +33,7 @@ impl TypeChecker {
     pub(super) fn maybe_add_missing_await_info<TErrorNode: Borrow<Node>>(
         &self,
         report_errors: bool,
-        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<TErrorNode>,
         source: &Type,
@@ -59,7 +60,7 @@ impl TypeChecker {
                 ) {
                     add_related_info(
                         &error_output_container.get_error(0).unwrap(),
-                        vec![Rc::new(
+                        vec![Gc::new(
                             create_diagnostic_for_node(
                                 error_node,
                                 &Diagnostics::Did_you_forget_to_use_await,
@@ -76,7 +77,7 @@ impl TypeChecker {
     pub(super) fn get_this_argument_of_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Option<Rc<Node /*LeftHandSideExpression*/>> {
+    ) -> Option<Gc<Node /*LeftHandSideExpression*/>> {
         let expression = if node.kind() == SyntaxKind::CallExpression {
             Some(node.as_call_expression().expression.clone())
         } else if node.kind() == SyntaxKind::TaggedTemplateExpression {
@@ -101,8 +102,8 @@ impl TypeChecker {
         tuple_name_source: Option<
             TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
         >,
-    ) -> Rc<Node> {
-        let result: Rc<Node> = parse_node_factory.with(|parse_node_factory_| {
+    ) -> Gc<Node> {
+        let result: Gc<Node> = parse_node_factory.with(|parse_node_factory_| {
             parse_base_node_factory.with(|parse_base_node_factory_| {
                 parse_node_factory_
                     .create_synthetic_expression(
@@ -123,10 +124,10 @@ impl TypeChecker {
     pub(super) fn get_effective_call_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Vec<Rc<Node /*Expression*/>> {
+    ) -> Vec<Gc<Node /*Expression*/>> {
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
             let template = &node.as_tagged_template_expression().template;
-            let mut args: Vec<Rc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
+            let mut args: Vec<Gc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
                 template,
                 &self.get_global_template_strings_array_type(),
                 None,
@@ -135,7 +136,7 @@ impl TypeChecker {
             if template.kind() == SyntaxKind::TemplateExpression {
                 for_each(
                     &template.as_template_expression().template_spans,
-                    |span: &Rc<Node>, _| -> Option<()> {
+                    |span: &Gc<Node>, _| -> Option<()> {
                         args.push(span.as_template_span().expression.clone());
                         None
                     },
@@ -187,7 +188,7 @@ impl TypeChecker {
                         spread_type.as_type_reference().target.as_tuple_type();
                     for_each(
                         &self.get_type_arguments(spread_type),
-                        |t: &Rc<Type>, i| -> Option<()> {
+                        |t: &Gc<Type>, i| -> Option<()> {
                             let flags = spread_type_target_as_tuple_type.element_flags[i];
                             let synthetic_arg = self.create_synthetic_expression(
                                 arg,
@@ -222,7 +223,7 @@ impl TypeChecker {
     pub(super) fn get_effective_decorator_arguments(
         &self,
         node: &Node, /*Decorator*/
-    ) -> Vec<Rc<Node /*Expression*/>> {
+    ) -> Vec<Gc<Node /*Expression*/>> {
         let parent = node.parent();
         let expr = &node.as_decorator().expression;
         match parent.kind() {
@@ -364,16 +365,16 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Rc<Diagnostic /*DiagnosticWithLocation*/> {
+    ) -> Gc<Diagnostic /*DiagnosticWithLocation*/> {
         if is_call_expression(node) {
             let GetDiagnosticSpanForCallNodeReturn {
                 source_file,
                 start,
                 length,
             } = self.get_diagnostic_span_for_call_node(node, None);
-            Rc::new(create_file_diagnostic(&source_file, start, length, message, args).into())
+            Gc::new(create_file_diagnostic(&source_file, start, length, message, args).into())
         } else {
-            Rc::new(create_diagnostic_for_node(node, message, args).into())
+            Gc::new(create_diagnostic_for_node(node, message, args).into())
         }
     }
 
@@ -397,7 +398,7 @@ impl TypeChecker {
                 .escaped_text,
             SymbolFlags::Value,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             false,
             None,
         );
@@ -428,7 +429,7 @@ impl TypeChecker {
         );
         matches!(
             constructor_symbol.as_ref(),
-            Some(constructor_symbol) if Rc::ptr_eq(
+            Some(constructor_symbol) if Gc::ptr_eq(
                 constructor_symbol,
                 &global_promise_symbol
             )
@@ -438,12 +439,12 @@ impl TypeChecker {
     pub(super) fn get_argument_arity_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-        signatures: &[Rc<Signature>],
-        args: &[Rc<Node /*Expression*/>],
-    ) -> Rc<Diagnostic> {
+        signatures: &[Gc<Signature>],
+        args: &[Gc<Node /*Expression*/>],
+    ) -> Gc<Diagnostic> {
         let spread_index = self.get_spread_argument_index(args);
         if let Some(spread_index) = spread_index {
-            return Rc::new(
+            return Gc::new(
                 create_diagnostic_for_node(
                     &args[spread_index],
                     &Diagnostics::A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter,
@@ -456,7 +457,7 @@ impl TypeChecker {
         let mut max_below = UsizeOrNegativeInfinity::NegativeInfinity;
         let mut min_above = usize::MAX;
 
-        let mut closest_signature: Option<Rc<Signature>> = None;
+        let mut closest_signature: Option<Gc<Signature>> = None;
         for sig in signatures {
             let min_parameter = self.get_min_argument_count(sig, None);
             let max_parameter = self.get_parameter_count(sig);
@@ -482,7 +483,7 @@ impl TypeChecker {
         }
         let has_rest_parameter = some(
             Some(signatures),
-            Some(|signature: &Rc<Signature>| self.has_effective_rest_parameter(signature)),
+            Some(|signature: &Gc<Signature>| self.has_effective_rest_parameter(signature)),
         );
         let parameter_range = if has_rest_parameter {
             min.to_string()
@@ -571,7 +572,7 @@ impl TypeChecker {
                         None
                     },
                 );
-                add_related_info(&diagnostic, vec![Rc::new(parameter_error.into())]);
+                add_related_info(&diagnostic, vec![Gc::new(parameter_error.into())]);
             }
             diagnostic
         } else {
@@ -590,7 +591,7 @@ impl TypeChecker {
                 end += 1;
             }
             set_text_range_pos_end(&error_span, pos, end);
-            Rc::new(
+            Gc::new(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(Some(node)).unwrap(),
                     &error_span,
@@ -605,15 +606,15 @@ impl TypeChecker {
     pub(super) fn get_type_argument_arity_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-        signatures: &[Rc<Signature>],
+        signatures: &[Gc<Signature>],
         type_arguments: &NodeArray, /*<TypeNode>*/
-    ) -> Rc<Diagnostic> {
+    ) -> Gc<Diagnostic> {
         let arg_count = type_arguments.len();
         if signatures.len() == 1 {
             let sig = &signatures[0];
             let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
             let max = length(sig.maybe_type_parameters().as_deref());
-            return Rc::new(
+            return Gc::new(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(Some(node)).unwrap(),
                     type_arguments,
@@ -648,7 +649,7 @@ impl TypeChecker {
         }
         if let UsizeOrNegativeInfinity::Usize(below_arg_count) = below_arg_count {
             if above_arg_count != usize::MAX {
-                return Rc::new(
+                return Gc::new(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(Some(node)).unwrap(),
                         type_arguments,
@@ -662,7 +663,7 @@ impl TypeChecker {
                 );
             }
         }
-        Rc::new(
+        Gc::new(
             create_diagnostic_for_node_array(
                 &get_source_file_of_node(Some(node)).unwrap(),
                 type_arguments,
@@ -683,12 +684,12 @@ impl TypeChecker {
     pub(super) fn resolve_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-        signatures: &[Rc<Signature>],
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        signatures: &[Gc<Signature>],
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
         fallback_error: Option<&'static DiagnosticMessage>,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let is_tagged_template = node.kind() == SyntaxKind::TaggedTemplateExpression;
         let is_decorator = node.kind() == SyntaxKind::Decorator;
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(node);
@@ -705,7 +706,7 @@ impl TypeChecker {
             {
                 maybe_for_each(
                     type_arguments.as_ref(),
-                    |type_argument: &Rc<Node>, _| -> Option<()> {
+                    |type_argument: &Gc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**type_argument));
                         None
                     },
@@ -736,17 +737,17 @@ impl TypeChecker {
             && !is_single_non_generic_candidate
             && some(
                 Some(&*args),
-                Some(|arg: &Rc<Node>| self.is_context_sensitive(arg)),
+                Some(|arg: &Gc<Node>| self.is_context_sensitive(arg)),
             ) {
             CheckMode::SkipContextSensitive
         } else {
             CheckMode::Normal
         };
 
-        let mut candidates_for_argument_error: Option<Vec<Rc<Signature>>> = None;
-        let mut candidate_for_argument_arity_error: Option<Rc<Signature>> = None;
-        let mut candidate_for_type_argument_error: Option<Rc<Signature>> = None;
-        let mut result: Option<Rc<Signature>> = None;
+        let mut candidates_for_argument_error: Option<Vec<Gc<Signature>>> = None;
+        let mut candidate_for_argument_arity_error: Option<Gc<Signature>> = None;
+        let mut candidate_for_type_argument_error: Option<Gc<Signature>> = None;
+        let mut result: Option<Gc<Signature>> = None;
 
         let signature_help_trailing_comma = check_mode.intersects(CheckMode::IsForSignatureHelp)
             && node.kind() == SyntaxKind::CallExpression
@@ -816,9 +817,9 @@ impl TypeChecker {
                         self.assignable_relation.clone(),
                         CheckMode::Normal,
                         true,
-                        Some(Rc::new(ResolveCallContainingMessageChain::new(
+                        Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
                             chain.map(|chain| Rc::new(RefCell::new(chain))),
-                        ))),
+                        )))),
                     );
                     if let Some(diags) = diags.as_ref() {
                         for d in diags {
@@ -826,7 +827,7 @@ impl TypeChecker {
                                 if candidates_for_argument_error_present.len() > 3 {
                                     add_related_info(
                                         d,
-                                        vec![Rc::new(
+                                        vec![Gc::new(
                                             create_diagnostic_for_node(
                                                 last_declaration,
                                                 &Diagnostics::The_last_overload_is_declared_here,
@@ -855,7 +856,7 @@ impl TypeChecker {
                     }
                 } else {
                     let mut all_diagnostics: Vec<
-                        Vec<Rc<Diagnostic /*DiagnosticRelatedInformation*/>>,
+                        Vec<Gc<Diagnostic /*DiagnosticRelatedInformation*/>>,
                     > = vec![];
                     let mut max = 0;
                     let mut min = usize::MAX;
@@ -875,7 +876,7 @@ impl TypeChecker {
                             self.assignable_relation.clone(),
                             CheckMode::Normal,
                             true,
-                            Some(Rc::new(chain)),
+                            Some(Gc::new(Box::new(chain))),
                         );
                         if let Some(diags) = diags {
                             if diags.len() <= min {
@@ -900,7 +901,7 @@ impl TypeChecker {
                         Some("No errors reported for 3 or fewer overload signatures"),
                     );
                     let chain = chain_diagnostic_messages_multiple(
-                        map(&diags, |d: &Rc<Diagnostic>, _| match d.message_text() {
+                        map(&diags, |d: &Gc<Diagnostic>, _| match d.message_text() {
                             DiagnosticMessageText::String(d_message_text) => {
                                 DiagnosticMessageChain::new(
                                     d_message_text.clone(),
@@ -916,22 +917,22 @@ impl TypeChecker {
                         &Diagnostics::No_overload_matches_this_call,
                         None,
                     );
-                    let related: Vec<Rc<DiagnosticRelatedInformation>> =
-                        flat_map(Some(&*diags), |d: &Rc<Diagnostic>, _| {
+                    let related: Vec<Gc<DiagnosticRelatedInformation>> =
+                        flat_map(Some(&*diags), |d: &Gc<Diagnostic>, _| {
                             d.maybe_related_information()
                                 .clone()
                                 .unwrap_or_else(|| vec![])
                         });
-                    let diag: Rc<Diagnostic>;
-                    if every(&diags, |d: &Rc<Diagnostic>, _| {
+                    let diag: Gc<Diagnostic>;
+                    if every(&diags, |d: &Gc<Diagnostic>, _| {
                         d.start() == diags[0].start()
                             && d.length() == diags[0].length()
-                            && are_option_rcs_equal(
+                            && are_option_gcs_equal(
                                 d.maybe_file().as_ref(),
                                 diags[0].maybe_file().as_ref(),
                             )
                     }) {
-                        diag = Rc::new(
+                        diag = Gc::new(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformation::new(
                                     chain.category,
@@ -946,7 +947,7 @@ impl TypeChecker {
                             .into(),
                         );
                     } else {
-                        diag = Rc::new(
+                        diag = Gc::new(
                             create_diagnostic_for_node_from_message_chain(
                                 node,
                                 chain,
@@ -990,7 +991,7 @@ impl TypeChecker {
                 );
             } else {
                 let signatures_with_correct_type_argument_arity =
-                    filter(signatures, |s: &Rc<Signature>| {
+                    filter(signatures, |s: &Gc<Signature>| {
                         self.has_correct_type_argument_arity(s, type_arguments.as_ref())
                     });
                 if signatures_with_correct_type_argument_arity.is_empty() {
@@ -1025,12 +1026,12 @@ impl TypeChecker {
 
     pub(super) fn add_implementation_success_elaboration(
         &self,
-        candidates_for_argument_error: &mut Option<Vec<Rc<Signature>>>,
-        candidate_for_argument_arity_error: &mut Option<Rc<Signature>>,
-        candidate_for_type_argument_error: &mut Option<Rc<Signature>>,
+        candidates_for_argument_error: &mut Option<Vec<Gc<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
         type_arguments: Option<&NodeArray>,
         node: &Node,
-        args: &[Rc<Node>],
+        args: &[Gc<Node>],
         arg_check_mode: &mut CheckMode,
         failed: &Signature,
         diagnostic: &Diagnostic,
@@ -1049,7 +1050,7 @@ impl TypeChecker {
             .unwrap_or_else(|| vec![]);
         let is_overload = failed_signature_declarations.len() > 1;
         let impl_decl = if is_overload {
-            find(&failed_signature_declarations, |d: &Rc<Node>, _| {
+            find(&failed_signature_declarations, |d: &Gc<Node>, _| {
                 is_function_like_declaration(d)
                     && node_is_present(d.as_function_like_declaration().maybe_body())
             })
@@ -1079,7 +1080,7 @@ impl TypeChecker {
                 add_related_info(
                     diagnostic,
                     vec![
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node(
                                 impl_decl,
                                 &Diagnostics::The_call_would_have_succeeded_against_this_implementation_but_implementation_signatures_of_overloads_are_not_externally_visible,
@@ -1098,18 +1099,18 @@ impl TypeChecker {
 
     pub(super) fn choose_overload(
         &self,
-        candidates_for_argument_error: &mut Option<Vec<Rc<Signature>>>,
-        candidate_for_argument_arity_error: &mut Option<Rc<Signature>>,
-        candidate_for_type_argument_error: &mut Option<Rc<Signature>>,
+        candidates_for_argument_error: &mut Option<Vec<Gc<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
         type_arguments: Option<&NodeArray>,
         node: &Node,
-        args: &[Rc<Node>],
+        args: &[Gc<Node>],
         arg_check_mode: &mut CheckMode,
-        candidates: &mut Vec<Rc<Signature>>,
+        candidates: &mut Vec<Gc<Signature>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         is_single_non_generic_candidate: bool,
         signature_help_trailing_comma: Option<bool>,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
         *candidates_for_argument_error = None;
         *candidate_for_argument_arity_error = None;
@@ -1119,7 +1120,7 @@ impl TypeChecker {
             let candidate = &candidates[0];
             if some(
                 type_arguments.map(|type_arguments| &**type_arguments),
-                Option::<fn(&Rc<Node>) -> bool>::None,
+                Option::<fn(&Gc<Node>) -> bool>::None,
             ) || !self.has_correct_arity(
                 node,
                 args,
@@ -1159,14 +1160,14 @@ impl TypeChecker {
                 continue;
             }
 
-            let mut check_candidate: Rc<Signature>;
-            let mut inference_context: Option<Rc<InferenceContext>> = None;
+            let mut check_candidate: Gc<Signature>;
+            let mut inference_context: Option<Gc<InferenceContext>> = None;
 
             if let Some(ref candidate_type_parameters) = candidate.maybe_type_parameters().clone() {
-                let type_argument_types: Option<Vec<Rc<Type>>>;
+                let type_argument_types: Option<Vec<Gc<Type>>>;
                 if some(
                     type_arguments.map(|type_arguments| &**type_arguments),
-                    Option::<fn(&Rc<Node>) -> bool>::None,
+                    Option::<fn(&Gc<Node>) -> bool>::None,
                 ) {
                     type_argument_types =
                         self.check_type_arguments(candidate, type_arguments.unwrap(), false, None);
@@ -1313,10 +1314,12 @@ impl TypeChecker {
 pub(super) struct GetDiagnosticSpanForCallNodeReturn {
     pub start: isize,
     pub length: isize,
-    pub source_file: Rc<Node /*SourceFile*/>,
+    pub source_file: Gc<Node /*SourceFile*/>,
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct ResolveCallContainingMessageChain {
+    #[unsafe_ignore_trace]
     chain: Option<Rc<RefCell<DiagnosticMessageChain>>>,
 }
 
@@ -1332,19 +1335,21 @@ impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct ResolveCallOverloadContainingMessageChain {
-    type_checker: Rc<TypeChecker>,
+    type_checker: Gc<TypeChecker>,
+    #[unsafe_ignore_trace]
     i: Rc<Cell<usize>>,
     candidates_len: usize,
-    c: Rc<Signature>,
+    c: Gc<Signature>,
 }
 
 impl ResolveCallOverloadContainingMessageChain {
     pub fn new(
-        type_checker: Rc<TypeChecker>,
+        type_checker: Gc<TypeChecker>,
         i: Rc<Cell<usize>>,
         candidates_len: usize,
-        c: Rc<Signature>,
+        c: Gc<Signature>,
     ) -> Self {
         Self {
             type_checker,

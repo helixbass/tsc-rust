@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
@@ -75,7 +76,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_jsx_name(&self, node: &Node /*JsxTagNameExpression*/) -> bool {
         if is_property_access_expression(node) {
-            let mut prop_name: Rc<Node /*JsxTagNameExpression*/> = node.node_wrapper();
+            let mut prop_name: Gc<Node /*JsxTagNameExpression*/> = node.node_wrapper();
             while {
                 let check = self
                     .check_grammar_jsx_nested_identifier(&prop_name.as_named_declaration().name());
@@ -147,7 +148,7 @@ impl TypeChecker {
                         if !self.has_parse_diagnostics(&source_file) {
                             if !is_effective_external_module(&source_file, &self.compiler_options) {
                                 self.diagnostics().add(
-                                    Rc::new(
+                                    Gc::new(
                                         create_diagnostic_for_node(
                                             for_in_or_of_statement_await_modifier,
                                             &Diagnostics::for_await_loops_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module,
@@ -168,7 +169,7 @@ impl TypeChecker {
                                 || self.language_version < ScriptTarget::ES2017
                             {
                                 self.diagnostics().add(
-                                    Rc::new(
+                                    Gc::new(
                                         create_diagnostic_for_node(
                                             for_in_or_of_statement_await_modifier,
                                             &Diagnostics::Top_level_for_await_loops_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_or_nodenext_and_the_target_option_is_set_to_es2017_or_higher,
@@ -180,7 +181,7 @@ impl TypeChecker {
                         }
                     } else {
                         if !self.has_parse_diagnostics(&source_file) {
-                            let diagnostic: Rc<Diagnostic> = Rc::new(
+                            let diagnostic: Gc<Diagnostic> = Gc::new(
                                 create_diagnostic_for_node(
                                     for_in_or_of_statement_await_modifier,
                                     &Diagnostics::for_await_loops_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,
@@ -197,7 +198,7 @@ impl TypeChecker {
                                         .intersects(FunctionFlags::Async),
                                     Some("Enclosing function should never be an async function."),
                                 );
-                                let related_info: Rc<DiagnosticRelatedInformation> = Rc::new(
+                                let related_info: Gc<DiagnosticRelatedInformation> = Gc::new(
                                     create_diagnostic_for_node(
                                         func,
                                         &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
@@ -449,7 +450,7 @@ impl TypeChecker {
     pub(super) fn get_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
-    ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
         if accessor.as_function_like_declaration().parameters().len()
             == if accessor.kind() == SyntaxKind::GetAccessor {
                 1
@@ -656,7 +657,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*BreakOrContinueStatement*/
     ) -> bool {
-        let mut current: Option<Rc<Node>> = Some(node.node_wrapper());
+        let mut current: Option<Gc<Node>> = Some(node.node_wrapper());
         let node_as_has_label = node.as_has_label();
         while let Some(current_present) = current.as_ref() {
             if is_function_like_or_class_static_block_declaration(Some(&**current_present)) {

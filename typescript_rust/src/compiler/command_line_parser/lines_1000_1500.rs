@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
@@ -434,8 +435,8 @@ pub(super) fn compiler_options_alternate_mode() -> Rc<AlternateModeDiagnostics> 
 }
 
 thread_local! {
-    pub(crate) static default_init_compiler_options: Rc<CompilerOptions> =
-        Rc::new(CompilerOptionsBuilder::default()
+    pub(crate) static default_init_compiler_options: Gc<CompilerOptions> =
+        Gc::new(CompilerOptionsBuilder::default()
             .module(Some(ModuleKind::CommonJS))
             .target(Some(ScriptTarget::ES2016))
             .strict(Some(true))
@@ -487,18 +488,18 @@ pub(crate) fn convert_enable_auto_discovery_to_enable(
 
 pub(crate) fn create_compiler_diagnostic_for_invalid_custom_type(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
-) -> Rc<Diagnostic> {
+) -> Gc<Diagnostic> {
     create_diagnostic_for_invalid_custom_type(opt, |message, args| {
-        Rc::new(create_compiler_diagnostic(message, args).into())
+        Gc::new(create_compiler_diagnostic(message, args).into())
     })
 }
 
 pub(super) fn create_diagnostic_for_invalid_custom_type<
-    TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
+    TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
 >(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     mut create_diagnostic: TCreateDiagnostic,
-) -> Rc<Diagnostic> {
+) -> Gc<Diagnostic> {
     let names_of_type = opt
         .type_()
         .as_map()
@@ -515,7 +516,7 @@ pub(super) fn create_diagnostic_for_invalid_custom_type<
 pub fn parse_custom_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     value: Option<&str>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
 ) -> CompilerOptionsValue {
     convert_json_option_of_custom_type(opt, Some(trim_string(value.unwrap_or(""))), errors)
 }
@@ -523,7 +524,7 @@ pub fn parse_custom_type_option(
 pub fn parse_list_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfListType*/
     value: Option<&str>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
 ) -> Option<Vec<String>> {
     let value = value.unwrap_or("");
     if starts_with(value, "-") {
@@ -583,13 +584,13 @@ pub(super) fn get_option_name(option: &CommandLineOption) -> &str {
 }
 
 pub(super) fn create_unknown_option_error<
-    TCreateDiagnostics: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
+    TCreateDiagnostics: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
 >(
     unknown_option: &str,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
     mut create_diagnostics: TCreateDiagnostics,
     unknown_option_error_text: Option<&str>,
-) -> Rc<Diagnostic> {
+) -> Gc<Diagnostic> {
     if let Some(diagnostics_alternate_mode) = diagnostics.maybe_alternate_mode() {
         if (diagnostics_alternate_mode.get_options_name_map)()
             .options_name_map
@@ -1233,7 +1234,7 @@ pub(super) fn parse_command_line_worker<TReadFile: Fn(&str) -> io::Result<Option
     let mut options: HashMap<String, CompilerOptionsValue> = HashMap::new();
     let watch_options: RefCell<Option<HashMap<String, CompilerOptionsValue>>> = RefCell::new(None);
     let mut file_names: Vec<String> = vec![];
-    let mut errors: Vec<Rc<Diagnostic>> = vec![];
+    let mut errors: Vec<Gc<Diagnostic>> = vec![];
 
     parse_strings(
         &mut file_names,
@@ -1265,7 +1266,7 @@ pub(super) fn parse_strings<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut HashMap<String, CompilerOptionsValue>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     watch_options: &RefCell<Option<HashMap<String, CompilerOptionsValue>>>,
     read_file: Option<&TReadFile>,
     args: &[String],
@@ -1324,7 +1325,7 @@ pub(super) fn parse_strings<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
                     errors.push(create_unknown_option_error(
                         &input_option_name,
                         diagnostics.as_did_you_mean_options_diagnostics(),
-                        |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
                         Some(s),
                     ));
                 }

@@ -1,3 +1,4 @@
+use gc::Gc;
 use regex::Regex;
 use serde_json;
 use std::borrow::{Borrow, Cow};
@@ -43,12 +44,12 @@ pub fn is_external_module_name_relative(module_name: &str) -> bool {
 }
 
 pub fn sort_and_deduplicate_diagnostics(
-    diagnostics: &[Rc<Diagnostic>],
-) -> SortedArray<Rc<Diagnostic>> {
+    diagnostics: &[Gc<Diagnostic>],
+) -> SortedArray<Gc<Diagnostic>> {
     sort_and_deduplicate(
         diagnostics,
         &|a, b| compare_diagnostics(&**a, &**b),
-        Option::<&fn(&Rc<Diagnostic>, &Rc<Diagnostic>) -> bool>::None,
+        Option::<&fn(&Gc<Diagnostic>, &Gc<Diagnostic>) -> bool>::None,
     )
 }
 
@@ -208,7 +209,7 @@ pub fn collapse_text_change_ranges_across_multiple_versions(
     )
 }
 
-pub fn get_type_parameter_owner(d: &Node /*Declaration*/) -> Option<Rc<Node>> {
+pub fn get_type_parameter_owner(d: &Node /*Declaration*/) -> Option<Gc<Node>> {
     if
     /*d && */
     d.kind() == SyntaxKind::TypeParameter {
@@ -249,7 +250,7 @@ pub fn is_empty_binding_element(node: &Node /*BindingElement*/) -> bool {
     is_empty_binding_pattern(&node.as_named_declaration().name())
 }
 
-pub fn walk_up_binding_elements_and_patterns(binding: &Node /*BindingElement*/) -> Rc<Node> /*VariableDeclaration | ParameterDeclaration*/
+pub fn walk_up_binding_elements_and_patterns(binding: &Node /*BindingElement*/) -> Gc<Node> /*VariableDeclaration | ParameterDeclaration*/
 {
     let mut node = binding.parent();
     while is_binding_element(&*node.parent()) {
@@ -313,7 +314,7 @@ lazy_static! {
 pub fn validate_locale_and_set_language(
     locale: &str,
     sys: &dyn System,
-    mut errors: Option<&mut Push<Rc<Diagnostic>>>,
+    mut errors: Option<&mut Push<Gc<Diagnostic>>>,
 ) {
     let lower_case_locale = locale.to_lowercase();
     lazy_static! {
@@ -323,7 +324,7 @@ pub fn validate_locale_and_set_language(
 
     if match_result.is_none() {
         if let Some(errors) = errors {
-            errors.push(Rc::new(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into()));
+            errors.push(Gc::new(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into()));
         }
         return;
     }
@@ -346,7 +347,7 @@ fn try_set_language_and_territory(
     sys: &dyn System,
     language: &str,
     territory: Option<&str>,
-    errors: &mut Option<&mut Push<Rc<Diagnostic>>>,
+    errors: &mut Option<&mut Push<Gc<Diagnostic>>>,
 ) -> bool {
     let compiler_file_path = normalize_path(&sys.get_executing_file_path());
     let containing_directory_path = get_directory_path(&compiler_file_path);
@@ -369,7 +370,7 @@ fn try_set_language_and_territory(
     let file_contents = match sys.read_file(&file_path) {
         Err(_) => {
             if let Some(errors) = errors {
-                errors.push(Rc::new(
+                errors.push(Gc::new(
                     create_compiler_diagnostic(
                         &Diagnostics::Unable_to_open_file_0,
                         Some(vec![file_path]),
@@ -388,7 +389,7 @@ fn try_set_language_and_territory(
         Some(parsed_file_contents) => parsed_file_contents.is_err(),
     } {
         if let Some(errors) = errors {
-            errors.push(Rc::new(
+            errors.push(Gc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Corrupted_locale_file_0,
                     Some(vec![file_path]),
@@ -404,10 +405,10 @@ fn try_set_language_and_territory(
     true
 }
 
-pub fn get_original_node<TNode: Borrow<Node>, TNodeTest: FnOnce(Option<Rc<Node>>) -> bool>(
+pub fn get_original_node<TNode: Borrow<Node>, TNodeTest: FnOnce(Option<Gc<Node>>) -> bool>(
     node: Option<TNode>,
     node_test: Option<TNodeTest>,
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
 
     if let Some(node_present) = node.clone() {
@@ -444,7 +445,7 @@ pub fn find_ancestor<
 >(
     node: Option<TNode>,
     mut callback: TCallback,
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
     while let Some(rc_node_ref) = node.as_ref() {
         let result = callback(&**rc_node_ref).into();
@@ -469,7 +470,7 @@ pub fn is_parse_tree_node(node: &Node) -> bool {
 pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(&Node) -> bool>(
     node: Option<TNode>,
     node_test: Option<TNodeTest>,
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let node = node.map(|node| node.borrow().node_wrapper());
 
     match node {
@@ -536,7 +537,7 @@ pub fn symbol_name<'symbol>(symbol: &'symbol Symbol) -> Cow<'symbol, str> {
 
 fn name_for_nameless_jsdoc_typedef(
     declaration: &Node, /*JSDocTypedefTag | JSDocEnumTag*/
-) -> Option<Rc<Node /*Identifier | PrivateIdentifier*/>> {
+) -> Option<Gc<Node /*Identifier | PrivateIdentifier*/>> {
     let host_node = declaration.parent().maybe_parent();
     if host_node.is_none() {
         return None;
@@ -602,7 +603,7 @@ fn name_for_nameless_jsdoc_typedef(
 
 fn get_declaration_identifier(
     node: &Node, /*Declaration | Expression*/
-) -> Option<Rc<Node /*Identifier*/>> {
+) -> Option<Gc<Node /*Identifier*/>> {
     let name = get_name_of_declaration(Some(node));
     name.filter(|name| is_identifier(&**name))
 }
@@ -623,7 +624,7 @@ pub(crate) fn node_has_name(statement: &Node, name: &Node /*Identifier*/) -> boo
                     .as_variable_declaration_list()
                     .declarations,
             ),
-            Some(|d: &Rc<Node>| node_has_name(d, name)),
+            Some(|d: &Gc<Node>| node_has_name(d, name)),
         )
     {
         return true;
@@ -633,7 +634,7 @@ pub(crate) fn node_has_name(statement: &Node, name: &Node /*Identifier*/) -> boo
 
 pub fn get_name_of_jsdoc_typedef(
     declaration: &Node, /*JSDocTypedefTag*/
-) -> Option<Rc<Node /*Identifier | PrivateIdentifier*/>> {
+) -> Option<Gc<Node /*Identifier | PrivateIdentifier*/>> {
     declaration
         .as_jsdoc_typedef_tag()
         .name
@@ -648,7 +649,7 @@ pub(crate) fn is_named_declaration(node: &Node) -> bool {
 
 pub(crate) fn get_non_assigned_name_of_declaration(
     declaration: &Node, /*Declaration | Expression*/
-) -> Option<Rc<Node /*DeclarationName*/>> {
+) -> Option<Gc<Node /*DeclarationName*/>> {
     match declaration.kind() {
         SyntaxKind::Identifier => {
             return Some(declaration.node_wrapper());
@@ -713,7 +714,7 @@ pub(crate) fn get_non_assigned_name_of_declaration(
 
 pub fn get_name_of_declaration<TNode: Borrow<Node>>(
     declaration: Option<TNode /*Declaration | Expression*/>,
-) -> Option<Rc<Node /*DeclarationName*/>> {
+) -> Option<Gc<Node /*DeclarationName*/>> {
     if declaration.is_none() {
         return None;
     }
@@ -731,7 +732,7 @@ pub fn get_name_of_declaration<TNode: Borrow<Node>>(
     })
 }
 
-pub(crate) fn get_assigned_name(node: &Node) -> Option<Rc<Node /*DeclarationName*/>> {
+pub(crate) fn get_assigned_name(node: &Node) -> Option<Gc<Node /*DeclarationName*/>> {
     let node_parent = node.maybe_parent();
     if node_parent.is_none() {
         return None;
@@ -765,7 +766,7 @@ pub(crate) fn get_assigned_name(node: &Node) -> Option<Rc<Node /*DeclarationName
 fn get_jsdoc_parameter_tags_worker(
     param: &Node, /*ParameterDeclaration*/
     no_cache: Option<bool>,
-) -> Vec<Rc<Node /*JSDocParameterTag*/>> {
+) -> Vec<Gc<Node /*JSDocParameterTag*/>> {
     let param_as_parameter_declaration = param.as_parameter_declaration();
     /*if param.name {*/
     if is_identifier(&*param_as_parameter_declaration.name()) {
@@ -799,7 +800,7 @@ fn get_jsdoc_parameter_tags_worker(
             Some("Parameters should always be in their parent's parameter lists"),
         );
         let i = i.unwrap();
-        let param_tags: Vec<Rc<Node>> = get_jsdoc_tags_worker(&param.parent(), no_cache)
+        let param_tags: Vec<Gc<Node>> = get_jsdoc_tags_worker(&param.parent(), no_cache)
             .into_iter()
             .filter(|tag| is_jsdoc_parameter_tag(&**tag))
             .collect();
@@ -813,20 +814,20 @@ fn get_jsdoc_parameter_tags_worker(
 
 pub fn get_jsdoc_parameter_tags(
     param: &Node, /*ParameterDeclaration*/
-) -> Vec<Rc<Node /*JSDocParameterTag*/>> {
+) -> Vec<Gc<Node /*JSDocParameterTag*/>> {
     get_jsdoc_parameter_tags_worker(param, Some(false))
 }
 
 pub(crate) fn get_jsdoc_parameter_tags_no_cache(
     param: &Node, /*ParameterDeclaration*/
-) -> Vec<Rc<Node /*JSDocParameterTag*/>> {
+) -> Vec<Gc<Node /*JSDocParameterTag*/>> {
     get_jsdoc_parameter_tags_worker(param, Some(true))
 }
 
 fn get_jsdoc_type_parameter_tags_worker(
     param: &Node, /*TypeParameterDeclaration*/
     no_cache: Option<bool>,
-) -> Vec<Rc<Node /*JSDocTemplateTag*/>> {
+) -> Vec<Gc<Node /*JSDocTemplateTag*/>> {
     let name = param
         .as_type_parameter_declaration()
         .name()
@@ -853,13 +854,13 @@ fn get_jsdoc_type_parameter_tags_worker(
 
 pub fn get_jsdoc_type_parameter_tags(
     param: &Node, /*TypeParameterDeclaration*/
-) -> Vec<Rc<Node /*JSDocTemplateTag*/>> {
+) -> Vec<Gc<Node /*JSDocTemplateTag*/>> {
     get_jsdoc_type_parameter_tags_worker(param, Some(false))
 }
 
 pub(crate) fn get_jsdoc_type_parameter_tags_no_cache(
     param: &Node, /*TypeParameterDeclaration*/
-) -> Vec<Rc<Node /*JSDocTemplateTag*/>> {
+) -> Vec<Gc<Node /*JSDocTemplateTag*/>> {
     get_jsdoc_type_parameter_tags_worker(param, Some(true))
 }
 
@@ -869,85 +870,85 @@ pub fn has_jsdoc_parameter_tags(
     get_first_jsdoc_tag(node, is_jsdoc_parameter_tag, None).is_some()
 }
 
-pub fn get_jsdoc_augments_tag(node: &Node) -> Option<Rc<Node /*JSDocAugmentsTag*/>> {
+pub fn get_jsdoc_augments_tag(node: &Node) -> Option<Gc<Node /*JSDocAugmentsTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_augments_tag, None)
 }
 
-pub fn get_jsdoc_implements_tags(node: &Node) -> Vec<Rc<Node /*JSDocImplementsTag*/>> {
+pub fn get_jsdoc_implements_tags(node: &Node) -> Vec<Gc<Node /*JSDocImplementsTag*/>> {
     get_all_jsdoc_tags(node, is_jsdoc_implements_tag)
 }
 
-pub fn get_jsdoc_class_tag(node: &Node) -> Option<Rc<Node /*JSDocClassTag*/>> {
+pub fn get_jsdoc_class_tag(node: &Node) -> Option<Gc<Node /*JSDocClassTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_class_tag, None)
 }
 
-pub fn get_jsdoc_public_tag(node: &Node) -> Option<Rc<Node /*JSDocPublicTag*/>> {
+pub fn get_jsdoc_public_tag(node: &Node) -> Option<Gc<Node /*JSDocPublicTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_public_tag, None)
 }
 
-pub(crate) fn get_jsdoc_public_tag_no_cache(node: &Node) -> Option<Rc<Node /*JSDocPublicTag*/>> {
+pub(crate) fn get_jsdoc_public_tag_no_cache(node: &Node) -> Option<Gc<Node /*JSDocPublicTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_public_tag, Some(true))
 }
 
-pub fn get_jsdoc_private_tag(node: &Node) -> Option<Rc<Node /*JSDocPrivateTag*/>> {
+pub fn get_jsdoc_private_tag(node: &Node) -> Option<Gc<Node /*JSDocPrivateTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_private_tag, None)
 }
 
-pub(crate) fn get_jsdoc_private_tag_no_cache(node: &Node) -> Option<Rc<Node /*JSDocPrivateTag*/>> {
+pub(crate) fn get_jsdoc_private_tag_no_cache(node: &Node) -> Option<Gc<Node /*JSDocPrivateTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_private_tag, Some(true))
 }
 
-pub fn get_jsdoc_protected_tag(node: &Node) -> Option<Rc<Node /*JSDocProtectedTag*/>> {
+pub fn get_jsdoc_protected_tag(node: &Node) -> Option<Gc<Node /*JSDocProtectedTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_protected_tag, None)
 }
 
 pub(crate) fn get_jsdoc_protected_tag_no_cache(
     node: &Node,
-) -> Option<Rc<Node /*JSDocProtectedTag*/>> {
+) -> Option<Gc<Node /*JSDocProtectedTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_protected_tag, Some(true))
 }
 
-pub fn get_jsdoc_readonly_tag(node: &Node) -> Option<Rc<Node /*JSDocReadonlyTag*/>> {
+pub fn get_jsdoc_readonly_tag(node: &Node) -> Option<Gc<Node /*JSDocReadonlyTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_readonly_tag, None)
 }
 
 pub(crate) fn get_jsdoc_readonly_tag_no_cache(
     node: &Node,
-) -> Option<Rc<Node /*JSDocReadonlyTag*/>> {
+) -> Option<Gc<Node /*JSDocReadonlyTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_readonly_tag, Some(true))
 }
 
-pub fn get_jsdoc_override_tag_no_cache(node: &Node) -> Option<Rc<Node /*JSDocOverrideTag*/>> {
+pub fn get_jsdoc_override_tag_no_cache(node: &Node) -> Option<Gc<Node /*JSDocOverrideTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_override_tag, Some(true))
 }
 
-pub fn get_jsdoc_deprecated_tag(node: &Node) -> Option<Rc<Node /*JSDocDeprecatedTag*/>> {
+pub fn get_jsdoc_deprecated_tag(node: &Node) -> Option<Gc<Node /*JSDocDeprecatedTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_deprecated_tag, None)
 }
 
 pub(crate) fn get_jsdoc_deprecated_tag_no_cache(
     node: &Node,
-) -> Option<Rc<Node /*JSDocDeprecatedTag*/>> {
+) -> Option<Gc<Node /*JSDocDeprecatedTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_deprecated_tag, Some(true))
 }
 
-pub fn get_jsdoc_enum_tag(node: &Node) -> Option<Rc<Node /*JSDocEnumTag*/>> {
+pub fn get_jsdoc_enum_tag(node: &Node) -> Option<Gc<Node /*JSDocEnumTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_enum_tag, None)
 }
 
-pub fn get_jsdoc_this_tag(node: &Node) -> Option<Rc<Node /*JSDocThisTag*/>> {
+pub fn get_jsdoc_this_tag(node: &Node) -> Option<Gc<Node /*JSDocThisTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_this_tag, None)
 }
 
-pub fn get_jsdoc_return_tag(node: &Node) -> Option<Rc<Node /*JSDocReturnTag*/>> {
+pub fn get_jsdoc_return_tag(node: &Node) -> Option<Gc<Node /*JSDocReturnTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_return_tag, None)
 }
 
-pub fn get_jsdoc_template_tag(node: &Node) -> Option<Rc<Node /*JSDocTemplateTag*/>> {
+pub fn get_jsdoc_template_tag(node: &Node) -> Option<Gc<Node /*JSDocTemplateTag*/>> {
     get_first_jsdoc_tag(node, is_jsdoc_template_tag, None)
 }
 
-pub fn get_jsdoc_type_tag(node: &Node) -> Option<Rc<Node /*JSDocTypeTag*/>> {
+pub fn get_jsdoc_type_tag(node: &Node) -> Option<Gc<Node /*JSDocTypeTag*/>> {
     let tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
     // if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_like_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
     if tag.is_some() {
@@ -956,7 +957,7 @@ pub fn get_jsdoc_type_tag(node: &Node) -> Option<Rc<Node /*JSDocTypeTag*/>> {
     None
 }
 
-pub fn get_jsdoc_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
+pub fn get_jsdoc_type(node: &Node) -> Option<Gc<Node /*TypeNode*/>> {
     let mut tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
     if tag.is_none() && is_parameter(node) {
         tag = find(&get_jsdoc_parameter_tags(node), |tag, _| {
@@ -969,7 +970,7 @@ pub fn get_jsdoc_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
         .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
 }
 
-pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
+pub fn get_jsdoc_return_type(node: &Node) -> Option<Gc<Node /*TypeNode*/>> {
     let return_tag = get_jsdoc_return_tag(node);
     if let Some(return_tag) = return_tag {
         let return_tag_as_jsdoc_return_tag = return_tag.as_jsdoc_type_like_tag();
@@ -1003,12 +1004,12 @@ pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     None
 }
 
-fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Rc<Node /*JSDocTag*/>> {
-    let mut tags: Option<Vec<Rc<Node>>> = node.maybe_js_doc_cache().clone();
+fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Gc<Node /*JSDocTag*/>> {
+    let mut tags: Option<Vec<Gc<Node>>> = node.maybe_js_doc_cache().clone();
     if tags.is_none() || no_cache.unwrap_or(false) {
         let comments = get_jsdoc_comments_and_tags(node, no_cache);
         Debug_.assert(
-            comments.len() < 2 || !Rc::ptr_eq(&comments[0], &comments[1]),
+            comments.len() < 2 || !Gc::ptr_eq(&comments[0], &comments[1]),
             None,
         );
         tags = Some(flat_map(Some(comments), |j, _| {
@@ -1028,11 +1029,11 @@ fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Rc<Node /*J
     tags.unwrap()
 }
 
-pub fn get_jsdoc_tags(node: &Node) -> Vec<Rc<Node /*JSDocTag*/>> {
+pub fn get_jsdoc_tags(node: &Node) -> Vec<Gc<Node /*JSDocTag*/>> {
     get_jsdoc_tags_worker(node, Some(false))
 }
 
-pub(crate) fn get_jsdoc_tags_no_cache(node: &Node) -> Vec<Rc<Node /*JSDocTag*/>> {
+pub(crate) fn get_jsdoc_tags_no_cache(node: &Node) -> Vec<Gc<Node /*JSDocTag*/>> {
     get_jsdoc_tags_worker(node, Some(true))
 }
 
@@ -1040,7 +1041,7 @@ fn get_first_jsdoc_tag<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
     node: &Node,
     mut predicate: TPredicate,
     no_cache: Option<bool>,
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     find(&get_jsdoc_tags_worker(node, no_cache), |element, _| {
         predicate(element)
     })
@@ -1050,14 +1051,14 @@ fn get_first_jsdoc_tag<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
 pub fn get_all_jsdoc_tags<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
     node: &Node,
     mut predicate: TPredicate,
-) -> Vec<Rc<Node>> {
+) -> Vec<Gc<Node>> {
     get_jsdoc_tags(node)
         .into_iter()
         .filter(|rc_ref| predicate(rc_ref))
         .collect()
 }
 
-pub fn get_all_jsdoc_tags_of_kind(node: &Node, kind: SyntaxKind) -> Vec<Rc<Node /*JSDocTag*/>> {
+pub fn get_all_jsdoc_tags_of_kind(node: &Node, kind: SyntaxKind) -> Vec<Gc<Node /*JSDocTag*/>> {
     get_jsdoc_tags(node)
         .into_iter()
         .filter(|rc_ref| rc_ref.kind() == kind)
@@ -1127,7 +1128,7 @@ pub fn get_text_of_jsdoc_comment<'a, TComment: Into<StrOrNodeArrayRef<'a>>>(
 
 pub fn get_effective_type_parameter_declarations(
     node: &Node,
-) -> Vec<Rc<Node /*TypeParameterDeclaration*/>> {
+) -> Vec<Gc<Node /*TypeParameterDeclaration*/>> {
     if is_jsdoc_signature(node) {
         return vec![];
     }
@@ -1172,7 +1173,7 @@ pub fn get_effective_type_parameter_declarations(
 
 pub fn get_effective_constraint_of_type_parameter(
     node: &Node, /*TypeParameterDeclaration*/
-) -> Option<Rc<Node /*TypeNode*/>> {
+) -> Option<Gc<Node /*TypeNode*/>> {
     if let Some(node_constraint) = node.as_type_parameter_declaration().constraint.as_ref() {
         return Some(node_constraint.clone());
     }
@@ -1278,7 +1279,7 @@ pub fn is_const_type_reference(node: &Node) -> bool {
         && node_as_type_reference_node.maybe_type_arguments().is_none()
 }
 
-pub fn skip_partially_emitted_expressions(node: &Node) -> Rc<Node> {
+pub fn skip_partially_emitted_expressions(node: &Node) -> Gc<Node> {
     skip_outer_expressions(
         node,
         Some(OuterExpressionKinds::PartiallyEmittedExpressions),
@@ -1839,10 +1840,10 @@ pub(crate) fn is_scope_marker(node: &Node) -> bool {
     is_export_assignment(node) || is_export_declaration(node)
 }
 
-pub(crate) fn has_scope_marker(statements: &[Rc<Node /*Statement*/>]) -> bool {
+pub(crate) fn has_scope_marker(statements: &[Gc<Node /*Statement*/>]) -> bool {
     some(
         Some(statements),
-        Some(|statement: &Rc<Node>| is_scope_marker(statement)),
+        Some(|statement: &Gc<Node>| is_scope_marker(statement)),
     )
 }
 

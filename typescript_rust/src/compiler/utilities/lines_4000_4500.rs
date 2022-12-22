@@ -1,8 +1,10 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::io;
+use std::mem;
 use std::rc::Rc;
 
 use super::is_static;
@@ -57,30 +59,52 @@ pub fn get_indent_size() -> usize {
     indent_strings.with(|indent_strings_| indent_strings_.borrow()[1].len())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Trace, Finalize)]
 pub struct TextWriter {
+    _dyn_emit_text_writer_wrapper: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
+    _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
     new_line: String,
+    #[unsafe_ignore_trace]
     output: RefCell<String>,
+    #[unsafe_ignore_trace]
     indent: Cell<usize>,
+    #[unsafe_ignore_trace]
     line_start: Cell<bool>,
+    #[unsafe_ignore_trace]
     line_count: Cell<usize>,
+    #[unsafe_ignore_trace]
     line_pos: Cell<usize>,
+    #[unsafe_ignore_trace]
     has_trailing_comment: Cell<bool>,
+    #[unsafe_ignore_trace]
     output_as_chars: RefCell<Vec<char>>,
 }
 
 impl TextWriter {
-    pub fn new(new_line: &str) -> Self {
-        Self {
+    pub fn new(new_line: &str) -> Gc<Box<Self>> {
+        let dyn_wrapper: Gc<Box<dyn EmitTextWriter>> = Gc::new(Box::new(Self {
+            _dyn_emit_text_writer_wrapper: Default::default(),
+            _dyn_symbol_tracker_wrapper: Gc::new(Box::new(TextWriterSymbolTracker)),
             new_line: new_line.to_owned(),
-            output: RefCell::new("".to_owned()),
-            indent: Cell::new(0),
+            output: Default::default(),
+            indent: Default::default(),
             line_start: Cell::new(true),
-            line_count: Cell::new(0),
-            line_pos: Cell::new(0),
-            has_trailing_comment: Cell::new(false),
-            output_as_chars: RefCell::new(vec![]),
-        }
+            line_count: Default::default(),
+            line_pos: Default::default(),
+            has_trailing_comment: Default::default(),
+            output_as_chars: Default::default(),
+        }));
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
+        *downcasted._dyn_emit_text_writer_wrapper.borrow_mut() = Some(dyn_wrapper);
+        downcasted
+    }
+
+    pub fn as_dyn_emit_text_writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
+        self._dyn_emit_text_writer_wrapper.borrow().clone().unwrap()
+    }
+
+    pub fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self._dyn_symbol_tracker_wrapper.clone()
     }
 
     fn output(&self) -> Ref<String> {
@@ -335,16 +359,81 @@ impl SymbolWriter for TextWriter {
         self.reset();
     }
 
-    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
-        self
+    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self.as_dyn_symbol_tracker()
     }
 }
 
 impl SymbolTracker for TextWriter {
     fn track_symbol(
         &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<Gc<Node>>,
+        meaning: SymbolFlags,
+    ) -> Option<bool> {
+        self._dyn_symbol_tracker_wrapper
+            .track_symbol(symbol, enclosing_declaration, meaning)
+    }
+
+    fn is_track_symbol_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
+    }
+
+    // TODO: are these correct?
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_inaccessible_this_error_supported()
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_private_in_base_of_class_expression_supported()
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_inaccessible_unique_symbol_error_supported()
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_cyclic_structure_error_supported()
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_likely_unsafe_import_required_error_supported()
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_nonlocal_augmentation_supported()
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_non_serializable_property_supported()
+    }
+
+    fn is_module_resolver_host_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_module_resolver_host_supported()
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_track_referenced_ambient_module_supported()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TextWriterSymbolTracker;
+
+impl SymbolTracker for TextWriterSymbolTracker {
+    fn track_symbol(
+        &self,
         _symbol: &Symbol,
-        _enclosing_declaration: Option<Rc<Node>>,
+        _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<bool> {
         Some(false)
@@ -392,28 +481,47 @@ impl SymbolTracker for TextWriter {
     }
 }
 
-pub fn create_text_writer(new_line: &str) -> TextWriter {
+pub fn create_text_writer(new_line: &str) -> Gc<Box<TextWriter>> {
     TextWriter::new(new_line)
     // text_writer.reset()
 }
 
 pub fn get_trailing_semicolon_deferring_writer(
-    writer: Rc<dyn EmitTextWriter>,
-) -> TrailingSemicolonDeferringWriter {
-    TrailingSemicolonDeferringWriter::new(writer)
+    writer: Gc<Box<dyn EmitTextWriter>>,
+) -> Gc<Box<dyn EmitTextWriter>> {
+    TrailingSemicolonDeferringWriter::new(writer).as_dyn_emit_text_writer()
 }
 
+#[derive(Trace, Finalize)]
 pub struct TrailingSemicolonDeferringWriter {
-    writer: Rc<dyn EmitTextWriter>,
+    _dyn_emit_text_writer_wrapper: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
+    _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
+    writer: Gc<Box<dyn EmitTextWriter>>,
+    #[unsafe_ignore_trace]
     pending_trailing_semicolon: Cell<bool>,
 }
 
 impl TrailingSemicolonDeferringWriter {
-    pub fn new(writer: Rc<dyn EmitTextWriter>) -> Self {
-        Self {
+    pub fn new(writer: Gc<Box<dyn EmitTextWriter>>) -> Gc<Box<Self>> {
+        let dyn_wrapper: Gc<Box<dyn EmitTextWriter>> = Gc::new(Box::new(Self {
+            _dyn_emit_text_writer_wrapper: Default::default(),
+            _dyn_symbol_tracker_wrapper: Gc::new(Box::new(
+                TrailingSemicolonDeferringWriterSymbolTracker,
+            )),
             writer,
-            pending_trailing_semicolon: Cell::new(false),
-        }
+            pending_trailing_semicolon: Default::default(),
+        }));
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
+        *downcasted._dyn_emit_text_writer_wrapper.borrow_mut() = Some(dyn_wrapper);
+        downcasted
+    }
+
+    pub fn as_dyn_emit_text_writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
+        self._dyn_emit_text_writer_wrapper.borrow().clone().unwrap()
+    }
+
+    pub fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self._dyn_symbol_tracker_wrapper.clone()
     }
 
     fn commit_pending_trailing_semicolon(&self) {
@@ -552,14 +660,68 @@ impl SymbolWriter for TrailingSemicolonDeferringWriter {
         self.writer.clear()
     }
 
-    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
-        self
+    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self.as_dyn_symbol_tracker()
     }
 }
 
 // TODO: should explicitly forward all SymbolTracker methods to self.writer too?
 impl SymbolTracker for TrailingSemicolonDeferringWriter {
     // TODO: are these correct?
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_inaccessible_this_error_supported()
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_private_in_base_of_class_expression_supported()
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_inaccessible_unique_symbol_error_supported()
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_cyclic_structure_error_supported()
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_likely_unsafe_import_required_error_supported()
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_nonlocal_augmentation_supported()
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_non_serializable_property_supported()
+    }
+
+    fn is_track_symbol_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
+    }
+
+    fn is_module_resolver_host_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_module_resolver_host_supported()
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_track_referenced_ambient_module_supported()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TrailingSemicolonDeferringWriterSymbolTracker;
+
+impl SymbolTracker for TrailingSemicolonDeferringWriterSymbolTracker {
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         false
     }
@@ -827,7 +989,7 @@ pub fn get_source_files_to_emit<TTargetSourceFile: Borrow<Node>>(
     host: &dyn EmitHost,
     target_source_file: Option<TTargetSourceFile /*SourceFile*/>,
     force_dts_emit: Option<bool>,
-) -> Vec<Rc<Node /*SourceFile*/>> {
+) -> Vec<Gc<Node /*SourceFile*/>> {
     let options = ScriptReferenceHost::get_compiler_options(host);
     if matches!(out_file(&options), Some(out_file) if !out_file.is_empty()) {
         let module_kind = get_emit_module_kind(&options);
@@ -923,14 +1085,14 @@ pub fn write_file(
     file_name: &str,
     data: &str,
     write_byte_order_mark: bool,
-    source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    source_files: Option<&[Gc<Node /*SourceFile*/>]>,
 ) {
     write_file.call(
         file_name,
         data,
         write_byte_order_mark,
         Some(&|host_error_message| {
-            diagnostics.add(Rc::new(
+            diagnostics.add(Gc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Could_not_write_file_0_Colon_1,
                     Some(vec![file_name.to_owned(), host_error_message]),
@@ -990,7 +1152,7 @@ pub fn get_line_of_local_position_from_line_map(line_map: &[usize], pos: usize) 
 
 pub fn get_first_constructor_with_body(
     node: &Node, /*ClassLikeDeclaration*/
-) -> Option<Rc<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
+) -> Option<Gc<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
     find(node.as_class_like_declaration().members(), |member, _| {
         is_constructor_declaration(member)
             && node_is_present(member.as_constructor_declaration().maybe_body())
@@ -1000,7 +1162,7 @@ pub fn get_first_constructor_with_body(
 
 pub fn get_set_accessor_value_parameter(
     accessor: &Node, /*SetAccessorDeclaration*/
-) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+) -> Option<Gc<Node /*ParameterDeclaration*/>> {
     let accessor_as_set_accessor_declaration = accessor.as_set_accessor_declaration();
     let accessor_parameters = accessor_as_set_accessor_declaration.parameters();
     if
@@ -1015,14 +1177,14 @@ pub fn get_set_accessor_value_parameter(
 
 pub fn get_set_accessor_type_annotation_node(
     accessor: &Node, /*SetAccessorDeclaration*/
-) -> Option<Rc<Node /*TypeNode*/>> {
+) -> Option<Gc<Node /*TypeNode*/>> {
     let parameter = get_set_accessor_value_parameter(accessor);
     parameter.and_then(|parameter| parameter.as_parameter_declaration().maybe_type())
 }
 
 pub fn get_this_parameter(
     signature: &Node, /*SignatureDeclaration | JSDocSignature*/
-) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+) -> Option<Gc<Node /*ParameterDeclaration*/>> {
     let signature_as_signature_declaration = signature.as_signature_declaration();
     if !signature_as_signature_declaration.parameters().is_empty() && !is_jsdoc_signature(signature)
     {
@@ -1054,7 +1216,7 @@ pub fn is_this_in_type_query(node: &Node) -> bool {
 
     let mut node = node.node_wrapper();
     while is_qualified_name(&node.parent())
-        && Rc::ptr_eq(&node.parent().as_qualified_name().left, &node)
+        && Gc::ptr_eq(&node.parent().as_qualified_name().left, &node)
     {
         node = node.parent();
     }
@@ -1070,13 +1232,13 @@ pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
 }
 
 pub fn get_all_accessor_declarations(
-    declarations: &[Rc<Node /*Declaration*/>],
+    declarations: &[Gc<Node /*Declaration*/>],
     accessor: &Node, /*AccessorDeclaration*/
 ) -> AllAccessorDeclarations {
-    let mut first_accessor: Option<Rc<Node>> = None;
-    let mut second_accessor: Option<Rc<Node>> = None;
-    let mut get_accessor: Option<Rc<Node>> = None;
-    let mut set_accessor: Option<Rc<Node>> = None;
+    let mut first_accessor: Option<Gc<Node>> = None;
+    let mut second_accessor: Option<Gc<Node>> = None;
+    let mut get_accessor: Option<Gc<Node>> = None;
+    let mut set_accessor: Option<Gc<Node>> = None;
     if has_dynamic_name(accessor) {
         first_accessor = Some(accessor.node_wrapper());
         if accessor.kind() == SyntaxKind::GetAccessor {

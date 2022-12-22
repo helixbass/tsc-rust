@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -287,7 +288,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_list<TParseElement: FnMut() -> Rc<Node>>(
+    pub(super) fn parse_list<TParseElement: FnMut() -> Gc<Node>>(
         &self,
         kind: ParsingContext,
         parse_element: &mut TParseElement,
@@ -313,11 +314,11 @@ impl ParserType {
         self.create_node_array(list, list_pos, None, None)
     }
 
-    pub(super) fn parse_list_element<TParseElement: FnMut() -> Rc<Node>>(
+    pub(super) fn parse_list_element<TParseElement: FnMut() -> Gc<Node>>(
         &self,
         parsing_context: ParsingContext,
         parse_element: &mut TParseElement,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let node = self.current_node(parsing_context);
         if let Some(node) = node {
             return self.consume_node(node);
@@ -326,7 +327,7 @@ impl ParserType {
         parse_element()
     }
 
-    pub(super) fn current_node(&self, parsing_context: ParsingContext) -> Option<Rc<Node>> {
+    pub(super) fn current_node(&self, parsing_context: ParsingContext) -> Option<Gc<Node>> {
         if self.maybe_syntax_cursor().is_none()
             || !self.is_reusable_parsing_context(parsing_context)
             || self.parse_error_before_next_finished_node()
@@ -362,7 +363,7 @@ impl ParserType {
         Some(node)
     }
 
-    pub(super) fn consume_node(&self, node: Rc<Node>) -> Rc<Node> {
+    pub(super) fn consume_node(&self, node: Gc<Node>) -> Gc<Node> {
         self.scanner_mut()
             .set_text_pos(node.end().try_into().unwrap());
         self.next_token();
@@ -669,7 +670,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_delimited_list<TParseElement: FnMut() -> Rc<Node>>(
+    pub(super) fn parse_delimited_list<TParseElement: FnMut() -> Gc<Node>>(
         &self,
         kind: ParsingContext,
         mut parse_element: TParseElement,
@@ -678,7 +679,7 @@ impl ParserType {
         let consider_semicolon_as_delimiter = consider_semicolon_as_delimiter.unwrap_or(false);
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | kind);
-        let mut list: Vec<Rc<Node>> = vec![];
+        let mut list: Vec<Gc<Node>> = vec![];
         let list_pos = self.get_node_pos();
 
         let mut comma_start: Option<usize> = None;
@@ -749,7 +750,7 @@ impl ParserType {
         arr.is_missing_list
     }
 
-    pub(super) fn parse_bracketed_list<TParseElement: FnMut() -> Rc<Node>>(
+    pub(super) fn parse_bracketed_list<TParseElement: FnMut() -> Gc<Node>>(
         &self,
         kind: ParsingContext,
         parse_element: TParseElement,
@@ -803,8 +804,8 @@ impl ParserType {
 
     pub(super) fn create_qualified_name(
         &self,
-        entity: Rc<Node /*EntityName*/>,
-        name: Rc<Node /*Identifier*/>,
+        entity: Gc<Node /*EntityName*/>,
+        name: Gc<Node /*Identifier*/>,
     ) -> QualifiedName {
         self.finish_node(
             self.factory
@@ -1116,7 +1117,7 @@ impl ParserType {
 
     pub(super) fn parse_this_type_predicate(
         &self,
-        lhs: Rc<Node /*ThisTypeNode*/>,
+        lhs: Gc<Node /*ThisTypeNode*/>,
     ) -> TypePredicateNode {
         self.next_token();
         self.finish_node(

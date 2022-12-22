@@ -1,4 +1,5 @@
 use fancy_regex::Regex;
+use gc::{Gc, GcCell};
 use serde::Serialize;
 use std::cell::RefCell;
 use std::cmp;
@@ -45,7 +46,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     TJsonConversionNotifier: JsonConversionNotifier,
 >(
     return_value: bool,
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
@@ -61,7 +62,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     };
     for element in &node.as_object_literal_expression().properties {
         if element.kind() != SyntaxKind::PropertyAssignment {
-            errors.borrow_mut().push(Rc::new(
+            errors.borrow_mut().push(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element,
@@ -77,7 +78,7 @@ pub(super) fn convert_object_literal_expression_to_json<
         if let Some(element_as_property_assignment_question_token) =
             element_as_property_assignment.question_token.as_ref()
         {
-            errors.borrow_mut().push(Rc::new(
+            errors.borrow_mut().push(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element_as_property_assignment_question_token,
@@ -88,7 +89,7 @@ pub(super) fn convert_object_literal_expression_to_json<
             ));
         }
         if !is_double_quoted_string(source_file, &element_as_property_assignment.name()) {
-            errors.borrow_mut().push(Rc::new(
+            errors.borrow_mut().push(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     &element_as_property_assignment.name(),
@@ -121,7 +122,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                             key_text,
                             extra_key_diagnostics,
                             |message, args| {
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node_in_source_file(
                                         source_file,
                                         &element_as_property_assignment.name(),
@@ -134,7 +135,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                             None,
                         ))
                     } else {
-                        errors.borrow_mut().push(Rc::new(
+                        errors.borrow_mut().push(Gc::new(
                             create_diagnostic_for_node_in_source_file(
                                 source_file,
                                 &element_as_property_assignment.name(),
@@ -148,7 +149,7 @@ pub(super) fn convert_object_literal_expression_to_json<
             }
         }
         let value = convert_property_value_to_json(
-            errors,
+            errors.clone(),
             source_file,
             json_conversion_notifier,
             return_value,
@@ -204,7 +205,7 @@ pub(super) fn convert_object_literal_expression_to_json<
 pub(super) fn convert_array_literal_expression_to_json<
     TJsonConversionNotifier: JsonConversionNotifier,
 >(
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     return_value: bool,
@@ -215,7 +216,7 @@ pub(super) fn convert_array_literal_expression_to_json<
     if !return_value {
         elements.iter().for_each(|element| {
             convert_property_value_to_json(
-                errors,
+                errors.clone(),
                 source_file,
                 json_conversion_notifier,
                 return_value,
@@ -232,7 +233,7 @@ pub(super) fn convert_array_literal_expression_to_json<
             .iter()
             .filter_map(|element| {
                 convert_property_value_to_json(
-                    errors,
+                    errors.clone(),
                     source_file,
                     json_conversion_notifier,
                     return_value,
@@ -246,7 +247,7 @@ pub(super) fn convert_array_literal_expression_to_json<
 }
 
 pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConversionNotifier>(
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     return_value: bool,
@@ -258,7 +259,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
     match value_expression.kind() {
         SyntaxKind::TrueKeyword => {
             report_invalid_option_value(
-                errors,
+                errors.clone(),
                 &mut invalid_reported,
                 source_file,
                 value_expression,
@@ -279,7 +280,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
         SyntaxKind::FalseKeyword => {
             report_invalid_option_value(
-                errors,
+                errors.clone(),
                 &mut invalid_reported,
                 source_file,
                 value_expression,
@@ -300,7 +301,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
         SyntaxKind::NullKeyword => {
             report_invalid_option_value(
-                errors,
+                errors.clone(),
                 &mut invalid_reported,
                 source_file,
                 value_expression,
@@ -319,7 +320,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
         SyntaxKind::StringLiteral => {
             if !is_double_quoted_string(source_file, value_expression) {
-                errors.borrow_mut().push(Rc::new(
+                errors.borrow_mut().push(Gc::new(
                     create_diagnostic_for_node_in_source_file(
                         source_file,
                         value_expression,
@@ -330,7 +331,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                 ));
             }
             report_invalid_option_value(
-                errors,
+                errors.clone(),
                 &mut invalid_reported,
                 source_file,
                 value_expression,
@@ -348,7 +349,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                             .push(create_diagnostic_for_invalid_custom_type(
                                 custom_option,
                                 |message, args| {
-                                    Rc::new(
+                                    Gc::new(
                                         create_diagnostic_for_node_in_source_file(
                                             source_file,
                                             value_expression,
@@ -375,7 +376,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
         SyntaxKind::NumericLiteral => {
             report_invalid_option_value(
-                errors,
+                errors.clone(),
                 &mut invalid_reported,
                 source_file,
                 value_expression,
@@ -407,7 +408,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
             {
             } else {
                 report_invalid_option_value(
-                    errors,
+                    errors.clone(),
                     &mut invalid_reported,
                     source_file,
                     value_expression,
@@ -440,7 +441,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
         SyntaxKind::ObjectLiteralExpression => {
             report_invalid_option_value(
-                errors,
+                errors.clone(),
                 &mut invalid_reported,
                 source_file,
                 value_expression,
@@ -463,7 +464,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                 let option_name = option.name();
                 let converted = convert_object_literal_expression_to_json(
                     return_value,
-                    errors,
+                    errors.clone(),
                     source_file,
                     json_conversion_notifier,
                     known_root_options,
@@ -487,7 +488,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
             } else {
                 let converted = convert_object_literal_expression_to_json(
                     return_value,
-                    errors,
+                    errors.clone(),
                     source_file,
                     json_conversion_notifier,
                     known_root_options,
@@ -509,7 +510,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
         SyntaxKind::ArrayLiteralExpression => {
             report_invalid_option_value(
-                errors,
+                errors.clone(),
                 &mut invalid_reported,
                 source_file,
                 value_expression,
@@ -521,7 +522,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
             return validate_value(
                 invalid_reported,
                 option,
-                errors,
+                errors.clone(),
                 source_file,
                 value_expression,
                 convert_array_literal_expression_to_json(
@@ -546,7 +547,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
     if option.is_some() {
         report_invalid_option_value(
-            errors,
+            errors.clone(),
             &mut invalid_reported,
             source_file,
             value_expression,
@@ -554,7 +555,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
             Some(true),
         );
     } else {
-        errors.borrow_mut().push(Rc::new(
+        errors.borrow_mut().push(Gc::new(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 value_expression,
@@ -571,7 +572,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 pub(super) fn validate_value(
     invalid_reported: Option<bool>,
     option: Option<&CommandLineOption>,
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     source_file: &Node,      /*JsonSourceFile*/
     value_expression: &Node, /*Expression*/
     value: Option<serde_json::Value>,
@@ -581,7 +582,7 @@ pub(super) fn validate_value(
             .and_then(|option| option.maybe_extra_validation())
             .and_then(|extra_validation| extra_validation(value.as_ref()));
         if let Some((diagnostic_message, args)) = diagnostic {
-            errors.borrow_mut().push(Rc::new(
+            errors.borrow_mut().push(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     value_expression,
@@ -597,7 +598,7 @@ pub(super) fn validate_value(
 }
 
 pub(super) fn report_invalid_option_value(
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     invalid_reported: &mut Option<bool>,
     source_file: &Node,      /*JsonSourceFile*/
     value_expression: &Node, /*Expression*/
@@ -605,7 +606,7 @@ pub(super) fn report_invalid_option_value(
     is_error: Option<bool>,
 ) {
     if matches!(is_error, Some(true)) {
-        errors.borrow_mut().push(Rc::new(
+        errors.borrow_mut().push(Gc::new(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 value_expression,
@@ -671,7 +672,7 @@ pub(super) fn is_compiler_options_value(
 
 #[derive(Serialize)]
 pub(crate) struct TSConfig {
-    pub compiler_options: Rc<CompilerOptions>,
+    pub compiler_options: Gc<CompilerOptions>,
     pub compile_on_save: Option<bool>,
     pub exclude: Option<Vec<String>>,
     pub files: Option<Vec<String>>,
@@ -762,7 +763,7 @@ pub(crate) fn convert_to_tsconfig(
     compiler_options.version = None;
 
     let mut config = TSConfig {
-        compiler_options: Rc::new(compiler_options),
+        compiler_options: Gc::new(compiler_options),
         // watch_options: watch_option_map.map(|watch_option_map| Rc::new(hash_map_to_watch_options(&watch_option_map))),
         references: maybe_map(config_parse_result.project_references.as_ref(), |r, _| {
             Rc::new(ProjectReference {
@@ -1131,7 +1132,7 @@ fn write_configurations(
     let mut margin_length = 0;
     let mut seen_known_keys = 0;
     let mut entries: Vec<WriteConfigurationsEntry> = vec![];
-    for (category, options) in categorized_options.0 {
+    for (category, options) in categorized_options {
         if !entries.is_empty() {
             entries.push(WriteConfigurationsEntry::new("".to_owned(), None));
         }

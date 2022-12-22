@@ -1,8 +1,9 @@
+use gc::{Finalize, Gc, GcCellRef, Trace};
 use std::cell::Ref;
 use std::ptr;
 use std::rc::Rc;
 
-use super::filter_semantic_diagnostics;
+use super::{filter_semantic_diagnostics, ToPath};
 use crate::{
     compare_values, concatenate, contains, contains_path, create_type_checker,
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
@@ -89,7 +90,7 @@ impl Program {
     pub(super) fn get_redirect_reference_for_resolution(
         &self,
         file: &Node, /*SourceFile*/
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         let file_as_source_file = file.as_source_file();
         let redirect = self
             .get_resolved_project_reference_to_redirect(&file_as_source_file.original_file_name());
@@ -136,7 +137,7 @@ impl Program {
     pub(super) fn get_redirect_reference_for_resolution_from_source_of_project(
         &self,
         file_path: &Path,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         let source = self.get_source_of_project_reference_redirect(file_path);
         if let Some(SourceOfProjectReferenceRedirect::String(source)) = source.as_ref() {
             return self.get_resolved_project_reference_to_redirect(source);
@@ -144,7 +145,7 @@ impl Program {
         if source.is_none() {
             return None;
         }
-        self.for_each_resolved_project_reference(|resolved_ref: Rc<ResolvedProjectReference>| {
+        self.for_each_resolved_project_reference(|resolved_ref: Gc<ResolvedProjectReference>| {
             let out = out_file(&resolved_ref.command_line.options)?;
             if out.is_empty() {
                 return None;
@@ -199,11 +200,11 @@ impl Program {
         unimplemented!()
     }
 
-    pub fn get_source_files(&self) -> Ref<Vec<Rc<Node>>> {
+    pub fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node>>> {
         self.files()
     }
 
-    pub fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    pub fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         self.options.clone()
     }
 
@@ -215,15 +216,15 @@ impl Program {
         unimplemented!()
     }
 
-    pub fn get_source_file_(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
+    pub fn get_source_file_(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
         self.get_source_file_by_path(&self.to_path(file_name))
     }
 
     pub fn get_syntactic_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(
             Program::get_syntactic_diagnostics_for_file,
             cancellation_token,
@@ -233,8 +234,8 @@ impl Program {
     pub fn get_semantic_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic>> {
         self.get_diagnostics_helper(
             Program::get_semantic_diagnostics_for_file,
             cancellation_token,
@@ -245,7 +246,7 @@ impl Program {
         &self,
         target_source_file: Option<&Node /*SourceFile*/>,
         write_file: Option<&dyn WriteFileCallback>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<CustomTransformers>,
         force_dts_emit: Option<bool>,
@@ -269,21 +270,20 @@ impl Program {
         })
     }
 
-    pub fn to_path_rc(&self) -> Rc<dyn Fn(&str) -> Path> {
-        let self_clone = self.rc_wrapper();
-        Rc::new(move |file_name| self_clone.to_path(file_name))
+    pub fn to_path_rc(&self) -> Gc<Box<dyn ToPath>> {
+        Gc::new(Box::new(ProgramToPath::new(self.rc_wrapper())))
     }
 
     pub fn get_common_source_directory(&self) -> String {
         self.maybe_common_source_directory_mut()
             .get_or_insert_with(|| {
-                let emitted_files = filter(&**self.files(), |file: &Rc<Node>| {
+                let emitted_files = filter(&**self.files(), |file: &Gc<Node>| {
                     source_file_may_be_emitted(file, self, None)
                 });
                 get_common_source_directory(
                     &self.options,
                     || {
-                        map_defined(Some(&emitted_files), |file: &Rc<Node>, _| {
+                        map_defined(Some(&emitted_files), |file: &Gc<Node>, _| {
                             let file_as_source_file = file.as_source_file();
                             if file_as_source_file.is_declaration_file() {
                                 None
@@ -563,7 +563,7 @@ impl Program {
 
     pub fn get_resolved_project_references(
         &self,
-    ) -> Ref<Option<Vec<Option<Rc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
     }
 
@@ -578,7 +578,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub(super) fn get_diagnostics_producing_type_checker(&self) -> Rc<TypeChecker> {
+    pub(super) fn get_diagnostics_producing_type_checker(&self) -> Gc<TypeChecker> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 
@@ -591,8 +591,10 @@ impl Program {
         let mut diagnostics_producing_type_checker =
             self.diagnostics_producing_type_checker.borrow_mut();
         if diagnostics_producing_type_checker.is_none() {
-            *diagnostics_producing_type_checker =
-                Some(create_type_checker(self.rc_wrapper(), true));
+            *diagnostics_producing_type_checker = Some(create_type_checker(
+                self.as_dyn_type_checker_host_debuggable(),
+                true,
+            ));
         }
         diagnostics_producing_type_checker.as_ref().unwrap().clone()
     }
@@ -602,10 +604,10 @@ impl Program {
         get_diagnostics: fn(
             &Program,
             &Node, /*SourceFile*/
-            Option<Rc<dyn CancellationTokenDebuggable>>,
-        ) -> Vec<Rc<Diagnostic>>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ) -> Vec<Gc<Diagnostic>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic>> {
         self.get_source_files()
             .iter()
             .flat_map(|source_file| get_diagnostics(self, source_file, cancellation_token.clone()))
@@ -615,7 +617,7 @@ impl Program {
     pub(super) fn get_program_diagnostics(
         &self,
         source_file: &Node, /*SourceFile*/
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         if skip_type_checking(source_file, &self.options, |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
         }) {
@@ -647,8 +649,8 @@ impl Program {
     pub fn get_declaration_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         // unimplemented!()
         vec![]
     }
@@ -665,16 +667,18 @@ impl Program {
         source_file: &Node, /*SourceFile*/
         // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
         // refactor eg get_diagnostics_helper() to use closures instead?
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
-        source_file.as_source_file().parse_diagnostics().clone()
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic>> {
+        (*source_file.as_source_file().parse_diagnostics())
+            .borrow()
+            .clone()
     }
 
     pub(super) fn get_semantic_diagnostics_for_file(
         &self,
         source_file: &Node, /*SourceFile*/
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic>> {
         concatenate(
             filter_semantic_diagnostics(
                 self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token),
@@ -689,4 +693,21 @@ impl Program {
 pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
     ResolvedModuleFull(Rc<ResolvedModuleFull>),
     PredictedToResolveToAmbientModuleMarker,
+}
+
+#[derive(Trace, Finalize)]
+pub struct ProgramToPath {
+    program: Gc<Box<Program>>,
+}
+
+impl ProgramToPath {
+    pub fn new(program: Gc<Box<Program>>) -> Self {
+        Self { program }
+    }
+}
+
+impl ToPath for ProgramToPath {
+    fn call(&self, file_name: &str) -> Path {
+        self.program.to_path(file_name)
+    }
 }

@@ -1,8 +1,10 @@
+use gc::{Finalize, Gc, Trace};
 use std::convert::{TryFrom, TryInto};
 use std::mem;
 use std::rc::Rc;
 
 pub mod debugging;
+pub mod deref;
 pub mod number;
 pub mod sys;
 pub mod weak_self;
@@ -63,10 +65,25 @@ pub fn index_of_rc<TItem>(slice: &[Rc<TItem>], item: &Rc<TItem>) -> isize {
     index_of(slice, item, |a: &Rc<TItem>, b: &Rc<TItem>| Rc::ptr_eq(a, b))
 }
 
+pub fn index_of_gc<TItem: Trace + Finalize>(slice: &[Gc<TItem>], item: &Gc<TItem>) -> isize {
+    index_of(slice, item, |a: &Gc<TItem>, b: &Gc<TItem>| Gc::ptr_eq(a, b))
+}
+
 pub fn are_option_rcs_equal<TItem>(a: Option<&Rc<TItem>>, b: Option<&Rc<TItem>>) -> bool {
     match (a, b) {
         (None, None) => true,
         (Some(a), Some(b)) => Rc::ptr_eq(a, b),
+        _ => false,
+    }
+}
+
+pub fn are_option_gcs_equal<TItem: Trace + Finalize>(
+    a: Option<&Gc<TItem>>,
+    b: Option<&Gc<TItem>>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => Gc::ptr_eq(a, b),
         _ => false,
     }
 }
@@ -77,6 +94,18 @@ pub fn are_rc_slices_equal<TItem>(a: &[Rc<TItem>], b: &[Rc<TItem>]) -> bool {
     }
     for (index, a_item) in a.iter().enumerate() {
         if !Rc::ptr_eq(a_item, &b[index]) {
+            return false;
+        }
+    }
+    true
+}
+
+pub fn are_gc_slices_equal<TItem: Trace + Finalize>(a: &[Gc<TItem>], b: &[Gc<TItem>]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    for (index, a_item) in a.iter().enumerate() {
+        if !Gc::ptr_eq(a_item, &b[index]) {
             return false;
         }
     }

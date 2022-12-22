@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -32,7 +33,7 @@ impl TypeChecker {
                 return;
             }
             let global_promise_type = self.get_global_promise_type(true);
-            if !Rc::ptr_eq(&global_promise_type, &self.empty_generic_type())
+            if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type())
                 && !self.is_reference_to_type(&return_type, &global_promise_type)
             {
                 self.error(
@@ -92,7 +93,7 @@ impl TypeChecker {
             if self.is_error_type(&promise_constructor_type) {
                 if promise_constructor_name.kind() == SyntaxKind::Identifier
                     && promise_constructor_name.as_identifier().escaped_text == "Promise"
-                    && Rc::ptr_eq(
+                    && Gc::ptr_eq(
                         &self.get_target_type(&return_type),
                         &self.get_global_promise_type(false),
                     )
@@ -116,7 +117,7 @@ impl TypeChecker {
 
             let global_promise_constructor_like_type =
                 self.get_global_promise_constructor_like_type(true);
-            if Rc::ptr_eq(
+            if Gc::ptr_eq(
                 &global_promise_constructor_like_type,
                 &self.empty_object_type(),
             ) {
@@ -175,7 +176,7 @@ impl TypeChecker {
             return;
         }
 
-        let expected_return_type: Rc<Type>;
+        let expected_return_type: Gc<Type>;
         let head_message = self.get_diagnostic_head_message_for_decorator_resolution(node);
         let mut error_info: Option<Rc<RefCell<DiagnosticMessageChain>>> = None;
         match node.parent().kind() {
@@ -233,7 +234,9 @@ impl TypeChecker {
             &expected_return_type,
             Some(node),
             Some(head_message),
-            Some(Rc::new(ResolveCallContainingMessageChain::new(error_info))),
+            Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
+                error_info,
+            )))),
             None,
         );
     }
@@ -265,7 +268,7 @@ impl TypeChecker {
             &root_name.as_identifier().escaped_text,
             meaning,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             true,
             None,
         );
@@ -295,7 +298,7 @@ impl TypeChecker {
     pub(super) fn get_entity_name_for_decorator_metadata<TNode: Borrow<Node>>(
         &self,
         node: Option<TNode /*TypeNode*/>,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         let node = node?;
         let node: &Node = node.borrow();
         match node.kind() {
@@ -323,9 +326,9 @@ impl TypeChecker {
 
     pub(super) fn get_entity_name_for_decorator_metadata_from_type_list(
         &self,
-        types: &[Rc<Node /*TypeNode*/>],
-    ) -> Option<Rc<Node /*EntityName*/>> {
-        let mut common_entity_name: Option<Rc<Node /*EntityName*/>> = None;
+        types: &[Gc<Node /*TypeNode*/>],
+    ) -> Option<Gc<Node /*EntityName*/>> {
+        let mut common_entity_name: Option<Gc<Node /*EntityName*/>> = None;
         for type_node in types {
             let mut type_node = type_node.clone();
             while matches!(
@@ -365,7 +368,7 @@ impl TypeChecker {
     pub(super) fn get_parameter_type_node_for_decorator_check(
         &self,
         node: &Node, /*ParameterDeclaration*/
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         let type_node = get_effective_type_annotation_node(node);
         if is_rest_parameter(node) {
             get_rest_parameter_element_type(type_node)
@@ -466,7 +469,7 @@ impl TypeChecker {
             }
         }
 
-        for_each(node_decorators, |decorator: &Rc<Node>, _| -> Option<()> {
+        for_each(node_decorators, |decorator: &Gc<Node>, _| -> Option<()> {
             self.check_decorator(decorator);
             None
         });
@@ -560,7 +563,7 @@ impl TypeChecker {
                 } else if matches!(
                     find_last(
                         &*get_jsdoc_tags(decl),
-                        |jsdoc_tag: &Rc<Node>, _| is_jsdoc_parameter_tag(jsdoc_tag)
+                        |jsdoc_tag: &Gc<Node>, _| is_jsdoc_parameter_tag(jsdoc_tag)
                     ),
                     Some(jsdoc_tag) if ptr::eq(&**jsdoc_tag, node)
                 ) && matches!(

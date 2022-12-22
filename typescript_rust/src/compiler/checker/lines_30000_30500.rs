@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
@@ -23,10 +24,10 @@ impl TypeChecker {
     pub(super) fn get_candidate_for_overload_failure(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates: &mut Vec<Rc<Signature>>,
-        args: &[Rc<Node /*Expression*/>],
+        candidates: &mut Vec<Gc<Signature>>,
+        args: &[Gc<Node /*Expression*/>],
         has_candidates_out_array: bool,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         Debug_.assert(!candidates.is_empty(), None);
         self.check_node_deferred(node);
         if has_candidates_out_array
@@ -43,19 +44,19 @@ impl TypeChecker {
 
     pub(super) fn create_union_of_signatures_for_overload_failure(
         &self,
-        candidates: &[Rc<Signature>],
-    ) -> Rc<Signature> {
-        let this_parameters = map_defined(Some(candidates), |c: &Rc<Signature>, _| {
+        candidates: &[Gc<Signature>],
+    ) -> Gc<Signature> {
+        let this_parameters = map_defined(Some(candidates), |c: &Gc<Signature>, _| {
             c.maybe_this_parameter().clone()
         });
-        let mut this_parameter: Option<Rc<Symbol>> = None;
+        let mut this_parameter: Option<Gc<Symbol>> = None;
         if !this_parameters.is_empty() {
             this_parameter = Some(
                 self.create_combined_symbol_from_types(
                     &this_parameters,
                     &this_parameters
                         .iter()
-                        .map(|parameter: &Rc<Symbol>| self.get_type_of_parameter(parameter))
+                        .map(|parameter: &Gc<Symbol>| self.get_type_of_parameter(parameter))
                         .collect::<Vec<_>>(),
                 ),
             );
@@ -63,12 +64,12 @@ impl TypeChecker {
         let MinAndMax {
             min: min_argument_count,
             max: max_non_rest_param,
-        } = min_and_max(candidates, |candidate: &Rc<Signature>| {
+        } = min_and_max(candidates, |candidate: &Gc<Signature>| {
             self.get_num_non_rest_parameters(candidate)
         });
-        let mut parameters: Vec<Rc<Symbol>> = vec![];
+        let mut parameters: Vec<Gc<Symbol>> = vec![];
         for i in 0..max_non_rest_param {
-            let symbols = map_defined(Some(candidates), |s: &Rc<Signature>, _| {
+            let symbols = map_defined(Some(candidates), |s: &Gc<Signature>, _| {
                 if signature_has_rest_parameter(s) {
                     if i < s.parameters().len() - 1 {
                         Some(s.parameters()[i].clone())
@@ -86,12 +87,12 @@ impl TypeChecker {
             Debug_.assert(!symbols.is_empty(), None);
             parameters.push(self.create_combined_symbol_from_types(
                 &symbols,
-                &map_defined(Some(candidates), |candidate: &Rc<Signature>, _| {
+                &map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
                     self.try_get_type_at_position(candidate, i)
                 }),
             ));
         }
-        let rest_parameter_symbols = map_defined(Some(candidates), |c: &Rc<Signature>, _| {
+        let rest_parameter_symbols = map_defined(Some(candidates), |c: &Gc<Signature>, _| {
             if signature_has_rest_parameter(c) {
                 Some(last(c.parameters()).clone())
             } else {
@@ -102,7 +103,7 @@ impl TypeChecker {
         if !rest_parameter_symbols.is_empty() {
             let type_ = self.create_array_type(
                 &self.get_union_type(
-                    map_defined(Some(candidates), |candidate: &Rc<Signature>, _| {
+                    map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
                         self.try_get_rest_type_of_signature(candidate)
                     }),
                     Some(UnionReduction::Subtype),
@@ -119,11 +120,11 @@ impl TypeChecker {
         }
         if candidates
             .into_iter()
-            .any(|candidate: &Rc<Signature>| signature_has_literal_types(candidate))
+            .any(|candidate: &Gc<Signature>| signature_has_literal_types(candidate))
         {
             flags |= SignatureFlags::HasLiteralTypes;
         }
-        Rc::new(
+        Gc::new(
             self.create_signature(
                 candidates[0].declaration.clone(),
                 None,
@@ -157,9 +158,9 @@ impl TypeChecker {
 
     pub(super) fn create_combined_symbol_from_types(
         &self,
-        sources: &[Rc<Symbol>],
-        types: &[Rc<Type>],
-    ) -> Rc<Symbol> {
+        sources: &[Gc<Symbol>],
+        types: &[Gc<Type>],
+    ) -> Gc<Symbol> {
         self.create_combined_symbol_for_overload_failure(
             sources,
             &self.get_union_type(
@@ -174,18 +175,18 @@ impl TypeChecker {
 
     pub(super) fn create_combined_symbol_for_overload_failure(
         &self,
-        sources: &[Rc<Symbol>],
+        sources: &[Gc<Symbol>],
         type_: &Type,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         self.create_symbol_with_type(&*first(sources), Some(type_))
     }
 
     pub(super) fn pick_longest_candidate_signature(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates: &mut Vec<Rc<Signature>>,
-        args: &[Rc<Node /*Expression*/>],
-    ) -> Rc<Signature> {
+        candidates: &mut Vec<Gc<Signature>>,
+        args: &[Gc<Node /*Expression*/>],
+    ) -> Gc<Signature> {
         let best_index = self.get_longest_candidate_index(
             candidates,
             match self.apparent_argument_count() {
@@ -207,7 +208,7 @@ impl TypeChecker {
             None
         };
         let instantiated = if let Some(type_argument_nodes) = type_argument_nodes.as_ref() {
-            Rc::new(self.create_signature_instantiation(
+            Gc::new(self.create_signature_instantiation(
                 candidate.clone(),
                 Some(&self.get_type_arguments_from_nodes(
                     type_argument_nodes,
@@ -229,10 +230,10 @@ impl TypeChecker {
 
     pub(super) fn get_type_arguments_from_nodes(
         &self,
-        type_argument_nodes: &[Rc<Node /*TypeNode*/>],
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        type_argument_nodes: &[Gc<Node /*TypeNode*/>],
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
         is_js: bool,
-    ) -> Vec<Rc<Type>> {
+    ) -> Vec<Gc<Type>> {
         let mut type_arguments = type_argument_nodes
             .into_iter()
             .map(|type_argument_node| self.get_type_of_node(type_argument_node))
@@ -252,10 +253,10 @@ impl TypeChecker {
     pub(super) fn infer_signature_instantiation_for_overload_failure(
         &self,
         node: &Node, /*CallLikeExpression*/
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
-        candidate: Rc<Signature>,
-        args: &[Rc<Node /*Expression*/>],
-    ) -> Rc<Signature> {
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
+        candidate: Gc<Signature>,
+        args: &[Gc<Node /*Expression*/>],
+    ) -> Gc<Signature> {
         let inference_context = self.create_inference_context(
             type_parameters,
             Some(candidate.clone()),
@@ -273,12 +274,12 @@ impl TypeChecker {
             CheckMode::SkipContextSensitive | CheckMode::SkipGenericFunctions,
             inference_context,
         );
-        Rc::new(self.create_signature_instantiation(candidate, Some(&type_argument_types)))
+        Gc::new(self.create_signature_instantiation(candidate, Some(&type_argument_types)))
     }
 
     pub(super) fn get_longest_candidate_index(
         &self,
-        candidates: &[Rc<Signature>],
+        candidates: &[Gc<Signature>],
         args_count: usize,
     ) -> usize {
         let mut max_params_index: Option<usize> = None;
@@ -305,9 +306,9 @@ impl TypeChecker {
     pub(super) fn resolve_call_expression(
         &self,
         node: &Node, /*CallExpression*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let node_as_call_expression = node.as_call_expression();
         if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
             let super_type = self.check_super_expression(&node_as_call_expression.expression);
@@ -347,7 +348,7 @@ impl TypeChecker {
         if is_call_chain(node) {
             let non_optional_type =
                 self.get_optional_expression_type(&func_type, &node_as_call_expression.expression);
-            call_chain_flags = if Rc::ptr_eq(&non_optional_type, &func_type) {
+            call_chain_flags = if Gc::ptr_eq(&non_optional_type, &func_type) {
                 SignatureFlags::None
             } else if is_outermost_optional_chain(node) {
                 SignatureFlags::IsOuterCallChain
@@ -367,7 +368,7 @@ impl TypeChecker {
             },
         );
 
-        if Rc::ptr_eq(&func_type, &self.silent_never_type()) {
+        if Gc::ptr_eq(&func_type, &self.silent_never_type()) {
             return self.silent_never_signature();
         }
 
@@ -411,7 +412,7 @@ impl TypeChecker {
                     )]),
                 );
             } else {
-                let mut related_information: Option<Rc<DiagnosticRelatedInformation>> = None;
+                let mut related_information: Option<Gc<DiagnosticRelatedInformation>> = None;
                 if node_as_call_expression.arguments.len() == 1 {
                     let source_file = get_source_file_of_node(Some(node)).unwrap();
                     let text = source_file.as_source_file().text_as_chars();
@@ -427,7 +428,7 @@ impl TypeChecker {
                         .unwrap()
                             - 1,
                     )) {
-                        related_information = Some(Rc::new(
+                        related_information = Some(Gc::new(
                             create_diagnostic_for_node(
                                 &node_as_call_expression.expression,
                                 &Diagnostics::Are_you_missing_a_semicolon,
@@ -482,7 +483,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_generic_function_returning_function(&self, signature: Rc<Signature>) -> bool {
+    pub(super) fn is_generic_function_returning_function(&self, signature: Gc<Signature>) -> bool {
         let signature_type_parameters_is_some = signature.maybe_type_parameters().is_some();
         signature_type_parameters_is_some
             && self.is_function_type(&self.get_return_type_of_signature(signature))
@@ -511,9 +512,9 @@ impl TypeChecker {
     pub(super) fn resolve_new_expression(
         &self,
         node: &Node, /*NewExpression*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let node_as_new_expression = node.as_new_expression();
         if let Some(node_arguments) = node_as_new_expression.arguments.as_ref() {
             if self.language_version < ScriptTarget::ES5 {
@@ -530,7 +531,7 @@ impl TypeChecker {
 
         let mut expression_type =
             self.check_non_null_expression(&node_as_new_expression.expression);
-        if Rc::ptr_eq(&expression_type, &self.silent_never_type()) {
+        if Gc::ptr_eq(&expression_type, &self.silent_never_type()) {
             return self.silent_never_signature();
         }
 
@@ -609,7 +610,7 @@ impl TypeChecker {
                 if matches!(
                     signature.declaration.as_ref(),
                     Some(signature_declaration) if !self.is_js_constructor(Some(&**signature_declaration)) &&
-                        !Rc::ptr_eq(
+                        !Gc::ptr_eq(
                             &self.get_return_type_of_signature(signature.clone()),
                             &self.void_type()
                         )
@@ -622,7 +623,7 @@ impl TypeChecker {
                 }
                 if matches!(
                     self.get_this_type_of_signature(&signature).as_ref(),
-                    Some(this_type) if Rc::ptr_eq(
+                    Some(this_type) if Gc::ptr_eq(
                         this_type,
                         &self.void_type()
                     )

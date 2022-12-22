@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
@@ -25,7 +26,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_assignment_declaration(
         &self,
         binary_expression: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let kind = get_assignment_declaration_kind(binary_expression);
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
         match kind {
@@ -160,7 +161,7 @@ impl TypeChecker {
                     .map(|annotated| self.get_type_from_type_node_(annotated))
             }
             AssignmentDeclarationKind::ModuleExports => {
-                let mut value_declaration: Option<Rc<Node>> = None;
+                let mut value_declaration: Option<Gc<Node>> = None;
                 value_declaration = value_declaration.or_else(|| {
                     binary_expression_as_binary_expression
                         .maybe_symbol()
@@ -217,7 +218,7 @@ impl TypeChecker {
             &name,
             SymbolFlags::Value,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             true,
             Some(true),
         );
@@ -231,7 +232,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_this_property_assignment(
         &self,
         binary_expression: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let binary_expression_symbol = binary_expression.maybe_symbol();
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
         if binary_expression_symbol.is_none() {
@@ -283,7 +284,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         self.map_type(
             type_,
             &mut |t| {
@@ -332,7 +333,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*MethodDeclaration*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         Debug_.assert(is_object_literal_method(node), None);
         if node.flags().intersects(NodeFlags::InWithStatement) {
             return None;
@@ -344,7 +345,7 @@ impl TypeChecker {
         &self,
         element: &Node, /*ObjectLiteralElementLike*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let object_literal = element.parent();
         let property_assignment_type = if is_property_assignment(element) {
             self.get_contextual_type_for_variable_like_declaration(element)
@@ -384,7 +385,7 @@ impl TypeChecker {
         &self,
         array_contextual_type: Option<TArrayContextualType>,
         index: usize,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let array_contextual_type = array_contextual_type?;
         let array_contextual_type = array_contextual_type.borrow();
         self.get_type_of_property_of_contextual_type(array_contextual_type, &index.to_string())
@@ -409,7 +410,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let conditional = node.parent();
         let conditional_as_conditional_expression = conditional.as_conditional_expression();
         if ptr::eq(node, &*conditional_as_conditional_expression.when_true)
@@ -425,7 +426,7 @@ impl TypeChecker {
         &self,
         node: &Node,  /*JsxElement*/
         child: &Node, /*JsxChild*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node_as_jsx_element = node.as_jsx_element();
         let attributes_type = self.get_apparent_type_of_contextual_type(
             &node_as_jsx_element
@@ -483,7 +484,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_jsx_expression(
         &self,
         node: &Node, /*JsxExpression*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let expr_parent = node.parent();
         if is_jsx_attribute_like(&expr_parent) {
             self.get_contextual_type_(node, None)
@@ -497,7 +498,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_jsx_attribute_(
         &self,
         attribute: &Node, /*JsxAttribute | JsxSpreadAttribute*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if is_jsx_attribute(attribute) {
             let attributes_type =
                 self.get_apparent_type_of_contextual_type(&attribute.parent(), None)?;
@@ -543,7 +544,7 @@ impl TypeChecker {
         &self,
         node: &Node,            /*ObjectLiteralExpression*/
         contextual_type: &Type, /*UnionType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.get_matching_union_constituent_for_object_literal(
             contextual_type,
             node,
@@ -554,20 +555,20 @@ impl TypeChecker {
                     map(
                         &filter(
                             &node.as_object_literal_expression().properties,
-                            |p: &Rc<Node>| {
+                            |p: &Gc<Node>| {
                                 p.maybe_symbol().is_some() &&
                                     p.kind() == SyntaxKind::PropertyAssignment &&
                                     self.is_possibly_discriminant_value(&p.as_has_initializer().maybe_initializer().unwrap()) &&
                                     self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name())
                             }
                         ),
-                        |prop: &Rc<Node>, _| {
+                        |prop: &Gc<Node>, _| {
                             let type_checker = self.rc_wrapper();
                             let prop_clone = prop.clone();
                             (
                                 Box::new(move || {
                                     type_checker.get_context_free_type_of_expression(&prop_clone.as_has_initializer().maybe_initializer().unwrap())
-                                }) as Box<dyn Fn() -> Rc<Type>>,
+                                }) as Box<dyn Fn() -> Gc<Type>>,
                                 prop.symbol().escaped_name().to_owned(),
                             )
                         }
@@ -575,7 +576,7 @@ impl TypeChecker {
                     map(
                         &filter(
                             &self.get_properties_of_type(contextual_type),
-                            |s: &Rc<Symbol>| {
+                            |s: &Gc<Symbol>| {
                                 s.flags().intersects(SymbolFlags::Optional) &&
                                     matches!(
                                         node.maybe_symbol().as_ref(),
@@ -590,12 +591,12 @@ impl TypeChecker {
                                     )
                             }
                         ),
-                        |s: &Rc<Symbol>, _| {
+                        |s: &Gc<Symbol>, _| {
                             let type_checker = self.rc_wrapper();
                             (
                                 Box::new(move || {
                                     type_checker.undefined_type()
-                                }) as Box<dyn Fn() -> Rc<Type>>,
+                                }) as Box<dyn Fn() -> Gc<Type>>,
                                 s.escaped_name().to_owned(),
                             )
                         }
@@ -612,14 +613,14 @@ impl TypeChecker {
         &self,
         node: &Node,            /*JsxAttributes*/
         contextual_type: &Type, /*UnionType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.discriminate_type_by_discriminable_items(
             contextual_type,
             &concatenate(
                 map(
                     &filter(
                         &node.as_jsx_attributes().properties,
-                        |p: &Rc<Node>| {
+                        |p: &Gc<Node>| {
                             p.maybe_symbol().is_some() &&
                                 p.kind() == SyntaxKind::JsxAttribute &&
                                 self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name()) &&
@@ -629,7 +630,7 @@ impl TypeChecker {
                                 }
                         }
                     ),
-                    |prop: &Rc<Node>, _| {
+                    |prop: &Gc<Node>, _| {
                         let type_checker = self.rc_wrapper();
                         let prop_clone = prop.clone();
                         (
@@ -644,7 +645,7 @@ impl TypeChecker {
                                     Some(prop_initializer) =>
                                         type_checker.get_context_free_type_of_expression(prop_initializer)
                                 }
-                            }) as Box<dyn Fn() -> Rc<Type>>,
+                            }) as Box<dyn Fn() -> Gc<Type>>,
                             prop.symbol().escaped_name().to_owned(),
                         )
                     }
@@ -652,7 +653,7 @@ impl TypeChecker {
                 map(
                     &filter(
                         &self.get_properties_of_type(contextual_type),
-                        |s: &Rc<Symbol>| {
+                        |s: &Gc<Symbol>| {
                             s.flags().intersects(SymbolFlags::Optional) &&
                                 matches!(
                                     node.maybe_symbol().as_ref(),
@@ -667,12 +668,12 @@ impl TypeChecker {
                                 )
                         }
                     ),
-                    |s: &Rc<Symbol>, _| {
+                    |s: &Gc<Symbol>, _| {
                         let type_checker = self.rc_wrapper();
                         (
                             Box::new(move || {
                                 type_checker.undefined_type()
-                            }) as Box<dyn Fn() -> Rc<Type>>,
+                            }) as Box<dyn Fn() -> Gc<Type>>,
                             s.escaped_name().to_owned(),
                         )
                     }
@@ -688,7 +689,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression | MethodDeclaration*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let contextual_type = if is_object_literal_method(node) {
             self.get_contextual_type_for_object_literal_method(node, context_flags)
         } else {
@@ -730,7 +731,7 @@ impl TypeChecker {
         contextual_type: Option<TContextualType>,
         node: &Node,
         context_flags: Option<ContextFlags>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let contextual_type =
             contextual_type.map(|contextual_type| contextual_type.borrow().type_wrapper());
         if let Some(contextual_type) = contextual_type.as_ref().filter(|contextual_type| {
@@ -741,7 +742,7 @@ impl TypeChecker {
                 inference_context.as_ref().filter(|inference_context| {
                     some(
                         Some(&inference_context.inferences()),
-                        Some(|inference: &Rc<InferenceInfo>| {
+                        Some(|inference: &Gc<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),
                     )
@@ -771,14 +772,14 @@ impl TypeChecker {
     pub(super) fn instantiate_instantiable_types(
         &self,
         type_: &Type,
-        mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+        mapper: Gc<TypeMapper>,
+    ) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Instantiable) {
             return self.instantiate_type(type_, Some(mapper));
         }
         if type_.flags().intersects(TypeFlags::Union) {
             return self.get_union_type(
-                map(type_.as_union_type().types(), |t: &Rc<Type>, _| {
+                map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
                     self.instantiate_instantiable_types(t, mapper.clone())
                 }),
                 Some(UnionReduction::None),
@@ -789,7 +790,7 @@ impl TypeChecker {
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
-                &map(type_.as_intersection_type().types(), |t: &Rc<Type>, _| {
+                &map(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
                     self.instantiate_instantiable_types(t, mapper.clone())
                 }),
                 Option::<&Symbol>::None,
@@ -803,7 +804,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if node.flags().intersects(NodeFlags::InWithStatement) {
             return None;
         }
@@ -916,11 +917,11 @@ impl TypeChecker {
     pub(super) fn try_find_when_const_type_reference(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         self.get_contextual_type_(node, None)
     }
 
-    pub(super) fn get_inference_context(&self, node: &Node) -> Option<Rc<InferenceContext>> {
+    pub(super) fn get_inference_context(&self, node: &Node) -> Option<Gc<InferenceContext>> {
         let ancestor = find_ancestor(Some(node), |n: &Node| n.maybe_inference_context().is_some());
         ancestor.map(|ancestor| ancestor.maybe_inference_context().clone().unwrap())
     }
@@ -929,7 +930,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
         context_flags: Option<ContextFlags>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if is_jsx_opening_element(node)
             && node.parent().maybe_contextual_type().is_some()
             && context_flags != Some(ContextFlags::Completions)
@@ -941,9 +942,9 @@ impl TypeChecker {
 
     pub(super) fn get_effective_first_argument_for_jsx_signature(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         node: &Node, /*JsxOpeningLikeElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self.get_jsx_reference_kind(node) != JsxReferenceKind::Component {
             self.get_jsx_props_type_from_call_signature(&signature, node)
         } else {
@@ -955,7 +956,7 @@ impl TypeChecker {
         &self,
         sig: &Signature,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let mut props_type =
             self.get_type_of_first_parameter_of_signature_with_fallback(sig, &self.unknown_type());
         props_type = self.get_jsx_managed_attributes_from_located_attributes(
@@ -974,11 +975,11 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_for_signature_from_member(
         &self,
-        sig: Rc<Signature>,
+        sig: Gc<Signature>,
         forced_lookup_location: &str, /*__String*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if let Some(sig_composite_signatures) = sig.composite_signatures.as_ref() {
-            let mut results: Vec<Rc<Type>> = vec![];
+            let mut results: Vec<Gc<Type>> = vec![];
             for signature in sig_composite_signatures {
                 let instance = self.get_return_type_of_signature(signature.clone());
                 if self.is_type_any(Some(&*instance)) {
@@ -1001,7 +1002,7 @@ impl TypeChecker {
     pub(super) fn get_static_type_of_referenced_jsx_constructor(
         &self,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let context_as_jsx_opening_like_element = context.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(&context_as_jsx_opening_like_element.tag_name()) {
             let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(context);

@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::Gc;
 use regex::{Captures, Regex};
 use std::borrow::{Borrow, Cow};
 use std::cell::Cell;
@@ -93,7 +94,7 @@ pub fn is_alias_symbol_declaration(node: &Node) -> bool {
 
 pub fn get_alias_declaration_from_name(
     node: &Node, /*EntityName*/
-) -> Option<Rc<Node /*Declaration*/>> {
+) -> Option<Gc<Node /*Declaration*/>> {
     match node.parent().kind() {
         SyntaxKind::ImportClause
         | SyntaxKind::ImportSpecifier
@@ -124,7 +125,7 @@ pub fn export_assignment_is_alias(node: &Node, /*ExportAssignment | BinaryExpres
 
 pub fn get_export_assignment_expression(
     node: &Node, /*ExportAssignment | BinaryExpression*/
-) -> Rc<Node /*Expression*/> {
+) -> Gc<Node /*Expression*/> {
     if is_export_assignment(node) {
         node.as_export_assignment().expression.clone()
     } else {
@@ -134,7 +135,7 @@ pub fn get_export_assignment_expression(
 
 pub fn get_property_assignment_alias_like_expression(
     node: &Node, /*PropertyAssignment | ShorthandPropertyAssignment | PropertyAccessExpression*/
-) -> Rc<Node /*Expression*/> {
+) -> Gc<Node /*Expression*/> {
     if node.kind() == SyntaxKind::ShorthandPropertyAssignment {
         node.as_shorthand_property_assignment().name()
     } else if node.kind() == SyntaxKind::PropertyAssignment {
@@ -146,7 +147,7 @@ pub fn get_property_assignment_alias_like_expression(
 
 pub fn get_effective_base_type_node(
     node: &Node, /*ClassLikeDeclaration | InterfaceDeclaration*/
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let base_type = get_class_extends_heritage_element(node);
     if base_type.is_some() && is_in_js_file(Some(node)) {
         let tag = get_jsdoc_augments_tag(node);
@@ -159,7 +160,7 @@ pub fn get_effective_base_type_node(
 
 pub fn get_class_extends_heritage_element(
     node: &Node, /*ClassLikeDeclaration | InterfaceDeclaration (or maybe also eg FunctionDeclaration)*/
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let heritage_clause = get_heritage_clause(
         node.maybe_as_interface_or_class_like_declaration()
             .and_then(|node| node.maybe_heritage_clauses()),
@@ -175,7 +176,7 @@ pub fn get_class_extends_heritage_element(
 
 pub fn get_effective_implements_type_nodes(
     node: &Node, /*ClassLikeDeclaration*/
-) -> Option<Vec<Rc<Node>>> {
+) -> Option<Vec<Gc<Node>>> {
     if is_in_js_file(Some(node)) {
         Some(
             get_jsdoc_implements_tags(node)
@@ -193,7 +194,7 @@ pub fn get_effective_implements_type_nodes(
     }
 }
 
-pub fn get_all_super_type_nodes(node: &Node) -> Vec<Rc<Node>> {
+pub fn get_all_super_type_nodes(node: &Node) -> Vec<Gc<Node>> {
     if is_interface_declaration(node) {
         get_interface_base_type_nodes(node).map_or_else(|| vec![], |node_array| node_array.to_vec())
     } else if is_class_like(node) {
@@ -214,7 +215,7 @@ pub fn get_interface_base_type_nodes(node: &Node, /*InterfaceDeclaration*/) -> O
     Some(heritage_clause.as_heritage_clause().types.clone())
 }
 
-pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind) -> Option<Rc<Node>> {
+pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind) -> Option<Gc<Node>> {
     let clauses = clauses?;
     for clause in clauses {
         if clause.as_heritage_clause().token == kind {
@@ -227,7 +228,7 @@ pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind) -> Opt
 pub fn get_ancestor<TNode: Borrow<Node>>(
     node: Option<TNode>,
     kind: SyntaxKind,
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let node = node?;
     let node = node.borrow();
     let mut node = Some(node.node_wrapper());
@@ -510,7 +511,7 @@ pub fn is_parameter_declaration(node: &Node /*VariableLikeDeclaration*/) -> bool
     root.kind() == SyntaxKind::Parameter
 }
 
-pub fn get_root_declaration(node: &Node) -> Rc<Node> {
+pub fn get_root_declaration(node: &Node) -> Gc<Node> {
     let mut node = node.node_wrapper();
     while node.kind() == SyntaxKind::BindingElement {
         node = node.parent().parent();
@@ -537,7 +538,7 @@ pub fn node_is_synthesized<TRange: ReadonlyTextRange>(range: &TRange) -> bool {
     position_is_synthesized(range.pos()) || position_is_synthesized(range.end())
 }
 
-pub fn get_original_source_file(source_file: &Node /*SourceFile*/) -> Rc<Node /*SourceFile*/> {
+pub fn get_original_source_file(source_file: &Node /*SourceFile*/) -> Gc<Node /*SourceFile*/> {
     get_parse_tree_node(Some(source_file), Some(|node: &Node| is_source_file(node)))
         .unwrap_or_else(|| source_file.node_wrapper())
 }
@@ -790,8 +791,8 @@ pub fn get_binary_operator_precedence(kind: SyntaxKind) -> OperatorPrecedence {
     }
 }
 
-pub fn get_semantic_jsx_children(children: &[Rc<Node /*JsxChild*/>]) -> Vec<Rc<Node>> {
-    filter(children, |i: &Rc<Node>| match i.kind() {
+pub fn get_semantic_jsx_children(children: &[Gc<Node /*JsxChild*/>]) -> Vec<Gc<Node>> {
+    filter(children, |i: &Gc<Node>| match i.kind() {
         SyntaxKind::JsxExpression => i.as_jsx_expression().expression.is_some(),
         SyntaxKind::JsxText => !i.as_jsx_text().contains_only_trivia_white_spaces,
         _ => true,
@@ -805,9 +806,9 @@ pub fn create_diagnostic_collection() -> DiagnosticCollection {
 impl DiagnosticCollection {
     pub fn new() -> Self {
         DiagnosticCollection {
-            non_file_diagnostics: SortedArray::<Rc<Diagnostic>>::new(vec![]),
+            non_file_diagnostics: SortedArray::<Gc<Diagnostic>>::new(vec![]),
             files_with_diagnostics: SortedArray::<String>::new(vec![]),
-            file_diagnostics: HashMap::<String, SortedArray<Rc<Diagnostic>>>::new(),
+            file_diagnostics: HashMap::<String, SortedArray<Gc<Diagnostic>>>::new(),
             has_read_non_file_diagnostics: Cell::new(false),
         }
     }
@@ -821,8 +822,8 @@ impl DiagnosticCollection {
             .set(has_read_non_file_diagnostics);
     }
 
-    pub fn lookup(&self, diagnostic: Rc<Diagnostic>) -> Option<Rc<Diagnostic>> {
-        let mut diagnostics: Option<&SortedArray<Rc<Diagnostic>>> = None;
+    pub fn lookup(&self, diagnostic: Gc<Diagnostic>) -> Option<Gc<Diagnostic>> {
+        let mut diagnostics: Option<&SortedArray<Gc<Diagnostic>>> = None;
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
             diagnostics = self
                 .file_diagnostics
@@ -844,7 +845,7 @@ impl DiagnosticCollection {
         None
     }
 
-    pub fn add(&mut self, diagnostic: Rc<Diagnostic>) {
+    pub fn add(&mut self, diagnostic: Gc<Diagnostic>) {
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
             let diagnostic_file_as_source_file = diagnostic_file.as_source_file();
             if self
@@ -870,7 +871,7 @@ impl DiagnosticCollection {
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
+                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b),
             );
         } else {
             if self.has_read_non_file_diagnostics() {
@@ -882,17 +883,17 @@ impl DiagnosticCollection {
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
+                |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b),
             );
         }
     }
 
-    pub fn get_global_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+    pub fn get_global_diagnostics(&self) -> Vec<Gc<Diagnostic>> {
         self.set_has_read_non_file_diagnostics(true);
         self.non_file_diagnostics.to_vec()
     }
 
-    pub fn get_diagnostics(&self, file_name: Option<&str>) -> Vec<Rc<Diagnostic>> {
+    pub fn get_diagnostics(&self, file_name: Option<&str>) -> Vec<Gc<Diagnostic>> {
         if let Some(file_name) = file_name {
             return self
                 .file_diagnostics
@@ -901,7 +902,7 @@ impl DiagnosticCollection {
                 .unwrap_or(vec![]);
         }
 
-        let mut file_diags: Vec<Rc<Diagnostic>> =
+        let mut file_diags: Vec<Gc<Diagnostic>> =
             flat_map_to_mutable(Some(&*self.files_with_diagnostics), |f, _| {
                 self.file_diagnostics
                     .get(f)
@@ -934,7 +935,7 @@ pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
             || some(
                 Some(&template_as_template_expression.template_spans),
                 Some(
-                    |span: &Rc<Node>| matches!(span.as_template_span().literal.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None),
+                    |span: &Gc<Node>| matches!(span.as_template_span().literal.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None),
                 ),
             )
     }

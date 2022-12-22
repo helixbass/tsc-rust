@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, Trace};
 use indexmap::IndexMap;
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
@@ -9,6 +10,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::Hash;
 use std::iter::FromIterator;
+use std::mem;
 use std::ptr;
 use std::rc::Rc;
 
@@ -42,9 +44,9 @@ use crate::{
 };
 
 thread_local! {
-    static resolving_empty_array_: Rc<Vec<Rc<Type>>> = Rc::new(vec![]);
+    static resolving_empty_array_: Gc<Vec<Gc<Type>>> = Gc::new(vec![]);
 }
-pub fn resolving_empty_array() -> Rc<Vec<Rc<Type>>> {
+pub fn resolving_empty_array() -> Gc<Vec<Gc<Type>>> {
     resolving_empty_array_.with(|resolving_empty_array| resolving_empty_array.clone())
 }
 
@@ -56,7 +58,7 @@ pub const no_truncation_maximum_truncation_length: usize = 1_000_000;
 pub fn get_declaration_of_kind(
     symbol: &Symbol,
     kind: SyntaxKind,
-) -> Option<Rc<Node /*T extends Declaration*/>> {
+) -> Option<Gc<Node /*T extends Declaration*/>> {
     let maybe_declarations = symbol.maybe_declarations();
     let declarations = maybe_declarations.as_ref();
     if let Some(declarations) = declarations {
@@ -76,7 +78,7 @@ pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
 
 // function hasEntries
 
-pub fn create_symbol_table(symbols: Option<&[Rc<Symbol>]>) -> SymbolTable {
+pub fn create_symbol_table(symbols: Option<&[Gc<Symbol>]>) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
@@ -91,26 +93,44 @@ pub fn is_transient_symbol(symbol: &Symbol) -> bool {
 }
 
 // lazy_static! {
-//     static ref string_writer: Rc<dyn EmitTextWriter> = create_single_line_string_writer();
+//     static ref string_writer: Gc<Box<dyn EmitTextWriter>> = create_single_line_string_writer();
 // }
 
-fn string_writer() -> Rc<dyn EmitTextWriter> {
+// fn string_writer() -> Gc<Box<dyn EmitTextWriter>> {
+fn string_writer() -> Gc<Box<dyn EmitTextWriter>> {
     create_single_line_string_writer()
 }
 
-fn create_single_line_string_writer() -> Rc<dyn EmitTextWriter> {
-    Rc::new(SingleLineStringWriter::new())
+fn create_single_line_string_writer() -> Gc<Box<dyn EmitTextWriter>> {
+    SingleLineStringWriter::new().as_dyn_emit_text_writer()
 }
 
+#[derive(Trace, Finalize)]
 struct SingleLineStringWriter {
+    _dyn_emit_text_writer_wrapper: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
+    _dyn_symbol_tracker_wrapper: Gc<Box<dyn SymbolTracker>>,
+    #[unsafe_ignore_trace]
     str: RefCell<String>,
 }
 
 impl SingleLineStringWriter {
-    pub fn new() -> Self {
-        Self {
-            str: RefCell::new("".to_owned()),
-        }
+    pub fn new() -> Gc<Box<Self>> {
+        let dyn_wrapper: Gc<Box<dyn EmitTextWriter>> = Gc::new(Box::new(Self {
+            _dyn_emit_text_writer_wrapper: Default::default(),
+            _dyn_symbol_tracker_wrapper: Gc::new(Box::new(SingleLineStringWriterSymbolTracker)),
+            str: Default::default(),
+        }));
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
+        *downcasted._dyn_emit_text_writer_wrapper.borrow_mut() = Some(dyn_wrapper);
+        downcasted
+    }
+
+    fn as_dyn_emit_text_writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
+        self._dyn_emit_text_writer_wrapper.borrow().clone().unwrap()
+    }
+
+    fn as_dyn_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self._dyn_symbol_tracker_wrapper.clone()
     }
 
     fn str(&self) -> Ref<String> {
@@ -233,8 +253,8 @@ impl SymbolWriter for SingleLineStringWriter {
         self.set_str("".to_owned());
     }
 
-    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
-        self
+    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self.as_dyn_symbol_tracker()
     }
 }
 
@@ -242,7 +262,86 @@ impl SymbolTracker for SingleLineStringWriter {
     fn track_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<Rc<Node>>,
+        enclosing_declaration: Option<Gc<Node>>,
+        meaning: SymbolFlags,
+    ) -> Option<bool> {
+        self._dyn_symbol_tracker_wrapper
+            .track_symbol(symbol, enclosing_declaration, meaning)
+    }
+
+    fn is_track_symbol_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
+    }
+
+    fn report_inaccessible_this_error(&self) {
+        self._dyn_symbol_tracker_wrapper
+            .report_inaccessible_this_error()
+    }
+
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_inaccessible_this_error_supported()
+    }
+
+    fn report_inaccessible_unique_symbol_error(&self) {
+        self._dyn_symbol_tracker_wrapper
+            .report_inaccessible_unique_symbol_error()
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_inaccessible_unique_symbol_error_supported()
+    }
+
+    fn report_private_in_base_of_class_expression(&self, _property_name: &str) {
+        self._dyn_symbol_tracker_wrapper
+            .report_private_in_base_of_class_expression(_property_name)
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_private_in_base_of_class_expression_supported()
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_cyclic_structure_error_supported()
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_likely_unsafe_import_required_error_supported()
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_nonlocal_augmentation_supported()
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_report_non_serializable_property_supported()
+    }
+
+    fn is_module_resolver_host_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_module_resolver_host_supported()
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        self._dyn_symbol_tracker_wrapper
+            .is_track_referenced_ambient_module_supported()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct SingleLineStringWriterSymbolTracker;
+
+impl SymbolTracker for SingleLineStringWriterSymbolTracker {
+    fn track_symbol(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
         Some(false)
@@ -446,7 +545,7 @@ pub fn copy_entries<TKey: Clone + Eq + Hash, TValue: Clone>(
     }
 }
 
-pub fn using_single_line_string_writer<TAction: FnOnce(Rc<dyn EmitTextWriter>)>(
+pub fn using_single_line_string_writer<TAction: FnOnce(Gc<Box<dyn EmitTextWriter>>)>(
     action: TAction,
 ) -> String {
     let string_writer = string_writer();
@@ -575,7 +674,7 @@ pub fn type_directive_is_equal_to(
 }
 
 pub fn has_changes_in_resolutions<
-    TValue: Clone,
+    TValue: Clone + Trace + Finalize,
     TName: AsRef<str>,
     TOldSourceFile: Borrow<Node>,
     TComparer: FnMut(&TValue, &TValue) -> bool,
@@ -645,7 +744,7 @@ fn aggregate_child_data(node: &Node) {
 
 pub fn get_source_file_of_node<TNode: Borrow<Node>>(
     node: Option<TNode>,
-) -> Option<Rc<Node /*SourceFile*/>> {
+) -> Option<Gc<Node /*SourceFile*/>> {
     let mut node = node.map(|node| {
         let node = node.borrow();
         node.node_wrapper()
@@ -656,7 +755,7 @@ pub fn get_source_file_of_node<TNode: Borrow<Node>>(
     node
 }
 
-pub fn get_source_file_of_module(module: &Symbol) -> Option<Rc<Node /*SourceFile*/>> {
+pub fn get_source_file_of_module(module: &Symbol) -> Option<Gc<Node /*SourceFile*/>> {
     get_source_file_of_node(
         module
             .maybe_value_declaration()
@@ -748,8 +847,8 @@ pub fn node_is_present<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
 }
 
 fn insert_statements_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
-    to: &mut Vec<Rc<Node>>,
-    from: Option<&[Rc<Node>]>,
+    to: &mut Vec<Gc<Node>>,
+    from: Option<&[Gc<Node>]>,
     mut is_prologue_directive: TIsPrologueDirective,
 ) {
     if from.is_none() {
@@ -773,8 +872,8 @@ fn insert_statements_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
 }
 
 fn insert_statement_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
-    to: &mut Vec<Rc<Node>>,
-    statement: Option<Rc<Node>>,
+    to: &mut Vec<Gc<Node>>,
+    statement: Option<Gc<Node>>,
     mut is_prologue_directive: TIsPrologueDirective,
 ) {
     if statement.is_none() {
@@ -796,24 +895,24 @@ fn is_any_prologue_directive(node: &Node) -> bool {
 }
 
 pub fn insert_statements_after_standard_prologue(
-    to: &mut Vec<Rc<Node>>,
-    from: Option<&[Rc<Node>]>,
+    to: &mut Vec<Gc<Node>>,
+    from: Option<&[Gc<Node>]>,
 ) {
     insert_statements_after_prologue(to, from, is_prologue_directive)
 }
 
-pub fn insert_statements_after_custom_prologue(to: &mut Vec<Rc<Node>>, from: Option<&[Rc<Node>]>) {
+pub fn insert_statements_after_custom_prologue(to: &mut Vec<Gc<Node>>, from: Option<&[Gc<Node>]>) {
     insert_statements_after_prologue(to, from, is_any_prologue_directive)
 }
 
 pub fn insert_statement_after_standard_prologue(
-    to: &mut Vec<Rc<Node>>,
-    statement: Option<Rc<Node>>,
+    to: &mut Vec<Gc<Node>>,
+    statement: Option<Gc<Node>>,
 ) {
     insert_statement_after_prologue(to, statement, is_prologue_directive)
 }
 
-pub fn insert_statement_after_custom_prologue(to: &mut Vec<Rc<Node>>, statement: Option<Rc<Node>>) {
+pub fn insert_statement_after_custom_prologue(to: &mut Vec<Gc<Node>>, statement: Option<Gc<Node>>) {
     insert_statement_after_prologue(to, statement, is_any_prologue_directive)
 }
 
@@ -1069,7 +1168,7 @@ fn get_pos(range: &Node) -> isize {
     range.pos()
 }
 
-pub fn index_of_node(node_array: &[Rc<Node>], node: &Node) -> isize {
+pub fn index_of_node(node_array: &[Gc<Node>], node: &Node) -> isize {
     binary_search_copy_key(
         node_array,
         &node.node_wrapper(),
@@ -1474,7 +1573,7 @@ pub fn is_module_augmentation_external(node: &Node /*AmbientModuleDeclaration*/)
     }
 }
 
-pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Rc<Node /*Declaration*/>> {
+pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
     symbol
         .maybe_declarations()
         .as_ref()
@@ -1637,7 +1736,7 @@ pub fn is_any_import_or_re_export(node: &Node) -> bool {
     is_any_import_syntax(node) || is_export_declaration(node)
 }
 
-pub fn get_enclosing_block_scope_container(node: &Node) -> Option<Rc<Node>> {
+pub fn get_enclosing_block_scope_container(node: &Node) -> Option<Gc<Node>> {
     find_ancestor(node.maybe_parent(), |current| {
         is_block_scope(current, current.maybe_parent())
     })

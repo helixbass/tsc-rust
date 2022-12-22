@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
@@ -7,8 +8,8 @@ use std::rc::Rc;
 
 use super::IterationUse;
 use crate::{
-    add_related_info, contains_rc, create_diagnostic_for_node, create_file_diagnostic, every,
-    filter, find_ancestor, for_each, for_each_bool, get_check_flags,
+    add_related_info, contains_gc, contains_rc, create_diagnostic_for_node, create_file_diagnostic,
+    every, filter, find_ancestor, for_each, for_each_bool, get_check_flags,
     get_effective_return_type_node, get_effective_type_annotation_node, get_object_flags,
     get_source_file_of_node, get_span_of_token_at_position, get_symbol_name_for_private_identifier,
     has_initializer, is_access_expression, is_assignment_target,
@@ -29,7 +30,7 @@ impl TypeChecker {
     pub(super) fn get_initial_type_of_binding_element(
         &self,
         node: &Node, /*BindingElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let pattern = node.parent();
         let parent_type = self.get_initial_type(&pattern.parent());
         let node_as_binding_element = node.as_binding_element();
@@ -60,7 +61,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_type_of_initializer(&self, node: &Node /*Expression*/) -> Rc<Type> {
+    pub(super) fn get_type_of_initializer(&self, node: &Node /*Expression*/) -> Gc<Type> {
         let links = self.get_node_links(node);
         let ret = (*links)
             .borrow()
@@ -73,7 +74,7 @@ impl TypeChecker {
     pub(super) fn get_initial_type_of_variable_declaration(
         &self,
         node: &Node, /*VariableDeclaration*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_variable_declaration = node.as_variable_declaration();
         if let Some(node_initializer) = node_as_variable_declaration.maybe_initializer() {
             return self.get_type_of_initializer(&node_initializer);
@@ -91,7 +92,7 @@ impl TypeChecker {
     pub(super) fn get_initial_type(
         &self,
         node: &Node, /*VariableDeclaration | BindingElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if node.kind() == SyntaxKind::VariableDeclaration {
             self.get_initial_type_of_variable_declaration(node)
         } else {
@@ -113,7 +114,7 @@ impl TypeChecker {
                 && self.is_empty_array_literal(&node.parent().as_binary_expression().right)
     }
 
-    pub(super) fn get_reference_candidate(&self, node: &Node /*Expression*/) -> Rc<Node> {
+    pub(super) fn get_reference_candidate(&self, node: &Node /*Expression*/) -> Gc<Node> {
         match node.kind() {
             SyntaxKind::ParenthesizedExpression => {
                 return self
@@ -139,7 +140,7 @@ impl TypeChecker {
         node.node_wrapper()
     }
 
-    pub(super) fn get_reference_root(&self, node: &Node) -> Rc<Node> {
+    pub(super) fn get_reference_root(&self, node: &Node) -> Gc<Node> {
         let parent = node.parent();
         if parent.kind() == SyntaxKind::ParenthesizedExpression
             || parent.kind() == SyntaxKind::BinaryExpression && {
@@ -162,7 +163,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_switch_clause(
         &self,
         clause: &Node, /*CaseClause | DefaultClause*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if clause.kind() == SyntaxKind::CaseClause {
             return self.get_regular_type_of_literal_type(
                 &self.get_type_of_expression(&clause.as_has_expression().expression()),
@@ -174,7 +175,7 @@ impl TypeChecker {
     pub(super) fn get_switch_clause_types(
         &self,
         switch_statement: &Node, /*SwitchStatement*/
-    ) -> Vec<Rc<Type>> {
+    ) -> Vec<Gc<Type>> {
         let links = self.get_node_links(switch_statement);
         if (*links).borrow().switch_types.is_none() {
             let mut switch_types = vec![];
@@ -225,14 +226,14 @@ impl TypeChecker {
         witnesses
     }
 
-    pub(super) fn each_type_contained_in(&self, source: &Type, types: &[Rc<Type>]) -> bool {
+    pub(super) fn each_type_contained_in(&self, source: &Type, types: &[Gc<Type>]) -> bool {
         if source.flags().intersects(TypeFlags::Union) {
             !for_each_bool(
                 source.as_union_or_intersection_type_interface().types(),
-                |t: &Rc<Type>, _| !contains_rc(Some(types), t),
+                |t: &Gc<Type>, _| !contains_gc(Some(types), t),
             )
         } else {
-            contains_rc(Some(types), &source.type_wrapper())
+            contains_gc(Some(types), &source.type_wrapper())
         }
     }
 
@@ -272,7 +273,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Union) {
             for_each(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| f(type_),
+                |type_: &Gc<Type>, _| f(type_),
             )
         } else {
             f(type_)
@@ -287,7 +288,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Union) {
             some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
-                Some(|type_: &Rc<Type>| f(type_)),
+                Some(|type_: &Gc<Type>| f(type_)),
             )
         } else {
             f(type_)
@@ -302,7 +303,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Union) {
             every(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| f(type_),
+                |type_: &Gc<Type>, _| f(type_),
             )
         } else {
             f(type_)
@@ -317,7 +318,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             every(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| f(type_),
+                |type_: &Gc<Type>, _| f(type_),
             )
         } else {
             f(type_)
@@ -328,22 +329,22 @@ impl TypeChecker {
         &self,
         type_: &Type,
         mut f: TCallback,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Union) {
             let type_as_union_type = type_.as_union_type();
             let types = type_as_union_type.types();
-            let filtered = filter(types, |type_: &Rc<Type>| f(type_));
+            let filtered = filter(types, |type_: &Gc<Type>| f(type_));
             if filtered.len() == types.len() {
                 return type_.type_wrapper();
             }
             let origin = type_as_union_type.origin.as_ref();
-            let mut new_origin: Option<Rc<Type>> = None;
+            let mut new_origin: Option<Gc<Type>> = None;
             if let Some(origin) = origin
                 .as_ref()
                 .filter(|origin| origin.flags().intersects(TypeFlags::Union))
             {
                 let origin_types = origin.as_union_type().types();
-                let origin_filtered = filter(origin_types, |t: &Rc<Type>| {
+                let origin_filtered = filter(origin_types, |t: &Gc<Type>| {
                     t.flags().intersects(TypeFlags::Union) || f(t)
                 });
                 if origin_types.len() - origin_filtered.len() == types.len() - filtered.len() {
@@ -371,7 +372,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn remove_type(&self, type_: &Type, target_type: &Type) -> Rc<Type> {
+    pub(super) fn remove_type(&self, type_: &Type, target_type: &Type) -> Gc<Type> {
         self.filter_type(type_, |t: &Type| !ptr::eq(t, target_type))
     }
 
@@ -386,12 +387,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn map_type<TMapper: FnMut(&Type) -> Option<Rc<Type>>>(
+    pub(super) fn map_type<TMapper: FnMut(&Type) -> Option<Gc<Type>>>(
         &self,
         type_: &Type,
         mapper: &mut TMapper,
         no_reductions: Option<bool>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let no_reductions = no_reductions.unwrap_or(false);
         if type_.flags().intersects(TypeFlags::Never) {
             return Some(type_.type_wrapper());
@@ -411,7 +412,7 @@ impl TypeChecker {
         } else {
             type_as_union_type.types().to_owned()
         };
-        let mut mapped_types: Vec<Rc<Type>> = vec![];
+        let mut mapped_types: Vec<Gc<Type>> = vec![];
         let mut changed = false;
         for t in &types {
             let mapped = if t.flags().intersects(TypeFlags::Union) {
@@ -422,7 +423,7 @@ impl TypeChecker {
             changed = changed
                 || match mapped.as_ref() {
                     None => true,
-                    Some(mapped) => !Rc::ptr_eq(t, mapped),
+                    Some(mapped) => !Gc::ptr_eq(t, mapped),
                 };
             if let Some(mapped) = mapped {
                 mapped_types.push(mapped);
@@ -450,18 +451,18 @@ impl TypeChecker {
     }
 
     pub(super) fn map_type_with_alias<
-        TMapper: FnMut(&Type) -> Rc<Type>,
+        TMapper: FnMut(&Type) -> Gc<Type>,
         TAliasSymbol: Borrow<Symbol>,
     >(
         &self,
         type_: &Type,
         mapper: &mut TMapper,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Union) && alias_symbol.is_some() {
             self.get_union_type(
-                map(type_.as_union_type().types(), |type_: &Rc<Type>, _| {
+                map(type_.as_union_type().types(), |type_: &Gc<Type>, _| {
                     mapper(type_)
                 }),
                 Some(UnionReduction::Literal),
@@ -486,7 +487,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Rc<Type> {
+    pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Gc<Type> {
         self.filter_type(type_, |t: &Type| t.flags().intersects(kind))
     }
 
@@ -494,7 +495,7 @@ impl TypeChecker {
         &self,
         type_with_primitives: &Type,
         type_with_literals: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self.maybe_type_of_kind(
             type_with_primitives,
             TypeFlags::String | TypeFlags::TemplateLiteral | TypeFlags::Number | TypeFlags::BigInt,
@@ -552,7 +553,7 @@ impl TypeChecker {
         flow_type.flags() == TypeFlags::None
     }
 
-    pub(super) fn get_type_from_flow_type(&self, flow_type: &FlowType) -> Rc<Type> {
+    pub(super) fn get_type_from_flow_type(&self, flow_type: &FlowType) -> Gc<Type> {
         if flow_type.flags() == TypeFlags::None {
             flow_type.as_incomplete_type().type_.clone()
         } else {
@@ -578,7 +579,7 @@ impl TypeChecker {
     pub(super) fn create_evolving_array_type(
         &self,
         element_type: &Type,
-    ) -> Rc<Type /*EvolvingArrayType*/> {
+    ) -> Gc<Type /*EvolvingArrayType*/> {
         let result = self.create_object_type(ObjectFlags::EvolvingArray, Option::<&Symbol>::None);
         EvolvingArrayType::new(result, element_type.type_wrapper()).into()
     }
@@ -586,7 +587,7 @@ impl TypeChecker {
     pub(super) fn get_evolving_array_type(
         &self,
         element_type: &Type,
-    ) -> Rc<Type /*EvolvingArrayType*/> {
+    ) -> Gc<Type /*EvolvingArrayType*/> {
         self.evolving_array_types()
             .entry(element_type.id())
             .or_insert_with(|| self.create_evolving_array_type(element_type))
@@ -597,7 +598,7 @@ impl TypeChecker {
         &self,
         evolving_array_type: &Type, /*EvolvingArrayType*/
         node: &Node,                /*Expression*/
-    ) -> Rc<Type /*EvolvingArrayType*/> {
+    ) -> Gc<Type /*EvolvingArrayType*/> {
         let element_type = self.get_regular_type_of_object_literal(
             &self.get_base_type_of_literal_type(&self.get_context_free_type_of_expression(node)),
         );
@@ -622,7 +623,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_final_array_type(&self, element_type: &Type) -> Rc<Type> {
+    pub(super) fn create_final_array_type(&self, element_type: &Type) -> Gc<Type> {
         if element_type.flags().intersects(TypeFlags::Never) {
             self.auto_array_type()
         } else {
@@ -646,7 +647,7 @@ impl TypeChecker {
     pub(super) fn get_final_array_type(
         &self,
         evolving_array_type: &Type, /*EvolvingArrayType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let evolving_array_type_as_evolving_array_type =
             evolving_array_type.as_evolving_array_type();
         let mut final_array_type =
@@ -660,7 +661,7 @@ impl TypeChecker {
         final_array_type.clone().unwrap()
     }
 
-    pub(super) fn finalize_evolving_array_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn finalize_evolving_array_type(&self, type_: &Type) -> Gc<Type> {
         if get_object_flags(type_).intersects(ObjectFlags::EvolvingArray) {
             self.get_final_array_type(type_)
         } else {
@@ -668,7 +669,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_element_type_of_evolving_array_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_element_type_of_evolving_array_type(&self, type_: &Type) -> Gc<Type> {
         if get_object_flags(type_).intersects(ObjectFlags::EvolvingArray) {
             type_.as_evolving_array_type().element_type.clone()
         } else {
@@ -676,7 +677,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_evolving_array_type_list(&self, types: &[Rc<Type>]) -> bool {
+    pub(super) fn is_evolving_array_type_list(&self, types: &[Gc<Type>]) -> bool {
         let mut has_evolving_array_type = false;
         for t in types {
             if !t.flags().intersects(TypeFlags::Never) {
@@ -706,13 +707,13 @@ impl TypeChecker {
         let is_element_assignment = parent.kind() == SyntaxKind::ElementAccessExpression && {
             let parent_as_element_access_expression = parent.as_element_access_expression();
             let parent_parent = parent.parent();
-            Rc::ptr_eq(&parent_as_element_access_expression.expression, &root)
+            Gc::ptr_eq(&parent_as_element_access_expression.expression, &root)
                 && parent_parent.kind() == SyntaxKind::BinaryExpression
                 && {
                     let parent_parent_as_binary_expression = parent_parent.as_binary_expression();
                     parent_parent_as_binary_expression.operator_token.kind()
                         == SyntaxKind::EqualsToken
-                        && Rc::ptr_eq(&parent_parent_as_binary_expression.left, &parent)
+                        && Gc::ptr_eq(&parent_parent_as_binary_expression.left, &parent)
                         && !is_assignment_target(&parent_parent)
                         && self.is_type_assignable_to_kind(
                             &self.get_type_of_expression(
@@ -747,7 +748,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         diagnostic: Option<&Diagnostic>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if symbol.flags().intersects(
             SymbolFlags::Function
                 | SymbolFlags::Method
@@ -801,7 +802,7 @@ impl TypeChecker {
                 if let Some(diagnostic) = diagnostic {
                     add_related_info(
                         diagnostic,
-                        vec![Rc::new(
+                        vec![Gc::new(
                             create_diagnostic_for_node(
                                 declaration,
                                 &Diagnostics::_0_needs_an_explicit_type_annotation,
@@ -826,7 +827,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         diagnostic: Option<&Diagnostic>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if !node.flags().intersects(NodeFlags::InWithStatement) {
             match node.kind() {
                 SyntaxKind::Identifier => {
@@ -858,7 +859,7 @@ impl TypeChecker {
                     );
                     if let Some(type_) = type_.as_ref() {
                         let name = &node_as_property_access_expression.name;
-                        let prop: Option<Rc<Symbol>>;
+                        let prop: Option<Gc<Symbol>>;
                         if is_private_identifier(name) {
                             if type_.maybe_symbol().is_none() {
                                 return None;
@@ -899,11 +900,11 @@ impl TypeChecker {
     pub(super) fn get_effects_signature(
         &self,
         node: &Node, /*CallExpression*/
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         let links = self.get_node_links(node);
         let mut signature = (*links).borrow().effects_signature.clone();
         if signature.is_none() {
-            let mut func_type: Option<Rc<Type>> = None;
+            let mut func_type: Option<Gc<Type>> = None;
             let node_as_call_expression = node.as_call_expression();
             if node.parent().kind() == SyntaxKind::ExpressionStatement {
                 func_type = self.get_type_of_dotted_name(&node_as_call_expression.expression, None);
@@ -933,7 +934,7 @@ impl TypeChecker {
                     Some(signatures[0].clone())
                 } else if some(
                     Some(&signatures),
-                    Some(|signature: &Rc<Signature>| {
+                    Some(|signature: &Gc<Signature>| {
                         self.has_type_predicate_or_never_return_type(signature)
                     }),
                 ) {
@@ -953,7 +954,7 @@ impl TypeChecker {
             links.borrow_mut().effects_signature = signature.clone();
         }
         let signature = signature.unwrap();
-        if Rc::ptr_eq(&signature, &self.unknown_signature()) {
+        if Gc::ptr_eq(&signature, &self.unknown_signature()) {
             None
         } else {
             Some(signature)
@@ -974,7 +975,7 @@ impl TypeChecker {
         &self,
         predicate: &TypePredicate,
         call_expression: &Node, /*CallExpression*/
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let call_expression_as_call_expression = call_expression.as_call_expression();
         if matches!(
             predicate.kind,
@@ -1013,7 +1014,7 @@ impl TypeChecker {
                 .unwrap(),
         );
         self.diagnostics().add(
-            Rc::new(
+            Gc::new(
                 create_file_diagnostic(
                     &source_file,
                     span.start,
@@ -1025,7 +1026,7 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn is_reachable_flow_node(&self, flow: Rc<FlowNode>) -> bool {
+    pub(super) fn is_reachable_flow_node(&self, flow: Gc<FlowNode>) -> bool {
         let result = self.is_reachable_flow_node_worker(flow.clone(), false);
         *self.maybe_last_flow_node() = Some(flow);
         self.set_last_flow_node_reachable(result);
@@ -1049,13 +1050,13 @@ impl TypeChecker {
 
     pub(super) fn is_reachable_flow_node_worker(
         &self,
-        mut flow: Rc<FlowNode>,
+        mut flow: Gc<FlowNode>,
         mut no_cache_check: bool,
     ) -> bool {
         loop {
             if matches!(
                 self.maybe_last_flow_node().as_ref(),
-                Some(last_flow_node) if Rc::ptr_eq(
+                Some(last_flow_node) if Gc::ptr_eq(
                     &flow,
                     last_flow_node
                 )
@@ -1111,7 +1112,7 @@ impl TypeChecker {
             } else if flags.intersects(FlowFlags::BranchLabel) {
                 return some(
                     flow.as_flow_label().maybe_antecedents().as_deref(),
-                    Some(|f: &Rc<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
+                    Some(|f: &Gc<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
                 );
             } else if flags.intersects(FlowFlags::LoopLabel) {
                 let antecedents = flow.as_flow_label().maybe_antecedents().clone();

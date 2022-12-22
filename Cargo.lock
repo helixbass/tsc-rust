@@ -367,6 +367,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "gc"
+version = "0.4.1"
+source = "git+https://github.com/manishearth/rust-gc?rev=6c5f754#6c5f754682e573e4590b52168dce835bba28beaf"
+dependencies = [
+ "gc_derive",
+ "serde",
+]
+
+[[package]]
+name = "gc_derive"
+version = "0.4.1"
+source = "git+https://github.com/manishearth/rust-gc?rev=6c5f754#6c5f754682e573e4590b52168dce835bba28beaf"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "synstructure",
+]
+
+[[package]]
 name = "harness"
 version = "0.1.0"
 dependencies = [
@@ -387,9 +407,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.12.3"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
+checksum = "33ff8ae62cd3a9102e5637afc8452c55acf3844001bd5374e0b0bd7b6616c038"
 
 [[package]]
 name = "heck"
@@ -423,11 +443,9 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "indexmap"
-version = "1.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
+version = "2.0.0-pre"
 dependencies = [
- "autocfg",
+ "gc",
  "hashbrown",
 ]
 
@@ -494,6 +512,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+ "synstructure",
 ]
 
 [[package]]
@@ -828,6 +847,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "synstructure"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f36bdaa60a83aca3921b5259d5400cbf5e90fc51931376a9bd4a0eb79aa7210f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "unicode-xid",
+]
+
+[[package]]
 name = "termcolor"
 version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -899,6 +930,7 @@ dependencies = [
  "encoding_rs",
  "encoding_rs_io",
  "fancy-regex",
+ "gc",
  "indexmap",
  "itertools",
  "lazy_static",

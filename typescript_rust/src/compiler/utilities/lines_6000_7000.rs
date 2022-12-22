@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use fancy_regex::{Captures, Regex};
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
@@ -24,17 +25,17 @@ use crate::{
     CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
     CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
-    MapLike, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path,
-    Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
-    WatchOptions,
+    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, GetCanonicalFileName,
+    JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray,
+    NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange,
+    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike,
+    TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
 pub fn create_compiler_diagnostic_from_message_chain(
     chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> BaseDiagnostic {
     BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
@@ -756,7 +757,7 @@ pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
     compiler_options: &CompilerOptions,
     file: Option<TFile /*SourceFile*/>,
 ) -> Option<String> {
-    let file: Option<Rc<Node>> = file.map(|file| file.borrow().node_wrapper());
+    let file: Option<Gc<Node>> = file.map(|file| file.borrow().node_wrapper());
     let jsx_import_source_pragmas = file.as_ref().and_then(|file| {
         file.as_source_file()
             .pragmas()
@@ -836,12 +837,17 @@ pub struct SymlinkedDirectory {
     pub real_path: Path,
 }
 
+#[derive(Trace, Finalize)]
 pub struct SymlinkCache {
     cwd: String,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
+    #[unsafe_ignore_trace]
     symlinked_files: RefCell<Option<HashMap<Path, String>>>,
+    #[unsafe_ignore_trace]
     symlinked_directories: RefCell<Option<HashMap<Path, Option<SymlinkedDirectory>>>>,
+    #[unsafe_ignore_trace]
     symlinked_directories_by_realpath: RefCell<Option<MultiMap<Path, String>>>,
+    #[unsafe_ignore_trace]
     has_processed_resolutions: Cell<bool>,
 }
 
@@ -852,7 +858,7 @@ impl fmt::Debug for SymlinkCache {
 }
 
 impl SymlinkCache {
-    pub fn new(cwd: &str, get_canonical_file_name: Rc<dyn Fn(&str) -> String>) -> Self {
+    pub fn new(cwd: &str, get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>) -> Self {
         Self {
             cwd: cwd.to_owned(),
             get_canonical_file_name,
@@ -899,7 +905,7 @@ impl SymlinkCache {
 
     pub fn set_symlinked_directory(&self, symlink: &str, real: Option<SymlinkedDirectory>) {
         let mut symlink_path = to_path(symlink, Some(&self.cwd), |file_name| {
-            (self.get_canonical_file_name)(file_name)
+            self.get_canonical_file_name.call(file_name)
         });
         if !contains_ignored_path(&symlink_path) {
             symlink_path = ensure_trailing_directory_separator(&symlink_path).into();
@@ -929,12 +935,12 @@ impl SymlinkCache {
     pub fn set_symlinked_directory_from_symlinked_file(&self, symlink: &str, real: &str) {
         self.set_symlinked_file(
             &to_path(symlink, Some(&self.cwd), |file_name| {
-                (self.get_canonical_file_name)(file_name)
+                self.get_canonical_file_name.call(file_name)
             }),
             real,
         );
         let guessed = guess_directory_symlink(real, symlink, &self.cwd, |file_name| {
-            (self.get_canonical_file_name)(file_name)
+            self.get_canonical_file_name.call(file_name)
         });
         if let Some((common_resolved, common_original)) = guessed {
             if !common_resolved.is_empty() && !common_original.is_empty() {
@@ -943,7 +949,7 @@ impl SymlinkCache {
                     Some(SymlinkedDirectory {
                         real: common_resolved.clone(),
                         real_path: to_path(&common_resolved, Some(&self.cwd), |file_name| {
-                            (self.get_canonical_file_name)(file_name)
+                            self.get_canonical_file_name.call(file_name)
                         }),
                     }),
                 );
@@ -953,7 +959,7 @@ impl SymlinkCache {
 
     pub fn set_symlinks_from_resolutions(
         &self,
-        files: &[Rc<Node /*SourceFile*/>],
+        files: &[Gc<Node /*SourceFile*/>],
         type_reference_directives: Option<
             &HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>,
         >,
@@ -997,13 +1003,13 @@ impl SymlinkCache {
         let original_path = resolution.maybe_original_path().unwrap();
         self.set_symlinked_file(
             &to_path(original_path, Some(&self.cwd), |file_name| {
-                (self.get_canonical_file_name)(file_name)
+                self.get_canonical_file_name.call(file_name)
             }),
             resolved_file_name,
         );
         let guessed =
             guess_directory_symlink(resolved_file_name, original_path, &self.cwd, |file_name| {
-                (self.get_canonical_file_name)(file_name)
+                self.get_canonical_file_name.call(file_name)
             });
         if let Some((common_resolved, common_original)) = guessed {
             if !common_resolved.is_empty() && !common_original.is_empty() {
@@ -1012,7 +1018,7 @@ impl SymlinkCache {
                     Some(SymlinkedDirectory {
                         real: common_resolved.clone(),
                         real_path: to_path(&common_resolved, Some(&self.cwd), |file_name| {
-                            (self.get_canonical_file_name)(file_name)
+                            self.get_canonical_file_name.call(file_name)
                         }),
                     }),
                 );
@@ -1058,7 +1064,7 @@ impl From<Rc<ResolvedTypeReferenceDirective>>
 
 pub fn create_symlink_cache(
     cwd: &str,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
 ) -> SymlinkCache {
     SymlinkCache::new(cwd, get_canonical_file_name)
 }
@@ -1950,7 +1956,7 @@ pub fn slice_after<'arr, TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
 
 pub fn add_related_info(
     diagnostic: &Diagnostic,
-    related_information: Vec<Rc<DiagnosticRelatedInformation>>,
+    related_information: Vec<Gc<DiagnosticRelatedInformation>>,
 ) {
     if related_information.is_empty() {
         return /*diagnostic*/;

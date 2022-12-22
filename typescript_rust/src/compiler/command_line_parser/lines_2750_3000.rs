@@ -1,4 +1,5 @@
 use derive_builder::Builder;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -26,12 +27,12 @@ use crate::{
 
 pub(super) fn create_compiler_diagnostic_only_if_json<TSourceFile: Borrow<Node>>(
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) {
     if source_file.is_none() {
-        errors.push(Rc::new(create_compiler_diagnostic(message, args).into()));
+        errors.push(Gc::new(create_compiler_diagnostic(message, args).into()));
     }
 }
 
@@ -42,11 +43,11 @@ pub(super) fn is_error_no_input_files(error: &Diagnostic) -> bool {
 pub(super) fn get_error_for_no_input_files(
     config_file_specs: &ConfigFileSpecs,
     config_file_name: Option<&str>,
-) -> Rc<Diagnostic> {
+) -> Gc<Diagnostic> {
     let include_specs = config_file_specs.include_specs.as_ref();
     let exclude_specs = config_file_specs.exclude_specs.as_ref();
     let default_specs_vec = vec![];
-    Rc::new(
+    Gc::new(
         create_compiler_diagnostic(
             &Diagnostics::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2,
             Some(vec![
@@ -81,7 +82,7 @@ pub(crate) fn update_error_for_no_input_files(
     file_names: &[String],
     config_file_name: &str,
     config_file_specs: &ConfigFileSpecs,
-    config_parse_diagnostics: &mut Vec<Rc<Diagnostic>>,
+    config_parse_diagnostics: &mut Vec<Gc<Diagnostic>>,
     can_json_report_no_input_files: bool,
 ) -> bool {
     let existing_errors = config_parse_diagnostics.len();
@@ -101,7 +102,7 @@ pub(crate) fn update_error_for_no_input_files(
 #[derive(Builder)]
 pub struct ParsedTsconfig {
     pub raw: Option<serde_json::Value>,
-    pub options: Option<Rc<CompilerOptions>>,
+    pub options: Option<Gc<CompilerOptions>>,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub extended_config_path: Option<String>,
@@ -118,7 +119,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
     base_path: &str,
     config_file_name: Option<&str>,
     resolution_stack: &[&str],
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
 ) -> ParsedTsconfig {
     let base_path = normalize_slashes(base_path);
@@ -126,7 +127,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
         get_normalized_absolute_path(config_file_name.unwrap_or(""), Some(&base_path));
 
     if index_of(resolution_stack, &&*resolved_path, |a, b| a == b) >= 0 {
-        errors.push(Rc::new(
+        errors.borrow_mut().push(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Circularity_detected_while_resolving_configuration_Colon_0,
                 Some(vec![[resolution_stack, &*vec![&*resolved_path]]
@@ -142,7 +143,13 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
     }
 
     let mut own_config: ParsedTsconfig = if let Some(json) = json {
-        parse_own_config_of_json(json, host, &base_path, config_file_name, errors)
+        parse_own_config_of_json(
+            json,
+            host,
+            &base_path,
+            config_file_name,
+            &mut errors.borrow_mut(),
+        )
     } else {
         parse_own_config_of_json_source_file(
             source_file
@@ -152,7 +159,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
             host,
             &base_path,
             config_file_name,
-            errors,
+            errors.clone(),
         )
     };
 
@@ -166,7 +173,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
         own_config.options = {
             let mut options = maybe_extend_compiler_options(None, own_config.options.as_deref());
             options.paths_base_path = Some(base_path.clone());
-            Some(Rc::new(options))
+            Some(Gc::new(options))
         };
     }
     if let Some(own_config_extended_config_path) = own_config.extended_config_path.as_ref() {
@@ -176,7 +183,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
             own_config_extended_config_path,
             host,
             &resolution_stack,
-            errors,
+            errors.clone(),
             extended_config_cache,
         );
         if let Some(extended_config) = extended_config
@@ -229,7 +236,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
                 raw.entry("compileOnSave")
                     .or_insert_with(|| base_raw_compile_on_save.clone());
             }
-            own_config.options = Some(Rc::new(maybe_extend_compiler_options(
+            own_config.options = Some(Gc::new(maybe_extend_compiler_options(
                 extended_config.options.as_deref(),
                 own_config.options.as_deref(),
             )));
@@ -256,14 +263,14 @@ pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
     host: &THost,
     base_path: &str,
     config_file_name: Option<&str>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
 ) -> ParsedTsconfig {
     let mut json = match json {
         serde_json::Value::Object(json) => json,
         _ => panic!("Expected object"),
     };
     if json.contains_key("excludes") {
-        errors.push(Rc::new(
+        errors.push(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
                 None,
@@ -308,11 +315,11 @@ pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
                     host,
                     &new_base,
                     errors,
-                    |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                    |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
                 );
             }
             _ => {
-                errors.push(Rc::new(
+                errors.push(Gc::new(
                     create_compiler_diagnostic(
                         &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                         Some(vec!["extends".to_owned(), "string".to_owned()]),
@@ -324,7 +331,7 @@ pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
     }
     ParsedTsconfig {
         raw: Some(serde_json::Value::Object(json)),
-        options: Some(Rc::new(options)),
+        options: Some(Gc::new(options)),
         watch_options: watch_options.map(|watch_options| Rc::new(watch_options)),
         type_acquisition: Some(Rc::new(type_acquisition)),
         extended_config_path,
@@ -336,17 +343,16 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     host: &THost,
     base_path: &str,
     config_file_name: Option<&str>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
 ) -> ParsedTsconfig {
     let mut options = get_default_compiler_options(config_file_name);
     let type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
     let typing_options_type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
     let watch_options: RefCell<Option<WatchOptions>> = RefCell::new(None);
     let extended_config_path: RefCell<Option<String>> = RefCell::new(None);
-    let root_compiler_options: RefCell<Option<Vec<Rc<Node /*PropertyName*/>>>> = RefCell::new(None);
+    let root_compiler_options: RefCell<Option<Vec<Gc<Node /*PropertyName*/>>>> = RefCell::new(None);
 
     let base_path_string = base_path.to_owned();
-    let errors = RefCell::new(errors);
     let options_iterator = ParseOwnConfigOfJsonSourceFileOptionsIterator::new(
         &mut options,
         &base_path_string,
@@ -356,11 +362,12 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
         &typing_options_type_acquisition,
         &extended_config_path,
         host,
-        &errors,
+        errors.clone(),
         source_file,
         &root_compiler_options,
     );
-    let json = convert_config_file_to_object(source_file, &errors, true, Some(&options_iterator));
+    let json =
+        convert_config_file_to_object(source_file, errors.clone(), true, Some(&options_iterator));
 
     let mut type_acquisition = type_acquisition.borrow_mut();
     let typing_options_type_acquisition = typing_options_type_acquisition.borrow();
@@ -391,7 +398,7 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
             if !matches!(json, serde_json::Value::Object(map) if map.contains_key("compilerOptions"))
             {
                 errors.borrow_mut().push(
-                    Rc::new(
+                    Gc::new(
                         create_diagnostic_for_node_in_source_file(
                             source_file,
                             &root_compiler_options[0],
@@ -409,7 +416,7 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     let extended_config_path = extended_config_path.borrow();
     ParsedTsconfig {
         raw: json,
-        options: Some(Rc::new(options)),
+        options: Some(Gc::new(options)),
         watch_options: watch_options
             .as_ref()
             .map(|watch_options| Rc::new(watch_options.clone())),
@@ -429,9 +436,9 @@ struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost>
     typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
     extended_config_path: &'a RefCell<Option<String>>,
     host: &'a THost,
-    errors: &'a RefCell<&'a mut Vec<Rc<Diagnostic>>>,
+    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     source_file: &'a Node,
-    root_compiler_options: &'a RefCell<Option<Vec<Rc<Node>>>>,
+    root_compiler_options: &'a RefCell<Option<Vec<Gc<Node>>>>,
 }
 
 impl<'a, THost: ParseConfigHost> ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost> {
@@ -444,9 +451,9 @@ impl<'a, THost: ParseConfigHost> ParseOwnConfigOfJsonSourceFileOptionsIterator<'
         typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
         extended_config_path: &'a RefCell<Option<String>>,
         host: &'a THost,
-        errors: &'a RefCell<&'a mut Vec<Rc<Diagnostic>>>,
+        errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
         source_file: &'a Node,
-        root_compiler_options: &'a RefCell<Option<Vec<Rc<Node>>>>,
+        root_compiler_options: &'a RefCell<Option<Vec<Gc<Node>>>>,
     ) -> Self {
         Self {
             options: RefCell::new(options),
@@ -544,7 +551,7 @@ impl<'a, THost: ParseConfigHost> JsonConversionNotifier
                     &new_base,
                     &mut self.errors.borrow_mut(),
                     |message, args| {
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node_in_source_file(
                                 self.source_file,
                                 value_node,
@@ -568,7 +575,7 @@ impl<'a, THost: ParseConfigHost> JsonConversionNotifier
         value_node: &Node, /*Expression*/
     ) {
         if key == "excludes" {
-            self.errors.borrow_mut().push(Rc::new(
+            self.errors.borrow_mut().push(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     self.source_file,
                     key_node,
@@ -595,12 +602,12 @@ impl<'a, THost: ParseConfigHost> JsonConversionNotifier
 
 pub(super) fn get_extends_config_path<
     THost: ParseConfigHost,
-    TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
+    TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
 >(
     extended_config: &str,
     host: &THost,
     base_path: &str,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     mut create_diagnostic: TCreateDiagnostic,
 ) -> Option<String> {
     let extended_config = normalize_slashes(extended_config);
@@ -627,7 +634,7 @@ pub(super) fn get_extends_config_path<
     let resolved = node_module_name_resolver(
         &extended_config,
         &combine_paths(base_path, &vec![Some("tsconfig.json")]),
-        Rc::new(CompilerOptions {
+        Gc::new(CompilerOptions {
             module_resolution: Some(ModuleResolutionKind::NodeJs),
             ..Default::default()
         }),

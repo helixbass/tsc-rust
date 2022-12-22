@@ -1,18 +1,20 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
-    add_related_info, are_option_rcs_equal, create_diagnostic_for_node, filter, find_ancestor,
-    for_each, for_each_child, get_class_extends_heritage_element, get_combined_modifier_flags,
-    get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
-    get_effective_constraint_of_type_parameter, get_effective_modifier_flags,
-    get_emit_script_target, get_name_of_declaration, get_object_flags, has_effective_modifier,
-    has_question_token, has_syntactic_modifier, is_assignment_target, is_global_scope_augmentation,
-    is_in_js_file, is_in_jsdoc, is_module_block, is_module_declaration, is_named_tuple_member,
+    add_related_info, are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node,
+    filter, find_ancestor, for_each, for_each_child, get_class_extends_heritage_element,
+    get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
+    get_declaration_of_kind, get_effective_constraint_of_type_parameter,
+    get_effective_modifier_flags, get_emit_script_target, get_name_of_declaration,
+    get_object_flags, has_effective_modifier, has_question_token, has_syntactic_modifier,
+    is_assignment_target, is_global_scope_augmentation, is_in_js_file, is_in_jsdoc,
+    is_module_block, is_module_declaration, is_named_tuple_member,
     is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
     is_super_call, is_type_reference_type, map, maybe_for_each, maybe_map, node_is_missing,
     node_is_present, some, symbol_name, try_cast, unescape_leading_underscores,
@@ -87,19 +89,19 @@ impl TypeChecker {
                     || !self.use_define_for_class_fields)
                     && (some(
                         Some(&*node.parent().as_class_like_declaration().members()),
-                        Some(|member: &Rc<Node>| {
+                        Some(|member: &Gc<Node>| {
                             self.is_instance_property_with_initializer_or_private_identifier_property(member)
                         }),
                     ) || some(
                         Some(&*node_as_constructor_declaration.parameters()),
-                        Some(|p: &Rc<Node>| {
+                        Some(|p: &Gc<Node>| {
                             has_syntactic_modifier(p, ModifierFlags::ParameterPropertyModifier)
                         }),
                     ));
 
                 if super_call_should_be_first {
                     let statements = &node_body.as_block().statements;
-                    let mut super_call_statement: Option<Rc<Node /*ExpressionStatement*/>> = None;
+                    let mut super_call_statement: Option<Gc<Node /*ExpressionStatement*/>> = None;
 
                     for statement in statements {
                         if statement.kind() == SyntaxKind::ExpressionStatement
@@ -255,8 +257,8 @@ impl TypeChecker {
     pub(super) fn get_effective_type_arguments(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
-    ) -> Vec<Rc<Type>> {
+        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+    ) -> Vec<Gc<Type>> {
         self.fill_missing_type_arguments(
             maybe_map(
                 node.as_has_type_arguments().maybe_type_arguments().as_ref(),
@@ -272,10 +274,10 @@ impl TypeChecker {
     pub(super) fn check_type_argument_constraints(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
     ) -> bool {
-        let mut type_arguments: Option<Vec<Rc<Type>>> = None;
-        let mut mapper: Option<Rc<TypeMapper>> = None;
+        let mut type_arguments: Option<Vec<Gc<Type>>> = None;
+        let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut result = true;
         for i in 0..type_parameters.len() {
             let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
@@ -283,7 +285,7 @@ impl TypeChecker {
                 if type_arguments.is_none() {
                     type_arguments =
                         Some(self.get_effective_type_arguments(node, Some(type_parameters)));
-                    mapper = Some(Rc::new(self.create_type_mapper(
+                    mapper = Some(Gc::new(self.create_type_mapper(
                         type_parameters.to_owned(),
                         type_arguments.clone(),
                     )));
@@ -310,7 +312,7 @@ impl TypeChecker {
     pub(super) fn get_type_parameters_for_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-    ) -> Option<Vec<Rc<Type>>> {
+    ) -> Option<Vec<Gc<Type>>> {
         let type_ = self.get_type_from_type_reference(node);
         if !self.is_error_type(&type_) {
             let symbol = (*self.get_node_links(node))
@@ -394,7 +396,7 @@ impl TypeChecker {
             if let Some(symbol) = symbol.as_ref() {
                 if some(
                     symbol.maybe_declarations().as_deref(),
-                    Some(|d: &Rc<Node>| {
+                    Some(|d: &Gc<Node>| {
                         self.is_type_declaration(d) && d.flags().intersects(NodeFlags::Deprecated)
                     }),
                 ) {
@@ -426,8 +428,8 @@ impl TypeChecker {
     pub(super) fn get_type_argument_constraint_(
         &self,
         node: &Node, /*TypeNode*/
-    ) -> Option<Rc<Type>> {
-        let type_reference_node = try_cast(node.parent(), |parent: &Rc<Node>| {
+    ) -> Option<Gc<Type>> {
+        let type_reference_node = try_cast(node.parent(), |parent: &Gc<Node>| {
             is_type_reference_type(parent)
         })?;
         let type_parameters = self.get_type_parameters_for_type_reference(&type_reference_node)?;
@@ -443,7 +445,7 @@ impl TypeChecker {
         )?;
         Some(self.instantiate_type(
             &constraint,
-            Some(Rc::new(self.create_type_mapper(
+            Some(Gc::new(self.create_type_mapper(
                 type_parameters.clone(),
                 Some(
                     self.get_effective_type_arguments(&type_reference_node, Some(&type_parameters)),
@@ -459,7 +461,7 @@ impl TypeChecker {
     pub(super) fn check_type_literal(&self, node: &Node /*TypeLiteralNode*/) {
         for_each(
             &node.as_type_literal_node().members,
-            |member: &Rc<Node>, _| -> Option<()> {
+            |member: &Gc<Node>, _| -> Option<()> {
                 self.check_source_element(Some(&**member));
                 None
             },
@@ -483,7 +485,7 @@ impl TypeChecker {
         let mut seen_rest_element = false;
         let has_named_element = some(
             Some(&**element_types),
-            Some(|element_type: &Rc<Node>| is_named_tuple_member(element_type)),
+            Some(|element_type: &Gc<Node>| is_named_tuple_member(element_type)),
         );
         for e in element_types {
             if e.kind() != SyntaxKind::NamedTupleMember && has_named_element {
@@ -547,7 +549,7 @@ impl TypeChecker {
         }
         for_each(
             &node_as_tuple_type_node.elements,
-            |element: &Rc<Node>, _| -> Option<()> {
+            |element: &Gc<Node>, _| -> Option<()> {
                 self.check_source_element(Some(&**element));
                 None
             },
@@ -573,7 +575,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if !type_.flags().intersects(TypeFlags::IndexedAccess) {
             return type_.type_wrapper();
         }
@@ -849,10 +851,10 @@ impl TypeChecker {
         let mut some_have_question_token = false;
         let mut all_have_question_token = true;
         let mut has_overloads = false;
-        let mut body_declaration: Option<Rc<Node /*FunctionLikeDeclaration*/>> = None;
-        let mut last_seen_non_ambient_declaration: Option<Rc<Node /*FunctionLikeDeclaration*/>> =
+        let mut body_declaration: Option<Gc<Node /*FunctionLikeDeclaration*/>> = None;
+        let mut last_seen_non_ambient_declaration: Option<Gc<Node /*FunctionLikeDeclaration*/>> =
             None;
-        let mut previous_declaration: Option<Rc<Node /*SignatureDeclaration*/>> = None;
+        let mut previous_declaration: Option<Gc<Node /*SignatureDeclaration*/>> = None;
 
         let declarations = symbol.maybe_declarations();
         let is_constructor = symbol.flags().intersects(SymbolFlags::Constructor);
@@ -860,7 +862,7 @@ impl TypeChecker {
         let mut duplicate_function_declaration = false;
         let mut multiple_constructor_implementation = false;
         let mut has_non_ambient_class = false;
-        let mut function_declarations: Vec<Rc<Node /*Declaration*/>> = vec![];
+        let mut function_declarations: Vec<Gc<Node /*Declaration*/>> = vec![];
         if let Some(declarations) = declarations.as_ref() {
             for current in declarations {
                 let node = current;
@@ -909,7 +911,7 @@ impl TypeChecker {
                         } else {
                             duplicate_function_declaration = true;
                         }
-                    } else if are_option_rcs_equal(
+                    } else if are_option_gcs_equal(
                         previous_declaration
                             .as_ref()
                             .and_then(|previous_declaration| previous_declaration.maybe_parent())
@@ -943,7 +945,7 @@ impl TypeChecker {
         if multiple_constructor_implementation {
             for_each(
                 &function_declarations,
-                |declaration: &Rc<Node>, _| -> Option<()> {
+                |declaration: &Gc<Node>, _| -> Option<()> {
                     self.error(
                         Some(&**declaration),
                         &Diagnostics::Multiple_constructor_implementations_are_not_allowed,
@@ -957,7 +959,7 @@ impl TypeChecker {
         if duplicate_function_declaration {
             for_each(
                 &function_declarations,
-                |declaration: &Rc<Node>, _| -> Option<()> {
+                |declaration: &Gc<Node>, _| -> Option<()> {
                     self.error(
                         Some(
                             get_name_of_declaration(Some(&**declaration))
@@ -976,13 +978,13 @@ impl TypeChecker {
             && symbol.flags().intersects(SymbolFlags::Function)
         {
             if let Some(declarations) = declarations.as_ref() {
-                let related_diagnostics: Vec<Rc<DiagnosticRelatedInformation>> =
-                    filter(declarations, |d: &Rc<Node>| {
+                let related_diagnostics: Vec<Gc<DiagnosticRelatedInformation>> =
+                    filter(declarations, |d: &Gc<Node>| {
                         d.kind() == SyntaxKind::ClassDeclaration
                     })
                     .iter()
                     .map(|d| {
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node(
                                 d,
                                 &Diagnostics::Consider_adding_a_declare_modifier_to_this_class,
@@ -993,7 +995,7 @@ impl TypeChecker {
                     })
                     .collect();
 
-                for_each(declarations, |declaration: &Rc<Node>, _| -> Option<()> {
+                for_each(declarations, |declaration: &Gc<Node>, _| -> Option<()> {
                     let diagnostic = if declaration.kind() == SyntaxKind::ClassDeclaration {
                         Some(&*Diagnostics::Class_declaration_cannot_implement_overload_list_for_0)
                     } else if declaration.kind() == SyntaxKind::FunctionDeclaration {
@@ -1074,7 +1076,7 @@ impl TypeChecker {
                                 None,
                             ),
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         body_declaration,
                                         &Diagnostics::The_implementation_signature_is_declared_here,
@@ -1092,14 +1094,14 @@ impl TypeChecker {
 
     pub(super) fn get_canonical_overload<TImplementation: Borrow<Node>>(
         &self,
-        overloads: &[Rc<Node /*Declaration*/>],
+        overloads: &[Gc<Node /*Declaration*/>],
         implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
-    ) -> Rc<Node /*Declaration*/> {
+    ) -> Gc<Node /*Declaration*/> {
         let implementation =
             implementation.map(|implementation| implementation.borrow().node_wrapper());
         let implementation_shares_container_with_first_overload = matches!(
             implementation.as_ref(),
-            Some(implementation) if are_option_rcs_equal(
+            Some(implementation) if are_option_gcs_equal(
                 implementation.maybe_parent().as_ref(),
                 overloads[0].maybe_parent().as_ref()
             )
@@ -1113,7 +1115,7 @@ impl TypeChecker {
 
     pub(super) fn check_flag_agreement_between_overloads<TImplementation: Borrow<Node>>(
         &self,
-        overloads: &[Rc<Node /*Declaration*/>],
+        overloads: &[Gc<Node /*Declaration*/>],
         implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
         flags_to_check: ModifierFlags,
         some_overload_flags: ModifierFlags,
@@ -1125,7 +1127,7 @@ impl TypeChecker {
                 &self.get_canonical_overload(overloads, implementation),
                 flags_to_check,
             );
-            for_each(overloads, |o: &Rc<Node>, _| -> Option<()> {
+            for_each(overloads, |o: &Gc<Node>, _| -> Option<()> {
                 let deviation =
                     self.get_effective_declaration_flags(o, flags_to_check) ^ canonical_flags;
                 if deviation.intersects(ModifierFlags::Export) {
@@ -1162,7 +1164,7 @@ impl TypeChecker {
         TImplementation: Borrow<Node>,
     >(
         &self,
-        overloads: &[Rc<Node /*Declaration*/>],
+        overloads: &[Gc<Node /*Declaration*/>],
         implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
         some_have_question_token: bool,
         all_have_question_token: bool,
@@ -1170,7 +1172,7 @@ impl TypeChecker {
         if some_have_question_token != all_have_question_token {
             let canonical_has_question_token =
                 has_question_token(&self.get_canonical_overload(overloads, implementation));
-            for_each(overloads, |o: &Rc<Node>, _| -> Option<()> {
+            for_each(overloads, |o: &Gc<Node>, _| -> Option<()> {
                 let deviation = has_question_token(o) != canonical_has_question_token;
                 if deviation {
                     self.error(

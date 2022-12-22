@@ -1,11 +1,12 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_related_info, contains_rc, create_diagnostic_for_node, find_ancestor,
+    add_related_info, contains_gc, contains_rc, create_diagnostic_for_node, find_ancestor,
     for_each_child_returns, for_each_enclosing_block_scope_container, get_ancestor,
     get_assignment_declaration_kind, get_class_extends_heritage_element,
     get_enclosing_block_scope_container, get_jsdoc_this_tag, get_jsdoc_type, get_super_container,
@@ -16,12 +17,12 @@ use crate::{
     is_iteration_statement, is_method_declaration, is_object_literal_expression,
     is_property_assignment, is_property_declaration, is_source_file, is_static, is_super_call,
     is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
-    push_if_unique_rc, text_range_contains_position_inclusive, AssignmentDeclarationKind,
-    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, HasTypeInterface,
-    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeCheckFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeInterface,
+    push_if_unique_gc, push_if_unique_rc, text_range_contains_position_inclusive,
+    AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
+    HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -56,7 +57,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         container: &Node, /*ForStatement*/
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let container_as_for_statement = container.as_for_statement();
         find_ancestor(Some(node), |n: &Node| {
             if ptr::eq(n, container) {
@@ -77,7 +78,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_enclosing_iteration_statement(&self, node: &Node) -> Option<Rc<Node>> {
+    pub(super) fn get_enclosing_iteration_statement(&self, node: &Node) -> Option<Gc<Node>> {
         find_ancestor(Some(node), |n: &Node| {
             if
             /* !n ||*/
@@ -125,7 +126,7 @@ impl TypeChecker {
                     );
                     if matches!(
                         var_decl_list.as_ref(),
-                        Some(var_decl_list) if Rc::ptr_eq(
+                        Some(var_decl_list) if Gc::ptr_eq(
                             &var_decl_list.parent(),
                             &container
                         )
@@ -144,12 +145,12 @@ impl TypeChecker {
                                 let mut links = links.borrow_mut();
                                 let captured_bindings =
                                     links.captured_block_scope_bindings.as_mut().unwrap();
-                                push_if_unique_rc(captured_bindings, &symbol.symbol_wrapper());
+                                push_if_unique_gc(captured_bindings, &symbol.symbol_wrapper());
                             }
 
                             if matches!(
                                 container.as_for_statement().initializer.as_ref(),
-                                Some(container_initializer) if Rc::ptr_eq(
+                                Some(container_initializer) if Gc::ptr_eq(
                                     part,
                                     container_initializer
                                 )
@@ -173,7 +174,7 @@ impl TypeChecker {
                 );
                 if matches!(
                     var_decl_list.as_ref(),
-                    Some(var_decl_list) if Rc::ptr_eq(
+                    Some(var_decl_list) if Gc::ptr_eq(
                         &var_decl_list.parent(),
                         &container
                     ) && self.is_assigned_in_body_of_for_statement(node, &container)
@@ -203,7 +204,7 @@ impl TypeChecker {
     ) -> bool {
         let links = self.get_node_links(node);
         /* !!links &&*/
-        let ret = contains_rc(
+        let ret = contains_gc(
             (*links).borrow().captured_block_scope_bindings.as_deref(),
             &self.get_symbol_of_node(decl).unwrap(),
         );
@@ -262,7 +263,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn find_first_super_call(&self, node: &Node) -> Option<Rc<Node /*SuperCall*/>> {
+    pub(super) fn find_first_super_call(&self, node: &Node) -> Option<Gc<Node /*SuperCall*/>> {
         if is_super_call(node) {
             Some(node.node_wrapper())
         } else if is_function_like(Some(node)) {
@@ -271,7 +272,7 @@ impl TypeChecker {
             for_each_child_returns(
                 node,
                 |node: &Node| self.find_first_super_call(node),
-                Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+                Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
             )
         }
     }
@@ -284,7 +285,7 @@ impl TypeChecker {
         let class_instance_type = self.get_declared_type_of_symbol(&class_symbol);
         let base_constructor_type = self.get_base_constructor_type_of_class(&class_instance_type);
 
-        Rc::ptr_eq(&base_constructor_type, &self.null_widening_type())
+        Gc::ptr_eq(&base_constructor_type, &self.null_widening_type())
     }
 
     pub(super) fn check_this_before_super(
@@ -329,7 +330,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_this_expression(&self, node: &Node) -> Rc<Type> {
+    pub(super) fn check_this_expression(&self, node: &Node) -> Gc<Type> {
         let is_node_in_type_query = self.is_in_type_query(node);
         let mut container = get_this_container(node, true);
         let mut captured_by_arrow_function = false;
@@ -390,7 +391,7 @@ impl TypeChecker {
             let global_this_type = self.get_type_of_symbol(&self.global_this_symbol());
             if matches!(
                 type_.as_ref(),
-                Some(type_) if Rc::ptr_eq(
+                Some(type_) if Gc::ptr_eq(
                     type_,
                     &global_this_type
                 )
@@ -412,7 +413,7 @@ impl TypeChecker {
                         self.try_get_this_type_at_(&container, None, Option::<&Node>::None);
                     if matches!(
                         outside_this.as_ref(),
-                        Some(outside_this) if !Rc::ptr_eq(
+                        Some(outside_this) if !Gc::ptr_eq(
                             outside_this,
                             &self.global_this_type()
                         )
@@ -420,7 +421,7 @@ impl TypeChecker {
                         add_related_info(
                             &diag,
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         &container,
                                         &Diagnostics::An_outer_value_of_this_is_shadowed_by_this_container,
@@ -441,7 +442,7 @@ impl TypeChecker {
         node: &Node,
         include_global_this: Option<bool>,
         container: Option<TContainer>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let include_global_this = include_global_this.unwrap_or(true);
         let container = container.map_or_else(
             || get_this_container(node, false),
@@ -538,7 +539,7 @@ impl TypeChecker {
     pub(super) fn get_explicit_this_type(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let container = get_this_container(node, false);
         if is_function_like(Some(&*container)) {
             let signature = self.get_signature_from_declaration_(&container);
@@ -563,7 +564,7 @@ impl TypeChecker {
     pub(super) fn get_class_name_from_prototype_method(
         &self,
         container: &Node,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         if container.kind() == SyntaxKind::FunctionExpression
             && is_binary_expression(&container.parent())
             && get_assignment_declaration_kind(&container.parent())
@@ -638,7 +639,7 @@ impl TypeChecker {
                                         is_call_expression(&container_parent_parent_parent) &&
                             matches!(
                                 container_parent_parent_parent.as_call_expression().arguments.get(2),
-                                Some(argument) if Rc::ptr_eq(
+                                Some(argument) if Gc::ptr_eq(
                                     argument,
                                     &container_parent_parent
                                 )
@@ -677,7 +678,7 @@ impl TypeChecker {
                         is_call_expression(&container_parent_parent)
                             && matches!(
                                 container_parent_parent.as_call_expression().arguments.get(2),
-                                Some(argument) if Rc::ptr_eq(
+                                Some(argument) if Gc::ptr_eq(
                                     argument,
                                     &container_parent
                                 )
@@ -697,7 +698,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_type_for_this_expression_from_jsdoc(&self, node: &Node) -> Option<Rc<Type>> {
+    pub(super) fn get_type_for_this_expression_from_jsdoc(&self, node: &Node) -> Option<Gc<Type>> {
         let jsdoc_type = get_jsdoc_type(node);
         if let Some(jsdoc_type) = jsdoc_type
             .as_ref()
@@ -749,7 +750,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn check_super_expression(&self, node: &Node) -> Rc<Type> {
+    pub(super) fn check_super_expression(&self, node: &Node) -> Gc<Type> {
         let is_call_expression = node.parent().kind() == SyntaxKind::CallExpression
             && ptr::eq(&*node.parent().as_call_expression().expression, node);
 

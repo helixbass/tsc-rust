@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt;
@@ -24,10 +25,11 @@ use local_macros::{enum_unwrapped, symbol_type};
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
 
+#[derive(Trace, Finalize)]
 pub struct ResolvedProjectReference {
     pub command_line: ParsedCommandLine,
-    pub source_file: Rc<Node /*SourceFile*/>,
-    pub references: Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
+    pub source_file: Gc<Node /*SourceFile*/>,
+    pub references: Option<Vec<Option<Gc<ResolvedProjectReference>>>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -39,8 +41,8 @@ pub enum StructureIsReused {
 pub type CustomTransformerFactory = fn(Rc<dyn TransformationContext>) -> Rc<dyn CustomTransformer>;
 
 pub trait CustomTransformer {
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Rc<Node /*SourceFile*/>;
-    fn transform_bundle(&self, node: &Node /*Bundle*/) -> Rc<Node /*Bundle*/>;
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node /*SourceFile*/>;
+    fn transform_bundle(&self, node: &Node /*Bundle*/) -> Gc<Node /*Bundle*/>;
 }
 
 pub enum TransformerFactoryOrCustomTransformerFactory {
@@ -109,17 +111,17 @@ impl ExitStatus {
 
 pub struct EmitResult {
     pub emit_skipped: bool,
-    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub diagnostics: Vec<Gc<Diagnostic>>,
     pub emitted_files: Option<Vec<String>>,
     pub(crate) source_maps: Option<Vec<SourceMapEmitResult>>,
     pub(crate) exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit>,
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
+    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
 
-    fn get_source_files(&self) -> Ref<Vec<Rc<Node /*SourceFile*/>>>;
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
+    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 
@@ -129,31 +131,43 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     }
 }
 
-pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
+pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug + Trace + Finalize {}
 
 #[allow(non_snake_case)]
+#[derive(Trace, Finalize)]
 pub struct TypeChecker {
-    pub(crate) host: Rc<dyn TypeCheckerHostDebuggable>,
+    pub(crate) host: Gc<Box<dyn TypeCheckerHostDebuggable>>,
     pub(crate) produce_diagnostics: bool,
-    pub(crate) _rc_wrapper: RefCell<Option<Rc<TypeChecker>>>,
+    pub(crate) _rc_wrapper: GcCell<Option<Gc<TypeChecker>>>,
+    #[unsafe_ignore_trace]
     pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
-    pub(crate) cancellation_token: RefCell<Option<Rc<dyn CancellationTokenDebuggable>>>,
+    pub(crate) cancellation_token: GcCell<Option<Gc<Box<dyn CancellationTokenDebuggable>>>>,
+    #[unsafe_ignore_trace]
     pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
-    pub(crate) external_helpers_module: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) external_helpers_module: GcCell<Option<Gc<Symbol>>>,
     pub(crate) Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub(crate) Type: fn(TypeFlags) -> BaseType,
     pub(crate) Signature: fn(SignatureFlags) -> Signature,
+    #[unsafe_ignore_trace]
     pub(crate) type_count: Cell<u32>,
+    #[unsafe_ignore_trace]
     pub(crate) symbol_count: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub(crate) enum_count: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub(crate) total_instantiation_count: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub(crate) instantiation_count: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub(crate) instantiation_depth: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub(crate) inline_level: Cell<usize>,
-    pub(crate) current_node: RefCell<Option<Rc<Node>>>,
-    pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
-    pub(crate) compiler_options: Rc<CompilerOptions>,
+    pub(crate) current_node: GcCell<Option<Gc<Node>>>,
+    pub(crate) empty_symbols: Gc<GcCell<SymbolTable>>,
+    pub(crate) compiler_options: Gc<CompilerOptions>,
+    #[unsafe_ignore_trace]
     pub(crate) language_version: ScriptTarget,
+    #[unsafe_ignore_trace]
     pub(crate) module_kind: ModuleKind,
     pub(crate) use_define_for_class_fields: bool,
     pub(crate) allow_synthetic_default_imports: bool,
@@ -165,231 +179,254 @@ pub struct TypeChecker {
     pub(crate) no_implicit_this: bool,
     pub(crate) use_unknown_in_catch_variables: bool,
     pub(crate) keyof_strings_only: bool,
+    #[unsafe_ignore_trace]
     pub(crate) fresh_object_literal_flag: ObjectFlags,
     pub(crate) exact_optional_property_types: Option<bool>,
-    pub(crate) check_binary_expression: RefCell<Option<Rc<CheckBinaryExpression>>>,
-    pub(crate) emit_resolver: Option<Rc<dyn EmitResolverDebuggable>>,
-    pub(crate) node_builder: RefCell<Option<Rc<NodeBuilder>>>,
-    pub(crate) globals: Rc<RefCell<SymbolTable>>,
-    pub(crate) undefined_symbol: Option<Rc<Symbol>>,
-    pub(crate) global_this_symbol: Option<Rc<Symbol>>,
-    pub(crate) arguments_symbol: Option<Rc<Symbol>>,
-    pub(crate) require_symbol: Option<Rc<Symbol>>,
+    pub(crate) check_binary_expression: GcCell<Option<Gc<CheckBinaryExpression>>>,
+    pub(crate) emit_resolver: Option<Gc<Box<dyn EmitResolverDebuggable>>>,
+    pub(crate) node_builder: GcCell<Option<Gc<NodeBuilder>>>,
+    pub(crate) globals: Gc<GcCell<SymbolTable>>,
+    pub(crate) undefined_symbol: Option<Gc<Symbol>>,
+    pub(crate) global_this_symbol: Option<Gc<Symbol>>,
+    pub(crate) arguments_symbol: Option<Gc<Symbol>>,
+    pub(crate) require_symbol: Option<Gc<Symbol>>,
+    #[unsafe_ignore_trace]
     pub(crate) apparent_argument_count: Cell<Option<usize>>,
 
-    pub(crate) tuple_types: RefCell<HashMap<String, Rc</*GenericType*/ Type>>>,
-    pub(crate) union_types: RefCell<HashMap<String, Rc</*UnionType*/ Type>>>,
-    pub(crate) intersection_types: RefCell<HashMap<String, Rc<Type>>>,
-    pub(crate) string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
-    pub(crate) number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
-    pub(crate) big_int_literal_types: RefCell<HashMap<String, Rc</*BigIntLiteralType*/ Type>>>,
-    pub(crate) enum_literal_types: RefCell<HashMap<String, Rc</*LiteralType*/ Type>>>,
-    pub(crate) indexed_access_types: RefCell<HashMap<String, Rc</*IndexedAccessType*/ Type>>>,
-    pub(crate) template_literal_types: RefCell<HashMap<String, Rc</*TemplateLiteralType*/ Type>>>,
-    pub(crate) string_mapping_types: RefCell<HashMap<String, Rc</*StringMappingType*/ Type>>>,
-    pub(crate) substitution_types: RefCell<HashMap<String, Rc</*SubstitutionType*/ Type>>>,
-    pub(crate) subtype_reduction_cache: RefCell<HashMap<String, Vec<Rc<Type>>>>,
-    pub(crate) evolving_array_types: RefCell<HashMap<TypeId, Rc<Type /*EvolvingArrayType*/>>>,
-    pub(crate) undefined_properties: RefCell<SymbolTable>,
+    pub(crate) tuple_types: GcCell<HashMap<String, Gc</*GenericType*/ Type>>>,
+    pub(crate) union_types: GcCell<HashMap<String, Gc</*UnionType*/ Type>>>,
+    pub(crate) intersection_types: GcCell<HashMap<String, Gc<Type>>>,
+    pub(crate) string_literal_types: GcCell<HashMap<String, Gc</*StringLiteralType*/ Type>>>,
+    pub(crate) number_literal_types: GcCell<HashMap<Number, Gc</*NumberLiteralType*/ Type>>>,
+    pub(crate) big_int_literal_types: GcCell<HashMap<String, Gc</*BigIntLiteralType*/ Type>>>,
+    pub(crate) enum_literal_types: GcCell<HashMap<String, Gc</*LiteralType*/ Type>>>,
+    pub(crate) indexed_access_types: GcCell<HashMap<String, Gc</*IndexedAccessType*/ Type>>>,
+    pub(crate) template_literal_types: GcCell<HashMap<String, Gc</*TemplateLiteralType*/ Type>>>,
+    pub(crate) string_mapping_types: GcCell<HashMap<String, Gc</*StringMappingType*/ Type>>>,
+    pub(crate) substitution_types: GcCell<HashMap<String, Gc</*SubstitutionType*/ Type>>>,
+    pub(crate) subtype_reduction_cache: GcCell<HashMap<String, Vec<Gc<Type>>>>,
+    pub(crate) evolving_array_types: GcCell<HashMap<TypeId, Gc<Type /*EvolvingArrayType*/>>>,
+    pub(crate) undefined_properties: GcCell<SymbolTable>,
 
-    pub(crate) unknown_symbol: Option<Rc<Symbol>>,
-    pub(crate) resolving_symbol: Option<Rc<Symbol>>,
-    pub(crate) unresolved_symbols: RefCell<HashMap<String, Rc<Symbol /*TransientSymbol*/>>>,
-    pub(crate) error_types: RefCell<HashMap<String, Rc<Type>>>,
+    pub(crate) unknown_symbol: Option<Gc<Symbol>>,
+    pub(crate) resolving_symbol: Option<Gc<Symbol>>,
+    pub(crate) unresolved_symbols: GcCell<HashMap<String, Gc<Symbol /*TransientSymbol*/>>>,
+    pub(crate) error_types: GcCell<HashMap<String, Gc<Type>>>,
 
-    pub(crate) any_type: Option<Rc<Type>>,
-    pub(crate) auto_type: Option<Rc<Type>>,
-    pub(crate) wildcard_type: Option<Rc<Type>>,
-    pub(crate) error_type: Option<Rc<Type>>,
-    pub(crate) unresolved_type: Option<Rc<Type>>,
-    pub(crate) non_inferrable_any_type: Option<Rc<Type>>,
-    pub(crate) intrinsic_marker_type: Option<Rc<Type>>,
-    pub(crate) unknown_type: Option<Rc<Type>>,
-    pub(crate) non_null_unknown_type: Option<Rc<Type>>,
-    pub(crate) undefined_type: Option<Rc<Type>>,
-    pub(crate) undefined_widening_type: Option<Rc<Type>>,
-    pub(crate) optional_type: Option<Rc<Type>>,
-    pub(crate) missing_type: Option<Rc<Type>>,
-    pub(crate) null_type: Option<Rc<Type>>,
-    pub(crate) null_widening_type: Option<Rc<Type>>,
-    pub(crate) string_type: Option<Rc<Type>>,
-    pub(crate) number_type: Option<Rc<Type>>,
-    pub(crate) bigint_type: Option<Rc<Type>>,
-    pub(crate) false_type: Option<Rc<Type>>,
-    pub(crate) regular_false_type: Option<Rc<Type>>,
-    pub(crate) true_type: Option<Rc<Type>>,
-    pub(crate) regular_true_type: Option<Rc<Type>>,
-    pub(crate) boolean_type: Option<Rc<Type>>,
-    pub(crate) es_symbol_type: Option<Rc<Type>>,
-    pub(crate) void_type: Option<Rc<Type>>,
-    pub(crate) never_type: Option<Rc<Type>>,
-    pub(crate) silent_never_type: Option<Rc<Type>>,
-    pub(crate) non_inferrable_type: Option<Rc<Type>>,
-    pub(crate) implicit_never_type: Option<Rc<Type>>,
-    pub(crate) unreachable_never_type: Option<Rc<Type>>,
-    pub(crate) non_primitive_type: Option<Rc<Type>>,
-    pub(crate) string_or_number_type: Option<Rc<Type>>,
-    pub(crate) string_number_symbol_type: Option<Rc<Type>>,
-    pub(crate) keyof_constraint_type: Option<Rc<Type>>,
-    pub(crate) number_or_big_int_type: Option<Rc<Type>>,
-    pub(crate) template_constraint_type: Option<Rc<Type>>,
+    pub(crate) any_type: Option<Gc<Type>>,
+    pub(crate) auto_type: Option<Gc<Type>>,
+    pub(crate) wildcard_type: Option<Gc<Type>>,
+    pub(crate) error_type: Option<Gc<Type>>,
+    pub(crate) unresolved_type: Option<Gc<Type>>,
+    pub(crate) non_inferrable_any_type: Option<Gc<Type>>,
+    pub(crate) intrinsic_marker_type: Option<Gc<Type>>,
+    pub(crate) unknown_type: Option<Gc<Type>>,
+    pub(crate) non_null_unknown_type: Option<Gc<Type>>,
+    pub(crate) undefined_type: Option<Gc<Type>>,
+    pub(crate) undefined_widening_type: Option<Gc<Type>>,
+    pub(crate) optional_type: Option<Gc<Type>>,
+    pub(crate) missing_type: Option<Gc<Type>>,
+    pub(crate) null_type: Option<Gc<Type>>,
+    pub(crate) null_widening_type: Option<Gc<Type>>,
+    pub(crate) string_type: Option<Gc<Type>>,
+    pub(crate) number_type: Option<Gc<Type>>,
+    pub(crate) bigint_type: Option<Gc<Type>>,
+    pub(crate) false_type: Option<Gc<Type>>,
+    pub(crate) regular_false_type: Option<Gc<Type>>,
+    pub(crate) true_type: Option<Gc<Type>>,
+    pub(crate) regular_true_type: Option<Gc<Type>>,
+    pub(crate) boolean_type: Option<Gc<Type>>,
+    pub(crate) es_symbol_type: Option<Gc<Type>>,
+    pub(crate) void_type: Option<Gc<Type>>,
+    pub(crate) never_type: Option<Gc<Type>>,
+    pub(crate) silent_never_type: Option<Gc<Type>>,
+    pub(crate) non_inferrable_type: Option<Gc<Type>>,
+    pub(crate) implicit_never_type: Option<Gc<Type>>,
+    pub(crate) unreachable_never_type: Option<Gc<Type>>,
+    pub(crate) non_primitive_type: Option<Gc<Type>>,
+    pub(crate) string_or_number_type: Option<Gc<Type>>,
+    pub(crate) string_number_symbol_type: Option<Gc<Type>>,
+    pub(crate) keyof_constraint_type: Option<Gc<Type>>,
+    pub(crate) number_or_big_int_type: Option<Gc<Type>>,
+    pub(crate) template_constraint_type: Option<Gc<Type>>,
 
-    pub(crate) restrictive_mapper: Option<Rc<TypeMapper>>,
-    pub(crate) permissive_mapper: Option<Rc<TypeMapper>>,
+    pub(crate) restrictive_mapper: Option<Gc<TypeMapper>>,
+    pub(crate) permissive_mapper: Option<Gc<TypeMapper>>,
 
-    pub(crate) empty_object_type: Option<Rc<Type>>,
-    pub(crate) empty_jsx_object_type: Option<Rc<Type>>,
-    pub(crate) empty_type_literal_symbol: Option<Rc<Symbol>>,
-    pub(crate) empty_type_literal_type: Option<Rc<Type>>,
+    pub(crate) empty_object_type: Option<Gc<Type>>,
+    pub(crate) empty_jsx_object_type: Option<Gc<Type>>,
+    pub(crate) empty_type_literal_symbol: Option<Gc<Symbol>>,
+    pub(crate) empty_type_literal_type: Option<Gc<Type>>,
 
-    pub(crate) empty_generic_type: Option<Rc<Type /*GenericType*/>>,
+    pub(crate) empty_generic_type: Option<Gc<Type /*GenericType*/>>,
 
-    pub(crate) any_function_type: Option<Rc<Type>>,
+    pub(crate) any_function_type: Option<Gc<Type>>,
 
-    pub(crate) no_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
-    pub(crate) circular_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
-    pub(crate) resolving_default_type: Option<Rc<Type>>,
+    pub(crate) no_constraint_type: Option<Gc<Type /*ResolvedType*/>>,
+    pub(crate) circular_constraint_type: Option<Gc<Type /*ResolvedType*/>>,
+    pub(crate) resolving_default_type: Option<Gc<Type>>,
 
-    pub(crate) marker_super_type: Option<Rc<Type>>,
-    pub(crate) marker_sub_type: Option<Rc<Type>>,
-    pub(crate) marker_other_type: Option<Rc<Type>>,
+    pub(crate) marker_super_type: Option<Gc<Type>>,
+    pub(crate) marker_sub_type: Option<Gc<Type>>,
+    pub(crate) marker_other_type: Option<Gc<Type>>,
 
-    pub(crate) no_type_predicate: Option<Rc<TypePredicate>>,
+    pub(crate) no_type_predicate: Option<Gc<TypePredicate>>,
 
-    pub(crate) any_signature: Option<Rc<Signature>>,
-    pub(crate) unknown_signature: Option<Rc<Signature>>,
-    pub(crate) resolving_signature: Option<Rc<Signature>>,
-    pub(crate) silent_never_signature: Option<Rc<Signature>>,
+    pub(crate) any_signature: Option<Gc<Signature>>,
+    pub(crate) unknown_signature: Option<Gc<Signature>>,
+    pub(crate) resolving_signature: Option<Gc<Signature>>,
+    pub(crate) silent_never_signature: Option<Gc<Signature>>,
 
-    pub(crate) enum_number_index_info: Option<Rc<IndexInfo>>,
+    pub(crate) enum_number_index_info: Option<Gc<IndexInfo>>,
 
-    pub(crate) iteration_types_cache: RefCell<HashMap<String, Rc<IterationTypes>>>,
-    pub(crate) no_iteration_types: Rc<IterationTypes>,
+    pub(crate) iteration_types_cache: GcCell<HashMap<String, Gc<IterationTypes>>>,
+    pub(crate) no_iteration_types: Gc<IterationTypes>,
 
-    pub(crate) any_iteration_types: Option<Rc<IterationTypes>>,
-    pub(crate) any_iteration_types_except_next: Option<Rc<IterationTypes>>,
-    pub(crate) default_iteration_types: Option<Rc<IterationTypes>>,
+    pub(crate) any_iteration_types: Option<Gc<IterationTypes>>,
+    pub(crate) any_iteration_types_except_next: Option<Gc<IterationTypes>>,
+    pub(crate) default_iteration_types: Option<Gc<IterationTypes>>,
 
+    #[unsafe_ignore_trace]
     pub(crate) async_iteration_types_resolver: IterationTypesResolver,
+    #[unsafe_ignore_trace]
     pub(crate) sync_iteration_types_resolver: IterationTypesResolver,
 
-    pub(crate) amalgamated_duplicates: RefCell<Option<HashMap<String, DuplicateInfoForFiles>>>,
+    pub(crate) amalgamated_duplicates: GcCell<Option<HashMap<String, DuplicateInfoForFiles>>>,
 
-    pub(crate) reverse_mapped_cache: RefCell<HashMap<String, Option<Rc<Type>>>>,
+    pub(crate) reverse_mapped_cache: GcCell<HashMap<String, Option<Gc<Type>>>>,
+    #[unsafe_ignore_trace]
     pub(crate) in_infer_type_for_homomorphic_mapped_type: Cell<bool>,
-    pub(crate) ambient_modules_cache: RefCell<Option<Vec<Rc<Symbol>>>>,
+    pub(crate) ambient_modules_cache: GcCell<Option<Vec<Gc<Symbol>>>>,
 
-    pub(crate) pattern_ambient_modules: RefCell<Option<Vec<Rc<PatternAmbientModule>>>>,
-    pub(crate) pattern_ambient_module_augmentations: RefCell<Option<HashMap<String, Rc<Symbol>>>>,
+    pub(crate) pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
+    pub(crate) pattern_ambient_module_augmentations: GcCell<Option<HashMap<String, Gc<Symbol>>>>,
 
-    pub(crate) global_object_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) global_function_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) global_callable_function_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) global_newable_function_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) global_array_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) global_readonly_array_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) global_string_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) global_number_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) global_boolean_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) global_reg_exp_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) global_this_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) any_array_type: RefCell<Option<Rc<Type>>>,
-    pub(crate) auto_array_type: RefCell<Option<Rc<Type>>>,
-    pub(crate) any_readonly_array_type: RefCell<Option<Rc<Type>>>,
-    pub(crate) deferred_global_non_nullable_type_alias: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) global_object_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) global_function_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) global_callable_function_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) global_newable_function_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) global_array_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) global_readonly_array_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) global_string_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) global_number_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) global_boolean_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) global_reg_exp_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) global_this_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) any_array_type: GcCell<Option<Gc<Type>>>,
+    pub(crate) auto_array_type: GcCell<Option<Gc<Type>>>,
+    pub(crate) any_readonly_array_type: GcCell<Option<Gc<Type>>>,
+    pub(crate) deferred_global_non_nullable_type_alias: GcCell<Option<Gc<Symbol>>>,
 
-    pub(crate) deferred_global_es_symbol_constructor_symbol: RefCell<Option<Rc<Symbol>>>,
-    pub(crate) deferred_global_es_symbol_constructor_type_symbol: RefCell<Option<Rc<Symbol>>>,
-    pub(crate) deferred_global_es_symbol_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_es_symbol_constructor_symbol: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_es_symbol_constructor_type_symbol: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_es_symbol_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
     pub(crate) deferred_global_typed_property_descriptor_type:
-        RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_promise_like_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_promise_constructor_symbol: RefCell<Option<Rc<Symbol>>>,
+        GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_promise_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_promise_like_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_promise_constructor_symbol: GcCell<Option<Gc<Symbol>>>,
     pub(crate) deferred_global_promise_constructor_like_type:
-        RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_iterable_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_iterable_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_generator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_iterator_yield_result_type:
-        RefCell<Option<Rc<Type /*GenericType*/>>>,
+        GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_iterable_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterable_iterator_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_generator_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_yield_result_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
     pub(crate) deferred_global_iterator_return_result_type:
-        RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_async_iterable_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_async_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+        GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterable_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterator_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
     pub(crate) deferred_global_async_iterable_iterator_type:
-        RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_async_generator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_template_strings_array_type:
-        RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_import_meta_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_import_meta_expression_type:
-        RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_import_call_options_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_extract_symbol: RefCell<Option<Rc<Symbol>>>,
-    pub(crate) deferred_global_omit_symbol: RefCell<Option<Rc<Symbol>>>,
-    pub(crate) deferred_global_awaited_symbol: RefCell<Option<Rc<Symbol>>>,
-    pub(crate) deferred_global_big_int_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+        GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_generator_type: GcCell<Option<Gc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_template_strings_array_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_meta_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_meta_expression_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_call_options_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_extract_symbol: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_omit_symbol: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_awaited_symbol: GcCell<Option<Gc<Symbol>>>,
+    pub(crate) deferred_global_big_int_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
 
     pub(crate) all_potentially_unused_identifiers:
-        RefCell<HashMap<Path, Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>>>>,
+        GcCell<HashMap<Path, Vec<Gc<Node /*PotentiallyUnusedIdentifier*/>>>>,
 
+    #[unsafe_ignore_trace]
     pub(crate) flow_loop_start: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub(crate) flow_loop_count: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub(crate) shared_flow_count: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub(crate) flow_analysis_disabled: Cell<bool>,
+    #[unsafe_ignore_trace]
     pub(crate) flow_invocation_count: Cell<usize>,
-    pub(crate) last_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    pub(crate) last_flow_node: GcCell<Option<Gc<FlowNode>>>,
+    #[unsafe_ignore_trace]
     pub(crate) last_flow_node_reachable: Cell<bool>,
-    pub(crate) flow_type_cache: RefCell<Option<HashMap<NodeId, Rc<Type>>>>,
+    pub(crate) flow_type_cache: GcCell<Option<HashMap<NodeId, Gc<Type>>>>,
 
-    pub(crate) empty_string_type: Option<Rc<Type>>,
-    pub(crate) zero_type: Option<Rc<Type>>,
-    pub(crate) zero_big_int_type: Option<Rc<Type>>,
+    pub(crate) empty_string_type: Option<Gc<Type>>,
+    pub(crate) zero_type: Option<Gc<Type>>,
+    pub(crate) zero_big_int_type: Option<Gc<Type>>,
 
-    pub(crate) resolution_targets: RefCell<Vec<TypeSystemEntity>>,
+    pub(crate) resolution_targets: GcCell<Vec<TypeSystemEntity>>,
+    #[unsafe_ignore_trace]
     pub(crate) resolution_results: RefCell<Vec<bool>>,
+    #[unsafe_ignore_trace]
     pub(crate) resolution_property_names: RefCell<Vec<TypeSystemPropertyName>>,
 
+    #[unsafe_ignore_trace]
     pub(crate) suggestion_count: Cell<usize>,
     pub(crate) maximum_suggestion_count: usize,
-    pub(crate) merged_symbols: RefCell<HashMap<u32, Rc<Symbol>>>,
-    pub(crate) symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
-    pub(crate) node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
-    pub(crate) flow_loop_caches: RefCell<HashMap<usize, Rc<RefCell<HashMap<String, Rc<Type>>>>>>,
-    pub(crate) flow_loop_nodes: RefCell<HashMap<usize, Rc<FlowNode>>>,
+    pub(crate) merged_symbols: GcCell<HashMap<u32, Gc<Symbol>>>,
+    pub(crate) symbol_links: GcCell<HashMap<SymbolId, Gc<GcCell<SymbolLinks>>>>,
+    pub(crate) node_links: GcCell<HashMap<NodeId, Gc<GcCell<NodeLinks>>>>,
+    pub(crate) flow_loop_caches: GcCell<HashMap<usize, Gc<GcCell<HashMap<String, Gc<Type>>>>>>,
+    pub(crate) flow_loop_nodes: GcCell<HashMap<usize, Gc<FlowNode>>>,
+    #[unsafe_ignore_trace]
     pub(crate) flow_loop_keys: RefCell<HashMap<usize, String>>,
-    pub(crate) flow_loop_types: RefCell<HashMap<usize, Vec<Rc<Type>>>>,
-    pub(crate) shared_flow_nodes: RefCell<HashMap<usize, Rc<FlowNode>>>,
-    pub(crate) shared_flow_types: RefCell<HashMap<usize, FlowType>>,
+    pub(crate) flow_loop_types: GcCell<HashMap<usize, Vec<Gc<Type>>>>,
+    pub(crate) shared_flow_nodes: GcCell<HashMap<usize, Gc<FlowNode>>>,
+    pub(crate) shared_flow_types: GcCell<HashMap<usize, FlowType>>,
+    #[unsafe_ignore_trace]
     pub(crate) flow_node_reachable: RefCell<HashMap<usize, bool>>,
+    #[unsafe_ignore_trace]
     pub(crate) flow_node_post_super: RefCell<HashMap<usize, bool>>,
-    pub(crate) potential_this_collisions: RefCell<Vec<Rc<Node>>>,
-    pub(crate) potential_new_target_collisions: RefCell<Vec<Rc<Node>>>,
-    pub(crate) potential_weak_map_set_collisions: RefCell<Vec<Rc<Node>>>,
-    pub(crate) potential_reflect_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) potential_this_collisions: GcCell<Vec<Gc<Node>>>,
+    pub(crate) potential_new_target_collisions: GcCell<Vec<Gc<Node>>>,
+    pub(crate) potential_weak_map_set_collisions: GcCell<Vec<Gc<Node>>>,
+    pub(crate) potential_reflect_collisions: GcCell<Vec<Gc<Node>>>,
+    #[unsafe_ignore_trace]
     pub(crate) awaited_type_stack: RefCell<Vec<TypeId>>,
 
-    pub(crate) diagnostics: RefCell<DiagnosticCollection>,
-    pub(crate) suggestion_diagnostics: RefCell<DiagnosticCollection>,
+    pub(crate) diagnostics: GcCell<DiagnosticCollection>,
+    pub(crate) suggestion_diagnostics: GcCell<DiagnosticCollection>,
 
-    pub(crate) typeof_types_by_name: Option<HashMap<&'static str, Rc<Type>>>,
-    pub(crate) typeof_type: Option<Rc<Type>>,
+    pub(crate) typeof_types_by_name: Option<HashMap<&'static str, Gc<Type>>>,
+    pub(crate) typeof_type: Option<Gc<Type>>,
 
-    pub(crate) _jsx_namespace: RefCell<Option<__String>>,
-    pub(crate) _jsx_factory_entity: RefCell<Option<Rc<Node /*EntityName*/>>>,
-    pub(crate) outofband_variance_marker_handler: RefCell<Option<Rc<dyn Fn(bool)>>>,
+    pub(crate) _jsx_namespace: GcCell<Option<__String>>,
+    pub(crate) _jsx_factory_entity: GcCell<Option<Gc<Node /*EntityName*/>>>,
+    pub(crate) outofband_variance_marker_handler:
+        GcCell<Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>>>,
 
+    #[unsafe_ignore_trace]
     pub(crate) subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    #[unsafe_ignore_trace]
     pub(crate) strict_subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    #[unsafe_ignore_trace]
     pub(crate) assignable_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    #[unsafe_ignore_trace]
     pub(crate) comparable_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    #[unsafe_ignore_trace]
     pub(crate) identity_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    #[unsafe_ignore_trace]
     pub(crate) enum_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
 
-    pub(crate) builtin_globals: RefCell<Option<SymbolTable>>,
+    pub(crate) builtin_globals: GcCell<Option<SymbolTable>>,
 
+    #[unsafe_ignore_trace]
     pub(crate) suggested_extensions: Vec<(&'static str, &'static str)>,
 }
 
@@ -397,6 +434,10 @@ impl fmt::Debug for TypeChecker {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TypeChecker").finish()
     }
+}
+
+pub(crate) trait OutofbandVarianceMarkerHandler: Trace + Finalize {
+    fn call(&self, value: bool);
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -525,7 +566,8 @@ pub trait SymbolWriter: SymbolTracker {
     fn increase_indent(&self);
     fn decrease_indent(&self);
     fn clear(&self);
-    fn as_symbol_tracker(&self) -> &dyn SymbolTracker;
+    // fn as_symbol_tracker(self: Gc<Box<Self>>) -> Gc<Box<dyn SymbolTracker>>;
+    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>>;
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -543,19 +585,20 @@ pub enum TypePredicateKind {
     AssertsIdentifier,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct TypePredicate {
+    #[unsafe_ignore_trace]
     pub kind: TypePredicateKind,
     pub parameter_name: Option<String>,
     pub parameter_index: Option<usize>,
-    pub type_: Option<Rc<Type>>,
+    pub type_: Option<Gc<Type>>,
 }
 
 pub struct SymbolVisibilityResult {
     pub accessibility: SymbolAccessibility,
-    pub aliases_to_make_visible: Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
+    pub aliases_to_make_visible: Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
     pub error_symbol_name: Option<String>,
-    pub error_node: Option<Rc<Node>>,
+    pub error_node: Option<Gc<Node>>,
 }
 
 impl SymbolVisibilityResult {
@@ -578,17 +621,17 @@ impl SymbolVisibilityResult {
 
 pub struct SymbolAccessibilityResult {
     pub accessibility: SymbolAccessibility,
-    pub aliases_to_make_visible: Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
+    pub aliases_to_make_visible: Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
     pub error_symbol_name: Option<String>,
-    pub error_node: Option<Rc<Node>>,
+    pub error_node: Option<Gc<Node>>,
     pub error_module_name: Option<String>,
 }
 
 pub struct AllAccessorDeclarations {
-    pub first_accessor: Rc<Node /*AccessorDeclaration*/>,
-    pub second_accessor: Option<Rc<Node /*AccessorDeclaration*/>>,
-    pub get_accessor: Option<Rc<Node /*GetAccessorDeclaration*/>>,
-    pub set_accessor: Option<Rc<Node /*SetAccessorDeclaration*/>>,
+    pub first_accessor: Gc<Node /*AccessorDeclaration*/>,
+    pub second_accessor: Option<Gc<Node /*AccessorDeclaration*/>>,
+    pub get_accessor: Option<Gc<Node /*GetAccessorDeclaration*/>>,
+    pub set_accessor: Option<Gc<Node /*SetAccessorDeclaration*/>>,
 }
 
 pub enum TypeReferenceSerializationKind {
@@ -617,17 +660,17 @@ pub enum TypeReferenceSerializationKind {
     ObjectType,
 }
 
-pub trait EmitResolver {
+pub trait EmitResolver: Trace + Finalize {
     fn has_global_name(&self, name: &str) -> bool;
     fn get_referenced_export_container(
         &self,
         node: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> Option<Rc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>;
+    ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>;
     fn get_referenced_import_declaration(
         &self,
         node: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>>;
+    ) -> Option<Gc<Node /*Declaration*/>>;
     fn is_declaration_with_colliding_name(&self, node: &Node /*Declaration*/) -> bool;
     fn is_value_alias_declaration(&self, node: &Node) -> bool;
     fn is_referenced_alias_declaration(&self, node: &Node, check_children: Option<bool>) -> bool;
@@ -642,7 +685,7 @@ pub trait EmitResolver {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> Option<Vec<Rc<Node>>>;
+    ) -> Option<Vec<Gc<Node>>>;
     fn is_implementation_of_overload(
         &self,
         node: &Node, /*SignatureDeclaration*/
@@ -656,7 +699,7 @@ pub trait EmitResolver {
     fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Rc<Symbol>>;
+    ) -> Vec<Gc<Symbol>>;
     fn create_type_of_declaration(
         &self,
         declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
@@ -664,26 +707,26 @@ pub trait EmitResolver {
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         add_undefined: Option<bool>,
-    ) -> Option<Rc<Node /*TypeNode*/>>;
+    ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_return_type_of_signature_declaration(
         &self,
         signature_declaration: &Node, /*SignatureDeclaration*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>>;
+    ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_type_of_expression(
         &self,
         expr: &Node, /*Expression*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>>;
+    ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_literal_const_value(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: &dyn SymbolTracker,
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn is_symbol_accessible(
         &self,
         symbol: &Symbol,
@@ -703,7 +746,7 @@ pub trait EmitResolver {
     fn get_referenced_value_declaration(
         &self,
         reference: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>>;
+    ) -> Option<Gc<Node /*Declaration*/>>;
     fn get_type_reference_serialization_kind(
         &self,
         type_name: &Node, /*EntityName*/
@@ -718,7 +761,7 @@ pub trait EmitResolver {
     fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Rc<Node /*SourceFile*/>>;
+    ) -> Option<Gc<Node /*SourceFile*/>>;
     fn get_type_reference_directives_for_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
@@ -732,11 +775,11 @@ pub trait EmitResolver {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> bool;
-    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Rc<Node /*EntityName*/>>;
+    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>>;
     fn get_jsx_fragment_factory_entity(
         &self,
         location: Option<&Node>,
-    ) -> Option<Rc<Node /*EntityName*/>>;
+    ) -> Option<Gc<Node /*EntityName*/>>;
     fn get_all_accessor_declarations(
         &self,
         declaration: &Node, /*AccessorDeclaration*/
@@ -744,7 +787,7 @@ pub trait EmitResolver {
     fn get_symbol_of_external_module_specifier(
         &self,
         node: &Node, /*StringLiteralLike*/
-    ) -> Option<Rc<Symbol>>;
+    ) -> Option<Gc<Symbol>>;
     fn is_binding_captured_by_node(
         &self,
         node: &Node,
@@ -756,7 +799,7 @@ pub trait EmitResolver {
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         bundled: Option<bool>,
-    ) -> Option<Vec<Rc<Node /*Statement*/>>>;
+    ) -> Option<Vec<Gc<Node /*Statement*/>>>;
     fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool;
 }
 
@@ -848,32 +891,32 @@ bitflags! {
 pub type SymbolId = u32;
 
 pub trait SymbolInterface {
-    fn symbol_wrapper(&self) -> Rc<Symbol>;
-    fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>);
+    fn symbol_wrapper(&self) -> Gc<Symbol>;
+    fn set_symbol_wrapper(&self, wrapper: Gc<Symbol>);
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &str /*__String*/;
-    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>>;
-    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>>;
-    fn set_declarations(&self, declarations: Vec<Rc<Node>>);
-    fn maybe_value_declaration(&self) -> Option<Rc<Node>>;
-    fn set_value_declaration(&self, node: Rc<Node>);
-    fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>>;
-    fn maybe_members_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
-    fn members(&self) -> Rc<RefCell<SymbolTable>>;
-    fn maybe_exports(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>>;
-    fn maybe_exports_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
-    fn exports(&self) -> Rc<RefCell<SymbolTable>>;
-    fn maybe_global_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn maybe_declarations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>>;
+    fn maybe_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>>;
+    fn set_declarations(&self, declarations: Vec<Gc<Node>>);
+    fn maybe_value_declaration(&self) -> Option<Gc<Node>>;
+    fn set_value_declaration(&self, node: Gc<Node>);
+    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
+    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
+    fn members(&self) -> Gc<GcCell<SymbolTable>>;
+    fn maybe_exports(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
+    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
+    fn exports(&self) -> Gc<GcCell<SymbolTable>>;
+    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
     fn maybe_merge_id(&self) -> Option<u32>;
     fn set_merge_id(&self, merge_id: u32);
-    fn maybe_parent(&self) -> Option<Rc<Symbol>>;
-    fn set_parent(&self, parent: Option<Rc<Symbol>>);
-    fn maybe_export_symbol(&self) -> Option<Rc<Symbol>>;
-    fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>);
+    fn maybe_parent(&self) -> Option<Gc<Symbol>>;
+    fn set_parent(&self, parent: Option<Gc<Symbol>>);
+    fn maybe_export_symbol(&self) -> Option<Gc<Symbol>>;
+    fn set_export_symbol(&self, export_symbol: Option<Gc<Symbol>>);
     fn maybe_const_enum_only_module(&self) -> Option<bool>;
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
     fn maybe_is_referenced(&self) -> Option<SymbolFlags>;
@@ -884,10 +927,10 @@ pub trait SymbolInterface {
     fn set_is_assigned(&self, is_assigned: Option<bool>);
     fn maybe_assignment_declaration_members(
         &self,
-    ) -> RefMut<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>;
+    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node /*Declaration*/>>>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Finalize, Trace)]
 #[symbol_type(impl_from = false)]
 pub enum Symbol {
     BaseSymbol(BaseSymbol),
@@ -895,8 +938,8 @@ pub enum Symbol {
 }
 
 impl Symbol {
-    pub fn wrap(self) -> Rc<Symbol> {
-        let rc = Rc::new(self);
+    pub fn wrap(self) -> Gc<Symbol> {
+        let rc = Gc::new(self);
         rc.set_symbol_wrapper(rc.clone());
         rc
     }
@@ -921,57 +964,65 @@ impl Symbol {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Finalize, Trace)]
 pub struct BaseSymbol {
-    _symbol_wrapper: RefCell<Option<Rc<Symbol>>>,
+    _symbol_wrapper: GcCell<Option<Gc<Symbol>>>,
+    #[unsafe_ignore_trace]
     flags: Cell<SymbolFlags>,
+    #[unsafe_ignore_trace]
     escaped_name: __String,
-    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>,
-    value_declaration: RefCell<Option<Rc<Node>>>,
-    members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
-    exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
-    global_exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
+    declarations: GcCell<Option<Vec<Gc<Node /*Declaration*/>>>>,
+    value_declaration: GcCell<Option<Gc<Node>>>,
+    members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    global_exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    #[unsafe_ignore_trace]
     id: Cell<Option<SymbolId>>,
+    #[unsafe_ignore_trace]
     merge_id: Cell<Option<u32>>,
-    parent: RefCell<Option<Rc<Symbol>>>,
-    export_symbol: RefCell<Option<Rc<Symbol>>>,
+    parent: GcCell<Option<Gc<Symbol>>>,
+    export_symbol: GcCell<Option<Gc<Symbol>>>,
+    #[unsafe_ignore_trace]
     const_enum_only_module: Cell<Option<bool>>,
+    #[unsafe_ignore_trace]
     is_referenced: Cell<Option<SymbolFlags>>,
+    #[unsafe_ignore_trace]
     is_replaceable_by_method: Cell<Option<bool>>,
+    #[unsafe_ignore_trace]
     is_assigned: Cell<Option<bool>>,
-    assignment_declaration_members: RefCell<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>,
+    assignment_declaration_members: GcCell<Option<HashMap<NodeId, Gc<Node /*Declaration*/>>>>,
 }
 
 impl BaseSymbol {
     pub fn new(flags: SymbolFlags, name: __String) -> Self {
         Self {
-            _symbol_wrapper: RefCell::new(None),
+            _symbol_wrapper: GcCell::new(None),
             flags: Cell::new(flags),
             escaped_name: name,
-            declarations: RefCell::new(None),
-            value_declaration: RefCell::new(None),
-            members: RefCell::new(None),
-            exports: RefCell::new(None),
-            global_exports: RefCell::new(None),
+            declarations: GcCell::new(None),
+            value_declaration: GcCell::new(None),
+            members: GcCell::new(None),
+            exports: GcCell::new(None),
+            global_exports: GcCell::new(None),
             id: Cell::new(None),
             merge_id: Cell::new(None),
-            parent: RefCell::new(None),
-            export_symbol: RefCell::new(None),
+            parent: GcCell::new(None),
+            export_symbol: GcCell::new(None),
             const_enum_only_module: Cell::new(None),
             is_referenced: Cell::new(None),
             is_replaceable_by_method: Cell::new(None),
             is_assigned: Cell::new(None),
-            assignment_declaration_members: RefCell::new(None),
+            assignment_declaration_members: GcCell::new(None),
         }
     }
 }
 
 impl SymbolInterface for BaseSymbol {
-    fn symbol_wrapper(&self) -> Rc<Symbol> {
+    fn symbol_wrapper(&self) -> Gc<Symbol> {
         self._symbol_wrapper.borrow().clone().unwrap()
     }
 
-    fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>) {
+    fn set_symbol_wrapper(&self, wrapper: Gc<Symbol>) {
         *self._symbol_wrapper.borrow_mut() = Some(wrapper);
     }
 
@@ -987,51 +1038,51 @@ impl SymbolInterface for BaseSymbol {
         &self.escaped_name
     }
 
-    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+    fn maybe_declarations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
         self.declarations.borrow()
     }
 
-    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    fn maybe_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.declarations.borrow_mut()
     }
 
-    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
+    fn set_declarations(&self, declarations: Vec<Gc<Node>>) {
         *self.declarations.borrow_mut() = Some(declarations);
     }
 
-    fn maybe_value_declaration(&self) -> Option<Rc<Node>> {
+    fn maybe_value_declaration(&self) -> Option<Gc<Node>> {
         self.value_declaration.borrow().clone()
     }
 
-    fn set_value_declaration(&self, node: Rc<Node>) {
+    fn set_value_declaration(&self, node: Gc<Node>) {
         *self.value_declaration.borrow_mut() = Some(node);
     }
 
-    fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>> {
         self.members.borrow()
     }
 
-    fn maybe_members_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
         self.members.borrow_mut()
     }
 
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
+    fn members(&self) -> Gc<GcCell<SymbolTable>> {
         self.members.borrow().as_ref().unwrap().clone()
     }
 
-    fn maybe_exports(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_exports(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>> {
         self.exports.borrow()
     }
 
-    fn maybe_exports_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
         self.exports.borrow_mut()
     }
 
-    fn exports(&self) -> Rc<RefCell<SymbolTable>> {
+    fn exports(&self) -> Gc<GcCell<SymbolTable>> {
         self.exports.borrow().as_ref().unwrap().clone()
     }
 
-    fn maybe_global_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
         self.global_exports.borrow_mut()
     }
 
@@ -1055,19 +1106,19 @@ impl SymbolInterface for BaseSymbol {
         self.merge_id.set(Some(merge_id));
     }
 
-    fn maybe_parent(&self) -> Option<Rc<Symbol>> {
+    fn maybe_parent(&self) -> Option<Gc<Symbol>> {
         self.parent.borrow().as_ref().map(Clone::clone)
     }
 
-    fn set_parent(&self, parent: Option<Rc<Symbol>>) {
+    fn set_parent(&self, parent: Option<Gc<Symbol>>) {
         *self.parent.borrow_mut() = parent;
     }
 
-    fn maybe_export_symbol(&self) -> Option<Rc<Symbol>> {
+    fn maybe_export_symbol(&self) -> Option<Gc<Symbol>> {
         self.export_symbol.borrow().as_ref().map(Clone::clone)
     }
 
-    fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>) {
+    fn set_export_symbol(&self, export_symbol: Option<Gc<Symbol>>) {
         *self.export_symbol.borrow_mut() = export_symbol;
     }
 
@@ -1103,7 +1154,9 @@ impl SymbolInterface for BaseSymbol {
         self.is_assigned.set(is_assigned);
     }
 
-    fn maybe_assignment_declaration_members(&self) -> RefMut<Option<HashMap<NodeId, Rc<Node>>>> {
+    fn maybe_assignment_declaration_members(
+        &self,
+    ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node>>>> {
         self.assignment_declaration_members.borrow_mut()
     }
 }
@@ -1114,47 +1167,50 @@ impl From<BaseSymbol> for Symbol {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Finalize, Trace)]
 pub struct SymbolLinks {
-    pub immediate_target: Option<Rc<Symbol>>,
-    pub target: Option<Rc<Symbol>>,
-    pub type_: Option<Rc<Type>>,
-    pub write_type: Option<Rc<Type>>,
-    pub name_type: Option<Rc<Type>>,
-    pub unique_es_symbol_type: Option<Rc<Type>>,
-    pub declared_type: Option<Rc<Type>>,
-    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
-    pub instantiations: Option<HashMap<String, Rc<Type>>>,
-    pub inferred_class_symbol: Option<HashMap<SymbolId, Rc<Symbol /*TransientSymbol*/>>>,
-    pub mapper: Option<Rc<TypeMapper>>,
+    pub immediate_target: Option<Gc<Symbol>>,
+    pub target: Option<Gc<Symbol>>,
+    pub type_: Option<Gc<Type>>,
+    pub write_type: Option<Gc<Type>>,
+    pub name_type: Option<Gc<Type>>,
+    pub unique_es_symbol_type: Option<Gc<Type>>,
+    pub declared_type: Option<Gc<Type>>,
+    pub type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
+    pub instantiations: Option<HashMap<String, Gc<Type>>>,
+    pub inferred_class_symbol: Option<HashMap<SymbolId, Gc<Symbol /*TransientSymbol*/>>>,
+    pub mapper: Option<Gc<TypeMapper>>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
-    pub containing_type: Option<Rc<Type>>,
-    pub left_spread: Option<Rc<Symbol>>,
-    pub right_spread: Option<Rc<Symbol>>,
-    pub synthetic_origin: Option<Rc<Symbol>>,
+    pub containing_type: Option<Gc<Type>>,
+    pub left_spread: Option<Gc<Symbol>>,
+    pub right_spread: Option<Gc<Symbol>>,
+    pub synthetic_origin: Option<Gc<Symbol>>,
     pub is_discriminant_property: Option<bool>,
-    pub resolved_exports: Option<Rc<RefCell<SymbolTable>>>,
-    pub resolved_members: Option<Rc<RefCell<SymbolTable>>>,
+    pub resolved_exports: Option<Gc<GcCell<SymbolTable>>>,
+    pub resolved_members: Option<Gc<GcCell<SymbolTable>>>,
     pub exports_checked: Option<bool>,
     pub type_parameters_checked: Option<bool>,
     pub is_declaration_with_colliding_name: Option<bool>,
-    pub binding_element: Option<Rc<Node /*BindingElement*/>>,
+    pub binding_element: Option<Gc<Node /*BindingElement*/>>,
     pub exports_some_value: Option<bool>,
+    #[unsafe_ignore_trace]
     pub enum_kind: Option<EnumKind>,
-    pub originating_import: Option<Rc<Node /*ImportDeclaration | ImportCall*/>>,
-    pub late_symbol: Option<Rc<Symbol>>,
+    pub originating_import: Option<Gc<Node /*ImportDeclaration | ImportCall*/>>,
+    pub late_symbol: Option<Gc<Symbol>>,
+    #[unsafe_ignore_trace]
     pub specifier_cache: Option<HashMap<String, String>>,
-    pub extended_containers: Option<Vec<Rc<Symbol>>>,
-    pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Rc<Symbol>>>>,
-    pub variances: Option<Vec<VarianceFlags>>,
-    pub deferral_constituents: Option<Vec<Rc<Type>>>,
-    pub deferral_parent: Option<Rc<Type>>,
-    pub cjs_export_merged: Option<Rc<Symbol>>,
-    pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
+    pub extended_containers: Option<Vec<Gc<Symbol>>>,
+    pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Gc<Symbol>>>>,
+    #[unsafe_ignore_trace]
+    pub variances: Rc<RefCell<Option<Vec<VarianceFlags>>>>,
+    pub deferral_constituents: Option<Vec<Gc<Type>>>,
+    pub deferral_parent: Option<Gc<Type>>,
+    pub cjs_export_merged: Option<Gc<Symbol>>,
+    pub type_only_declaration: Option<Option<Gc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
     pub is_constructor_declared_property: Option<bool>,
-    pub tuple_label_declaration: Option<Rc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
-    pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Rc<Symbol>>>>>,
+    pub tuple_label_declaration: Option<Gc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
+    pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Gc<Symbol>>>>>,
 }
 
 impl SymbolLinks {
@@ -1191,7 +1247,7 @@ impl SymbolLinks {
             specifier_cache: None,
             extended_containers: None,
             extended_containers_by_file: None,
-            variances: None,
+            variances: Default::default(),
             deferral_constituents: None,
             deferral_parent: None,
             cjs_export_merged: None,
@@ -1240,49 +1296,57 @@ bitflags! {
 }
 
 pub trait TransientSymbolInterface: SymbolInterface {
-    fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>>;
+    fn symbol_links(&self) -> Gc<GcCell<SymbolLinks>>;
     fn check_flags(&self) -> CheckFlags;
     fn set_check_flags(&self, check_flags: CheckFlags);
 }
 
-#[derive(Debug)]
-#[symbol_type(interfaces = "TransientSymbolInterface")]
-pub enum TransientSymbol {
-    BaseTransientSymbol(BaseTransientSymbol),
-    ReverseMappedSymbol(ReverseMappedSymbol),
-    MappedSymbol(MappedSymbol),
-}
+mod _TransientSymbolTraceDeriveScope {
+    use super::{BaseTransientSymbol, Gc, MappedSymbol, ReverseMappedSymbol, Type};
+    use gc::Finalize;
+    use local_macros::{symbol_type, Trace};
 
-impl TransientSymbol {
-    pub fn into_reverse_mapped_symbol(
-        self,
-        property_type: Rc<Type>,
-        mapped_type: Rc<Type>,
-        constraint_type: Rc<Type>,
-    ) -> Self {
-        match self {
-            Self::BaseTransientSymbol(symbol) => Self::ReverseMappedSymbol(
-                ReverseMappedSymbol::new(symbol, property_type, mapped_type, constraint_type),
-            ),
-            _ => panic!("Should only call into_reverse_mapped_symbol() on BaseTransientSymbol"),
-        }
+    #[derive(Debug, Finalize, Trace)]
+    #[symbol_type(interfaces = "TransientSymbolInterface")]
+    pub enum TransientSymbol {
+        BaseTransientSymbol(BaseTransientSymbol),
+        ReverseMappedSymbol(ReverseMappedSymbol),
+        MappedSymbol(MappedSymbol),
     }
 
-    pub fn into_mapped_symbol(self, mapped_type: Rc<Type>, key_type: Rc<Type>) -> Self {
-        match self {
-            Self::BaseTransientSymbol(symbol) => {
-                Self::MappedSymbol(MappedSymbol::new(symbol, mapped_type, key_type))
+    impl TransientSymbol {
+        pub fn into_reverse_mapped_symbol(
+            self,
+            property_type: Gc<Type>,
+            mapped_type: Gc<Type>,
+            constraint_type: Gc<Type>,
+        ) -> Self {
+            match self {
+                Self::BaseTransientSymbol(symbol) => Self::ReverseMappedSymbol(
+                    ReverseMappedSymbol::new(symbol, property_type, mapped_type, constraint_type),
+                ),
+                _ => panic!("Should only call into_reverse_mapped_symbol() on BaseTransientSymbol"),
             }
-            _ => panic!("Should only call into_mapped_symbol() on BaseTransientSymbol"),
+        }
+
+        pub fn into_mapped_symbol(self, mapped_type: Gc<Type>, key_type: Gc<Type>) -> Self {
+            match self {
+                Self::BaseTransientSymbol(symbol) => {
+                    Self::MappedSymbol(MappedSymbol::new(symbol, mapped_type, key_type))
+                }
+                _ => panic!("Should only call into_mapped_symbol() on BaseTransientSymbol"),
+            }
         }
     }
 }
+pub use _TransientSymbolTraceDeriveScope::TransientSymbol;
 
-#[derive(Debug)]
+#[derive(Debug, Finalize, Trace)]
 #[symbol_type(ancestors = "TransientSymbol")]
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
-    _symbol_links: Rc<RefCell<SymbolLinks>>,
+    _symbol_links: Gc<GcCell<SymbolLinks>>,
+    #[unsafe_ignore_trace]
     check_flags: Cell<CheckFlags>,
 }
 
@@ -1290,14 +1354,14 @@ impl BaseTransientSymbol {
     pub fn new(base_symbol: BaseSymbol, check_flags: CheckFlags) -> Self {
         Self {
             _symbol: base_symbol,
-            _symbol_links: Rc::new(RefCell::new(SymbolLinks::new())),
+            _symbol_links: Gc::new(GcCell::new(SymbolLinks::new())),
             check_flags: Cell::new(check_flags),
         }
     }
 }
 
 impl TransientSymbolInterface for BaseTransientSymbol {
-    fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>> {
+    fn symbol_links(&self) -> Gc<GcCell<SymbolLinks>> {
         self._symbol_links.clone()
     }
 

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use regex::{Captures, Regex};
 use std::cell::Cell;
 use std::ptr;
@@ -9,11 +10,12 @@ use super::{
     CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
-    are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map, AccessFlags,
-    DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface, ObjectFlags,
-    ObjectTypeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol,
-    SymbolInterface, Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
-    TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags,
+    are_gc_slices_equal, are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map,
+    AccessFlags, DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler, RelationComparisonResult,
+    Signature, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeComparer,
+    TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface,
+    VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -25,7 +27,7 @@ impl CheckTypeRelatedTo {
         if let Some(prop_value_declaration) = prop.maybe_value_declaration().as_ref() {
             if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
             {
-                return Rc::ptr_eq(
+                return Gc::ptr_eq(
                     &prop_value_declaration.parent(),
                     container_value_declaration,
                 );
@@ -172,7 +174,7 @@ impl CheckTypeRelatedTo {
         &self,
         source: &Type,
         target: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if source.flags().intersects(TypeFlags::Union)
             && target.flags().intersects(TypeFlags::Union)
             && !source.as_union_or_intersection_type_interface().types()[0]
@@ -244,8 +246,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn type_arguments_related_to(
         &self,
-        sources: Option<Vec<Rc<Type>>>,
-        targets: Option<Vec<Rc<Type>>>,
+        sources: Option<Vec<Gc<Type>>>,
+        targets: Option<Vec<Gc<Type>>>,
         variances: Option<Vec<VarianceFlags>>,
         report_errors: bool,
         intersection_state: IntersectionState,
@@ -392,7 +394,7 @@ impl CheckTypeRelatedTo {
                     if saved.intersects(RelationComparisonResult::ReportsUnmeasurable) {
                         self.type_checker.instantiate_type(
                             source,
-                            Some(Rc::new(
+                            Some(Gc::new(
                                 self.type_checker
                                     .make_function_type_mapper(ReportUnmeasurableMarkers),
                             )),
@@ -401,7 +403,7 @@ impl CheckTypeRelatedTo {
                     if saved.intersects(RelationComparisonResult::ReportsUnreliable) {
                         self.type_checker.instantiate_type(
                             source,
-                            Some(Rc::new(
+                            Some(Gc::new(
                                 self.type_checker
                                     .make_function_type_mapper(ReportUnreliableMarkers),
                             )),
@@ -488,7 +490,7 @@ impl CheckTypeRelatedTo {
                 self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Target);
             }
         }
-        let mut original_handler: Option<Rc<dyn Fn(bool)>> = None;
+        let mut original_handler: Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>> = None;
         let propagating_variance_flags: Rc<Cell<RelationComparisonResult>> =
             Rc::new(Cell::new(RelationComparisonResult::None));
         if let Some(outofband_variance_marker_handler) =
@@ -496,21 +498,12 @@ impl CheckTypeRelatedTo {
         {
             original_handler = Some(outofband_variance_marker_handler);
             self.type_checker
-                .set_outofband_variance_marker_handler(Some(Rc::new({
-                    let propagating_variance_flags = propagating_variance_flags.clone();
-                    let original_handler = original_handler.clone();
-                    move |only_unreliable| {
-                        propagating_variance_flags.set(
-                            propagating_variance_flags.get()
-                                | if only_unreliable {
-                                    RelationComparisonResult::ReportsUnreliable
-                                } else {
-                                    RelationComparisonResult::ReportsUnmeasurable
-                                },
-                        );
-                        (original_handler.clone().unwrap())(only_unreliable);
-                    }
-                })));
+                .set_outofband_variance_marker_handler(Some(Gc::new(Box::new(
+                    RecursiveTypeRelatedToOutofbandVarianceMarkerHandler::new(
+                        propagating_variance_flags.clone(),
+                        original_handler.clone().unwrap(),
+                    ),
+                ))));
         }
 
         if self.expanding_flags() == ExpandingFlags::Both {
@@ -666,9 +659,9 @@ impl CheckTypeRelatedTo {
             {
                 let constraints = same_map(
                     source.as_union_or_intersection_type_interface().types(),
-                    |type_: &Rc<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
+                    |type_: &Gc<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
                 );
-                if !are_rc_slices_equal(
+                if !are_gc_slices_equal(
                     &constraints,
                     source.as_union_or_intersection_type_interface().types(),
                 ) {
@@ -822,7 +815,7 @@ impl CheckTypeRelatedTo {
                 {
                     if matches!(
                         target.maybe_alias_symbol().as_ref(),
-                        Some(target_alias_symbol) if Rc::ptr_eq(
+                        Some(target_alias_symbol) if Gc::ptr_eq(
                             &source_alias_symbol,
                             &target_alias_symbol,
                         )
@@ -1004,7 +997,7 @@ impl CheckTypeRelatedTo {
                     let constraint_type = self
                         .type_checker
                         .get_constraint_type_from_mapped_type(target_type);
-                    let target_keys: Rc<Type>;
+                    let target_keys: Gc<Type>;
                     if let Some(name_type) = name_type.as_ref().filter(|name_type| {
                         self.type_checker
                             .is_mapped_type_with_keyof_constraint_declaration(target_type)
@@ -1014,7 +1007,7 @@ impl CheckTypeRelatedTo {
                                 .type_checker
                                 .get_modifiers_type_from_mapped_type(target_type),
                         );
-                        let mut mapped_keys: Vec<Rc<Type>> = vec![];
+                        let mut mapped_keys: Vec<Gc<Type>> = vec![];
                         self.type_checker
                             .for_each_mapped_type_property_key_type_and_index_signature_key_type(
                                 &modifiers_type,
@@ -1024,7 +1017,7 @@ impl CheckTypeRelatedTo {
                                     mapped_keys.push(
                                         self.type_checker.instantiate_type(
                                             name_type,
-                                            Some(Rc::new(
+                                            Some(Gc::new(
                                                 self.type_checker.append_type_mapping(
                                                     target_type.as_mapped_type().maybe_mapper(),
                                                     &self
@@ -1108,7 +1101,7 @@ impl CheckTypeRelatedTo {
                     && !self.type_checker.is_generic_index_type(&base_index_type)
                 {
                     let access_flags = AccessFlags::Writing
-                        | if !Rc::ptr_eq(&base_object_type, object_type) {
+                        | if !Gc::ptr_eq(&base_object_type, object_type) {
                             AccessFlags::NoIndexSignatures
                         } else {
                             AccessFlags::None
@@ -1173,8 +1166,8 @@ impl CheckTypeRelatedTo {
             if !modifiers.intersects(MappedTypeModifiers::ExcludeOptional) {
                 if !keys_remapped
                     && template_type.flags().intersects(TypeFlags::IndexedAccess)
-                    && Rc::ptr_eq(&template_type.as_indexed_access_type().object_type, &source)
-                    && Rc::ptr_eq(
+                    && Gc::ptr_eq(&template_type.as_indexed_access_type().object_type, &source)
+                    && Gc::ptr_eq(
                         &template_type.as_indexed_access_type().index_type,
                         &self
                             .type_checker
@@ -1230,7 +1223,7 @@ impl CheckTypeRelatedTo {
                             && non_null_component
                                 .flags()
                                 .intersects(TypeFlags::IndexedAccess)
-                            && Rc::ptr_eq(
+                            && Gc::ptr_eq(
                                 &non_null_component.as_indexed_access_type().index_type,
                                 &type_parameter,
                             )
@@ -1367,7 +1360,7 @@ impl CheckTypeRelatedTo {
                 }
                 self.type_checker.instantiate_type(
                     &source,
-                    Some(Rc::new(
+                    Some(Gc::new(
                         self.type_checker
                             .make_function_type_mapper(ReportUnreliableMarkers),
                     )),
@@ -1463,7 +1456,7 @@ impl CheckTypeRelatedTo {
                 let constraint = self.type_checker.get_base_constraint_of_type(&source);
                 if let Some(constraint) = constraint
                     .as_ref()
-                    .filter(|constraint| !Rc::ptr_eq(*constraint, &source))
+                    .filter(|constraint| !Gc::ptr_eq(*constraint, &source))
                 {
                     result = self.is_related_to(
                         constraint,
@@ -1481,7 +1474,7 @@ impl CheckTypeRelatedTo {
             }
         } else if source.flags().intersects(TypeFlags::StringMapping) {
             if target.flags().intersects(TypeFlags::StringMapping)
-                && Rc::ptr_eq(
+                && Gc::ptr_eq(
                     &source.as_string_mapping_type().symbol(),
                     &target.as_string_mapping_type().symbol(),
                 )
@@ -1531,15 +1524,15 @@ impl CheckTypeRelatedTo {
                     .infer_type_parameters
                     .clone();
                 let mut source_extends = source.as_conditional_type().extends_type.clone();
-                let mut mapper: Option<Rc<TypeMapper>> = None;
+                let mut mapper: Option<Gc<TypeMapper>> = None;
                 if let Some(source_params) = source_params.as_ref() {
                     let ctx = self.type_checker.create_inference_context(
                         source_params,
                         None,
                         InferenceFlags::None,
-                        Some(Rc::new(TypeComparerIsRelatedToWorker::new(
+                        Some(Gc::new(Box::new(TypeComparerIsRelatedToWorker::new(
                             self.rc_wrapper(),
-                        ))),
+                        )))),
                     );
                     self.type_checker.infer_types(
                         &ctx.inferences(),
@@ -1670,7 +1663,7 @@ impl CheckTypeRelatedTo {
             }
             if get_object_flags(&source).intersects(ObjectFlags::Reference)
                 && get_object_flags(target).intersects(ObjectFlags::Reference)
-                && Rc::ptr_eq(
+                && Gc::ptr_eq(
                     &source.as_type_reference_interface().target(),
                     &target.as_type_reference_interface().target(),
                 )
@@ -1809,9 +1802,10 @@ impl CheckTypeRelatedTo {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct ReportUnmeasurableMarkers;
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
-    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
+    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Gc<Type> {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {
@@ -1819,16 +1813,17 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
                 || ptr::eq(p, &*checker.marker_sub_type())
                 || ptr::eq(p, &*checker.marker_other_type())
             {
-                outofband_variance_marker_handler(false);
+                outofband_variance_marker_handler.call(false);
             }
         }
         p.type_wrapper()
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct ReportUnreliableMarkers;
 impl TypeMapperCallback for ReportUnreliableMarkers {
-    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
+    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Gc<Type> {
         if let Some(outofband_variance_marker_handler) =
             checker.maybe_outofband_variance_marker_handler()
         {
@@ -1836,19 +1831,20 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
                 || ptr::eq(p, &*checker.marker_sub_type())
                 || ptr::eq(p, &*checker.marker_other_type())
             {
-                outofband_variance_marker_handler(true);
+                outofband_variance_marker_handler.call(true);
             }
         }
         p.type_wrapper()
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct TypeComparerIsRelatedToWorker {
-    check_type_related_to: Rc<CheckTypeRelatedTo>,
+    check_type_related_to: Gc<CheckTypeRelatedTo>,
 }
 
 impl TypeComparerIsRelatedToWorker {
-    pub fn new(check_type_related_to: Rc<CheckTypeRelatedTo>) -> Self {
+    pub fn new(check_type_related_to: Gc<CheckTypeRelatedTo>) -> Self {
         Self {
             check_type_related_to,
         }
@@ -1862,5 +1858,38 @@ impl TypeComparer for TypeComparerIsRelatedToWorker {
             t,
             report_errors.unwrap_or(false), // the default isn't in the Typescript version but that appears to be a type-checking bug there
         )
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
+    #[unsafe_ignore_trace]
+    propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
+    original_handler: Gc<Box<dyn OutofbandVarianceMarkerHandler>>,
+}
+
+impl RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
+    pub fn new(
+        propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
+        original_handler: Gc<Box<dyn OutofbandVarianceMarkerHandler>>,
+    ) -> Self {
+        Self {
+            propagating_variance_flags,
+            original_handler,
+        }
+    }
+}
+
+impl OutofbandVarianceMarkerHandler for RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
+    fn call(&self, only_unreliable: bool) {
+        self.propagating_variance_flags.set(
+            self.propagating_variance_flags.get()
+                | if only_unreliable {
+                    RelationComparisonResult::ReportsUnreliable
+                } else {
+                    RelationComparisonResult::ReportsUnmeasurable
+                },
+        );
+        self.original_handler.call(only_unreliable);
     }
 }

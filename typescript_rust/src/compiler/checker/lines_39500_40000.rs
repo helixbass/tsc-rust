@@ -1,10 +1,11 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::rc::Rc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};
 use crate::{
-    HasStatementsInterface, __String, are_option_rcs_equal, count_where,
+    are_option_gcs_equal, HasStatementsInterface, __String, are_option_rcs_equal, count_where,
     create_diagnostic_for_node, declaration_name_to_string, for_each, for_each_entry_bool,
     for_each_import_clause_declaration_bool, get_combined_node_flags,
     get_effective_type_annotation_node, get_emit_declarations, get_es_module_interop,
@@ -25,7 +26,7 @@ impl TypeChecker {
     pub(super) fn get_first_non_module_exports_identifier(
         &self,
         node: &Node, /*EntityNameOrEntityNameExpression*/
-    ) -> Rc<Node /*Identifier*/> {
+    ) -> Gc<Node /*Identifier*/> {
         match node.kind() {
             SyntaxKind::Identifier => node.node_wrapper(),
             SyntaxKind::QualifiedName => {
@@ -111,7 +112,7 @@ impl TypeChecker {
         let mut symbol = self.get_symbol_of_node(node).unwrap();
         let target = self.resolve_alias(&symbol);
 
-        if !Rc::ptr_eq(&target, &self.unknown_symbol()) {
+        if !Gc::ptr_eq(&target, &self.unknown_symbol()) {
             symbol = self
                 .get_merged_symbol(Some(symbol.maybe_export_symbol().unwrap_or(symbol)))
                 .unwrap();
@@ -194,7 +195,7 @@ impl TypeChecker {
                             }
                         }
                         SyntaxKind::ExportSpecifier => {
-                            if !are_option_rcs_equal(
+                            if !are_option_gcs_equal(
                                 get_source_file_of_node(type_only_alias.as_deref()).as_ref(),
                                 get_source_file_of_node(Some(node)).as_ref(),
                             ) {
@@ -360,7 +361,7 @@ impl TypeChecker {
                         if module_existed.is_some() {
                             for_each(
                                 &import_clause_named_bindings.as_named_imports().elements,
-                                |element: &Rc<Node>, _| -> Option<()> {
+                                |element: &Gc<Node>, _| -> Option<()> {
                                     self.check_import_binding(element);
                                     None
                                 },
@@ -397,7 +398,7 @@ impl TypeChecker {
                 != SyntaxKind::ExternalModuleReference
             {
                 let target = self.resolve_alias(&self.get_symbol_of_node(node).unwrap());
-                if !Rc::ptr_eq(&target, &self.unknown_symbol()) {
+                if !Gc::ptr_eq(&target, &self.unknown_symbol()) {
                     if target.flags().intersects(SymbolFlags::Value) {
                         let module_name = get_first_identifier(
                             &node_as_import_equals_declaration.module_reference,
@@ -496,7 +497,7 @@ impl TypeChecker {
             {
                 for_each(
                     &node_export_clause.as_named_exports().elements,
-                    |element: &Rc<Node>, _| -> Option<()> {
+                    |element: &Gc<Node>, _| -> Option<()> {
                         self.check_export_specifier(element);
                         None
                     },
@@ -715,16 +716,16 @@ impl TypeChecker {
                     | SymbolFlags::Namespace
                     | SymbolFlags::Alias,
                 None,
-                Option::<Rc<Node>>::None,
+                Option::<Gc<Node>>::None,
                 true,
                 None,
             );
             if matches!(
                 symbol.as_ref(),
-                Some(symbol) if Rc::ptr_eq(
+                Some(symbol) if Gc::ptr_eq(
                     symbol,
                     &self.undefined_symbol()
-                ) || Rc::ptr_eq(
+                ) || Gc::ptr_eq(
                     symbol,
                     &self.global_this_symbol()
                 ) || matches!(
@@ -755,7 +756,7 @@ impl TypeChecker {
                 if match target.as_ref() {
                     None => true,
                     Some(target) => {
-                        Rc::ptr_eq(target, &self.unknown_symbol())
+                        Gc::ptr_eq(target, &self.unknown_symbol())
                             || target.flags().intersects(SymbolFlags::Value)
                     }
                 } {
@@ -853,7 +854,7 @@ impl TypeChecker {
                 } else {
                     sym.clone()
                 };
-                if Rc::ptr_eq(&target, &self.unknown_symbol())
+                if Gc::ptr_eq(&target, &self.unknown_symbol())
                     || target.flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(&node_as_export_assignment.expression, None);
@@ -952,7 +953,7 @@ impl TypeChecker {
                     continue;
                 }
                 let exported_declarations_count =
-                    count_where(declarations.as_deref(), |declaration: &Rc<Node>, _| {
+                    count_where(declarations.as_deref(), |declaration: &Gc<Node>, _| {
                         is_not_overload_and_not_accessor(declaration)
                     });
                 if flags.intersects(SymbolFlags::TypeAlias) && exported_declarations_count <= 2 {
@@ -962,7 +963,7 @@ impl TypeChecker {
                     if !self.is_duplicated_common_js_export(declarations.as_deref()) {
                         for declaration in declarations.as_ref().unwrap() {
                             if is_not_overload(declaration) {
-                                self.diagnostics().add(Rc::new(
+                                self.diagnostics().add(Gc::new(
                                     create_diagnostic_for_node(
                                         declaration,
                                         &Diagnostics::Cannot_redeclare_exported_variable_0,

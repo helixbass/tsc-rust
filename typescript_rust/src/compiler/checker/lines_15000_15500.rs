@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
 use std::ptr;
@@ -45,14 +46,14 @@ impl TypeChecker {
     pub(super) fn create_template_literal_type(
         &self,
         texts: Vec<String>,
-        types: Vec<Rc<Type>>,
-    ) -> Rc<Type> {
+        types: Vec<Gc<Type>>,
+    ) -> Gc<Type> {
         let type_ = self.create_type(TypeFlags::TemplateLiteral);
-        let type_: Rc<Type> = TemplateLiteralType::new(type_, texts, types).into();
+        let type_: Gc<Type> = TemplateLiteralType::new(type_, texts, types).into();
         type_
     }
 
-    pub(super) fn get_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Gc<Type> {
         if type_
             .flags()
             .intersects(TypeFlags::Union | TypeFlags::Never)
@@ -88,7 +89,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         type_: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let id = format!("{},{}", get_symbol_id(symbol), self.get_type_id(type_));
         let mut result = self.string_mapping_types().get(&id).map(Clone::clone);
         if result.is_none() {
@@ -99,9 +100,9 @@ impl TypeChecker {
         result.unwrap()
     }
 
-    pub(super) fn create_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Rc<Type> {
+    pub(super) fn create_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Gc<Type> {
         let result = self.create_type(TypeFlags::StringMapping);
-        let result: Rc<Type> = StringMappingType::new(result, type_.type_wrapper()).into();
+        let result: Gc<Type> = StringMappingType::new(result, type_.type_wrapper()).into();
         result.set_symbol(Some(symbol.symbol_wrapper()));
         result
     }
@@ -112,10 +113,10 @@ impl TypeChecker {
         index_type: &Type,
         access_flags: AccessFlags,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let type_ = self.create_type(TypeFlags::IndexedAccess);
-        let type_: Rc<Type> = IndexedAccessType::new(
+        let type_: Gc<Type> = IndexedAccessType::new(
             type_,
             object_type.type_wrapper(),
             index_type.type_wrapper(),
@@ -136,14 +137,14 @@ impl TypeChecker {
             return true;
         }
         if type_.flags().intersects(TypeFlags::Union) {
-            return every(type_.as_union_type().types(), |type_: &Rc<Type>, _| {
+            return every(type_.as_union_type().types(), |type_: &Gc<Type>, _| {
                 self.is_js_literal_type(type_)
             });
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
             return some(
                 Some(type_.as_intersection_type().types()),
-                Some(|type_: &Rc<Type>| self.is_js_literal_type(type_)),
+                Some(|type_: &Gc<Type>| self.is_js_literal_type(type_)),
             );
         }
         if type_.flags().intersects(TypeFlags::Instantiable) {
@@ -185,7 +186,7 @@ impl TypeChecker {
                     && is_identifier(node)
                     && self.has_matching_argument(&parent, node);
             }
-            return maybe_every(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>, _| {
+            return maybe_every(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>, _| {
                 !is_function_like(Some(&**d))
                     || get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
             });
@@ -203,7 +204,7 @@ impl TypeChecker {
             TAccessNode, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
         access_flags: AccessFlags,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         let access_expression = access_node
             .as_deref()
@@ -406,7 +407,7 @@ impl TypeChecker {
                 .or_else(|| self.get_index_info_of_type_(object_type, &self.string_type()));
             if let Some(index_info) = index_info.as_deref() {
                 if access_flags.intersects(AccessFlags::NoIndexSignatures)
-                    && !Rc::ptr_eq(&index_info.key_type, &self.number_type())
+                    && !Gc::ptr_eq(&index_info.key_type, &self.number_type())
                 {
                     if access_expression.is_some() {
                         self.error(
@@ -426,7 +427,7 @@ impl TypeChecker {
                     return None;
                 }
                 if let Some(access_node) = access_node.as_ref() {
-                    if Rc::ptr_eq(&index_info.key_type, &self.string_type())
+                    if Gc::ptr_eq(&index_info.key_type, &self.string_type())
                         && !self.is_type_assignable_to_kind(
                             index_type,
                             TypeFlags::String | TypeFlags::Number,
@@ -488,7 +489,7 @@ impl TypeChecker {
                                 .flags()
                                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
                         {
-                            self.diagnostics().add(Rc::new(
+                            self.diagnostics().add(Gc::new(
                                 create_diagnostic_for_node(
                                     access_expression,
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
@@ -519,7 +520,7 @@ impl TypeChecker {
                         {
                             let mut types = map(
                                 &*object_type.as_resolved_type().properties(),
-                                |property: &Rc<Symbol>, _| self.get_type_of_symbol(property),
+                                |property: &Gc<Symbol>, _| self.get_type_of_symbol(property),
                             );
                             append(&mut types, Some(self.undefined_type()));
                             return Some(self.get_union_type(
@@ -535,7 +536,7 @@ impl TypeChecker {
                     let mut took_if_branch = false;
                     if matches!(
                         object_type.maybe_symbol(),
-                        Some(symbol) if Rc::ptr_eq(&symbol, &self.global_this_symbol())
+                        Some(symbol) if Gc::ptr_eq(&symbol, &self.global_this_symbol())
                     ) {
                         if let Some(prop_name) = prop_name.as_ref() {
                             let global_this_symbol_exports =
@@ -740,7 +741,7 @@ impl TypeChecker {
                                             self.type_to_string_(object_type, Option::<&Node>::None, None, None),
                                         ])
                                     ));
-                                    self.diagnostics().add(Rc::new(
+                                    self.diagnostics().add(Gc::new(
                                         create_diagnostic_for_node_from_message_chain(
                                             access_expression,
                                             error_info.unwrap(),
@@ -845,7 +846,7 @@ impl TypeChecker {
     pub(super) fn get_index_node_for_access_expression(
         &self,
         access_node: &Node, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if access_node.kind() == SyntaxKind::ElementAccessExpression {
             access_node
                 .as_element_access_expression()
@@ -870,7 +871,7 @@ impl TypeChecker {
         type_.flags().intersects(TypeFlags::TemplateLiteral)
             && every(
                 &type_.as_template_literal_type().types,
-                |type_: &Rc<Type>, _| self.is_pattern_literal_placeholder_type(type_),
+                |type_: &Gc<Type>, _| self.is_pattern_literal_placeholder_type(type_),
             )
     }
 
@@ -900,7 +901,7 @@ impl TypeChecker {
                         | ObjectFlags::IsGenericTypeComputed
                         | reduce_left(
                             type_.as_union_or_intersection_type().types(),
-                            |flags, t: &Rc<Type>, _| flags | self.get_generic_object_flags(t),
+                            |flags, t: &Gc<Type>, _| flags | self.get_generic_object_flags(t),
                             ObjectFlags::None,
                             None,
                             None,
@@ -951,7 +952,7 @@ impl TypeChecker {
             && matches!(type_.as_type_parameter().is_this_type, Some(true))
     }
 
-    pub(super) fn get_simplified_type(&self, type_: &Type, writing: bool) -> Rc<Type> {
+    pub(super) fn get_simplified_type(&self, type_: &Type, writing: bool) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::IndexedAccess) {
             self.get_simplified_indexed_access_type(type_, writing)
         } else if type_.flags().intersects(TypeFlags::Conditional) {
@@ -966,7 +967,7 @@ impl TypeChecker {
         object_type: &Type,
         index_type: &Type,
         writing: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if object_type
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
@@ -975,7 +976,7 @@ impl TypeChecker {
                 object_type
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Rc<Type>, _| {
+                |t: &Gc<Type>, _| {
                     self.get_simplified_type(
                         &self.get_indexed_access_type(
                             t,
@@ -1011,9 +1012,9 @@ impl TypeChecker {
         object_type: &Type,
         index_type: &Type,
         writing: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if index_type.flags().intersects(TypeFlags::Union) {
-            let types = map(index_type.as_union_type().types(), |t: &Rc<Type>, _| {
+            let types = map(index_type.as_union_type().types(), |t: &Gc<Type>, _| {
                 self.get_simplified_type(
                     &self.get_indexed_access_type(
                         object_type,
@@ -1045,7 +1046,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*IndexedAccessType*/
         writing: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         let read_cache = || {
             if writing {
@@ -1058,7 +1059,7 @@ impl TypeChecker {
                     .clone()
             }
         };
-        let write_cache = |simplified_type: Rc<Type>| {
+        let write_cache = |simplified_type: Gc<Type>| {
             if writing {
                 *type_as_indexed_access_type.maybe_simplified_for_writing() = Some(simplified_type);
             } else {
@@ -1066,7 +1067,7 @@ impl TypeChecker {
             }
         };
         if let Some(type_cache) = read_cache() {
-            return if Rc::ptr_eq(&type_cache, &self.circular_constraint_type()) {
+            return if Gc::ptr_eq(&type_cache, &self.circular_constraint_type()) {
                 type_.type_wrapper()
             } else {
                 type_cache
@@ -1134,14 +1135,14 @@ impl TypeChecker {
         &self,
         type_: &Type, /*ConditionalType*/
         writing: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_as_conditional_type = type_.as_conditional_type();
         let check_type = &type_as_conditional_type.check_type;
         let extends_type = &type_as_conditional_type.extends_type;
         let true_type = self.get_true_type_from_conditional_type(type_);
         let false_type = self.get_false_type_from_conditional_type(type_);
         if false_type.flags().intersects(TypeFlags::Never)
-            && Rc::ptr_eq(
+            && Gc::ptr_eq(
                 &self.get_actual_type_variable(&true_type),
                 &self.get_actual_type_variable(check_type),
             )
@@ -1157,7 +1158,7 @@ impl TypeChecker {
                 return self.never_type();
             }
         } else if true_type.flags().intersects(TypeFlags::Never)
-            && Rc::ptr_eq(
+            && Gc::ptr_eq(
                 &self.get_actual_type_variable(&false_type),
                 &self.get_actual_type_variable(check_type),
             )
@@ -1197,8 +1198,8 @@ impl TypeChecker {
         &self,
         object_type: &Type, /*MappedType*/
         index: &Type,
-    ) -> Rc<Type> {
-        let mapper = Rc::new(self.create_type_mapper(
+    ) -> Gc<Type> {
+        let mapper = Gc::new(self.create_type_mapper(
             vec![self.get_type_parameter_from_mapped_type(object_type)],
             Some(vec![index.type_wrapper()]),
         ));
@@ -1222,8 +1223,8 @@ impl TypeChecker {
             TAccessNode, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let access_flags = access_flags.unwrap_or(AccessFlags::None);
         let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         self.get_indexed_access_type_or_undefined(
@@ -1268,8 +1269,8 @@ impl TypeChecker {
             TAccessNode, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Option<Rc<Type>> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Option<Gc<Type>> {
         let mut access_flags = access_flags.unwrap_or(AccessFlags::None);
         if ptr::eq(object_type, &*self.wildcard_type())
             || ptr::eq(index_type, &*self.wildcard_type())
@@ -1357,7 +1358,7 @@ impl TypeChecker {
         if index_type.flags().intersects(TypeFlags::Union)
             && !index_type.flags().intersects(TypeFlags::Boolean)
         {
-            let mut prop_types: Vec<Rc<Type>> = vec![];
+            let mut prop_types: Vec<Gc<Type>> = vec![];
             let mut was_missing_prop = false;
             for t in index_type.as_union_type().types() {
                 let prop_type = self.get_property_type_for_index_type(

@@ -1,8 +1,9 @@
+use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::PipelinePhase;
+use super::{ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule, PipelinePhase};
 use crate::{
     compare_emit_helpers, get_emit_helpers, get_external_helpers_module_name,
     has_recorded_external_helpers, is_source_file, is_template_literal_kind, is_unparsed_source,
@@ -72,7 +73,7 @@ impl Printer {
 
     pub(super) fn emit_helpers(&self, node: &Node) -> bool {
         let mut helpers_emitted = false;
-        let bundle: Option<Rc<Node>> = if node.kind() == SyntaxKind::Bundle {
+        let bundle: Option<Gc<Node>> = if node.kind() == SyntaxKind::Bundle {
             Some(node.node_wrapper())
         } else {
             None
@@ -139,13 +140,13 @@ impl Printer {
                             self.write_lines(helper_text);
                         }
                         EmitHelperText::Callback(helper_text) => {
-                            self.write_lines(&helper_text(&|name: &str| {
+                            self.write_lines(&helper_text.call(&|name: &str| {
                                 self.make_file_level_optimistic_unique_name(name)
                             }));
                         }
                     }
                     if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                        bundle_file_info.sections.push(Rc::new(
+                        bundle_file_info.sections.push(Gc::new(
                             BundleFileSection::new_emit_helpers(
                                 helper.name().to_owned(),
                                 pos.try_into().unwrap(),
@@ -164,10 +165,10 @@ impl Printer {
     pub(super) fn get_sorted_emit_helpers(
         &self,
         node: &Node,
-    ) -> Option<SortedArray<Rc<EmitHelper>>> {
+    ) -> Option<SortedArray<Gc<EmitHelper>>> {
         let helpers = get_emit_helpers(node);
         helpers.map(|helpers| {
-            stable_sort(&helpers, |a: &Rc<EmitHelper>, b: &Rc<EmitHelper>| {
+            stable_sort(&helpers, |a: &Gc<EmitHelper>, b: &Gc<EmitHelper>| {
                 compare_emit_helpers(a, b)
             })
         })
@@ -246,7 +247,7 @@ impl Printer {
             let section = (*unparsed.as_unparsed_synthetic_reference().section).clone();
             section.set_pos(pos.try_into().unwrap());
             section.set_end(self.writer().get_text_pos().try_into().unwrap());
-            bundle_file_info.sections.push(Rc::new(section));
+            bundle_file_info.sections.push(Gc::new(section));
         }
     }
 
@@ -322,17 +323,11 @@ impl Printer {
         self.write_punctuation("[");
         self.emit_expression(
             Some(&*node.as_computed_property_name().expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_expression_of_computed_property_name(
-                            synthetic_factory,
-                            node,
-                        )
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.write_punctuation("]");
     }

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
@@ -10,16 +11,17 @@ use super::{
     signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
 };
 use crate::{
-    get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
-    HasInitializerInterface, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary,
-    TypeComparer, __String, add_related_info, are_rc_slices_equal, create_diagnostic_for_node,
-    format_message, get_function_flags, get_semantic_jsx_children, get_text_of_node, has_type,
-    is_block, is_computed_non_literal_name, is_identifier_type_predicate, is_jsx_element,
-    is_jsx_opening_element, is_omitted_expression, is_spread_assignment, length, map, some, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    FunctionLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
-    RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    are_gc_slices_equal, get_source_file_of_node, id_text, is_jsx_spread_attribute,
+    unescape_leading_underscores, HasInitializerInterface, SignatureDeclarationInterface,
+    SymbolFlags, SymbolInterface, Ternary, TypeComparer, __String, add_related_info,
+    are_rc_slices_equal, create_diagnostic_for_node, format_message, get_function_flags,
+    get_semantic_jsx_children, get_text_of_node, has_type, is_block, is_computed_non_literal_name,
+    is_identifier_type_predicate, is_jsx_element, is_jsx_opening_element, is_omitted_expression,
+    is_spread_assignment, length, map, some, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, RelationComparisonResult, Signature,
+    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -33,7 +35,7 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
             source,
@@ -58,8 +60,8 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         if self.is_type_related_to(source, target, relation.clone()) {
             return true;
@@ -93,7 +95,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::Intersection)
                 && some(
                     Some(type_.as_intersection_type().types()),
-                    Some(|type_: &Rc<Type>| self.is_or_has_generic_conditional(type_)),
+                    Some(|type_: &Gc<Type>| self.is_or_has_generic_conditional(type_)),
                 )
     }
 
@@ -104,8 +106,8 @@ impl TypeChecker {
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         if node.is_none() || self.is_or_has_generic_conditional(target) {
             return false;
@@ -212,8 +214,8 @@ impl TypeChecker {
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         let call_signatures = self.get_signatures_of_type(source, SignatureKind::Call);
         let construct_signatures = self.get_signatures_of_type(source, SignatureKind::Construct);
@@ -223,7 +225,7 @@ impl TypeChecker {
         {
             if some(
                 Some(&signatures),
-                Some(|s: &Rc<Signature>| {
+                Some(|s: &Gc<Signature>| {
                     let return_type = self.get_return_type_of_signature(s.clone());
                     !return_type
                         .flags()
@@ -239,8 +241,9 @@ impl TypeChecker {
                         )
                 }),
             ) {
-                let result_obj = error_output_container
-                    .unwrap_or_else(|| Rc::new(CheckTypeErrorOutputContainerConcrete::new(None)));
+                let result_obj = error_output_container.unwrap_or_else(|| {
+                    Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
+                });
                 self.check_type_assignable_to(
                     source,
                     target,
@@ -252,7 +255,7 @@ impl TypeChecker {
                 let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
                 add_related_info(
                     &diagnostic,
-                    vec![Rc::new(
+                    vec![Gc::new(
                         create_diagnostic_for_node(
                             node,
                             if
@@ -279,8 +282,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         let node_as_arrow_function = node.as_arrow_function();
         if is_block(&node_as_arrow_function.maybe_body().unwrap()) {
@@ -288,7 +291,7 @@ impl TypeChecker {
         }
         if some(
             Some(node_as_arrow_function.parameters()),
-            Some(|parameter: &Rc<Node>| has_type(parameter)),
+            Some(|parameter: &Gc<Node>| has_type(parameter)),
         ) {
             return false;
         }
@@ -304,7 +307,7 @@ impl TypeChecker {
         let return_expression = node_as_arrow_function.maybe_body().unwrap();
         let source_return = self.get_return_type_of_signature(source_sig);
         let target_return = self.get_union_type(
-            map(&target_signatures, |signature: &Rc<Signature>, _| {
+            map(&target_signatures, |signature: &Gc<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             }),
             None,
@@ -333,8 +336,9 @@ impl TypeChecker {
             if elaborated {
                 return elaborated;
             }
-            let result_obj = error_output_container
-                .unwrap_or_else(|| Rc::new(CheckTypeErrorOutputContainerConcrete::new(None)));
+            let result_obj = error_output_container.unwrap_or_else(|| {
+                Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
+            });
             self.check_type_related_to(
                 &source_return,
                 &target_return,
@@ -354,7 +358,7 @@ impl TypeChecker {
                         add_related_info(
                             &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
                             vec![
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         &target_symbol_declarations[0],
                                         &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
@@ -381,7 +385,7 @@ impl TypeChecker {
                 {
                     add_related_info(
                         &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
-                        vec![Rc::new(
+                        vec![Gc::new(
                             create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
@@ -402,7 +406,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         name_type: &Type,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let idx = self.get_indexed_access_type_or_undefined(
             target,
             name_type,
@@ -438,7 +442,7 @@ impl TypeChecker {
         &self,
         next: &Node, /*Expression*/
         source_prop_type: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         *next.maybe_contextual_type() = Some(source_prop_type.type_wrapper());
         let ret = self.check_expression_for_mutable_location(
             next,
@@ -456,8 +460,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         let mut reported_error = false;
         for status in iterator {
@@ -515,9 +519,9 @@ impl TypeChecker {
                 };
                 reported_error = true;
                 if !elaborated {
-                    let result_obj_default: Rc<dyn CheckTypeErrorOutputContainer> =
-                        Rc::new(CheckTypeErrorOutputContainerConcrete::new(None));
-                    let result_obj: Rc<dyn CheckTypeErrorOutputContainer> =
+                    let result_obj_default: Gc<Box<dyn CheckTypeErrorOutputContainer>> =
+                        Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)));
+                    let result_obj: Gc<Box<dyn CheckTypeErrorOutputContainer>> =
                         error_output_container.clone().unwrap_or(result_obj_default);
                     let specific_source = if let Some(next) = next.as_ref() {
                         self.check_expression_for_mutable_location_with_contextual_type(
@@ -533,7 +537,7 @@ impl TypeChecker {
                             Some(&*target_prop_type),
                         )
                     {
-                        let diag: Rc<Diagnostic> = Rc::new(
+                        let diag: Gc<Diagnostic> = Gc::new(
                             create_diagnostic_for_node(
                                 &prop,
                                 &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target,
@@ -579,7 +583,7 @@ impl TypeChecker {
                             containing_message_chain.clone(),
                             Some(result_obj.clone()),
                         );
-                        if result && !Rc::ptr_eq(&specific_source, &source_prop_type) {
+                        if result && !Gc::ptr_eq(&specific_source, &source_prop_type) {
                             self.check_type_related_to(
                                 &source_prop_type,
                                 &target_prop_type,
@@ -619,7 +623,7 @@ impl TypeChecker {
                                     add_related_info(
                                         &reported_diag,
                                         vec![
-                                            Rc::new(
+                                            Gc::new(
                                                 create_diagnostic_for_node(
                                                     index_info_declaration,
                                                     &Diagnostics::The_expected_type_comes_from_this_index_signature,
@@ -657,7 +661,7 @@ impl TypeChecker {
                                 add_related_info(
                                     &reported_diag,
                                     vec![
-                                        Rc::new(
+                                        Gc::new(
                                             create_diagnostic_for_node(
                                                 &target_node,
                                                 &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
@@ -805,8 +809,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         let mut result = self.elaborate_elementwise(
             self.generate_jsx_attributes(node),
@@ -895,7 +899,7 @@ impl TypeChecker {
                 invalid_text_diagnostic.clone().unwrap()
             };
             if more_than_one_real_children {
-                if !Rc::ptr_eq(&array_like_target_parts, &self.never_type()) {
+                if !Gc::ptr_eq(&array_like_target_parts, &self.never_type()) {
                     let real_source = self.create_tuple_type(
                         &self.check_jsx_children(&containing_element, Some(CheckMode::Normal)),
                         None,
@@ -946,7 +950,7 @@ impl TypeChecker {
                     }
                 }
             } else {
-                if !Rc::ptr_eq(&non_array_like_target_parts, &self.never_type()) {
+                if !Gc::ptr_eq(&non_array_like_target_parts, &self.never_type()) {
                     let child = &valid_children[0];
                     let elem = self.get_elaboration_element_for_jsx_child(
                         child,
@@ -1038,8 +1042,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         if target.flags().intersects(TypeFlags::Primitive) {
             return false;
@@ -1133,8 +1137,8 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         if target.flags().intersects(TypeFlags::Primitive) {
             return false;
@@ -1155,7 +1159,7 @@ impl TypeChecker {
         target: &Type,
         error_node: &Node,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> bool {
         self.check_type_related_to(
             source,
@@ -1170,8 +1174,8 @@ impl TypeChecker {
 
     pub(super) fn is_signature_assignable_to(
         &self,
-        source: Rc<Signature>,
-        target: Rc<Signature>,
+        source: Gc<Signature>,
+        target: Gc<Signature>,
         ignore_return_types: bool,
     ) -> bool {
         self.compare_signatures_related(
@@ -1185,12 +1189,14 @@ impl TypeChecker {
             false,
             &mut None,
             Option::<&fn(&Type, &Type)>::None,
-            Rc::new(TypeComparerCompareTypesAssignable::new(self.rc_wrapper())),
+            Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
+                self.rc_wrapper(),
+            ))),
             None,
         ) != Ternary::False
     }
 
-    pub(super) fn is_any_signature(&self, s: Rc<Signature>) -> bool {
+    pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> bool {
         let s_type_parameters_is_none = s.maybe_type_parameters().is_none();
         s_type_parameters_is_none
             && match s.maybe_this_parameter().as_ref() {
@@ -1201,7 +1207,7 @@ impl TypeChecker {
             }
             && s.parameters().len() == 1
             && signature_has_rest_parameter(&s)
-            && (Rc::ptr_eq(
+            && (Gc::ptr_eq(
                 &self.get_type_of_parameter(&s.parameters()[0]),
                 &self.any_array_type(),
             ) || self.is_type_any(Some(self.get_type_of_parameter(&s.parameters()[0]))))
@@ -1210,16 +1216,16 @@ impl TypeChecker {
 
     pub(super) fn compare_signatures_related<TIncompatibleErrorReporter: Fn(&Type, &Type)>(
         &self,
-        mut source: Rc<Signature>,
-        mut target: Rc<Signature>,
+        mut source: Gc<Signature>,
+        mut target: Gc<Signature>,
         check_mode: SignatureCheckMode,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
         incompatible_error_reporter: Option<&TIncompatibleErrorReporter>,
-        compare_types: Rc<dyn TypeComparer>,
-        report_unreliable_markers: Option<Rc<TypeMapper>>,
+        compare_types: Gc<Box<dyn TypeComparer>>,
+        report_unreliable_markers: Option<Gc<TypeMapper>>,
     ) -> Ternary {
-        if Rc::ptr_eq(&source, &target) {
+        if Gc::ptr_eq(&source, &target) {
             return Ternary::True;
         }
 
@@ -1243,7 +1249,7 @@ impl TypeChecker {
             source.maybe_type_parameters().as_ref(),
             Some(source_type_parameters) if !matches!(
                 target.maybe_type_parameters().as_ref(),
-                Some(target_type_parameters) if are_rc_slices_equal(source_type_parameters, target_type_parameters)
+                Some(target_type_parameters) if are_gc_slices_equal(source_type_parameters, target_type_parameters)
             )
         ) {
             target = self.get_canonical_signature(target);
@@ -1288,7 +1294,7 @@ impl TypeChecker {
         let source_this_type = self.get_this_type_of_signature(&source);
         if let Some(source_this_type) = source_this_type
             .as_ref()
-            .filter(|source_this_type| !Rc::ptr_eq(source_this_type, &self.void_type()))
+            .filter(|source_this_type| !Gc::ptr_eq(source_this_type, &self.void_type()))
         {
             let target_this_type = self.get_this_type_of_signature(&target);
             if let Some(target_this_type) = target_this_type.as_ref() {
@@ -1460,7 +1466,7 @@ impl TypeChecker {
             } else {
                 self.get_return_type_of_signature(target.clone())
             };
-            if Rc::ptr_eq(&target_return_type, &self.void_type()) {
+            if Gc::ptr_eq(&target_return_type, &self.void_type()) {
                 return result;
             }
             let source_return_type = if self.is_resolving_return_type_of_signature(source.clone()) {
@@ -1540,52 +1546,53 @@ impl TypeChecker {
 
 #[derive(Debug)]
 pub(super) struct ElaborationIteratorItem {
-    pub error_node: Rc<Node>,
-    pub inner_expression: Option<Rc<Node /*Expression*/>>,
-    name_type: Rc<Type>,
+    pub error_node: Gc<Node>,
+    pub inner_expression: Option<Gc<Node /*Expression*/>>,
+    name_type: Gc<Type>,
     error_message: Option<Cow<'static, DiagnosticMessage>>,
 }
 
 pub(super) type ErrorReporter<'a> =
     &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>);
 
-pub(super) trait CheckTypeContainingMessageChain {
+pub(super) trait CheckTypeContainingMessageChain: Trace + Finalize {
     fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>>;
 }
 
-pub(super) trait CheckTypeErrorOutputContainer {
-    fn push_error(&self, error: Rc<Diagnostic>);
-    fn set_errors(&self, errors: Vec<Rc<Diagnostic>>);
-    fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>>;
+pub(super) trait CheckTypeErrorOutputContainer: Trace + Finalize {
+    fn push_error(&self, error: Gc<Diagnostic>);
+    fn set_errors(&self, errors: Vec<Gc<Diagnostic>>);
+    fn get_error(&self, index: usize) -> Option<Gc<Diagnostic>>;
     fn errors_len(&self) -> usize;
     fn skip_logging(&self) -> Option<bool>;
-    fn errors(&self) -> Vec<Rc<Diagnostic>>;
+    fn errors(&self) -> Vec<Gc<Diagnostic>>;
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct CheckTypeErrorOutputContainerConcrete {
-    errors: RefCell<Vec<Rc<Diagnostic>>>,
+    errors: GcCell<Vec<Gc<Diagnostic>>>,
     skip_logging: Option<bool>,
 }
 
 impl CheckTypeErrorOutputContainerConcrete {
     pub fn new(skip_logging: Option<bool>) -> Self {
         Self {
-            errors: RefCell::new(vec![]),
+            errors: Default::default(),
             skip_logging,
         }
     }
 }
 
 impl CheckTypeErrorOutputContainer for CheckTypeErrorOutputContainerConcrete {
-    fn push_error(&self, error: Rc<Diagnostic>) {
+    fn push_error(&self, error: Gc<Diagnostic>) {
         self.errors.borrow_mut().push(error);
     }
 
-    fn set_errors(&self, errors: Vec<Rc<Diagnostic>>) {
+    fn set_errors(&self, errors: Vec<Gc<Diagnostic>>) {
         *self.errors.borrow_mut() = errors;
     }
 
-    fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>> {
+    fn get_error(&self, index: usize) -> Option<Gc<Diagnostic>> {
         self.errors.borrow().get(index).map(Clone::clone)
     }
 
@@ -1597,7 +1604,7 @@ impl CheckTypeErrorOutputContainer for CheckTypeErrorOutputContainerConcrete {
         self.skip_logging
     }
 
-    fn errors(&self) -> Vec<Rc<Diagnostic>> {
+    fn errors(&self) -> Vec<Gc<Diagnostic>> {
         self.errors.borrow().clone()
     }
 }

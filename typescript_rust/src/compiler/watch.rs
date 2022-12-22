@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -31,16 +32,18 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 thread_local! {
-    static sys_format_diagnostics_host: Option<Rc<SysFormatDiagnosticsHost>> = /*sys ?*/ Some(Rc::new(SysFormatDiagnosticsHost::new(get_sys())));
+    static sys_format_diagnostics_host: Option<Gc<SysFormatDiagnosticsHost>> = /*sys ?*/ Some(Gc::new(SysFormatDiagnosticsHost::new(get_sys())));
 }
 
+#[derive(Trace, Finalize)]
 struct SysFormatDiagnosticsHost {
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
+    #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
 }
 
 impl SysFormatDiagnosticsHost {
-    pub fn new(system: Rc<dyn System>) -> Self {
+    pub fn new(system: Gc<Box<dyn System>>) -> Self {
         let system_use_case_sensitive_file_names = system.use_case_sensitive_file_names();
         Self {
             system,
@@ -66,46 +69,49 @@ impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
 }
 
 pub fn create_diagnostic_reporter(
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     pretty: Option<bool>,
-) -> Rc<dyn DiagnosticReporter> {
-    let host: Rc<SysFormatDiagnosticsHost> =
+) -> Gc<Box<dyn DiagnosticReporter>> {
+    let host: Gc<SysFormatDiagnosticsHost> =
         sys_format_diagnostics_host.with(|sys_format_diagnostics_host_| {
-            if Rc::ptr_eq(&system, &get_sys())
+            if Gc::ptr_eq(&system, &get_sys())
             /*&& sysFormatDiagnosticsHost*/
             {
                 sys_format_diagnostics_host_.clone().unwrap()
             } else {
-                Rc::new(SysFormatDiagnosticsHost::new(system.clone()))
+                Gc::new(SysFormatDiagnosticsHost::new(system.clone()))
             }
         });
-    Rc::new(DiagnosticReporterConcrete::new(host, pretty, system))
+    Gc::new(Box::new(DiagnosticReporterConcrete::new(
+        host, pretty, system,
+    )))
 }
 
+#[derive(Trace, Finalize)]
 struct DiagnosticReporterConcrete {
-    host: Rc<SysFormatDiagnosticsHost>,
+    host: Gc<SysFormatDiagnosticsHost>,
     pretty: bool,
-    diagnostics: RefCell<Vec<Rc<Diagnostic>>>,
-    system: Rc<dyn System>,
+    diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
+    system: Gc<Box<dyn System>>,
 }
 
 impl DiagnosticReporterConcrete {
     pub fn new(
-        host: Rc<SysFormatDiagnosticsHost>,
+        host: Gc<SysFormatDiagnosticsHost>,
         pretty: Option<bool>,
-        system: Rc<dyn System>,
+        system: Gc<Box<dyn System>>,
     ) -> Self {
         Self {
             host,
             pretty: pretty.unwrap_or(false),
-            diagnostics: RefCell::new(vec![]),
+            diagnostics: Default::default(),
             system,
         }
     }
 }
 
 impl DiagnosticReporter for DiagnosticReporterConcrete {
-    fn call(&self, diagnostic: Rc<Diagnostic>) {
+    fn call(&self, diagnostic: Gc<Diagnostic>) {
         if !self.pretty {
             self.system
                 .write(&format_diagnostic(&diagnostic, &*self.host));
@@ -162,19 +168,19 @@ pub fn get_locale_time_string(system: &dyn System) -> String {
 }
 
 pub fn create_watch_status_reporter(
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     pretty: Option<bool>,
 ) -> WatchStatusReporterConcrete {
     WatchStatusReporterConcrete::new(system, pretty)
 }
 
 pub struct WatchStatusReporterConcrete {
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     pretty: bool,
 }
 
 impl WatchStatusReporterConcrete {
-    pub fn new(system: Rc<dyn System>, pretty: Option<bool>) -> Self {
+    pub fn new(system: Gc<Box<dyn System>>, pretty: Option<bool>) -> Self {
         Self {
             system,
             pretty: pretty.unwrap_or(false),
@@ -185,17 +191,17 @@ impl WatchStatusReporterConcrete {
 impl WatchStatusReporter for WatchStatusReporterConcrete {
     fn call(
         &self,
-        diagnostic: Rc<Diagnostic>,
+        diagnostic: Gc<Diagnostic>,
         new_line: &str,
-        options: Rc<CompilerOptions>,
+        options: Gc<CompilerOptions>,
         _error_count: Option<usize>,
     ) {
         if self.pretty {
-            clear_screen_if_not_watching_for_file_changes(&*self.system, &diagnostic, &options);
+            clear_screen_if_not_watching_for_file_changes(&**self.system, &diagnostic, &options);
             let mut output = format!(
                 "[{}] ",
                 format_color_and_reset(
-                    &get_locale_time_string(&*self.system),
+                    &get_locale_time_string(&**self.system),
                     ForegroundColorEscapeSequences::Grey
                 )
             );
@@ -213,12 +219,12 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         } else {
             let mut output = "".to_owned();
 
-            if !clear_screen_if_not_watching_for_file_changes(&*self.system, &diagnostic, &options)
+            if !clear_screen_if_not_watching_for_file_changes(&**self.system, &diagnostic, &options)
             {
                 output.push_str(new_line);
             }
 
-            output.push_str(&format!("{} - ", get_locale_time_string(&*self.system)));
+            output.push_str(&format!("{} - ", get_locale_time_string(&**self.system)));
             output.push_str(&format!(
                 "{}{}",
                 flatten_diagnostic_message_text(
@@ -236,11 +242,11 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
 
 pub fn parse_config_file_with_system(
     config_file_name: &str,
-    options_to_extend: Rc<CompilerOptions>,
+    options_to_extend: Gc<CompilerOptions>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
-    system: Rc<dyn System>,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    system: Gc<Box<dyn System>>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
 ) -> Option<ParsedCommandLine> {
     let host = ParseConfigFileWithSystemHost::new(system, report_diagnostic);
     get_parsed_command_line_of_config_file(
@@ -253,13 +259,17 @@ pub fn parse_config_file_with_system(
     )
 }
 
+#[derive(Trace, Finalize)]
 struct ParseConfigFileWithSystemHost {
-    system: Rc<dyn System>,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    system: Gc<Box<dyn System>>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
 }
 
 impl ParseConfigFileWithSystemHost {
-    pub fn new(system: Rc<dyn System>, report_diagnostic: Rc<dyn DiagnosticReporter>) -> Self {
+    pub fn new(
+        system: Gc<Box<dyn System>>,
+        report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    ) -> Self {
         Self {
             system,
             report_diagnostic,
@@ -308,12 +318,12 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 }
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {
-        report_unrecoverable_diagnostic(&*self.system, &*self.report_diagnostic, diagnostic)
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
+        report_unrecoverable_diagnostic(&**self.system, &**self.report_diagnostic, diagnostic)
     }
 }
 
-pub fn get_error_count_for_summary(diagnostics: &[Rc<Diagnostic>]) -> usize {
+pub fn get_error_count_for_summary(diagnostics: &[Gc<Diagnostic>]) -> usize {
     count_where(Some(diagnostics), |diagnostic, _| {
         diagnostic.category() == DiagnosticCategory::Error
     })
@@ -351,19 +361,19 @@ pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
 }
 
 pub enum ProgramOrBuilderProgram {
-    Program(Rc<Program>),
+    Program(Gc<Box<Program>>),
     BuilderProgram(Rc<dyn BuilderProgram>),
 }
 
 impl ProgramOrBuilderProgram {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         match self {
             Self::Program(program) => program.get_compiler_options(),
             Self::BuilderProgram(program) => program.get_compiler_options(),
         }
     }
 
-    fn get_source_files(&self) -> Vec<Rc<Node>> {
+    fn get_source_files(&self) -> Vec<Gc<Node>> {
         match self {
             Self::Program(program) => program.get_source_files().clone(),
             Self::BuilderProgram(program) => program.get_source_files().to_owned(),
@@ -371,8 +381,8 @@ impl ProgramOrBuilderProgram {
     }
 }
 
-impl From<Rc<Program>> for ProgramOrBuilderProgram {
-    fn from(value: Rc<Program>) -> Self {
+impl From<Gc<Box<Program>>> for ProgramOrBuilderProgram {
+    fn from(value: Gc<Box<Program>>) -> Self {
         Self::Program(value)
     }
 }
@@ -685,7 +695,7 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
         }
         FileIncludeReason::ProjectReferenceFile(reason) => {
             let is_output = reason.kind == FileIncludeKind::OutputFromProjectReference;
-            let referenced_resolved_ref: Rc<ResolvedProjectReference> = Debug_.check_defined(
+            let referenced_resolved_ref: Gc<ResolvedProjectReference> = Debug_.check_defined(
                 program.get_resolved_project_references().as_ref().and_then(
                     |resolved_project_references| {
                         resolved_project_references
@@ -807,22 +817,22 @@ fn to_file_name<TFile: Into<StringOrRcNode>, TFileNameConvertor: Fn(&str) -> Str
 
 struct EmitFilesAndReportErrorsReturn {
     emit_result: EmitResult,
-    diagnostics: SortedArray<Rc<Diagnostic>>,
+    diagnostics: SortedArray<Gc<Diagnostic>>,
 }
 
 fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
-    program: Rc<Program>,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    program: Gc<Box<Program>>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<&dyn WriteFileCallback>,
-    cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<CustomTransformers>,
 ) -> EmitFilesAndReportErrorsReturn {
     let is_list_files_only = matches!(program.get_compiler_options().list_files_only, Some(true));
 
-    let mut all_diagnostics: Vec<Rc<Diagnostic>> =
+    let mut all_diagnostics: Vec<Gc<Diagnostic>> =
         program.get_config_file_parsing_diagnostics().clone();
     let config_file_parsing_diagnostics_length = all_diagnostics.len();
     add_range(
@@ -906,12 +916,12 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
 }
 
 pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
-    program: Rc<Program>,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    program: Gc<Box<Program>>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<&dyn WriteFileCallback>,
-    cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<CustomTransformers>,
 ) -> ExitStatus {
@@ -941,7 +951,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
 fn report_unrecoverable_diagnostic(
     system: &dyn System,
     report_diagnostic: &dyn DiagnosticReporter,
-    diagnostic: Rc<Diagnostic>,
+    diagnostic: Gc<Diagnostic>,
 ) {
     unimplemented!()
 }
@@ -999,7 +1009,7 @@ impl<TBuilderProgram: BuilderProgram> WatchHost
 impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
     for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
 {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
         unimplemented!()
     }
 }
@@ -1007,10 +1017,10 @@ impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
 pub struct IncrementalCompilationOptions<'a> {
     pub root_names: &'a [String],
     pub options: &'a CompilerOptions,
-    pub config_file_parsing_diagnostics: Option<&'a [Rc<Diagnostic>]>,
+    pub config_file_parsing_diagnostics: Option<&'a [Gc<Diagnostic>]>,
     pub project_references: Option<&'a [Rc<ProjectReference>]>,
-    pub host: Option<Rc<dyn CompilerHost>>,
-    pub report_diagnostic: Option<Rc<dyn DiagnosticReporter>>,
+    pub host: Option<Gc<Box<dyn CompilerHost>>>,
+    pub report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
     pub report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     pub after_program_emit_and_diagnostics:
         Option<&'a dyn FnMut(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>)>,

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::ptr;
 use std::rc::Rc;
 
@@ -32,7 +33,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_infer_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_parameter: Rc<Node /*TypeParameterDeclaration*/>,
+        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
     ) -> InferTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::InferType);
         let mut node = InferTypeNode::new(node, type_parameter);
@@ -43,7 +44,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_template_literal_type<TTemplateSpans: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        head: Rc<Node /*TemplateHead*/>,
+        head: Gc<Node /*TemplateHead*/>,
         template_spans: TTemplateSpans, /*<TemplateLiteralTypeSpan>*/
     ) -> TemplateLiteralTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TemplateLiteralType);
@@ -59,8 +60,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_import_type_node<TTypeArguments: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        argument: Rc<Node /*TypeNode*/>,
-        qualifier: Option<Rc<Node /*EntityName*/>>,
+        argument: Gc<Node /*TypeNode*/>,
+        qualifier: Option<Gc<Node /*EntityName*/>>,
         type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
         is_type_of: Option<bool>,
     ) -> ImportTypeNode {
@@ -84,11 +85,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ImportTypeNode*/
-        argument: Rc<Node /*TypeNode*/>,
-        qualifier: Option<Rc<Node /*EntityName*/>>,
-        type_arguments: Option<Vec<Rc<Node /*TypeNode*/>>>,
+        argument: Gc<Node /*TypeNode*/>,
+        qualifier: Option<Gc<Node /*EntityName*/>>,
+        type_arguments: Option<Vec<Gc<Node /*TypeNode*/>>>,
         is_type_of: Option<bool>,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let node_as_import_type_node = node.as_import_type_node();
         let is_type_of = is_type_of.unwrap_or_else(|| node_as_import_type_node.is_type_of());
         unimplemented!()
@@ -97,7 +98,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_parenthesized_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Rc<Node /*TypeNode*/>,
+        type_: Gc<Node /*TypeNode*/>,
     ) -> ParenthesizedTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::ParenthesizedType);
         let mut node = ParenthesizedTypeNode::new(node, type_);
@@ -116,7 +117,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         operator: SyntaxKind,
-        type_: Rc<Node /*TypeNode*/>,
+        type_: Gc<Node /*TypeNode*/>,
     ) -> TypeOperatorNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeOperator);
         let mut node = TypeOperatorNode::new(
@@ -132,8 +133,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_indexed_access_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        object_type: Rc<Node /*TypeNode*/>,
-        index_type: Rc<Node /*TypeNode*/>,
+        object_type: Gc<Node /*TypeNode*/>,
+        index_type: Gc<Node /*TypeNode*/>,
     ) -> IndexedAccessTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::IndexedAccessType);
         let mut node = IndexedAccessTypeNode::new(
@@ -149,11 +150,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_mapped_type_node<TMembers: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        readonly_token: Option<Rc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
-        type_parameter: Rc<Node /*TypeParameterDeclaration*/>,
-        name_type: Option<Rc<Node /*TypeNode*/>>,
-        question_token: Option<Rc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
+        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
+        name_type: Option<Gc<Node /*TypeNode*/>>,
+        question_token: Option<Gc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
         members: Option<TMembers /*<TypeElement>*/>,
     ) -> MappedTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::MappedType);
@@ -173,7 +174,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_literal_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        literal: Rc<Node /*LiteralTypeNode["literal"]*/>,
+        literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
     ) -> LiteralTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::LiteralType);
         let mut node = LiteralTypeNode::new(node, literal);
@@ -228,10 +229,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     >(
         &self,
         base_factory: &TBaseNodeFactory,
-        dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
         property_name: Option<TPropertyName /*PropertyName*/>,
         name: TName, /*BindingName*/
-        initializer: Option<Rc<Node /*Expression*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
     ) -> BindingElement {
         let node = self.create_base_binding_like_declaration(
             base_factory,
@@ -332,7 +333,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_property_access_expression<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
         name: TName,
     ) -> PropertyAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PropertyAccessExpression);
@@ -362,8 +363,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_property_access_chain<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+        expression: Gc<Node /*Expression*/>,
+        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
         name: TName,
     ) -> PropertyAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PropertyAccessExpression);
@@ -391,7 +392,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_element_access_expression<TIndex: Into<StringOrNumberOrBoolOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
         index: TIndex,
     ) -> ElementAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ElementAccessExpression);
@@ -417,8 +418,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_element_access_chain<TIndex: Into<StringOrNumberOrBoolOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+        expression: Gc<Node /*Expression*/>,
+        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
         index: TIndex,
     ) -> ElementAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ElementAccessExpression);
@@ -445,7 +446,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     >(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
         type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
         arguments_array: Option<TArgumentsArray /*<Expression>*/>,
     ) -> CallExpression {
@@ -483,9 +484,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         node: &Node,       /*CallExpression*/
         expression: &Node, /*Expression*/
-        type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
-        arguments_array: &[Rc<Node /*expression*/>],
-    ) -> Rc<Node /*CallExpression*/> {
+        type_arguments: Option<&[Gc<Node /*TypeNode*/>]>,
+        arguments_array: &[Gc<Node /*expression*/>],
+    ) -> Gc<Node /*CallExpression*/> {
         let node_as_call_expression = node.as_call_expression();
         if is_call_chain(node) {
             return self.update_call_chain(
@@ -506,7 +507,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     node_type_arguments.len() == type_arguments.len()
                         && node_type_arguments.iter().enumerate().all(
                             |(index, node_type_argument)| {
-                                Rc::ptr_eq(node_type_argument, &type_arguments[index])
+                                Gc::ptr_eq(node_type_argument, &type_arguments[index])
                             },
                         )
                 }
@@ -515,7 +516,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }
             || !(node_as_call_expression.arguments.len() == arguments_array.len()
                 && node_as_call_expression.arguments.iter().enumerate().all(
-                    |(index, node_argument)| Rc::ptr_eq(node_argument, &arguments_array[index]),
+                    |(index, node_argument)| Gc::ptr_eq(node_argument, &arguments_array[index]),
                 ))
         {
             self.update(
@@ -539,8 +540,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     >(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+        expression: Gc<Node /*Expression*/>,
+        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
         type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
         arguments_array: Option<TArgumentsArray /*<Expression>*/>,
     ) -> CallExpression {
@@ -579,10 +580,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         node: &Node,       /*CallExpression*/
         expression: &Node, /*Expression*/
-        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
-        type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
-        arguments_array: &[Rc<Node /*expression*/>],
-    ) -> Rc<Node /*CallExpression*/> {
+        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        type_arguments: Option<&[Gc<Node /*TypeNode*/>]>,
+        arguments_array: &[Gc<Node /*expression*/>],
+    ) -> Gc<Node /*CallExpression*/> {
         Debug_.assert(
             node.flags().intersects(NodeFlags::OptionalChain),
             Some("Cannot update a CallExpression using updateCallChain. Use updateCall instead"),
@@ -594,7 +595,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 question_dot_token.as_ref(),
             ) {
                 (Some(node_question_dot_token), Some(question_dot_token)) => {
-                    Rc::ptr_eq(node_question_dot_token, question_dot_token)
+                    Gc::ptr_eq(node_question_dot_token, question_dot_token)
                 }
                 (None, None) => true,
                 _ => false,
@@ -607,7 +608,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     node_type_arguments.len() == type_arguments.len()
                         && node_type_arguments.iter().enumerate().all(
                             |(index, node_type_argument)| {
-                                Rc::ptr_eq(node_type_argument, &type_arguments[index])
+                                Gc::ptr_eq(node_type_argument, &type_arguments[index])
                             },
                         )
                 }
@@ -616,7 +617,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }
             || !(node_as_call_expression.arguments.len() == arguments_array.len()
                 && node_as_call_expression.arguments.iter().enumerate().all(
-                    |(index, node_argument)| Rc::ptr_eq(node_argument, &arguments_array[index]),
+                    |(index, node_argument)| Gc::ptr_eq(node_argument, &arguments_array[index]),
                 ))
         {
             self.update(
@@ -641,7 +642,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     >(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
         type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
         arguments_array: Option<TArgumentsArray /*<Expression>*/>,
     ) -> NewExpression {
@@ -674,9 +675,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_tagged_template_expression<TTypeArguments: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag: Rc<Node /*Expression*/>,
+        tag: Gc<Node /*Expression*/>,
         type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
-        template: Rc<Node /*TemplateLiteral*/>,
+        template: Gc<Node /*TemplateLiteral*/>,
     ) -> TaggedTemplateExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TaggedTemplateExpression);
         let mut node = TaggedTemplateExpression::new(
@@ -705,8 +706,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_type_assertion(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Rc<Node /*TypeNode*/>,
-        expression: Rc<Node /*Expression*/>,
+        type_: Gc<Node /*TypeNode*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> TypeAssertion {
         let node = self.create_base_expression(base_factory, SyntaxKind::TypeAssertionExpression);
         let mut node = TypeAssertion::new(
@@ -726,7 +727,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_parenthesized_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> ParenthesizedExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ParenthesizedExpression);
         let mut node = ParenthesizedExpression::new(node, expression);
@@ -744,12 +745,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         modifiers: Option<TModifiers>,
-        asterisk_token: Option<Rc<Node>>,
+        asterisk_token: Option<Gc<Node>>,
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
         parameters: TParameters,
-        type_: Option<Rc<Node>>,
-        body: Rc<Node>,
+        type_: Option<Gc<Node>>,
+        body: Gc<Node>,
     ) -> FunctionExpression {
         let mut node = self.create_base_function_like_declaration(
             base_factory,
@@ -790,16 +791,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<TModifiers>,
         type_parameters: Option<TTypeParameters>,
         parameters: TParameters,
-        type_: Option<Rc<Node>>,
-        equals_greater_than_token: Option<Rc<Node /*EqualsGreaterThanToken*/>>,
-        body: Rc<Node /*ConciseBody*/>,
+        type_: Option<Gc<Node>>,
+        equals_greater_than_token: Option<Gc<Node /*EqualsGreaterThanToken*/>>,
+        body: Gc<Node /*ConciseBody*/>,
     ) -> ArrowFunction {
         let mut node = self.create_base_function_like_declaration(
             base_factory,
             SyntaxKind::ArrowFunction,
             Option::<NodeArray>::None,
             modifiers,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             type_parameters,
             Some(parameters),
             type_,
@@ -830,7 +831,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_delete_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> DeleteExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::DeleteExpression);
         let mut node = DeleteExpression::new(
@@ -845,7 +846,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_type_of_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> TypeOfExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TypeOfExpression);
         let mut node = TypeOfExpression::new(
@@ -860,7 +861,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_void_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> VoidExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::VoidExpression);
         let mut node = VoidExpression::new(
@@ -875,7 +876,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_await_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> AwaitExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::AwaitExpression);
         let mut node = AwaitExpression::new(
@@ -896,7 +897,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         operator: SyntaxKind, /*PrefixUnaryOperator*/
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PrefixUnaryExpression);
         let mut node = PrefixUnaryExpression::new(
@@ -921,7 +922,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_postfix_unary_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
         operator: SyntaxKind,
     ) -> PostfixUnaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PostfixUnaryExpression);
@@ -944,9 +945,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_binary_expression<TOperator: Into<SyntaxKindOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
         operator: TOperator,
-        right: Rc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
         let operator_token = self.as_token(base_factory, operator.into());
@@ -1036,11 +1037,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_conditional_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        condition: Rc<Node /*Expression*/>,
-        question_token: Option<Rc<Node /*QuestionToken*/>>,
-        when_true: Rc<Node /*Expression*/>,
-        colon_token: Option<Rc<Node /*ColonToken*/>>,
-        when_false: Rc<Node /*Expression*/>,
+        condition: Gc<Node /*Expression*/>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        when_true: Gc<Node /*Expression*/>,
+        colon_token: Option<Gc<Node /*ColonToken*/>>,
+        when_false: Gc<Node /*Expression*/>,
     ) -> ConditionalExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ConditionalExpression);
         let mut node = ConditionalExpression::new(
@@ -1073,7 +1074,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_template_expression<TTemplateSpans: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        head: Rc<Node /*TemplateHead*/>,
+        head: Gc<Node /*TemplateHead*/>,
         template_spans: TTemplateSpans, /*<TemplateSpan>*/
     ) -> TemplateExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TemplateExpression);
@@ -1234,8 +1235,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_yield_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
-        expression: Option<Rc<Node /*Expression*/>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        expression: Option<Gc<Node /*Expression*/>>,
     ) -> YieldExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::YieldExpression);
         let mut node = YieldExpression::new(
@@ -1259,7 +1260,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_spread_element(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> SpreadElement {
         let node = self.create_base_expression(base_factory, SyntaxKind::SpreadElement);
         let mut node = SpreadElement::new(

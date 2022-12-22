@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
@@ -36,11 +37,11 @@ impl TypeChecker {
 
     pub(super) fn get_spread_argument_index(
         &self,
-        args: &[Rc<Node /*Expression*/>],
+        args: &[Gc<Node /*Expression*/>],
     ) -> Option<usize> {
         find_index(
             args,
-            |arg: &Rc<Node>, _| self.is_spread_argument(Some(&**arg)),
+            |arg: &Gc<Node>, _| self.is_spread_argument(Some(&**arg)),
             None,
         )
     }
@@ -58,7 +59,7 @@ impl TypeChecker {
     pub(super) fn has_correct_arity(
         &self,
         node: &Node, /*CallLikeExpression*/
-        args: &[Rc<Node /*Expression*/>],
+        args: &[Gc<Node /*Expression*/>],
         signature: &Signature,
         signature_help_trailing_comma: Option<bool>,
     ) -> bool {
@@ -171,7 +172,7 @@ impl TypeChecker {
             self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref());
         !some(
             type_arguments.map(|type_arguments| &**type_arguments),
-            Option::<fn(&Rc<Node>) -> bool>::None,
+            Option::<fn(&Gc<Node>) -> bool>::None,
         ) || {
             let type_arguments = type_arguments.unwrap();
             type_arguments.len() >= min_type_argument_count
@@ -179,14 +180,14 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Rc<Signature>> {
+    pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Gc<Signature>> {
         self.get_single_signature(type_, SignatureKind::Call, false)
     }
 
     pub(super) fn get_single_call_or_construct_signature(
         &self,
         type_: &Type,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         self.get_single_signature(type_, SignatureKind::Call, false)
             .or_else(|| self.get_single_signature(type_, SignatureKind::Construct, false))
     }
@@ -196,7 +197,7 @@ impl TypeChecker {
         type_: &Type,
         kind: SignatureKind,
         allow_members: bool,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_);
             let resolved_as_resolved_type = resolved.as_resolved_type();
@@ -223,11 +224,11 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signature_in_context_of(
         &self,
-        signature: Rc<Signature>,
-        contextual_signature: Rc<Signature>,
+        signature: Gc<Signature>,
+        contextual_signature: Gc<Signature>,
         inference_context: Option<&InferenceContext>,
-        compare_types: Option<Rc<dyn TypeComparer>>,
-    ) -> Rc<Signature> {
+        compare_types: Option<Gc<Box<dyn TypeComparer>>>,
+    ) -> Gc<Signature> {
         let context = self.create_inference_context(
             &signature.maybe_type_parameters().clone().unwrap(),
             Some(signature.clone()),
@@ -246,7 +247,7 @@ impl TypeChecker {
             }
         });
         let source_signature = if let Some(mapper) = mapper {
-            Rc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None))
+            Gc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None))
         } else {
             contextual_signature.clone()
         };
@@ -283,10 +284,10 @@ impl TypeChecker {
     pub(super) fn infer_jsx_type_arguments(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         check_mode: CheckMode,
-        context: Rc<InferenceContext>,
-    ) -> Vec<Rc<Type>> {
+        context: Gc<InferenceContext>,
+    ) -> Vec<Gc<Type>> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
         let check_attr_type = self.check_expression_with_contextual_type(
@@ -308,7 +309,7 @@ impl TypeChecker {
     pub(super) fn get_this_argument_type<TThisArgumentNode: Borrow<Node>>(
         &self,
         this_argument_node: Option<TThisArgumentNode /*LeftHandSideExpression*/>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if this_argument_node.is_none() {
             return self.void_type();
         }
@@ -327,11 +328,11 @@ impl TypeChecker {
     pub(super) fn infer_type_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
-        signature: Rc<Signature>,
-        args: &[Rc<Node /*Expression*/>],
+        signature: Gc<Signature>,
+        args: &[Gc<Node /*Expression*/>],
         check_mode: CheckMode,
-        context: Rc<InferenceContext>,
-    ) -> Vec<Rc<Type>> {
+        context: Gc<InferenceContext>,
+    ) -> Vec<Gc<Type>> {
         if is_jsx_opening_like_element(node) {
             return self.infer_jsx_type_arguments(node, signature, check_mode, context);
         }
@@ -342,7 +343,7 @@ impl TypeChecker {
                 Some(
                     if maybe_every(
                         signature.maybe_type_parameters().as_deref(),
-                        |p: &Rc<Type>, _| self.get_default_from_type_parameter_(p).is_some(),
+                        |p: &Gc<Type>, _| self.get_default_from_type_parameter_(p).is_some(),
                     ) {
                         ContextFlags::SkipBindingPatterns
                     } else {
@@ -408,7 +409,7 @@ impl TypeChecker {
                 context.set_return_mapper(
                     if some(
                         Some(&return_context.inferences()),
-                        Some(|inference: &Rc<InferenceInfo>| {
+                        Some(|inference: &Gc<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),
                     ) {
@@ -433,15 +434,15 @@ impl TypeChecker {
             .as_ref()
             .filter(|rest_type| rest_type.flags().intersects(TypeFlags::TypeParameter))
         {
-            let info = find(&context.inferences(), |info: &Rc<InferenceInfo>, _| {
-                Rc::ptr_eq(&info.type_parameter, rest_type)
+            let info = find(&context.inferences(), |info: &Gc<InferenceInfo>, _| {
+                Gc::ptr_eq(&info.type_parameter, rest_type)
             })
             .cloned();
             if let Some(info) = info.as_ref() {
                 info.set_implied_arity(
                     if find_index(
                         args,
-                        |arg: &Rc<Node>, _| self.is_spread_argument(Some(&**arg)),
+                        |arg: &Gc<Node>, _| self.is_spread_argument(Some(&**arg)),
                         None,
                     )
                     .is_none()
@@ -495,7 +496,7 @@ impl TypeChecker {
         self.get_inferred_types(&context)
     }
 
-    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
@@ -541,13 +542,13 @@ impl TypeChecker {
 
     pub(super) fn get_spread_argument_type(
         &self,
-        args: &[Rc<Node /*Expression*/>],
+        args: &[Gc<Node /*Expression*/>],
         index: usize,
         arg_count: usize,
         rest_type: &Type,
-        context: Option<Rc<InferenceContext>>,
+        context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
             if self.is_spread_argument(Some(&**arg)) {
@@ -565,9 +566,9 @@ impl TypeChecker {
                 });
             }
         }
-        let mut types: Vec<Rc<Type>> = vec![];
+        let mut types: Vec<Gc<Type>> = vec![];
         let mut flags: Vec<ElementFlags> = vec![];
-        let mut names: Vec<Rc<Node>> = vec![];
+        let mut names: Vec<Gc<Node>> = vec![];
         for i in index..arg_count {
             let arg = &args[i];
             if self.is_spread_argument(Some(&**arg)) {
@@ -644,15 +645,15 @@ impl TypeChecker {
     pub(super) fn check_type_arguments(
         &self,
         signature: &Signature,
-        type_argument_nodes: &[Rc<Node /*TypeNode*/>],
+        type_argument_nodes: &[Gc<Node /*TypeNode*/>],
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
-    ) -> Option<Vec<Rc<Type>>> {
+    ) -> Option<Vec<Gc<Type>>> {
         let is_javascript = is_in_js_file(signature.declaration.as_deref());
         let type_parameters = signature.maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
-                Some(map(type_argument_nodes, |node: &Rc<Node>, _| {
+                Some(map(type_argument_nodes, |node: &Gc<Node>, _| {
                     self.get_type_from_type_node_(node)
                 })),
                 Some(&type_parameters),
@@ -660,7 +661,7 @@ impl TypeChecker {
                 is_javascript,
             )
             .unwrap();
-        let mut mapper: Option<Rc<TypeMapper>> = None;
+        let mut mapper: Option<Gc<TypeMapper>> = None;
         for i in 0..type_argument_nodes.len() {
             Debug_.assert(
                 type_parameters.get(i).is_some(),
@@ -668,16 +669,16 @@ impl TypeChecker {
             );
             let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
             if let Some(constraint) = constraint.as_ref() {
-                let error_info: Option<Rc<dyn CheckTypeContainingMessageChain>> =
+                let error_info: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>> =
                     if report_errors && head_message.is_some() {
-                        Some(Rc::new(CheckTypeArgumentsErrorInfo))
+                        Some(Gc::new(Box::new(CheckTypeArgumentsErrorInfo)))
                     } else {
                         None
                     };
                 let type_argument_head_message =
                     head_message.unwrap_or(&*Diagnostics::Type_0_does_not_satisfy_the_constraint_1);
                 if mapper.is_none() {
-                    mapper = Some(Rc::new(self.create_type_mapper(
+                    mapper = Some(Gc::new(self.create_type_mapper(
                         type_parameters.clone(),
                         Some(type_argument_types.clone()),
                     )));
@@ -737,12 +738,12 @@ impl TypeChecker {
     pub(super) fn check_applicable_signature_for_jsx_opening_like_element(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
@@ -777,7 +778,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
         report_errors: bool,
-        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         if self
             .get_jsx_namespace_container_for_implicit_import(Some(node))
@@ -859,7 +860,7 @@ impl TypeChecker {
         }
 
         if report_errors {
-            let diag: Rc<Diagnostic> = Rc::new(
+            let diag: Gc<Diagnostic> = Gc::new(
                 create_diagnostic_for_node(
                     &node_as_jsx_opening_like_element.tag_name(),
                     &Diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
@@ -879,7 +880,7 @@ impl TypeChecker {
             if let Some(tag_name_declaration) = tag_name_declaration.as_ref() {
                 add_related_info(
                     &diag,
-                    vec![Rc::new(
+                    vec![Gc::new(
                         create_diagnostic_for_node(
                             tag_name_declaration,
                             &Diagnostics::_0_is_declared_here,
@@ -907,15 +908,16 @@ impl TypeChecker {
     pub(super) fn get_signature_applicability_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-        args: &[Rc<Node /*Expression*/>],
-        signature: Rc<Signature>,
+        args: &[Gc<Node /*Expression*/>],
+        signature: Gc<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-    ) -> Option<Vec<Rc<Diagnostic>>> {
-        let error_output_container: Rc<dyn CheckTypeErrorOutputContainer> =
-            Rc::new(CheckTypeErrorOutputContainerConcrete::new(Some(true)));
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+    ) -> Option<Vec<Gc<Diagnostic>>> {
+        let error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>> = Gc::new(Box::new(
+            CheckTypeErrorOutputContainerConcrete::new(Some(true)),
+        ));
         if is_jsx_opening_like_element(node) {
             if !self.check_applicable_signature_for_jsx_opening_like_element(
                 node,
@@ -936,7 +938,7 @@ impl TypeChecker {
         }
         let this_type = self.get_this_type_of_signature(&signature);
         if let Some(this_type) = this_type.as_ref().filter(|this_type| {
-            !Rc::ptr_eq(this_type, &self.void_type()) && node.kind() != SyntaxKind::NewExpression
+            !Gc::ptr_eq(this_type, &self.void_type()) && node.kind() != SyntaxKind::NewExpression
         }) {
             let this_argument_node = self.get_this_argument_of_call(node);
             let this_argument_type = self.get_this_argument_type(this_argument_node.as_deref());
@@ -1073,6 +1075,7 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct CheckTypeArgumentsErrorInfo;
 
 impl CheckTypeContainingMessageChain for CheckTypeArgumentsErrorInfo {

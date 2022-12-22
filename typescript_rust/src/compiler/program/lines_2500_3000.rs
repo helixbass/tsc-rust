@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use regex::Regex;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -6,7 +7,7 @@ use std::rc::Rc;
 
 use super::{
     for_each_resolved_project_reference, get_implied_node_format_for_file, is_referenced_file,
-    resolve_tripleslash_reference, FilesByNameValue,
+    resolve_tripleslash_reference, FilesByNameValue, ForEachResolvedProjectReference,
 };
 use crate::{
     append, change_extension, combine_paths, file_extension_is, flatten, for_each, for_each_bool,
@@ -19,7 +20,7 @@ use crate::{
     is_string_literal, is_string_literal_like, maybe_for_each, maybe_map, node_modules_path_part,
     out_file, package_id_to_string, resolve_module_name, set_parent_recursive,
     set_resolved_type_reference_directive, starts_with, string_contains, to_file_name_lower_case,
-    CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
+    AsDoubleDeref, CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
     FileIncludeKind, FileIncludeReason, FileReference, LiteralLikeNodeInterface, ModifierFlags,
     ModuleResolutionKind, Node, NodeArray, NodeInterface, PackageId, Path, Program,
     ReadonlyTextRange, ReferencedFile, ResolvedProjectReference, ResolvedTypeReferenceDirective,
@@ -29,10 +30,10 @@ use crate::{
 impl Program {
     pub(super) fn collect_module_references(
         &self,
-        imports: &mut Option<Vec<Rc<Node>>>,
+        imports: &mut Option<Vec<Gc<Node>>>,
         file: &Node,
         is_external_module_file: bool,
-        module_augmentations: &mut Option<Vec<Rc<Node>>>,
+        module_augmentations: &mut Option<Vec<Gc<Node>>>,
         ambient_modules: &mut Option<Vec<String>>,
         node: &Node, /*Statement*/
         in_ambient_module: bool,
@@ -105,7 +106,7 @@ impl Program {
     pub(super) fn collect_dynamic_import_or_require_calls(
         &self,
         is_java_script_file: bool,
-        imports: &mut Option<Vec<Rc<Node>>>,
+        imports: &mut Option<Vec<Gc<Node>>>,
         file: &Node, /*SourceFile*/
     ) {
         lazy_static! {
@@ -160,11 +161,11 @@ impl Program {
         is_java_script_file: bool,
         source_file: &Node, /*SourceFile*/
         position: isize,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let mut current = source_file.node_wrapper();
         loop {
             let child = if is_java_script_file && has_jsdoc_nodes(&current) {
-                maybe_for_each(current.maybe_js_doc().as_ref(), |child: &Rc<Node>, _| {
+                maybe_for_each(current.maybe_js_doc().as_ref(), |child: &Gc<Node>, _| {
                     self.get_containing_child(position, child)
                 })
             } else {
@@ -174,7 +175,7 @@ impl Program {
                 for_each_child_returns(
                     &current,
                     |child: &Node| self.get_containing_child(position, child),
-                    Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+                    Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
                 )
             });
             if child.is_none() {
@@ -184,7 +185,7 @@ impl Program {
         }
     }
 
-    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Rc<Node>> {
+    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Gc<Node>> {
         if child.pos() <= position
             && (position < child.end()
                 || position == child.end() && child.kind() == SyntaxKind::EndOfFileToken)
@@ -195,7 +196,7 @@ impl Program {
     }
 
     pub(super) fn get_source_file_from_reference_worker<
-        TGetSourceFile: FnMut(&str) -> Option<Rc<Node>>,
+        TGetSourceFile: FnMut(&str) -> Option<Gc<Node>>,
         TFail: FnMut(&'static DiagnosticMessage, Option<Vec<String>>),
     >(
         &self,
@@ -203,7 +204,7 @@ impl Program {
         mut get_source_file: TGetSourceFile,
         mut fail: Option<TFail>,
         reason: Option<&FileIncludeReason>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         if has_extension(file_name) {
             let canonical_file_name = self.host().get_canonical_file_name(file_name);
             if self.options.allow_non_ts_extensions != Some(true)
@@ -356,7 +357,7 @@ impl Program {
         path: &Path,
         resolved_path: &Path,
         original_file_name: &str,
-    ) -> Rc<Node /*SourceFile*/> {
+    ) -> Gc<Node /*SourceFile*/> {
         unimplemented!()
     }
 
@@ -367,7 +368,7 @@ impl Program {
         ignore_no_default_lib: bool,
         reason: &FileIncludeReason,
         package_id: Option<&PackageId>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         // tracing?.push(tracing.Phase.Program, "findSourceFile", {
         //     fileName,
         //     isDefaultLib: isDefaultLib || undefined,
@@ -391,7 +392,7 @@ impl Program {
         ignore_no_default_lib: bool,
         reason: &FileIncludeReason,
         package_id: Option<&PackageId>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let path = self.to_path(file_name);
         if self.use_source_of_project_reference_redirect() {
             let mut source = self.get_source_of_project_reference_redirect(&path);
@@ -579,13 +580,13 @@ impl Program {
                     .map(|module_resolution_cache| {
                         module_resolution_cache.get_package_json_info_cache()
                     })
-                    .as_deref(),
+                    .as_double_deref(),
                 self.host().as_dyn_module_resolution_host(),
                 &self.options,
             ));
             self.add_file_include_reason(Some(&**file), reason);
 
-            if CompilerHost::use_case_sensitive_file_names(&*self.host()) {
+            if CompilerHost::use_case_sensitive_file_names(&**self.host()) {
                 let path_lower_case = to_file_name_lower_case(&path);
                 let existing_file = self
                     .files_by_name_ignore_case()
@@ -690,7 +691,7 @@ impl Program {
     pub fn get_project_reference_redirect_project(
         &self,
         file_name: &str,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         if match self.maybe_resolved_project_references().as_ref() {
             None => true,
             Some(resolved_project_references) => resolved_project_references.is_empty(),
@@ -714,14 +715,14 @@ impl Program {
     pub fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         let mut map_from_file_to_project_reference_redirects =
             self.maybe_map_from_file_to_project_reference_redirects();
         let map_from_file_to_project_reference_redirects =
             map_from_file_to_project_reference_redirects.get_or_insert_with(|| {
                 let mut map_from_file_to_project_reference_redirects = HashMap::new();
                 self.for_each_resolved_project_reference(
-                    |referenced_project: Rc<ResolvedProjectReference>| -> Option<()> {
+                    |referenced_project: Gc<ResolvedProjectReference>| -> Option<()> {
                         let referenced_project_source_file_path =
                             referenced_project.source_file.as_source_file().path();
                         if &self.to_path(self.options.config_file_path.as_ref().unwrap())
@@ -753,7 +754,7 @@ impl Program {
 
     pub fn for_each_resolved_project_reference<
         TReturn,
-        TCallback: FnMut(Rc<ResolvedProjectReference>) -> Option<TReturn>,
+        TCallback: FnMut(Gc<ResolvedProjectReference>) -> Option<TReturn>,
     >(
         &self,
         mut cb: TCallback,
@@ -766,17 +767,10 @@ impl Program {
 
     pub fn for_each_resolved_project_reference_rc(
         &self,
-    ) -> Rc<dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>))> {
-        let self_clone = self.rc_wrapper();
-        Rc::new(move |cb| {
-            for_each_resolved_project_reference(
-                self_clone.maybe_resolved_project_references().as_deref(),
-                |resolved_project_reference, _parent| -> Option<()> {
-                    cb(resolved_project_reference);
-                    None
-                },
-            );
-        })
+    ) -> Gc<Box<dyn ForEachResolvedProjectReference>> {
+        Gc::new(Box::new(ProgramForEachResolvedProjectReference::new(
+            self.rc_wrapper(),
+        )))
     }
 
     pub(super) fn get_source_of_project_reference_redirect(
@@ -790,7 +784,7 @@ impl Program {
             .get_or_insert_with(|| {
                 let mut map_from_to_project_reference_redirect_source = HashMap::new();
                 self.for_each_resolved_project_reference(
-                    |resolved_ref: Rc<ResolvedProjectReference>| -> Option<()> {
+                    |resolved_ref: Gc<ResolvedProjectReference>| -> Option<()> {
                         let out = out_file(&resolved_ref.command_line.options);
                         if let Some(out) = out {
                             let output_dts = change_extension(out, Extension::Dts.to_str());
@@ -809,7 +803,9 @@ impl Program {
                                 let got_common_source_directory =
                                     Some(get_common_source_directory_of_config(
                                         &resolved_ref.command_line,
-                                        !CompilerHost::use_case_sensitive_file_names(&*self.host()),
+                                        !CompilerHost::use_case_sensitive_file_names(
+                                            &**self.host(),
+                                        ),
                                     ));
                                 got_common_source_directory.clone().unwrap()
                             };
@@ -823,7 +819,7 @@ impl Program {
                                             file_name,
                                             &resolved_ref.command_line,
                                             !CompilerHost::use_case_sensitive_file_names(
-                                                &*self.host(),
+                                                &**self.host(),
                                             ),
                                             Some(&mut get_common_source_directory),
                                         );
@@ -855,7 +851,7 @@ impl Program {
     pub(super) fn get_resolved_project_reference_by_path(
         &self,
         project_reference_path: &Path,
-    ) -> Option<Rc<ResolvedProjectReference>> {
+    ) -> Option<Gc<ResolvedProjectReference>> {
         unimplemented!()
     }
 
@@ -1068,7 +1064,7 @@ impl Program {
         let local_override_module_result = resolve_module_name(
             &format!("@typescript/lib-{}", path),
             &resolve_from,
-            Rc::new(
+            Gc::new(
                 CompilerOptionsBuilder::default()
                     .module_resolution(Some(ModuleResolutionKind::NodeJs))
                     .build()
@@ -1087,5 +1083,28 @@ impl Program {
                 .clone();
         }
         combine_paths(&self.default_library_path(), &[Some(lib_file_name)])
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct ProgramForEachResolvedProjectReference {
+    program: Gc<Box<Program>>,
+}
+
+impl ProgramForEachResolvedProjectReference {
+    pub fn new(program: Gc<Box<Program>>) -> Self {
+        Self { program }
+    }
+}
+
+impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference {
+    fn call(&self, cb: &mut dyn FnMut(Gc<ResolvedProjectReference>)) {
+        for_each_resolved_project_reference(
+            self.program.maybe_resolved_project_references().as_deref(),
+            |resolved_project_reference, _parent| -> Option<()> {
+                cb(resolved_project_reference);
+                None
+            },
+        );
     }
 }

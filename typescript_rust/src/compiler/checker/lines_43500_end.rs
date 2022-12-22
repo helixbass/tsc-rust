@@ -1,12 +1,13 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{
-    are_option_rcs_equal, create_diagnostic_for_node, create_file_diagnostic, filter, find,
-    first_or_undefined, for_each_bool, get_effective_return_type_node,
+    are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node, create_file_diagnostic,
+    filter, find, first_or_undefined, for_each_bool, get_effective_return_type_node,
     get_jsdoc_type_parameter_declarations, get_object_flags, get_source_file_of_node,
     get_span_of_token_at_position, has_abstract_modifier, has_syntactic_modifier, id_text,
     is_accessor, is_binary_expression, is_child_of_node_with_kind, is_computed_property_name,
@@ -18,10 +19,11 @@ use crate::{
     HasInitializerInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
     ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
-    SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget,
+    Signature, SignatureFlags, SignatureKind, SourceFileLike, StringOrNumber, Symbol,
+    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult,
+    SyntaxKind, Ternary, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -188,7 +190,9 @@ impl TypeChecker {
     }
 
     pub(super) fn has_parse_diagnostics(&self, source_file: &Node /*SourceFile*/) -> bool {
-        !source_file.as_source_file().parse_diagnostics().is_empty()
+        !(*source_file.as_source_file().parse_diagnostics())
+            .borrow()
+            .is_empty()
     }
 
     pub(super) fn grammar_error_on_first_token(
@@ -200,7 +204,7 @@ impl TypeChecker {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
             let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_file_diagnostic(&source_file, span.start, span.length, message, args).into(),
             ));
             return true;
@@ -218,7 +222,7 @@ impl TypeChecker {
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node_for_source_file)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_file_diagnostic(&source_file, start, length, message, args).into(),
             ));
             return true;
@@ -249,7 +253,7 @@ impl TypeChecker {
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_diagnostic_for_node(node, message, args).into(),
             ));
             return true;
@@ -266,12 +270,18 @@ impl TypeChecker {
         } else {
             None
         };
-        let range: Option<Rc<dyn ReadonlyTextRange>> = node
+        let range: Option<Box<dyn ReadonlyTextRange>> = node
             .as_constructor_declaration()
             .maybe_type_parameters()
             .as_ref()
+            // .map(|node_type_parameters| {
+            //     Gc::new(node_type_parameters.clone()) as Gc<dyn ReadonlyTextRange>
+            // })
             .map(|node_type_parameters| {
-                Rc::new(node_type_parameters.clone()) as Rc<dyn ReadonlyTextRange>
+                Box::new(ReadonlyTextRangeConcrete::new(
+                    node_type_parameters.pos(),
+                    node_type_parameters.end(),
+                )) as Box<dyn ReadonlyTextRange>
             })
             .or_else(|| {
                 jsdoc_type_parameters
@@ -279,7 +289,13 @@ impl TypeChecker {
                     .and_then(|jsdoc_type_parameters| {
                         first_or_undefined(jsdoc_type_parameters).cloned()
                     })
-                    .map(|jsdoc_type_parameter| jsdoc_type_parameter as Rc<dyn ReadonlyTextRange>)
+                    // .map(|jsdoc_type_parameter| jsdoc_type_parameter as Gc<dyn ReadonlyTextRange>)
+                    .map(|jsdoc_type_parameter| {
+                        Box::new(ReadonlyTextRangeConcrete::new(
+                            jsdoc_type_parameter.pos(),
+                            jsdoc_type_parameter.end(),
+                        )) as Box<dyn ReadonlyTextRange>
+                    })
             });
         if let Some(range) = range {
             let pos = if range.pos() == range.end() {
@@ -602,7 +618,7 @@ impl TypeChecker {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
             let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_file_diagnostic(&source_file, text_span_end(&span), 0, message, args).into(),
             ));
             return true;
@@ -610,7 +626,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_ambient_modules(&self) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_ambient_modules(&self) -> Vec<Gc<Symbol>> {
         if self.ambient_modules_cache.borrow().is_none() {
             let mut ambient_modules_cache = self.ambient_modules_cache.borrow_mut();
             *ambient_modules_cache = Some(vec![]);
@@ -657,7 +673,7 @@ impl TypeChecker {
     ) -> bool {
         for_each_bool(
             named_bindings.as_has_elements().elements(),
-            |specifier: &Rc<Node>, _| {
+            |specifier: &Gc<Node>, _| {
                 if specifier.as_has_is_type_only().is_type_only() {
                     return self.grammar_error_on_first_token(
                         specifier,
@@ -717,7 +733,7 @@ impl TypeChecker {
             );
         }
 
-        let spread_element = find(node_arguments, |argument: &Rc<Node>, _| {
+        let spread_element = find(node_arguments, |argument: &Gc<Node>, _| {
             is_spread_element(argument)
         });
         if let Some(spread_element) = spread_element {
@@ -734,7 +750,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let source_object_flags = get_object_flags(source);
         if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
             && union_target.flags().intersects(TypeFlags::Union)
@@ -743,18 +759,18 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |target: &Rc<Type>, _| {
+                |target: &Gc<Type>, _| {
                     if target.flags().intersects(TypeFlags::Object) {
                         let overlap_obj_flags = source_object_flags & get_object_flags(target);
                         if overlap_obj_flags.intersects(ObjectFlags::Reference) {
-                            return Rc::ptr_eq(
+                            return Gc::ptr_eq(
                                 &source.as_type_reference_interface().target(),
                                 &target.as_type_reference_interface().target(),
                             );
                         }
                         if overlap_obj_flags.intersects(ObjectFlags::Anonymous) {
                             return source.maybe_alias_symbol().is_some()
-                                && are_option_rcs_equal(
+                                && are_option_gcs_equal(
                                     source.maybe_alias_symbol().as_ref(),
                                     target.maybe_alias_symbol().as_ref(),
                                 );
@@ -772,7 +788,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if get_object_flags(source).intersects(ObjectFlags::ObjectLiteral)
             && self.some_type(union_target, |type_: &Type| self.is_array_like_type(type_))
         {
@@ -780,7 +796,7 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Rc<Type>, _| !self.is_array_like_type(t),
+                |t: &Gc<Type>, _| !self.is_array_like_type(t),
             )
             .map(Clone::clone);
         }
@@ -791,7 +807,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let mut signature_kind = SignatureKind::Call;
         let has_signatures = !self
             .get_signatures_of_type(source, signature_kind)
@@ -807,7 +823,7 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Rc<Type>, _| !self.get_signatures_of_type(t, signature_kind).is_empty(),
+                |t: &Gc<Type>, _| !self.get_signatures_of_type(t, signature_kind).is_empty(),
             )
             .map(Clone::clone);
         }
@@ -818,8 +834,8 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Rc<Type>> {
-        let mut best_match: Option<Rc<Type>> = None;
+    ) -> Option<Gc<Type>> {
+        let mut best_match: Option<Gc<Type>> = None;
         let mut matching_count = 0;
         for target in union_target
             .as_union_or_intersection_type_interface()
@@ -839,7 +855,7 @@ impl TypeChecker {
             } else if overlap.flags().intersects(TypeFlags::Union) {
                 let len = length(Some(&filter(
                     overlap.as_union_or_intersection_type_interface().types(),
-                    |type_: &Rc<Type>| self.is_unit_type(type_),
+                    |type_: &Gc<Type>| self.is_unit_type(type_),
                 )));
                 if len >= matching_count {
                     best_match = Some(target.clone());
@@ -856,7 +872,7 @@ impl TypeChecker {
     pub(super) fn filter_primitives_if_contains_non_primitive(
         &self,
         type_: &Type, /*UnionType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self.maybe_type_of_kind(type_, TypeFlags::NonPrimitive) {
             let result = self.filter_type(type_, |t: &Type| {
                 !t.flags().intersects(TypeFlags::Primitive)
@@ -874,7 +890,7 @@ impl TypeChecker {
         target: &Type,
         mut is_related_to: TIsRelatedTo,
         skip_partial: Option<bool>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if target.flags().intersects(TypeFlags::Union)
             && source
                 .flags()
@@ -893,12 +909,12 @@ impl TypeChecker {
                     target,
                     &*source_properties_filtered
                         .into_iter()
-                        .map(|p: &Rc<Symbol>| {
+                        .map(|p: &Gc<Symbol>| {
                             let p_clone = p.clone();
                             let type_checker = self.rc_wrapper();
                             (
                                 Box::new(move || type_checker.get_type_of_symbol(&p_clone))
-                                    as Box<dyn Fn() -> Rc<Type>>,
+                                    as Box<dyn Fn() -> Gc<Type>>,
                                 p.escaped_name().to_owned(),
                             )
                         })
@@ -914,7 +930,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub(super) struct EmitResolverCreateResolver {}
 
 impl EmitResolverCreateResolver {
@@ -932,14 +948,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> Option<Rc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
+    ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
         unimplemented!()
     }
 
     fn get_referenced_import_declaration(
         &self,
         node: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         unimplemented!()
     }
 
@@ -978,7 +994,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> Option<Vec<Rc<Node>>> {
+    ) -> Option<Vec<Gc<Node>>> {
         unimplemented!()
     }
 
@@ -1007,7 +1023,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         unimplemented!()
     }
 
@@ -1018,7 +1034,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         add_undefined: Option<bool>,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
@@ -1028,7 +1044,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
@@ -1038,7 +1054,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
@@ -1046,7 +1062,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: &dyn SymbolTracker,
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
 
@@ -1078,7 +1094,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_referenced_value_declaration(
         &self,
         reference: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         unimplemented!()
     }
 
@@ -1108,7 +1124,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Rc<Node /*SourceFile*/>> {
+    ) -> Option<Gc<Node /*SourceFile*/>> {
         unimplemented!()
     }
 
@@ -1134,14 +1150,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         unimplemented!()
     }
 
-    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Rc<Node /*EntityName*/>> {
+    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>> {
         unimplemented!()
     }
 
     fn get_jsx_fragment_factory_entity(
         &self,
         location: Option<&Node>,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         unimplemented!()
     }
 
@@ -1155,7 +1171,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_symbol_of_external_module_specifier(
         &self,
         node: &Node, /*StringLiteralLike*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         unimplemented!()
     }
 
@@ -1173,7 +1189,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         bundled: Option<bool>,
-    ) -> Option<Vec<Rc<Node /*Statement*/>>> {
+    ) -> Option<Vec<Gc<Node /*Statement*/>>> {
         unimplemented!()
     }
 

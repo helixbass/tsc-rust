@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io;
@@ -147,7 +148,7 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
 
     fn set_overriding_file_exists(
         &self,
-        overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -162,7 +163,7 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
 
     fn set_overriding_read_file(
         &self,
-        overriding_read_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -185,7 +186,7 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
 
     fn set_overriding_directory_exists(
         &self,
-        overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -204,7 +205,7 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
 
     fn set_overriding_realpath(
         &self,
-        overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -227,7 +228,7 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
 
     fn set_overriding_get_directories(
         &self,
-        overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -244,7 +245,7 @@ fn try_get_module_specifiers_from_cache_worker(
     user_preferences: &UserPreferences,
 ) -> (
     Option<Vec<String>>,
-    Option<Rc<Node>>,
+    Option<Gc<Node>>,
     Option<Vec<ModulePath>>,
     Option<Rc<dyn ModuleSpecifierCache>>,
 ) {
@@ -613,7 +614,7 @@ fn uses_js_extensions_on_imports(node: &Node /*SourceFile*/) -> bool {
     imports
         .as_ref()
         .and_then(|imports| {
-            first_defined(imports, |node: &Rc<Node>, _| {
+            first_defined(imports, |node: &Gc<Node>, _| {
                 let text = node.as_literal_like_node().text();
                 if path_is_relative(&text) {
                     Some(has_js_file_extension(&text))
@@ -886,7 +887,7 @@ fn try_get_module_name_from_ambient_module(
 
     let ambient_module_declare_candidates = map_defined(
         module_symbol.maybe_declarations().as_ref(),
-        |d: &Rc<Node>, _| -> Option<Rc<Node>> {
+        |d: &Gc<Node>, _| -> Option<Gc<Node>> {
             if !is_module_declaration(d) {
                 return None;
             }
@@ -934,7 +935,7 @@ fn try_get_module_name_from_ambient_module(
             };
             if matches!(
                 d.maybe_symbol().as_ref(),
-                Some(d_symbol) if Rc::ptr_eq(
+                Some(d_symbol) if Gc::ptr_eq(
                     original_export_symbol,
                     d_symbol
                 )
@@ -966,7 +967,7 @@ fn try_get_module_name_from_paths(
     unimplemented!()
 }
 
-fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Rc<Node> {
+fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Gc<Node> {
     let mut namespace_declaration = namespace_declaration.node_wrapper();
     while namespace_declaration
         .flags()

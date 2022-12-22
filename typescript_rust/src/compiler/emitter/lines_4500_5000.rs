@@ -1,3 +1,4 @@
+use gc::Gc;
 use regex::Regex;
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -8,8 +9,9 @@ use std::rc::Rc;
 
 use super::TempFlags;
 use crate::{
-    are_option_rcs_equal, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
-    for_each, get_emit_flags, get_lines_between_position_and_next_non_whitespace_character,
+    are_option_gcs_equal, are_option_rcs_equal, escape_jsx_attribute_string,
+    escape_non_ascii_string, escape_string, for_each, get_emit_flags,
+    get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
     get_source_file_of_node, get_source_text_of_node_from_source_file, get_starts_on_new_line,
@@ -149,7 +151,7 @@ impl Printer {
     pub(super) fn get_leading_line_terminator_count(
         &self,
         parent_node: Option<&Node>,
-        children: &[Rc<Node>],
+        children: &[Gc<Node>],
         format: ListFormat,
     ) -> usize {
         if format.intersects(ListFormat::PreserveLines)
@@ -184,15 +186,15 @@ impl Printer {
                     && !node_is_synthesized(&**first_child)
                     && match first_child.maybe_parent().as_ref() {
                         None => true,
-                        Some(first_child_parent) => are_option_rcs_equal(
+                        Some(first_child_parent) => are_option_gcs_equal(
                             get_original_node(
                                 Some(&**first_child_parent),
-                                Option::<fn(Option<Rc<Node>>) -> bool>::None,
+                                Option::<fn(Option<Gc<Node>>) -> bool>::None,
                             )
                             .as_ref(),
                             get_original_node(
                                 Some(parent_node),
-                                Option::<fn(Option<Rc<Node>>) -> bool>::None,
+                                Option::<fn(Option<Gc<Node>>) -> bool>::None,
                             )
                             .as_ref(),
                         ),
@@ -484,7 +486,7 @@ impl Printer {
             && range_end_is_on_same_line_as_range_start(block, block, &self.current_source_file())
     }
 
-    pub(super) fn skip_synthesized_parentheses(&self, node: &Node) -> Rc<Node> {
+    pub(super) fn skip_synthesized_parentheses(&self, node: &Node) -> Gc<Node> {
         let mut node = node.node_wrapper();
         while node.kind() == SyntaxKind::ParenthesizedExpression && node_is_synthesized(&*node) {
             node = node.as_parenthesized_expression().expression.clone();
@@ -507,11 +509,11 @@ impl Printer {
                 || node.maybe_parent().is_some()
                     && matches!(
                         self.maybe_current_source_file().as_ref(),
-                        Some(current_source_file) if !are_option_rcs_equal(
+                        Some(current_source_file) if !are_option_gcs_equal(
                             get_source_file_of_node(Some(node)).as_ref(),
                             get_original_node(
                                 Some(&**current_source_file),
-                                Option::<fn(Option<Rc<Node>>) -> bool>::None
+                                Option::<fn(Option<Gc<Node>>) -> bool>::None
                             ).as_ref()
                         )
                     ))
@@ -642,7 +644,7 @@ impl Printer {
             SyntaxKind::Block => {
                 for_each(
                     &node.as_block().statements,
-                    |statement: &Rc<Node>, _| -> Option<()> {
+                    |statement: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
                     },
@@ -669,7 +671,7 @@ impl Printer {
             SyntaxKind::CaseBlock => {
                 for_each(
                     &node.as_case_block().clauses,
-                    |clause: &Rc<Node>, _| -> Option<()> {
+                    |clause: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(clause));
                         None
                     },
@@ -678,7 +680,7 @@ impl Printer {
             SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
                 for_each(
                     node.as_has_statements().statements(),
-                    |statement: &Rc<Node>, _| -> Option<()> {
+                    |statement: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
                     },
@@ -701,7 +703,7 @@ impl Printer {
             SyntaxKind::VariableDeclarationList => {
                 for_each(
                     &node.as_variable_declaration_list().declarations,
-                    |declaration: &Rc<Node>, _| -> Option<()> {
+                    |declaration: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(declaration));
                         None
                     },
@@ -719,7 +721,7 @@ impl Printer {
                 if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope) {
                     for_each(
                         node_as_function_declaration.parameters(),
-                        |parameter: &Rc<Node>, _| -> Option<()> {
+                        |parameter: &Gc<Node>, _| -> Option<()> {
                             self.generate_names(Some(parameter));
                             None
                         },
@@ -730,7 +732,7 @@ impl Printer {
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
                 for_each(
                     node.as_has_elements().elements(),
-                    |element: &Rc<Node>, _| -> Option<()> {
+                    |element: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
                     },
@@ -753,7 +755,7 @@ impl Printer {
             SyntaxKind::NamedImports => {
                 for_each(
                     &node.as_named_imports().elements,
-                    |element: &Rc<Node>, _| -> Option<()> {
+                    |element: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
                     },
@@ -822,11 +824,11 @@ impl Printer {
 #[derive(Copy, Clone)]
 pub enum RefNodeArrayOrSlice<'a> {
     NodeArray(&'a NodeArray),
-    Slice(&'a [Rc<Node>]),
+    Slice(&'a [Gc<Node>]),
 }
 
 impl<'a> RefNodeArrayOrSlice<'a> {
-    pub fn as_slice(&'a self) -> &'a [Rc<Node>] {
+    pub fn as_slice(&'a self) -> &'a [Gc<Node>] {
         match *self {
             Self::NodeArray(value) => &*value,
             Self::Slice(value) => value,
@@ -840,8 +842,8 @@ impl<'a> From<&'a NodeArray> for RefNodeArrayOrSlice<'a> {
     }
 }
 
-impl<'a> From<&'a [Rc<Node>]> for RefNodeArrayOrSlice<'a> {
-    fn from(value: &'a [Rc<Node>]) -> Self {
+impl<'a> From<&'a [Gc<Node>]> for RefNodeArrayOrSlice<'a> {
+    fn from(value: &'a [Gc<Node>]) -> Self {
         Self::Slice(value)
     }
 }

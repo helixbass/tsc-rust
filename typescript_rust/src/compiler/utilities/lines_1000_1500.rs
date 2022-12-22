@@ -1,13 +1,14 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use regex::Regex;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
 use crate::{
-    concatenate, contains_rc, create_file_diagnostic, create_scanner, create_text_span,
-    create_text_span_from_bounds, every, for_each_child, for_each_child_bool,
+    concatenate, contains_gc, contains_rc, create_file_diagnostic, create_scanner,
+    create_text_span, create_text_span_from_bounds, every, for_each_child, for_each_child_bool,
     get_combined_modifier_flags, get_combined_node_flags, get_emit_flags, get_end_line_position,
     get_leading_comment_ranges, get_line_and_character_of_position, get_source_file_of_node,
     get_trailing_comment_ranges, has_effective_readonly_modifier, has_static_modifier, is_accessor,
@@ -63,7 +64,7 @@ pub fn create_diagnostic_for_node_in_source_file(
 pub fn create_diagnostic_for_node_from_message_chain(
     node: &Node,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(Some(node)).unwrap();
     let span = get_error_span_for_node(&source_file, node);
@@ -111,7 +112,7 @@ pub fn create_file_diagnostic_from_message_chain(
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     assert_diagnostic_location(Some(file), start, length);
     DiagnosticWithLocation::new(BaseDiagnostic::new(
@@ -134,7 +135,7 @@ pub fn create_file_diagnostic_from_message_chain(
 pub fn create_diagnostic_for_file_from_message_chain(
     source_file: &Node, /*SourceFile*/
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
@@ -237,7 +238,7 @@ fn get_error_span_for_arrow_function(
 }
 
 pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -> TextSpan {
-    let mut error_node: Option<Rc<Node>> = Some(node.node_wrapper());
+    let mut error_node: Option<Gc<Node>> = Some(node.node_wrapper());
     let source_file_as_source_file = source_file.as_source_file();
     match node.kind() {
         SyntaxKind::SourceFile => {
@@ -555,11 +556,11 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
 
         SyntaxKind::Identifier => {
             if node.parent().kind() == SyntaxKind::QualifiedName
-                && Rc::ptr_eq(&node.parent().as_qualified_name().right, &node)
+                && Gc::ptr_eq(&node.parent().as_qualified_name().right, &node)
             {
                 node = node.parent();
             } else if node.parent().kind() == SyntaxKind::PropertyAccessExpression
-                && Rc::ptr_eq(&node.parent().as_property_access_expression().name, &node)
+                && Gc::ptr_eq(&node.parent().as_property_access_expression().name, &node)
             {
                 node = node.parent();
             }
@@ -581,16 +582,16 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                     return !is_expression_with_type_arguments_in_class_extends_clause(&parent);
                 }
                 SyntaxKind::TypeParameter => {
-                    return matches!(parent.as_type_parameter_declaration().constraint.clone(), Some(constraint) if Rc::ptr_eq(&node, &constraint));
+                    return matches!(parent.as_type_parameter_declaration().constraint.clone(), Some(constraint) if Gc::ptr_eq(&node, &constraint));
                 }
                 SyntaxKind::JSDocTemplateTag => {
-                    return matches!(parent.as_jsdoc_template_tag().constraint.clone(), Some(constraint) if Rc::ptr_eq(&node, &constraint));
+                    return matches!(parent.as_jsdoc_template_tag().constraint.clone(), Some(constraint) if Gc::ptr_eq(&node, &constraint));
                 }
                 SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertySignature
                 | SyntaxKind::Parameter
                 | SyntaxKind::VariableDeclaration => {
-                    return matches!(parent.as_has_type().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                    return matches!(parent.as_has_type().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
                 }
                 SyntaxKind::FunctionDeclaration
                 | SyntaxKind::FunctionExpression
@@ -600,18 +601,18 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                 | SyntaxKind::MethodSignature
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor => {
-                    return matches!(parent.as_function_like_declaration().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                    return matches!(parent.as_function_like_declaration().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
                 }
                 SyntaxKind::CallSignature
                 | SyntaxKind::ConstructSignature
                 | SyntaxKind::IndexSignature => {
-                    return matches!(parent.as_signature_declaration().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                    return matches!(parent.as_signature_declaration().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
                 }
                 SyntaxKind::TypeAssertionExpression => {
-                    return Rc::ptr_eq(&node, &parent.as_type_assertion().type_);
+                    return Gc::ptr_eq(&node, &parent.as_type_assertion().type_);
                 }
                 SyntaxKind::CallExpression => {
-                    return contains_rc(
+                    return contains_gc(
                         parent
                             .as_call_expression()
                             .maybe_type_arguments()
@@ -620,7 +621,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                     );
                 }
                 SyntaxKind::NewExpression => {
-                    return contains_rc(
+                    return contains_gc(
                         parent.as_new_expression().maybe_type_arguments().as_deref(),
                         &node,
                     );
@@ -638,7 +639,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
 }
 
 pub fn is_child_of_node_with_kind(node: &Node, kind: SyntaxKind) -> bool {
-    let mut node: Option<Rc<Node>> = Some(node.node_wrapper());
+    let mut node: Option<Gc<Node>> = Some(node.node_wrapper());
     while let Some(node_present) = node {
         if node_present.kind() == kind {
             return true;
@@ -768,7 +769,7 @@ fn for_each_yield_expression_traverse<TVisitor: FnMut(&Node)>(node: &Node, visit
 
 pub fn get_rest_parameter_element_type<TNode: Borrow<Node>>(
     node: Option<TNode /*TypeNode*/>,
-) -> Option<Rc<Node /*TypeNode*/>> {
+) -> Option<Gc<Node /*TypeNode*/>> {
     if node.is_none() {
         return None;
     }

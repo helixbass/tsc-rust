@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -22,20 +23,20 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
         kind: SyntaxKind, /*ClassLikeDeclaration["kind"]*/
-    ) -> Rc<Node /*ClassLikeDeclaration*/> {
+    ) -> Gc<Node /*ClassLikeDeclaration*/> {
         let saved_await_context = self.in_await_context();
         self.parse_expected(SyntaxKind::ClassKeyword, None, None);
 
-        let name: Option<Rc<Node>> = self
+        let name: Option<Gc<Node>> = self
             .parse_name_of_class_declaration_or_expression()
             .map(Node::wrap);
         let type_parameters = self.parse_type_parameters();
         if some(
             modifiers.as_ref().map(|node_array| {
-                let node_array: &[Rc<Node>] = node_array;
+                let node_array: &[Gc<Node>] = node_array;
                 node_array
             }),
-            Some(|modifier: &Rc<Node>| is_export_modifier(modifier)),
+            Some(|modifier: &Gc<Node>| is_export_modifier(modifier)),
         ) {
             self.set_await_context(true);
         }
@@ -169,7 +170,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*InterfaceDeclaration*/> {
+    ) -> Gc<Node /*InterfaceDeclaration*/> {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
@@ -193,12 +194,12 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*TypeAliasDeclaration*/> {
+    ) -> Gc<Node /*TypeAliasDeclaration*/> {
         self.parse_expected(SyntaxKind::TypeKeyword, None, None);
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
-        let type_: Rc<Node> = if self.token() == SyntaxKind::IntrinsicKeyword {
+        let type_: Gc<Node> = if self.token() == SyntaxKind::IntrinsicKeyword {
             self.try_parse(|| self.parse_keyword_and_no_dot().map(Node::wrap))
                 .unwrap_or_else(|| self.parse_type())
         } else {
@@ -216,10 +217,10 @@ impl ParserType {
         self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
-    pub(super) fn parse_enum_member(&self) -> Rc<Node /*EnumMember*/> {
+    pub(super) fn parse_enum_member(&self) -> Gc<Node /*EnumMember*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
-        let name: Rc<Node> = self.parse_property_name().wrap();
+        let name: Gc<Node> = self.parse_property_name().wrap();
         let initializer = self.allow_in_and(|| self.parse_initializer());
         self.with_jsdoc(
             self.finish_node(
@@ -238,9 +239,9 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*EnumDeclaration*/> {
+    ) -> Gc<Node /*EnumDeclaration*/> {
         self.parse_expected(SyntaxKind::EnumKeyword, None, None);
-        let name: Rc<Node> = self.parse_identifier(None, None).wrap();
+        let name: Gc<Node> = self.parse_identifier(None, None).wrap();
         let members: NodeArray;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
             members = self.do_outside_of_yield_and_await_context(|| {
@@ -285,10 +286,10 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
         flags: NodeFlags,
-    ) -> Rc<Node /*ModuleDeclaration*/> {
+    ) -> Gc<Node /*ModuleDeclaration*/> {
         let namespace_flag = flags & NodeFlags::Namespace;
-        let name: Rc<Node> = self.parse_identifier(None, None).wrap();
-        let body: Rc<Node> = if self.parse_optional(SyntaxKind::DotToken) {
+        let name: Gc<Node> = self.parse_identifier(None, None).wrap();
+        let body: Gc<Node> = if self.parse_optional(SyntaxKind::DotToken) {
             self.parse_module_or_namespace_declaration(
                 self.get_node_pos(),
                 false,
@@ -316,9 +317,9 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*ModuleDeclaration*/> {
+    ) -> Gc<Node /*ModuleDeclaration*/> {
         let mut flags = NodeFlags::None;
-        let name: Rc<Node>;
+        let name: Gc<Node>;
         if self.token() == SyntaxKind::GlobalKeyword {
             name = self.parse_identifier(None, None).wrap();
             flags |= NodeFlags::GlobalAugmentation;
@@ -328,7 +329,7 @@ impl ParserType {
             let text = self.intern_identifier(&name_as_literal_like_node.text());
             name_as_literal_like_node.set_text(text);
         }
-        let mut body: Option<Rc<Node>> = None;
+        let mut body: Option<Gc<Node>> = None;
         if self.token() == SyntaxKind::OpenBraceToken {
             body = Some(self.parse_module_block().into());
         } else {
@@ -351,7 +352,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*ModuleDeclaration*/> {
+    ) -> Gc<Node /*ModuleDeclaration*/> {
         let mut flags = NodeFlags::None;
         if self.token() == SyntaxKind::GlobalKeyword {
             return self
@@ -392,10 +393,10 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*NamespaceExportDeclaration*/> {
+    ) -> Gc<Node /*NamespaceExportDeclaration*/> {
         self.parse_expected(SyntaxKind::AsKeyword, None, None);
         self.parse_expected(SyntaxKind::NamespaceKeyword, None, None);
-        let name: Rc<Node> = self.parse_identifier(None, None).wrap();
+        let name: Gc<Node> = self.parse_identifier(None, None).wrap();
         self.parse_semicolon();
         let node = self.factory.create_namespace_export_declaration(self, name);
         node.set_decorators(decorators);
@@ -409,12 +410,12 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*ImportEqualsDeclaration | ImportDeclaration*/> {
+    ) -> Gc<Node /*ImportEqualsDeclaration | ImportDeclaration*/> {
         self.parse_expected(SyntaxKind::ImportKeyword, None, None);
 
         let after_import_pos = self.scanner().get_start_pos();
 
-        let mut identifier: Option<Rc<Node /*Identifier*/>> = None;
+        let mut identifier: Option<Gc<Node /*Identifier*/>> = None;
         if self.is_identifier() {
             identifier = Some(self.parse_identifier(None, None).wrap());
         }
@@ -446,7 +447,7 @@ impl ParserType {
             );
         }
 
-        let mut import_clause: Option<Rc<Node>> = None;
+        let mut import_clause: Option<Gc<Node>> = None;
         if identifier.is_some()
             || matches!(
                 self.token(),
@@ -461,7 +462,7 @@ impl ParserType {
         }
         let module_specifier = self.parse_module_specifier();
 
-        let mut assert_clause: Option<Rc<Node>> = None;
+        let mut assert_clause: Option<Gc<Node>> = None;
         if self.token() == SyntaxKind::AssertKeyword && !self.scanner().has_preceding_line_break() {
             assert_clause = Some(self.parse_assert_clause().into());
         }
@@ -480,14 +481,14 @@ impl ParserType {
 
     pub(super) fn parse_assert_entry(&self) -> AssertEntry {
         let pos = self.get_node_pos();
-        let name: Rc<Node> = if token_is_identifier_or_keyword(self.token()) {
+        let name: Gc<Node> = if token_is_identifier_or_keyword(self.token()) {
             self.parse_identifier_name(None).wrap()
         } else {
             self.parse_literal_like_node(SyntaxKind::StringLiteral)
                 .wrap()
         };
         self.parse_expected(SyntaxKind::ColonToken, None, None);
-        let value: Rc<Node> = self
+        let value: Gc<Node> = self
             .parse_literal_like_node(SyntaxKind::StringLiteral)
             .wrap();
         self.finish_node(
@@ -515,7 +516,7 @@ impl ParserType {
                     if last_error.code() == Diagnostics::_0_expected.code {
                         add_related_info(
                             last_error,
-                            vec![Rc::new(
+                            vec![Gc::new(
                                 create_detached_diagnostic(
                                     self.file_name(),
                                     open_brace_position.try_into().unwrap(),
@@ -568,11 +569,11 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-        identifier: Rc<Node /*Identifier*/>,
+        identifier: Gc<Node /*Identifier*/>,
         is_type_only: bool,
-    ) -> Rc<Node /*ImportEqualsDeclaration*/> {
+    ) -> Gc<Node /*ImportEqualsDeclaration*/> {
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
-        let module_reference: Rc<Node> = self.parse_module_reference().wrap();
+        let module_reference: Gc<Node> = self.parse_module_reference().wrap();
         self.parse_semicolon();
         let node = self.factory.create_import_equals_declaration(
             self,
@@ -587,11 +588,11 @@ impl ParserType {
 
     pub(super) fn parse_import_clause(
         &self,
-        identifier: Option<Rc<Node /*Identifier*/>>,
+        identifier: Option<Gc<Node /*Identifier*/>>,
         pos: usize,
         is_type_only: bool,
     ) -> ImportClause {
-        let mut named_bindings: Option<Rc<Node>> = None;
+        let mut named_bindings: Option<Gc<Node>> = None;
         if identifier.is_none() || self.parse_optional(SyntaxKind::CommaToken) {
             named_bindings = if self.token() == SyntaxKind::AsteriskToken {
                 Some(self.parse_namespace_import().into())
@@ -633,7 +634,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_module_specifier(&self) -> Rc<Node /*Expression*/> {
+    pub(super) fn parse_module_specifier(&self) -> Gc<Node /*Expression*/> {
         if self.token() == SyntaxKind::StringLiteral {
             let result = self.parse_literal_node();
             let result_as_literal_like_node = result.as_literal_like_node();
@@ -704,9 +705,9 @@ impl ParserType {
         let mut check_identifier_start = self.scanner().get_token_pos();
         let mut check_identifier_end = self.scanner().get_text_pos();
         let mut is_type_only = false;
-        let mut property_name: Option<Rc<Node>> = None;
+        let mut property_name: Option<Gc<Node>> = None;
         let mut can_parse_as_keyword = true;
-        let mut name: Rc<Node> = self.parse_identifier_name(None).wrap();
+        let mut name: Gc<Node> = self.parse_identifier_name(None).wrap();
         let mut parse_name_with_keyword_check = || {
             check_identifier_is_keyword = is_keyword(self.token()) && !self.is_identifier();
             check_identifier_start = self.scanner().get_token_pos();
@@ -715,9 +716,9 @@ impl ParserType {
         };
         if name.as_identifier().escaped_text == "type" {
             if self.token() == SyntaxKind::AsKeyword {
-                let first_as: Rc<Node> = self.parse_identifier_name(None).wrap();
+                let first_as: Gc<Node> = self.parse_identifier_name(None).wrap();
                 if self.token() == SyntaxKind::AsKeyword {
-                    let second_as: Rc<Node> = self.parse_identifier_name(None).wrap();
+                    let second_as: Gc<Node> = self.parse_identifier_name(None).wrap();
                     if token_is_identifier_or_keyword(self.token()) {
                         is_type_only = true;
                         property_name = Some(first_as);
@@ -782,12 +783,12 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node /*ExportDeclaration*/> {
+    ) -> Gc<Node /*ExportDeclaration*/> {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);
-        let mut export_clause: Option<Rc<Node>> = None;
-        let mut module_specifier: Option<Rc<Node>> = None;
-        let mut assert_clause: Option<Rc<Node>> = None;
+        let mut export_clause: Option<Gc<Node>> = None;
+        let mut module_specifier: Option<Gc<Node>> = None;
+        let mut assert_clause: Option<Gc<Node>> = None;
         let is_type_only = self.parse_optional(SyntaxKind::TypeKeyword);
         let namespace_export_pos = self.get_node_pos();
         if self.parse_optional(SyntaxKind::AsteriskToken) {

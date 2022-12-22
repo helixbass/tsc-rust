@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use indexmap::IndexMap;
 use std::borrow::Borrow;
 use std::rc::Rc;
@@ -19,7 +20,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn is_duplicated_common_js_export(&self, declarations: Option<&[Rc<Node>]>) -> bool {
+    pub(super) fn is_duplicated_common_js_export(&self, declarations: Option<&[Gc<Node>]>) -> bool {
         matches!(
             declarations,
             Some(declarations) if declarations.len() > 1 &&
@@ -48,9 +49,9 @@ impl TypeChecker {
         if is_in_js_file(Some(node)) {
             maybe_for_each(
                 node.maybe_js_doc().as_ref(),
-                |jsdoc: &Rc<Node>, _| -> Option<()> {
+                |jsdoc: &Gc<Node>, _| -> Option<()> {
                     let tags = jsdoc.as_jsdoc().tags.as_ref();
-                    maybe_for_each(tags, |tag: &Rc<Node>, _| -> Option<()> {
+                    maybe_for_each(tags, |tag: &Gc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**tag));
                         None
                     });
@@ -335,7 +336,7 @@ impl TypeChecker {
 
         let ref parent = node.parent();
         if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
-            if !Rc::ptr_eq(
+            if !Gc::ptr_eq(
                 last(parent.parent().as_jsdoc_function_type().parameters()),
                 parent,
             ) {
@@ -377,7 +378,7 @@ impl TypeChecker {
             None => true,
             Some(host) => !matches!(
                 last(host.as_signature_declaration().parameters()).maybe_symbol().as_ref(),
-                Some(symbol) if Rc::ptr_eq(
+                Some(symbol) if Gc::ptr_eq(
                     symbol,
                     param
                 )
@@ -394,7 +395,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_jsdoc_variadic_type(
         &self,
         node: &Node, /*JSDocVariadicType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let ref type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap());
         let ref parent = node.parent();
@@ -432,7 +433,7 @@ impl TypeChecker {
                             symbol.as_ref(),
                             Some(symbol) if matches!(
                                 last_param_declaration.maybe_symbol().as_ref(),
-                                Some(last_param_declaration_symbol) if Rc::ptr_eq(
+                                Some(last_param_declaration_symbol) if Gc::ptr_eq(
                                     last_param_declaration_symbol,
                                     symbol
                                 )
@@ -566,7 +567,7 @@ impl TypeChecker {
     pub(super) fn get_potentially_unused_identifiers(
         &self,
         source_file: &Node, /*SourceFile*/
-    ) -> Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>> {
+    ) -> Vec<Gc<Node /*PotentiallyUnusedIdentifier*/>> {
         self.all_potentially_unused_identifiers()
             .get(&source_file.as_source_file().path())
             .cloned()
@@ -581,7 +582,7 @@ impl TypeChecker {
             .intersects(NodeCheckFlags::TypeChecked)
         {
             if skip_type_checking(node, &self.compiler_options, |file_name| {
-                TypeCheckerHost::is_source_of_project_reference_redirect(&*self.host, file_name)
+                TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
             }) {
                 return;
             }
@@ -642,7 +643,7 @@ impl TypeChecker {
                 if !potential_this_collisions.is_empty() {
                     for_each(
                         &*potential_this_collisions,
-                        |potential_this_collision: &Rc<Node>, _| -> Option<()> {
+                        |potential_this_collision: &Gc<Node>, _| -> Option<()> {
                             self.check_if_this_is_captured_in_enclosing_scope(
                                 potential_this_collision,
                             );
@@ -658,7 +659,7 @@ impl TypeChecker {
                 if !potential_new_target_collisions.is_empty() {
                     for_each(
                         &*potential_new_target_collisions,
-                        |potential_new_target_collision: &Rc<Node>, _| -> Option<()> {
+                        |potential_new_target_collision: &Gc<Node>, _| -> Option<()> {
                             self.check_if_new_target_is_captured_in_enclosing_scope(
                                 potential_new_target_collision,
                             );
@@ -675,7 +676,7 @@ impl TypeChecker {
                 if !potential_weak_map_set_collisions.is_empty() {
                     for_each(
                         &*potential_weak_map_set_collisions,
-                        |potential_weak_map_set_collision: &Rc<Node>, _| -> Option<()> {
+                        |potential_weak_map_set_collision: &Gc<Node>, _| -> Option<()> {
                             self.check_weak_map_set_collision(potential_weak_map_set_collision);
                             None
                         },
@@ -689,7 +690,7 @@ impl TypeChecker {
                 if !potential_reflect_collisions.is_empty() {
                     for_each(
                         &*potential_reflect_collisions,
-                        |potential_reflect_collision: &Rc<Node>, _| -> Option<()> {
+                        |potential_reflect_collision: &Gc<Node>, _| -> Option<()> {
                             self.check_reflect_collision(potential_reflect_collision);
                             None
                         },
@@ -705,8 +706,8 @@ impl TypeChecker {
     pub fn get_diagnostics<TSourceFile: Borrow<Node>>(
         &self,
         source_file: Option<TSourceFile /*SourceFile*/>,
-        ct: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+        ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic>> {
         // try {
         self.set_cancellation_token(ct);
         let ret = self.get_diagnostics_worker(source_file);
@@ -720,7 +721,7 @@ impl TypeChecker {
     pub(super) fn get_diagnostics_worker<TSourceFile: Borrow<Node>>(
         &self,
         source_file: Option<TSourceFile /*SourceFile*/>,
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         self.throw_if_non_diagnostics_producing();
         if let Some(source_file) = source_file {
             let source_file = source_file.borrow();
@@ -737,7 +738,7 @@ impl TypeChecker {
                 let deferred_global_diagnostics = relative_complement(
                     &previous_global_diagnostics,
                     &current_global_diagnostics,
-                    |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
+                    |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| compare_diagnostics(&**a, &**b),
                 );
                 return concatenate(deferred_global_diagnostics, semantic_diagnostics);
             } else if previous_global_diagnostics_size == 0 && current_global_diagnostics.len() > 0
@@ -749,7 +750,7 @@ impl TypeChecker {
 
         for_each(
             &*self.host.get_source_files(),
-            |source_file: &Rc<Node>, _| -> Option<()> {
+            |source_file: &Gc<Node>, _| -> Option<()> {
                 self.check_source_file(source_file);
                 None
             },

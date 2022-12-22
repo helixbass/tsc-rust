@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Gc, GcCellRef};
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
@@ -54,23 +55,23 @@ bitflags! {
 
 pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory>(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
-) -> Rc<NodeFactory<TBaseNodeFactory>> {
+) -> Gc<NodeFactory<TBaseNodeFactory>> {
     NodeFactory::new(flags)
 }
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn new(flags: NodeFactoryFlags) -> Rc<Self> {
-        let factory_ = Rc::new(Self {
+    pub fn new(flags: NodeFactoryFlags) -> Gc<Self> {
+        let factory_ = Gc::new(Self {
             flags,
-            parenthesizer_rules: RefCell::new(None),
-            converters: RefCell::new(None),
+            parenthesizer_rules: Default::default(),
+            converters: Default::default(),
         });
         factory_.set_parenthesizer_rules(
             /*memoize(*/
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
-                Rc::new(null_parenthesizer_rules())
+                Gc::new(Box::new(null_parenthesizer_rules()))
             } else {
-                Rc::new(create_parenthesizer_rules(factory_.clone()))
+                Gc::new(Box::new(create_parenthesizer_rules(factory_.clone())))
             },
         );
         factory_.set_converters(
@@ -84,7 +85,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         factory_
     }
 
-    pub(crate) fn update(&self, updated: Rc<Node>, original: &Node) -> Rc<Node> {
+    pub(crate) fn update(&self, updated: Gc<Node>, original: &Node) -> Gc<Node> {
         if self.flags.intersects(NodeFactoryFlags::NoOriginalNode) {
             update_without_original(updated, original)
         } else {
@@ -94,16 +95,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub(crate) fn set_parenthesizer_rules(
         &self,
-        parenthesizer_rules: Rc<dyn ParenthesizerRules<TBaseNodeFactory>>,
+        parenthesizer_rules: Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>,
     ) {
         *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
     }
 
-    pub(crate) fn parenthesizer_rules(&self) -> Rc<dyn ParenthesizerRules<TBaseNodeFactory>> {
+    pub(crate) fn parenthesizer_rules(&self) -> Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
         self.parenthesizer_rules.borrow().clone().unwrap()
     }
 
-    pub fn parenthesizer(&self) -> Rc<dyn ParenthesizerRules<TBaseNodeFactory>> {
+    pub fn parenthesizer(&self) -> Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
         self.parenthesizer_rules()
     }
 
@@ -114,8 +115,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         *self.converters.borrow_mut() = Some(node_converters);
     }
 
-    pub fn converters(&self) -> Ref<Box<dyn NodeConverters<TBaseNodeFactory>>> {
-        Ref::map(self.converters.borrow(), |option| option.as_ref().unwrap())
+    pub fn converters(&self) -> GcCellRef<Box<dyn NodeConverters<TBaseNodeFactory>>> {
+        GcCellRef::map(self.converters.borrow(), |option| option.as_ref().unwrap())
     }
 
     pub fn create_jsdoc_all_type(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
@@ -125,7 +126,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_unknown_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocUnknownType, type_)
     }
@@ -133,7 +134,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_non_nullable_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocNonNullableType, type_)
     }
@@ -141,7 +142,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_nullable_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocNullableType, type_)
     }
@@ -149,7 +150,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_optional_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocOptionalType, type_)
     }
@@ -157,7 +158,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_variadic_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocVariadicType, type_)
     }
@@ -165,7 +166,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_namepath_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> BaseJSDocUnaryType {
         self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocNamepathType, type_)
     }
@@ -173,8 +174,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_type_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
-        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
+        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
@@ -189,8 +190,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_return_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
-        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
+        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
@@ -205,8 +206,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_this_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
-        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
+        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
@@ -221,8 +222,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_enum_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
-        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
+        type_expression: Option<Gc<Node /*JSDocTypeExpression*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
@@ -237,7 +238,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_author_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
@@ -251,7 +252,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_class_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
@@ -265,7 +266,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_public_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
@@ -279,7 +280,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_private_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
@@ -293,7 +294,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_protected_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
@@ -307,7 +308,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_readonly_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
@@ -321,7 +322,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_override_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
@@ -335,7 +336,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_deprecated_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        tag_name: Option<Rc<Node /*Identifier*/>>,
+        tag_name: Option<Gc<Node /*Identifier*/>>,
         comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
@@ -349,8 +350,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_comma(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::CommaToken, right)
     }
@@ -358,8 +359,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::EqualsToken, right)
     }
@@ -367,8 +368,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_logical_or(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::BarBarToken, right)
     }
@@ -376,8 +377,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_logical_and(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(
             base_factory,
@@ -390,8 +391,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_bitwise_or(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::BarToken, right)
     }
@@ -399,8 +400,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_bitwise_xor(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::CaretToken, right)
     }
@@ -408,8 +409,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_bitwise_and(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::AmpersandToken, right)
     }
@@ -417,8 +418,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_strict_equality(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(
             base_factory,
@@ -431,8 +432,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_strict_inequality(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(
             base_factory,
@@ -445,8 +446,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_equality(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::EqualsEqualsToken, right)
     }
@@ -454,8 +455,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_inequality(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(
             base_factory,
@@ -468,8 +469,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_less_than(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::LessThanToken, right)
     }
@@ -477,8 +478,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_less_than_equals(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::LessThanEqualsToken, right)
     }
@@ -486,8 +487,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_greater_than(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::GreaterThanToken, right)
     }
@@ -495,8 +496,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_greater_than_equals(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(
             base_factory,
@@ -509,8 +510,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_left_shift(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::LessThanLessThanToken, right)
     }
@@ -518,8 +519,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_right_shift(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(
             base_factory,
@@ -532,8 +533,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_unsigned_right_shift(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(
             base_factory,
@@ -546,8 +547,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_add(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::PlusToken, right)
     }
@@ -555,8 +556,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_subtract(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::MinusToken, right)
     }
@@ -564,8 +565,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_multiply(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::AsteriskToken, right)
     }
@@ -573,8 +574,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_divide(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::SlashToken, right)
     }
@@ -582,8 +583,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_modulo(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::PercentToken, right)
     }
@@ -591,8 +592,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_exponent(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*Expression*/>,
-        right: Rc<Node /*Expression*/>,
+        left: Gc<Node /*Expression*/>,
+        right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::AsteriskAsteriskToken, right)
     }
@@ -600,7 +601,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_prefix_plus(
         &self,
         base_factory: &TBaseNodeFactory,
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression(base_factory, SyntaxKind::MinusToken, operand)
     }
@@ -608,7 +609,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_prefix_increment(
         &self,
         base_factory: &TBaseNodeFactory,
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression(base_factory, SyntaxKind::PlusPlusToken, operand)
     }
@@ -616,7 +617,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_prefix_decrement(
         &self,
         base_factory: &TBaseNodeFactory,
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression(base_factory, SyntaxKind::MinusMinusToken, operand)
     }
@@ -624,7 +625,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_bitwise_not(
         &self,
         base_factory: &TBaseNodeFactory,
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression(base_factory, SyntaxKind::TildeToken, operand)
     }
@@ -632,7 +633,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_logical_not(
         &self,
         base_factory: &TBaseNodeFactory,
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         self.create_prefix_unary_expression(base_factory, SyntaxKind::ExclamationToken, operand)
     }
@@ -640,7 +641,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_postfix_increment(
         &self,
         base_factory: &TBaseNodeFactory,
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
     ) -> PostfixUnaryExpression {
         self.create_postfix_unary_expression(base_factory, operand, SyntaxKind::PlusPlusToken)
     }
@@ -648,7 +649,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_postfix_decrement(
         &self,
         base_factory: &TBaseNodeFactory,
-        operand: Rc<Node /*Expression*/>,
+        operand: Gc<Node /*Expression*/>,
     ) -> PostfixUnaryExpression {
         self.create_postfix_unary_expression(base_factory, operand, SyntaxKind::MinusMinusToken)
     }
@@ -807,7 +808,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
         parameters: Option<TParameters>,
-        type_: Option<Rc<Node>>,
+        type_: Option<Gc<Node>>,
     ) -> BaseSignatureDeclaration {
         let node = self.create_base_generic_named_declaration(
             base_factory,
@@ -845,8 +846,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
         parameters: Option<TParameters>,
-        type_: Option<Rc<Node>>,
-        body: Option<Rc<Node>>,
+        type_: Option<Gc<Node>>,
+        body: Option<Gc<Node>>,
     ) -> BaseFunctionLikeDeclaration {
         let node = self.create_base_signature_declaration(
             base_factory,
@@ -947,7 +948,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
         name: Option<TName>,
-        initializer: Option<Rc<Node>>,
+        initializer: Option<Gc<Node>>,
     ) -> BaseBindingLikeDeclaration {
         let node =
             self.create_base_named_declaration(base_factory, kind, decorators, modifiers, name);
@@ -968,8 +969,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
         name: Option<TName>,
-        type_: Option<Rc<Node>>,
-        initializer: Option<Rc<Node>>,
+        type_: Option<Gc<Node>>,
+        initializer: Option<Gc<Node>>,
     ) -> BaseVariableLikeDeclaration {
         let node = self.create_base_binding_like_declaration(
             base_factory,
@@ -1179,7 +1180,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         node: &Node,                    /*Identifier*/
         type_arguments: TTypeArguments, /*<TypeNode | TypeParameterDeclaration>*/
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let type_arguments = type_arguments.into();
         let node_type_arguments = node.as_identifier().maybe_type_arguments();
         if has_option_node_array_changed(node_type_arguments.as_ref(), &type_arguments) {
@@ -1321,7 +1322,7 @@ impl From<Option<NodeArray>> for MaybeChangedNodeArray {
 #[derive(Clone)]
 pub enum StringOrRcNode {
     String(String),
-    RcNode(Rc<Node>),
+    RcNode(Gc<Node>),
 }
 
 impl From<String> for StringOrRcNode {
@@ -1330,8 +1331,8 @@ impl From<String> for StringOrRcNode {
     }
 }
 
-impl From<Rc<Node>> for StringOrRcNode {
-    fn from(value: Rc<Node>) -> Self {
+impl From<Gc<Node>> for StringOrRcNode {
+    fn from(value: Gc<Node>) -> Self {
         Self::RcNode(value)
     }
 }
@@ -1339,7 +1340,7 @@ impl From<Rc<Node>> for StringOrRcNode {
 #[derive(Clone)]
 pub enum StrOrRcNode<'str> {
     Str(&'str str),
-    RcNode(Rc<Node>),
+    RcNode(Gc<Node>),
 }
 
 impl<'str> From<&'str str> for StrOrRcNode<'str> {
@@ -1348,8 +1349,8 @@ impl<'str> From<&'str str> for StrOrRcNode<'str> {
     }
 }
 
-impl<'str> From<Rc<Node>> for StrOrRcNode<'str> {
-    fn from(value: Rc<Node>) -> Self {
+impl<'str> From<Gc<Node>> for StrOrRcNode<'str> {
+    fn from(value: Gc<Node>) -> Self {
         Self::RcNode(value)
     }
 }
@@ -1376,7 +1377,7 @@ pub enum StringOrNumberOrBoolOrRcNode {
     String(String),
     Number(Number),
     Bool(bool),
-    RcNode(Rc<Node>),
+    RcNode(Gc<Node>),
 }
 
 impl From<String> for StringOrNumberOrBoolOrRcNode {
@@ -1385,8 +1386,8 @@ impl From<String> for StringOrNumberOrBoolOrRcNode {
     }
 }
 
-impl From<Rc<Node>> for StringOrNumberOrBoolOrRcNode {
-    fn from(value: Rc<Node>) -> Self {
+impl From<Gc<Node>> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: Gc<Node>) -> Self {
         Self::RcNode(value)
     }
 }

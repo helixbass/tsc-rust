@@ -1,3 +1,4 @@
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -21,9 +22,9 @@ use crate::{
 };
 
 pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
-    options: Rc<CompilerOptions>,
+    options: Gc<CompilerOptions>,
     to_absolute_path: TToAbsolutePath,
-) -> Rc<CompilerOptions> {
+) -> Gc<CompilerOptions> {
     let mut result: CompilerOptions = Default::default();
     let options_name_map = &get_options_name_map().options_name_map;
 
@@ -42,7 +43,7 @@ pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: Fn(&str) -
     if let Some(result_config_file_path) = result.config_file_path.as_ref() {
         result.config_file_path = Some(to_absolute_path(result_config_file_path));
     }
-    Rc::new(result)
+    Gc::new(result)
 }
 
 pub(super) fn convert_to_option_value_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
@@ -85,7 +86,7 @@ pub fn parse_json_config_file_content<THost: ParseConfigHost>(
     json: Option<serde_json::Value>,
     host: &THost,
     base_path: &str,
-    existing_options: Option<Rc<CompilerOptions>>,
+    existing_options: Option<Gc<CompilerOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
@@ -110,7 +111,7 @@ pub fn parse_json_source_file_config_file_content<THost: ParseConfigHost>(
     source_file: &Node, /*TsConfigSourceFile*/
     host: &THost,
     base_path: &str,
-    existing_options: Option<Rc<CompilerOptions>>,
+    existing_options: Option<Gc<CompilerOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
@@ -157,14 +158,14 @@ pub(super) fn parse_json_config_file_content_worker<
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
     host: &THost,
     base_path: &str,
-    existing_options: Option<Rc<CompilerOptions>>,
+    existing_options: Option<Gc<CompilerOptions>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
     mut extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
 ) -> ParsedCommandLine {
-    let existing_options = existing_options.unwrap_or_else(|| Rc::new(Default::default()));
+    let existing_options = existing_options.unwrap_or_else(|| Gc::new(Default::default()));
     let resolution_stack_default = vec![];
     let resolution_stack = resolution_stack.unwrap_or(&resolution_stack_default);
     let extra_file_extensions_default = vec![];
@@ -173,7 +174,7 @@ pub(super) fn parse_json_config_file_content_worker<
         json.is_none() && source_file.is_some() || json.is_some() && source_file.is_none(),
         None,
     );
-    let mut errors: Vec<Rc<Diagnostic>> = vec![];
+    let errors: Gc<GcCell<Vec<Gc<Diagnostic>>>> = Default::default();
 
     let parsed_config = parse_config(
         json,
@@ -185,7 +186,7 @@ pub(super) fn parse_json_config_file_content_worker<
             .into_iter()
             .map(|path| &**path)
             .collect::<Vec<_>>(),
-        &mut errors,
+        errors.clone(),
         &mut extended_config_cache,
     );
     let raw = parsed_config.raw.as_ref();
@@ -193,7 +194,7 @@ pub(super) fn parse_json_config_file_content_worker<
         &existing_options,
         &parsed_config
             .options
-            .map_or_else(|| Rc::new(Default::default()), |options| options.clone()),
+            .map_or_else(|| Gc::new(Default::default()), |options| options.clone()),
     );
     let watch_options: Option<Rc<WatchOptions>> =
         if existing_watch_options.is_some() && parsed_config.watch_options.is_some() {
@@ -214,7 +215,7 @@ pub(super) fn parse_json_config_file_content_worker<
     let config_file_specs: Rc<ConfigFileSpecs> = Rc::new(get_config_file_specs(
         raw,
         source_file.clone(),
-        &mut errors,
+        &mut errors.borrow_mut(),
         config_file_name,
     ));
     if let Some(source_file) = source_file.as_ref() {
@@ -231,7 +232,7 @@ pub(super) fn parse_json_config_file_content_worker<
         } else {
             base_path.to_owned()
         });
-    let options = Rc::new(options);
+    let options = Gc::new(options);
     ParsedCommandLine {
         options: options.clone(),
         watch_options,
@@ -242,14 +243,14 @@ pub(super) fn parse_json_config_file_content_worker<
             extra_file_extensions,
             raw,
             resolution_stack,
-            &mut errors,
+            &mut errors.clone().borrow_mut(),
             config_file_name,
             &base_path_for_file_names,
         ),
         project_references: get_project_references(
             raw,
             source_file,
-            &mut errors,
+            &mut errors.clone().borrow_mut(),
             &base_path_for_file_names,
         ),
         type_acquisition: Some(
@@ -258,7 +259,7 @@ pub(super) fn parse_json_config_file_content_worker<
                 .unwrap_or_else(|| Rc::new(get_default_type_acquisition(None))),
         ),
         raw: raw.map(Clone::clone),
-        errors,
+        errors: errors.clone(),
         wildcard_directories: Some(get_wildcard_directories(
             &config_file_specs,
             &base_path_for_file_names,
@@ -280,7 +281,7 @@ pub(super) fn parse_json_config_file_content_worker<
 pub(super) fn get_config_file_specs<TSourceFile: Borrow<Node> + Clone>(
     raw: Option<&serde_json::Value>,
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     config_file_name: Option<&str>,
 ) -> ConfigFileSpecs {
     let references_of_raw = get_prop_from_raw(
@@ -316,7 +317,7 @@ pub(super) fn get_config_file_specs<TSourceFile: Borrow<Node> + Clone>(
                     get_ts_config_prop_array(Some(source_file), "files"),
                     |property, _| property.as_property_assignment().maybe_initializer(),
                 );
-                let error: Rc<Diagnostic> = Rc::new(if let Some(node_value) = node_value {
+                let error: Gc<Diagnostic> = Gc::new(if let Some(node_value) = node_value {
                     create_diagnostic_for_node_in_source_file(
                         source_file,
                         &node_value,
@@ -434,7 +435,7 @@ pub(super) fn get_file_names<THost: ParseConfigHost>(
     extra_file_extensions: &[FileExtensionInfo],
     raw: Option<&serde_json::Value>,
     resolution_stack: &[Path],
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     config_file_name: Option<&str>,
     base_path: &str,
 ) -> Vec<String> {
@@ -461,7 +462,7 @@ pub(super) fn get_file_names<THost: ParseConfigHost>(
 pub(super) fn get_project_references<TSourceFile: Borrow<Node> + Clone>(
     raw: Option<&serde_json::Value>,
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     base_path: &str,
 ) -> Option<Vec<Rc<ProjectReference>>> {
     let mut project_references: Option<Vec<Rc<ProjectReference>>> = None;
@@ -545,7 +546,7 @@ pub(super) fn to_prop_value(spec_result: PropOfRaw) -> Option<Vec<String>> {
 pub(super) fn get_specs_from_raw<TSourceFile: Borrow<Node>>(
     raw: Option<&serde_json::Value>,
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     prop: &str, /*"files" | "include" | "exclude"*/
 ) -> PropOfRaw {
     get_prop_from_raw(
@@ -564,7 +565,7 @@ pub(super) fn get_prop_from_raw<
 >(
     raw: Option<&serde_json::Value>,
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     prop: &str, /*"files" | "include" | "exclude" | "references"*/
     validate_element: TValidateElement,
     element_type_name: &str,
@@ -575,7 +576,7 @@ pub(super) fn get_prop_from_raw<
                 serde_json::Value::Null => PropOfRaw::NoProp,
                 serde_json::Value::Array(result) => {
                     if source_file.is_none() && !every(result, |item, _| validate_element(item)) {
-                        errors.push(Rc::new(
+                        errors.push(Gc::new(
                             create_compiler_diagnostic(
                                 &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                                 Some(vec![prop.to_owned(), element_type_name.to_owned()]),

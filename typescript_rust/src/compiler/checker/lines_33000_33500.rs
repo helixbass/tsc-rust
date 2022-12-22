@@ -1,19 +1,21 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    are_option_rcs_equal, expression_result_is_unused, get_assigned_expando_initializer,
-    get_containing_function, get_function_flags, is_assignment_operator,
-    is_element_access_expression, is_identifier, is_jsdoc_typedef_tag, is_jsx_self_closing_element,
-    is_object_literal_expression, is_parenthesized_expression, is_property_access_expression,
-    token_to_string, unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, InferenceContext, Node,
-    NodeFlags, NodeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    are_option_gcs_equal, are_option_rcs_equal, expression_result_is_unused,
+    get_assigned_expando_initializer, get_containing_function, get_function_flags,
+    is_assignment_operator, is_element_access_expression, is_identifier, is_jsdoc_typedef_tag,
+    is_jsx_self_closing_element, is_object_literal_expression, is_parenthesized_expression,
+    is_property_access_expression, token_to_string, unescape_leading_underscores,
+    AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    FunctionFlags, InferenceContext, Node, NodeFlags, NodeInterface, ScriptTarget, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -233,10 +235,10 @@ impl TypeChecker {
                 self.get_awaited_type_no_alias(left_type, Option::<&Node>::None, None, None);
             let awaited_right_type =
                 self.get_awaited_type_no_alias(right_type, Option::<&Node>::None, None, None);
-            would_work_with_await = !(are_option_rcs_equal(
+            would_work_with_await = !(are_option_gcs_equal(
                 awaited_left_type.as_ref(),
                 Some(&left_type.type_wrapper()),
-            ) && are_option_rcs_equal(
+            ) && are_option_gcs_equal(
                 awaited_right_type.as_ref(),
                 Some(&right_type.type_wrapper()),
             )) && awaited_left_type.is_some()
@@ -287,7 +289,7 @@ impl TypeChecker {
         maybe_missing_await: bool,
         left_str: &str,
         right_str: &str,
-    ) -> Option<Rc<Diagnostic>> {
+    ) -> Option<Gc<Diagnostic>> {
         let mut type_name: Option<&'static str> = None;
         match operator_token.kind() {
             SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::EqualsEqualsToken => {
@@ -320,7 +322,7 @@ impl TypeChecker {
         left_type: &Type,
         right_type: &Type,
         is_related: &mut TIsRelated,
-    ) -> (Rc<Type>, Rc<Type>) {
+    ) -> (Gc<Type>, Gc<Type>) {
         let mut effective_left = left_type.type_wrapper();
         let mut effective_right = right_type.type_wrapper();
         let left_base = self.get_base_type_of_literal_type(left_type);
@@ -332,7 +334,7 @@ impl TypeChecker {
         (effective_left, effective_right)
     }
 
-    pub(super) fn check_yield_expression(&self, node: &Node /*YieldExpression*/) -> Rc<Type> {
+    pub(super) fn check_yield_expression(&self, node: &Node /*YieldExpression*/) -> Gc<Type> {
         if self.produce_diagnostics {
             if !node.flags().intersects(NodeFlags::YieldContext) {
                 self.grammar_error_on_first_token(
@@ -475,7 +477,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ConditionalExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_conditional_expression = node.as_conditional_expression();
         let type_ =
             self.check_truthiness_expression(&node_as_conditional_expression.condition, None);
@@ -510,7 +512,7 @@ impl TypeChecker {
     pub(super) fn check_template_expression(
         &self,
         node: &Node, /*TemplateExpression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_template_expression = node.as_template_expression();
         let mut texts = vec![node_as_template_expression
             .head
@@ -572,7 +574,7 @@ impl TypeChecker {
                 )
     }
 
-    pub(super) fn get_context_node(&self, node: &Node /*Expression*/) -> Rc<Node> {
+    pub(super) fn get_context_node(&self, node: &Node /*Expression*/) -> Gc<Node> {
         if node.kind() == SyntaxKind::JsxAttributes && !is_jsx_self_closing_element(&node.parent())
         {
             return node.parent().parent();
@@ -584,9 +586,9 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         contextual_type: &Type,
-        inference_context: Option<Rc<InferenceContext>>,
+        inference_context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let context = self.get_context_node(node);
         let save_contextual_type = context.maybe_contextual_type().clone();
         let save_inference_context = context.maybe_inference_context().clone();
@@ -627,7 +629,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let links = self.get_node_links(node);
         let links_resolved_type_is_none = (*links).borrow().resolved_type.is_none();
         if links_resolved_type_is_none {

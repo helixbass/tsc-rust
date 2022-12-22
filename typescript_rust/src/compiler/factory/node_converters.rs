@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -12,17 +13,18 @@ use crate::{
 };
 
 pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
-    factory: Rc<NodeFactory<TBaseNodeFactory>>,
+    factory: Gc<NodeFactory<TBaseNodeFactory>>,
 ) -> NodeConvertersConcrete<TBaseNodeFactory> {
     NodeConvertersConcrete::new(factory)
 }
 
-pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory> {
-    factory: Rc<NodeFactory<TBaseNodeFactory>>,
+#[derive(Trace, Finalize)]
+pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory + 'static> {
+    factory: Gc<NodeFactory<TBaseNodeFactory>>,
 }
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConvertersConcrete<TBaseNodeFactory> {
-    pub fn new(factory: Rc<NodeFactory<TBaseNodeFactory>>) -> Self {
+    pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
         Self { factory }
     }
 }
@@ -35,7 +37,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ConciseBody*/
         multi_line: Option<bool>,
-    ) -> Rc<Node /*Block*/> {
+    ) -> Gc<Node /*Block*/> {
         if is_block(node) {
             return node.node_wrapper();
         }
@@ -43,11 +45,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
             .factory
             .create_return_statement(base_factory, Some(node.node_wrapper()));
         let return_statement =
-            set_text_range(&*Into::<Rc<Node>>::into(return_statement), Some(node)).node_wrapper();
+            set_text_range(&*Into::<Gc<Node>>::into(return_statement), Some(node)).node_wrapper();
         let body = self
             .factory
             .create_block(base_factory, vec![return_statement], multi_line);
-        let body = set_text_range(&*Into::<Rc<Node>>::into(body), Some(node)).node_wrapper();
+        let body = set_text_range(&*Into::<Gc<Node>>::into(body), Some(node)).node_wrapper();
         body
     }
 
@@ -55,12 +57,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*FunctionDeclaration*/
-    ) -> Rc<Node /*FunctionExpression*/> {
+    ) -> Gc<Node /*FunctionExpression*/> {
         let node_as_function_declaration = node.as_function_declaration();
         if node_as_function_declaration.maybe_body().is_none() {
             Debug_.fail(Some("Cannot convert a FunctionDeclaration without a body"));
         }
-        let updated: Rc<Node> = self
+        let updated: Gc<Node> = self
             .factory
             .create_function_expression(
                 base_factory,
@@ -91,7 +93,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         if is_binding_element(element) {
             let element_as_binding_element = element.as_binding_element();
             if element_as_binding_element.dot_dot_dot_token.is_some() {
@@ -104,7 +106,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                     .factory
                     .create_spread_element(base_factory, element_as_binding_element.name());
                 let ret =
-                    set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+                    set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
             }
@@ -120,7 +122,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                         element_initializer,
                     );
                     let ret =
-                        set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+                        set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
                     set_original_node(ret.clone(), Some(element.node_wrapper()));
                     return ret;
                 }
@@ -134,7 +136,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
-    ) -> Rc<Node /*ObjectLiteralElementLike*/> {
+    ) -> Gc<Node /*ObjectLiteralElementLike*/> {
         if is_binding_element(element) {
             let element_as_binding_element = element.as_binding_element();
             if element_as_binding_element.dot_dot_dot_token.is_some() {
@@ -147,7 +149,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                     .factory
                     .create_spread_assignment(base_factory, element_as_binding_element.name());
                 let ret =
-                    set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+                    set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
             }
@@ -168,7 +170,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                     },
                 );
                 let ret =
-                    set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+                    set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
             }
@@ -182,7 +184,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 element_as_binding_element.name(),
                 element_as_binding_element.maybe_initializer(),
             );
-            let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+            let ret = set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
             set_original_node(ret.clone(), Some(element.node_wrapper()));
             return ret;
         }
@@ -196,7 +198,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentPattern*/
-    ) -> Rc<Node /*AssignmentPattern*/> {
+    ) -> Gc<Node /*AssignmentPattern*/> {
         match node.kind() {
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ArrayLiteralExpression => {
                 self.convert_to_array_assignment_pattern(base_factory, node)
@@ -212,7 +214,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ObjectBindingOrAssignmentPattern*/
-    ) -> Rc<Node /*ObjectLiteralExpression*/> {
+    ) -> Gc<Node /*ObjectLiteralExpression*/> {
         if is_object_binding_pattern(node) {
             let node_as_object_binding_pattern = node.as_object_binding_pattern();
             let ret = self.factory.create_object_literal_expression(
@@ -223,7 +225,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 )),
                 None,
             );
-            let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(node)).node_wrapper();
+            let ret = set_text_range(&*Into::<Gc<Node>>::into(ret), Some(node)).node_wrapper();
             set_original_node(ret.clone(), Some(node.node_wrapper()));
             return ret;
         }
@@ -234,7 +236,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ArrayBindingOrAssignmentPattern*/
-    ) -> Rc<Node /*ArrayLiteralExpression*/> {
+    ) -> Gc<Node /*ArrayLiteralExpression*/> {
         if is_array_binding_pattern(node) {
             let node_as_array_binding_pattern = node.as_array_binding_pattern();
             let ret = self.factory.create_array_literal_expression(
@@ -245,7 +247,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 )),
                 None,
             );
-            let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(node)).node_wrapper();
+            let ret = set_text_range(&*Into::<Gc<Node>>::into(ret), Some(node)).node_wrapper();
             set_original_node(ret.clone(), Some(node.node_wrapper()));
             return ret;
         }
@@ -256,7 +258,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentElementTarget*/
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         if is_binding_pattern(Some(node)) {
             return self.convert_to_assignment_pattern(base_factory, node);
         }
@@ -269,7 +271,9 @@ pub fn null_node_converters<TBaseNodeFactory: BaseNodeFactory>(
     NullNodeConverters::<TBaseNodeFactory>::new()
 }
 
+#[derive(Trace, Finalize)]
 pub struct NullNodeConverters<TBaseNodeFactory: BaseNodeFactory> {
+    #[unsafe_ignore_trace]
     _base_node_factory: PhantomData<TBaseNodeFactory>,
 }
 
@@ -289,7 +293,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ConciseBody*/
         multi_line: Option<bool>,
-    ) -> Rc<Node /*Block*/> {
+    ) -> Gc<Node /*Block*/> {
         unimplemented!()
     }
 
@@ -297,7 +301,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*FunctionDeclaration*/
-    ) -> Rc<Node /*FunctionExpression*/> {
+    ) -> Gc<Node /*FunctionExpression*/> {
         unimplemented!()
     }
 
@@ -305,7 +309,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
 
@@ -313,7 +317,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
-    ) -> Rc<Node /*ObjectLiteralElementLike*/> {
+    ) -> Gc<Node /*ObjectLiteralElementLike*/> {
         unimplemented!()
     }
 
@@ -321,7 +325,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentPattern*/
-    ) -> Rc<Node /*AssignmentPattern*/> {
+    ) -> Gc<Node /*AssignmentPattern*/> {
         unimplemented!()
     }
 
@@ -329,7 +333,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ObjectBindingOrAssignmentPattern*/
-    ) -> Rc<Node /*ObjectLiteralExpression*/> {
+    ) -> Gc<Node /*ObjectLiteralExpression*/> {
         unimplemented!()
     }
 
@@ -337,7 +341,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ArrayBindingOrAssignmentPattern*/
-    ) -> Rc<Node /*ArrayLiteralExpression*/> {
+    ) -> Gc<Node /*ArrayLiteralExpression*/> {
         unimplemented!()
     }
 
@@ -345,7 +349,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentElementTarget*/
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
 }

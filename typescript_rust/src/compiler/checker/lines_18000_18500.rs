@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
@@ -11,41 +12,54 @@ use super::{
     IntersectionState, JsxNames, RecursionFlags,
 };
 use crate::{
-    append, are_option_rcs_equal, contains_rc, find_ancestor, is_identifier, is_identifier_text,
-    reduce_left, some, Diagnostic, ObjectFlagsTypeInterface, UnionOrIntersectionTypeInterface,
-    __String, add_related_info, chain_diagnostic_messages, concatenate_diagnostic_message_chains,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, first_or_undefined,
-    get_emit_script_target, get_object_flags, get_source_file_of_node, is_import_call,
-    is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,
-    is_object_literal_element_like, Debug_, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
-    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    append, are_option_gcs_equal, are_option_rcs_equal, contains_gc, contains_rc, find_ancestor,
+    is_identifier, is_identifier_text, reduce_left, some, Diagnostic, ObjectFlagsTypeInterface,
+    UnionOrIntersectionTypeInterface, __String, add_related_info, chain_diagnostic_messages,
+    concatenate_diagnostic_message_chains, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, first_or_undefined, get_emit_script_target,
+    get_object_flags, get_source_file_of_node, is_import_call, is_jsx_attribute, is_jsx_attributes,
+    is_jsx_opening_like_element, is_object_literal_element_like, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface,
+    ObjectFlags, RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
+#[derive(Trace, Finalize)]
 pub(super) struct CheckTypeRelatedTo {
-    _rc_wrapper: RefCell<Option<Rc<CheckTypeRelatedTo>>>,
-    pub type_checker: Rc<TypeChecker>,
-    pub source: Rc<Type>,
-    pub target: Rc<Type>,
+    _rc_wrapper: GcCell<Option<Gc<CheckTypeRelatedTo>>>,
+    pub type_checker: Gc<TypeChecker>,
+    pub source: Gc<Type>,
+    pub target: Gc<Type>,
+    #[unsafe_ignore_trace]
     pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-    pub error_node: RefCell<Option<Rc<Node>>>,
+    pub error_node: GcCell<Option<Gc<Node>>>,
+    #[unsafe_ignore_trace]
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
-    pub containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-    pub error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+    pub containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+    pub error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+    #[unsafe_ignore_trace]
     pub error_info: RefCell<Option<Rc<DiagnosticMessageChain>>>,
-    pub related_info: RefCell<Option<Vec<DiagnosticRelatedInformation>>>,
+    pub related_info: GcCell<Option<Vec<DiagnosticRelatedInformation>>>,
+    #[unsafe_ignore_trace]
     pub maybe_keys: RefCell<Option<Vec<String>>>,
-    pub source_stack: RefCell<Option<Vec<Rc<Type>>>>,
-    pub target_stack: RefCell<Option<Vec<Rc<Type>>>>,
+    pub source_stack: GcCell<Option<Vec<Gc<Type>>>>,
+    pub target_stack: GcCell<Option<Vec<Gc<Type>>>>,
+    #[unsafe_ignore_trace]
     pub maybe_count: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub source_depth: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub target_depth: Cell<usize>,
+    #[unsafe_ignore_trace]
     pub expanding_flags: Cell<ExpandingFlags>,
+    #[unsafe_ignore_trace]
     pub overflow: Cell<bool>,
+    #[unsafe_ignore_trace]
     pub override_next_error_info: Cell<usize>,
-    pub last_skipped_info: RefCell<Option<(Rc<Type>, Rc<Type>)>>,
+    pub last_skipped_info: GcCell<Option<(Gc<Type>, Gc<Type>)>>,
+    #[unsafe_ignore_trace]
     pub incompatible_stack: RefCell<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>>,
+    #[unsafe_ignore_trace]
     pub in_property_check: Cell<bool>,
 }
 
@@ -55,54 +69,54 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<Rc<Node>>,
+        error_node: Option<Gc<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
-    ) -> Rc<Self> {
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+    ) -> Gc<Self> {
         let instance = Self {
-            _rc_wrapper: RefCell::new(None),
+            _rc_wrapper: Default::default(),
             type_checker: type_checker.rc_wrapper(),
             source: source.type_wrapper(),
             target: target.type_wrapper(),
             relation,
-            error_node: RefCell::new(error_node),
+            error_node: GcCell::new(error_node),
             head_message,
             containing_message_chain,
             error_output_container,
-            error_info: RefCell::new(None),
-            related_info: RefCell::new(None),
-            maybe_keys: RefCell::new(None),
-            source_stack: RefCell::new(None),
-            target_stack: RefCell::new(None),
-            maybe_count: Cell::new(0),
-            source_depth: Cell::new(0),
-            target_depth: Cell::new(0),
+            error_info: Default::default(),
+            related_info: Default::default(),
+            maybe_keys: Default::default(),
+            source_stack: Default::default(),
+            target_stack: Default::default(),
+            maybe_count: Default::default(),
+            source_depth: Default::default(),
+            target_depth: Default::default(),
             expanding_flags: Cell::new(ExpandingFlags::None),
-            overflow: Cell::new(false),
-            override_next_error_info: Cell::new(0),
-            last_skipped_info: RefCell::new(None),
+            overflow: Default::default(),
+            override_next_error_info: Default::default(),
+            last_skipped_info: Default::default(),
             incompatible_stack: RefCell::new(vec![]),
-            in_property_check: Cell::new(false),
+            in_property_check: Default::default(),
         };
-        let rc_wrapped = Rc::new(instance);
+        let rc_wrapped = Gc::new(instance);
         rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
         rc_wrapped
     }
 
-    pub(super) fn set_rc_wrapper(&self, rc_wrapper: Rc<CheckTypeRelatedTo>) {
+    pub(super) fn set_rc_wrapper(&self, rc_wrapper: Gc<CheckTypeRelatedTo>) {
         *self._rc_wrapper.borrow_mut() = Some(rc_wrapper);
     }
 
-    pub(super) fn rc_wrapper(&self) -> Rc<CheckTypeRelatedTo> {
+    pub(super) fn rc_wrapper(&self) -> Gc<CheckTypeRelatedTo> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_error_node(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_error_node(&self) -> Option<Gc<Node>> {
         self.error_node.borrow().clone()
     }
 
-    pub(super) fn set_error_node(&self, error_node: Option<Rc<Node>>) {
+    pub(super) fn set_error_node(&self, error_node: Option<Gc<Node>>) {
         *self.error_node.borrow_mut() = error_node;
     }
 
@@ -110,7 +124,9 @@ impl CheckTypeRelatedTo {
         self.error_info.borrow_mut()
     }
 
-    pub(super) fn maybe_related_info(&self) -> RefMut<Option<Vec<DiagnosticRelatedInformation>>> {
+    pub(super) fn maybe_related_info(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<DiagnosticRelatedInformation>>> {
         self.related_info.borrow_mut()
     }
 
@@ -118,11 +134,11 @@ impl CheckTypeRelatedTo {
         self.maybe_keys.borrow_mut()
     }
 
-    pub(super) fn maybe_source_stack(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub(super) fn maybe_source_stack(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
         self.source_stack.borrow_mut()
     }
 
-    pub(super) fn maybe_target_stack(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub(super) fn maybe_target_stack(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
         self.target_stack.borrow_mut()
     }
 
@@ -174,7 +190,7 @@ impl CheckTypeRelatedTo {
         self.override_next_error_info.set(override_next_error_info);
     }
 
-    pub(super) fn maybe_last_skipped_info(&self) -> RefMut<Option<(Rc<Type>, Rc<Type>)>> {
+    pub(super) fn maybe_last_skipped_info(&self) -> GcCellRefMut<Option<(Gc<Type>, Gc<Type>)>> {
         self.last_skipped_info.borrow_mut()
     }
 
@@ -251,7 +267,7 @@ impl CheckTypeRelatedTo {
                 }
             }
 
-            let mut related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
+            let mut related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
             if let Some(head_message) = self.head_message.as_ref() {
                 if let Some(error_node) = self.maybe_error_node().as_ref() {
                     if result == Ternary::False {
@@ -276,7 +292,7 @@ impl CheckTypeRelatedTo {
                                     None,
                                 );
                                 if helpful_retry {
-                                    let diag: Rc<DiagnosticRelatedInformation> = Rc::new(create_diagnostic_for_node(
+                                    let diag: Gc<DiagnosticRelatedInformation> = Gc::new(create_diagnostic_for_node(
                                         &links_originating_import,
                                         &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
                                         None,
@@ -291,7 +307,7 @@ impl CheckTypeRelatedTo {
                     }
                 }
             }
-            let diag: Rc<Diagnostic> = Rc::new(
+            let diag: Gc<Diagnostic> = Gc::new(
                 create_diagnostic_for_node_from_message_chain(
                     self.maybe_error_node().as_ref().unwrap(),
                     self.maybe_error_info()
@@ -303,7 +319,7 @@ impl CheckTypeRelatedTo {
                 .into(),
             );
             if let Some(related_info) = self.maybe_related_info().clone() {
-                add_related_info(&diag, related_info.into_iter().map(Rc::new).collect());
+                add_related_info(&diag, related_info.into_iter().map(Gc::new).collect());
             }
             if let Some(error_output_container) = self.error_output_container.as_ref() {
                 error_output_container.push_error(diag.clone());
@@ -822,7 +838,7 @@ impl CheckTypeRelatedTo {
             .type_checker
             .get_normalized_type(&original_target, true);
 
-        if Rc::ptr_eq(&source, &target) {
+        if Gc::ptr_eq(&source, &target) {
             return Ternary::True;
         }
 
@@ -833,7 +849,7 @@ impl CheckTypeRelatedTo {
         if source.flags().intersects(TypeFlags::TypeParameter)
             && matches!(
                 self.type_checker.get_constraint_of_type(&source),
-                Some(constraint) if Rc::ptr_eq(&constraint, &target)
+                Some(constraint) if Gc::ptr_eq(&constraint, &target)
             )
         {
             return Ternary::True;
@@ -861,7 +877,7 @@ impl CheckTypeRelatedTo {
                     .type_checker
                     .get_normalized_type(&null_stripped_target, true);
             }
-            if Rc::ptr_eq(&source, &null_stripped_target) {
+            if Gc::ptr_eq(&source, &null_stripped_target) {
                 return Ternary::True;
             }
         }
@@ -917,7 +933,7 @@ impl CheckTypeRelatedTo {
                 && source
                     .flags()
                     .intersects(TypeFlags::Primitive | TypeFlags::Object | TypeFlags::Intersection)
-                && !Rc::ptr_eq(&source, &self.type_checker.global_object_type())
+                && !Gc::ptr_eq(&source, &self.type_checker.global_object_type())
                 && target
                     .flags()
                     .intersects(TypeFlags::Object | TypeFlags::Intersection)
@@ -1103,7 +1119,7 @@ impl CheckTypeRelatedTo {
                         .intersects(TypeFlags::StructuredType)
                     && !some(
                         Some(source.as_union_or_intersection_type().types()),
-                        Some(|t: &Rc<Type>| {
+                        Some(|t: &Gc<Type>| {
                             get_object_flags(t).intersects(ObjectFlags::NonInferrableType)
                         }),
                     ))
@@ -1187,7 +1203,7 @@ impl CheckTypeRelatedTo {
                 self.try_elaborate_errors_for_primitives_and_objects(&source, &target);
             } else if source.maybe_symbol().is_some()
                 && source.flags().intersects(TypeFlags::Object)
-                && Rc::ptr_eq(&self.type_checker.global_object_type(), &source)
+                && Gc::ptr_eq(&self.type_checker.global_object_type(), &source)
             {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead),
@@ -1207,8 +1223,8 @@ impl CheckTypeRelatedTo {
                 );
                 if !self.type_checker.is_error_type(&intrinsic_attributes)
                     && !self.type_checker.is_error_type(&intrinsic_class_attributes)
-                    && (contains_rc(Some(target_types), &intrinsic_attributes)
-                        || contains_rc(Some(target_types), &intrinsic_class_attributes))
+                    && (contains_gc(Some(target_types), &intrinsic_attributes)
+                        || contains_gc(Some(target_types), &intrinsic_class_attributes))
                 {
                     return /*result*/;
                 }
@@ -1296,11 +1312,11 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn get_type_of_property_in_types(
         &self,
-        types: &[Rc<Type>],
+        types: &[Gc<Type>],
         name: &str, /*__String*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let append_prop_type =
-            |mut prop_types: Option<Vec<Rc<Type>>>, type_: &Rc<Type>, _| -> Option<Vec<Rc<Type>>> {
+            |mut prop_types: Option<Vec<Gc<Type>>>, type_: &Gc<Type>, _| -> Option<Vec<Gc<Type>>> {
                 let type_ = self.type_checker.get_apparent_type(type_);
                 let prop = if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
                     self.type_checker
@@ -1356,7 +1372,7 @@ impl CheckTypeRelatedTo {
             return false;
         }
         let mut reduced_target = target.type_wrapper();
-        let mut check_types: Option<Vec<Rc<Type>>> = None;
+        let mut check_types: Option<Vec<Gc<Type>>> = None;
         if target.flags().intersects(TypeFlags::Union) {
             reduced_target = self
                 .type_checker
@@ -1405,7 +1421,7 @@ impl CheckTypeRelatedTo {
                                 .maybe_value_declaration()
                                 .filter(|prop_value_declaration| {
                                     is_jsx_attribute(prop_value_declaration)
-                                        && are_option_rcs_equal(
+                                        && are_option_gcs_equal(
                                             get_source_file_of_node(Some(&**error_node_present))
                                                 .as_ref(),
                                             get_source_file_of_node(Some(
@@ -1490,7 +1506,7 @@ impl CheckTypeRelatedTo {
                                         Some(object_literal_declaration) if ptr::eq(d, &**object_literal_declaration)
                                     )
                                 ).is_some() &&
-                                are_option_rcs_equal(
+                                are_option_gcs_equal(
                                     get_source_file_of_node(object_literal_declaration.as_deref()).as_ref(),
                                     get_source_file_of_node(Some(&**error_node_present)).as_ref(),
                                 )
@@ -1573,7 +1589,7 @@ impl CheckTypeRelatedTo {
 #[derive(Clone)]
 pub(super) struct ErrorCalculationState {
     pub error_info: Option<Rc<DiagnosticMessageChain>>,
-    pub last_skipped_info: Option<(Rc<Type>, Rc<Type>)>,
+    pub last_skipped_info: Option<(Gc<Type>, Gc<Type>)>,
     pub incompatible_stack: Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>,
     pub override_next_error_info: usize,
     pub related_info: Option<Vec<DiagnosticRelatedInformation>>,

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
@@ -42,7 +43,7 @@ impl ParserType {
         self.finish_node(self.factory.create_case_block(self, clauses), pos, None)
     }
 
-    pub(super) fn parse_switch_statement(&self) -> Rc<Node /*SwitchStatement*/> {
+    pub(super) fn parse_switch_statement(&self) -> Gc<Node /*SwitchStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::SwitchKeyword, None, None);
@@ -62,12 +63,12 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_throw_statement(&self) -> Rc<Node /*ThrowStatement*/> {
+    pub(super) fn parse_throw_statement(&self) -> Gc<Node /*ThrowStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::ThrowKeyword, None, None);
 
-        let mut expression: Option<Rc<Node>> = if self.scanner().has_preceding_line_break() {
+        let mut expression: Option<Gc<Node>> = if self.scanner().has_preceding_line_break() {
             None
         } else {
             Some(self.allow_in_and(|| self.parse_expression()))
@@ -99,19 +100,19 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_try_statement(&self) -> Rc<Node /*TryStatement*/> {
+    pub(super) fn parse_try_statement(&self) -> Gc<Node /*TryStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
 
         self.parse_expected(SyntaxKind::TryKeyword, None, None);
-        let try_block: Rc<Node> = self.parse_block(false, None);
-        let catch_clause: Option<Rc<Node>> = if self.token() == SyntaxKind::CatchKeyword {
+        let try_block: Gc<Node> = self.parse_block(false, None);
+        let catch_clause: Option<Gc<Node>> = if self.token() == SyntaxKind::CatchKeyword {
             Some(self.parse_catch_clause().into())
         } else {
             None
         };
 
-        let mut finally_block: Option<Rc<Node>> = None;
+        let mut finally_block: Option<Gc<Node>> = None;
         if catch_clause.is_none() || self.token() == SyntaxKind::FinallyKeyword {
             self.parse_expected(SyntaxKind::FinallyKeyword, None, None);
             finally_block = Some(self.parse_block(false, None));
@@ -133,7 +134,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::CatchKeyword, None, None);
 
-        let variable_declaration: Option<Rc<Node>>;
+        let variable_declaration: Option<Gc<Node>>;
         if self.parse_optional(SyntaxKind::OpenParenToken) {
             variable_declaration = Some(self.parse_variable_declaration(None));
             self.parse_expected(SyntaxKind::CloseParenToken, None, None);
@@ -150,7 +151,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_debugger_statement(&self) -> Rc<Node /*DebuggerStatement*/> {
+    pub(super) fn parse_debugger_statement(&self) -> Gc<Node /*DebuggerStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::DebuggerKeyword, None, None);
@@ -164,7 +165,7 @@ impl ParserType {
 
     pub(super) fn parse_expression_or_labeled_statement(
         &self,
-    ) -> Rc<Node /*ExpressionStatement | LabeledStatement*/> {
+    ) -> Gc<Node /*ExpressionStatement | LabeledStatement*/> {
         let pos = self.get_node_pos();
         let mut has_jsdoc = self.has_preceding_jsdoc_comment();
         let node: Node;
@@ -360,7 +361,7 @@ impl ParserType {
         self.look_ahead_bool(|| self.next_token_is_binding_identifier_or_start_of_destructuring())
     }
 
-    pub(super) fn parse_statement(&self) -> Rc<Node> {
+    pub(super) fn parse_statement(&self) -> Gc<Node> {
         match self.token() {
             SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
             SyntaxKind::OpenBraceToken => return self.parse_block(false, None),
@@ -447,7 +448,7 @@ impl ParserType {
         modifier.kind() == SyntaxKind::DeclareKeyword
     }
 
-    pub(super) fn parse_declaration(&self) -> Rc<Node /*Statement*/> {
+    pub(super) fn parse_declaration(&self) -> Gc<Node /*Statement*/> {
         let is_ambient = some(
             self.look_ahead(|| {
                 self.parse_decorators();
@@ -455,10 +456,10 @@ impl ParserType {
             })
             .as_ref()
             .map(|node_array| {
-                let node_array: &[Rc<Node>] = node_array;
+                let node_array: &[Gc<Node>] = node_array;
                 node_array
             }),
-            Some(|modifier: &Rc<Node>| self.is_declare_modifier(modifier)),
+            Some(|modifier: &Gc<Node>| self.is_declare_modifier(modifier)),
         );
         if is_ambient {
             let node = self.try_reuse_ambient_declaration();
@@ -483,7 +484,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn try_reuse_ambient_declaration(&self) -> Option<Rc<Node /*Statement*/>> {
+    pub(super) fn try_reuse_ambient_declaration(&self) -> Option<Gc<Node /*Statement*/>> {
         self.do_inside_of_context(NodeFlags::Ambient, || {
             let node = self.current_node(self.parsing_context());
             if let Some(node) = node {
@@ -499,7 +500,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Rc<Node> /*Statement*/ {
+    ) -> Gc<Node> /*Statement*/ {
         match self.token() {
             SyntaxKind::VarKeyword | SyntaxKind::LetKeyword | SyntaxKind::ConstKeyword => {
                 self.parse_variable_statement(pos, has_jsdoc, decorators, modifiers)
@@ -568,7 +569,7 @@ impl ParserType {
         &self,
         flags: SignatureFlags,
         diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Option<Rc<Node /*Block*/>> {
+    ) -> Option<Gc<Node /*Block*/>> {
         if self.token() != SyntaxKind::OpenBraceToken && self.can_parse_semicolon() {
             self.parse_semicolon();
             return None;
@@ -596,7 +597,7 @@ impl ParserType {
                 .create_binding_element(
                     self,
                     dot_dot_dot_token,
-                    Option::<Rc<Node>>::None,
+                    Option::<Gc<Node>>::None,
                     name,
                     initializer,
                 )
@@ -612,8 +613,8 @@ impl ParserType {
             .parse_optional_token(SyntaxKind::DotDotDotToken)
             .map(Node::wrap);
         let token_is_identifier = self.is_binding_identifier();
-        let mut property_name: Option<Rc<Node>> = Some(self.parse_property_name().wrap());
-        let name: Rc<Node>;
+        let mut property_name: Option<Gc<Node>> = Some(self.parse_property_name().wrap());
+        let name: Gc<Node>;
         if token_is_identifier && self.token() != SyntaxKind::ColonToken {
             name = property_name.clone().unwrap();
             property_name = None;

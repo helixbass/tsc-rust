@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::ptr;
 use std::rc::Rc;
@@ -8,14 +9,15 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts,
 };
 use crate::{
-    are_option_rcs_equal, are_rc_slices_equal, contains_rc, every, for_each_child_bool,
-    get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
-    is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
-    is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, some, Debug_,
-    DiagnosticMessage, Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType,
-    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
+    contains_gc, contains_rc, every, for_each_child_bool, get_effective_return_type_node,
+    get_object_flags, has_context_sensitive_parameters, is_function_declaration,
+    is_function_expression_or_arrow_function, is_in_js_file, is_jsx_opening_element,
+    is_object_literal_method, is_part_of_type_node, map, some, Debug_, DiagnosticMessage,
+    Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -57,7 +59,7 @@ impl TypeChecker {
                     let mut n = Some(node.node_wrapper());
                     while !match n.as_ref() {
                         None => false,
-                        Some(n) => Rc::ptr_eq(n, &container),
+                        Some(n) => Gc::ptr_eq(n, &container),
                     } {
                         if match n.as_ref() {
                             None => true,
@@ -104,13 +106,13 @@ impl TypeChecker {
                         node_as_signature_declaration
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(|type_parameter: &Rc<Node>| {
+                        Some(|type_parameter: &Gc<Node>| {
                             self.contains_reference(tp, type_parameter)
                         }),
                     )
                     || some(
                         Some(node_as_signature_declaration.parameters()),
-                        Some(|parameter: &Rc<Node>| self.contains_reference(tp, parameter)),
+                        Some(|parameter: &Gc<Node>| self.contains_reference(tp, parameter)),
                     )
                     || matches!(
                         node_as_signature_declaration.maybe_type(),
@@ -128,7 +130,7 @@ impl TypeChecker {
     pub(super) fn get_homomorphic_type_variable(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let constraint_type = self.get_constraint_type_from_mapped_type(type_);
         if constraint_type.flags().intersects(TypeFlags::Index) {
             let type_variable =
@@ -143,14 +145,14 @@ impl TypeChecker {
     pub(super) fn instantiate_mapped_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*MappedType*/
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let type_variable = self.get_homomorphic_type_variable(type_);
         if let Some(type_variable) = type_variable.as_ref() {
             let mapped_type_variable = self.instantiate_type(type_variable, Some(mapper.clone()));
-            if !Rc::ptr_eq(type_variable, &mapped_type_variable) {
+            if !Gc::ptr_eq(type_variable, &mapped_type_variable) {
                 let type_as_mapped_type = type_.as_mapped_type();
                 return self.map_type_with_alias(
                     &self.get_reduced_type(&mapped_type_variable),
@@ -164,16 +166,16 @@ impl TypeChecker {
                                         Some(constraint) if self.every_type(constraint, |type_| self.is_array_type(type_) || self.is_tuple_type(type_))
                                     )
                                 } {
-                                    return self.instantiate_mapped_array_type(t, type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
+                                    return self.instantiate_mapped_array_type(t, type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
                                 }
                                 if self.is_generic_tuple_type(t) {
                                     return self.instantiate_mapped_generic_tuple_type(t, type_, type_variable, mapper.clone());
                                 }
                                 if self.is_tuple_type(t) {
-                                    return self.instantiate_mapped_tuple_type(t, type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
+                                    return self.instantiate_mapped_tuple_type(t, type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
                                 }
                             }
-                            return self.instantiate_anonymous_type(type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))), Option::<&Symbol>::None, None);
+                            return self.instantiate_anonymous_type(type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))), Option::<&Symbol>::None, None);
                         }
                         t.type_wrapper()
                     },
@@ -182,7 +184,7 @@ impl TypeChecker {
                 );
             }
         }
-        if Rc::ptr_eq(
+        if Gc::ptr_eq(
             &self.instantiate_type(
                 &self.get_constraint_type_from_mapped_type(type_),
                 Some(mapper.clone()),
@@ -214,14 +216,14 @@ impl TypeChecker {
         tuple_type: &Type,    /*TupleTypeReference*/
         mapped_type: &Type,   /*MappedType*/
         type_variable: &Type, /*TypeVariable*/
-        mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+        mapper: Gc<TypeMapper>,
+    ) -> Gc<Type> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference();
         let element_flags = &tuple_type_as_type_reference
             .target
             .as_tuple_type()
             .element_flags;
-        let element_types = map(&self.get_type_arguments(tuple_type), |t: &Rc<Type>, i| {
+        let element_types = map(&self.get_type_arguments(tuple_type), |t: &Gc<Type>, i| {
             let singleton = if element_flags[i].intersects(ElementFlags::Variadic) {
                 t.clone()
             } else if element_flags[i].intersects(ElementFlags::Rest) {
@@ -231,7 +233,7 @@ impl TypeChecker {
             };
             self.instantiate_mapped_type(
                 mapped_type,
-                Rc::new(self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone()))),
+                Gc::new(self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone()))),
                 Option::<&Symbol>::None,
                 None,
             )
@@ -252,8 +254,8 @@ impl TypeChecker {
         &self,
         array_type: &Type,
         mapped_type: &Type, /*MappedType*/
-        mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+        mapper: Gc<TypeMapper>,
+    ) -> Gc<Type> {
         let element_type =
             self.instantiate_mapped_type_template(mapped_type, &self.number_type(), true, mapper);
         if self.is_error_type(&element_type) {
@@ -273,8 +275,8 @@ impl TypeChecker {
         &self,
         tuple_type: &Type,  /*TupleTypeReference*/
         mapped_type: &Type, /*MappedType*/
-        mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+        mapper: Gc<TypeMapper>,
+    ) -> Gc<Type> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference_interface();
         let tuple_type_target = tuple_type_as_type_reference.target();
         let element_flags = &tuple_type_target.as_tuple_type().element_flags;
@@ -308,7 +310,7 @@ impl TypeChecker {
         };
         let new_readonly =
             self.get_modified_readonly_state(tuple_type_target.as_tuple_type().readonly, modifiers);
-        if contains_rc(Some(&element_types), &self.error_type()) {
+        if contains_gc(Some(&element_types), &self.error_type()) {
             self.error_type()
         } else {
             self.create_tuple_type(
@@ -328,9 +330,9 @@ impl TypeChecker {
         type_: &Type, /*MappedType*/
         key: &Type,
         is_optional: bool,
-        mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
-        let template_mapper = Rc::new(self.append_type_mapping(
+        mapper: Gc<TypeMapper>,
+    ) -> Gc<Type> {
+        let template_mapper = Gc::new(self.append_type_mapping(
             Some(mapper),
             &self.get_type_parameter_from_mapped_type(type_),
             key,
@@ -363,10 +365,10 @@ impl TypeChecker {
     pub(super) fn instantiate_anonymous_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*AnonymousType*/
-        mut mapper: Rc<TypeMapper>,
+        mut mapper: Gc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type /*AnonymousType*/> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type /*AnonymousType*/> {
         let type_as_object_flags_type = type_.as_object_flags_type();
         let mut result = self.create_object_type(
             type_as_object_flags_type.object_flags() | ObjectFlags::Instantiated,
@@ -375,13 +377,13 @@ impl TypeChecker {
         let is_mapped_type = type_as_object_flags_type
             .object_flags()
             .intersects(ObjectFlags::Mapped);
-        let mut mapped_type_type_parameter: Option<Rc<Type>> = None;
+        let mut mapped_type_type_parameter: Option<Gc<Type>> = None;
         if is_mapped_type {
             let orig_type_parameter = self.get_type_parameter_from_mapped_type(type_);
             let fresh_type_parameter = self.clone_type_parameter(&orig_type_parameter);
             mapped_type_type_parameter = Some(fresh_type_parameter.clone());
             mapper = self.combine_type_mappers(
-                Some(Rc::new(self.make_unary_type_mapper(
+                Some(Gc::new(self.make_unary_type_mapper(
                     &orig_type_parameter,
                     &fresh_type_parameter,
                 ))),
@@ -393,7 +395,7 @@ impl TypeChecker {
         }
         result.target = Some(type_.type_wrapper());
         result.mapper = Some(mapper.clone());
-        let result: Rc<Type> = if is_mapped_type {
+        let result: Gc<Type> = if is_mapped_type {
             let result = MappedType::new(result, type_.as_mapped_type().declaration.clone());
             *result.maybe_type_parameter() = mapped_type_type_parameter;
             result.into()
@@ -417,13 +419,13 @@ impl TypeChecker {
         type_: &Type, /*ConditionalType*/
         mapper: &TypeMapper,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let root = type_.as_conditional_type().root.clone();
         if let Some(root_outer_type_parameters) =
             (*root).borrow().outer_type_parameters.clone().as_deref()
         {
-            let type_arguments = map(root_outer_type_parameters, |t: &Rc<Type>, _| {
+            let type_arguments = map(root_outer_type_parameters, |t: &Gc<Type>, _| {
                 self.get_mapped_type(t, mapper)
             });
             let alias_symbol =
@@ -441,7 +443,7 @@ impl TypeChecker {
                 .get(&id)
                 .map(Clone::clone);
             if result.is_none() {
-                let new_mapper = Rc::new(self.create_type_mapper(
+                let new_mapper = Gc::new(self.create_type_mapper(
                     root_outer_type_parameters.to_owned(),
                     Some(type_arguments),
                 ));
@@ -454,7 +456,7 @@ impl TypeChecker {
                 result = Some(
                     if let Some(distribution_type) =
                         distribution_type.as_ref().filter(|distribution_type| {
-                            !Rc::ptr_eq(&check_type, distribution_type)
+                            !Gc::ptr_eq(&check_type, distribution_type)
                                 && distribution_type
                                     .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
@@ -465,7 +467,7 @@ impl TypeChecker {
                             &mut |t| {
                                 self.get_conditional_type(
                                     root.clone(),
-                                    Some(Rc::new(self.prepend_type_mapping(
+                                    Some(Gc::new(self.prepend_type_mapping(
                                         &check_type,
                                         t,
                                         Some(new_mapper.clone()),
@@ -501,16 +503,16 @@ impl TypeChecker {
     pub(super) fn instantiate_type(
         &self,
         type_: &Type,
-        mapper: Option<Rc<TypeMapper>>,
-    ) -> Rc<Type> {
+        mapper: Option<Gc<TypeMapper>>,
+    ) -> Gc<Type> {
         self.maybe_instantiate_type(Some(type_), mapper).unwrap()
     }
 
     pub(super) fn maybe_instantiate_type<TType: Borrow<Type>>(
         &self,
         type_: Option<TType>,
-        mapper: Option<Rc<TypeMapper>>,
-    ) -> Option<Rc<Type>> {
+        mapper: Option<Gc<TypeMapper>>,
+    ) -> Option<Gc<Type>> {
         match (type_.as_ref(), mapper) {
             (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
                 type_.borrow(),
@@ -525,10 +527,10 @@ impl TypeChecker {
     pub(super) fn instantiate_type_with_alias<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type,
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         if !self.could_contain_type_variables(type_) {
             return type_.type_wrapper();
         }
@@ -553,10 +555,10 @@ impl TypeChecker {
     pub(super) fn instantiate_type_worker<TSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type,
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
         alias_symbol: Option<TSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::TypeParameter) {
             return self.get_mapped_type(type_, &mapper);
@@ -578,7 +580,7 @@ impl TypeChecker {
                     return if !match (resolved_type_arguments, new_type_arguments.as_deref()) {
                         (None, None) => true,
                         (Some(resolved_type_arguments), Some(new_type_arguments)) => {
-                            are_rc_slices_equal(new_type_arguments, resolved_type_arguments)
+                            are_gc_slices_equal(new_type_arguments, resolved_type_arguments)
                         }
                         _ => false,
                     } {
@@ -626,8 +628,8 @@ impl TypeChecker {
             let new_types = self
                 .instantiate_types(Some(&types), Some(mapper.clone()))
                 .unwrap();
-            if are_rc_slices_equal(&new_types, &types)
-                && are_option_rcs_equal(alias_symbol.as_ref(), type_.maybe_alias_symbol().as_ref())
+            if are_gc_slices_equal(&new_types, &types)
+                && are_option_gcs_equal(alias_symbol.as_ref(), type_.maybe_alias_symbol().as_ref())
             {
                 return type_.type_wrapper();
             }
@@ -746,8 +748,8 @@ impl TypeChecker {
     pub(super) fn instantiate_reverse_mapped_type(
         &self,
         type_: &Type, /*ReverseMappedType*/
-        mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+        mapper: Gc<TypeMapper>,
+    ) -> Gc<Type> {
         let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
         let inner_mapped_type = self.instantiate_type(
             &type_as_reverse_mapped_type.mapped_type,
@@ -774,7 +776,7 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn get_permissive_instantiation(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_permissive_instantiation(&self, type_: &Type) -> Gc<Type> {
         if type_
             .flags()
             .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
@@ -789,7 +791,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_restrictive_instantiation(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_restrictive_instantiation(&self, type_: &Type) -> Gc<Type> {
         if type_
             .flags()
             .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
@@ -810,9 +812,9 @@ impl TypeChecker {
     pub(super) fn instantiate_index_info(
         &self,
         info: &IndexInfo,
-        mapper: Rc<TypeMapper>,
-    ) -> Rc<IndexInfo> {
-        Rc::new(self.create_index_info(
+        mapper: Gc<TypeMapper>,
+    ) -> Gc<IndexInfo> {
+        Gc::new(self.create_index_info(
             info.key_type.clone(),
             self.instantiate_type(&info.type_, Some(mapper)),
             info.is_readonly,
@@ -837,11 +839,11 @@ impl TypeChecker {
             }
             SyntaxKind::ObjectLiteralExpression => some(
                 Some(&node.as_object_literal_expression().properties),
-                Some(|property: &Rc<Node>| self.is_context_sensitive(property)),
+                Some(|property: &Gc<Node>| self.is_context_sensitive(property)),
             ),
             SyntaxKind::ArrayLiteralExpression => some(
                 Some(&node.as_array_literal_expression().elements),
-                Some(|element: &Rc<Node>| self.is_context_sensitive(element)),
+                Some(|element: &Gc<Node>| self.is_context_sensitive(element)),
             ),
             SyntaxKind::ConditionalExpression => {
                 let node_as_conditional_expression = node.as_conditional_expression();
@@ -865,11 +867,11 @@ impl TypeChecker {
             SyntaxKind::JsxAttributes => {
                 some(
                     Some(&node.as_jsx_attributes().properties),
-                    Some(|property: &Rc<Node>| self.is_context_sensitive(property)),
+                    Some(|property: &Gc<Node>| self.is_context_sensitive(property)),
                 ) || is_jsx_opening_element(&node.parent())
                     && some(
                         Some(&node.parent().parent().as_jsx_element().children),
-                        Some(|child: &Rc<Node>| self.is_context_sensitive(child)),
+                        Some(|child: &Gc<Node>| self.is_context_sensitive(child)),
                     )
             }
             SyntaxKind::JsxAttribute => {
@@ -928,7 +930,7 @@ impl TypeChecker {
             && self.is_context_sensitive_function_like_declaration(func)
     }
 
-    pub(super) fn get_type_without_signatures(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_type_without_signatures(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_);
             let resolved_as_resolved_type = resolved.as_resolved_type();
@@ -949,7 +951,7 @@ impl TypeChecker {
             return self.get_intersection_type(
                 &map(
                     type_.as_intersection_type().types(),
-                    |type_: &Rc<Type>, _| self.get_type_without_signatures(type_),
+                    |type_: &Gc<Type>, _| self.get_type_without_signatures(type_),
                 ),
                 Option::<&Symbol>::None,
                 None,
@@ -996,13 +998,13 @@ impl TypeChecker {
 
     pub(super) fn is_type_derived_from(&self, source: &Type, target: &Type) -> bool {
         if source.flags().intersects(TypeFlags::Union) {
-            every(source.as_union_type().types(), |t: &Rc<Type>, _| {
+            every(source.as_union_type().types(), |t: &Gc<Type>, _| {
                 self.is_type_derived_from(t, target)
             })
         } else if target.flags().intersects(TypeFlags::Union) {
             some(
                 Some(target.as_union_type().types()),
-                Some(|t: &Rc<Type>| self.is_type_derived_from(source, t)),
+                Some(|t: &Gc<Type>| self.is_type_derived_from(source, t)),
             )
         } else if source
             .flags()
@@ -1042,8 +1044,8 @@ impl TypeChecker {
         target: &Type,
         error_node: Option<TErrorNode>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_object: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_object: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> bool {
         self.check_type_related_to(
             source,

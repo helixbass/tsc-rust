@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -20,7 +21,7 @@ impl TypeChecker {
         &self,
         iteration_types: &IterationTypes,
         error_node: Option<TErrorNode>,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         if ptr::eq(iteration_types, &*self.no_iteration_types()) {
             return self.no_iteration_types();
         }
@@ -52,7 +53,7 @@ impl TypeChecker {
         type_: &Type,
         use_: IterationUse,
         error_node: Option<TErrorNode>,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         if self.is_type_any(Some(type_)) {
             return self.any_iteration_types();
         }
@@ -86,7 +87,7 @@ impl TypeChecker {
                 });
             if let Some(iteration_types) = iteration_types.as_ref() {
                 if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
-                    if !Rc::ptr_eq(iteration_types, &self.no_iteration_types()) {
+                    if !Gc::ptr_eq(iteration_types, &self.no_iteration_types()) {
                         return self.set_cached_iteration_types(
                             type_,
                             IterationTypeCacheKey::IterationTypesOfAsyncIterable,
@@ -106,7 +107,7 @@ impl TypeChecker {
                 &self.async_iteration_types_resolver,
                 error_node.as_deref(),
             );
-            if !Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if !Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 return iteration_types;
             }
         }
@@ -117,7 +118,7 @@ impl TypeChecker {
                 &self.sync_iteration_types_resolver,
                 error_node.as_deref(),
             );
-            if !Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if !Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
                     return self.set_cached_iteration_types(
                         type_,
@@ -141,7 +142,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         self.get_cached_iteration_types(type_, resolver.iterable_cache_key)
     }
 
@@ -149,7 +150,7 @@ impl TypeChecker {
         &self,
         global_type: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         let global_iteration_types = self
             .get_iteration_types_of_iterable_cached(global_type, resolver)
             .unwrap_or_else(|| {
@@ -159,7 +160,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                 )
             });
-        if Rc::ptr_eq(&global_iteration_types, &self.no_iteration_types()) {
+        if Gc::ptr_eq(&global_iteration_types, &self.no_iteration_types()) {
             self.default_iteration_types()
         } else {
             global_iteration_types
@@ -170,8 +171,8 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Rc<IterationTypes>> {
-        let mut global_type: Rc<Type>;
+    ) -> Option<Gc<IterationTypes>> {
+        let mut global_type: Gc<Type>;
         if self.is_reference_to_type(type_, &*{
             let type_ = (resolver.get_global_iterable_type)(self, false);
             global_type = type_.clone();
@@ -254,7 +255,7 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
         error_node: Option<TErrorNode>,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         let method = self.get_property_of_type_(
             type_,
             &self.get_property_name_for_known_symbol_name(resolver.iterator_symbol_name),
@@ -277,7 +278,7 @@ impl TypeChecker {
             .map(|method_type| self.get_signatures_of_type(method_type, SignatureKind::Call));
         if !some(
             signatures.as_deref(),
-            Option::<fn(&Rc<Signature>) -> bool>::None,
+            Option::<fn(&Gc<Signature>) -> bool>::None,
         ) {
             return self.set_cached_iteration_types(
                 type_,
@@ -288,7 +289,7 @@ impl TypeChecker {
         let signatures = signatures.unwrap();
 
         let iterator_type = self.get_intersection_type(
-            &map(&signatures, |signature: &Rc<Signature>, _| {
+            &map(&signatures, |signature: &Gc<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             }),
             Option::<&Symbol>::None,
@@ -330,7 +331,7 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
         error_node: Option<TErrorNode>,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         if self.is_type_any(Some(type_)) {
             return Some(self.any_iteration_types());
         }
@@ -341,7 +342,7 @@ impl TypeChecker {
             .unwrap_or_else(|| {
                 self.get_iteration_types_of_iterator_slow(type_, resolver, error_node)
             });
-        if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+        if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
             None
         } else {
             Some(iteration_types)
@@ -352,7 +353,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         self.get_cached_iteration_types(type_, resolver.iterator_cache_key)
     }
 
@@ -360,7 +361,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         let global_type = (resolver.get_global_iterable_iterator_type)(self, false);
         if self.is_reference_to_type(type_, &global_type) {
             let yield_type = self.get_type_arguments(type_)[0].clone();
@@ -373,7 +374,7 @@ impl TypeChecker {
                         Option::<&Node>::None,
                     )
                 });
-            let iteration_types = if Rc::ptr_eq(&global_iteration_types, &self.no_iteration_types())
+            let iteration_types = if Gc::ptr_eq(&global_iteration_types, &self.no_iteration_types())
             {
                 self.default_iteration_types()
             } else {
@@ -440,7 +441,7 @@ impl TypeChecker {
     pub(super) fn get_iteration_types_of_iterator_result(
         &self,
         type_: &Type,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         if self.is_type_any(Some(type_)) {
             return self.any_iteration_types();
         }
@@ -472,7 +473,7 @@ impl TypeChecker {
 
         let yield_iterator_result =
             self.filter_type(type_, |type_| self.is_yield_iterator_result(type_));
-        let yield_type = if !Rc::ptr_eq(&yield_iterator_result, &self.never_type()) {
+        let yield_type = if !Gc::ptr_eq(&yield_iterator_result, &self.never_type()) {
             self.get_type_of_property_of_type_(&yield_iterator_result, "value")
         } else {
             None
@@ -480,7 +481,7 @@ impl TypeChecker {
 
         let return_iterator_result =
             self.filter_type(type_, |type_| self.is_return_iterator_result(type_));
-        let return_type = if !Rc::ptr_eq(&return_iterator_result, &self.never_type()) {
+        let return_type = if !Gc::ptr_eq(&return_iterator_result, &self.never_type()) {
             self.get_type_of_property_of_type_(&return_iterator_result, "value")
         } else {
             None
@@ -511,7 +512,7 @@ impl TypeChecker {
         resolver: &IterationTypesResolver,
         method_name: &str, /*"next" | "return" | "throw"*/
         error_node: Option<TErrorNode>,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         let method = self.get_property_of_type_(type_, method_name, None);
 
         if method.is_none() && method_name != "next" {
@@ -577,7 +578,7 @@ impl TypeChecker {
                     }).and_then(|global_generator_type_symbol_members| {
                         (*global_generator_type_symbol_members).borrow().get(method_name).cloned()
                     }).as_ref(),
-                    Some(global_generator_type_symbol_member) if Rc::ptr_eq(
+                    Some(global_generator_type_symbol_member) if Gc::ptr_eq(
                         global_generator_type_symbol_member,
                         method_type_symbol
                     )
@@ -589,7 +590,7 @@ impl TypeChecker {
                         }).and_then(|global_iterator_type_symbol_members| {
                             (*global_iterator_type_symbol_members).borrow().get(method_name).cloned()
                         }).as_ref(),
-                        Some(global_iterator_type_symbol_member) if Rc::ptr_eq(
+                        Some(global_iterator_type_symbol_member) if Gc::ptr_eq(
                             global_iterator_type_symbol_member,
                             method_type_symbol
                         )
@@ -641,13 +642,13 @@ impl TypeChecker {
             }
         }
 
-        let mut method_parameter_types: Option<Vec<Rc<Type>>> = None;
-        let mut method_return_types: Option<Vec<Rc<Type>>> = None;
+        let mut method_parameter_types: Option<Vec<Gc<Type>>> = None;
+        let mut method_return_types: Option<Vec<Gc<Type>>> = None;
         for signature in &method_signatures {
             if method_name != "throw"
                 && some(
                     Some(signature.parameters()),
-                    Option::<fn(&Rc<Symbol>) -> bool>::None,
+                    Option::<fn(&Gc<Symbol>) -> bool>::None,
                 )
             {
                 if method_parameter_types.is_none() {
@@ -667,8 +668,8 @@ impl TypeChecker {
             );
         }
 
-        let mut return_types: Option<Vec<Rc<Type>>> = None;
-        let mut next_type: Option<Rc<Type>> = None;
+        let mut return_types: Option<Vec<Gc<Type>>> = None;
+        let mut next_type: Option<Gc<Type>> = None;
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if method_name != "throw" {
             let method_parameter_type = if let Some(method_parameter_types) = method_parameter_types
@@ -703,7 +704,7 @@ impl TypeChecker {
             }
         }
 
-        let yield_type: Rc<Type>;
+        let yield_type: Gc<Type>;
         let method_return_type = if let Some(method_return_types) = method_return_types.as_ref() {
             self.get_intersection_type(method_return_types, Option::<&Symbol>::None, None)
         } else {
@@ -714,7 +715,7 @@ impl TypeChecker {
                 .unwrap_or_else(|| self.any_type());
         let iteration_types =
             self.get_iteration_types_of_iterator_result(&resolved_method_return_type);
-        if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+        if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
             if error_node.is_some() {
                 self.error(
                     error_node.as_deref(),
@@ -756,7 +757,7 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
         error_node: Option<TErrorNode>,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let iteration_types = self.combine_iteration_types(&[
             self.get_iteration_types_of_method(type_, resolver, "next", error_node.as_deref()),
@@ -771,7 +772,7 @@ impl TypeChecker {
         kind: IterationTypeKind,
         return_type: &Type,
         is_async_generator: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if self.is_type_any(Some(return_type)) {
             return None;
         }
@@ -787,7 +788,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         is_async_generator: bool,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         if self.is_type_any(Some(type_)) {
             return Some(self.any_iteration_types());
         }
@@ -821,7 +822,7 @@ impl TypeChecker {
         &self,
         return_type: &Type,
         function_flags: FunctionFlags,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let is_generator = function_flags.intersects(FunctionFlags::Generator);
         let is_async = function_flags.intersects(FunctionFlags::Async);
         if is_generator {

@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::borrow::Cow;
 use std::cell::Ref;
 use std::collections::{HashMap, HashSet};
@@ -12,8 +13,8 @@ use crate::{
     is_empty_statement, is_expression, is_identifier, is_in_json_file, is_internal_declaration,
     is_keyword, is_source_file, is_string_literal, is_token_kind, is_type_parameter_declaration,
     is_unparsed_prepend, is_unparsed_source, is_variable_statement, BundleFileSection,
-    BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter, Node, NodeInterface,
-    Printer, SourceMapGenerator, SyntaxKind, TempFlags,
+    BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
+    Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
 };
 
 impl Printer {
@@ -70,8 +71,8 @@ impl Printer {
     pub fn write_bundle(
         &self,
         bundle: &Node, /*Bundle*/
-        output: Rc<dyn EmitTextWriter>,
-        source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
+        output: Gc<Box<dyn EmitTextWriter>>,
+        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) {
         self.set_is_own_file_emit(false);
         let previous_writer = self.writer();
@@ -108,7 +109,7 @@ impl Printer {
                     }
                     bundle_file_info
                         .sections
-                        .push(Rc::new(BundleFileSection::new_prepend(
+                        .push(Gc::new(BundleFileSection::new_prepend(
                             self.relative_to_build_info(&prepend.as_unparsed_source().file_name),
                             new_sections,
                             pos.try_into().unwrap(),
@@ -153,7 +154,7 @@ impl Printer {
     pub fn write_unparsed_source(
         &self,
         unparsed: &Node, /*UnparsedSource*/
-        output: Rc<dyn EmitTextWriter>,
+        output: Gc<Box<dyn EmitTextWriter>>,
     ) {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
@@ -165,8 +166,8 @@ impl Printer {
     pub fn write_file(
         &self,
         source_file: &Node, /*SourceFile*/
-        output: Rc<dyn EmitTextWriter>,
-        source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
+        output: Gc<Box<dyn EmitTextWriter>>,
+        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) {
         self.set_is_own_file_emit(true);
         let previous_writer = self.writer();
@@ -178,10 +179,10 @@ impl Printer {
         *self.writer.borrow_mut() = Some(previous_writer);
     }
 
-    pub(super) fn begin_print(&self) -> Rc<dyn EmitTextWriter> {
+    pub(super) fn begin_print(&self) -> Gc<Box<dyn EmitTextWriter>> {
         self.own_writer
             .borrow_mut()
-            .get_or_insert_with(|| Rc::new(create_text_writer(&self.new_line)))
+            .get_or_insert_with(|| create_text_writer(&self.new_line).as_dyn_emit_text_writer())
             .clone()
     }
 
@@ -212,20 +213,20 @@ impl Printer {
         self.set_current_line_map(None);
         self.set_detached_comments_info(None);
         if let Some(source_file) = source_file {
-            self.set_source_map_source(Rc::new(source_file.node_wrapper().into()));
+            self.set_source_map_source(Gc::new(source_file.node_wrapper().into()));
         }
     }
 
     pub(super) fn set_writer(
         &self,
-        mut writer: Option<Rc<dyn EmitTextWriter>>,
-        source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
+        mut writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) {
         if let Some(writer_present) = writer.as_ref() {
             if self.printer_options.omit_trailing_semicolon == Some(true) {
-                writer = Some(Rc::new(get_trailing_semicolon_deferring_writer(
+                writer = Some(get_trailing_semicolon_deferring_writer(
                     writer_present.clone(),
-                )));
+                ));
             }
         }
         *self.writer.borrow_mut() = writer.clone();
@@ -258,7 +259,7 @@ impl Printer {
     pub(super) fn emit(
         &self,
         node: Option<&Node>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         if node.is_none() {
             return;
@@ -280,7 +281,7 @@ impl Printer {
     pub(super) fn emit_expression(
         &self,
         node: Option<&Node /*Expression*/>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         if node.is_none() {
             return;
@@ -320,7 +321,7 @@ impl Printer {
         &self,
         emit_hint: EmitHint,
         node: &Node,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         self.set_current_parenthesizer_rule(parenthesizer_rule);
         let pipeline_phase = self.get_pipeline_phase(PipelinePhase::Notification, emit_hint, node);
@@ -369,9 +370,9 @@ impl Printer {
                     if let Some(current_parenthesizer_rule) =
                         self.maybe_current_parenthesizer_rule().as_ref()
                     {
-                        self.set_last_substitution(Some(current_parenthesizer_rule(
-                            last_substitution,
-                        )));
+                        self.set_last_substitution(Some(
+                            current_parenthesizer_rule.call(last_substitution),
+                        ));
                     }
                     return Printer::pipeline_emit_with_substitution;
                 }
@@ -692,12 +693,12 @@ impl Printer {
                     let substitute = self
                         .substitute_node(hint, &node)
                         .unwrap_or_else(|| node.node_wrapper());
-                    if !Rc::ptr_eq(&substitute, &node) {
+                    if !Gc::ptr_eq(&substitute, &node) {
                         node = substitute;
                         if let Some(current_parenthesizer_rule) =
                             self.maybe_current_parenthesizer_rule()
                         {
-                            node = current_parenthesizer_rule(&node);
+                            node = current_parenthesizer_rule.call(&node);
                         }
                     }
                 }

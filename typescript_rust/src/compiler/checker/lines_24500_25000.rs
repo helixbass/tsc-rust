@@ -1,12 +1,13 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    are_option_rcs_equal, escape_leading_underscores, find, find_ancestor, for_each_child,
-    get_assignment_target_kind, get_containing_class, get_containing_function,
+    are_option_gcs_equal, are_option_rcs_equal, escape_leading_underscores, find, find_ancestor,
+    for_each_child, get_assignment_target_kind, get_containing_class, get_containing_function,
     get_immediately_invoked_function_expression, get_name_of_declaration, get_root_declaration,
     get_this_container, has_syntactic_modifier, is_access_expression, is_assignment_target,
     is_binary_expression, is_binding_element, is_call_chain, is_catch_clause,
@@ -33,7 +34,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         identifier: &Node, /*Expression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if if assume_true {
             !matches!(
                 operator,
@@ -73,8 +74,8 @@ impl GetFlowTypeOfReference {
             return type_.type_wrapper();
         }
         let candidate = candidate.unwrap();
-        if Rc::ptr_eq(&candidate, &self.type_checker.global_object_type())
-            || Rc::ptr_eq(&candidate, &self.type_checker.global_function_type())
+        if Gc::ptr_eq(&candidate, &self.type_checker.global_object_type())
+            || Gc::ptr_eq(&candidate, &self.type_checker.global_function_type())
         {
             return type_.type_wrapper();
         }
@@ -89,7 +90,7 @@ impl GetFlowTypeOfReference {
                 || target.flags().intersects(TypeFlags::Object)
                     && get_object_flags(target).intersects(ObjectFlags::Class)
             {
-                return are_option_rcs_equal(
+                return are_option_gcs_equal(
                     source.maybe_symbol().as_ref(),
                     target.maybe_symbol().as_ref(),
                 );
@@ -107,7 +108,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let expr_as_binary_expression = expr.as_binary_expression();
         let left = self
             .type_checker
@@ -139,7 +140,7 @@ impl GetFlowTypeOfReference {
             return type_.type_wrapper();
         }
 
-        let mut target_type: Option<Rc<Type>> = None;
+        let mut target_type: Option<Gc<Type>> = None;
         let prototype_property =
             self.type_checker
                 .get_property_of_type_(&right_type, "prototype", None);
@@ -156,10 +157,10 @@ impl GetFlowTypeOfReference {
         if self.type_checker.is_type_any(Some(type_))
             && matches!(
                 target_type.as_ref(),
-                Some(target_type) if Rc::ptr_eq(
+                Some(target_type) if Gc::ptr_eq(
                     target_type,
                     &self.type_checker.global_object_type()
-                ) || Rc::ptr_eq(
+                ) || Gc::ptr_eq(
                     target_type,
                     &self.type_checker.global_function_type()
                 )
@@ -174,7 +175,7 @@ impl GetFlowTypeOfReference {
                 .get_signatures_of_type(&right_type, SignatureKind::Construct);
             target_type = Some(if !construct_signatures.is_empty() {
                 self.type_checker.get_union_type(
-                    map(&construct_signatures, |signature: &Rc<Signature>, _| {
+                    map(&construct_signatures, |signature: &Gc<Signature>, _| {
                         self.type_checker.get_return_type_of_signature(
                             self.type_checker.get_erased_signature(signature.clone()),
                         )
@@ -192,7 +193,7 @@ impl GetFlowTypeOfReference {
 
         if !assume_true && right_type.flags().intersects(TypeFlags::Union) {
             let non_constructor_type_in_union =
-                find(&right_type.as_union_type().types(), |t: &Rc<Type>, _| {
+                find(&right_type.as_union_type().types(), |t: &Gc<Type>, _| {
                     !self.type_checker.is_constructor_type(t)
                 })
                 .cloned();
@@ -215,7 +216,7 @@ impl GetFlowTypeOfReference {
         candidate: &Type,
         assume_true: bool,
         mut is_related: TIsRelated,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if !assume_true {
             return self
                 .type_checker
@@ -250,7 +251,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self
             .type_checker
             .has_matching_argument(call_expression, &self.reference)
@@ -325,12 +326,12 @@ impl GetFlowTypeOfReference {
         predicate: &TypePredicate,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let mut type_ = type_.type_wrapper();
         if let Some(predicate_type) = predicate.type_.as_ref().filter(|predicate_type| {
             !(self.type_checker.is_type_any(Some(&*type_))
-                && (Rc::ptr_eq(predicate_type, &self.type_checker.global_object_type())
-                    || Rc::ptr_eq(predicate_type, &self.type_checker.global_function_type())))
+                && (Gc::ptr_eq(predicate_type, &self.type_checker.global_object_type())
+                    || Gc::ptr_eq(predicate_type, &self.type_checker.global_function_type())))
         }) {
             let predicate_argument = self
                 .type_checker
@@ -386,7 +387,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*Expression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if is_expression_of_optional_chain_root(expr) || {
             let expr_parent = expr.parent();
             is_binary_expression(&expr_parent) && {
@@ -476,7 +477,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*Expression*/
         assume_present: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self
             .type_checker
             .is_matching_reference(&self.reference, expr)
@@ -512,7 +513,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         location: &Node,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let symbol = symbol
             .maybe_export_symbol()
             .unwrap_or_else(|| symbol.symbol_wrapper());
@@ -533,7 +534,7 @@ impl TypeChecker {
                     self.get_export_symbol_of_value_symbol_if_exported(
                         (*self.get_node_links(&location)).borrow().resolved_symbol.clone()
                     ).as_ref(),
-                    Some(export_symbol) if Rc::ptr_eq(
+                    Some(export_symbol) if Gc::ptr_eq(
                         export_symbol,
                         &symbol
                     )
@@ -555,7 +556,7 @@ impl TypeChecker {
         self.get_non_missing_type_of_symbol(&symbol)
     }
 
-    pub(super) fn get_control_flow_container(&self, node: &Node) -> Rc<Node> {
+    pub(super) fn get_control_flow_container(&self, node: &Node) -> Gc<Node> {
         find_ancestor(node.maybe_parent(), |node: &Node| {
             is_function_like(Some(node))
                 && get_immediately_invoked_function_expression(node).is_none()
@@ -632,7 +633,7 @@ impl TypeChecker {
         &self,
         declared_type: &Type,
         declaration: &Node, /*VariableLikeDeclaration (actually also includes BindingElement)*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let declaration_as_has_initializer = declaration.as_has_initializer();
         if self.push_type_resolution(
             &declaration.symbol().into(),
@@ -716,7 +717,7 @@ impl TypeChecker {
         type_: &Type,
         reference: &Node,
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let substitute_constraints = !matches!(
             check_mode,
             Some(check_mode) if check_mode.intersects(CheckMode::Inferential)
@@ -795,13 +796,13 @@ impl TypeChecker {
         &self,
         node: &Node, /*Identifier*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let symbol = self.get_resolved_symbol(node);
-        if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+        if Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
             return self.error_type();
         }
 
-        if Rc::ptr_eq(&symbol, &self.arguments_symbol()) {
+        if Gc::ptr_eq(&symbol, &self.arguments_symbol()) {
             if self.is_in_property_initializer_or_class_static_block(node) {
                 self.error(
                     Some(node),
@@ -878,7 +879,7 @@ impl TypeChecker {
                 {
                     let mut container = get_containing_class(node);
                     while let Some(container_present) = container.as_ref() {
-                        if Rc::ptr_eq(container_present, declaration)
+                        if Gc::ptr_eq(container_present, declaration)
                             && !matches!(
                                 container_present.as_class_like_declaration().maybe_name().as_deref(),
                                 Some(container_name) if ptr::eq(
@@ -899,7 +900,7 @@ impl TypeChecker {
                 } else if declaration.kind() == SyntaxKind::ClassExpression {
                     let mut container = get_this_container(node, false);
                     while container.kind() != SyntaxKind::SourceFile {
-                        if Rc::ptr_eq(&container.parent(), declaration) {
+                        if Gc::ptr_eq(&container.parent(), declaration) {
                             if is_property_declaration(&container) && is_static(&container)
                                 || is_class_static_block_declaration(&container)
                             {
@@ -1031,7 +1032,7 @@ impl TypeChecker {
         let is_parameter = get_root_declaration(&declaration).kind() == SyntaxKind::Parameter;
         let declaration_container = self.get_control_flow_container(&declaration);
         let mut flow_container = self.get_control_flow_container(node);
-        let is_outer_variable = !Rc::ptr_eq(&flow_container, &declaration_container);
+        let is_outer_variable = !Gc::ptr_eq(&flow_container, &declaration_container);
         let is_spread_destructuring_assignment_target = matches!(
             node.maybe_parent().as_ref(),
             Some(node_parent) if matches!(
@@ -1040,13 +1041,13 @@ impl TypeChecker {
             )
         );
         let is_module_exports = symbol.flags().intersects(SymbolFlags::ModuleExports);
-        while !Rc::ptr_eq(&flow_container, &declaration_container)
+        while !Gc::ptr_eq(&flow_container, &declaration_container)
             && (matches!(
                 flow_container.kind(),
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
             ) || is_object_literal_or_class_expression_method_or_accessor(&flow_container))
             && (self.is_const_variable(&local_or_export_symbol)
-                && !Rc::ptr_eq(&type_, &self.auto_array_type())
+                && !Gc::ptr_eq(&type_, &self.auto_array_type())
                 || is_parameter && !self.is_symbol_assigned(&local_or_export_symbol))
         {
             flow_container = self.get_control_flow_container(&flow_container);
@@ -1057,8 +1058,8 @@ impl TypeChecker {
             || is_spread_destructuring_assignment_target
             || is_module_exports
             || is_binding_element(&declaration)
-            || !Rc::ptr_eq(&type_, &self.auto_type())
-                && !Rc::ptr_eq(&type_, &self.auto_array_type())
+            || !Gc::ptr_eq(&type_, &self.auto_type())
+                && !Gc::ptr_eq(&type_, &self.auto_array_type())
                 && (!self.strict_null_checks
                     || type_
                         .flags()
@@ -1078,8 +1079,8 @@ impl TypeChecker {
             } else {
                 type_.clone()
             }
-        } else if Rc::ptr_eq(&type_, &self.auto_type())
-            || Rc::ptr_eq(&type_, &self.auto_array_type())
+        } else if Gc::ptr_eq(&type_, &self.auto_type())
+            || Gc::ptr_eq(&type_, &self.auto_array_type())
         {
             self.undefined_type()
         } else {
@@ -1092,11 +1093,11 @@ impl TypeChecker {
             Some(&*flow_container),
         );
         if !self.is_evolving_array_operation_target(node)
-            && (Rc::ptr_eq(&type_, &self.auto_type())
-                || Rc::ptr_eq(&type_, &self.auto_array_type()))
+            && (Gc::ptr_eq(&type_, &self.auto_type())
+                || Gc::ptr_eq(&type_, &self.auto_array_type()))
         {
-            if Rc::ptr_eq(&flow_type, &self.auto_type())
-                || Rc::ptr_eq(&flow_type, &self.auto_array_type())
+            if Gc::ptr_eq(&flow_type, &self.auto_type())
+                || Gc::ptr_eq(&flow_type, &self.auto_array_type())
             {
                 if self.no_implicit_any {
                     self.error(

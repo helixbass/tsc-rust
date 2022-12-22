@@ -1,5 +1,12 @@
+use gc::Gc;
 use std::rc::Rc;
 
+use super::{
+    ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule,
+    ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule,
+    ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule,
+    ParenthesizeRightSideOfBinaryCurrentParenthesizerRule,
+};
 use crate::{
     for_each, get_comment_range, get_emit_flags, is_block, is_let, is_module_declaration,
     is_var_const, node_is_synthesized, range_is_on_single_line, with_synthetic_factory, EmitFlags,
@@ -129,15 +136,11 @@ impl Printer {
                 |node_type| node_type.end(),
             ),
             node,
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 
@@ -203,7 +206,7 @@ impl Printer {
                 self.push_name_generation_scope(Some(node));
                 for_each(
                     node_as_function_like_declaration.parameters(),
-                    |parameter: &Rc<Node>, _| -> Option<()> {
+                    |parameter: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(&**parameter));
                         None
                     },
@@ -222,17 +225,11 @@ impl Printer {
                 self.write_space();
                 self.emit_expression(
                     Some(&**body),
-                    Some(Rc::new({
-                        let parenthesizer = self.parenthesizer();
-                        move |node: &Node| {
-                            with_synthetic_factory(|synthetic_factory| {
-                                parenthesizer.parenthesize_concise_body_of_arrow_function(
-                                    synthetic_factory,
-                                    node,
-                                )
-                            })
-                        }
-                    })),
+                    Some(Gc::new(Box::new(
+                        ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule::new(
+                            self.parenthesizer(),
+                        ),
+                    ))),
                 );
             }
         } else {
@@ -288,7 +285,7 @@ impl Printer {
             return false;
         }
 
-        let mut previous_statement: Option<Rc<Node /*Statement*/>> = None;
+        let mut previous_statement: Option<Gc<Node /*Statement*/>> = None;
         for statement in &body_as_block.statements {
             if self.get_separating_line_terminator_count(
                 previous_statement.as_deref(),
@@ -388,7 +385,7 @@ impl Printer {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         for_each(
             node_as_class_like_declaration.members(),
-            |member: &Rc<Node>, _| -> Option<()> {
+            |member: &Gc<Node>, _| -> Option<()> {
                 self.generate_member_names(Some(&**member));
                 None
             },
@@ -545,7 +542,7 @@ impl Printer {
         self.push_name_generation_scope(Some(node));
         for_each(
             &node.as_module_block().statements,
-            |statement: &Rc<Node>, _| -> Option<()> {
+            |statement: &Gc<Node>, _| -> Option<()> {
                 self.generate_names(Some(&**statement));
                 None
             },
@@ -750,29 +747,17 @@ impl Printer {
         self.emit_expression(
             Some(&*node_as_export_assignment.expression),
             if node_as_export_assignment.is_export_equals == Some(true) {
-                Some(Rc::new({
-                    let parenthesizer = self.parenthesizer();
-                    move |node: &Node| {
-                        with_synthetic_factory(|synthetic_factory| {
-                            parenthesizer.parenthesize_right_side_of_binary(
-                                synthetic_factory,
-                                SyntaxKind::EqualsToken,
-                                None,
-                                node,
-                            )
-                        })
-                    }
-                }))
+                Some(Gc::new(Box::new(
+                    ParenthesizeRightSideOfBinaryCurrentParenthesizerRule::new(
+                        self.parenthesizer(),
+                    ),
+                )))
             } else {
-                Some(Rc::new({
-                    let parenthesizer = self.parenthesizer();
-                    move |node: &Node| {
-                        with_synthetic_factory(|synthetic_factory| {
-                            parenthesizer
-                                .parenthesize_expression_of_export_default(synthetic_factory, node)
-                        })
-                    }
-                }))
+                Some(Gc::new(Box::new(
+                    ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule::new(
+                        self.parenthesizer(),
+                    ),
+                )))
             },
         );
         self.write_trailing_semicolon();

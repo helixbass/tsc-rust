@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -35,19 +36,19 @@ impl TypeChecker {
         error_target: &Node,
         apparent_type: &Type,
         kind: SignatureKind,
-        related_information: Option<Rc<DiagnosticRelatedInformation>>,
+        related_information: Option<Gc<DiagnosticRelatedInformation>>,
     ) {
         let InvocationErrorDetails {
             message_chain,
             related_message: related_info,
         } = self.invocation_error_details(error_target, apparent_type, kind);
-        let diagnostic: Rc<Diagnostic> = Rc::new(
+        let diagnostic: Gc<Diagnostic> = Gc::new(
             create_diagnostic_for_node_from_message_chain(error_target, message_chain, None).into(),
         );
         if let Some(related_info) = related_info {
             add_related_info(
                 &diagnostic,
-                vec![Rc::new(
+                vec![Gc::new(
                     create_diagnostic_for_node(error_target, related_info, None).into(),
                 )],
             );
@@ -109,7 +110,7 @@ impl TypeChecker {
             add_related_info(
                 diagnostic,
                 vec![
-                    Rc::new(
+                    Gc::new(
                         create_diagnostic_for_node(
                             import_node,
                             &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
@@ -124,9 +125,9 @@ impl TypeChecker {
     pub(super) fn resolve_tagged_template_expression(
         &self,
         node: &Node, /*TaggedTemplateExpression*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         let tag_type = self.check_expression(&node_as_tagged_template_expression.tag, None, None);
         let apparent_type = self.get_apparent_type(&tag_type);
@@ -151,7 +152,7 @@ impl TypeChecker {
 
         if call_signatures.is_empty() {
             if is_array_literal_expression(&node.parent()) {
-                let diagnostic: Rc<Diagnostic> = Rc::new(
+                let diagnostic: Gc<Diagnostic> = Gc::new(
                     create_diagnostic_for_node(
                         &node_as_tagged_template_expression.tag,
                         &Diagnostics::It_is_likely_that_you_are_missing_a_comma_to_separate_these_two_template_expressions_They_form_a_tagged_template_expression_which_cannot_be_invoked,
@@ -204,9 +205,9 @@ impl TypeChecker {
     pub(super) fn resolve_decorator(
         &self,
         node: &Node, /*Decorator*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let node_as_decorator = node.as_decorator();
         let func_type = self.check_expression(&node_as_decorator.expression, None, None);
         let apparent_type = self.get_apparent_type(&func_type);
@@ -253,7 +254,7 @@ impl TypeChecker {
             } = error_details;
             let message_chain =
                 chain_diagnostic_messages(Some(error_details_message_chain), head_message, None);
-            let diag: Rc<Diagnostic> = Rc::new(
+            let diag: Gc<Diagnostic> = Gc::new(
                 create_diagnostic_for_node_from_message_chain(
                     &node_as_decorator.expression,
                     message_chain,
@@ -264,7 +265,7 @@ impl TypeChecker {
             if let Some(error_details_related_message) = error_details_related_message {
                 add_related_info(
                     &diag,
-                    vec![Rc::new(
+                    vec![Gc::new(
                         create_diagnostic_for_node(
                             &node_as_decorator.expression,
                             error_details_related_message,
@@ -293,7 +294,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
         result: &Type,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let namespace = self.get_jsx_namespace_at(Some(node));
         let exports = namespace
             .as_ref()
@@ -310,7 +311,7 @@ impl TypeChecker {
                 None,
             )
         });
-        let declaration: Rc<Node> = factory.with(|factory_| {
+        let declaration: Gc<Node> = factory.with(|factory_| {
             synthetic_factory.with(|synthetic_factory_| {
                 factory_
                     .create_function_type_node(
@@ -353,7 +354,7 @@ impl TypeChecker {
                     .into()
             })
         });
-        let parameter_symbol: Rc<Symbol> = self
+        let parameter_symbol: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::FunctionScopedVariable,
                 "props".to_owned(),
@@ -365,7 +366,7 @@ impl TypeChecker {
             .symbol_links()
             .borrow_mut()
             .type_ = Some(result.type_wrapper());
-        Rc::new(self.create_signature(
+        Gc::new(self.create_signature(
             Some(declaration),
             None,
             None,
@@ -384,9 +385,9 @@ impl TypeChecker {
     pub(super) fn resolve_jsx_opening_like_element(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()) {
             let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node);
@@ -418,12 +419,12 @@ impl TypeChecker {
                     node_as_jsx_opening_like_element
                         .maybe_type_arguments()
                         .as_ref(),
-                    |type_argument: &Rc<Node>, _| -> Option<()> {
+                    |type_argument: &Gc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**type_argument));
                         None
                     },
                 );
-                self.diagnostics().add(Rc::new(
+                self.diagnostics().add(Gc::new(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(Some(node)).unwrap(),
                         node_as_jsx_opening_like_element
@@ -485,10 +486,10 @@ impl TypeChecker {
     pub(super) fn is_potentially_uncalled_decorator(
         &self,
         decorator: &Node, /*Decorator*/
-        signatures: &[Rc<Signature>],
+        signatures: &[Gc<Signature>],
     ) -> bool {
         !signatures.is_empty()
-            && every(signatures, |signature: &Rc<Signature>, _| {
+            && every(signatures, |signature: &Gc<Signature>, _| {
                 signature.min_argument_count() == 0
                     && !signature_has_rest_parameter(signature)
                     && signature.parameters().len()
@@ -499,9 +500,9 @@ impl TypeChecker {
     pub(super) fn resolve_signature(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         match node.kind() {
             SyntaxKind::CallExpression => {
                 self.resolve_call_expression(node, candidates_out_array, check_mode)
@@ -526,13 +527,13 @@ impl TypeChecker {
     pub(super) fn get_resolved_signature_(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: Option<CheckMode>,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let links = self.get_node_links(node);
         let cached = (*links).borrow().resolved_signature.clone();
         if let Some(cached) = cached.as_ref().filter(|cached| {
-            !Rc::ptr_eq(cached, &self.resolving_signature()) && candidates_out_array.is_none()
+            !Gc::ptr_eq(cached, &self.resolving_signature()) && candidates_out_array.is_none()
         }) {
             return cached.clone();
         }
@@ -542,7 +543,7 @@ impl TypeChecker {
             candidates_out_array,
             check_mode.unwrap_or(CheckMode::Normal),
         );
-        if !Rc::ptr_eq(&result, &self.resolving_signature()) {
+        if !Gc::ptr_eq(&result, &self.resolving_signature()) {
             links.borrow_mut().resolved_signature =
                 if self.flow_loop_start() == self.flow_loop_count() {
                     Some(result.clone())
@@ -592,7 +593,7 @@ impl TypeChecker {
         &self,
         target: &Symbol,
         source: Option<TSource>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let source = source?;
         let source = source.borrow();
         let links = self.get_symbol_links(source);
@@ -608,13 +609,13 @@ impl TypeChecker {
             {
                 let mut inferred_exports = inferred.maybe_exports_mut();
                 if inferred_exports.is_none() {
-                    *inferred_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                    *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
                 }
             }
             {
                 let mut inferred_members = inferred.maybe_members_mut();
                 if inferred_members.is_none() {
-                    *inferred_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                    *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
                 }
             }
             inferred.set_flags(inferred.flags() | (source.flags() & SymbolFlags::Class));
@@ -664,7 +665,7 @@ impl TypeChecker {
     pub(super) fn get_assigned_class_symbol(
         &self,
         decl: &Node, /*Declaration*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true);
         let prototype = assignment_symbol
             .as_ref()
@@ -688,12 +689,12 @@ impl TypeChecker {
         &self,
         node: &Node,
         allow_declaration: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if node.maybe_parent().is_none() {
             return None;
         }
-        let mut name: Option<Rc<Node /*Expression | BindingName*/>> = None;
-        let mut decl: Option<Rc<Node>> = None;
+        let mut name: Option<Gc<Node /*Expression | BindingName*/>> = None;
+        let mut decl: Option<Gc<Node>> = None;
         if is_variable_declaration(&node.parent())
             && matches!(
                 node.parent().as_variable_declaration().maybe_initializer().as_ref(),
@@ -726,7 +727,7 @@ impl TypeChecker {
                 if is_variable_declaration(&parent_node.parent())
                     && matches!(
                         parent_node.parent().as_variable_declaration().maybe_initializer().as_ref(),
-                        Some(parent_node_parent_initializer) if Rc::ptr_eq(
+                        Some(parent_node_parent_initializer) if Gc::ptr_eq(
                             parent_node_parent_initializer,
                             &parent_node
                         )
@@ -742,7 +743,7 @@ impl TypeChecker {
                         .kind()
                         == SyntaxKind::EqualsToken
                     && (allow_declaration
-                        || Rc::ptr_eq(
+                        || Gc::ptr_eq(
                             &parent_node.parent().as_binary_expression().right,
                             &parent_node,
                         ))
@@ -775,7 +776,7 @@ impl TypeChecker {
         self.get_symbol_of_node(&decl)
     }
 
-    pub(super) fn get_assigned_js_prototype(&self, node: &Node) -> Option<Rc<Node>> {
+    pub(super) fn get_assigned_js_prototype(&self, node: &Node) -> Option<Gc<Node>> {
         if node.maybe_parent().is_none() {
             return None;
         }
@@ -807,7 +808,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallExpression |} NewExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if !self.check_grammar_type_arguments(
             node,
             node.as_has_type_arguments().maybe_type_arguments().as_ref(),
@@ -816,7 +817,7 @@ impl TypeChecker {
         }
 
         let signature = self.get_resolved_signature_(node, None, check_mode);
-        if Rc::ptr_eq(&signature, &self.resolving_signature()) {
+        if Gc::ptr_eq(&signature, &self.resolving_signature()) {
             return self.non_inferrable_type();
         }
 
@@ -921,7 +922,7 @@ impl TypeChecker {
 
     pub(super) fn check_deprecated_signature(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         node: &Node, /*CallLikeExpression*/
     ) {
         if let Some(signature_declaration) =
@@ -952,7 +953,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_deprecated_suggestion_node(&self, node: &Node) -> Rc<Node> {
+    pub(super) fn get_deprecated_suggestion_node(&self, node: &Node) -> Gc<Node> {
         let node = skip_parentheses(node, None);
         match node.kind() {
             SyntaxKind::CallExpression | SyntaxKind::Decorator | SyntaxKind::NewExpression => {

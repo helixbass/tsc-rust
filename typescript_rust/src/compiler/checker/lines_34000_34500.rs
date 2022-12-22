@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
@@ -56,7 +57,7 @@ impl TypeChecker {
                 &self.get_type_with_this_argument(
                     &self.instantiate_type(
                         constraint_type,
-                        Some(Rc::new(
+                        Some(Gc::new(
                             self.make_unary_type_mapper(&type_parameter, default_type),
                         )),
                     ),
@@ -229,8 +230,8 @@ impl TypeChecker {
                     );
                 } else {
                     if let Some(type_predicate_type) = type_predicate.type_.as_ref() {
-                        let leading_error: Rc<dyn CheckTypeContainingMessageChain> =
-                            Rc::new(CheckTypePredicateContainingMessageChain);
+                        let leading_error: Gc<Box<dyn CheckTypeContainingMessageChain>> =
+                            Gc::new(Box::new(CheckTypePredicateContainingMessageChain));
                         self.check_type_assignable_to(
                             type_predicate_type,
                             &self.get_type_of_symbol(
@@ -274,7 +275,7 @@ impl TypeChecker {
     pub(super) fn get_type_predicate_parent(
         &self,
         node: &Node,
-    ) -> Option<Rc<Node /*SignatureDeclaration*/>> {
+    ) -> Option<Gc<Node /*SignatureDeclaration*/>> {
         match node.parent().kind() {
             SyntaxKind::ArrowFunction
             | SyntaxKind::CallSignature
@@ -374,7 +375,7 @@ impl TypeChecker {
         let node_as_signature_declaration = node.as_signature_declaration();
         for_each(
             node_as_signature_declaration.parameters(),
-            |parameter: &Rc<Node>, _| -> Option<()> {
+            |parameter: &Gc<Node>, _| -> Option<()> {
                 self.check_parameter(parameter);
                 None
             },
@@ -413,7 +414,7 @@ impl TypeChecker {
                     == FunctionFlags::Generator
                 {
                     let return_type = self.get_type_from_type_node_(return_type_node);
-                    if Rc::ptr_eq(&return_type, &self.void_type()) {
+                    if Gc::ptr_eq(&return_type, &self.void_type()) {
                         self.error(
                             Some(&**return_type_node),
                             &Diagnostics::A_generator_cannot_have_a_void_type_annotation,
@@ -867,6 +868,7 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct CheckTypePredicateContainingMessageChain;
 
 impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChain {
@@ -880,6 +882,6 @@ impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChai
 }
 
 struct IndexSignatureMapValue {
-    pub type_: Rc<Type>,
-    pub declarations: Vec<Rc<Node /*IndexSignatureDeclaration*/>>,
+    pub type_: Gc<Type>,
+    pub declarations: Vec<Gc<Node /*IndexSignatureDeclaration*/>>,
 }

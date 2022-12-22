@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -32,7 +33,7 @@ impl TypeChecker {
                 type_arguments[last].maybe_symbol(),
             ) {
                 (None, None) => true,
-                (Some(symbol_a), Some(symbol_b)) => Rc::ptr_eq(&symbol_a, &symbol_b),
+                (Some(symbol_a), Some(symbol_b)) => Gc::ptr_eq(&symbol_a, &symbol_b),
                 _ => false,
             };
         }
@@ -55,14 +56,14 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::Intersection)
                 && every(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |type_: &Rc<Type>, _| self.is_valid_base_type(type_),
+                    |type_: &Gc<Type>, _| self.is_valid_base_type(type_),
                 )
     }
 
     pub(super) fn resolve_base_types_of_interface(&self, type_: &Type /*InterfaceType*/) {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_resolved_base_types().is_none() {
-            *type_as_interface_type.maybe_resolved_base_types() = Some(Rc::new(vec![]));
+            *type_as_interface_type.maybe_resolved_base_types() = Some(Gc::new(vec![]));
         }
         if let Some(type_symbol_declarations) = type_.symbol().maybe_declarations().as_deref() {
             for declaration in type_symbol_declarations {
@@ -87,7 +88,7 @@ impl TypeChecker {
                                     );
                                     resolved_base_types.push(base_type);
                                     *type_as_interface_type.maybe_resolved_base_types() =
-                                        Some(Rc::new(resolved_base_types));
+                                        Some(Gc::new(resolved_base_types));
                                 } else {
                                     self.report_circular_base_type(declaration, type_);
                                 }
@@ -155,7 +156,7 @@ impl TypeChecker {
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> Rc<Type /*InterfaceType*/> {
+    ) -> Gc<Type /*InterfaceType*/> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         let mut symbol = symbol.symbol_wrapper();
@@ -181,7 +182,7 @@ impl TypeChecker {
 
             let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface =
                 self.create_object_type(kind, Some(&*symbol));
-            let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface: Rc<Type> =
+            let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface: Gc<Type> =
                 BaseInterfaceType::new(
                     temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface,
                     None,
@@ -200,7 +201,7 @@ impl TypeChecker {
             let local_type_parameters =
                 self.get_local_type_parameters_of_class_or_interface_or_type_alias(&symbol);
             let mut need_to_set_constraint = false;
-            let type_: Rc<Type> = if outer_type_parameters.is_some()
+            let type_: Gc<Type> = if outer_type_parameters.is_some()
                 || local_type_parameters.is_some()
                 || kind == ObjectFlags::Class
                 || !self.is_thisless_interface(&symbol)
@@ -233,7 +234,7 @@ impl TypeChecker {
                     .constraint
                     .borrow_mut() = Some(type_.clone());
             }
-            let mut instantiations: HashMap<String, Rc<Type /*TypeReference*/>> = HashMap::new();
+            let mut instantiations: HashMap<String, Gc<Type /*TypeReference*/>> = HashMap::new();
             instantiations.insert(
                 self.get_type_list_id(type_as_interface_type.maybe_type_parameters()),
                 type_.clone(),
@@ -250,7 +251,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             if !self.push_type_resolution(
@@ -287,7 +288,7 @@ impl TypeChecker {
                     self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
                 if let Some(type_parameters) = type_parameters {
                     let mut links = links.borrow_mut();
-                    let mut instantiations: HashMap<String, Rc<Type>> = HashMap::new();
+                    let mut instantiations: HashMap<String, Gc<Type>> = HashMap::new();
                     instantiations.insert(
                         self.get_type_list_id(Some(&*type_parameters)),
                         type_.clone(),
@@ -413,7 +414,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::EnumLiteral)
             && !type_.flags().intersects(TypeFlags::Union)
         {
@@ -423,14 +424,14 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_declared_type_of_enum(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_declared_type_of_enum(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
             return links_declared_type;
         }
         if self.get_enum_kind(symbol) == EnumKind::Literal {
             self.increment_enum_count();
-            let mut member_type_list: Vec<Rc<Type>> = vec![];
+            let mut member_type_list: Vec<Gc<Type>> = vec![];
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
                 for declaration in symbol_declarations {
                     if declaration.kind() == SyntaxKind::EnumDeclaration {
@@ -467,13 +468,13 @@ impl TypeChecker {
                 return enum_type;
             }
         }
-        let enum_type: Rc<Type> = self.create_type(TypeFlags::Enum).into();
+        let enum_type: Gc<Type> = self.create_type(TypeFlags::Enum).into();
         enum_type.set_symbol(Some(symbol.symbol_wrapper()));
         links.borrow_mut().declared_type = Some(enum_type.clone());
         enum_type
     }
 
-    pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             let enum_type =
@@ -490,7 +491,7 @@ impl TypeChecker {
     pub(super) fn get_declared_type_of_type_parameter(
         &self,
         symbol: &Symbol,
-    ) -> Rc<Type /*TypeParameter*/> {
+    ) -> Gc<Type /*TypeParameter*/> {
         let links = self.get_symbol_links(symbol);
         let mut links = links.borrow_mut();
         if links.declared_type.is_none() {
@@ -499,7 +500,7 @@ impl TypeChecker {
         links.declared_type.clone().unwrap()
     }
 
-    pub(super) fn get_declared_type_of_alias(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_declared_type_of_alias(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
             return links_declared_type;
@@ -509,12 +510,12 @@ impl TypeChecker {
         declared_type
     }
 
-    pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> Gc<Type> {
         self.try_get_declared_type_of_symbol(symbol)
             .unwrap_or_else(|| self.error_type())
     }
 
-    pub(super) fn try_get_declared_type_of_symbol(&self, symbol: &Symbol) -> Option<Rc<Type>> {
+    pub(super) fn try_get_declared_type_of_symbol(&self, symbol: &Symbol) -> Option<Gc<Type>> {
         if symbol
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
@@ -561,7 +562,7 @@ impl TypeChecker {
                     .as_deref()
                 {
                     None => true,
-                    Some(type_arguments) => every(type_arguments, |type_argument: &Rc<Node>, _| {
+                    Some(type_arguments) => every(type_arguments, |type_argument: &Gc<Node>, _| {
                         self.is_thisless_type(type_argument)
                     }),
                 }
@@ -605,10 +606,10 @@ impl TypeChecker {
                 .as_signature_declaration()
                 .parameters()
                 .iter()
-                .all(|parameter: &Rc<Node>| self.is_thisless_variable_like_declaration(parameter))
+                .all(|parameter: &Gc<Node>| self.is_thisless_variable_like_declaration(parameter))
             && type_parameters
                 .iter()
-                .all(|type_parameter: &Rc<Node>| self.is_thisless_type_parameter(type_parameter))
+                .all(|type_parameter: &Gc<Node>| self.is_thisless_type_parameter(type_parameter))
     }
 
     pub(super) fn is_thisless(&self, symbol: &Symbol) -> bool {
@@ -637,8 +638,8 @@ impl TypeChecker {
 
     pub(super) fn create_instantiated_symbol_table(
         &self,
-        symbols: &[Rc<Symbol>],
-        mapper: Rc<TypeMapper>,
+        symbols: &[Gc<Symbol>],
+        mapper: Gc<TypeMapper>,
         mapping_this_only: bool,
     ) -> SymbolTable {
         let mut result = create_symbol_table(None);
@@ -658,7 +659,7 @@ impl TypeChecker {
     pub(super) fn add_inherited_members(
         &self,
         symbols: &mut SymbolTable,
-        base_symbols: &[Rc<Symbol>],
+        base_symbols: &[Gc<Symbol>],
     ) {
         for s in base_symbols {
             if !symbols.contains_key(s.escaped_name())
@@ -676,7 +677,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn resolve_declared_members(&self, type_: &Type /*InterfaceType*/) -> Rc<Type> {
+    pub(super) fn resolve_declared_members(&self, type_: &Type /*InterfaceType*/) -> Gc<Type> {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_declared_properties().is_none() {
             let symbol = type_.symbol();

@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -32,7 +33,7 @@ use local_macros::enum_unwrapped;
 
 pub(super) fn parse_response_file<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
     read_file: Option<&TReadFile>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut HashMap<String, CompilerOptionsValue>,
@@ -73,7 +74,7 @@ pub(super) fn parse_response_file<TReadFile: Fn(&str) -> io::Result<Option<Strin
                         args.push(text_substring(&text_as_chars, start + 1, pos));
                         pos += 1;
                     } else {
-                        errors.push(Rc::new(
+                        errors.push(Gc::new(
                             create_compiler_diagnostic(
                                 &Diagnostics::Unterminated_quoted_string_in_response_file_0,
                                 Some(vec![file_name.to_owned()]),
@@ -108,7 +109,7 @@ pub(super) fn parse_option_value(
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     opt: &CommandLineOption,
     options: &mut HashMap<String, CompilerOptionsValue>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
 ) -> usize {
     if opt.is_tsconfig_only() {
         let opt_value = args.get(i).map(|opt_value| &**opt_value);
@@ -126,10 +127,10 @@ pub(super) fn parse_option_value(
                 if matches!(opt_value, Some("true")) {
                     i += 1;
                 }
-                errors.push(Rc::new(create_compiler_diagnostic(&Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line, Some(vec![opt.name().to_owned()])).into()));
+                errors.push(Gc::new(create_compiler_diagnostic(&Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line, Some(vec![opt.name().to_owned()])).into()));
             }
         } else {
-            errors.push(Rc::new(create_compiler_diagnostic(&Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line, Some(vec![opt.name().to_owned()])).into()));
+            errors.push(Gc::new(create_compiler_diagnostic(&Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line, Some(vec![opt.name().to_owned()])).into()));
             if match opt_value {
                 None => false,
                 Some(opt_value) => !opt_value.is_empty() && !starts_with(opt_value, "-"),
@@ -143,7 +144,7 @@ pub(super) fn parse_option_value(
             Some(arg) => arg.is_empty(),
         } && !matches!(opt.type_(), CommandLineOptionType::Boolean)
         {
-            errors.push(Rc::new(
+            errors.push(Gc::new(
                 create_compiler_diagnostic(
                     diagnostics.option_type_mismatch_diagnostic(),
                     Some(vec![
@@ -320,7 +321,7 @@ pub(crate) struct ParsedBuildCommand {
     pub build_options: BuildOptions,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub projects: Vec<String>,
-    pub errors: Vec<Rc<Diagnostic>>,
+    pub errors: Vec<Gc<Diagnostic>>,
 }
 
 thread_local! {
@@ -422,7 +423,7 @@ pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
     }
 
     if matches!(build_options.clean, Some(true)) && matches!(build_options.force, Some(true)) {
-        errors.push(Rc::new(
+        errors.push(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Options_0_and_1_cannot_be_combined,
                 Some(vec!["clean".to_owned(), "force".to_owned()]),
@@ -431,7 +432,7 @@ pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
         ));
     }
     if matches!(build_options.clean, Some(true)) && matches!(build_options.verbose, Some(true)) {
-        errors.push(Rc::new(
+        errors.push(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Options_0_and_1_cannot_be_combined,
                 Some(vec!["clean".to_owned(), "verbose".to_owned()]),
@@ -440,7 +441,7 @@ pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
         ));
     }
     if matches!(build_options.clean, Some(true)) && matches!(build_options.watch, Some(true)) {
-        errors.push(Rc::new(
+        errors.push(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Options_0_and_1_cannot_be_combined,
                 Some(vec!["clean".to_owned(), "watch".to_owned()]),
@@ -449,7 +450,7 @@ pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
         ));
     }
     if matches!(build_options.watch, Some(true)) && matches!(build_options.dry, Some(true)) {
-        errors.push(Rc::new(
+        errors.push(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Options_0_and_1_cannot_be_combined,
                 Some(vec!["watch".to_owned(), "dry".to_owned()]),
@@ -474,21 +475,23 @@ pub(crate) fn get_diagnostic_text(
     enum_unwrapped!(diagnostic.message_text(), [DiagnosticMessageText, String]).clone()
 }
 
-pub trait DiagnosticReporter {
-    fn call(&self, diagnostic: Rc<Diagnostic>);
+pub trait DiagnosticReporter: Trace + Finalize {
+    fn call(&self, diagnostic: Gc<Diagnostic>);
 }
 
 pub trait ConfigFileDiagnosticsReporter {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>);
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>);
 }
 
-pub trait ParseConfigFileHost: ParseConfigHost + ConfigFileDiagnosticsReporter {
+pub trait ParseConfigFileHost:
+    ParseConfigHost + ConfigFileDiagnosticsReporter + Trace + Finalize
+{
     fn get_current_directory(&self) -> String;
 }
 
 pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     config_file_name: &str,
-    options_to_extend: Option<Rc<CompilerOptions>>,
+    options_to_extend: Option<Gc<CompilerOptions>>,
     host: &THost,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
@@ -542,7 +545,7 @@ pub fn read_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
 
 pub struct ReadConfigFileReturn {
     pub config: Option<serde_json::Value>,
-    pub error: Option<Rc<Diagnostic>>,
+    pub error: Option<Gc<Diagnostic>>,
 }
 
 pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> ReadConfigFileReturn {
@@ -551,10 +554,11 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
         json_source_file.as_source_file().parse_diagnostics();
     let config = convert_config_file_to_object(
         &json_source_file,
-        &RefCell::new(&mut *json_source_file_parse_diagnostics),
+        json_source_file_parse_diagnostics.clone(),
         false,
         Option::<&JsonConversionNotifierDummy>::None,
     );
+    let json_source_file_parse_diagnostics = (*json_source_file_parse_diagnostics).borrow();
     ReadConfigFileReturn {
         config,
         error: if !json_source_file_parse_diagnostics.is_empty() {
@@ -568,7 +572,7 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
 pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
     file_name: &str,
     read_file: TReadFile,
-) -> Rc<Node /*TsConfigSourceFile*/> {
+) -> Gc<Node /*TsConfigSourceFile*/> {
     let text_or_diagnostic = try_read_file(file_name, read_file);
     match text_or_diagnostic {
         StringOrRcDiagnostic::String(text_or_diagnostic) => {
@@ -582,7 +586,7 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
                 -1,
                 -1,
             );
-            let end_of_file_token: Rc<Node> = BaseNode::new(
+            let end_of_file_token: Gc<Node> = BaseNode::new(
                 SyntaxKind::EndOfFileToken,
                 NodeFlags::None,
                 TransformFlags::None,
@@ -590,7 +594,7 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
                 -1,
             )
             .into();
-            let source_file: Rc<Node> = SourceFile::new(
+            let source_file: Gc<Node> = SourceFile::new(
                 base_node,
                 NodeArray::new(vec![], -1, -1, false, None),
                 end_of_file_token,
@@ -605,7 +609,7 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
             .into();
             source_file
                 .as_source_file()
-                .set_parse_diagnostics(vec![text_or_diagnostic]);
+                .set_parse_diagnostics(Gc::new(GcCell::new(vec![text_or_diagnostic])));
             source_file
         }
     }
@@ -613,7 +617,7 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
 
 pub(crate) enum StringOrRcDiagnostic {
     String(String),
-    RcDiagnostic(Rc<Diagnostic>),
+    RcDiagnostic(Gc<Diagnostic>),
 }
 
 impl From<String> for StringOrRcDiagnostic {
@@ -622,8 +626,8 @@ impl From<String> for StringOrRcDiagnostic {
     }
 }
 
-impl From<Rc<Diagnostic>> for StringOrRcDiagnostic {
-    fn from(value: Rc<Diagnostic>) -> Self {
+impl From<Gc<Diagnostic>> for StringOrRcDiagnostic {
+    fn from(value: Gc<Diagnostic>) -> Self {
         Self::RcDiagnostic(value)
     }
 }
@@ -633,14 +637,14 @@ pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>
     mut read_file: TReadFile,
 ) -> StringOrRcDiagnostic {
     match read_file(file_name) {
-        Err(e) => Into::<StringOrRcDiagnostic>::into(Rc::new(
+        Err(e) => Into::<StringOrRcDiagnostic>::into(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Cannot_read_file_0_Colon_1,
                 Some(vec![file_name.to_owned(), e.to_string()]),
             )
             .into(),
         )),
-        Ok(None) => Into::<StringOrRcDiagnostic>::into(Rc::new(
+        Ok(None) => Into::<StringOrRcDiagnostic>::into(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Cannot_read_file_0,
                 Some(vec![file_name.to_owned()]),
@@ -1261,7 +1265,7 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
 
 pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNotifier>(
     source_file: &Node, /*JsonSourceFile*/
-    errors: &RefCell<&mut Vec<Rc<Diagnostic>>>,
+    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     report_options_errors: bool,
     options_iterator: Option<&TOptionsIterator>,
 ) -> Option<serde_json::Value> {
@@ -1279,7 +1283,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
         .as_ref()
         .filter(|root_expression| root_expression.kind() != SyntaxKind::ObjectLiteralExpression)
     {
-        errors.borrow_mut().push(Rc::new(
+        errors.borrow_mut().push(Gc::new(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 root_expression,
@@ -1326,7 +1330,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
 
 pub fn convert_to_object(
     source_file: &Node, /*JsonSourceFile*/
-    errors: &mut Push<Rc<Diagnostic>>,
+    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
 ) -> Option<serde_json::Value> {
     convert_to_object_worker(
         source_file,
@@ -1335,7 +1339,7 @@ pub fn convert_to_object(
             .statements()
             .get(0)
             .map(|statement| statement.as_expression_statement().expression.clone()),
-        &RefCell::new(errors),
+        errors,
         true,
         None,
         Option::<&JsonConversionNotifierDummy>::None,
@@ -1348,7 +1352,7 @@ pub(crate) fn convert_to_object_worker<
 >(
     source_file: &Node, /*JsonSourceFile*/
     root_expression: Option<TRootExpression>,
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: Gc<GcCell<Push<Gc<Diagnostic>>>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     json_conversion_notifier: Option<&TJsonConversionNotifier>,

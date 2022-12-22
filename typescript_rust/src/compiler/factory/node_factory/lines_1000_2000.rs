@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
@@ -48,7 +49,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         flags: ModifierFlags,
-    ) -> Vec<Rc<Node /*Modifier*/>> {
+    ) -> Vec<Gc<Node /*Modifier*/>> {
         let mut result = vec![];
         if flags.intersects(ModifierFlags::Export) {
             result.push(
@@ -128,7 +129,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_qualified_name<'right, TRight: Into<StrOrRcNode<'right>>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Rc<Node /*EntityName*/>,
+        left: Gc<Node /*EntityName*/>,
         right: TRight,
     ) -> QualifiedName {
         let node = self.create_base_node(base_factory, SyntaxKind::QualifiedName);
@@ -144,16 +145,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*QualifiedName*/
-        left: Rc<Node /*EntityName*/>,
-        right: Rc<Node /*Identifier*/>,
-    ) -> Rc<Node> {
+        left: Gc<Node /*EntityName*/>,
+        right: Gc<Node /*Identifier*/>,
+    ) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn create_computed_property_name(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> ComputedPropertyName {
         let node = self.create_base_node(base_factory, SyntaxKind::ComputedPropertyName);
         let mut node = ComputedPropertyName::new(
@@ -173,8 +174,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName,
-        constraint: Option<Rc<Node /*TypeNode*/>>,
-        default_type: Option<Rc<Node /*TypeNode*/>>,
+        constraint: Option<Gc<Node /*TypeNode*/>>,
+        default_type: Option<Gc<Node /*TypeNode*/>>,
     ) -> TypeParameterDeclaration {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -198,11 +199,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
-        dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
         name: Option<TName>,
-        question_token: Option<Rc<Node /*QuestionToken*/>>,
-        type_: Option<Rc<Node /*TypeNode*/>>,
-        initializer: Option<Rc<Node /*Expression*/>>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
     ) -> ParameterDeclaration {
         let initializer_is_some = initializer.is_some();
         let node = self.create_base_variable_like_declaration(
@@ -245,7 +246,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_decorator(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> Decorator {
         let node = self.create_base_node(base_factory, SyntaxKind::Decorator);
         let mut node = Decorator::new(
@@ -270,8 +271,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         modifiers: Option<TModifiers>,
         name: TName,
-        question_token: Option<Rc<Node>>,
-        type_: Option<Rc<Node>>,
+        question_token: Option<Gc<Node>>,
+        type_: Option<Gc<Node>>,
     ) -> PropertySignature {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -296,10 +297,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
         name: TName,
-        question_or_exclamation_token: Option<Rc<Node /*QuestionToken | ExclamationToken*/>>,
-        type_: Option<Rc<Node /*TypeNode*/>>,
-        initializer: Option<Rc<Node /*Expression*/>>,
-    ) -> Rc<Node> /*PropertyDeclaration*/ {
+        question_or_exclamation_token: Option<Gc<Node /*QuestionToken | ExclamationToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> /*PropertyDeclaration*/ {
         let node = self.create_base_variable_like_declaration(
             base_factory,
             SyntaxKind::PropertyDeclaration,
@@ -326,7 +327,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(node.exclamation_token.clone())
                 | TransformFlags::ContainsClassFields,
         );
-        let node: Rc<Node> = node.into();
+        let node: Gc<Node> = node.into();
         let node_as_property_declaration = node.as_property_declaration();
         if is_computed_property_name(&node_as_property_declaration.name())
             || has_static_modifier(&node)
@@ -354,10 +355,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         modifiers: Option<TModifiers>,
         name: Option<TName>,
-        question_token: Option<Rc<Node /*QuestionToken*/>>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
         type_parameters: Option<TTypeParameters>,
         parameters: Option<TParameters>,
-        type_: Option<Rc<Node>>,
+        type_: Option<Gc<Node>>,
     ) -> MethodSignature {
         let node = self.create_base_signature_declaration(
             base_factory,
@@ -386,13 +387,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
-        asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
         name: TName,
-        question_token: Option<Rc<Node /*QuestionToken*/>>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
         type_parameters: Option<TTypeParameters>,
         parameters: TParameters,
-        type_: Option<Rc<Node /*TypeNode*/>>,
-        body: Option<Rc<Node /*Block*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Option<Gc<Node /*Block*/>>,
     ) -> MethodDeclaration {
         let mut node = self.create_base_function_like_declaration(
             base_factory,
@@ -438,14 +439,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
-        body: Rc<Node /*Block*/>,
+        body: Gc<Node /*Block*/>,
     ) -> ClassStaticBlockDeclaration {
         let node = self.create_base_generic_named_declaration(
             base_factory,
             SyntaxKind::ClassStaticBlockDeclaration,
             decorators,
             modifiers,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             Option::<NodeArray>::None,
         );
         let mut node = ClassStaticBlockDeclaration::new(node, body.clone());
@@ -465,14 +466,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
         parameters: TParameters,
-        body: Option<Rc<Node /*Block*/>>,
+        body: Option<Gc<Node /*Block*/>>,
     ) -> ConstructorDeclaration {
         let node = self.create_base_function_like_declaration(
             base_factory,
             SyntaxKind::Constructor,
             decorators,
             modifiers,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             Option::<NodeArray>::None,
             Some(parameters),
             None,
@@ -496,8 +497,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<TModifiers>,
         name: TName,
         parameters: TParameters,
-        type_: Option<Rc<Node /*TypeNode*/>>,
-        body: Option<Rc<Node /*Block*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Option<Gc<Node /*Block*/>>,
     ) -> GetAccessorDeclaration {
         let node = self.create_base_function_like_declaration(
             base_factory,
@@ -526,7 +527,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<TModifiers>,
         name: TName,
         parameters: TParameters,
-        body: Option<Rc<Node /*Block*/>>,
+        body: Option<Gc<Node /*Block*/>>,
     ) -> SetAccessorDeclaration {
         let node = self.create_base_function_like_declaration(
             base_factory,
@@ -550,14 +551,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         type_parameters: Option<TTypeParameters>,
         parameters: TParameters,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> CallSignatureDeclaration {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::CallSignature,
             Option::<NodeArray>::None,
             Option::<NodeArray>::None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             type_parameters,
             Some(parameters),
             type_,
@@ -575,14 +576,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         type_parameters: Option<TTypeParameters>,
         parameters: TParameters,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> ConstructSignatureDeclaration {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::ConstructSignature,
             Option::<NodeArray>::None,
             Option::<NodeArray>::None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             type_parameters,
             Some(parameters),
             type_,
@@ -602,14 +603,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
         parameters: TParameters,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> IndexSignatureDeclaration {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::IndexSignature,
             decorators,
             modifiers,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             Option::<NodeArray>::None,
             Some(parameters),
             type_,
@@ -622,8 +623,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_template_literal_type_span(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Rc<Node /*TypeNode*/>,
-        literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+        type_: Gc<Node /*TypeNode*/>,
+        literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> TemplateLiteralTypeSpan {
         let node = self.create_base_node(base_factory, SyntaxKind::TemplateLiteralTypeSpan);
         let mut node = TemplateLiteralTypeSpan::new(node, type_, literal);
@@ -645,9 +646,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     >(
         &self,
         base_factory: &TBaseNodeFactory,
-        asserts_modifier: Option<Rc<Node /*AssertsKeyword*/>>,
+        asserts_modifier: Option<Gc<Node /*AssertsKeyword*/>>,
         parameter_name: TParameterName,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> TypePredicateNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypePredicate);
         let mut node = TypePredicateNode::new(
@@ -689,13 +690,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*TypeReferenceNode*/
-        type_name: Rc<Node /*EntityName*/>,
+        type_name: Gc<Node /*EntityName*/>,
         type_arguments: TTypeArguments, /*<TypeNode>*/
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let type_arguments = type_arguments.into();
         let node_as_type_reference_node = node.as_type_reference_node();
         let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
-        if !Rc::ptr_eq(&node_as_type_reference_node.type_name, &type_name)
+        if !Gc::ptr_eq(&node_as_type_reference_node.type_name, &type_name)
             || has_option_node_array_changed(node_type_arguments.as_ref(), &type_arguments)
         {
             self.update(
@@ -720,14 +721,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         type_parameters: Option<TTypeParameters>,
         parameters: TParameters,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> FunctionTypeNode {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::FunctionType,
             Option::<NodeArray>::None,
             Option::<NodeArray>::None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             type_parameters,
             Some(parameters),
             type_,
@@ -747,14 +748,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<TModifiers>,
         type_parameters: Option<TTypeParameters>,
         parameters: TParameters,
-        type_: Option<Rc<Node /*TypeNode*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> ConstructorTypeNode {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::ConstructorType,
             Option::<NodeArray>::None,
             modifiers,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             type_parameters,
             Some(parameters),
             type_,
@@ -767,7 +768,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_type_query_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        expr_name: Rc<Node /*EntityName*/>,
+        expr_name: Gc<Node /*EntityName*/>,
     ) -> TypeQueryNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeQuery);
         let mut node = TypeQueryNode::new(node, expr_name);
@@ -789,7 +790,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_array_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        element_type: Rc<Node /*TypeNode*/>,
+        element_type: Gc<Node /*TypeNode*/>,
     ) -> ArrayTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::ArrayType);
         let mut node = ArrayTypeNode::new(
@@ -815,10 +816,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_named_tuple_member(
         &self,
         base_factory: &TBaseNodeFactory,
-        dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
-        name: Rc<Node /*Identifier*/>,
-        question_token: Option<Rc<Node /*QuestionToken*/>>,
-        type_: Rc<Node /*TypeNode*/>,
+        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        name: Gc<Node /*Identifier*/>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_: Gc<Node /*TypeNode*/>,
     ) -> NamedTupleMember {
         let node = self.create_base_node(base_factory, SyntaxKind::NamedTupleMember);
         let mut node = NamedTupleMember::new(node, dot_dot_dot_token, name, question_token, type_);
@@ -829,7 +830,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_optional_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Rc<Node /*TypeNode*/>,
+        type_: Gc<Node /*TypeNode*/>,
     ) -> OptionalTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::OptionalType);
         let mut node = OptionalTypeNode::new(
@@ -844,7 +845,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_rest_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Rc<Node /*TypeNode*/>,
+        type_: Gc<Node /*TypeNode*/>,
     ) -> RestTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::RestType);
         let mut node = RestTypeNode::new(node, type_);
@@ -897,10 +898,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_conditional_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        check_type: Rc<Node /*TypeNode*/>,
-        extends_type: Rc<Node /*TypeNode*/>,
-        true_type: Rc<Node /*TypeNode*/>,
-        false_type: Rc<Node /*TypeNode*/>,
+        check_type: Gc<Node /*TypeNode*/>,
+        extends_type: Gc<Node /*TypeNode*/>,
+        true_type: Gc<Node /*TypeNode*/>,
+        false_type: Gc<Node /*TypeNode*/>,
     ) -> ConditionalTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::ConditionalType);
         let mut node = ConditionalTypeNode::new(

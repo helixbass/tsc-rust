@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -77,7 +78,7 @@ impl TypeChecker {
         self.check_source_element(Some(&*node_as_while_statement.statement));
     }
 
-    pub(super) fn check_truthiness_of_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
+    pub(super) fn check_truthiness_of_type(&self, type_: &Type, node: &Node) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Void) {
             self.error(
                 Some(node),
@@ -92,7 +93,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.check_truthiness_of_type(&self.check_expression(node, check_mode, None), node)
     }
 
@@ -115,7 +116,7 @@ impl TypeChecker {
             if node_initializer.kind() == SyntaxKind::VariableDeclarationList {
                 for_each(
                     &node_initializer.as_variable_declaration_list().declarations,
-                    |declaration: &Rc<Node>, _| -> Option<()> {
+                    |declaration: &Gc<Node>, _| -> Option<()> {
                         self.check_variable_declaration(declaration);
                         None
                     },
@@ -264,7 +265,7 @@ impl TypeChecker {
             }
         }
 
-        if Rc::ptr_eq(&right_type, &self.never_type())
+        if Gc::ptr_eq(&right_type, &self.never_type())
             || !self.is_type_assignable_to_kind(
                 &right_type,
                 TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
@@ -308,7 +309,7 @@ impl TypeChecker {
     pub(super) fn check_right_hand_side_of_for_of(
         &self,
         statement: &Node, /*ForOfStatement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let statement_as_for_of_statement = statement.as_for_of_statement();
         let use_ = if statement_as_for_of_statement.await_modifier.is_some() {
             IterationUse::ForAwaitOf
@@ -329,7 +330,7 @@ impl TypeChecker {
         input_type: &Type,
         sent_type: &Type,
         error_node: Option<TErrorNode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self.is_type_any(Some(input_type)) {
             return input_type.type_wrapper();
         }
@@ -344,7 +345,7 @@ impl TypeChecker {
         sent_type: &Type,
         error_node: Option<TErrorNode>,
         check_assignability: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let allow_async_iterables = use_.intersects(IterationUse::AllowsAsyncIterablesFlag);
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if ptr::eq(input_type, &*self.never_type()) {
@@ -423,7 +424,7 @@ impl TypeChecker {
         if use_.intersects(IterationUse::AllowsStringInputFlag) {
             if array_type.flags().intersects(TypeFlags::Union) {
                 let array_types = input_type.as_union_type().types();
-                let filtered_types = filter(array_types, |t: &Rc<Type>| {
+                let filtered_types = filter(array_types, |t: &Gc<Type>| {
                     !t.flags().intersects(TypeFlags::StringLike)
                 });
                 if filtered_types.len() != array_types.len() {
@@ -611,7 +612,7 @@ impl TypeChecker {
         type_kind: IterationTypeKind,
         input_type: &Type,
         error_node: Option<TErrorNode>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if self.is_type_any(Some(input_type)) {
             return None;
         }
@@ -624,10 +625,10 @@ impl TypeChecker {
 
     pub(super) fn create_iteration_types(
         &self,
-        yield_type: Option<Rc<Type>>,
-        return_type: Option<Rc<Type>>,
-        next_type: Option<Rc<Type>>,
-    ) -> Rc<IterationTypes> {
+        yield_type: Option<Gc<Type>>,
+        return_type: Option<Gc<Type>>,
+        next_type: Option<Gc<Type>>,
+    ) -> Gc<IterationTypes> {
         let yield_type = yield_type.unwrap_or_else(|| self.never_type());
         let return_type = return_type.unwrap_or_else(|| self.never_type());
         let next_type = next_type.unwrap_or_else(|| self.unknown_type());
@@ -654,29 +655,29 @@ impl TypeChecker {
             ]));
             let mut iteration_types_cache = self.iteration_types_cache();
             let iteration_types = iteration_types_cache.entry(id).or_insert_with(|| {
-                Rc::new(IterationTypes::new(yield_type, return_type, next_type))
+                Gc::new(IterationTypes::new(yield_type, return_type, next_type))
             });
             return iteration_types.clone();
         }
-        Rc::new(IterationTypes::new(yield_type, return_type, next_type))
+        Gc::new(IterationTypes::new(yield_type, return_type, next_type))
     }
 
     pub(super) fn combine_iteration_types(
         &self,
-        array: &[Option<Rc<IterationTypes>>],
-    ) -> Rc<IterationTypes> {
-        let mut yield_types: Option<Vec<Rc<Type>>> = None;
-        let mut return_types: Option<Vec<Rc<Type>>> = None;
-        let mut next_types: Option<Vec<Rc<Type>>> = None;
+        array: &[Option<Gc<IterationTypes>>],
+    ) -> Gc<IterationTypes> {
+        let mut yield_types: Option<Vec<Gc<Type>>> = None;
+        let mut return_types: Option<Vec<Gc<Type>>> = None;
+        let mut next_types: Option<Vec<Gc<Type>>> = None;
         for iteration_types in array {
             if iteration_types.is_none() {
                 continue;
             }
             let iteration_types = iteration_types.clone().unwrap();
-            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 continue;
             }
-            if Rc::ptr_eq(&iteration_types, &self.any_iteration_types()) {
+            if Gc::ptr_eq(&iteration_types, &self.any_iteration_types()) {
                 return self.any_iteration_types();
             }
             if yield_types.is_none() {
@@ -733,7 +734,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         cache_key: IterationTypeCacheKey,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         type_.get_by_iteration_type_cache_key(cache_key)
     }
 
@@ -741,8 +742,8 @@ impl TypeChecker {
         &self,
         type_: &Type,
         cache_key: IterationTypeCacheKey,
-        cached_types: Rc<IterationTypes>,
-    ) -> Rc<IterationTypes> {
+        cached_types: Gc<IterationTypes>,
+    ) -> Gc<IterationTypes> {
         type_.set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
         cached_types
     }
@@ -752,7 +753,7 @@ impl TypeChecker {
         type_: &Type,
         use_: IterationUse,
         error_node: Option<TErrorNode>,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         if self.is_type_any(Some(type_)) {
             return Some(self.any_iteration_types());
         }
@@ -761,7 +762,7 @@ impl TypeChecker {
         if !type_.flags().intersects(TypeFlags::Union) {
             let iteration_types =
                 self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref());
-            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if let Some(error_node) = error_node.as_ref() {
                     self.report_type_not_iterable_error(
                         error_node,
@@ -781,21 +782,21 @@ impl TypeChecker {
         };
         let cached_types = self.get_cached_iteration_types(type_, cache_key);
         if let Some(cached_types) = cached_types.as_ref() {
-            return if Rc::ptr_eq(cached_types, &self.no_iteration_types()) {
+            return if Gc::ptr_eq(cached_types, &self.no_iteration_types()) {
                 None
             } else {
                 Some(cached_types.clone())
             };
         }
 
-        let mut all_iteration_types: Option<Vec<Rc<IterationTypes>>> = None;
+        let mut all_iteration_types: Option<Vec<Gc<IterationTypes>>> = None;
         for constituent in type_.as_union_type().types() {
             let iteration_types = self.get_iteration_types_of_iterable_worker(
                 constituent,
                 use_,
                 error_node.as_deref(),
             );
-            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if let Some(error_node) = error_node.as_ref() {
                     self.report_type_not_iterable_error(
                         error_node,
@@ -824,7 +825,7 @@ impl TypeChecker {
             self.no_iteration_types()
         };
         self.set_cached_iteration_types(type_, cache_key, iteration_types.clone());
-        if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+        if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
             None
         } else {
             Some(iteration_types)
