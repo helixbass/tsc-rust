@@ -1,4 +1,5 @@
 pub mod vfs {
+    use gc::{Finalize, Gc, GcCell, Trace, GcCellRefMut};
     use local_macros::enum_unwrapped;
     use std::borrow::Cow;
     use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -6,6 +7,7 @@ pub mod vfs {
     use std::iter::FromIterator;
     use std::rc::Rc;
     use std::time::{SystemTime, UNIX_EPOCH};
+
     use typescript_rust::{
         get_sys, is_option_str_empty, millis_since_epoch_to_system_time, Buffer, Comparison,
         FileSystemEntries, Node,
@@ -54,15 +56,19 @@ pub mod vfs {
         })
     }
 
+    #[derive(Trace, Finalize)]
     pub struct FileSystem {
         pub ignore_case: bool,
         pub string_comparer: Rc<dyn Fn(&str, &str) -> Comparison>,
         _lazy: FileSystemLazy,
 
+        #[unsafe_ignore_trace]
         _cwd: RefCell<Option<String>>,
         _time: RefCell<TimestampOrNowOrSystemTimeOrCallback>,
-        _shadow_root: Option<Rc<FileSystem>>,
+        _shadow_root: Option<Gc<FileSystem>>,
+        #[unsafe_ignore_trace]
         _dir_stack: RefCell<Option<Vec<String>>>,
+        #[unsafe_ignore_trace]
         _is_readonly: Cell<bool>,
     }
 
@@ -143,9 +149,9 @@ pub mod vfs {
             self._dir_stack.borrow_mut()
         }
 
-        pub fn meta(&self) -> Rc<RefCell<collections::Metadata<String>>> {
+        pub fn meta(&self) -> Gc<GcCell<collections::Metadata<String>>> {
             self._lazy.meta.borrow_mut().get_or_insert_with(|| {
-                Rc::new(RefCell::new(collections::Metadata::new(
+                Gc::new(GcCell::new(collections::Metadata::new(
                     self._shadow_root
                         .as_ref()
                         .map(|_shadow_root| _shadow_root.meta()),
@@ -165,11 +171,11 @@ pub mod vfs {
             self
         }
 
-        pub fn shadow_root(&self) -> Option<Rc<FileSystem>> {
+        pub fn shadow_root(&self) -> Option<Gc<FileSystem>> {
             self._shadow_root.clone()
         }
 
-        pub fn shadow(self: Rc<Self>, ignore_case: Option<bool>) -> Self {
+        pub fn shadow(self: Gc<Self>, ignore_case: Option<bool>) -> Self {
             let ignore_case = ignore_case.unwrap_or(self.ignore_case);
             if !self.is_readonly() {
                 panic!("Cannot shadow a mutable file system.");
@@ -215,7 +221,7 @@ pub mod vfs {
             *self._time.borrow_mut() = value;
         }
 
-        pub fn filemeta(&self, path: &str) -> Rc<RefCell<collections::Metadata<MetaValue>>> {
+        pub fn filemeta(&self, path: &str) -> Gc<GcCell<collections::Metadata<MetaValue>>> {
             let WalkResult { node, .. } = self
                 ._walk(
                     &self._resolve(path),
@@ -231,7 +237,7 @@ pub mod vfs {
             self._filemeta(node)
         }
 
-        pub fn _filemeta(&self, node: &Inode) -> Rc<RefCell<collections::Metadata<MetaValue>>> {
+        pub fn _filemeta(&self, node: &Inode) -> Gc<GcCell<collections::Metadata<MetaValue>>> {
             node.meta_mut()
                 .get_or_insert_with(|| {
                     let parent_meta = if let (Some(node_shadow_root), Some(_shadow_root)) = (
@@ -242,7 +248,7 @@ pub mod vfs {
                     } else {
                         None
                     };
-                    Rc::new(RefCell::new(collections::Metadata::new(parent_meta)))
+                    Gc::new(GcCell::new(collections::Metadata::new(parent_meta)))
                 })
                 .clone()
         }
@@ -337,7 +343,7 @@ pub mod vfs {
             unimplemented!()
         }
 
-        pub fn mount_sync(&self, source: &str, target: &str, resolver: Rc<FileSystemResolver>) {
+        pub fn mount_sync(&self, source: &str, target: &str, resolver: Gc<FileSystemResolver>) {
             if self.is_readonly() {
                 // throw createIOError("EROFS");
                 panic!("EROFS");
@@ -380,7 +386,7 @@ pub mod vfs {
                 parent.as_deref(),
                 &mut links.borrow_mut(),
                 &basename,
-                Rc::new(node),
+                Gc::new(node),
                 Some(time),
             );
         }
@@ -499,7 +505,7 @@ pub mod vfs {
                 parent.as_deref(),
                 &mut links.borrow_mut(),
                 &basename,
-                Rc::new(node),
+                Gc::new(node),
                 Some(time),
             );
         }
@@ -590,7 +596,7 @@ pub mod vfs {
 
             let time = self.time();
             let ref node = existing_node.unwrap_or_else(|| {
-                let node = Rc::new(self._mknod(parent.dev(), S_IFREG, 0o666, Some(time)));
+                let node = Gc::new(self._mknod(parent.dev(), S_IFREG, 0o666, Some(time)));
                 self._add_link(
                     Some(parent),
                     &mut links.borrow_mut(),
@@ -642,9 +648,9 @@ pub mod vfs {
         fn _add_link(
             &self,
             parent: Option<&Inode /*DirectoryInode*/>,
-            links: &mut collections::SortedMap<String, Rc<Inode>>,
+            links: &mut collections::SortedMap<String, Gc<Inode>>,
             name: &str,
-            node: Rc<Inode>,
+            node: Gc<Inode>,
             time: Option<u128>,
         ) {
             let time = time.unwrap_or_else(|| self.time());
@@ -665,7 +671,7 @@ pub mod vfs {
             }
         }
 
-        fn _get_root_links(&self) -> Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>> {
+        fn _get_root_links(&self) -> Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>> {
             self._lazy
                 .links
                 .borrow_mut()
@@ -674,11 +680,11 @@ pub mod vfs {
                         collections::SortOptions {
                             comparer: {
                                 let string_comparer = self.string_comparer.clone();
-                                Rc::new(move |a: &String, b: &String| string_comparer(a, b))
+                                Gc::new(move |a: &String, b: &String| string_comparer(a, b))
                             },
                             sort: None,
                         },
-                        Option::<HashMap<String, Rc<Inode>>>::None,
+                        Option::<HashMap<String, Gc<Inode>>>::None,
                     );
                     if let Some(_shadow_root) = self._shadow_root.as_ref() {
                         self._copy_shadow_links(
@@ -686,7 +692,7 @@ pub mod vfs {
                             &mut _lazy_links,
                         );
                     }
-                    Rc::new(RefCell::new(_lazy_links))
+                    Gc::new(GcCell::new(_lazy_links))
                 })
                 .clone()
         }
@@ -694,7 +700,7 @@ pub mod vfs {
         fn _get_links(
             &self,
             node: &Inode, /*DirectoryInode*/
-        ) -> Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>> {
+        ) -> Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>> {
             let node_as_directory_inode = node.as_directory_inode();
             if node_as_directory_inode.maybe_links().is_none() {
                 let mut links = collections::SortedMap::new(
@@ -705,7 +711,7 @@ pub mod vfs {
                         }),
                         sort: None,
                     },
-                    Option::<HashMap<String, Rc<Inode>>>::None,
+                    Option::<HashMap<String, Gc<Inode>>>::None,
                 );
                 let source = node_as_directory_inode.maybe_source();
                 let resolver = node_as_directory_inode.maybe_resolver();
@@ -723,7 +729,7 @@ pub mod vfs {
                                     .set_source(Some(vpath::combine(&source, &[Some(&name)])));
                                 dir.as_directory_inode()
                                     .set_resolver(Some(resolver.clone()));
-                                self._add_link(Some(node), &mut links, &name, Rc::new(dir), None);
+                                self._add_link(Some(node), &mut links, &name, Gc::new(dir), None);
                             }
                             S_IFREG => {
                                 let file =
@@ -732,7 +738,7 @@ pub mod vfs {
                                     .set_source(Some(vpath::combine(&source, &[Some(&name)])));
                                 file.as_file_inode().set_resolver(Some(resolver.clone()));
                                 file.as_file_inode().set_size(Some(stats.size));
-                                self._add_link(Some(node), &mut links, &name, Rc::new(file), None);
+                                self._add_link(Some(node), &mut links, &name, Gc::new(file), None);
                             }
                             _ => (),
                         }
@@ -746,12 +752,12 @@ pub mod vfs {
                         &mut links,
                     );
                 }
-                node_as_directory_inode.set_links(Some(Rc::new(RefCell::new(links))));
+                node_as_directory_inode.set_links(Some(Gc::new(GcCell::new(links))));
             }
             node_as_directory_inode.maybe_links().unwrap()
         }
 
-        fn _get_shadow(&self, root: Rc<Inode>) -> Rc<Inode> {
+        fn _get_shadow(&self, root: Gc<Inode>) -> Gc<Inode> {
             self._lazy
                 .shadows
                 .borrow_mut()
@@ -776,18 +782,18 @@ pub mod vfs {
                             root.as_symlink_inode().symlink.clone();
                     }
 
-                    Rc::new(shadow)
+                    Gc::new(shadow)
                 })
                 .clone()
         }
 
         fn _copy_shadow_links<
             'source,
-            TSource: IntoIterator<Item = (&'source String, &'source Rc<Inode>)>,
+            TSource: IntoIterator<Item = (&'source String, &'source Gc<Inode>)>,
         >(
             &self,
             source: TSource,
-            target: &mut collections::SortedMap<String, Rc<Inode>>,
+            target: &mut collections::SortedMap<String, Gc<Inode>>,
         ) {
             let source = source.into_iter();
             for (name, root) in source {
@@ -852,7 +858,7 @@ pub mod vfs {
             mut on_error: Option<TOnError>,
         ) -> Option<WalkResult> {
             let mut links = self._get_root_links();
-            let mut parent: Option<Rc<Inode>> = None;
+            let mut parent: Option<Gc<Inode>> = None;
             let mut components = vpath::parse(path, None);
             let mut step = 0;
             let mut depth = 0;
@@ -941,10 +947,10 @@ pub mod vfs {
             step: usize,
             retry: &mut bool,
             on_error: Option<&mut TOnError>,
-            parent: Option<Rc<Inode /*DirectoryInode*/>>,
-            links: Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>,
+            parent: Option<Gc<Inode /*DirectoryInode*/>>,
+            links: Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>,
             error: NodeJSErrnoException,
-            node: Option<Rc<Inode>>,
+            node: Option<Gc<Inode>>,
         ) -> bool {
             let realpath = vpath::format(&components[..step + 1]);
             let basename = &components[step];
@@ -1029,7 +1035,7 @@ pub mod vfs {
         fn _apply_file_extended_options(
             &self,
             path: &str,
-            entry_meta: Option<&HashMap<String, Rc<documents::TextDocument>>>,
+            entry_meta: Option<&HashMap<String, Gc<documents::TextDocument>>>,
         ) {
             if let Some(meta) = entry_meta {
                 let filemeta = self.filemeta(path);
@@ -1089,24 +1095,24 @@ pub mod vfs {
 
     #[derive(Clone)]
     pub enum MetaValue {
-        RcTextDocument(Rc<documents::TextDocument>),
-        RcNode(Rc<Node>),
+        RcTextDocument(Gc<documents::TextDocument>),
+        RcNode(Gc<Node>),
     }
 
     impl MetaValue {
-        pub fn as_rc_node(&self) -> &Rc<Node> {
+        pub fn as_rc_node(&self) -> &Gc<Node> {
             enum_unwrapped!(self, [MetaValue, RcNode])
         }
     }
 
-    impl From<Rc<documents::TextDocument>> for MetaValue {
-        fn from(value: Rc<documents::TextDocument>) -> Self {
+    impl From<Gc<documents::TextDocument>> for MetaValue {
+        fn from(value: Gc<documents::TextDocument>) -> Self {
             Self::RcTextDocument(value)
         }
     }
 
-    impl From<Rc<Node>> for MetaValue {
-        fn from(value: Rc<Node>) -> Self {
+    impl From<Gc<Node>> for MetaValue {
+        fn from(value: Gc<Node>) -> Self {
             Self::RcNode(value)
         }
     }
@@ -1158,11 +1164,11 @@ pub mod vfs {
         Throw,
     }
 
-    #[derive(Default)]
+    #[derive(Default, Trace, Finalize)]
     struct FileSystemLazy {
-        links: RefCell<Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>>>,
-        shadows: RefCell<Option<HashMap<u32, Rc<Inode>>>>,
-        meta: Rc<RefCell<Option<Rc<RefCell<collections::Metadata<String>>>>>>,
+        links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>>,
+        shadows: GcCell<Option<HashMap<u32, Gc<Inode>>>>,
+        meta: Gc<GcCell<Option<Gc<RefCell<collections::Metadata<String>>>>>>,
     }
 
     #[derive(Clone)]
@@ -1170,7 +1176,11 @@ pub mod vfs {
         Timestamp(u128),
         Now,
         SystemTime(SystemTime),
-        Callback(Rc<dyn Fn() -> TimestampOrNowOrSystemTime>),
+        Callback(Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>),
+    }
+
+    pub trait TimestampOrNowOrSystemTimeOrCallbackCallback: Trace + Finalize {
+        fn call(&self) -> TimestampOrNowOrSystemTime;
     }
 
     impl From<u128> for TimestampOrNowOrSystemTimeOrCallback {
@@ -1185,8 +1195,8 @@ pub mod vfs {
         }
     }
 
-    impl From<Rc<dyn Fn() -> TimestampOrNowOrSystemTime>> for TimestampOrNowOrSystemTimeOrCallback {
-        fn from(value: Rc<dyn Fn() -> TimestampOrNowOrSystemTime>) -> Self {
+    impl From<Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>> for TimestampOrNowOrSystemTimeOrCallback {
+        fn from(value: Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>) -> Self {
             Self::Callback(value)
         }
     }
@@ -1223,11 +1233,12 @@ pub mod vfs {
         pub files: Option<FileSet>,
         pub cwd: Option<String>,
         pub meta: Option<HashMap<String, String>>,
-        pub documents: Option<Vec<Rc<documents::TextDocument>>>,
+        pub documents: Option<Vec<Gc<documents::TextDocument>>>,
     }
 
+    #[derive(Trace, Finalize)]
     pub struct FileSystemResolver {
-        pub host: Rc<dyn FileSystemResolverHost>,
+        pub host: Gc<Box<dyn FileSystemResolverHost>>,
     }
 
     impl FileSystemResolver {
@@ -1268,7 +1279,7 @@ pub mod vfs {
         pub size: usize,
     }
 
-    pub trait FileSystemResolverHost {
+    pub trait FileSystemResolverHost: Trace + Finalize {
         fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries;
         fn directory_exists(&self, path: &str) -> bool;
         fn file_exists(&self, path: &str) -> bool;
@@ -1277,12 +1288,12 @@ pub mod vfs {
         fn get_workspace_root(&self) -> String;
     }
 
-    pub fn create_resolver(host: Rc<dyn FileSystemResolverHost>) -> FileSystemResolver {
+    pub fn create_resolver(host: Gc<Box<dyn FileSystemResolverHost>>) -> FileSystemResolver {
         FileSystemResolver { host }
     }
 
     pub fn create_from_file_system(
-        host: Rc<dyn FileSystemResolverHost>,
+        host: Gc<Box<dyn FileSystemResolverHost>>,
         ignore_case: bool,
         options: Option<FileSystemCreateOptions>,
     ) -> FileSystem {
@@ -1522,7 +1533,7 @@ pub mod vfs {
     #[derive(Clone)]
     pub struct Directory {
         pub files: FileSet,
-        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
     }
 
     impl Directory {
@@ -1535,14 +1546,14 @@ pub mod vfs {
 
     #[derive(Default)]
     pub struct DirectoryOptions {
-        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
     pub struct File {
         pub data: String, /*Buffer | string*/
         pub encoding: Option<String>,
-        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
     }
 
     impl File {
@@ -1560,7 +1571,7 @@ pub mod vfs {
     #[derive(Default)]
     pub struct FileOptions {
         pub encoding: Option<String>,
-        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
@@ -1583,7 +1594,7 @@ pub mod vfs {
     #[derive(Clone)]
     pub struct Symlink {
         pub symlink: String,
-        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
     }
 
     impl Symlink {
@@ -1596,20 +1607,20 @@ pub mod vfs {
     }
 
     pub struct SymlinkNewOptions {
-        meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
+        meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
     pub struct Mount {
         pub source: String,
-        pub resolver: Rc<FileSystemResolver>,
-        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
+        pub resolver: Gc<FileSystemResolver>,
+        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
     }
 
     impl Mount {
         pub fn new(
             source: String,
-            resolver: Rc<FileSystemResolver>,
+            resolver: Gc<FileSystemResolver>,
             options: Option<MountOptions>,
         ) -> Self {
             let options = options.unwrap_or_default();
@@ -1624,10 +1635,10 @@ pub mod vfs {
 
     #[derive(Default)]
     pub struct MountOptions {
-        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Trace, Finalize)]
     pub enum Inode {
         FileInode(FileInode),
         DirectoryInode(DirectoryInode),
@@ -1645,7 +1656,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
-            shadow_root: Option<Rc<Inode>>,
+            shadow_root: Option<Gc<Inode>>,
         ) -> Self {
             match type_ {
                 S_IFREG => FileInode::new(
@@ -1784,7 +1795,7 @@ pub mod vfs {
             }
         }
 
-        pub fn meta_mut(&self) -> RefMut<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(&self) -> RefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
             match self {
                 Self::FileInode(value) => value.meta_mut(),
                 Self::DirectoryInode(value) => value.meta_mut(),
@@ -1792,7 +1803,7 @@ pub mod vfs {
             }
         }
 
-        pub fn maybe_shadow_root(&self) -> Option<Rc<Inode>> {
+        pub fn maybe_shadow_root(&self) -> Option<Gc<Inode>> {
             match self {
                 Self::FileInode(value) => value.shadow_root.clone(),
                 Self::DirectoryInode(value) => value.shadow_root.clone(),
@@ -1845,22 +1856,28 @@ pub mod vfs {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Trace, Finalize)]
     pub struct FileInode {
         pub dev: u32,
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
+        #[unsafe_ignore_trace]
         pub mtime_ms: Cell<u128>,
+        #[unsafe_ignore_trace]
         pub ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
+        #[unsafe_ignore_trace]
         nlink: Cell<usize>,
+        #[unsafe_ignore_trace]
         size: Cell<Option<usize>>,
+        #[unsafe_ignore_trace]
         buffer: RefCell<Option<Buffer>>,
+        #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
-        resolver: RefCell<Option<Rc<FileSystemResolver>>>,
-        pub shadow_root: Option<Rc<Inode /*FileInode*/>>,
-        meta: RefCell<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>>,
+        resolver: GcCell<Option<Gc<FileSystemResolver>>>,
+        pub shadow_root: Option<Gc<Inode /*FileInode*/>>,
+        meta: GcCell<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>>,
     }
 
     impl FileInode {
@@ -1873,7 +1890,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
-            shadow_root: Option<Rc<Inode>>,
+            shadow_root: Option<Gc<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -1937,34 +1954,38 @@ pub mod vfs {
             *self.source.borrow_mut() = source;
         }
 
-        pub fn maybe_resolver(&self) -> Option<Rc<FileSystemResolver>> {
+        pub fn maybe_resolver(&self) -> Option<Gc<FileSystemResolver>> {
             self.resolver.borrow().clone()
         }
 
-        pub fn set_resolver(&self, resolver: Option<Rc<FileSystemResolver>>) {
+        pub fn set_resolver(&self, resolver: Option<Gc<FileSystemResolver>>) {
             *self.resolver.borrow_mut() = resolver;
         }
 
-        pub fn meta_mut(&self) -> RefMut<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Trace, Finalize)]
     pub struct DirectoryInode {
         pub dev: u32,
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
+        #[unsafe_ignore_trace]
         pub mtime_ms: Cell<u128>,
+        #[unsafe_ignore_trace]
         pub ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
+        #[unsafe_ignore_trace]
         nlink: Cell<usize>,
-        links: RefCell<Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>>>,
+        links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>>,
+        #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
-        resolver: RefCell<Option<Rc<FileSystemResolver>>>,
-        pub shadow_root: Option<Rc<Inode /*DirectoryInode*/>>,
-        meta: RefCell<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>>,
+        resolver: GcCell<Option<Gc<FileSystemResolver>>>,
+        pub shadow_root: Option<Gc<Inode /*DirectoryInode*/>>,
+        meta: GcCell<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>>,
     }
 
     impl DirectoryInode {
@@ -1977,7 +1998,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
-            shadow_root: Option<Rc<Inode>>,
+            shadow_root: Option<Gc<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -2022,13 +2043,13 @@ pub mod vfs {
 
         pub fn maybe_links(
             &self,
-        ) -> Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>> {
+        ) -> Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>> {
             self.links.borrow().clone()
         }
 
         pub fn set_links(
             &self,
-            links: Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>>,
+            links: Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>,
         ) {
             *self.links.borrow_mut() = links;
         }
@@ -2041,32 +2062,35 @@ pub mod vfs {
             *self.source.borrow_mut() = source;
         }
 
-        pub fn maybe_resolver(&self) -> Option<Rc<FileSystemResolver>> {
+        pub fn maybe_resolver(&self) -> Option<Gc<FileSystemResolver>> {
             self.resolver.borrow().clone()
         }
 
-        pub fn set_resolver(&self, resolver: Option<Rc<FileSystemResolver>>) {
+        pub fn set_resolver(&self, resolver: Option<Gc<FileSystemResolver>>) {
             *self.resolver.borrow_mut() = resolver;
         }
 
-        pub fn meta_mut(&self) -> RefMut<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Trace, Finalize)]
     pub struct SymlinkInode {
         pub dev: u32,
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
+        #[unsafe_ignore_trace]
         pub mtime_ms: Cell<u128>,
+        #[unsafe_ignore_trace]
         ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
+        #[unsafe_ignore_trace]
         nlink: Cell<usize>,
         pub symlink: Option<String>,
-        pub shadow_root: Option<Rc<Inode /*SymlinkInode*/>>,
-        meta: RefCell<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>>,
+        pub shadow_root: Option<Gc<Inode /*SymlinkInode*/>>,
+        meta: GcCell<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>>,
     }
 
     impl SymlinkInode {
@@ -2079,7 +2103,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
-            shadow_root: Option<Rc<Inode>>,
+            shadow_root: Option<Gc<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -2124,7 +2148,7 @@ pub mod vfs {
             self.symlink.as_ref().unwrap()
         }
 
-        pub fn meta_mut(&self) -> RefMut<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }
@@ -2153,51 +2177,51 @@ pub mod vfs {
     pub struct WalkResult {
         pub realpath: String,
         pub basename: String,
-        pub parent: Option<Rc<Inode>>,
-        pub links: Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>,
-        pub node: Option<Rc<Inode>>,
+        pub parent: Option<Gc<Inode>>,
+        pub links: Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>,
+        pub node: Option<Gc<Inode>>,
     }
 
     thread_local! {
-        static built_local_host_: RefCell<Option<Rc<dyn FileSystemResolverHost>>> = RefCell::new(None);
-        static built_local_ci_: RefCell<Option<Rc<FileSystem>>> = RefCell::new(None);
-        static built_local_cs_: RefCell<Option<Rc<FileSystem>>> = RefCell::new(None);
+        static built_local_host_: GcCell<Option<Gc<Box<dyn FileSystemResolverHost>>>> = Default::default();
+        static built_local_ci_: GcCell<Option<Gc<FileSystem>>> = Default::default();
+        static built_local_cs_: GcCell<Option<Gc<FileSystem>>> = Default::default();
     }
 
-    fn maybe_built_local_host() -> Option<Rc<dyn FileSystemResolverHost>> {
+    fn maybe_built_local_host() -> Option<Gc<Box<dyn FileSystemResolverHost>>> {
         built_local_host_.with(|built_local_host| built_local_host.borrow().clone())
     }
 
-    fn set_built_local_host(value: Option<Rc<dyn FileSystemResolverHost>>) {
+    fn set_built_local_host(value: Option<Gc<Box<dyn FileSystemResolverHost>>>) {
         built_local_host_.with(|built_local_host| {
             *built_local_host.borrow_mut() = value;
         })
     }
 
-    fn maybe_built_local_ci() -> Option<Rc<FileSystem>> {
+    fn maybe_built_local_ci() -> Option<Gc<FileSystem>> {
         built_local_ci_.with(|built_local_ci| built_local_ci.borrow().clone())
     }
 
-    fn set_built_local_ci(value: Option<Rc<FileSystem>>) {
+    fn set_built_local_ci(value: Option<Gc<FileSystem>>) {
         built_local_ci_.with(|built_local_ci| {
             *built_local_ci.borrow_mut() = value;
         })
     }
 
-    fn maybe_built_local_cs() -> Option<Rc<FileSystem>> {
+    fn maybe_built_local_cs() -> Option<Gc<FileSystem>> {
         built_local_cs_.with(|built_local_cs| built_local_cs.borrow().clone())
     }
 
-    fn set_built_local_cs(value: Option<Rc<FileSystem>>) {
+    fn set_built_local_cs(value: Option<Gc<FileSystem>>) {
         built_local_cs_.with(|built_local_cs| {
             *built_local_cs.borrow_mut() = value;
         })
     }
 
-    fn get_built_local(host: Rc<dyn FileSystemResolverHost>, ignore_case: bool) -> Rc<FileSystem> {
+    fn get_built_local(host: Gc<Box<dyn FileSystemResolverHost>>, ignore_case: bool) -> Gc<FileSystem> {
         if !matches!(
             maybe_built_local_host().as_ref(),
-            Some(built_local_host) if Rc::ptr_eq(
+            Some(built_local_host) if Gc::ptr_eq(
                 built_local_host,
                 &host,
             )
@@ -2207,8 +2231,8 @@ pub mod vfs {
             set_built_local_host(Some(host.clone()));
         }
         if maybe_built_local_ci().is_none() {
-            let resolver = Rc::new(create_resolver(host.clone()));
-            set_built_local_ci(Some(Rc::new(FileSystem::new(
+            let resolver = Gc::new(create_resolver(host.clone()));
+            set_built_local_ci(Some(Gc::new(FileSystem::new(
                 true,
                 Some(FileSystemOptions {
                     files: Some(FileSet::from_iter(IntoIterator::into_iter([
@@ -2271,7 +2295,7 @@ pub mod vfs {
             return maybe_built_local_ci().unwrap();
         }
         if maybe_built_local_cs().is_none() {
-            set_built_local_cs(Some(Rc::new(
+            set_built_local_cs(Some(Gc::new(
                 maybe_built_local_ci().unwrap().shadow(Some(false)),
             )));
             maybe_built_local_cs().unwrap().make_readonly();

@@ -1,5 +1,7 @@
+use gc::Gc;
 use std::convert::TryFrom;
 use std::rc::Rc;
+
 use typescript_rust::{
     get_source_file_of_node, position_is_synthesized, CompilerOptions, CompilerOptionsBuilder,
     Debug_, JsxEmit, Node, NodeInterface, ReadonlyTextRange, ScriptTarget, SourceFileLike,
@@ -7,7 +9,7 @@ use typescript_rust::{
 
 pub trait NodeServicesInterface {
     fn assert_has_real_position(&self, message: Option<&str>);
-    fn get_source_file(&self) -> Rc<Node /*SourceFile*/>;
+    fn get_source_file(&self) -> Gc<Node /*SourceFile*/>;
     // TODO: this should be updated to return Rc<SourceText> or whatever
     fn get_full_text(&self, source_file: Option<&Node /*SourceFile*/>) -> String;
 }
@@ -20,7 +22,7 @@ impl NodeServicesInterface for Node {
         );
     }
 
-    fn get_source_file(&self) -> Rc<Node /*SourceFile*/> {
+    fn get_source_file(&self) -> Gc<Node /*SourceFile*/> {
         get_source_file_of_node(Some(self)).unwrap()
     }
 

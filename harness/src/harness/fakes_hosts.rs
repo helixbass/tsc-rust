@@ -1,10 +1,12 @@
 pub mod fakes {
+    use gc::{Finalize, Gc, GcCell, Trace};
     use std::borrow::Cow;
     use std::cell::{Cell, Ref, RefCell};
     use std::collections::HashMap;
     use std::io;
     use std::rc::Rc;
     use std::time::SystemTime;
+
     use typescript_rust::{
         create_source_file, generate_djb2_hash, get_default_lib_file_name, get_new_line_character,
         match_files, millis_since_epoch_to_system_time, not_implemented, CompilerOptions,
@@ -25,9 +27,11 @@ pub mod fakes {
         pub env: Option<HashMap<String, String>>,
     }
 
+    #[derive(Trace, Finalize)]
     pub struct System {
-        pub vfs: Rc<vfs::FileSystem>,
+        pub vfs: Gc<vfs::FileSystem>,
         pub args: Vec<String>,
+        #[unsafe_ignore_trace]
         output: RefCell<Vec<String>>,
         pub new_line: &'static str,
         pub use_case_sensitive_file_names: bool,
@@ -35,6 +39,7 @@ pub mod fakes {
 
         _executing_file_path: Option<String>,
         _env: Option<HashMap<String, String>>,
+        #[unsafe_ignore_trace]
         test_terminal_width: Cell<Option<Option<usize>>>,
     }
 
@@ -340,7 +345,7 @@ pub mod fakes {
     }
 
     pub struct ParseConfigHost {
-        pub sys: Rc<System>,
+        pub sys: Gc<System>,
     }
 
     impl ParseConfigHost {
@@ -354,16 +359,20 @@ pub mod fakes {
         }
     }
 
+    #[derive(Trace, Finalize)]
     pub struct CompilerHost {
-        pub sys: Rc<System>,
+        pub sys: Gc<System>,
         pub default_lib_location: String,
+        #[unsafe_ignore_trace]
         outputs: RefCell<Vec<Rc<documents::TextDocument>>>,
+        #[unsafe_ignore_trace]
         _outputs_map: RefCell<collections::SortedMap<String, usize>>,
+        #[unsafe_ignore_trace]
         traces: RefCell<Vec<String>>,
         pub should_assert_invariants: bool,
 
         _set_parent_nodes: bool,
-        _source_files: RefCell<collections::SortedMap<String, Rc<Node /*SourceFile*/>>>,
+        _source_files: GcCell<collections::SortedMap<String, Gc<Node /*SourceFile*/>>>,
         _parse_config_host: RefCell<Option<Rc<ParseConfigHost>>>,
         _new_line: String,
 

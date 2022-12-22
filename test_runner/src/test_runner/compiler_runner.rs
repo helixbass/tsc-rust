@@ -52,7 +52,7 @@ impl CompilerBaselineRunner {
     }
 
     pub fn new_runner_base(test_type: CompilerTestType) -> RunnerBase {
-        RunnerBase::new(Rc::new(Self::new(test_type)))
+        RunnerBase::new(Gc::new(Self::new(test_type)))
     }
 
     fn check_test_code_output(&self, file_name: &str, test: Option<&CompilerFileBasedTest>) {

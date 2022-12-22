@@ -1,13 +1,14 @@
 use clap::Parser;
+use gc::GcCell;
 use regex::Regex;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::collections::HashMap;
 
 use crate::{CompilerBaselineRunner, CompilerTestType};
 use harness::{mocha, vpath, MochaArgs, RunnerBase, StringOrFileBasedTest};
 
 thread_local! {
-    static runners_: RefCell<Vec<RunnerBase>> = RefCell::new(vec![]);
+    static runners_: GcCell<Vec<RunnerBase>> = Default::default();
 }
 
 fn with_runners<TReturn, TCallback: FnMut(&[RunnerBase]) -> TReturn>(

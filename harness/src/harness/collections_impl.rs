@@ -1,10 +1,12 @@
 pub mod collections {
+    use gc::{Finalize, Gc, GcCell, Trace};
     use std::borrow::Cow;
     use std::cell::{Cell, RefCell};
     use std::cmp::Ordering;
     use std::collections::HashMap;
     use std::convert::{TryFrom, TryInto};
     use std::rc::Rc;
+
     use typescript_rust::{binary_search, Comparison};
 
     pub struct SortOptions<TKey> {
@@ -310,15 +312,18 @@ pub mod collections {
         }
     }
 
-    pub struct Metadata<TValue> {
-        _parent: Option<Rc<RefCell<Metadata<TValue>>>>,
+    #[derive(Trace, Finalize)]
+    pub struct Metadata<TValue: Trace + Finalize> {
+        _parent: Option<Gc<GcCell<Metadata<TValue>>>>,
         _map: HashMap<String, TValue>,
         _version: usize,
+        #[unsafe_ignore_trace]
         _size: Cell<Option<usize>>,
+        #[unsafe_ignore_trace]
         _parent_version: Cell<Option<usize>>,
     }
 
-    impl<TValue: Clone> Metadata<TValue> {
+    impl<TValue: Clone + Trace + Finalize> Metadata<TValue> {
         pub fn new(parent: Option<Rc<RefCell<Metadata<TValue>>>>) -> Self {
             Self {
                 _parent: parent,

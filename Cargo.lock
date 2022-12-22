@@ -394,6 +394,7 @@ dependencies = [
  "clap",
  "fancy-regex",
  "futures",
+ "gc",
  "lazy_static",
  "local-macros",
  "once_cell",
@@ -946,6 +947,7 @@ dependencies = [
 name = "typescript_services_rust"
 version = "0.1.0"
 dependencies = [
+ "gc",
  "typescript_rust",
 ]
 

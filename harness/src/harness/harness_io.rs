@@ -1,3 +1,4 @@
+use gc::Gc;
 use regex::Regex;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -5,6 +6,7 @@ use std::io;
 use std::iter::FromIterator;
 use std::path::{Path as StdPath, PathBuf};
 use std::rc::Rc;
+
 use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
     ends_with, equate_strings_case_insensitive, find, find_index, for_each, fs_exists_sync,
@@ -32,7 +34,8 @@ pub trait IO: vfs::FileSystemResolverHost {
         options: Option<ListFilesOptions>,
     ) -> Vec<PathBuf>;
     fn join_path(&self, components: &[&StdPath]) -> String;
-    fn as_file_system_resolver_host(self: Rc<Self>) -> Rc<dyn vfs::FileSystemResolverHost>;
+    // fn as_file_system_resolver_host(self: Rc<Self>) -> Rc<dyn vfs::FileSystemResolverHost>;
+    fn as_file_system_resolver_host(&self) -> Gc<Box<dyn vfs::FileSystemResolverHost>>;
 }
 
 #[derive(Copy, Clone)]
@@ -41,14 +44,14 @@ pub struct ListFilesOptions {
 }
 
 thread_local! {
-    static IO_: RefCell<Rc<dyn IO>> = RefCell::new(Rc::new(create_node_io()));
+    static IO_: GcCell<Gc<Box<dyn IO>>> = GcCell::new(Gc::new(Box::new(create_node_io())));
 }
 
 pub fn with_io<TReturn, TCallback: FnMut(&dyn IO) -> TReturn>(mut callback: TCallback) -> TReturn {
-    IO_.with(|io| callback(&**io.borrow()))
+    IO_.with(|io| callback(&***io.borrow()))
 }
 
-pub fn get_io() -> Rc<dyn IO> {
+pub fn get_io() -> Gc<Box<dyn IO>> {
     IO_.with(|io| io.borrow().clone())
 }
 
@@ -150,7 +153,7 @@ impl IO for NodeIO {
         self.files_in_folder(spec, options, path)
     }
 
-    fn as_file_system_resolver_host(self: Rc<Self>) -> Rc<dyn vfs::FileSystemResolverHost> {
+    fn as_file_system_resolver_host(&self) -> Gc<Box<dyn vfs::FileSystemResolverHost>> {
         self
     }
 }
@@ -240,12 +243,14 @@ pub fn set_light_mode(flag: bool) {
 }
 
 pub mod Compiler {
+    use gc::Gc;
     use regex::Regex;
     use std::cell::RefCell;
     use std::cmp;
     use std::collections::HashMap;
     use std::convert::TryInto;
     use std::rc::Rc;
+
     use typescript_rust::{
         compare_diagnostics, compare_paths, compute_line_starts, count_where,
         create_get_canonical_file_name, diagnostic_category_name, file_extension_is,
@@ -711,7 +716,7 @@ pub mod Compiler {
         for (name, value) in settings {
             let option = get_command_line_option(name);
             if let Some(option) = option.as_ref() {
-                let mut errors: Vec<Rc<Diagnostic>> = vec![];
+                let mut errors: Vec<Gc<Diagnostic>> = vec![];
                 if HarnessOptions::is_harness_option(name) {
                     options.harness_options.set_value_from_command_line_option(
                         option,
@@ -735,7 +740,7 @@ pub mod Compiler {
     fn option_value(
         option: &CommandLineOption,
         value: &str,
-        errors: &mut Vec<Rc<Diagnostic>>,
+        errors: &mut Vec<Gc<Diagnostic>>,
     ) -> CompilerOptionsValue {
         match option.type_() {
             // CommandLineOptionType::Boolean => Some(value.to_lowercase() == "true").into(),
@@ -762,8 +767,8 @@ pub mod Compiler {
     }
 
     pub fn compile_files(
-        input_files: &[Rc<TestFile>],
-        other_files: &[Rc<TestFile>],
+        input_files: &[Gc<TestFile>],
+        other_files: &[Gc<TestFile>],
         harness_settings: Option<&TestCaseParser::CompilerSettings>,
         compiler_options: Option<&CompilerOptions>,
         current_directory: Option<&str>,
@@ -838,9 +843,9 @@ pub mod Compiler {
         let docs = input_files
             .into_iter()
             .chain(other_files.into_iter())
-            .map(|file| Rc::new(documents::TextDocument::from_test_file(file)))
+            .map(|file| Gc::new(documents::TextDocument::from_test_file(file)))
             .collect::<Vec<_>>();
-        let fs = Rc::new(vfs::create_from_file_system(
+        let fs = Gc::new(vfs::create_from_file_system(
             get_io().as_file_system_resolver_host(),
             !use_case_sensitive_file_names,
             Some(vfs::FileSystemCreateOptions {
@@ -852,11 +857,11 @@ pub mod Compiler {
         if let Some(symlinks) = symlinks {
             fs.apply(symlinks);
         }
-        let host = Rc::new(fakes::CompilerHost::new(
+        let host = Gc::new(Box::new(fakes::CompilerHost::new(
             fs,
             Some(Rc::new(options.compiler_options.clone())),
             None,
-        ));
+        )));
         let mut result =
             compiler::compile_files(host, Some(&program_file_names), &options.compiler_options);
         result.symlinks = symlinks.cloned();
@@ -869,7 +874,7 @@ pub mod Compiler {
     }
 
     pub fn minimal_diagnostics_to_string(
-        diagnostics: &[Rc<Diagnostic>],
+        diagnostics: &[Gc<Diagnostic>],
         pretty: Option<bool>,
     ) -> String {
         let host = MinimalDiagnosticsToStringFormatDiagnosticsHost;
@@ -897,8 +902,8 @@ pub mod Compiler {
     }
 
     pub fn get_error_baseline(
-        input_files: &[Rc<TestFile>],
-        diagnostics: &[Rc<Diagnostic>],
+        input_files: &[Gc<TestFile>],
+        diagnostics: &[Gc<Diagnostic>],
         pretty: Option<bool>,
     ) -> String {
         let mut output_lines = "".to_owned();
@@ -927,11 +932,11 @@ pub mod Compiler {
     pub const global_errors_marker: &'static str = "__globalErrors";
 
     pub fn iterate_error_baseline(
-        input_files: &[Rc<TestFile>],
-        diagnostics: &[Rc<Diagnostic>],
+        input_files: &[Gc<TestFile>],
+        diagnostics: &[Gc<Diagnostic>],
         options: Option<IterateErrorBaselineOptions>,
     ) -> Vec<(String, String, usize)> {
-        let diagnostics: Vec<_> = sort(diagnostics, |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| {
+        let diagnostics: Vec<_> = sort(diagnostics, |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| {
             compare_diagnostics(&**a, &**b)
         })
         .into();
@@ -1111,7 +1116,7 @@ pub mod Compiler {
 
         let num_library_diagnostics = count_where(
             Some(&diagnostics),
-            |diagnostic: &Rc<Diagnostic>, _| {
+            |diagnostic: &Gc<Diagnostic>, _| {
                 matches!(
                     diagnostic.maybe_file().as_ref(),
                     Some(diagnostic_file) if is_default_library_file(&diagnostic_file.as_source_file().file_name()) ||
@@ -1122,7 +1127,7 @@ pub mod Compiler {
 
         let num_test262_harness_diagnostics = count_where(
             Some(&diagnostics),
-            |diagnostic: &Rc<Diagnostic>, _| {
+            |diagnostic: &Gc<Diagnostic>, _| {
                 matches!(
                     diagnostic.maybe_file().as_ref(),
                     Some(diagnostic_file) if diagnostic_file.as_source_file().file_name().contains("test262-harness")
@@ -1266,8 +1271,8 @@ pub mod Compiler {
 
     pub fn do_error_baseline(
         baseline_path: &str,
-        input_files: &[Rc<TestFile>],
-        errors: &[Rc<Diagnostic>],
+        input_files: &[Gc<TestFile>],
+        errors: &[Gc<Diagnostic>],
         pretty: Option<bool>,
     ) {
         lazy_static! {
@@ -1576,10 +1581,12 @@ pub fn get_file_based_test_configuration_description(
 }
 
 pub mod TestCaseParser {
+    use gc::Gc;
     use regex::Regex;
     use std::collections::HashMap;
     use std::io;
     use std::rc::Rc;
+
     use typescript_rust::{
         for_each, get_base_file_name, get_directory_path, get_normalized_absolute_path,
         normalize_path, ordered_remove_item_at, parse_json_source_file_config_file_content,
@@ -1757,7 +1764,7 @@ pub mod TestCaseParser {
                 ));
                 let mut options = (*ts_config.as_ref().unwrap().options).clone();
                 options.config_file_path = Some(data.name.clone());
-                ts_config.as_mut().unwrap().options = Rc::new(options);
+                ts_config.as_mut().unwrap().options = Gc::new(options);
                 ts_config_file_unit_data = Some(data.clone());
 
                 indexes_to_remove.push(i);
