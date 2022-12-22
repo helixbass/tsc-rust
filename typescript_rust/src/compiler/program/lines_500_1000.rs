@@ -69,7 +69,7 @@ impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
     }
 }
 
-impl LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>
+impl LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>
     for LoadWithLocalCacheLoaderResolveTypeReferenceDirective
 {
     fn call(
@@ -77,7 +77,7 @@ impl LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>
         types_ref: &str,
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Rc<ResolvedTypeReferenceDirective> {
+    ) -> Gc<ResolvedTypeReferenceDirective> {
         resolve_type_reference_directive(
             types_ref,
             Some(containing_file),
@@ -198,7 +198,7 @@ impl LoadWithModeAwareCacheLoaderResolveModuleName {
     }
 }
 
-impl LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>
+impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
     for LoadWithModeAwareCacheLoaderResolveModuleName
 {
     fn call(
@@ -207,7 +207,7 @@ impl LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Option<Rc<ResolvedModuleFull>> {
+    ) -> Option<Gc<ResolvedModuleFull>> {
         resolve_module_name(
             module_name,
             containing_file_name,
@@ -1244,7 +1244,7 @@ impl Program {
 
     pub(super) fn resolved_type_reference_directives(
         &self,
-    ) -> RefMut<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>> {
+    ) -> RefMut<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>> {
         self.resolved_type_reference_directives.borrow_mut()
     }
 
@@ -1492,7 +1492,7 @@ pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Rc<ResolvedModuleFull>>>;
+    ) -> Vec<Option<Gc<ResolvedModuleFull>>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -1515,7 +1515,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
+    ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
         self.host
             .resolve_module_names(
                 /*Debug.checkEachDefined(*/ module_names, /*)*/
@@ -1532,12 +1532,12 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
                     None => true,
                     Some(resolved) => resolved.extension.is_some(),
                 } {
-                    return resolved.map(Rc::new);
+                    return resolved.map(Gc::new);
                 }
                 let resolved = resolved.unwrap();
                 let mut with_extension = clone(&resolved);
                 with_extension.extension = Some(extension_from_path(&resolved.resolved_file_name));
-                Some(Rc::new(with_extension))
+                Some(Gc::new(with_extension))
             })
             .collect()
     }
@@ -1545,12 +1545,12 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
 
 #[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
-    loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>>>,
+    loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>>>,
 }
 
 impl ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
     pub fn new(
-        loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>>>,
+        loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>>>,
     ) -> Self {
         Self { loader }
     }
@@ -1564,7 +1564,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
+    ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
         load_with_mode_aware_cache(
             /*Debug.checkEachDefined(*/ module_names, /*)*/
             containing_file,
@@ -1581,7 +1581,7 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
         type_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>>;
+    ) -> Vec<Option<Gc<ResolvedTypeReferenceDirective>>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -1604,7 +1604,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         type_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
+    ) -> Vec<Option<Gc<ResolvedTypeReferenceDirective>>> {
         self.host
             .resolve_type_reference_directives(
                 /*Debug.checkEachDefined(*/ type_directive_names, /*)*/
@@ -1618,12 +1618,12 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
 
 #[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
-    loader: Gc<Box<dyn LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>>>,
+    loader: Gc<Box<dyn LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>>>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
     pub fn new(
-        loader: Gc<Box<dyn LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>>>,
+        loader: Gc<Box<dyn LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>>>,
     ) -> Self {
         Self { loader }
     }
@@ -1637,7 +1637,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         type_reference_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
+    ) -> Vec<Option<Gc<ResolvedTypeReferenceDirective>>> {
         load_with_local_cache(
             /*Debug.checkEachDefined(*/ type_reference_directive_names, /*)*/
             containing_file,

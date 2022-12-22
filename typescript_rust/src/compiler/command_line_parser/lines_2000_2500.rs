@@ -29,7 +29,7 @@ use crate::{
 
 pub(super) fn is_root_option_map(
     known_root_options: Option<&CommandLineOption>,
-    known_options: Option<&HashMap<String, Rc<CommandLineOption>>>,
+    known_options: Option<&HashMap<String, Gc<CommandLineOption>>>,
 ) -> bool {
     match known_root_options {
         None => false,
@@ -51,7 +51,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
     node: &Node, /*ObjectLiteralExpression*/
-    known_options: Option<&HashMap<String, Rc<CommandLineOption>>>,
+    known_options: Option<&HashMap<String, Gc<CommandLineOption>>>,
     extra_key_diagnostics: Option<&dyn DidYouMeanOptionsDiagnostics>,
     parent_option: Option<&str>,
 ) -> Option<serde_json::Value> {
@@ -1115,7 +1115,7 @@ fn write_configurations(
     file_names: &[String],
     new_line: &str,
 ) -> String {
-    let mut categorized_options: MultiMap<String, Rc<CommandLineOption>> = create_multi_map();
+    let mut categorized_options: MultiMap<String, Gc<CommandLineOption>> = create_multi_map();
     option_declarations.with(|option_declarations_| {
         for option in option_declarations_ {
             let category = option.maybe_category();

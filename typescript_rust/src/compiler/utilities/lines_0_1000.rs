@@ -431,7 +431,7 @@ pub fn changes_affecting_program_structure(
 pub fn options_have_changes(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
-    option_declarations: &[Rc<CommandLineOption>],
+    option_declarations: &[Gc<CommandLineOption>],
 ) -> bool {
     !ptr::eq(old_options, new_options)
         && option_declarations.iter().any(|o| {
@@ -565,7 +565,7 @@ pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
     source_file: Option<TSourceFile>, /*SourceFile*/
     module_name_text: &str,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Option<Rc<ResolvedModuleFull>> {
+) -> Option<Gc<ResolvedModuleFull>> {
     if let Some(source_file) = source_file {
         let source_file = source_file.borrow();
         if let Some(source_file_resolved_modules) = source_file
@@ -584,7 +584,7 @@ pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
 pub fn set_resolved_module(
     source_file: &Node, /*SourceFile*/
     module_name_text: &str,
-    resolved_module: Option<Rc<ResolvedModuleFull>>,
+    resolved_module: Option<Gc<ResolvedModuleFull>>,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) {
     let mut source_file_resolved_modules = source_file.as_source_file().maybe_resolved_modules();
@@ -601,7 +601,7 @@ pub fn set_resolved_module(
 pub fn set_resolved_type_reference_directive(
     source_file: &Node, /*SourceFile*/
     type_reference_directive_name: &str,
-    resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>>,
+    resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
 ) {
     let mut source_file_resolved_type_reference_directive_names = source_file
         .as_source_file()

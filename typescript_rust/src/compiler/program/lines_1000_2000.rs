@@ -23,7 +23,7 @@ impl Program {
         module_names: &[String],
         containing_file: &Node, /*SourceFile*/
         reused_names: Option<&[String]>,
-    ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
+    ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
         if module_names.is_empty() {
             return vec![];
         }
@@ -54,7 +54,7 @@ impl Program {
         &self,
         type_directive_names: &[String],
         containing_file: TContainingFile,
-    ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
+    ) -> Vec<Option<Gc<ResolvedTypeReferenceDirective>>> {
         if type_directive_names.is_empty() {
             return vec![];
         }
@@ -309,7 +309,7 @@ impl Program {
         &self,
         module_names: &[String],
         file: &Node, /*SourceFile*/
-    ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
+    ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
         let file_as_source_file = file.as_source_file();
         if self.structure_is_reused() == StructureIsReused::Not
             && file_as_source_file
@@ -335,7 +335,7 @@ impl Program {
             if let Some(file_resolved_modules) =
                 file_as_source_file.maybe_resolved_modules().as_ref()
             {
-                let mut result: Vec<Option<Rc<ResolvedModuleFull>>> = vec![];
+                let mut result: Vec<Option<Gc<ResolvedModuleFull>>> = vec![];
                 let mut i = 0;
                 for module_name in module_names {
                     let resolved_module = file_resolved_modules
@@ -691,7 +691,7 @@ impl Program {
 
 #[derive(Clone)]
 pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
-    ResolvedModuleFull(Rc<ResolvedModuleFull>),
+    ResolvedModuleFull(Gc<ResolvedModuleFull>),
     PredictedToResolveToAmbientModuleMarker,
 }
 
