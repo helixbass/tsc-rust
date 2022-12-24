@@ -1,3 +1,4 @@
+use gc::{Finalize, Trace};
 use std::future::Future;
 use std::rc::Rc;
 
@@ -12,7 +13,7 @@ pub struct InstallPackageOptionsWithProject {
     pub project_root_path: Path,
 }
 
-pub trait ITypingsInstaller {
+pub trait ITypingsInstaller: Trace + Finalize {
     fn is_known_types_package_name(&self, name: &str) -> bool;
     fn install_package(
         &self,
