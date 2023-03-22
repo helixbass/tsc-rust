@@ -360,9 +360,10 @@ pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
     )
 }
 
+#[derive(Trace, Finalize)]
 pub enum ProgramOrBuilderProgram {
     Program(Gc<Box<Program>>),
-    BuilderProgram(Rc<dyn BuilderProgram>),
+    BuilderProgram(Gc<Box<dyn BuilderProgram>>),
 }
 
 impl ProgramOrBuilderProgram {
@@ -387,8 +388,8 @@ impl From<Gc<Box<Program>>> for ProgramOrBuilderProgram {
     }
 }
 
-impl From<Rc<dyn BuilderProgram>> for ProgramOrBuilderProgram {
-    fn from(value: Rc<dyn BuilderProgram>) -> Self {
+impl From<Gc<Box<dyn BuilderProgram>>> for ProgramOrBuilderProgram {
+    fn from(value: Gc<Box<dyn BuilderProgram>>) -> Self {
         Self::BuilderProgram(value)
     }
 }

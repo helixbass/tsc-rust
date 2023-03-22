@@ -1,9 +1,9 @@
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 use std::rc::Rc;
 
 use crate::{CompilerOptions, Node, Program};
 
-pub trait BuilderProgram {
+pub trait BuilderProgram: Trace + Finalize {
     fn get_program(&self) -> Gc<Box<Program>>;
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
     fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
