@@ -403,9 +403,9 @@ pub fn list_files<TWrite: FnMut(&str)>(program: ProgramOrBuilderProgram, mut wri
     if matches!(options.explain_files, Some(true)) {
         explain_files(
             &*if is_builder_program(&program) {
-                enum_unwrapped!(program, [ProgramOrBuilderProgram, BuilderProgram]).get_program()
+                enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram]).get_program()
             } else {
-                enum_unwrapped!(program, [ProgramOrBuilderProgram, Program])
+                enum_unwrapped!(&program, [ProgramOrBuilderProgram, Program]).clone()
             },
             write,
         );
