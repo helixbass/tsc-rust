@@ -362,8 +362,8 @@ pub mod collections {
     unsafe impl<TValue: Trace + Finalize + 'static> Trace for Metadata<TValue> {
         gc::custom_trace!(this, {
             unsafe {
-                this._parent.trace();
-                this._map.trace();
+                mark(&this._parent);
+                mark(&this._map);
             }
         });
     }
