@@ -6,7 +6,6 @@ use std::io;
 use std::iter::FromIterator;
 use std::mem;
 use std::path::{Path as StdPath, PathBuf};
-use std::rc::Rc;
 
 use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
@@ -259,13 +258,12 @@ pub fn set_light_mode(flag: bool) {
 }
 
 pub mod Compiler {
-    use gc::{Finalize, Gc, Trace};
+    use gc::{Finalize, Gc, GcCell, Trace};
     use regex::Regex;
     use std::cell::RefCell;
     use std::cmp;
     use std::collections::HashMap;
     use std::convert::TryInto;
-    use std::rc::Rc;
 
     use typescript_rust::{
         compare_diagnostics, compare_paths, compute_line_starts, count_where,
@@ -700,7 +698,7 @@ pub mod Compiler {
     }
 
     thread_local! {
-        static options_index: RefCell<Option<HashMap<String, Gc<CommandLineOption>>>> = RefCell::new(None);
+        static options_index: GcCell<Option<HashMap<String, Gc<CommandLineOption>>>> = GcCell::new(None);
     }
     fn get_command_line_option(name: &str) -> Option<Gc<CommandLineOption>> {
         options_index.with(|options_index_| {
@@ -1599,7 +1597,6 @@ pub mod TestCaseParser {
     use regex::Regex;
     use std::collections::HashMap;
     use std::io;
-    use std::rc::Rc;
 
     use typescript_rust::{
         for_each, get_base_file_name, get_directory_path, get_normalized_absolute_path,

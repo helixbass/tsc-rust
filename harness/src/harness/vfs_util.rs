@@ -5,7 +5,6 @@ pub mod vfs {
     use std::cell::{Cell, Ref, RefCell, RefMut};
     use std::collections::HashMap;
     use std::iter::FromIterator;
-    use std::rc::Rc;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use typescript_rust::{

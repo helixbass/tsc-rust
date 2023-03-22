@@ -1,7 +1,6 @@
 use gc::{Finalize, Gc, GcCell, Trace};
 use once_cell::sync::Lazy;
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
+use std::cell::Cell;
 use typescript_rust::{
     are_option_gcs_equal, create_get_canonical_file_name, for_each_child, Node, NodeArray,
     NodeInterface, ReadonlyTextRange,

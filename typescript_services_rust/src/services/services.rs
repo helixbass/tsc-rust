@@ -1,6 +1,5 @@
 use gc::Gc;
 use std::convert::TryFrom;
-use std::rc::Rc;
 
 use typescript_rust::{
     get_source_file_of_node, position_is_synthesized, CompilerOptions, CompilerOptionsBuilder,

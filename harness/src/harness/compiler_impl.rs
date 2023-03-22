@@ -2,7 +2,6 @@ pub mod compiler {
     use gc::{Finalize, Gc, Trace};
     use std::collections::HashMap;
     use std::ptr;
-    use std::rc::Rc;
 
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
