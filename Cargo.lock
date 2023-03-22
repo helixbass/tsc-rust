@@ -400,8 +400,7 @@ dependencies = [
  "once_cell",
  "pretty_assertions",
  "regex",
- "tokio",
- "tokio-stream",
+ "threadpool",
  "typescript_rust",
  "typescript_services_rust",
 ]
@@ -882,6 +881,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "threadpool"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d050e60b33d41c19108b32cea32164033a9013fe3b46cbd4457559bfbf77afaa"
+dependencies = [
+ "num_cpus",
+]
+
+[[package]]
 name = "tokio"
 version = "1.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -910,17 +918,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "tokio-stream"
-version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d660770404473ccd7bc9f8b28494a811bc18542b915c0855c51e8f419d5223ce"
-dependencies = [
- "futures-core",
- "pin-project-lite",
- "tokio",
 ]
 
 [[package]]
