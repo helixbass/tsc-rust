@@ -369,8 +369,7 @@ pub mod fakes {
         pub default_lib_location: String,
         #[unsafe_ignore_trace]
         outputs: GcCell<Vec<Gc<documents::TextDocument>>>,
-        #[unsafe_ignore_trace]
-        _outputs_map: RefCell<collections::SortedMap<String, usize>>,
+        _outputs_map: GcCell<collections::SortedMap<String, usize>>,
         #[unsafe_ignore_trace]
         traces: RefCell<Vec<String>>,
         pub should_assert_invariants: bool,
@@ -427,7 +426,7 @@ pub mod fakes {
                     Option::<HashMap<String, Gc<Node>>>::None,
                 )),
                 _set_parent_nodes: set_parent_nodes,
-                _outputs_map: RefCell::new(collections::SortedMap::new(
+                _outputs_map: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
                             sys.vfs.string_comparer.clone(),
