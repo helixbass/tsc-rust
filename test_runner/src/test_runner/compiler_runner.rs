@@ -1,9 +1,7 @@
 use gc::{Finalize, Gc, Trace};
 use regex::Regex;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path as StdPath;
-use std::rc::Rc;
 
 use harness::{
     after, before, compiler, describe, get_file_based_test_configuration_description,
