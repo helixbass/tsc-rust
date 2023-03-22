@@ -13,7 +13,11 @@ pub mod compiler {
         Program, ScriptTarget, SourceFileLike,
     };
 
-    use crate::{collections, documents, fakes, vfs, vpath};
+    use crate::{
+        collections, documents, fakes,
+        vfs::{self, SortOptionsComparerFromStringComparer},
+        vpath,
+    };
 
     #[derive(Trace, Finalize)]
     pub struct CompilationOutput {
@@ -54,30 +58,27 @@ pub mod compiler {
 
             let mut js = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Rc::new({
-                        let string_comparer = host.vfs().string_comparer.clone();
-                        move |a: &String, b: &String| string_comparer(a, b)
-                    }),
+                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                        host.vfs().string_comparer.clone(),
+                    ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
             );
             let mut dts = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Rc::new({
-                        let string_comparer = host.vfs().string_comparer.clone();
-                        move |a: &String, b: &String| string_comparer(a, b)
-                    }),
+                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                        host.vfs().string_comparer.clone(),
+                    ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
             );
             let mut maps = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Rc::new({
-                        let string_comparer = host.vfs().string_comparer.clone();
-                        move |a: &String, b: &String| string_comparer(a, b)
-                    }),
+                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                        host.vfs().string_comparer.clone(),
+                    ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
@@ -104,10 +105,9 @@ pub mod compiler {
                 maps,
                 _inputs_and_outputs: collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: Rc::new({
-                            let string_comparer = host.vfs().string_comparer.clone();
-                            move |a: &String, b: &String| string_comparer(a, b)
-                        }),
+                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                            host.vfs().string_comparer.clone(),
+                        ))),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
                     Option::<HashMap<String, Gc<CompilationOutput>>>::None,

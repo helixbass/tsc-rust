@@ -13,6 +13,7 @@ pub mod vfs {
         FileSystemEntries, Node,
     };
 
+    use crate::collections::SortOptionsComparer;
     use crate::{collections, documents, vpath};
 
     pub const built_folder: &'static str = "/.ts";
@@ -56,11 +57,52 @@ pub mod vfs {
         })
     }
 
+    pub trait StringComparer: Trace + Finalize {
+        fn call(&self, a: &str, b: &str) -> Comparison;
+    }
+
+    #[derive(Trace, Finalize)]
+    pub struct StringComparerFileSystem {
+        ignore_case: bool,
+    }
+
+    impl StringComparerFileSystem {
+        pub fn new(ignore_case: bool) -> Self {
+            Self { ignore_case }
+        }
+    }
+
+    impl StringComparer for StringComparerFileSystem {
+        fn call(&self, a: &str, b: &str) -> Comparison {
+            if self.ignore_case {
+                vpath::compare_case_insensitive(a, b)
+            } else {
+                vpath::compare_case_sensitive(a, b)
+            }
+        }
+    }
+
+    #[derive(Trace, Finalize)]
+    pub struct SortOptionsComparerFromStringComparer {
+        string_comparer: Gc<Box<dyn StringComparer>>,
+    }
+
+    impl SortOptionsComparerFromStringComparer {
+        pub fn new(string_comparer: Gc<Box<dyn StringComparer>>) -> Self {
+            Self { string_comparer }
+        }
+    }
+
+    impl SortOptionsComparer<String> for SortOptionsComparerFromStringComparer {
+        fn call(&self, a: &String, b: &String) -> Comparison {
+            self.string_comparer.call(a, b)
+        }
+    }
+
     #[derive(Trace, Finalize)]
     pub struct FileSystem {
         pub ignore_case: bool,
-        #[unsafe_ignore_trace]
-        pub string_comparer: Rc<dyn Fn(&str, &str) -> Comparison>,
+        pub string_comparer: Gc<Box<dyn StringComparer>>,
         _lazy: FileSystemLazy,
 
         #[unsafe_ignore_trace]
@@ -86,13 +128,7 @@ pub mod vfs {
 
             let ret = Self {
                 ignore_case,
-                string_comparer: Rc::new(move |a: &str, b: &str| {
-                    if ignore_case {
-                        vpath::compare_case_insensitive(a, b)
-                    } else {
-                        vpath::compare_case_sensitive(a, b)
-                    }
-                }),
+                string_comparer: Gc::new(Box::new(StringComparerFileSystem::new(ignore_case))),
                 _time: GcCell::new(time),
                 _cwd: Default::default(),
                 _dir_stack: Default::default(),
@@ -679,10 +715,11 @@ pub mod vfs {
                 .get_or_insert_with(|| {
                     let mut _lazy_links = collections::SortedMap::new(
                         collections::SortOptions {
-                            comparer: {
-                                let string_comparer = self.string_comparer.clone();
-                                Rc::new(move |a: &String, b: &String| string_comparer(a, b))
-                            },
+                            comparer: Gc::new(Box::new(
+                                SortOptionsComparerFromStringComparer::new(
+                                    self.string_comparer.clone(),
+                                ),
+                            )),
                             sort: None,
                         },
                         Option::<HashMap<String, Gc<Inode>>>::None,
@@ -706,10 +743,9 @@ pub mod vfs {
             if node_as_directory_inode.maybe_links().is_none() {
                 let mut links = collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: Rc::new({
-                            let string_comparer = self.string_comparer.clone();
-                            move |a: &String, b: &String| string_comparer(a, b)
-                        }),
+                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                            self.string_comparer.clone(),
+                        ))),
                         sort: None,
                     },
                     Option::<HashMap<String, Gc<Inode>>>::None,
@@ -1007,7 +1043,7 @@ pub mod vfs {
                 self.pushd(Some(&vpath::dirname(&path)));
                 match entry {
                     FileSetValue::Symlink(entry) => {
-                        if (self.string_comparer)(&vpath::dirname(&path), &path)
+                        if self.string_comparer.call(&vpath::dirname(&path), &path)
                             == Comparison::EqualTo
                         {
                             panic!("Roots cannot be symbolic links.");
@@ -1016,7 +1052,7 @@ pub mod vfs {
                         self._apply_file_extended_options(&path, entry.meta.as_ref());
                     }
                     FileSetValue::Link(entry) => {
-                        if (self.string_comparer)(&vpath::dirname(&path), &path)
+                        if self.string_comparer.call(&vpath::dirname(&path), &path)
                             == Comparison::EqualTo
                         {
                             panic!("Roots cannot be hard links.");
@@ -1064,7 +1100,7 @@ pub mod vfs {
 
                 match value.as_deref() {
                     None | Some(FileSetValue::Rmdir(_)) | Some(FileSetValue::Unlink(_)) => {
-                        if (self.string_comparer)(&vpath::dirname(&path), &path)
+                        if self.string_comparer.call(&vpath::dirname(&path), &path)
                             == Comparison::EqualTo
                         {
                             panic!("Roots cannot be deleted.");
@@ -1072,7 +1108,7 @@ pub mod vfs {
                         self.rimraf_sync(&path);
                     }
                     Some(FileSetValue::File(value)) => {
-                        if (self.string_comparer)(&vpath::dirname(&path), &path)
+                        if self.string_comparer.call(&vpath::dirname(&path), &path)
                             == Comparison::EqualTo
                         {
                             panic!("Roots cannot be files.");

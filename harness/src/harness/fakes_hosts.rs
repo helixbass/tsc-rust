@@ -17,6 +17,7 @@ pub mod fakes {
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
+    use crate::vfs::SortOptionsComparerFromStringComparer;
     use crate::{collections, documents, get_light_mode, vfs, vpath, Utils};
 
     // const processExitSentinel = new Error("System exit");
@@ -418,10 +419,9 @@ pub mod fakes {
                 ),
                 _source_files: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: {
-                            let sys_vfs_string_comparer = sys.vfs.string_comparer.clone();
-                            Rc::new(move |a: &String, b: &String| sys_vfs_string_comparer(a, b))
-                        },
+                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                            sys.vfs.string_comparer.clone(),
+                        ))),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
                     Option::<HashMap<String, Gc<Node>>>::None,
@@ -429,10 +429,9 @@ pub mod fakes {
                 _set_parent_nodes: set_parent_nodes,
                 _outputs_map: RefCell::new(collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: {
-                            let sys_vfs_string_comparer = sys.vfs.string_comparer.clone();
-                            Rc::new(move |a: &String, b: &String| sys_vfs_string_comparer(a, b))
-                        },
+                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                            sys.vfs.string_comparer.clone(),
+                        ))),
                         sort: None,
                     },
                     Option::<HashMap<String, usize>>::None,

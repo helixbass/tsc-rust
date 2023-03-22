@@ -1,16 +1,19 @@
 pub mod collections {
     use gc::{Finalize, Gc, GcCell, Trace};
     use std::borrow::Cow;
-    use std::cell::{Cell, RefCell};
+    use std::cell::Cell;
     use std::cmp::Ordering;
     use std::collections::HashMap;
     use std::convert::{TryFrom, TryInto};
-    use std::rc::Rc;
 
     use typescript_rust::{binary_search, Comparison};
 
-    pub struct SortOptions<TKey> {
-        pub comparer: Rc<dyn Fn(&TKey, &TKey) -> Comparison>,
+    pub trait SortOptionsComparer<TKey>: Trace + Finalize {
+        fn call(&self, a: &TKey, b: &TKey) -> Comparison;
+    }
+
+    pub struct SortOptions<TKey: 'static> {
+        pub comparer: Gc<Box<dyn SortOptionsComparer<TKey>>>,
         pub sort: Option<SortOptionsSort>,
     }
 
@@ -21,10 +24,8 @@ pub mod collections {
     }
 
     #[derive(Trace, Finalize)]
-    pub struct SortedMap<TKey: Trace + Finalize, TValue: Trace + Finalize> {
-        // TODO: revisit this?
-        #[unsafe_ignore_trace]
-        _comparer: Rc<dyn Fn(&TKey, &TKey) -> Comparison>,
+    pub struct SortedMap<TKey: Trace + Finalize + 'static, TValue: Trace + Finalize> {
+        _comparer: Gc<Box<dyn SortOptionsComparer<TKey>>>,
         _keys: Vec<TKey>,
         _values: Vec<TValue>,
         _order: Option<Vec<usize>>,
@@ -75,7 +76,7 @@ pub mod collections {
                 &self._keys,
                 key,
                 |key: &TKey, _| key,
-                |a: &TKey, b: &TKey| (self._comparer)(a, b),
+                |a: &TKey, b: &TKey| self._comparer.call(a, b),
                 None,
             ) >= 0
         }
@@ -85,7 +86,7 @@ pub mod collections {
                 &self._keys,
                 key,
                 |key: &TKey, _| key,
-                |a: &TKey, b: &TKey| (self._comparer)(a, b),
+                |a: &TKey, b: &TKey| self._comparer.call(a, b),
                 None,
             );
             if index >= 0 {
@@ -104,7 +105,7 @@ pub mod collections {
                 &self._keys,
                 key,
                 |key: &TKey, _| key,
-                |a: &TKey, b: &TKey| (self._comparer)(a, b),
+                |a: &TKey, b: &TKey| self._comparer.call(a, b),
                 None,
             );
             if index >= 0 {
@@ -120,7 +121,7 @@ pub mod collections {
                 &self._keys,
                 &key,
                 |key: &TKey, _| key,
-                |a: &TKey, b: &TKey| (self._comparer)(a, b),
+                |a: &TKey, b: &TKey| self._comparer.call(a, b),
                 None,
             );
             if index >= 0 {
@@ -193,7 +194,7 @@ pub mod collections {
 
     pub struct Keys<
         'sorted_map,
-        TKey: 'sorted_map + Trace + Finalize,
+        TKey: Trace + Finalize + 'static,
         TValue: 'sorted_map + Trace + Finalize,
     > {
         _keys: &'sorted_map Vec<TKey>,
@@ -262,7 +263,7 @@ pub mod collections {
 
     pub struct Entries<
         'sorted_map,
-        TKey: 'sorted_map + Trace + Finalize,
+        TKey: Trace + Finalize + 'static,
         TValue: 'sorted_map + Trace + Finalize,
     > {
         _keys: &'sorted_map Vec<TKey>,
