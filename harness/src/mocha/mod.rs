@@ -1,5 +1,5 @@
 use clap::Parser;
-use once_cell::sync::OnceCell;
+use once_cell::sync::{Lazy, OnceCell};
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::io::{self, Write};
@@ -7,6 +7,7 @@ use std::panic::{self, UnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
+use std::thread;
 use threadpool::ThreadPool;
 
 #[derive(Clone, Debug, Parser)]
@@ -36,7 +37,6 @@ impl JobChannelMessage {
 }
 
 thread_local! {
-    static THREAD_POOL: ThreadPool = Default::default();
     static JOB_CHANNEL_SENDER: RefCell<Option<Sender<JobChannelMessage>>> = Default::default();
 }
 
@@ -44,7 +44,7 @@ pub fn register_config(args: &MochaArgs) {
     CONFIG
         .set(args.clone())
         .expect("Should only initialize Mocha config once");
-    panic::set_hook(Box::new(|_| {}));
+    // panic::set_hook(Box::new(|_| {}));
     set_up_channel();
 }
 
@@ -54,8 +54,9 @@ fn config() -> &'static MochaArgs {
         .expect("Tried to get Mocha config before it was set")
 }
 
+static THREAD_POOL: Lazy<Arc<Mutex<ThreadPool>>> = Lazy::new(|| Default::default());
 fn get_thread_pool() -> ThreadPool {
-    THREAD_POOL.with(|thread_pool| thread_pool.clone())
+    THREAD_POOL.lock().unwrap().clone()
 }
 
 fn set_job_channel_sender(sender: Sender<JobChannelMessage>) {
@@ -80,38 +81,39 @@ fn set_up_channel() {
 
 static NUM_PASSES: AtomicUsize = AtomicUsize::new(0);
 
-thread_local! {
-    static FAILURES: Arc<Mutex<Vec<FailureInfo>>> = Default::default();
-}
+static FAILURES: Lazy<Arc<Mutex<Vec<FailureInfo>>>> = Lazy::new(|| Default::default());
 
 fn get_failures() -> Arc<Mutex<Vec<FailureInfo>>> {
-    FAILURES.with(|failures| failures.clone())
+    FAILURES.clone()
 }
 
 fn set_up_thread_pool_listener(job_channel_receiver: Receiver<JobChannelMessage>) {
-    while let Ok(job_message) = job_channel_receiver.recv() {
-        get_thread_pool().execute(move || {
-            let JobChannelMessage {
-                job,
-                enclosing_descriptions,
-            } = job_message;
-            match panic::catch_unwind(job) {
-                Ok(_) => {
-                    print!(".");
-                    io::stdout().flush().unwrap();
-                    NUM_PASSES.fetch_add(1, Ordering::Relaxed);
+    thread::spawn(move || {
+        while let Ok(job_message) = job_channel_receiver.recv() {
+            println!("received job");
+            get_thread_pool().execute(move || {
+                let JobChannelMessage {
+                    job,
+                    enclosing_descriptions,
+                } = job_message;
+                match panic::catch_unwind(job) {
+                    Ok(_) => {
+                        print!(".");
+                        io::stdout().flush().unwrap();
+                        NUM_PASSES.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Err(test_failure) => {
+                        print!("F");
+                        io::stdout().flush().unwrap();
+                        get_failures()
+                            .lock()
+                            .unwrap()
+                            .push(FailureInfo::new(test_failure, enclosing_descriptions));
+                    }
                 }
-                Err(test_failure) => {
-                    print!("F");
-                    io::stdout().flush().unwrap();
-                    get_failures()
-                        .lock()
-                        .unwrap()
-                        .push(FailureInfo::new(test_failure, enclosing_descriptions));
-                }
-            }
-        });
-    }
+            });
+        }
+    });
 }
 
 pub fn print_results() {
