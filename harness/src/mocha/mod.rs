@@ -44,7 +44,7 @@ pub fn register_config(args: &MochaArgs) {
     CONFIG
         .set(args.clone())
         .expect("Should only initialize Mocha config once");
-    // panic::set_hook(Box::new(|_| {}));
+    panic::set_hook(Box::new(|_| {}));
     set_up_channel();
 }
 
@@ -90,7 +90,6 @@ fn get_failures() -> Arc<Mutex<Vec<FailureInfo>>> {
 fn set_up_thread_pool_listener(job_channel_receiver: Receiver<JobChannelMessage>) {
     thread::spawn(move || {
         while let Ok(job_message) = job_channel_receiver.recv() {
-            println!("received job");
             get_thread_pool().execute(move || {
                 let JobChannelMessage {
                     job,

@@ -132,11 +132,7 @@ pub struct Args {
 }
 
 pub fn run(args: &Args) {
-    println!("pre-register_config()");
     mocha::register_config(&args.mocha_args);
-    println!("post-register_config()");
     start_test_environment();
-    println!("post-start_test_environment()");
     mocha::print_results();
-    println!("post-print_results()");
 }
