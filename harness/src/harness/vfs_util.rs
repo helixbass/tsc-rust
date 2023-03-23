@@ -509,7 +509,27 @@ pub mod vfs {
         }
 
         pub fn readdir_sync(&self, path: &str) -> Vec<String> {
-            unimplemented!()
+            let WalkResult { node, .. } = self
+                ._walk(
+                    &self._resolve(path),
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if node.is_none() {
+                // throw createIOError("ENOENT");
+                panic!("ENOENT");
+            }
+            let node = node.unwrap();
+            if !is_directory(Some(&*node)) {
+                // throw createIOError("ENOTDIR");
+                panic!("ENOTDIR");
+            }
+            self._get_links(&node)
+                .borrow()
+                .keys()
+                .map(ToOwned::to_owned)
+                .collect()
         }
 
         pub fn _mkdir(
