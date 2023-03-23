@@ -21,6 +21,9 @@ pub struct MochaArgs {
 
     #[arg(long)]
     pub end_index: Option<usize>,
+
+    #[arg(long)]
+    pub enable_panic_hook: bool,
 }
 
 static CONFIG: OnceCell<MochaArgs> = OnceCell::new();
@@ -48,7 +51,9 @@ pub fn register_config(args: &MochaArgs) {
     CONFIG
         .set(args.clone())
         .expect("Should only initialize Mocha config once");
-    panic::set_hook(Box::new(|_| {}));
+    if !args.enable_panic_hook {
+        panic::set_hook(Box::new(|_| {}));
+    }
     set_up_channel();
 }
 

@@ -117,10 +117,30 @@ pub(crate) fn load_with_local_cache<TValue: Clone>(
 }
 
 pub(crate) trait SourceFileImportsList {
+    fn maybe_imports(&self) -> GcCellRef<Option<Vec<Gc<Node>>>>;
+    fn imports(&self) -> GcCellRef<Vec<Gc<Node>>>;
+    fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>>;
+    fn module_augmentations(&self) -> GcCellRef<Vec<Gc<Node>>>;
     fn maybe_implied_node_format(&self) -> Option<ModuleKind>;
 }
 
 impl SourceFileImportsList for SourceFile {
+    fn maybe_imports(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+        self.maybe_imports()
+    }
+
+    fn imports(&self) -> GcCellRef<Vec<Gc<Node>>> {
+        self.imports()
+    }
+
+    fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+        self.maybe_module_augmentations()
+    }
+
+    fn module_augmentations(&self) -> GcCellRef<Vec<Gc<Node>>> {
+        self.module_augmentations()
+    }
+
     fn maybe_implied_node_format(&self) -> Option<ModuleKind> {
         self.maybe_implied_node_format()
     }

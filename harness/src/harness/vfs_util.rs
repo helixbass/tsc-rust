@@ -559,7 +559,14 @@ pub mod vfs {
         }
 
         pub fn realpath_sync(&self, path: &str) -> String {
-            unimplemented!()
+            let WalkResult { realpath, .. } = self
+                ._walk(
+                    &self._resolve(path),
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            realpath
         }
 
         pub fn read_file_sync(
