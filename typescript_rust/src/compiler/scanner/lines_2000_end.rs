@@ -434,7 +434,7 @@ impl Scanner {
         self.set_start_pos(self.pos());
         self.set_token_pos(self.pos());
         self.set_token_flags(TokenFlags::None);
-        if self.pos() > self.end() {
+        if self.pos() >= self.end() {
             return self.set_token(SyntaxKind::EndOfFileToken);
         }
 
@@ -662,7 +662,7 @@ impl Scanner {
     }
 
     pub fn set_text_start_and_length(&self, start: usize, length: usize) {
-        self.set_end(length);
+        self.set_end(start + length);
         self.set_text_pos(start);
     }
 
