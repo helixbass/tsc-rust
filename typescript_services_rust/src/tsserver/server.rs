@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::rc::Rc;
 
 use crate::{
@@ -33,12 +34,20 @@ pub fn get_log_level(level: Option<&str>) -> Option<LogLevel> {
 
 pub struct StartInput {
     pub args: Vec<String>,
-    pub logger: Rc<dyn Logger>,
-    pub cancellation_token: Rc<dyn ServerCancellationToken>,
+    pub logger: Gc<Box<dyn Logger>>,
+    pub cancellation_token: Gc<Box<dyn ServerCancellationToken>>,
     pub server_mode: Option<LanguageServiceMode>,
     pub unknown_server_mode: Option<String>,
-    pub start_session:
-        Rc<dyn Fn(StartSessionOptions, Rc<dyn Logger>, Rc<dyn ServerCancellationToken>)>,
+    pub start_session: Gc<Box<dyn StartSession>>,
+}
+
+pub trait StartSession: Trace + Finalize {
+    fn call(
+        &self,
+        something: StartSessionOptions,
+        something_else: Gc<Box<dyn Logger>>,
+        something_else_else: Gc<Box<dyn ServerCancellationToken>>,
+    );
 }
 
 pub fn start(

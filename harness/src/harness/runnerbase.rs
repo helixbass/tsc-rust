@@ -1,6 +1,7 @@
+use gc::{Finalize, Gc, Trace};
 use regex::Regex;
 use std::cell::Cell;
-use std::rc::Rc;
+
 use typescript_rust::{map, normalize_slashes};
 
 use crate::{user_specified_root, with_io, FileBasedTest, ListFilesOptions};
@@ -48,13 +49,14 @@ fn get_shard_id() -> usize {
     shard_id_.with(|shard_id| shard_id.get())
 }
 
+#[derive(Trace, Finalize)]
 pub struct RunnerBase {
-    sub: Rc<dyn RunnerBaseSub>,
+    sub: Gc<Box<dyn RunnerBaseSub>>,
     pub tests: Vec<StringOrFileBasedTest>,
 }
 
 impl RunnerBase {
-    pub fn new(sub: Rc<dyn RunnerBaseSub>) -> Self {
+    pub fn new(sub: Gc<Box<dyn RunnerBaseSub>>) -> Self {
         Self { sub, tests: vec![] }
     }
 
@@ -113,7 +115,7 @@ impl RunnerBase {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Trace, Finalize)]
 pub enum StringOrFileBasedTest {
     String(String),
     FileBasedTest(FileBasedTest),
@@ -135,7 +137,7 @@ pub struct EnumerateFilesOptions {
     pub recursive: bool,
 }
 
-pub trait RunnerBaseSub {
+pub trait RunnerBaseSub: Trace + Finalize {
     fn kind(&self, runner_base: &RunnerBase) -> TestRunnerKind;
     fn initialize_tests(&self, runner_base: &RunnerBase);
     fn enumerate_test_files(&self, runner_base: &RunnerBase) -> Vec<StringOrFileBasedTest>;

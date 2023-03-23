@@ -1,13 +1,14 @@
 use clap::Parser;
+use gc::GcCell;
 use regex::Regex;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::collections::HashMap;
 
 use crate::{CompilerBaselineRunner, CompilerTestType};
 use harness::{mocha, vpath, MochaArgs, RunnerBase, StringOrFileBasedTest};
 
 thread_local! {
-    static runners_: RefCell<Vec<RunnerBase>> = RefCell::new(vec![]);
+    static runners_: GcCell<Vec<RunnerBase>> = Default::default();
 }
 
 fn with_runners<TReturn, TCallback: FnMut(&[RunnerBase]) -> TReturn>(
@@ -40,7 +41,7 @@ fn run_tests(runners: &[RunnerBase]) {
             /*runner instanceof CompilerBaselineRunner || runner instanceof FourSlashRunner*/
             {
                 for sf in runner.enumerate_test_files() {
-                    let full = match sf {
+                    let full = match &sf {
                         StringOrFileBasedTest::String(sf) => sf.clone(),
                         StringOrFileBasedTest::FileBasedTest(sf) => sf.file.clone(),
                     };
@@ -130,8 +131,8 @@ pub struct Args {
     pub mocha_args: MochaArgs,
 }
 
-pub async fn run(args: &Args) {
+pub fn run(args: &Args) {
     mocha::register_config(&args.mocha_args);
     start_test_environment();
-    mocha::collect_results().await
+    mocha::print_results();
 }

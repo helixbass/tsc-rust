@@ -1,7 +1,8 @@
 pub mod compiler {
+    use gc::{Finalize, Gc, Trace};
     use std::collections::HashMap;
     use std::ptr;
-    use std::rc::Rc;
+
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
         file_extension_is, filter, get_declaration_emit_extension_for_path, get_output_extension,
@@ -11,37 +12,42 @@ pub mod compiler {
         Program, ScriptTarget, SourceFileLike,
     };
 
-    use crate::{collections, documents, fakes, vfs, vpath};
+    use crate::{
+        collections, documents, fakes,
+        vfs::{self, SortOptionsComparerFromStringComparer},
+        vpath,
+    };
 
+    #[derive(Trace, Finalize)]
     pub struct CompilationOutput {
-        pub inputs: Vec<Rc<documents::TextDocument>>,
-        pub js: Option<Rc<documents::TextDocument>>,
-        pub dts: Option<Rc<documents::TextDocument>>,
-        pub map: Option<Rc<documents::TextDocument>>,
+        pub inputs: Vec<Gc<documents::TextDocument>>,
+        pub js: Option<Gc<documents::TextDocument>>,
+        pub dts: Option<Gc<documents::TextDocument>>,
+        pub map: Option<Gc<documents::TextDocument>>,
     }
 
     pub struct CompilationResult {
-        pub host: Rc<fakes::CompilerHost>,
-        pub program: Option<Rc<Program>>,
+        pub host: Gc<Box<fakes::CompilerHost>>,
+        pub program: Option<Gc<Box<Program>>>,
         pub result: Option<EmitResult>,
-        pub options: Rc<CompilerOptions>,
-        pub diagnostics: Vec<Rc<Diagnostic>>,
-        pub js: collections::SortedMap<String, Rc<documents::TextDocument>>,
-        pub dts: collections::SortedMap<String, Rc<documents::TextDocument>>,
-        pub maps: collections::SortedMap<String, Rc<documents::TextDocument>>,
+        pub options: Gc<CompilerOptions>,
+        pub diagnostics: Vec<Gc<Diagnostic>>,
+        pub js: collections::SortedMap<String, Gc<documents::TextDocument>>,
+        pub dts: collections::SortedMap<String, Gc<documents::TextDocument>>,
+        pub maps: collections::SortedMap<String, Gc<documents::TextDocument>>,
         pub symlinks: Option<vfs::FileSet>,
 
-        _inputs: Vec<Rc<documents::TextDocument>>,
-        _inputs_and_outputs: collections::SortedMap<String, Rc<CompilationOutput>>,
+        _inputs: Vec<Gc<documents::TextDocument>>,
+        _inputs_and_outputs: collections::SortedMap<String, Gc<CompilationOutput>>,
     }
 
     impl CompilationResult {
         pub fn new(
-            host: Rc<fakes::CompilerHost>,
-            options: Rc<CompilerOptions>,
-            program: Option<Rc<Program>>,
+            host: Gc<Box<fakes::CompilerHost>>,
+            options: Gc<CompilerOptions>,
+            program: Option<Gc<Box<Program>>>,
             result: Option<EmitResult>,
-            diagnostics: Vec<Rc<Diagnostic>>,
+            diagnostics: Vec<Gc<Diagnostic>>,
         ) -> Self {
             let options = if let Some(program) = program.as_ref() {
                 program.get_compiler_options()
@@ -51,33 +57,30 @@ pub mod compiler {
 
             let mut js = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Rc::new({
-                        let string_comparer = host.vfs().string_comparer.clone();
-                        move |a: &String, b: &String| string_comparer(a, b)
-                    }),
+                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                        host.vfs().string_comparer.clone(),
+                    ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
-                Option::<HashMap<String, Rc<documents::TextDocument>>>::None,
+                Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
             );
             let mut dts = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Rc::new({
-                        let string_comparer = host.vfs().string_comparer.clone();
-                        move |a: &String, b: &String| string_comparer(a, b)
-                    }),
+                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                        host.vfs().string_comparer.clone(),
+                    ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
-                Option::<HashMap<String, Rc<documents::TextDocument>>>::None,
+                Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
             );
             let mut maps = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Rc::new({
-                        let string_comparer = host.vfs().string_comparer.clone();
-                        move |a: &String, b: &String| string_comparer(a, b)
-                    }),
+                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                        host.vfs().string_comparer.clone(),
+                    ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
-                Option::<HashMap<String, Rc<documents::TextDocument>>>::None,
+                Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
             );
             for document in &*host.outputs() {
                 if vpath::is_java_script(&document.file)
@@ -101,13 +104,12 @@ pub mod compiler {
                 maps,
                 _inputs_and_outputs: collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: Rc::new({
-                            let string_comparer = host.vfs().string_comparer.clone();
-                            move |a: &String, b: &String| string_comparer(a, b)
-                        }),
+                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
+                            host.vfs().string_comparer.clone(),
+                        ))),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
-                    Option::<HashMap<String, Rc<CompilationOutput>>>::None,
+                    Option::<HashMap<String, Gc<CompilationOutput>>>::None,
                 ),
                 _inputs: Default::default(),
                 symlinks: Default::default(),
@@ -126,11 +128,11 @@ pub mod compiler {
                                 .unwrap_or_else(|| options.out_file.as_deref().unwrap()),
                         )],
                     );
-                    let mut inputs: Vec<Rc<documents::TextDocument>> = vec![];
+                    let mut inputs: Vec<Gc<documents::TextDocument>> = vec![];
                     for source_file in &*program.get_source_files() {
                         // if (sourceFile) {
                         let source_file_as_source_file = source_file.as_source_file();
-                        let input = Rc::new(documents::TextDocument::new(
+                        let input = Gc::new(documents::TextDocument::new(
                             source_file_as_source_file.file_name().clone(),
                             source_file_as_source_file.text().clone(),
                             None,
@@ -142,7 +144,7 @@ pub mod compiler {
                         // }
                     }
 
-                    let outputs = Rc::new(CompilationOutput {
+                    let outputs = Gc::new(CompilationOutput {
                         inputs: inputs.clone(),
                         js: ret.js.get(&out_file).cloned(),
                         dts: ret
@@ -178,7 +180,7 @@ pub mod compiler {
                     for source_file in &*program.get_source_files() {
                         // if (sourceFile) {
                         let source_file_as_source_file = source_file.as_source_file();
-                        let input = Rc::new(documents::TextDocument::new(
+                        let input = Gc::new(documents::TextDocument::new(
                             source_file_as_source_file.file_name().clone(),
                             source_file_as_source_file.text().clone(),
                             None,
@@ -189,7 +191,7 @@ pub mod compiler {
                                 &source_file_as_source_file.file_name(),
                                 &ret.options,
                             );
-                            let outputs = Rc::new(CompilationOutput {
+                            let outputs = Gc::new(CompilationOutput {
                                 inputs: vec![input],
                                 js: ret
                                     .js
@@ -240,7 +242,7 @@ pub mod compiler {
             ret
         }
 
-        pub fn vfs(&self) -> Rc<vfs::FileSystem> {
+        pub fn vfs(&self) -> Gc<vfs::FileSystem> {
             self.host.vfs()
         }
 
@@ -304,7 +306,7 @@ pub mod compiler {
     }
 
     pub fn compile_files(
-        host: Rc<fakes::CompilerHost>,
+        host: Gc<Box<fakes::CompilerHost>>,
         root_files: Option<&[String]>,
         compiler_options: &CompilerOptions,
     ) -> CompilationResult {
@@ -350,9 +352,9 @@ pub mod compiler {
                 options: {
                     let mut options = compiler_options.clone();
                     options.trace_resolution = Some(false);
-                    Rc::new(options)
+                    Gc::new(options)
                 },
-                host: Some(host.clone()),
+                host: Some(host.as_dyn_compiler_host()),
                 project_references: None,
                 old_program: None,
                 config_file_parsing_diagnostics: None,
@@ -364,11 +366,11 @@ pub mod compiler {
             get_pre_emit_diagnostics(&pre_program.into(), Option::<&Node>::None, None)
         });
 
-        let compiler_options = Rc::new(compiler_options);
+        let compiler_options = Gc::new(compiler_options);
         let program = create_program(CreateProgramOptions {
             root_names: root_files.map_or_else(|| vec![], ToOwned::to_owned),
             options: compiler_options.clone(),
-            host: Some(host.clone()),
+            host: Some(host.as_dyn_compiler_host()),
             project_references: None,
             old_program: None,
             config_file_parsing_diagnostics: None,
@@ -399,7 +401,7 @@ pub mod compiler {
         ) {
             let mut errors = shorter_errors.unwrap().clone();
             errors.push({
-                let diagnostic: Rc<Diagnostic> = Rc::new(
+                let diagnostic: Gc<Diagnostic> = Gc::new(
                     create_compiler_diagnostic(
                         &DiagnosticMessage::new(
                             0, // -1
@@ -418,8 +420,8 @@ pub mod compiler {
                 add_related_info(
                     &diagnostic,
                     {
-                        let mut related_info: Vec<Rc<DiagnosticRelatedInformation>> = vec![
-                            Rc::new(
+                        let mut related_info: Vec<Gc<DiagnosticRelatedInformation>> = vec![
+                            Gc::new(
                                 create_compiler_diagnostic(
                                     &DiagnosticMessage::new(
                                         0, // -1
@@ -434,10 +436,10 @@ pub mod compiler {
                         ];
                         related_info.append(
                             &mut filter(
-                                &longer_errors.into_iter().map(|error| Rc::new((**error).clone().into())).collect::<Vec<_>>(),
-                                |p: &Rc<DiagnosticRelatedInformation>| !some(
+                                &longer_errors.into_iter().map(|error| Gc::new((**error).clone().into())).collect::<Vec<_>>(),
+                                |p: &Gc<DiagnosticRelatedInformation>| !some(
                                     shorter_errors.map(|shorter_errors| &**shorter_errors),
-                                    Some(|p2: &Rc<Diagnostic>| compare_diagnostics(&**p, &**p2) == Comparison::EqualTo)
+                                    Some(|p2: &Gc<Diagnostic>| compare_diagnostics(&**p, &**p2) == Comparison::EqualTo)
                                 )
                             )
                         );

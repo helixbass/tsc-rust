@@ -236,17 +236,20 @@ pub(super) fn parse_json_config_file_content_worker<
     ParsedCommandLine {
         options: options.clone(),
         watch_options,
-        file_names: get_file_names(
-            &config_file_specs,
-            &options,
-            host,
-            extra_file_extensions,
-            raw,
-            resolution_stack,
-            &mut errors.clone().borrow_mut(),
-            config_file_name,
-            &base_path_for_file_names,
-        ),
+        file_names: {
+            let value = get_file_names(
+                &config_file_specs,
+                &options,
+                host,
+                extra_file_extensions,
+                raw,
+                resolution_stack,
+                &mut errors.clone().borrow_mut(),
+                config_file_name,
+                &base_path_for_file_names,
+            );
+            value
+        },
         project_references: get_project_references(
             raw,
             source_file,

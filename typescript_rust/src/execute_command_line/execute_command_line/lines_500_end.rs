@@ -261,6 +261,7 @@ pub(super) fn perform_build<
     sys.exit(Some(exit_status));
 }
 
+#[derive(Trace, Finalize)]
 struct BuilderProgramDummy {}
 
 impl BuilderProgram for BuilderProgramDummy {

@@ -394,13 +394,13 @@ dependencies = [
  "clap",
  "fancy-regex",
  "futures",
+ "gc",
  "lazy_static",
  "local-macros",
  "once_cell",
  "pretty_assertions",
  "regex",
- "tokio",
- "tokio-stream",
+ "threadpool",
  "typescript_rust",
  "typescript_services_rust",
 ]
@@ -872,11 +872,21 @@ name = "test_runner"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "gc",
  "harness",
  "lazy_static",
  "regex",
  "tokio",
  "typescript_rust",
+]
+
+[[package]]
+name = "threadpool"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d050e60b33d41c19108b32cea32164033a9013fe3b46cbd4457559bfbf77afaa"
+dependencies = [
+ "num_cpus",
 ]
 
 [[package]]
@@ -911,17 +921,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-stream"
-version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d660770404473ccd7bc9f8b28494a811bc18542b915c0855c51e8f419d5223ce"
-dependencies = [
- "futures-core",
- "pin-project-lite",
- "tokio",
-]
-
-[[package]]
 name = "typescript_rust"
 version = "0.1.0"
 dependencies = [
@@ -946,6 +945,7 @@ dependencies = [
 name = "typescript_services_rust"
 version = "0.1.0"
 dependencies = [
+ "gc",
  "typescript_rust",
 ]
 

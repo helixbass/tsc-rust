@@ -1,3 +1,5 @@
+use gc::{Finalize, Trace};
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum LogLevel {
     Terse,
@@ -23,7 +25,7 @@ impl LogLevel {
 
 // export const emptyArray: SortedReadonlyArray<never> = createSortedArray<never>();
 
-pub trait Logger {
+pub trait Logger: Trace + Finalize {
     fn close(&self);
     fn has_level(&self, level: LogLevel) -> bool;
     fn logging_enabled(&self) -> bool;
