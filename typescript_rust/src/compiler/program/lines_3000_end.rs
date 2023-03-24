@@ -29,18 +29,18 @@ use crate::{
     maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
     remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
     resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
-    string_contains, supported_js_extensions_flat, to_file_name_lower_case, version, Comparison,
-    CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, Debug_, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    Diagnostics, DirectoryStructureHost, Extension, FileIncludeKind, FileIncludeReason,
-    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
-    FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
-    FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, Path, Program,
-    ProjectReference, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
-    ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
-    SyntaxKind,
+    string_contains, supported_js_extensions_flat, to_file_name_lower_case, version,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, DirectoryStructureHost,
+    EmitResult, Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    FilePreprocessingDiagnosticsKind, FilePreprocessingFileExplainingDiagnostic,
+    FilePreprocessingReferencedDiagnostic, FileReference, GetCanonicalFileName, JsxEmit,
+    ModuleKind, ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ParseConfigFileHost,
+    ParseConfigHost, Path, Program, ProjectReference, ReferencedFile, ResolvedConfigFileName,
+    ResolvedModuleFull, ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget,
+    SymlinkCache, SyntaxKind, WriteFileCallback,
 };
 
 impl Program {
@@ -1720,6 +1720,86 @@ pub trait GetResolvedProjectReferences: Trace + Finalize {
 
 pub trait ForEachResolvedProjectReference: Trace + Finalize {
     fn call(&self, callback: &mut dyn FnMut(Gc<ResolvedProjectReference>));
+}
+
+pub(crate) fn emit_skipped_with_no_diagnostics() -> EmitResult {
+    EmitResult {
+        emit_skipped: true,
+        diagnostics: Default::default(),
+        emitted_files: Default::default(),
+        source_maps: Default::default(),
+        exported_modules_from_declaration_emit: Default::default(),
+    }
+}
+
+pub(crate) fn handle_no_emit_options(
+    program: Gc<Box<Program>>,
+    source_file: Option<&Node /*SourceFile*/>,
+    write_file: Option<&dyn WriteFileCallback>,
+    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+) -> Option<EmitResult> {
+    let options = program.get_compiler_options();
+    if options.no_emit == Some(true) {
+        program.get_semantic_diagnostics(source_file, cancellation_token.clone());
+        return Some(
+            if source_file.is_some()
+                || out_file(&options)
+                    .filter(|out_file| !out_file.is_empty())
+                    .is_some()
+            {
+                emit_skipped_with_no_diagnostics()
+            } else {
+                program.emit_build_info(write_file, cancellation_token)
+            },
+        );
+    }
+
+    if options.no_emit_on_error != Some(true) {
+        return None;
+    }
+    let mut diagnostics: Vec<Gc<Diagnostic>> = [
+        program
+            .get_options_diagnostics(cancellation_token.clone())
+            .into(),
+        program.get_syntactic_diagnostics(source_file, cancellation_token.clone()),
+        program
+            .get_global_diagnostics(cancellation_token.clone())
+            .into(),
+        program.get_semantic_diagnostics(source_file, cancellation_token.clone()),
+    ]
+    .concat();
+
+    if diagnostics.is_empty() && get_emit_declarations(&program.get_compiler_options()) {
+        diagnostics = program.get_declaration_diagnostics(None, cancellation_token.clone());
+    }
+
+    if diagnostics.is_empty() {
+        return None;
+    }
+    let mut emitted_files: Option<Vec<String>> = None;
+    if source_file.is_none()
+        && out_file(&options)
+            .filter(|out_file| !out_file.is_empty())
+            .is_none()
+    {
+        let emit_result = program.emit_build_info(write_file, cancellation_token);
+        let EmitResult {
+            diagnostics: mut emit_result_diagnostics,
+            emitted_files: emit_result_emitted_files,
+            ..
+        } = emit_result;
+        // if (emitResult.diagnostics) {
+        diagnostics.append(&mut emit_result_diagnostics);
+        // }
+        emitted_files = emit_result_emitted_files;
+    }
+    Some(EmitResult {
+        emit_skipped: true,
+        diagnostics,
+        emitted_files,
+        source_maps: Default::default(),
+        exported_modules_from_declaration_emit: Default::default(),
+    })
 }
 
 pub(super) fn filter_semantic_diagnostics(

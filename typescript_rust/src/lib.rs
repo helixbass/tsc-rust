@@ -70,7 +70,7 @@ pub use compiler::emitter::{
     create_printer, get_output_extension, get_ts_build_info_emit_output_file_path, TempFlags,
 };
 use compiler::emitter::{
-    get_common_source_directory, get_common_source_directory_of_config,
+    emit_files, get_common_source_directory, get_common_source_directory_of_config,
     get_output_declaration_file_name, is_build_info_file, EmitBinaryExpression,
 };
 pub use compiler::factory::base_node_factory::{
@@ -250,7 +250,7 @@ pub use compiler::sys::{
 use compiler::sys::{ignored_paths, missing_file_modified_time};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
 pub use compiler::transformer::{
-    no_emit_notification, no_emit_substitution, null_transformation_context,
+    get_transformers, no_emit_notification, no_emit_substitution, null_transformation_context,
 };
 pub use compiler::transformers::{
     chain_bundle, is_internal_declaration, transform_class_fields, transform_declarations,

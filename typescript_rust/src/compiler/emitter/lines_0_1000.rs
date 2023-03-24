@@ -13,10 +13,10 @@ use crate::{
     no_emit_notification, no_emit_substitution, normalize_slashes, out_file, remove_file_extension,
     resolve_path, BaseNodeFactorySynthetic, BundleFileInfo, BundleFileSection,
     BundleFileSectionInterface, BundleFileSectionKind, CompilerOptions, CurrentParenthesizerRule,
-    Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension,
-    JsxEmit, ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules,
-    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SourceMapSource,
-    SyntaxKind, TextRange,
+    Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitHost, EmitResolverDebuggable,
+    EmitResult, EmitTextWriter, EmitTransformers, Extension, JsxEmit, ListFormat, Node, NodeArray,
+    NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer,
+    PrinterOptions, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -164,6 +164,21 @@ pub(crate) fn get_common_source_directory_of_config(
 ) -> String {
     let options = &command_line.options;
     let file_names = &command_line.file_names;
+    unimplemented!()
+}
+
+pub(crate) fn emit_files(
+    resolver: Gc<Box<dyn EmitResolverDebuggable>>,
+    host: Gc<Box<dyn EmitHost>>,
+    target_source_file: Option<&Node /*SourceFile*/>,
+    EmitTransformers {
+        script_transformers,
+        declaration_transformers,
+    }: EmitTransformers,
+    emit_only_dts_files: Option<bool>,
+    only_build_info: Option<bool>,
+    force_dts_emit: Option<bool>,
+) -> EmitResult {
     unimplemented!()
 }
 

@@ -1,20 +1,19 @@
 use gc::{Finalize, Gc, GcCellRef, Trace};
-use std::cell::Ref;
 use std::ptr;
-use std::rc::Rc;
 
-use super::{filter_semantic_diagnostics, ToPath};
+use super::{filter_semantic_diagnostics, handle_no_emit_options, ToPath};
 use crate::{
-    compare_values, concatenate, contains, contains_path, create_type_checker,
+    compare_values, concatenate, contains, contains_path, create_type_checker, emit_files,
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
     get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
-    is_trace_enabled, libs, map_defined, node_modules_path_part, out_file, package_id_to_string,
-    remove_prefix, remove_suffix, skip_type_checking, source_file_may_be_emitted, string_contains,
-    to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison, CompilerOptions,
-    CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension, FileIncludeReason,
-    MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceOfProjectReferenceRedirect,
-    StringOrRcNode, StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
+    get_transformers, is_trace_enabled, libs, map_defined, node_modules_path_part, out_file,
+    package_id_to_string, remove_prefix, remove_suffix, skip_type_checking,
+    source_file_may_be_emitted, string_contains, to_path as to_path_helper, trace,
+    CancellationTokenDebuggable, Comparison, CompilerOptions, CustomTransformers, Debug_,
+    Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason, MultiMap, Node,
+    Path, Program, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ScriptReferenceHost, SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused,
+    TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -244,20 +243,78 @@ impl Program {
 
     pub fn emit(
         &self,
-        target_source_file: Option<&Node /*SourceFile*/>,
-        write_file: Option<&dyn WriteFileCallback>,
+        source_file: Option<&Node /*SourceFile*/>,
+        write_file_callback: Option<&dyn WriteFileCallback>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         emit_only_dts_files: Option<bool>,
-        custom_transformers: Option<CustomTransformers>,
+        transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
     ) -> EmitResult {
-        EmitResult {
-            emit_skipped: true,
-            diagnostics: vec![],
-            emitted_files: None,
-            source_maps: None,
-            exported_modules_from_declaration_emit: None,
+        // tracing?.push(tracing.Phase.Emit, "emit", { path: sourceFile?.path }, /*separateBeginAndEnd*/ true);
+        let result = self.run_with_cancellation_token(|| {
+            self.emit_worker(
+                source_file,
+                write_file_callback,
+                cancellation_token,
+                emit_only_dts_files,
+                transformers,
+                force_dts_emit,
+            )
+        });
+        // tracing?.pop();
+        result
+    }
+
+    pub(super) fn emit_worker(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        write_file_callback: Option<&dyn WriteFileCallback>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        emit_only_dts_files: Option<bool>,
+        custom_transformers: Option<&CustomTransformers>,
+        force_dts_emit: Option<bool>,
+    ) -> EmitResult {
+        if force_dts_emit != Some(true) {
+            let result = handle_no_emit_options(
+                self.rc_wrapper(),
+                source_file,
+                write_file_callback,
+                cancellation_token.clone(),
+            );
+            if let Some(result) = result {
+                return result;
+            }
         }
+
+        let emit_resolver = self
+            .get_diagnostics_producing_type_checker()
+            .get_emit_resolver(
+                if matches!(
+                    out_file(&self.options),
+                    Some(out_file) if !out_file.is_empty()
+                ) {
+                    None
+                } else {
+                    source_file
+                },
+                cancellation_token,
+            );
+
+        // performance.mark("beforeEmit");
+
+        let emit_result = emit_files(
+            emit_resolver,
+            self.get_emit_host(write_file_callback),
+            source_file,
+            get_transformers(&self.options, custom_transformers, emit_only_dts_files),
+            emit_only_dts_files,
+            Some(false),
+            force_dts_emit,
+        );
+
+        // performance.mark("afterEmit");
+        // performance.measure("Emit", "beforeEmit", "afterEmit");
+        emit_result
     }
 
     pub fn get_current_directory(&self) -> String {
@@ -558,6 +615,21 @@ impl Program {
             return StructureIsReused::Not;
         }
 
+        unimplemented!()
+    }
+
+    pub(super) fn get_emit_host(
+        &self,
+        write_file_callback: Option<&dyn WriteFileCallback>,
+    ) -> Gc<Box<dyn EmitHost>> {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_build_info(
+        &self,
+        write_file_callback: Option<&dyn WriteFileCallback>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> EmitResult {
         unimplemented!()
     }
 

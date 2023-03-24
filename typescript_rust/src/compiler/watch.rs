@@ -1,5 +1,4 @@
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io;
@@ -829,7 +828,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
     write_file: Option<&dyn WriteFileCallback>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
-    custom_transformers: Option<CustomTransformers>,
+    custom_transformers: Option<&CustomTransformers>,
 ) -> EmitFilesAndReportErrorsReturn {
     let is_list_files_only = matches!(program.get_compiler_options().list_files_only, Some(true));
 
@@ -924,7 +923,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
     write_file: Option<&dyn WriteFileCallback>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
-    custom_transformers: Option<CustomTransformers>,
+    custom_transformers: Option<&CustomTransformers>,
 ) -> ExitStatus {
     let EmitFilesAndReportErrorsReturn {
         emit_result,
