@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, Trace};
+use indexmap::IndexMap;
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -400,6 +401,15 @@ pub fn map_defined<
 
 pub fn get_or_update<TKey: Eq + Hash, TValue, TCallback: FnOnce() -> TValue>(
     map: &mut HashMap<TKey, TValue>,
+    key: TKey,
+    callback: TCallback,
+) -> &mut TValue {
+    map.entry(key).or_insert_with(callback)
+}
+
+// TODO: try and "reconcile" this with get_or_update() (for HashMap) above?
+pub fn get_or_update_indexmap<TKey: Eq + Hash, TValue, TCallback: FnOnce() -> TValue>(
+    map: &mut IndexMap<TKey, TValue>,
     key: TKey,
     callback: TCallback,
 ) -> &mut TValue {
