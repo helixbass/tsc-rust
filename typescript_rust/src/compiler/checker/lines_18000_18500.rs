@@ -626,6 +626,7 @@ impl CheckTypeRelatedTo {
                                 ),
                             ]),
                         );
+                        return;
                     }
                 }
                 message = Some(Cow::Borrowed(
