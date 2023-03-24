@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
+use indexmap::IndexMap;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -68,7 +69,7 @@ impl TypeChecker {
         skip_object_function_property_augment: Option<bool>,
     ) -> Option<Gc<Symbol>> {
         let mut single_prop: Option<Gc<Symbol>> = None;
-        let mut prop_set: Option<HashMap<SymbolId, Gc<Symbol>>> = None;
+        let mut prop_set: Option<IndexMap<SymbolId, Gc<Symbol>>> = None;
         let mut index_types: Option<Vec<Gc<Type>>> = None;
         let is_union = containing_type.flags().intersects(TypeFlags::Union);
         let mut optional_flag = if is_union {
@@ -125,7 +126,7 @@ impl TypeChecker {
                             );
                         } else {
                             if prop_set.is_none() {
-                                prop_set = Some(HashMap::new());
+                                prop_set = Some(IndexMap::new());
                                 prop_set
                                     .as_mut()
                                     .unwrap()
