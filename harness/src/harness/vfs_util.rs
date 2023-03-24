@@ -2336,10 +2336,11 @@ pub mod vfs {
                             test_lib_folder.to_owned(),
                             Some(
                                 Mount::new(
-                                    vpath::resolve(
-                                        &host.get_workspace_root(),
-                                        &[Some("tests/lib")],
-                                    ),
+                                    // vpath::resolve(
+                                    //     &host.get_workspace_root(),
+                                    //     &[Some("tests/lib")],
+                                    // ),
+                                    "/Users/jrosse/prj/TypeScript/tests/lib".to_owned(),
                                     resolver.clone(),
                                     None,
                                 )
