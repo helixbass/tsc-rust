@@ -2,10 +2,8 @@
 
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{
     get_module_instance_state, init_flow_node, is_exports_or_module_exports_or_alias, BinderType,

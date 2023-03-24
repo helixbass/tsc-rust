@@ -844,13 +844,19 @@ impl BinderType {
                     if let Some(constructor_symbol_value_declaration) =
                         constructor_symbol.maybe_value_declaration()
                     {
-                        let mut constructor_symbol_members = constructor_symbol.maybe_members_mut();
-                        if constructor_symbol_members.is_none() {
-                            *constructor_symbol_members =
-                                Some(Gc::new(GcCell::new(create_symbol_table(None))));
-                        }
+                        let constructor_symbol_members = {
+                            let mut constructor_symbol_members =
+                                constructor_symbol.maybe_members_mut();
+                            if constructor_symbol_members.is_none() {
+                                *constructor_symbol_members =
+                                    Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                            }
+                            let constructor_symbol_members =
+                                constructor_symbol_members.clone().unwrap();
+                            constructor_symbol_members
+                        };
                         let mut constructor_symbol_members =
-                            constructor_symbol_members.as_ref().unwrap().borrow_mut();
+                            constructor_symbol_members.borrow_mut();
                         if has_dynamic_name(node) {
                             self.bind_dynamically_named_this_property_assignment(
                                 node,
