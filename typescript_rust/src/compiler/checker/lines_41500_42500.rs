@@ -1127,7 +1127,11 @@ impl TypeChecker {
                             }
                         }
                         // helper <<= 1;
-                        helper = ExternalEmitHelpers::from_bits(helper.bits() << 1).unwrap();
+                        let helper_bits = helper.bits() << 1;
+                        if !(helper_bits <= ExternalEmitHelpers::LastEmitHelper.bits()) {
+                            break;
+                        }
+                        helper = ExternalEmitHelpers::from_bits(helper_bits).unwrap();
                     }
                 }
                 self.set_requested_external_emit_helpers(
