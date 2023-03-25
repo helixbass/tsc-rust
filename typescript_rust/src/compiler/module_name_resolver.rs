@@ -581,7 +581,7 @@ pub fn resolve_type_reference_directive(
                     containing_directory.clone().unwrap(),
                 ])
             );
-            trace_result(result);
+            trace_result(host, type_reference_directive_name, result);
         }
         return result.clone();
     }
@@ -724,9 +724,70 @@ pub fn resolve_type_reference_directive(
         per_folder_cache.set(type_reference_directive_name, None, result.clone());
     }
     if trace_enabled {
-        trace_result(&result);
+        trace_result(host, type_reference_directive_name, &result);
     }
     result
+}
+
+fn trace_result(
+    host: &dyn ModuleResolutionHost,
+    type_reference_directive_name: &str,
+    result: &ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+) {
+    if result
+        .resolved_type_reference_directive
+        .as_ref()
+        .and_then(|result_resolved_type_reference_directive| {
+            result_resolved_type_reference_directive
+                .resolved_file_name
+                .as_ref()
+        })
+        .is_none()
+    {
+        trace(
+            host,
+            &Diagnostics::Type_reference_directive_0_was_not_resolved,
+            Some(vec![type_reference_directive_name.to_owned()]),
+        );
+    } else if let Some(result_resolved_type_reference_directive_package_id) = result
+        .resolved_type_reference_directive
+        .as_ref()
+        .unwrap()
+        .package_id
+        .as_ref()
+    {
+        trace(
+            host,
+            &Diagnostics::Type_reference_directive_0_was_successfully_resolved_to_1_with_Package_ID_2_primary_Colon_3,
+            Some(vec![
+                type_reference_directive_name.to_owned(),
+                result.resolved_type_reference_directive.as_ref().unwrap().resolved_file_name.clone().unwrap(),
+                package_id_to_string(result_resolved_type_reference_directive_package_id),
+                result.resolved_type_reference_directive.as_ref().unwrap().primary.to_string(),
+            ])
+        );
+    } else {
+        trace(
+            host,
+            &Diagnostics::Type_reference_directive_0_was_successfully_resolved_to_1_primary_Colon_2,
+            Some(vec![
+                type_reference_directive_name.to_owned(),
+                result
+                    .resolved_type_reference_directive
+                    .as_ref()
+                    .unwrap()
+                    .resolved_file_name
+                    .clone()
+                    .unwrap(),
+                result
+                    .resolved_type_reference_directive
+                    .as_ref()
+                    .unwrap()
+                    .primary
+                    .to_string(),
+            ]),
+        );
+    }
 }
 
 fn primary_lookup(
@@ -838,10 +899,6 @@ fn secondary_lookup(
         }
         None
     }
-}
-
-fn trace_result(result: &ResolvedTypeReferenceDirectiveWithFailedLookupLocations) {
-    unimplemented!()
 }
 
 pub fn get_automatic_type_directive_names(

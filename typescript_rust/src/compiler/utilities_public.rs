@@ -966,7 +966,7 @@ pub fn get_jsdoc_type(node: &Node) -> Option<Gc<Node /*TypeNode*/>> {
         .map(Clone::clone);
     }
 
-    tag.and_then(|tag| tag.as_jsdoc_property_like_tag().type_expression.clone())
+    tag.and_then(|tag| tag.as_jsdoc_type_like_tag().maybe_type_expression().clone())
         .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
 }
 

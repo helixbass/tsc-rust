@@ -2037,11 +2037,27 @@ fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
     res
 }
 
-pub(crate) fn get_module_name_string_literal_at<TFile: SourceFileImportsList>(
-    file: &TFile,
+pub(crate) fn get_module_name_string_literal_at(
+    file: &impl SourceFileImportsList,
     index: usize,
 ) -> Gc<Node /*StringLiteralLike*/> {
-    unimplemented!()
+    let imports = file.imports();
+    let module_augmentations = file.module_augmentations();
+    if index < imports.len() {
+        return imports[index].clone();
+    }
+    let mut aug_index = imports.len();
+    for aug in &*module_augmentations {
+        if aug.kind() == SyntaxKind::StringLiteral {
+            if index == aug_index {
+                return aug.clone();
+            }
+            aug_index += 1;
+        }
+    }
+    Debug_.fail(Some(
+        "should never ask for module name at index higher than possible module name",
+    ));
 }
 
 #[derive(Trace, Finalize)]

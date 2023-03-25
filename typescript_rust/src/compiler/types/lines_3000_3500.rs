@@ -1261,6 +1261,16 @@ impl NamedDeclarationInterface for JSDocPropertyLikeTag {
     }
 }
 
+impl JSDocTypeLikeTagInterface for JSDocPropertyLikeTag {
+    fn maybe_type_expression(&self) -> Option<Gc<Node>> {
+        self.type_expression.clone()
+    }
+
+    fn type_expression(&self) -> Gc<Node> {
+        self.type_expression.clone().unwrap()
+    }
+}
+
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct JSDocTypeLiteral {

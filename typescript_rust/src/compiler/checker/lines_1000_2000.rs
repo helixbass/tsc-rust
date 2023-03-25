@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::{Gc, GcCell};
+use indexmap::IndexMap;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -39,11 +40,11 @@ use crate::{
     HasInitializerInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray,
     NodeFlags, PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange,
     ScriptTarget, VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores,
-    factory, get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
-    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    factory, get_first_identifier, get_or_update_indexmap, get_source_file_of_node,
+    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
+    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
+    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
+    TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -703,10 +704,10 @@ impl TypeChecker {
                     || DuplicateInfoForFiles {
                         first_file,
                         second_file,
-                        conflicting_symbols: HashMap::new(),
+                        conflicting_symbols: IndexMap::new(),
                     },
                 );
-                let conflicting_symbol_info = get_or_update(
+                let conflicting_symbol_info = get_or_update_indexmap(
                     &mut files_duplicates.conflicting_symbols,
                     symbol_name,
                     || DuplicateInfoForSymbol {

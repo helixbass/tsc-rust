@@ -282,20 +282,25 @@ impl BinderType {
         }
         let namespace_symbol = namespace_symbol.unwrap();
 
-        let symbol_table = if is_prototype_property {
-            let mut namespace_symbol_members = namespace_symbol.maybe_members_mut();
-            if namespace_symbol_members.is_none() {
-                *namespace_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
-            }
-            namespace_symbol_members
-        } else {
-            let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
-            if namespace_symbol_exports.is_none() {
-                *namespace_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
-            }
-            namespace_symbol_exports
+        let symbol_table = {
+            let symbol_table = if is_prototype_property {
+                let mut namespace_symbol_members = namespace_symbol.maybe_members_mut();
+                if namespace_symbol_members.is_none() {
+                    *namespace_symbol_members =
+                        Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                }
+                namespace_symbol_members
+            } else {
+                let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
+                if namespace_symbol_exports.is_none() {
+                    *namespace_symbol_exports =
+                        Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                }
+                namespace_symbol_exports
+            };
+            let symbol_table = symbol_table.clone().unwrap();
+            symbol_table
         };
-        let symbol_table = symbol_table.as_ref().unwrap();
 
         let mut includes = SymbolFlags::None;
         let mut excludes = SymbolFlags::None;

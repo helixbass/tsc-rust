@@ -752,6 +752,7 @@ impl Node {
             Node::BaseJSDocTypeLikeTag(node) => node,
             Node::JSDocCallbackTag(node) => node,
             Node::JSDocTypedefTag(node) => node,
+            Node::JSDocPropertyLikeTag(node) => node,
             _ => panic!("Expected JSDoc type like tag"),
         }
     }

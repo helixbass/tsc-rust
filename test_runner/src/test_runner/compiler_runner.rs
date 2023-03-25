@@ -236,9 +236,26 @@ impl CompilerTest {
         configuration_overrides: Option<TestCaseParser::CompilerSettings>,
     ) -> Self {
         let just_name = vpath::basename(&file_name, None, None);
-        let configured_name = just_name.clone();
+        let mut configured_name = just_name.clone();
         if let Some(configuration_overrides) = configuration_overrides.as_ref() {
-            unimplemented!()
+            let mut configured_name_ = String::new();
+            let mut keys = configuration_overrides.keys().cloned().collect::<Vec<_>>();
+            keys.sort();
+            for key in &keys {
+                if !configured_name_.is_empty() {
+                    configured_name_.push_str(", ");
+                }
+                configured_name_.push_str(&format!(
+                    "{}={}",
+                    key.to_lowercase(),
+                    configuration_overrides.get(key).unwrap().to_lowercase(),
+                ));
+            }
+            if !configured_name_.is_empty() {
+                let extname = vpath::extname(&just_name, Option::<&[String]>::None, None);
+                let basename = vpath::basename(&just_name, Some(&[&extname]), Some(true));
+                configured_name = format!("{}({}){}", basename, configured_name_, extname,);
+            }
         }
 
         let root_dir = if !file_name.contains("conformance") {

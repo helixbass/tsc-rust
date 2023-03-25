@@ -627,11 +627,28 @@ impl SourceFile {
         self.contents.imports.borrow()
     }
 
+    pub fn imports(&self) -> GcCellRef<Vec<Gc<Node>>> {
+        GcCellRef::map(self.contents.imports.borrow(), |imports| {
+            imports.as_ref().unwrap()
+        })
+    }
+
     pub fn maybe_imports_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.contents.imports.borrow_mut()
     }
 
-    pub fn maybe_module_augmentations(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
+    pub fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+        self.contents.module_augmentations.borrow()
+    }
+
+    pub fn module_augmentations(&self) -> GcCellRef<Vec<Gc<Node>>> {
+        GcCellRef::map(
+            self.contents.module_augmentations.borrow(),
+            |module_augmentations| module_augmentations.as_ref().unwrap(),
+        )
+    }
+
+    pub fn maybe_module_augmentations_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.contents.module_augmentations.borrow_mut()
     }
 

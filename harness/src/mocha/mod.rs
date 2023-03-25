@@ -1,5 +1,6 @@
 use clap::Parser;
 use once_cell::sync::{Lazy, OnceCell};
+use regex::Regex;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::io::{self, Write};
@@ -13,10 +14,16 @@ use threadpool::ThreadPool;
 #[derive(Clone, Debug, Parser)]
 pub struct MochaArgs {
     #[arg(long)]
+    pub grep: Option<Regex>,
+
+    #[arg(long)]
     pub start_index: Option<usize>,
 
     #[arg(long)]
     pub end_index: Option<usize>,
+
+    #[arg(long)]
+    pub enable_panic_hook: bool,
 }
 
 static CONFIG: OnceCell<MochaArgs> = OnceCell::new();
@@ -44,7 +51,9 @@ pub fn register_config(args: &MochaArgs) {
     CONFIG
         .set(args.clone())
         .expect("Should only initialize Mocha config once");
-    panic::set_hook(Box::new(|_| {}));
+    if !args.enable_panic_hook {
+        panic::set_hook(Box::new(|_| {}));
+    }
     set_up_channel();
 }
 
@@ -200,7 +209,7 @@ pub fn describe(description: &str, callback: impl FnOnce()) {
         before()
     }
     for it in its {
-        if !should_run_it(&it) {
+        if !should_run_it(&it, &enclosing_descriptions) {
             continue;
         }
         let It {
@@ -217,7 +226,16 @@ pub fn describe(description: &str, callback: impl FnOnce()) {
     }
 }
 
-fn should_run_it(it: &It) -> bool {
+fn should_run_it(it: &It, enclosing_descriptions: &[String]) -> bool {
+    if let Some(config_grep) = config().grep.as_ref() {
+        if !(config_grep.is_match(&it.description)
+            || enclosing_descriptions
+                .into_iter()
+                .any(|enclosing_description| config_grep.is_match(enclosing_description)))
+        {
+            return false;
+        }
+    }
     if let Some(config_start_index) = config().start_index {
         if it.global_index < config_start_index {
             return false;

@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use indexmap::IndexMap;
 use regex::Regex;
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -1392,7 +1393,7 @@ pub(crate) struct DuplicateInfoForSymbol {
 pub(crate) struct DuplicateInfoForFiles {
     pub first_file: Gc<Node /*SourceFile*/>,
     pub second_file: Gc<Node /*SourceFile*/>,
-    pub conflicting_symbols: HashMap<String, DuplicateInfoForSymbol>,
+    pub conflicting_symbols: IndexMap<String, DuplicateInfoForSymbol>,
 }
 
 impl TypeChecker {

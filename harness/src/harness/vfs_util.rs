@@ -509,7 +509,27 @@ pub mod vfs {
         }
 
         pub fn readdir_sync(&self, path: &str) -> Vec<String> {
-            unimplemented!()
+            let WalkResult { node, .. } = self
+                ._walk(
+                    &self._resolve(path),
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if node.is_none() {
+                // throw createIOError("ENOENT");
+                panic!("ENOENT");
+            }
+            let node = node.unwrap();
+            if !is_directory(Some(&*node)) {
+                // throw createIOError("ENOTDIR");
+                panic!("ENOTDIR");
+            }
+            self._get_links(&node)
+                .borrow()
+                .keys()
+                .map(ToOwned::to_owned)
+                .collect()
         }
 
         pub fn _mkdir(
@@ -559,7 +579,14 @@ pub mod vfs {
         }
 
         pub fn realpath_sync(&self, path: &str) -> String {
-            unimplemented!()
+            let WalkResult { realpath, .. } = self
+                ._walk(
+                    &self._resolve(path),
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            realpath
         }
 
         pub fn read_file_sync(
@@ -2309,10 +2336,11 @@ pub mod vfs {
                             test_lib_folder.to_owned(),
                             Some(
                                 Mount::new(
-                                    vpath::resolve(
-                                        &host.get_workspace_root(),
-                                        &[Some("tests/lib")],
-                                    ),
+                                    // vpath::resolve(
+                                    //     &host.get_workspace_root(),
+                                    //     &[Some("tests/lib")],
+                                    // ),
+                                    "/Users/jrosse/prj/TypeScript/tests/lib".to_owned(),
                                     resolver.clone(),
                                     None,
                                 )

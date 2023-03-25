@@ -40,7 +40,6 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 node.maybe_modifiers().as_ref(),
             );
             visit_node(&mut cb_node, node.maybe_name());
-            visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
             visit_node(&mut cb_node, node.exclamation_token.clone());
             visit_node(&mut cb_node, node.equals_token.clone());
