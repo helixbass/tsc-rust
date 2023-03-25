@@ -997,6 +997,7 @@ pub fn get_source_files_to_emit<TTargetSourceFile: Borrow<Node>>(
         let module_emit_enabled = matches!(options.emit_declaration_only, Some(true))
             || matches!(module_kind, ModuleKind::AMD | ModuleKind::System);
         host.get_source_files()
+            .clone()
             .into_iter()
             .filter(|source_file| {
                 (module_emit_enabled || !is_external_module(source_file))
@@ -1006,7 +1007,6 @@ pub fn get_source_files_to_emit<TTargetSourceFile: Borrow<Node>>(
                         force_dts_emit,
                     )
             })
-            .map(Clone::clone)
             .collect()
     } else {
         let source_files = match target_source_file {
@@ -1092,11 +1092,11 @@ pub fn write_file(
         file_name,
         data,
         write_byte_order_mark,
-        Some(&|host_error_message| {
+        Some(&mut |host_error_message| {
             diagnostics.add(Gc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Could_not_write_file_0_Colon_1,
-                    Some(vec![file_name.to_owned(), host_error_message]),
+                    Some(vec![file_name.to_owned(), host_error_message.to_owned()]),
                 )
                 .into(),
             ))

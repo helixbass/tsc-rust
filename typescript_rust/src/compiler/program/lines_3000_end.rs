@@ -1812,7 +1812,7 @@ pub(crate) fn emit_skipped_with_no_diagnostics() -> EmitResult {
 pub(crate) fn handle_no_emit_options(
     program: Gc<Box<Program>>,
     source_file: Option<&Node /*SourceFile*/>,
-    write_file: Option<&dyn WriteFileCallback>,
+    write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
 ) -> Option<EmitResult> {
     let options = program.get_compiler_options();

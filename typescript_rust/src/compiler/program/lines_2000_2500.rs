@@ -4,14 +4,18 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    add_emit_flags, compute_line_and_character_of_position, concatenate,
+    add_emit_flags, append, compute_line_and_character_of_position, concatenate,
     create_comment_directives_map, create_diagnostic_for_range, external_helpers_module_name_text,
-    get_jsx_implicit_import_base, get_jsx_runtime_import, get_line_starts,
-    is_check_js_enabled_for_file, is_external_module, is_source_file_js, normalize_path,
-    set_parent, skip_type_checking, sort_and_deduplicate_diagnostics,
-    with_synthetic_factory_and_factory, CancellationTokenDebuggable, CommentDirective,
-    CommentDirectivesMap, Debug_, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
-    EmitFlags, FileIncludeReason, HasStatementsInterface, Node, NodeArray, NodeFlags,
+    get_external_module_name, get_jsx_implicit_import_base, get_jsx_runtime_import,
+    get_line_starts, get_text_of_identifier_or_literal, has_syntactic_modifier, is_ambient_module,
+    is_any_import_or_re_export, is_check_js_enabled_for_file, is_external_module,
+    is_external_module_name_relative, is_import_call, is_literal_import_type_node,
+    is_module_declaration, is_require_call, is_source_file_js, is_string_literal,
+    is_string_literal_like, normalize_path, set_parent, set_parent_recursive, skip_type_checking,
+    sort_and_deduplicate_diagnostics, starts_with, with_synthetic_factory_and_factory,
+    CancellationTokenDebuggable, CommentDirective, CommentDirectivesMap, Debug_, Diagnostic,
+    DiagnosticRelatedInformationInterface, Diagnostics, EmitFlags, FileIncludeReason,
+    HasStatementsInterface, LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeFlags,
     NodeInterface, Program, ResolvedProjectReference, ScriptKind, SortedArray, SourceFileLike,
 };
 
@@ -375,6 +379,134 @@ impl Program {
             Some(module_augmentations.unwrap_or_default());
         *file_as_source_file.maybe_ambient_module_names() =
             Some(ambient_modules.unwrap_or_default());
+    }
+
+    pub(super) fn collect_module_references(
+        &self,
+        imports: &mut Option<Vec<Gc<Node>>>,
+        file: &Node,
+        is_external_module_file: bool,
+        module_augmentations: &mut Option<Vec<Gc<Node>>>,
+        ambient_modules: &mut Option<Vec<String>>,
+        node: &Node, /*Statement*/
+        in_ambient_module: bool,
+    ) {
+        if is_any_import_or_re_export(node) {
+            let module_name_expr = get_external_module_name(node);
+            if let Some(module_name_expr) = module_name_expr.as_ref().filter(|module_name_expr| {
+                is_string_literal(module_name_expr) && {
+                    let module_name_text = module_name_expr.as_string_literal().text();
+                    !module_name_text.is_empty()
+                        && (!in_ambient_module
+                            || !is_external_module_name_relative(&module_name_text))
+                }
+            }) {
+                set_parent_recursive(Some(node), false);
+                append(
+                    imports.get_or_insert_with(|| vec![]),
+                    Some(module_name_expr.clone()),
+                );
+                if !self.uses_uri_style_node_core_modules()
+                    && self.current_node_modules_depth() == 0
+                    && !file.as_source_file().is_declaration_file()
+                {
+                    self.set_uses_uri_style_node_core_modules(starts_with(
+                        &module_name_expr.as_string_literal().text(),
+                        "node:",
+                    ));
+                }
+            }
+        } else if is_module_declaration(node) {
+            if is_ambient_module(node)
+                && (in_ambient_module
+                    || has_syntactic_modifier(node, ModifierFlags::Ambient)
+                    || file.as_source_file().is_declaration_file())
+            {
+                let node_name = node.as_named_declaration().name();
+                node_name.set_parent(node.node_wrapper());
+                let name_text = get_text_of_identifier_or_literal(&node_name);
+                if is_external_module_file
+                    || (in_ambient_module && !is_external_module_name_relative(&name_text))
+                {
+                    module_augmentations
+                        .get_or_insert_with(|| vec![])
+                        .push(node_name);
+                } else if !in_ambient_module {
+                    if file.as_source_file().is_declaration_file() {
+                        ambient_modules
+                            .get_or_insert_with(|| vec![])
+                            .push(name_text.into_owned());
+                    }
+                    let body = node.as_module_declaration().body.as_ref();
+                    if let Some(body) = body {
+                        for statement in &body.as_module_block().statements {
+                            self.collect_module_references(
+                                imports,
+                                file,
+                                is_external_module_file,
+                                module_augmentations,
+                                ambient_modules,
+                                statement,
+                                true,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn collect_dynamic_import_or_require_calls(
+        &self,
+        is_java_script_file: bool,
+        imports: &mut Option<Vec<Gc<Node>>>,
+        file: &Node, /*SourceFile*/
+    ) {
+        lazy_static! {
+            static ref r: Regex = Regex::new(r"import|require").unwrap();
+        }
+        for match_ in r.find_iter(&file.as_source_file().text()) {
+            let ref node = self.get_node_at_position(
+                is_java_script_file,
+                file,
+                // TODO: I think this needs to use "char count" rather than "byte count" somehow?
+                match_.start().try_into().unwrap(),
+            );
+            if is_java_script_file && is_require_call(node, true) {
+                set_parent_recursive(Some(&**node), false);
+                if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
+                {
+                    append(
+                        imports.get_or_insert_with(|| vec![]),
+                        Some(node_arguments_0),
+                    );
+                }
+            } else if is_import_call(node) && {
+                let node_arguments = &node.as_call_expression().arguments;
+                node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0])
+            } {
+                set_parent_recursive(Some(&**node), false);
+                if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
+                {
+                    append(
+                        imports.get_or_insert_with(|| vec![]),
+                        Some(node_arguments_0),
+                    );
+                }
+            } else if is_literal_import_type_node(node) {
+                set_parent_recursive(Some(&**node), false);
+                append(
+                    imports.get_or_insert_with(|| vec![]),
+                    Some(
+                        node.as_import_type_node()
+                            .argument
+                            .as_literal_type_node()
+                            .literal
+                            .clone(),
+                    ),
+                );
+            }
+        }
     }
 }
 

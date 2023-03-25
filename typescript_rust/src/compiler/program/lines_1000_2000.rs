@@ -1,5 +1,5 @@
 use gc::{Finalize, Gc, GcCellRef, Trace};
-use std::ptr;
+use std::{cell::RefCell, io, ptr, rc::Rc};
 
 use super::{filter_semantic_diagnostics, handle_no_emit_options, ToPath};
 use crate::{
@@ -9,11 +9,13 @@ use crate::{
     get_transformers, is_trace_enabled, libs, map_defined, node_modules_path_part, out_file,
     package_id_to_string, remove_prefix, remove_suffix, skip_type_checking,
     source_file_may_be_emitted, string_contains, to_path as to_path_helper, trace,
-    CancellationTokenDebuggable, Comparison, CompilerOptions, CustomTransformers, Debug_,
-    Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason, MultiMap, Node,
-    Path, Program, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ScriptReferenceHost, SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused,
-    TypeChecker, TypeCheckerHost, WriteFileCallback,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
+    Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
+    FileReference, ModuleSpecifierResolutionHost, MultiMap, Node, Path, Program, ProgramBuildInfo,
+    RedirectTargetsMap, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileMayBeEmittedHost,
+    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, TypeChecker,
+    TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -211,8 +213,8 @@ impl Program {
         unimplemented!()
     }
 
-    pub fn get_file_include_reasons(&self) -> MultiMap<Path, FileIncludeReason> {
-        unimplemented!()
+    pub fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
+        self.file_reasons.clone()
     }
 
     pub fn get_source_file_(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
@@ -244,7 +246,7 @@ impl Program {
     pub fn emit(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        write_file_callback: Option<&dyn WriteFileCallback>,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         emit_only_dts_files: Option<bool>,
         transformers: Option<&CustomTransformers>,
@@ -266,10 +268,14 @@ impl Program {
         result
     }
 
+    pub(super) fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn emit_worker(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        write_file_callback: Option<&dyn WriteFileCallback>,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<&CustomTransformers>,
@@ -279,7 +285,7 @@ impl Program {
             let result = handle_no_emit_options(
                 self.rc_wrapper(),
                 source_file,
-                write_file_callback,
+                write_file_callback.clone(),
                 cancellation_token.clone(),
             );
             if let Some(result) = result {
@@ -621,14 +627,17 @@ impl Program {
 
     pub(super) fn get_emit_host(
         &self,
-        write_file_callback: Option<&dyn WriteFileCallback>,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
     ) -> Gc<Box<dyn EmitHost>> {
-        unimplemented!()
+        Gc::new(Box::new(ProgramEmitHost::new(
+            self.rc_wrapper(),
+            write_file_callback,
+        )))
     }
 
     pub(super) fn emit_build_info(
         &self,
-        write_file_callback: Option<&dyn WriteFileCallback>,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> EmitResult {
         unimplemented!()
@@ -638,6 +647,10 @@ impl Program {
         &self,
     ) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
+    }
+
+    pub(super) fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles*/>> {
+        unimplemented!()
     }
 
     pub fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
@@ -759,6 +772,204 @@ impl Program {
             ),
             self.get_program_diagnostics(source_file),
         )
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub struct ProgramEmitHost {
+    program: Gc<Box<Program>>,
+    write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+}
+
+impl ProgramEmitHost {
+    pub fn new(
+        program: Gc<Box<Program>>,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+    ) -> Self {
+        Self {
+            program,
+            write_file_callback,
+        }
+    }
+}
+
+impl EmitHost for ProgramEmitHost {
+    fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles | UnparsedSource*/>> {
+        self.program.get_prepend_nodes()
+    }
+
+    fn get_canonical_file_name(&self, file_name: &str) -> String {
+        self.program.get_canonical_file_name(file_name)
+    }
+
+    fn get_common_source_directory(&self) -> String {
+        self.program.get_common_source_directory()
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.program.current_directory().clone()
+    }
+
+    fn get_new_line(&self) -> String {
+        self.program.host().get_new_line()
+    }
+
+    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>> {
+        self.program.get_source_files()
+    }
+
+    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Gc<Node /*SourceFile*/>> {
+        self.program.get_lib_file_from_reference(ref_)
+    }
+
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+    ) {
+        if let Some(write_file_callback) = self.write_file_callback.clone() {
+            write_file_callback.call(
+                file_name,
+                data,
+                write_byte_order_mark,
+                on_error,
+                source_files,
+            )
+        } else {
+            self.program.host().write_file(
+                file_name,
+                data,
+                write_byte_order_mark,
+                on_error,
+                source_files,
+            )
+        }
+    }
+
+    fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
+        self.program.is_emit_blocked(emit_file_name)
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        CompilerHost::use_case_sensitive_file_names(&**self.program.host())
+    }
+
+    fn get_program_build_info(&self) -> Option<ProgramBuildInfo> {
+        // TODO: this looks like it's implemented as a dynamically-set property on Program in
+        // createBuilderProgram()
+        unimplemented!()
+    }
+
+    fn get_source_file_from_reference(
+        &self,
+        file: &Node, /*SourceFile | UnparsedSource*/
+        ref_: &FileReference,
+    ) -> Option<Gc<Node /*SourceFile*/>> {
+        self.program.get_source_file_from_reference(file, ref_)
+    }
+
+    fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
+        self.program.redirect_targets_map.clone()
+    }
+
+    fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost {
+        self
+    }
+}
+
+impl ScriptReferenceHost for ProgramEmitHost {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+        self.program.get_compiler_options()
+    }
+
+    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
+        self.program.get_source_file_(file_name)
+    }
+
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Gc<Node /*SourceFile*/>> {
+        self.program.get_source_file_by_path(path)
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.program.current_directory().clone()
+    }
+}
+
+impl ModuleSpecifierResolutionHost for ProgramEmitHost {
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        Some(CompilerHost::use_case_sensitive_file_names(
+            &**self.program.host(),
+        ))
+    }
+
+    fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
+        self.program.get_project_reference_redirect_(file_name)
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        self.program
+            .is_source_of_project_reference_redirect_(file_name)
+    }
+
+    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
+        Some(self.program.get_symlink_cache())
+    }
+
+    fn is_read_file_supported(&self) -> bool {
+        true
+    }
+
+    fn read_file(&self, f: &str) -> Option<io::Result<Option<String>>> {
+        Some(self.program.host().read_file(f))
+    }
+
+    fn file_exists(&self, f: &str) -> bool {
+        let path = self.program.to_path(f);
+        if self.program.get_source_file_by_path(&path).is_some() {
+            return true;
+        }
+        if contains(self.program.maybe_missing_file_paths().as_deref(), &path) {
+            return false;
+        }
+        self.program.host().file_exists(f)
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.program.current_directory().clone()
+    }
+
+    fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
+        self.program.redirect_targets_map.clone()
+    }
+
+    fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
+        self.program.get_file_include_reasons()
+    }
+}
+
+impl SourceFileMayBeEmittedHost for ProgramEmitHost {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+        self.program.get_compiler_options()
+    }
+
+    fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
+        self.program.is_source_file_from_external_library(file)
+    }
+
+    fn get_resolved_project_reference_to_redirect(
+        &self,
+        file_name: &str,
+    ) -> Option<Gc<ResolvedProjectReference>> {
+        self.program
+            .get_resolved_project_reference_to_redirect(file_name)
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        self.program
+            .is_source_of_project_reference_redirect_(file_name)
     }
 }
 

@@ -1130,13 +1130,13 @@ impl From<String> for ResolvedConfigFileName {
     }
 }
 
-pub trait WriteFileCallback {
+pub trait WriteFileCallback: Trace + Finalize {
     fn call(
         &self,
         file_name: &str,
         data: &str,
         write_byte_order_mark: bool,
-        on_error: Option<&dyn FnMut(String)>,
+        on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     );
 }

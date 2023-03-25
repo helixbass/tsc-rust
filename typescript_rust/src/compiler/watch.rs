@@ -429,15 +429,22 @@ pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) 
     };
     for file in &*program.get_source_files() {
         write(&to_file_name(file.clone(), Some(&relative_file_name)));
-        reasons.get(&file.as_source_file().path()).map(|reasons| {
-            reasons.iter().for_each(|reason| {
-                write(&format!(
-                    "  {}",
-                    file_include_reason_to_diagnostics(program, reason, Some(relative_file_name))
+        (*reasons)
+            .borrow()
+            .get(&file.as_source_file().path())
+            .map(|reasons| {
+                reasons.iter().for_each(|reason| {
+                    write(&format!(
+                        "  {}",
+                        file_include_reason_to_diagnostics(
+                            program,
+                            reason,
+                            Some(relative_file_name)
+                        )
                         .message_text
-                ))
-            })
-        });
+                    ))
+                })
+            });
         explain_if_file_is_redirect(file, Some(relative_file_name)).map(|diagnostics| {
             diagnostics
                 .iter()
@@ -825,7 +832,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
-    write_file: Option<&dyn WriteFileCallback>,
+    write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
@@ -920,7 +927,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
-    write_file: Option<&dyn WriteFileCallback>,
+    write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
