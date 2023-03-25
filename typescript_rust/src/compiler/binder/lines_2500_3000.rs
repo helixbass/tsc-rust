@@ -418,13 +418,8 @@ impl BinderType {
             SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => {
-                let mut delayed_type_aliases = self.maybe_delayed_type_aliases();
-                if delayed_type_aliases.is_none() {
-                    *delayed_type_aliases = Some(vec![]);
-                }
-                delayed_type_aliases
-                    .as_mut()
-                    .unwrap()
+                self.maybe_delayed_type_aliases()
+                    .get_or_insert_with(|| vec![])
                     .push(node.node_wrapper());
             }
             _ => (),
