@@ -17,17 +17,18 @@ use crate::{
     create_diagnostic_for_node_in_source_file, create_file_diagnostic,
     create_file_diagnostic_from_message_chain, create_symlink_cache, explain_if_file_is_redirect,
     file_extension_is, file_extension_is_one_of, file_include_reason_to_diagnostics, find,
-    get_allow_js_compiler_option, get_base_file_name, get_directory_path, get_emit_declarations,
-    get_emit_module_kind, get_emit_module_resolution_kind, get_emit_script_target,
-    get_error_span_for_node, get_property_assignment, get_referenced_file_location,
-    get_root_length, get_spelling_suggestion, get_strict_option_value,
-    get_ts_build_info_emit_output_file_path, get_ts_config_object_literal_expression,
-    has_json_module_emit_enabled, has_zero_or_one_asterisk_character, inverse_jsx_option_map,
-    is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
-    is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
-    is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs,
-    maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
-    remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
+    for_each_emitted_file, get_allow_js_compiler_option, get_base_file_name, get_directory_path,
+    get_emit_declarations, get_emit_module_kind, get_emit_module_resolution_kind,
+    get_emit_script_target, get_error_span_for_node, get_property_assignment,
+    get_referenced_file_location, get_root_length, get_spelling_suggestion,
+    get_strict_option_value, get_ts_build_info_emit_output_file_path,
+    get_ts_config_object_literal_expression, has_json_module_emit_enabled,
+    has_zero_or_one_asterisk_character, inverse_jsx_option_map, is_declaration_file_name,
+    is_external_module, is_identifier_text, is_in_js_file, is_incremental_compilation,
+    is_object_literal_expression, is_option_str_empty, is_reference_file_location,
+    is_referenced_file, is_source_file_js, lib_map, libs, maybe_for_each, out_file,
+    parse_isolated_entity_name, path_is_absolute, path_is_relative, remove_file_extension,
+    remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
     resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
     string_contains, supported_js_extensions_flat, to_file_name_lower_case, version,
     CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
@@ -935,9 +936,85 @@ impl Program {
         if self.options.no_emit != Some(true)
             && self.options.suppress_output_path_check != Some(true)
         {
-            // TODO
-            // unimplemented!()
-            // let emit_host = self.get_emit_host();
+            let emit_host = self.get_emit_host(None);
+            let mut emit_files_seen: HashSet<String> = Default::default();
+            for_each_emitted_file(
+                &**emit_host,
+                |emit_file_names, _| {
+                    if self.options.emit_declaration_only != Some(true) {
+                        self.verify_emit_file_path(
+                            emit_file_names.js_file_path.as_deref(),
+                            &mut emit_files_seen,
+                        );
+                    }
+                    self.verify_emit_file_path(
+                        emit_file_names.declaration_file_path.as_deref(),
+                        &mut emit_files_seen,
+                    );
+                },
+                Option::<Gc<Node>>::None,
+                None,
+                None,
+                None,
+            );
+        }
+    }
+
+    pub(super) fn verify_emit_file_path(
+        &self,
+        emit_file_name: Option<&str>,
+        emit_files_seen: &mut HashSet<String>,
+    ) {
+        if let Some(emit_file_name) =
+            emit_file_name.filter(|emit_file_name| !emit_file_name.is_empty())
+        {
+            let emit_file_path = self.to_path(emit_file_name);
+            if self.files_by_name().contains_key(&*emit_file_path) {
+                let mut chain: Option<DiagnosticMessageChain> = None;
+                if self
+                    .options
+                    .config_file_path
+                    .as_ref()
+                    .filter(|options_config_file_path| !options_config_file_path.is_empty())
+                    .is_none()
+                {
+                    chain = Some(chain_diagnostic_messages(
+                        None,
+                        &Diagnostics::Adding_a_tsconfig_json_file_will_help_organize_projects_that_contain_both_TypeScript_and_JavaScript_files_Learn_more_at_https_Colon_Slash_Slashaka_ms_Slashtsconfig,
+                        None,
+                    ));
+                }
+                chain = Some(chain_diagnostic_messages(
+                    chain,
+                    &Diagnostics::Cannot_write_file_0_because_it_would_overwrite_input_file,
+                    Some(vec![emit_file_name.to_owned()]),
+                ));
+                self.block_emitting_of_file(
+                    emit_file_name,
+                    Gc::new(
+                        create_compiler_diagnostic_from_message_chain(chain.unwrap(), None).into(),
+                    ),
+                );
+            }
+
+            let emit_file_key = if !CompilerHost::use_case_sensitive_file_names(&**self.host()) {
+                to_file_name_lower_case(&emit_file_path)
+            } else {
+                (&*emit_file_path).to_owned()
+            };
+            if emit_files_seen.contains(&emit_file_key) {
+                self.block_emitting_of_file(
+                    emit_file_name,
+                    Gc::new(create_compiler_diagnostic(
+                        &Diagnostics::Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files,
+                        Some(vec![
+                            emit_file_name.to_owned()
+                        ])
+                    ).into())
+                );
+            } else {
+                emit_files_seen.insert(emit_file_key);
+            }
         }
     }
 

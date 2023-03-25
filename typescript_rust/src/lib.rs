@@ -67,7 +67,8 @@ pub use compiler::core_public::{
 pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::{
-    create_printer, get_output_extension, get_ts_build_info_emit_output_file_path, TempFlags,
+    create_printer, for_each_emitted_file, for_each_emitted_file_returns, get_output_extension,
+    get_ts_build_info_emit_output_file_path, TempFlags,
 };
 use compiler::emitter::{
     emit_files, get_common_source_directory, get_common_source_directory_of_config,
@@ -464,9 +465,9 @@ pub use compiler::utilities::{
     get_right_most_assigned_expression, get_root_declaration, get_script_target_features,
     get_selected_effective_modifier_flags, get_semantic_jsx_children,
     get_set_accessor_value_parameter, get_source_file_of_module, get_source_file_of_node,
-    get_source_text_of_node_from_source_file, get_span_of_token_at_position,
-    get_strict_option_value, get_super_container, get_supported_extensions,
-    get_supported_extensions_with_json_if_resolve_json_module,
+    get_source_files_to_emit, get_source_text_of_node_from_source_file,
+    get_span_of_token_at_position, get_strict_option_value, get_super_container,
+    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module,
     get_symbol_name_for_private_identifier, get_syntactic_modifier_flags,
     get_text_of_identifier_or_literal, get_text_of_node, get_text_of_node_from_source_text,
     get_text_of_property_name, get_this_container, get_this_parameter, get_token_pos_of_node,
@@ -544,7 +545,7 @@ pub use compiler::utilities::{
     unused_label_is_error, using_single_line_string_writer, walk_up_parenthesized_expressions,
     walk_up_parenthesized_types, walk_up_parenthesized_types_and_get_parent_and_child,
     write_comment_range, write_file_ensuring_directories, AssignmentKind, Associativity,
-    ClassImplementingOrExtendingExpressionWithTypeArguments, FileMatcherPatterns,
+    ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames, FileMatcherPatterns,
     FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax, OperatorPrecedence,
     StringOrPattern, SymlinkCache,
 };

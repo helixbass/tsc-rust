@@ -977,6 +977,7 @@ pub fn get_paths_base_path<TGetCurrentDirectory: Fn() -> Option<String>>(
     options.base_url.clone().or_else(|| Some(Debug_.check_defined(options.paths_base_path.clone().or_else(|| get_current_directory()), Some("Encounted 'paths' without a 'baseUrl', config file, or host 'getCurrentDirectory'."))))
 }
 
+#[derive(Default)]
 pub struct EmitFileNames {
     pub js_file_path: Option<String>,
     pub source_map_file_path: Option<String>,

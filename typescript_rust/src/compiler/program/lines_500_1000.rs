@@ -1399,7 +1399,13 @@ impl Program {
             .set(Some(uses_uri_style_node_core_modules));
     }
 
-    pub(super) fn files_by_name(
+    pub(super) fn files_by_name(&self) -> GcCellRef<HashMap<String, FilesByNameValue>> {
+        GcCellRef::map(self.files_by_name.borrow(), |files_by_name| {
+            files_by_name.as_ref().unwrap()
+        })
+    }
+
+    pub(super) fn files_by_name_mut(
         &self,
     ) -> GcCellRefMut<Option<HashMap<String, FilesByNameValue>>, HashMap<String, FilesByNameValue>>
     {

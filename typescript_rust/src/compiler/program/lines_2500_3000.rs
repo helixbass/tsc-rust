@@ -656,14 +656,14 @@ impl Program {
     ) {
         let file = file.map(|file| file.borrow().node_wrapper());
         if let Some(redirected_path) = redirected_path {
-            self.files_by_name().insert(
+            self.files_by_name_mut().insert(
                 redirected_path.to_string(),
                 match file.as_ref() {
                     None => FilesByNameValue::Undefined,
                     Some(file) => FilesByNameValue::SourceFile(file.clone()),
                 },
             );
-            self.files_by_name().insert(
+            self.files_by_name_mut().insert(
                 path.to_string(),
                 match file.as_ref() {
                     None => FilesByNameValue::False,
@@ -671,7 +671,7 @@ impl Program {
                 },
             );
         } else {
-            self.files_by_name().insert(
+            self.files_by_name_mut().insert(
                 path.to_string(),
                 match file.as_ref() {
                     None => FilesByNameValue::Undefined,
