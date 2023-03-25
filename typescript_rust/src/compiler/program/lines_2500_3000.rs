@@ -14,8 +14,8 @@ use crate::{
     node_modules_path_part, out_file, package_id_to_string, resolve_module_name,
     set_resolved_type_reference_directive, string_contains, to_file_name_lower_case, AsDoubleDeref,
     CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
-    FileIncludeKind, FileIncludeReason, FileReference, ModifierFlags, ModuleResolutionKind, Node,
-    NodeArray, NodeInterface, PackageId, Path, Program, ReadonlyTextRange, ReferencedFile,
+    FileIncludeKind, FileIncludeReason, FileReference, ModuleResolutionKind, Node, NodeArray,
+    NodeInterface, PackageId, Path, Program, ReadonlyTextRange, ReferencedFile,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceOfProjectReferenceRedirect, SyntaxKind,
 };

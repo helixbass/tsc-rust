@@ -5,19 +5,22 @@ use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
 use crate::{
-    combine_paths, compute_common_source_directory_of_filenames, directory_separator_str, factory,
-    file_extension_is, file_extension_is_one_of, get_base_file_name, get_directory_path,
-    get_emit_module_kind_from_module_and_target, get_new_line_character,
-    get_normalized_absolute_path, get_relative_path_from_directory, get_source_files_to_emit,
-    is_expression, is_identifier, is_incremental_compilation, is_option_str_empty, is_source_file,
+    combine_paths, compare_paths, compute_common_source_directory_of_filenames,
+    directory_separator_str, factory, file_extension_is, file_extension_is_one_of,
+    get_are_declaration_maps_enabled, get_base_file_name, get_declaration_emit_output_file_path,
+    get_directory_path, get_emit_declarations, get_emit_module_kind_from_module_and_target,
+    get_new_line_character, get_normalized_absolute_path, get_own_emit_output_file_path,
+    get_relative_path_from_directory, get_source_files_to_emit, is_expression, is_identifier,
+    is_incremental_compilation, is_json_source_file, is_option_str_empty, is_source_file,
     last_or_undefined, no_emit_notification, no_emit_substitution, normalize_slashes, out_file,
     remove_file_extension, resolve_path, with_synthetic_factory_and_factory,
     BaseNodeFactorySynthetic, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
-    BundleFileSectionKind, CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo,
-    EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost, EmitResolverDebuggable, EmitResult,
-    EmitTextWriter, EmitTransformers, Extension, JsxEmit, ListFormat, Node, NodeArray, NodeId,
-    NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer, PrinterOptions,
-    ScriptReferenceHost, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
+    BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
+    DetachedCommentInfo, EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost,
+    EmitResolverDebuggable, EmitResult, EmitTextWriter, EmitTransformers, Extension, JsxEmit,
+    ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine,
+    PrintHandlers, Printer, PrinterOptions, ScriptReferenceHost, SourceMapGenerator,
+    SourceMapSource, SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -193,12 +196,83 @@ pub fn get_ts_build_info_emit_output_file_path(options: &CompilerOptions) -> Opt
     ))
 }
 
+pub(crate) fn get_output_paths_for_bundle(
+    options: &CompilerOptions,
+    force_dts_paths: bool,
+) -> EmitFileNames {
+    unimplemented!()
+}
+
 pub(crate) fn get_output_paths_for(
     source_file: &Node, /*SourceFile | Bundle*/
     host: &dyn EmitHost,
     force_dts_paths: bool,
 ) -> EmitFileNames {
-    unimplemented!()
+    let options = ScriptReferenceHost::get_compiler_options(host);
+    if source_file.kind() == SyntaxKind::Bundle {
+        get_output_paths_for_bundle(&options, force_dts_paths)
+    } else {
+        let source_file_as_source_file = source_file.as_source_file();
+        let own_output_file_path = get_own_emit_output_file_path(
+            &source_file_as_source_file.file_name(),
+            host,
+            get_output_extension(&source_file_as_source_file.file_name(), &options).to_str(),
+        );
+        let is_json_file = is_json_source_file(source_file);
+        let is_json_emitted_to_same_location = is_json_file
+            && compare_paths(
+                &source_file_as_source_file.file_name(),
+                &own_output_file_path,
+                Some(EmitHost::get_current_directory(host)),
+                Some(!EmitHost::use_case_sensitive_file_names(host)),
+            ) == Comparison::EqualTo;
+        let js_file_path =
+            if options.emit_declaration_only == Some(true) || is_json_emitted_to_same_location {
+                None
+            } else {
+                Some(own_output_file_path)
+            };
+        let source_map_file_path = if js_file_path
+            .as_ref()
+            .filter(|js_file_path| !js_file_path.is_empty())
+            .is_none()
+            || is_json_source_file(source_file)
+        {
+            None
+        } else {
+            get_source_map_file_path(js_file_path.as_ref().unwrap(), &options)
+        };
+        let declaration_file_path =
+            if force_dts_paths || get_emit_declarations(&options) && !is_json_file {
+                Some(get_declaration_emit_output_file_path(
+                    &source_file_as_source_file.file_name(),
+                    host,
+                ))
+            } else {
+                None
+            };
+        let declaration_map_path = declaration_file_path
+            .as_ref()
+            .filter(|declaration_file_path| {
+                !declaration_file_path.is_empty() && get_are_declaration_maps_enabled(&options)
+            })
+            .map(|declaration_file_path| format!("{declaration_file_path}.map"));
+        EmitFileNames {
+            js_file_path,
+            source_map_file_path,
+            declaration_file_path,
+            declaration_map_path,
+            build_info_path: None,
+        }
+    }
+}
+
+fn get_source_map_file_path(js_file_path: &str, options: &CompilerOptions) -> Option<String> {
+    if options.source_map == Some(true) && options.inline_source_map != Some(true) {
+        Some(format!("{js_file_path}.map"))
+    } else {
+        None
+    }
 }
 
 pub fn get_output_extension(file_name: &str, options: &CompilerOptions) -> Extension {

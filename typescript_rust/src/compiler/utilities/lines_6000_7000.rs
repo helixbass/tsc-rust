@@ -681,6 +681,10 @@ fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> Compil
     }
 }
 
+pub fn get_are_declaration_maps_enabled(options: &CompilerOptions) -> bool {
+    get_emit_declarations(options) && options.declaration_map == Some(true)
+}
+
 pub fn get_es_module_interop(compiler_options: &CompilerOptions) -> Option<bool> {
     if compiler_options.es_module_interop.is_some() {
         return compiler_options.es_module_interop;
