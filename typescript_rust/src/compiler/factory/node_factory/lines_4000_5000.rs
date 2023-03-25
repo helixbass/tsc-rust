@@ -408,9 +408,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         JSDocTypedefTag::new(
             node,
-            type_expression,
             full_name.clone(),
             get_jsdoc_type_alias_name(full_name),
+            type_expression,
         )
     }
 
