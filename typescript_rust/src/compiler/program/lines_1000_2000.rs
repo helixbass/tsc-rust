@@ -1,5 +1,9 @@
 use gc::{Finalize, Gc, GcCellRef, Trace};
-use std::{cell::RefCell, io, ptr, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    io, ptr,
+    rc::Rc,
+};
 
 use super::{create_prepend_nodes, filter_semantic_diagnostics, handle_no_emit_options, ToPath};
 use crate::{
@@ -197,8 +201,10 @@ impl Program {
             .unwrap_or(false)
     }
 
-    pub fn get_root_file_names(&self) -> &[String] {
-        unimplemented!()
+    pub fn get_root_file_names(&self) -> Ref<Vec<String>> {
+        Ref::map(self.root_names.borrow(), |root_names| {
+            root_names.as_ref().unwrap()
+        })
     }
 
     pub fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node>>> {

@@ -1493,8 +1493,24 @@ impl FileIncludeReason {
         }
     }
 
+    pub fn as_root_file(&self) -> &RootFile {
+        enum_unwrapped!(self, [FileIncludeReason, RootFile])
+    }
+
     pub fn as_referenced_file(&self) -> &ReferencedFile {
         enum_unwrapped!(self, [FileIncludeReason, ReferencedFile])
+    }
+
+    pub fn as_project_reference_file(&self) -> &ProjectReferenceFile {
+        enum_unwrapped!(self, [FileIncludeReason, ProjectReferenceFile])
+    }
+
+    pub fn as_automatic_type_directive_file(&self) -> &AutomaticTypeDirectiveFile {
+        enum_unwrapped!(self, [FileIncludeReason, AutomaticTypeDirectiveFile])
+    }
+
+    pub fn as_lib_file(&self) -> &LibFile {
+        enum_unwrapped!(self, [FileIncludeReason, LibFile])
     }
 }
 

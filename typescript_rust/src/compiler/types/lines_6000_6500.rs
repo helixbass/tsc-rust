@@ -2367,6 +2367,10 @@ impl CommandLineOption {
         enum_unwrapped!(self, [CommandLineOption, CommandLineOptionOfListType])
     }
 
+    pub fn as_command_line_option_of_custom_type(&self) -> &CommandLineOptionOfCustomType {
+        enum_unwrapped!(self, [CommandLineOption, CommandLineOptionOfCustomType])
+    }
+
     pub fn as_ts_config_only_option(&self) -> &TsConfigOnlyOption {
         enum_unwrapped!(self, [CommandLineOption, TsConfigOnlyOption])
     }

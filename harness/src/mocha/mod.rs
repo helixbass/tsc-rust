@@ -118,7 +118,7 @@ fn set_up_thread_pool_listener(job_channel_receiver: Receiver<JobChannelMessage>
                         NUM_PASSES.fetch_add(1, Ordering::Relaxed);
                     }
                     Err(test_failure) => {
-                        let failure = FailureInfo::new(test_failure, enclosing_descriptions);
+                        let failure = FailureInfo::new(&test_failure, enclosing_descriptions);
                         if config().stream_results {
                             println!("FAIL #{}", get_failures().lock().unwrap().len() + 1);
                             print_failure(&failure);
@@ -127,6 +127,7 @@ fn set_up_thread_pool_listener(job_channel_receiver: Receiver<JobChannelMessage>
                         }
                         io::stdout().flush().unwrap();
                         get_failures().lock().unwrap().push(failure);
+                        // panic::resume_unwind(test_failure);
                     }
                 }
             });
@@ -302,16 +303,16 @@ struct FailureInfo {
 }
 
 impl FailureInfo {
-    pub fn new(panic: Box<dyn Any + Send>, enclosing_descriptions: Vec<String>) -> Self {
+    pub fn new(panic: &Box<dyn Any + Send>, enclosing_descriptions: Vec<String>) -> Self {
         let panic_type_id = panic.type_id();
         Self {
             enclosing_descriptions,
-            panic_message: match panic.downcast::<String>() {
-                Ok(panic_string) => *panic_string,
-                Err(panic) => match panic.downcast::<&str>() {
-                    Ok(panic_string) => (*panic_string).to_owned(),
-                    Err(_) => format!("Got non-string panic: {:?}", panic_type_id),
-                },
+            panic_message: if let Some(panic_string) = panic.downcast_ref::<String>() {
+                panic_string.clone()
+            } else if let Some(panic_str) = panic.downcast_ref::<&str>() {
+                (*panic_str).to_owned()
+            } else {
+                format!("Got non-string panic: {:?}", panic_type_id)
             },
         }
     }
