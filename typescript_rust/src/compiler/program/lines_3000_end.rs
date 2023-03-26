@@ -15,31 +15,32 @@ use crate::{
     chain_diagnostic_messages, chain_diagnostic_messages_multiple, compare_paths, contains_path,
     create_compiler_diagnostic, create_compiler_diagnostic_from_message_chain,
     create_diagnostic_for_node_in_source_file, create_file_diagnostic,
-    create_file_diagnostic_from_message_chain, create_symlink_cache, explain_if_file_is_redirect,
-    file_extension_is, file_extension_is_one_of, file_include_reason_to_diagnostics, find,
-    for_each_emitted_file, get_allow_js_compiler_option, get_base_file_name, get_directory_path,
-    get_emit_declarations, get_emit_module_kind, get_emit_module_resolution_kind,
-    get_emit_script_target, get_error_span_for_node, get_property_assignment,
-    get_referenced_file_location, get_root_length, get_spelling_suggestion,
-    get_strict_option_value, get_ts_build_info_emit_output_file_path,
-    get_ts_config_object_literal_expression, has_json_module_emit_enabled,
-    has_zero_or_one_asterisk_character, inverse_jsx_option_map, is_declaration_file_name,
-    is_external_module, is_identifier_text, is_in_js_file, is_incremental_compilation,
-    is_object_literal_expression, is_option_str_empty, is_reference_file_location,
-    is_referenced_file, is_source_file_js, lib_map, libs, maybe_for_each, out_file,
-    parse_isolated_entity_name, path_is_absolute, path_is_relative, remove_file_extension,
-    remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
+    create_file_diagnostic_from_message_chain, create_input_files, create_symlink_cache,
+    explain_if_file_is_redirect, file_extension_is, file_extension_is_one_of,
+    file_include_reason_to_diagnostics, find, for_each_emitted_file, get_allow_js_compiler_option,
+    get_base_file_name, get_directory_path, get_emit_declarations, get_emit_module_kind,
+    get_emit_module_resolution_kind, get_emit_script_target, get_error_span_for_node,
+    get_output_paths_for_bundle, get_property_assignment, get_referenced_file_location,
+    get_root_length, get_spelling_suggestion, get_strict_option_value,
+    get_ts_build_info_emit_output_file_path, get_ts_config_object_literal_expression,
+    has_json_module_emit_enabled, has_zero_or_one_asterisk_character, inverse_jsx_option_map,
+    is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
+    is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
+    is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs,
+    maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
+    remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
     resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
     string_contains, supported_js_extensions_flat, to_file_name_lower_case, version,
     CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
     ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, DirectoryStructureHost,
-    EmitResult, Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
-    FilePreprocessingDiagnosticsKind, FilePreprocessingFileExplainingDiagnostic,
-    FilePreprocessingReferencedDiagnostic, FileReference, GetCanonicalFileName, JsxEmit,
-    ModuleKind, ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ParseConfigFileHost,
-    ParseConfigHost, Path, Program, ProjectReference, ReferencedFile, ResolvedConfigFileName,
+    EmitFileNames, EmitResult, Extension, FileIncludeKind, FileIncludeReason,
+    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
+    FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
+    FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
+    Program, ProjectReference, ReadFileCallback, ReferencedFile, ResolvedConfigFileName,
     ResolvedModuleFull, ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget,
     SymlinkCache, SyntaxKind, WriteFileCallback,
 };
@@ -2130,6 +2131,55 @@ impl ConfigFileDiagnosticsReporter for ParseConfigHostFromCompilerHostLike {
         self.host
             .on_un_recoverable_config_file_diagnostic(diagnostic)
     }
+}
+
+pub(crate) fn create_prepend_nodes(
+    project_references: Option<&[Rc<ProjectReference>]>,
+    mut get_command_line: impl FnMut(&ProjectReference, usize) -> Option<Gc<ParsedCommandLine>>,
+    read_file: Gc<Box<dyn ReadFileCallback>>,
+) -> Vec<Gc<Node /*InputFiles*/>> {
+    if project_references.is_none() {
+        return vec![];
+    }
+    let project_references = project_references.unwrap();
+    let mut nodes: Vec<Gc<Node /*InputFiles*/>> = vec![];
+    for (i, ref_) in project_references.into_iter().enumerate() {
+        let resolved_ref_opts = get_command_line(ref_, i);
+        if ref_.prepend == Some(true) {
+            if let Some(resolved_ref_opts) = resolved_ref_opts
+            /*&& resolvedRefOpts.options*/
+            {
+                let out = out_file(&resolved_ref_opts.options);
+                if out.filter(|out| !out.is_empty()).is_none() {
+                    continue;
+                }
+                let out = out.unwrap();
+
+                let EmitFileNames {
+                    js_file_path,
+                    source_map_file_path,
+                    declaration_file_path,
+                    declaration_map_path,
+                    build_info_path,
+                } = get_output_paths_for_bundle(&resolved_ref_opts.options, true);
+                let node = create_input_files(
+                    read_file.clone(),
+                    js_file_path.as_deref().unwrap(),
+                    source_map_file_path.as_deref(),
+                    declaration_file_path.as_deref(),
+                    declaration_map_path.as_deref(),
+                    build_info_path.as_deref(),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                );
+                nodes.push(node);
+            }
+        }
+    }
+    nodes
 }
 
 pub fn resolve_project_reference_path(ref_: &ProjectReference) -> ResolvedConfigFileName {

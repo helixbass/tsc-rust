@@ -1,7 +1,7 @@
 use gc::{Finalize, Gc, GcCellRef, Trace};
 use std::{cell::RefCell, io, ptr, rc::Rc};
 
-use super::{filter_semantic_diagnostics, handle_no_emit_options, ToPath};
+use super::{create_prepend_nodes, filter_semantic_diagnostics, handle_no_emit_options, ToPath};
 use crate::{
     compare_values, concatenate, contains, contains_path, create_type_checker, emit_files,
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
@@ -12,10 +12,10 @@ use crate::{
     CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
     Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
     FileReference, ModuleSpecifierResolutionHost, MultiMap, Node, Path, Program, ProgramBuildInfo,
-    RedirectTargetsMap, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileMayBeEmittedHost,
-    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, TypeChecker,
-    TypeCheckerHost, WriteFileCallback,
+    ReadFileCallback, RedirectTargetsMap, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
+    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
+    StructureIsReused, SymlinkCache, TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -650,7 +650,23 @@ impl Program {
     }
 
     pub(super) fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles*/>> {
-        unimplemented!()
+        create_prepend_nodes(
+            self.maybe_project_references().as_deref(),
+            |_ref, index| {
+                self.maybe_resolved_project_references()
+                    .as_ref()
+                    .unwrap()
+                    .get(index)
+                    .cloned()
+                    .flatten()
+                    .map(|resolved_project_reference| {
+                        resolved_project_reference.command_line.clone()
+                    })
+            },
+            Gc::new(Box::new(GetPrependNodesReadFileCallback::new(
+                self.rc_wrapper(),
+            ))),
+        )
     }
 
     pub fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
@@ -772,6 +788,31 @@ impl Program {
             ),
             self.get_program_diagnostics(source_file),
         )
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+struct GetPrependNodesReadFileCallback {
+    program: Gc<Box<Program>>,
+}
+
+impl GetPrependNodesReadFileCallback {
+    fn new(program: Gc<Box<Program>>) -> Self {
+        Self { program }
+    }
+}
+
+impl ReadFileCallback for GetPrependNodesReadFileCallback {
+    fn call(&self, file_name: &str) -> Option<String> {
+        let path = self.program.to_path(file_name);
+        let source_file = self.program.get_source_file_by_path(&path);
+        if let Some(source_file) = source_file {
+            Some(source_file.as_source_file().text().clone())
+        } else if self.program.files_by_name().contains_key(&*path) {
+            None
+        } else {
+            self.program.host().read_file(&path).ok().flatten()
+        }
     }
 }
 

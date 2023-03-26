@@ -599,7 +599,7 @@ pub struct BundleFileInfo {
 
 // TODO: remove the #[unsafe_ignore_trace] in InputFiles if BuildInfo ends up needing to be traversed
 // #[derive(Trace, Finalize)]
-pub(crate) type BuildInfo = ();
+pub type BuildInfo = ();
 
 pub trait PrintHandlers: Trace + Finalize {
     fn has_global_name(&self, name: &str) -> Option<bool> {

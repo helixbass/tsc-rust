@@ -14,13 +14,13 @@ use crate::{
     is_incremental_compilation, is_json_source_file, is_option_str_empty, is_source_file,
     last_or_undefined, no_emit_notification, no_emit_substitution, normalize_slashes, out_file,
     remove_file_extension, resolve_path, with_synthetic_factory_and_factory,
-    BaseNodeFactorySynthetic, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
-    BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
-    DetachedCommentInfo, EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost,
-    EmitResolverDebuggable, EmitResult, EmitTextWriter, EmitTransformers, Extension, JsxEmit,
-    ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine,
-    PrintHandlers, Printer, PrinterOptions, ScriptReferenceHost, SourceMapGenerator,
-    SourceMapSource, SyntaxKind, TextRange,
+    BaseNodeFactorySynthetic, BuildInfo, BundleFileInfo, BundleFileSection,
+    BundleFileSectionInterface, BundleFileSectionKind, Comparison, CompilerOptions,
+    CurrentParenthesizerRule, Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitFileNames,
+    EmitHint, EmitHost, EmitResolverDebuggable, EmitResult, EmitTextWriter, EmitTransformers,
+    Extension, JsxEmit, ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules,
+    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, ScriptReferenceHost,
+    SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -371,6 +371,10 @@ pub(crate) fn emit_files(
     only_build_info: Option<bool>,
     force_dts_emit: Option<bool>,
 ) -> EmitResult {
+    unimplemented!()
+}
+
+pub(crate) fn get_build_info(build_info_text: &str) -> Rc<BuildInfo> {
     unimplemented!()
 }
 

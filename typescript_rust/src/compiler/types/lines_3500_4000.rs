@@ -15,12 +15,12 @@ use super::{
     SymbolTable, TypeChecker,
 };
 use crate::{
-    ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
+    get_build_info, ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
     BundleFileSection, CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions,
-    DiagnosticCache, DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue,
+    Debug_, DiagnosticCache, DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue,
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
-    ProjectReference, RawSourceMap, RedirectTargetsMap, ResolvedProjectReference,
+    ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type,
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
     __String,
@@ -838,38 +838,242 @@ impl Bundle {
 }
 
 #[derive(Debug, Trace, Finalize)]
+struct InputFilesInitializedWithReadFileCallback {
+    read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+    #[unsafe_ignore_trace]
+    cache: RefCell<HashMap<String, Option<String>>>,
+    declaration_text_or_javascript_path: String,
+    javascript_map_path: Option<String>,
+    javascript_map_text_or_declaration_path: String,
+    declaration_map_path: Option<String>,
+    declaration_map_text_or_build_info_path: Option<String>,
+    #[unsafe_ignore_trace]
+    build_info: RefCell<Option<Option<Rc<BuildInfo>>>>,
+}
+
+impl InputFilesInitializedWithReadFileCallback {
+    pub fn new(
+        read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+        declaration_text_or_javascript_path: String,
+        javascript_map_path: Option<String>,
+        javascript_map_text_or_declaration_path: String,
+        declaration_map_path: Option<String>,
+        declaration_map_text_or_build_info_path: Option<String>,
+    ) -> Self {
+        Self {
+            read_file_callback,
+            cache: Default::default(),
+            declaration_text_or_javascript_path,
+            javascript_map_path,
+            javascript_map_text_or_declaration_path,
+            declaration_map_path,
+            declaration_map_text_or_build_info_path,
+            build_info: Default::default(),
+        }
+    }
+
+    fn cache_mut(&self) -> RefMut<HashMap<String, Option<String>>> {
+        self.cache.borrow_mut()
+    }
+
+    fn text_getter(&self, path: Option<&str>) -> Option<String> {
+        let path = path?;
+        let mut cache = self.cache_mut();
+        let mut value = cache.get(path).cloned();
+        if value.is_none() {
+            value = self.read_file_callback.call(path).map(|value| Some(value));
+            cache.insert(
+                path.to_owned(),
+                match value.clone() {
+                    Some(Some(value)) => Some(value),
+                    None => None,
+                    _ => unreachable!(),
+                },
+            );
+        }
+        value.flatten()
+    }
+
+    fn defined_text_getter(&self, path: &str) -> String {
+        let result = self.text_getter(Some(path));
+        result.unwrap_or_else(|| format!("/* Input file {path} was missing */\r\n"))
+    }
+
+    fn get_and_cache_build_info(
+        &self,
+        mut get_text: impl FnMut() -> Option<String>,
+    ) -> Option<Rc<BuildInfo>> {
+        let mut build_info = self.build_info.borrow_mut();
+        if build_info.is_none() {
+            let result = get_text();
+            *build_info = Some(result.map(|result| get_build_info(&result)));
+        }
+        build_info.clone().unwrap()
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+enum InputFilesInitializedState {
+    Uninitialized,
+    InitializedWithReadFileCallback(InputFilesInitializedWithReadFileCallback),
+    InitializedWithString(String),
+}
+
+impl InputFilesInitializedState {
+    fn as_initialized_with_read_file_callback(&self) -> &InputFilesInitializedWithReadFileCallback {
+        if let Self::InitializedWithReadFileCallback(value) = self {
+            Some(value)
+        } else {
+            None
+        }
+        .unwrap()
+    }
+}
+
+impl Default for InputFilesInitializedState {
+    fn default() -> Self {
+        Self::Uninitialized
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct InputFiles {
     _node: BaseNode,
+    fallback_javascript_text: String,
+    fallback_declaration_text: String,
+    initialized_state: InputFilesInitializedState,
     pub javascript_path: Option<String>,
-    pub javascript_text: String,
     pub javascript_map_path: Option<String>,
-    pub javascript_map_text: Option<String>,
     pub declaration_path: Option<String>,
-    pub declaration_text: String,
     pub declaration_map_path: Option<String>,
-    pub declaration_map_text: Option<String>,
     pub(crate) build_info_path: Option<String>,
-    #[unsafe_ignore_trace]
-    pub(crate) build_info: Option<BuildInfo>,
     pub(crate) old_file_of_current_emit: Option<bool>,
 }
 
 impl InputFiles {
-    pub fn new(base_node: BaseNode, javascript_text: String, declaration_text: String) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        fallback_javascript_text: String,
+        fallback_declaration_text: String,
+    ) -> Self {
         Self {
             _node: base_node,
-            javascript_text,
-            declaration_text,
+            fallback_javascript_text,
+            fallback_declaration_text,
+            initialized_state: Default::default(),
             javascript_path: None,
             javascript_map_path: None,
-            javascript_map_text: None,
             declaration_path: None,
             declaration_map_path: None,
-            declaration_map_text: None,
             build_info_path: None,
-            build_info: None,
             old_file_of_current_emit: None,
+        }
+    }
+
+    pub fn initialize_with_read_file_callback(
+        &mut self,
+        read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+        declaration_text_or_javascript_path: String,
+        javascript_map_path: Option<String>,
+        javascript_map_text_or_declaration_path: Option<String>,
+        declaration_map_path: Option<String>,
+        declaration_map_text_or_build_info_path: Option<String>,
+    ) {
+        let javascript_map_text_or_declaration_path =
+            Debug_.check_defined(javascript_map_text_or_declaration_path, None);
+        self.initialized_state = InputFilesInitializedState::InitializedWithReadFileCallback(
+            InputFilesInitializedWithReadFileCallback::new(
+                read_file_callback,
+                declaration_text_or_javascript_path.clone(),
+                javascript_map_path.clone(),
+                javascript_map_text_or_declaration_path.clone(),
+                declaration_map_path.clone(),
+                declaration_map_text_or_build_info_path.clone(),
+            ),
+        );
+        self.javascript_path = Some(declaration_text_or_javascript_path);
+        self.javascript_map_path = javascript_map_path;
+        self.declaration_path = Some(javascript_map_text_or_declaration_path);
+        self.declaration_map_path = declaration_map_path;
+        self.build_info_path = declaration_map_text_or_build_info_path;
+    }
+
+    pub fn javascript_text(&self) -> String {
+        match &self.initialized_state {
+            InputFilesInitializedState::Uninitialized => self.fallback_javascript_text.clone(),
+            InputFilesInitializedState::InitializedWithReadFileCallback(
+                initialized_with_read_file_callback,
+            ) => initialized_with_read_file_callback.defined_text_getter(
+                &initialized_with_read_file_callback.declaration_text_or_javascript_path,
+            ),
+            InputFilesInitializedState::InitializedWithString(string) => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn javascript_map_text(&self) -> Option<String> {
+        match &self.initialized_state {
+            InputFilesInitializedState::Uninitialized => None,
+            InputFilesInitializedState::InitializedWithReadFileCallback(
+                initialized_with_read_file_callback,
+            ) => initialized_with_read_file_callback.text_getter(
+                initialized_with_read_file_callback
+                    .javascript_map_path
+                    .as_deref(),
+            ),
+            InputFilesInitializedState::InitializedWithString(string) => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn declaration_text(&self) -> String {
+        match &self.initialized_state {
+            InputFilesInitializedState::Uninitialized => self.fallback_declaration_text.clone(),
+            InputFilesInitializedState::InitializedWithReadFileCallback(
+                initialized_with_read_file_callback,
+            ) => initialized_with_read_file_callback.defined_text_getter(
+                &initialized_with_read_file_callback.javascript_map_text_or_declaration_path,
+            ),
+            InputFilesInitializedState::InitializedWithString(string) => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn declaration_map_text(&self) -> Option<String> {
+        match &self.initialized_state {
+            InputFilesInitializedState::Uninitialized => None,
+            InputFilesInitializedState::InitializedWithReadFileCallback(
+                initialized_with_read_file_callback,
+            ) => initialized_with_read_file_callback.text_getter(
+                initialized_with_read_file_callback
+                    .declaration_map_path
+                    .as_deref(),
+            ),
+            InputFilesInitializedState::InitializedWithString(string) => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn build_info(&self) -> Option<Rc<BuildInfo>> {
+        match &self.initialized_state {
+            InputFilesInitializedState::Uninitialized => None,
+            InputFilesInitializedState::InitializedWithReadFileCallback(
+                initialized_with_read_file_callback,
+            ) => initialized_with_read_file_callback.get_and_cache_build_info(|| {
+                initialized_with_read_file_callback.text_getter(
+                    initialized_with_read_file_callback
+                        .declaration_map_text_or_build_info_path
+                        .as_deref(),
+                )
+            }),
+            InputFilesInitializedState::InitializedWithString(string) => {
+                unimplemented!()
+            }
         }
     }
 }
