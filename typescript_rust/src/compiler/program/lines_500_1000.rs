@@ -578,9 +578,9 @@ pub fn get_implied_node_format_for_file(
     file_name: &Path,
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
-    options: &CompilerOptions,
+    options: Gc<CompilerOptions>,
 ) -> Option<ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/> {
-    match get_emit_module_resolution_kind(options) {
+    match get_emit_module_resolution_kind(&options) {
         ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext => {
             if file_extension_is_one_of(
                 file_name,
@@ -620,7 +620,7 @@ pub fn lookup_from_package_json(
     file_name: &Path,
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
-    options: &CompilerOptions,
+    options: Gc<CompilerOptions>,
 ) -> ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/ {
     let scope = get_package_scope_for_path(file_name, package_json_info_cache, host, options);
     if matches!(

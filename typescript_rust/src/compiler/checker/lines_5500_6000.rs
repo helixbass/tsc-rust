@@ -1418,7 +1418,7 @@ impl NodeBuilder {
                 first(&module_specifiers::get_module_specifiers(
                     symbol,
                     &self.type_checker,
-                    &specifier_compiler_options,
+                    specifier_compiler_options.clone(),
                     &context_file,
                     module_resolver_host.as_dyn_module_specifier_resolution_host(),
                     &UserPreferencesBuilder::default()

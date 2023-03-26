@@ -462,7 +462,7 @@ impl Program {
                     })
                     .as_double_deref(),
                 self.host().as_dyn_module_resolution_host(),
-                &self.options,
+                self.options.clone(),
             ));
             self.add_file_include_reason(Some(&**file), reason);
 
