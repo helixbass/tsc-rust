@@ -605,7 +605,7 @@ mod _CompilerOptionsDeriveTraceScope {
                 "downlevelIteration" => {
                     self.downlevel_iteration = value.into_option_bool();
                 }
-                "emitBom" => {
+                "emitBOM" => {
                     self.emit_bom = value.into_option_bool();
                 }
                 "emitDecoratorMetadata" => {

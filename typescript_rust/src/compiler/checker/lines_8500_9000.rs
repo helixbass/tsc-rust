@@ -461,7 +461,7 @@ impl TypeChecker {
             if is_in_js_file(Some(declaration)) && !is_parameter(declaration) {
                 let container_object_type = self.get_js_container_object_type(
                     declaration,
-                    &self.get_symbol_of_node(declaration).unwrap(),
+                    self.get_symbol_of_node(declaration),
                     get_declared_expando_initializer(declaration),
                 );
                 if container_object_type.is_some() {
@@ -852,7 +852,7 @@ impl TypeChecker {
                     .and_then(|value_declaration| {
                         self.get_js_container_object_type(
                             &value_declaration,
-                            symbol,
+                            Some(symbol),
                             Some(&*container),
                         )
                     });
@@ -1003,7 +1003,7 @@ impl TypeChecker {
     pub(super) fn get_js_container_object_type<TInit: Borrow<Node>>(
         &self,
         decl: &Node,
-        symbol: &Symbol,
+        symbol: Option<impl Borrow<Symbol>>,
         init: Option<TInit>,
     ) -> Option<Gc<Type>> {
         if !is_in_js_file(Some(decl)) {
@@ -1043,7 +1043,7 @@ impl TypeChecker {
                 }
             }
         }
-        let type_ = self.create_anonymous_type(Some(symbol), exports, vec![], vec![], vec![]);
+        let type_ = self.create_anonymous_type(symbol, exports, vec![], vec![], vec![]);
         let type_as_object_type = type_.as_object_type();
         type_as_object_type
             .set_object_flags(type_as_object_type.object_flags() | ObjectFlags::JSLiteral);
