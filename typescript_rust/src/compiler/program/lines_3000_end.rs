@@ -632,7 +632,10 @@ impl Program {
             {
                 let span = get_error_span_for_node(
                     first_non_ambient_external_module_source_file,
-                    first_non_ambient_external_module_source_file,
+                    &first_non_ambient_external_module_source_file
+                        .as_source_file()
+                        .maybe_external_module_indicator()
+                        .unwrap(),
                 );
                 self.program_diagnostics_mut().add(
                     Gc::new(
