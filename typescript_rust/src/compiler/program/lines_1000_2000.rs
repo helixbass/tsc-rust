@@ -1,20 +1,21 @@
 use gc::{Finalize, Gc, GcCellRef, Trace};
-use std::cell::Ref;
-use std::ptr;
-use std::rc::Rc;
+use std::{cell::RefCell, io, ptr, rc::Rc};
 
-use super::{filter_semantic_diagnostics, ToPath};
+use super::{create_prepend_nodes, filter_semantic_diagnostics, handle_no_emit_options, ToPath};
 use crate::{
-    compare_values, concatenate, contains, contains_path, create_type_checker,
+    compare_values, concatenate, contains, contains_path, create_type_checker, emit_files,
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
     get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
-    is_trace_enabled, libs, map_defined, node_modules_path_part, out_file, package_id_to_string,
-    remove_prefix, remove_suffix, skip_type_checking, source_file_may_be_emitted, string_contains,
-    to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison, CompilerOptions,
-    CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension, FileIncludeReason,
-    MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceOfProjectReferenceRedirect,
-    StringOrRcNode, StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
+    get_transformers, is_source_file_js, is_trace_enabled, libs, map_defined,
+    node_modules_path_part, out_file, package_id_to_string, remove_prefix, remove_suffix,
+    skip_type_checking, source_file_may_be_emitted, string_contains, to_path as to_path_helper,
+    trace, CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension,
+    FileIncludeReason, FileReference, ModuleSpecifierResolutionHost, MultiMap, Node, Path, Program,
+    ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap, ResolvedModuleFull,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
+    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
+    StructureIsReused, SymlinkCache, TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -212,8 +213,8 @@ impl Program {
         unimplemented!()
     }
 
-    pub fn get_file_include_reasons(&self) -> MultiMap<Path, FileIncludeReason> {
-        unimplemented!()
+    pub fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
+        self.file_reasons.clone()
     }
 
     pub fn get_source_file_(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
@@ -244,20 +245,83 @@ impl Program {
 
     pub fn emit(
         &self,
-        target_source_file: Option<&Node /*SourceFile*/>,
-        write_file: Option<&dyn WriteFileCallback>,
+        source_file: Option<&Node /*SourceFile*/>,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         emit_only_dts_files: Option<bool>,
-        custom_transformers: Option<CustomTransformers>,
+        transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
     ) -> EmitResult {
-        EmitResult {
-            emit_skipped: true,
-            diagnostics: vec![],
-            emitted_files: None,
-            source_maps: None,
-            exported_modules_from_declaration_emit: None,
+        return super::emit_skipped_with_no_diagnostics();
+        // tracing?.push(tracing.Phase.Emit, "emit", { path: sourceFile?.path }, /*separateBeginAndEnd*/ true);
+        let result = self.run_with_cancellation_token(|| {
+            self.emit_worker(
+                source_file,
+                write_file_callback,
+                cancellation_token,
+                emit_only_dts_files,
+                transformers,
+                force_dts_emit,
+            )
+        });
+        // tracing?.pop();
+        result
+    }
+
+    pub(super) fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_worker(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        emit_only_dts_files: Option<bool>,
+        custom_transformers: Option<&CustomTransformers>,
+        force_dts_emit: Option<bool>,
+    ) -> EmitResult {
+        if force_dts_emit != Some(true) {
+            let result = handle_no_emit_options(
+                self.rc_wrapper(),
+                source_file,
+                write_file_callback.clone(),
+                cancellation_token.clone(),
+            );
+            if let Some(result) = result {
+                return result;
+            }
         }
+
+        let emit_resolver = self
+            .get_diagnostics_producing_type_checker()
+            .get_emit_resolver(
+                if matches!(
+                    out_file(&self.options),
+                    Some(out_file) if !out_file.is_empty()
+                ) {
+                    None
+                } else {
+                    source_file
+                },
+                cancellation_token,
+            );
+
+        // performance.mark("beforeEmit");
+
+        let emit_result = emit_files(
+            emit_resolver,
+            self.get_emit_host(write_file_callback),
+            source_file,
+            get_transformers(&self.options, custom_transformers, emit_only_dts_files),
+            emit_only_dts_files,
+            Some(false),
+            force_dts_emit,
+        );
+
+        // performance.mark("afterEmit");
+        // performance.measure("Emit", "beforeEmit", "afterEmit");
+        emit_result
     }
 
     pub fn get_current_directory(&self) -> String {
@@ -561,10 +625,48 @@ impl Program {
         unimplemented!()
     }
 
+    pub(super) fn get_emit_host(
+        &self,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+    ) -> Gc<Box<dyn EmitHost>> {
+        Gc::new(Box::new(ProgramEmitHost::new(
+            self.rc_wrapper(),
+            write_file_callback,
+        )))
+    }
+
+    pub(super) fn emit_build_info(
+        &self,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> EmitResult {
+        unimplemented!()
+    }
+
     pub fn get_resolved_project_references(
         &self,
     ) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
+    }
+
+    pub(super) fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles*/>> {
+        create_prepend_nodes(
+            self.maybe_project_references().as_deref(),
+            |_ref, index| {
+                self.maybe_resolved_project_references()
+                    .as_ref()
+                    .unwrap()
+                    .get(index)
+                    .cloned()
+                    .flatten()
+                    .map(|resolved_project_reference| {
+                        resolved_project_reference.command_line.clone()
+                    })
+            },
+            Gc::new(Box::new(GetPrependNodesReadFileCallback::new(
+                self.rc_wrapper(),
+            ))),
+        )
     }
 
     pub fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
@@ -669,6 +771,20 @@ impl Program {
         // refactor eg get_diagnostics_helper() to use closures instead?
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
+        let source_file_as_source_file = source_file.as_source_file();
+        if is_source_file_js(source_file) {
+            let mut source_file_additional_syntactic_diagnostics =
+                source_file_as_source_file.maybe_additional_syntactic_diagnostics_mut();
+            let source_file_additional_syntactic_diagnostics =
+                source_file_additional_syntactic_diagnostics
+                    .get_or_insert_with(|| self.get_js_syntactic_diagnostics_for_file(source_file));
+            return concatenate(
+                source_file_additional_syntactic_diagnostics.clone(),
+                (*source_file.as_source_file().parse_diagnostics())
+                    .borrow()
+                    .clone(),
+            );
+        }
         (*source_file.as_source_file().parse_diagnostics())
             .borrow()
             .clone()
@@ -686,6 +802,229 @@ impl Program {
             ),
             self.get_program_diagnostics(source_file),
         )
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+struct GetPrependNodesReadFileCallback {
+    program: Gc<Box<Program>>,
+}
+
+impl GetPrependNodesReadFileCallback {
+    fn new(program: Gc<Box<Program>>) -> Self {
+        Self { program }
+    }
+}
+
+impl ReadFileCallback for GetPrependNodesReadFileCallback {
+    fn call(&self, file_name: &str) -> Option<String> {
+        let path = self.program.to_path(file_name);
+        let source_file = self.program.get_source_file_by_path(&path);
+        if let Some(source_file) = source_file {
+            Some(source_file.as_source_file().text().clone())
+        } else if self.program.files_by_name().contains_key(&*path) {
+            None
+        } else {
+            self.program.host().read_file(&path).ok().flatten()
+        }
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub struct ProgramEmitHost {
+    program: Gc<Box<Program>>,
+    write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+}
+
+impl ProgramEmitHost {
+    pub fn new(
+        program: Gc<Box<Program>>,
+        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+    ) -> Self {
+        Self {
+            program,
+            write_file_callback,
+        }
+    }
+}
+
+impl EmitHost for ProgramEmitHost {
+    fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles | UnparsedSource*/>> {
+        self.program.get_prepend_nodes()
+    }
+
+    fn get_canonical_file_name(&self, file_name: &str) -> String {
+        self.program.get_canonical_file_name(file_name)
+    }
+
+    fn get_common_source_directory(&self) -> String {
+        self.program.get_common_source_directory()
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.program.current_directory().clone()
+    }
+
+    fn get_new_line(&self) -> String {
+        self.program.host().get_new_line()
+    }
+
+    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>> {
+        self.program.get_source_files()
+    }
+
+    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Gc<Node /*SourceFile*/>> {
+        self.program.get_lib_file_from_reference(ref_)
+    }
+
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+    ) {
+        if let Some(write_file_callback) = self.write_file_callback.clone() {
+            write_file_callback.call(
+                file_name,
+                data,
+                write_byte_order_mark,
+                on_error,
+                source_files,
+            )
+        } else {
+            self.program.host().write_file(
+                file_name,
+                data,
+                write_byte_order_mark,
+                on_error,
+                source_files,
+            )
+        }
+    }
+
+    fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
+        self.program.is_emit_blocked(emit_file_name)
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        CompilerHost::use_case_sensitive_file_names(&**self.program.host())
+    }
+
+    fn get_program_build_info(&self) -> Option<ProgramBuildInfo> {
+        // TODO: this looks like it's implemented as a dynamically-set property on Program in
+        // createBuilderProgram()
+        unimplemented!()
+    }
+
+    fn get_source_file_from_reference(
+        &self,
+        file: &Node, /*SourceFile | UnparsedSource*/
+        ref_: &FileReference,
+    ) -> Option<Gc<Node /*SourceFile*/>> {
+        self.program.get_source_file_from_reference(file, ref_)
+    }
+
+    fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
+        self.program.redirect_targets_map.clone()
+    }
+
+    fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost {
+        self
+    }
+}
+
+impl ScriptReferenceHost for ProgramEmitHost {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+        self.program.get_compiler_options()
+    }
+
+    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
+        self.program.get_source_file_(file_name)
+    }
+
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Gc<Node /*SourceFile*/>> {
+        self.program.get_source_file_by_path(path)
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.program.current_directory().clone()
+    }
+}
+
+impl ModuleSpecifierResolutionHost for ProgramEmitHost {
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        Some(CompilerHost::use_case_sensitive_file_names(
+            &**self.program.host(),
+        ))
+    }
+
+    fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
+        self.program.get_project_reference_redirect_(file_name)
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        self.program
+            .is_source_of_project_reference_redirect_(file_name)
+    }
+
+    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
+        Some(self.program.get_symlink_cache())
+    }
+
+    fn is_read_file_supported(&self) -> bool {
+        true
+    }
+
+    fn read_file(&self, f: &str) -> Option<io::Result<Option<String>>> {
+        Some(self.program.host().read_file(f))
+    }
+
+    fn file_exists(&self, f: &str) -> bool {
+        let path = self.program.to_path(f);
+        if self.program.get_source_file_by_path(&path).is_some() {
+            return true;
+        }
+        if contains(self.program.maybe_missing_file_paths().as_deref(), &path) {
+            return false;
+        }
+        self.program.host().file_exists(f)
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.program.current_directory().clone()
+    }
+
+    fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
+        self.program.redirect_targets_map.clone()
+    }
+
+    fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
+        self.program.get_file_include_reasons()
+    }
+}
+
+impl SourceFileMayBeEmittedHost for ProgramEmitHost {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
+        self.program.get_compiler_options()
+    }
+
+    fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
+        self.program.is_source_file_from_external_library(file)
+    }
+
+    fn get_resolved_project_reference_to_redirect(
+        &self,
+        file_name: &str,
+    ) -> Option<Gc<ResolvedProjectReference>> {
+        self.program
+            .get_resolved_project_reference_to_redirect(file_name)
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        self.program
+            .is_source_of_project_reference_redirect_(file_name)
     }
 }
 

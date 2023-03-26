@@ -7,16 +7,18 @@ use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, compare_paths, contains, contains_path, directory_probably_exists,
-    directory_separator, directory_separator_str, ends_with, extension_is_ts, file_extension_is,
-    first_defined, for_each, for_each_ancestor_directory, format_message, get_base_file_name,
-    get_directory_path, get_emit_module_kind, get_paths_base_path,
-    get_relative_path_from_directory, get_root_length, has_js_file_extension,
-    has_trailing_directory_separator, is_external_module_name_relative, last_index_of,
-    match_pattern_or_exact, matched_text, maybe_for_each, normalize_path, normalize_path_and_parts,
-    normalize_slashes, options_have_module_resolution_changes, package_id_to_string,
-    path_is_relative, pattern_text, read_json, remove_file_extension, starts_with, string_contains,
-    to_path, try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
+    combine_paths, compare_paths, contains, contains_path, create_get_canonical_file_name,
+    directory_probably_exists, directory_separator, directory_separator_str, ends_with, every,
+    extension_is_ts, file_extension_is, file_extension_is_one_of, filter, first_defined, for_each,
+    for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
+    get_emit_module_kind, get_normalized_absolute_path, get_path_components,
+    get_path_from_path_components, get_paths_base_path, get_relative_path_from_directory,
+    get_root_length, has_js_file_extension, has_trailing_directory_separator,
+    is_external_module_name_relative, is_rooted_disk_path, last_index_of, match_pattern_or_exact,
+    matched_text, maybe_for_each, normalize_path, normalize_path_and_parts, normalize_slashes,
+    options_have_module_resolution_changes, package_id_to_string, path_is_relative, pattern_text,
+    read_json, remove_file_extension, sort, starts_with, string_contains, to_path,
+    try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
     version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
     Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
     PackageId, Path, PathAndParts, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
@@ -1668,10 +1670,10 @@ pub fn resolve_module_name(
                 result = Some(node_next_module_name_resolver(
                     module_name,
                     containing_file,
-                    &compiler_options,
+                    compiler_options.clone(),
                     host,
-                    cache.as_deref(),
-                    redirected_reference.as_deref(),
+                    cache.clone(),
+                    redirected_reference.clone(),
                     resolution_mode,
                 ));
             }
@@ -2059,13 +2061,55 @@ fn node12_module_name_resolver(
 fn node_next_module_name_resolver(
     module_name: &str,
     containing_file: &str,
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    cache: Option<Gc<ModuleResolutionCache>>,
+    redirected_reference: Option<Gc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) -> Gc<ResolvedModuleWithFailedLookupLocations> {
-    unimplemented!()
+    node_next_module_name_resolver_worker(
+        NodeResolutionFeatures::AllFeatures,
+        module_name,
+        containing_file,
+        compiler_options,
+        host,
+        cache,
+        redirected_reference,
+        resolution_mode,
+    )
+}
+
+fn node_next_module_name_resolver_worker(
+    features: NodeResolutionFeatures,
+    module_name: &str,
+    containing_file: &str,
+    compiler_options: Gc<CompilerOptions>,
+    host: &dyn ModuleResolutionHost,
+    cache: Option<Gc<ModuleResolutionCache>>,
+    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+    let containing_directory = get_directory_path(containing_file);
+
+    let esm_mode = if resolution_mode == Some(ModuleKind::ESNext) {
+        NodeResolutionFeatures::EsmMode
+    } else {
+        NodeResolutionFeatures::None
+    };
+    node_module_name_resolver_worker(
+        features | esm_mode,
+        module_name,
+        &containing_directory,
+        compiler_options.clone(),
+        host,
+        cache,
+        if compiler_options.resolve_json_module == Some(true) {
+            &ts_plus_json_extensions
+        } else {
+            &ts_extensions
+        },
+        redirected_reference,
+    )
 }
 
 lazy_static! {
@@ -2228,8 +2272,8 @@ fn try_resolve(
                 module_name,
                 containing_directory,
                 state,
-                cache.as_deref(),
-                redirected_reference.as_deref(),
+                cache.clone(),
+                redirected_reference.clone(),
             );
         }
         if resolved.is_none() {
@@ -2522,6 +2566,38 @@ fn load_module_from_file_no_implicit_extensions(
     None
 }
 
+fn load_js_or_exact_ts_file_name(
+    extensions: Extensions,
+    candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState,
+) -> Option<PathAndExtension> {
+    if matches!(extensions, Extensions::TypeScript | Extensions::DtsOnly)
+        && file_extension_is_one_of(
+            candidate,
+            &[Extension::Dts, Extension::Dcts, Extension::Dmts],
+        )
+    {
+        let result = try_file(candidate, only_record_failures, state);
+        return result.map(|result| PathAndExtension {
+            path: candidate.to_owned(),
+            ext: for_each(
+                [Extension::Dts, Extension::Dcts, Extension::Dmts],
+                |e, _| {
+                    if file_extension_is(candidate, e.to_str()) {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .unwrap(),
+        });
+    }
+
+    load_module_from_file_no_implicit_extensions(extensions, candidate, only_record_failures, state)
+}
+
 fn try_adding_extensions(
     candidate: &str,
     extensions: Extensions,
@@ -2706,9 +2782,28 @@ pub(crate) fn get_package_scope_for_path(
     file_name: &Path,
     package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
-    options: &CompilerOptions,
+    options: Gc<CompilerOptions>,
 ) -> Option<Gc<PackageJsonInfo>> {
-    unimplemented!()
+    let state = ModuleResolutionState {
+        host,
+        compiler_options: options.clone(),
+        trace_enabled: is_trace_enabled(&options, host),
+        failed_lookup_locations: Default::default(),
+        package_json_info_cache,
+        features: NodeResolutionFeatures::None,
+        conditions: Default::default(),
+        result_from_cache: Default::default(),
+    };
+    let mut parts = get_path_components(file_name, None);
+    parts.pop();
+    while !parts.is_empty() {
+        let pkg = get_package_json_info(&get_path_from_path_components(&parts), false, &state);
+        if pkg.is_some() {
+            return pkg;
+        }
+        parts.pop();
+    }
+    None
 }
 
 pub(crate) fn get_package_json_info(
@@ -3009,15 +3104,72 @@ pub(crate) struct ParsedPackageName {
     pub rest: String,
 }
 
+pub(crate) fn all_keys_start_with_dot<'str>(
+    mut obj_keys: impl Iterator<Item = &'str String>,
+) -> bool {
+    obj_keys.all(|k| starts_with(k, "."))
+}
+
+pub(crate) fn no_key_starts_with_dot<'str>(
+    mut obj_keys: impl Iterator<Item = &'str String>,
+) -> bool {
+    !obj_keys.any(|k| starts_with(k, "."))
+}
+
 fn load_module_from_self_name_reference(
     extensions: Extensions,
     module_name: &str,
     directory: &str,
     state: &ModuleResolutionState,
-    cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    cache: Option<Gc<ModuleResolutionCache>>,
+    redirected_reference: Option<Gc<ResolvedProjectReference>>,
 ) -> SearchResult<Resolved> {
-    unimplemented!()
+    let use_case_sensitive_file_names = state.host.use_case_sensitive_file_names();
+    let directory_path = to_path(
+        &combine_paths(directory, &[Some("dummy")]),
+        state.host.get_current_directory().as_deref(),
+        create_get_canonical_file_name(use_case_sensitive_file_names.unwrap_or(true)),
+    );
+    let scope = get_package_scope_for_path(
+        &directory_path,
+        state.package_json_info_cache,
+        state.host,
+        state.compiler_options.clone(),
+    )?;
+    let scope_package_json_content = scope.package_json_content.as_object()?;
+    if !scope_package_json_content.contains_key("exports") {
+        return None;
+    }
+    let scope_package_json_name = scope_package_json_content
+        .get("name")
+        .and_then(|scope_package_json_name| scope_package_json_name.as_str())?;
+    let parts = get_path_components(module_name, None);
+    let name_parts = get_path_components(scope_package_json_name, None);
+    if !every(&name_parts, |p: &String, i| {
+        matches!(
+            parts.get(i),
+            Some(parts_i) if parts_i == p
+        )
+    }) {
+        return None;
+    }
+    let trailing_parts = &parts[name_parts.len()..];
+    load_module_from_exports(
+        &scope,
+        extensions,
+        &if trailing_parts.is_empty() {
+            ".".to_owned()
+        } else {
+            format!(
+                ".{}{}",
+                directory_separator_str,
+                trailing_parts.join(directory_separator_str),
+            )
+        },
+        state,
+        cache,
+        redirected_reference,
+    )
 }
 
 fn load_module_from_exports(
@@ -3025,10 +3177,76 @@ fn load_module_from_exports(
     extensions: Extensions,
     subpath: &str,
     state: &ModuleResolutionState,
-    cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    cache: Option<Gc<ModuleResolutionCache>>,
+    redirected_reference: Option<Gc<ResolvedProjectReference>>,
 ) -> SearchResult<Resolved> {
-    unimplemented!()
+    let scope_package_json_exports = scope.package_json_content.get("exports")?;
+
+    if subpath == "." {
+        let mut main_export: Option<&serde_json::Value> = None;
+        if scope_package_json_exports.is_string()
+            || scope_package_json_exports.is_array()
+            || scope_package_json_exports
+                .as_object()
+                .filter(|scope_package_json_exports| {
+                    no_key_starts_with_dot(scope_package_json_exports.keys())
+                })
+                .is_some()
+        {
+            main_export = Some(scope_package_json_exports);
+        } else if let Some(scope_package_json_exports_dot) = scope_package_json_exports
+            .as_object()
+            .and_then(|scope_package_json_exports| scope_package_json_exports.get("."))
+        {
+            main_export = Some(scope_package_json_exports_dot);
+        }
+        if let Some(main_export) = main_export {
+            let load_module_from_target_import_or_export =
+                get_load_module_from_target_import_or_export(
+                    extensions,
+                    state,
+                    cache,
+                    redirected_reference,
+                    subpath,
+                    scope,
+                    false,
+                );
+            return load_module_from_target_import_or_export.call(Some(main_export), "", false);
+        }
+    } else if all_keys_start_with_dot(scope_package_json_exports.as_object().unwrap().keys()) {
+        if !scope_package_json_exports.is_object() {
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::Export_specifier_0_does_not_exist_in_package_json_scope_at_path_1,
+                    Some(vec![subpath.to_owned(), scope.package_directory.clone()]),
+                );
+            }
+            return to_search_result(None);
+        }
+        let result = load_module_from_imports_or_exports(
+            extensions,
+            state,
+            cache,
+            redirected_reference,
+            subpath,
+            scope_package_json_exports.as_object().unwrap(),
+            scope,
+            false,
+        );
+        if result.is_some() {
+            return result;
+        }
+    }
+
+    if state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::Export_specifier_0_does_not_exist_in_package_json_scope_at_path_1,
+            Some(vec![subpath.to_owned(), scope.package_directory.clone()]),
+        );
+    }
+    to_search_result(None)
 }
 
 fn load_module_from_imports(
@@ -3039,6 +3257,322 @@ fn load_module_from_imports(
     cache: Option<&ModuleResolutionCache>,
     redirected_reference: Option<&ResolvedProjectReference>,
 ) -> SearchResult<Resolved> {
+    unimplemented!()
+}
+
+fn load_module_from_imports_or_exports(
+    extensions: Extensions,
+    state: &ModuleResolutionState,
+    cache: Option<Gc<ModuleResolutionCache>>,
+    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    module_name: &str,
+    lookup_table: &serde_json::Map<String, serde_json::Value>,
+    scope: &PackageJsonInfo,
+    is_imports: bool,
+) -> SearchResult<Resolved> {
+    let load_module_from_target_import_or_export = get_load_module_from_target_import_or_export(
+        extensions,
+        state,
+        cache,
+        redirected_reference,
+        module_name,
+        scope,
+        is_imports,
+    );
+
+    if !ends_with(module_name, directory_separator_str)
+        && !module_name.contains("*")
+        && lookup_table.contains_key(module_name)
+    {
+        let target = lookup_table.get(module_name);
+        return load_module_from_target_import_or_export.call(target, "", false);
+    }
+    let expanding_keys: Vec<_> = sort(
+        &filter(
+            &lookup_table.keys().cloned().collect::<Vec<_>>(),
+            |k: &String| k.contains("*") || ends_with(k, "/"),
+        ),
+        |a: &String, b: &String| match isize::try_from(a.len()).unwrap()
+            - isize::try_from(b.len()).unwrap()
+        {
+            value if value < 0 => Comparison::LessThan,
+            0 => Comparison::EqualTo,
+            _ => Comparison::GreaterThan,
+        },
+    )
+    .into();
+    for potential_target in &expanding_keys {
+        if state
+            .features
+            .intersects(NodeResolutionFeatures::ExportsPatternTrailers)
+            && matches_pattern_with_trailer(potential_target, module_name)
+        {
+            let target = lookup_table.get(potential_target);
+            let star_pos = potential_target.find("*");
+            let subpath = &module_name[match star_pos {
+                Some(star_pos) => potential_target[0..star_pos].len(),
+                None => 0,
+            }
+                ..usize::try_from(
+                    isize::try_from(module_name.len()).unwrap()
+                        - (isize::try_from(potential_target.len()).unwrap()
+                            - 1
+                            - star_pos
+                                .map(|star_pos| isize::try_from(star_pos).unwrap())
+                                .unwrap_or(-1)),
+                )
+                .unwrap()];
+            return load_module_from_target_import_or_export.call(target, subpath, true);
+        } else if ends_with(potential_target, "*")
+            && starts_with(
+                module_name,
+                &potential_target[0..potential_target.len() - 1],
+            )
+        {
+            let target = lookup_table.get(potential_target);
+            let subpath = &module_name[potential_target.len() - 1..];
+            return load_module_from_target_import_or_export.call(target, subpath, true);
+        } else if starts_with(module_name, potential_target) {
+            let target = lookup_table.get(potential_target);
+            let subpath = &module_name[potential_target.len()..];
+            return load_module_from_target_import_or_export.call(target, subpath, false);
+        }
+    }
+    None
+}
+
+fn matches_pattern_with_trailer(target: &str, name: &str) -> bool {
+    if ends_with(target, "*") {
+        return false;
+    }
+    let star_pos = target.find("*");
+    if star_pos.is_none() {
+        return false;
+    }
+    let star_pos = star_pos.unwrap();
+    starts_with(name, &target[0..star_pos]) && ends_with(name, &target[star_pos + 1..])
+}
+
+fn get_load_module_from_target_import_or_export<'a>(
+    extensions: Extensions,
+    state: &'a ModuleResolutionState,
+    cache: Option<Gc<ModuleResolutionCache>>,
+    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    module_name: &'a str,
+    scope: &'a PackageJsonInfo,
+    is_imports: bool,
+) -> LoadModuleFromTargetImportOrExport<'a> {
+    LoadModuleFromTargetImportOrExport {
+        extensions,
+        state,
+        cache,
+        redirected_reference,
+        module_name,
+        scope,
+        is_imports,
+    }
+}
+
+struct LoadModuleFromTargetImportOrExport<'a> {
+    extensions: Extensions,
+    state: &'a ModuleResolutionState<'a>,
+    cache: Option<Gc<ModuleResolutionCache>>,
+    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    module_name: &'a str,
+    scope: &'a PackageJsonInfo,
+    is_imports: bool,
+}
+
+impl<'a> LoadModuleFromTargetImportOrExport<'a> {
+    fn call(
+        &self,
+        target: Option<&serde_json::Value>,
+        subpath: &str,
+        pattern: bool,
+    ) -> SearchResult<Resolved> {
+        if let Some(target) = target.and_then(|target| target.as_str()) {
+            if !pattern && !subpath.is_empty() && !ends_with(target, "/") {
+                if self.state.trace_enabled {
+                    trace(
+                        self.state.host,
+                        &Diagnostics::package_json_scope_0_has_invalid_type_for_target_of_specifier_1,
+                        Some(vec![
+                            self.scope.package_directory.clone(),
+                            self.module_name.to_owned(),
+                        ])
+                    );
+                }
+                return to_search_result(None);
+            }
+            if !starts_with(target, "./") {
+                if self.is_imports
+                    && !starts_with(target, "../")
+                    && !starts_with(target, "/")
+                    && !is_rooted_disk_path(target)
+                {
+                    let combined_lookup = if pattern {
+                        target.replace("*", subpath)
+                    } else {
+                        format!("{target}{subpath}")
+                    };
+                    let result = node_module_name_resolver_worker(
+                        self.state.features,
+                        &combined_lookup,
+                        &format!("{}/", self.scope.package_directory),
+                        self.state.compiler_options.clone(),
+                        self.state.host,
+                        self.cache.clone(),
+                        &[self.extensions],
+                        self.redirected_reference.clone(),
+                    );
+                    return to_search_result(result.resolved_module.as_ref().map(
+                        |result_resolved_module| Resolved {
+                            path: result_resolved_module.resolved_file_name.clone(),
+                            extension: result_resolved_module.extension.unwrap(),
+                            package_id: result_resolved_module.package_id.clone(),
+                            original_path:
+                                result_resolved_module.original_path.clone().map(Into::into),
+                        },
+                    ));
+                }
+                if self.state.trace_enabled {
+                    trace(
+                        self.state.host,
+                        &Diagnostics::package_json_scope_0_has_invalid_type_for_target_of_specifier_1,
+                        Some(vec![
+                            self.scope.package_directory.clone(),
+                            self.module_name.to_owned()
+                        ])
+                    );
+                }
+                return to_search_result(None);
+            }
+            let parts = if path_is_relative(target) {
+                get_path_components(target, None)[1..].to_owned()
+            } else {
+                get_path_components(target, None)
+            };
+            let parts_after_first = &parts[1..];
+            if parts_after_first.into_iter().any(|part| part == "..")
+                || parts_after_first.into_iter().any(|part| part == ".")
+                || parts_after_first
+                    .into_iter()
+                    .any(|part| part == "node_modules")
+            {
+                if self.state.trace_enabled {
+                    trace(
+                        self.state.host,
+                        &Diagnostics::package_json_scope_0_has_invalid_type_for_target_of_specifier_1,
+                        Some(vec![
+                            self.scope.package_directory.clone(),
+                            self.module_name.to_owned(),
+                        ])
+                    );
+                }
+                return to_search_result(None);
+            }
+            let resolved_target = combine_paths(&self.scope.package_directory, &[Some(target)]);
+            let subpath_parts = get_path_components(subpath, None);
+            if subpath_parts
+                .iter()
+                .any(|subpath_part| subpath_part == "..")
+                || subpath_parts.iter().any(|subpath_part| subpath_part == ".")
+                || subpath_parts
+                    .iter()
+                    .any(|subpath_part| subpath_part == "node_modules")
+            {
+                if self.state.trace_enabled {
+                    trace(
+                        self.state.host,
+                        &Diagnostics::package_json_scope_0_has_invalid_type_for_target_of_specifier_1,
+                        Some(vec![
+                            self.scope.package_directory.clone(),
+                            self.module_name.to_owned(),
+                        ])
+                    );
+                }
+                return to_search_result(None);
+            }
+            let final_path = get_normalized_absolute_path(
+                &if pattern {
+                    resolved_target.replace("*", subpath)
+                } else {
+                    format!("{resolved_target}{subpath}")
+                },
+                self.state.host.get_current_directory().as_deref(),
+            );
+
+            return to_search_result(with_package_id(
+                Some(self.scope),
+                load_js_or_exact_ts_file_name(self.extensions, &final_path, false, self.state)
+                    .as_ref(),
+            ));
+        } else if let Some(target) = target.filter(|target| target.is_object() || target.is_array())
+        {
+            if let Some(target) = target.as_object() {
+                for key in target.keys() {
+                    if key == "default"
+                        || self.state.conditions.contains(key)
+                        || is_applicable_versioned_types_key(&self.state.conditions, key)
+                    {
+                        let sub_target = target.get(key);
+                        let result = self.call(sub_target, subpath, pattern);
+                        if result.is_some() {
+                            return result;
+                        }
+                    }
+                }
+                return None;
+            } else {
+                let target = target.as_array().unwrap();
+                if target.is_empty() {
+                    if self.state.trace_enabled {
+                        trace(
+                            self.state.host,
+                            &Diagnostics::package_json_scope_0_has_invalid_type_for_target_of_specifier_1,
+                            Some(vec![
+                                self.scope.package_directory.clone(),
+                                self.module_name.to_owned(),
+                            ])
+                        );
+                    }
+                    return to_search_result(None);
+                }
+                for elem in target {
+                    let result = self.call(Some(elem), subpath, pattern);
+                    if result.is_some() {
+                        return result;
+                    }
+                }
+            }
+        } else if target.filter(|target| target.is_null()).is_some() {
+            if self.state.trace_enabled {
+                trace(
+                    self.state.host,
+                    &Diagnostics::package_json_scope_0_explicitly_maps_specifier_1_to_null,
+                    Some(vec![
+                        self.scope.package_directory.clone(),
+                        self.module_name.to_owned(),
+                    ]),
+                );
+            }
+            return to_search_result(None);
+        }
+        if self.state.trace_enabled {
+            trace(
+                self.state.host,
+                &Diagnostics::package_json_scope_0_has_invalid_type_for_target_of_specifier_1,
+                Some(vec![
+                    self.scope.package_directory.clone(),
+                    self.module_name.to_owned(),
+                ]),
+            );
+        }
+        to_search_result(None)
+    }
+}
+
+pub(crate) fn is_applicable_versioned_types_key(conditions: &[String], key: &str) -> bool {
     unimplemented!()
 }
 
@@ -3258,8 +3792,8 @@ fn load_module_from_specific_node_modules_directory(
                         &[Some(&rest)],
                     ),
                     state,
-                    cache.as_deref(),
-                    redirected_reference.as_deref(),
+                    cache.clone(),
+                    redirected_reference.clone(),
                 ).and_then(|search_result| search_result.value);
             }
             let path_and_extension =

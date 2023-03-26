@@ -49,7 +49,7 @@ struct Preferences {
 fn get_preferences(
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     importing_source_file: &Node, /*SourceFile*/
 ) -> Preferences {
     let import_module_specifier_preference = user_preferences
@@ -75,7 +75,7 @@ fn get_preferences(
 fn get_ending(
     import_module_specifier_ending: Option<&str>,
     importing_source_file: &Node, /*SourceFile*/
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     host: &dyn ModuleSpecifierResolutionHost,
 ) -> Ending {
     match import_module_specifier_ending {
@@ -85,13 +85,13 @@ fn get_ending(
         _ => {
             if uses_js_extensions_on_imports(importing_source_file)
                 || is_format_requiring_extensions(
-                    compiler_options,
+                    compiler_options.clone(),
                     &importing_source_file.as_source_file().path(),
                     host,
                 )
             {
                 Ending::JsExtension
-            } else if get_emit_module_resolution_kind(compiler_options)
+            } else if get_emit_module_resolution_kind(&compiler_options)
                 != ModuleResolutionKind::NodeJs
             {
                 Ending::Index
@@ -103,12 +103,12 @@ fn get_ending(
 }
 
 fn is_format_requiring_extensions(
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     importing_source_file_name: &Path,
     host: &dyn ModuleSpecifierResolutionHost,
 ) -> bool {
     if !matches!(
-        get_emit_module_resolution_kind(compiler_options),
+        get_emit_module_resolution_kind(&compiler_options),
         ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext
     ) {
         return false;
@@ -278,7 +278,7 @@ fn try_get_module_specifiers_from_cache_worker(
 pub fn get_module_specifiers(
     module_symbol: &Symbol,
     checker: &TypeChecker,
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
@@ -297,7 +297,7 @@ pub fn get_module_specifiers(
 pub fn get_module_specifiers_with_cache_info(
     module_symbol: &Symbol,
     checker: &TypeChecker,
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
@@ -366,7 +366,7 @@ pub fn get_module_specifiers_with_cache_info(
 
 fn compute_module_specifiers(
     module_paths: &[ModulePath],
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
@@ -376,7 +376,7 @@ fn compute_module_specifiers(
     let preferences = get_preferences(
         host,
         user_preferences,
-        compiler_options,
+        compiler_options.clone(),
         importing_source_file,
     );
     let existing_specifier = for_each(module_paths, |module_path: &ModulePath, _| {
@@ -425,7 +425,7 @@ fn compute_module_specifiers(
     let mut relative_specifiers: Option<Vec<String>> = None;
     for module_path in module_paths {
         let specifier =
-            try_get_module_name_as_node_module(module_path, &info, host, compiler_options, None);
+            try_get_module_name_as_node_module(module_path, &info, host, &compiler_options, None);
         if let Some(specifier) = specifier.as_ref() {
             append(
                 node_modules_specifiers.get_or_insert_with(|| vec![]),
@@ -442,7 +442,7 @@ fn compute_module_specifiers(
             let local = get_local_module_specifier(
                 &module_path.path,
                 &info,
-                compiler_options,
+                &compiler_options,
                 host,
                 preferences,
             );

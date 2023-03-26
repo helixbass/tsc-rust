@@ -5,18 +5,22 @@ use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
 use crate::{
-    combine_paths, compute_common_source_directory_of_filenames, directory_separator_str, factory,
-    file_extension_is, file_extension_is_one_of, get_base_file_name, get_directory_path,
-    get_emit_module_kind_from_module_and_target, get_new_line_character,
-    get_normalized_absolute_path, get_relative_path_from_directory, is_expression, is_identifier,
-    is_incremental_compilation, is_option_str_empty, is_source_file, last_or_undefined,
-    no_emit_notification, no_emit_substitution, normalize_slashes, out_file, remove_file_extension,
-    resolve_path, BaseNodeFactorySynthetic, BundleFileInfo, BundleFileSection,
-    BundleFileSectionInterface, BundleFileSectionKind, CompilerOptions, CurrentParenthesizerRule,
-    Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension,
-    JsxEmit, ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules,
-    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SourceMapSource,
-    SyntaxKind, TextRange,
+    combine_paths, compare_paths, compute_common_source_directory_of_filenames,
+    directory_separator_str, factory, file_extension_is, file_extension_is_one_of,
+    get_are_declaration_maps_enabled, get_base_file_name, get_declaration_emit_output_file_path,
+    get_directory_path, get_emit_declarations, get_emit_module_kind_from_module_and_target,
+    get_new_line_character, get_normalized_absolute_path, get_own_emit_output_file_path,
+    get_relative_path_from_directory, get_source_files_to_emit, is_expression, is_identifier,
+    is_incremental_compilation, is_json_source_file, is_option_str_empty, is_source_file,
+    last_or_undefined, no_emit_notification, no_emit_substitution, normalize_slashes, out_file,
+    remove_file_extension, resolve_path, with_synthetic_factory_and_factory,
+    BaseNodeFactorySynthetic, BuildInfo, BundleFileInfo, BundleFileSection,
+    BundleFileSectionInterface, BundleFileSectionKind, Comparison, CompilerOptions,
+    CurrentParenthesizerRule, Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitFileNames,
+    EmitHint, EmitHost, EmitResolverDebuggable, EmitResult, EmitTextWriter, EmitTransformers,
+    Extension, JsxEmit, ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules,
+    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, ScriptReferenceHost,
+    SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -26,6 +30,115 @@ lazy_static! {
 
 pub(crate) fn is_build_info_file(file: &str) -> bool {
     file_extension_is(file, Extension::TsBuildInfo.to_str())
+}
+
+pub enum NodeOrVecNode {
+    Node(Gc<Node>),
+    VecNode(Vec<Gc<Node>>),
+}
+
+impl From<Vec<Gc<Node>>> for NodeOrVecNode {
+    fn from(value: Vec<Gc<Node>>) -> Self {
+        Self::VecNode(value)
+    }
+}
+
+impl From<Gc<Node>> for NodeOrVecNode {
+    fn from(value: Gc<Node>) -> Self {
+        Self::Node(value)
+    }
+}
+
+pub fn for_each_emitted_file_returns<TReturn>(
+    host: &dyn EmitHost,
+    mut action: impl FnMut(&EmitFileNames, Option<&Node /*SourceFile | Bundle*/>) -> Option<TReturn>,
+    source_files_or_target_source_file: Option<impl Into<NodeOrVecNode>>,
+    force_dts_emit: Option<bool>,
+    only_build_info: Option<bool>,
+    include_build_info: Option<bool>,
+) -> Option<TReturn> {
+    let force_dts_emit = force_dts_emit.unwrap_or(false);
+    let source_files = match source_files_or_target_source_file.map(Into::into) {
+        Some(NodeOrVecNode::VecNode(source_files_or_target_source_file)) => {
+            source_files_or_target_source_file
+        }
+        Some(NodeOrVecNode::Node(source_files_or_target_source_file)) => get_source_files_to_emit(
+            host,
+            Some(&*source_files_or_target_source_file),
+            Some(force_dts_emit),
+        ),
+        None => get_source_files_to_emit(host, Option::<&Node>::None, Some(force_dts_emit)),
+    };
+    let options = ScriptReferenceHost::get_compiler_options(host);
+    if out_file(&options)
+        .filter(|out_file| !out_file.is_empty())
+        .is_some()
+    {
+        let prepends = host.get_prepend_nodes();
+        if !source_files.is_empty() || !prepends.is_empty() {
+            let bundle: Gc<Node> =
+                with_synthetic_factory_and_factory(|synthetic_factory, factory_| {
+                    factory_
+                        .create_bundle(synthetic_factory, source_files, Some(prepends))
+                        .into()
+                });
+            let result = action(
+                &get_output_paths_for(&bundle, host, force_dts_emit),
+                Some(&*bundle),
+            );
+            if result.is_some() {
+                return result;
+            }
+        }
+    } else {
+        if only_build_info != Some(true) {
+            for source_file in &source_files {
+                let result = action(
+                    &get_output_paths_for(source_file, host, force_dts_emit),
+                    Some(&**source_file),
+                );
+                if result.is_some() {
+                    return result;
+                }
+            }
+        }
+        if include_build_info == Some(true) {
+            let build_info_path = get_ts_build_info_emit_output_file_path(&options);
+            if let Some(build_info_path) =
+                build_info_path.filter(|build_info_path| !build_info_path.is_empty())
+            {
+                return action(
+                    &EmitFileNames {
+                        build_info_path: Some(build_info_path),
+                        ..Default::default()
+                    },
+                    None,
+                );
+            }
+        }
+    }
+    None
+}
+
+pub fn for_each_emitted_file(
+    host: &dyn EmitHost,
+    mut action: impl FnMut(&EmitFileNames, Option<&Node /*SourceFile | Bundle*/>),
+    source_files_or_target_source_file: Option<impl Into<NodeOrVecNode>>,
+    force_dts_emit: Option<bool>,
+    only_build_info: Option<bool>,
+    include_build_info: Option<bool>,
+) {
+    for_each_emitted_file_returns(
+        host,
+        |emit_file_names, node| -> Option<()> {
+            action(emit_file_names, node);
+            None
+        },
+        source_files_or_target_source_file,
+        force_dts_emit,
+        only_build_info,
+        include_build_info,
+    );
 }
 
 pub fn get_ts_build_info_emit_output_file_path(options: &CompilerOptions) -> Option<String> {
@@ -81,6 +194,116 @@ pub fn get_ts_build_info_emit_output_file_path(options: &CompilerOptions) -> Opt
         build_info_extension_less,
         Extension::TsBuildInfo.to_str()
     ))
+}
+
+pub(crate) fn get_output_paths_for_bundle(
+    options: &CompilerOptions,
+    force_dts_paths: bool,
+) -> EmitFileNames {
+    let out_path = out_file(options).unwrap();
+    let js_file_path = if options.emit_declaration_only == Some(true) {
+        None
+    } else {
+        Some(out_path)
+    };
+    let source_map_file_path = js_file_path
+        .filter(|js_file_path| !js_file_path.is_empty())
+        .and_then(|js_file_path| get_source_map_file_path(js_file_path, options));
+    let declaration_file_path = if force_dts_paths || get_emit_declarations(options) {
+        Some(format!(
+            "{}{}",
+            remove_file_extension(out_path),
+            Extension::Dts.to_str()
+        ))
+    } else {
+        None
+    };
+    let declaration_map_path = declaration_file_path
+        .as_ref()
+        .filter(|declaration_file_path| {
+            !declaration_file_path.is_empty() && get_are_declaration_maps_enabled(options)
+        })
+        .map(|declaration_file_path| format!("{declaration_file_path}.map"));
+    let build_info_path = get_ts_build_info_emit_output_file_path(options);
+    EmitFileNames {
+        js_file_path: js_file_path.map(ToOwned::to_owned),
+        source_map_file_path,
+        declaration_file_path,
+        declaration_map_path,
+        build_info_path,
+    }
+}
+
+pub(crate) fn get_output_paths_for(
+    source_file: &Node, /*SourceFile | Bundle*/
+    host: &dyn EmitHost,
+    force_dts_paths: bool,
+) -> EmitFileNames {
+    let options = ScriptReferenceHost::get_compiler_options(host);
+    if source_file.kind() == SyntaxKind::Bundle {
+        get_output_paths_for_bundle(&options, force_dts_paths)
+    } else {
+        let source_file_as_source_file = source_file.as_source_file();
+        let own_output_file_path = get_own_emit_output_file_path(
+            &source_file_as_source_file.file_name(),
+            host,
+            get_output_extension(&source_file_as_source_file.file_name(), &options).to_str(),
+        );
+        let is_json_file = is_json_source_file(source_file);
+        let is_json_emitted_to_same_location = is_json_file
+            && compare_paths(
+                &source_file_as_source_file.file_name(),
+                &own_output_file_path,
+                Some(EmitHost::get_current_directory(host)),
+                Some(!EmitHost::use_case_sensitive_file_names(host)),
+            ) == Comparison::EqualTo;
+        let js_file_path =
+            if options.emit_declaration_only == Some(true) || is_json_emitted_to_same_location {
+                None
+            } else {
+                Some(own_output_file_path)
+            };
+        let source_map_file_path = if js_file_path
+            .as_ref()
+            .filter(|js_file_path| !js_file_path.is_empty())
+            .is_none()
+            || is_json_source_file(source_file)
+        {
+            None
+        } else {
+            get_source_map_file_path(js_file_path.as_ref().unwrap(), &options)
+        };
+        let declaration_file_path =
+            if force_dts_paths || get_emit_declarations(&options) && !is_json_file {
+                Some(get_declaration_emit_output_file_path(
+                    &source_file_as_source_file.file_name(),
+                    host,
+                ))
+            } else {
+                None
+            };
+        let declaration_map_path = declaration_file_path
+            .as_ref()
+            .filter(|declaration_file_path| {
+                !declaration_file_path.is_empty() && get_are_declaration_maps_enabled(&options)
+            })
+            .map(|declaration_file_path| format!("{declaration_file_path}.map"));
+        EmitFileNames {
+            js_file_path,
+            source_map_file_path,
+            declaration_file_path,
+            declaration_map_path,
+            build_info_path: None,
+        }
+    }
+}
+
+fn get_source_map_file_path(js_file_path: &str, options: &CompilerOptions) -> Option<String> {
+    if options.source_map == Some(true) && options.inline_source_map != Some(true) {
+        Some(format!("{js_file_path}.map"))
+    } else {
+        None
+    }
 }
 
 pub fn get_output_extension(file_name: &str, options: &CompilerOptions) -> Extension {
@@ -164,6 +387,25 @@ pub(crate) fn get_common_source_directory_of_config(
 ) -> String {
     let options = &command_line.options;
     let file_names = &command_line.file_names;
+    unimplemented!()
+}
+
+pub(crate) fn emit_files(
+    resolver: Gc<Box<dyn EmitResolverDebuggable>>,
+    host: Gc<Box<dyn EmitHost>>,
+    target_source_file: Option<&Node /*SourceFile*/>,
+    EmitTransformers {
+        script_transformers,
+        declaration_transformers,
+    }: EmitTransformers,
+    emit_only_dts_files: Option<bool>,
+    only_build_info: Option<bool>,
+    force_dts_emit: Option<bool>,
+) -> EmitResult {
+    unimplemented!()
+}
+
+pub(crate) fn get_build_info(build_info_text: &str) -> Gc<BuildInfo> {
     unimplemented!()
 }
 

@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt;
@@ -886,7 +886,8 @@ pub trait SourceFileMayBeEmittedHost {
 pub trait EmitHost:
     ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost + Trace + Finalize
 {
-    fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
+    // fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
+    fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_current_directory(&self) -> String;
 
@@ -905,7 +906,7 @@ pub trait EmitHost:
         file_name: &str,
         data: &str,
         write_byte_order_mark: bool,
-        on_error: Option<&dyn FnMut(&str)>,
+        on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ); // WriteFileCallback
     fn get_program_build_info(&self) -> Option<ProgramBuildInfo>;
@@ -914,6 +915,6 @@ pub trait EmitHost:
         referencing_file: &Node, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
     ) -> Option<Gc<Node /*SourceFile*/>>;
-    fn redirect_targets_map(&self) -> &RedirectTargetsMap;
+    fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>>;
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost;
 }

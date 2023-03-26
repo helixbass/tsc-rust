@@ -15,11 +15,12 @@ use crate::{
     chain_diagnostic_messages, chain_diagnostic_messages_multiple, compare_paths, contains_path,
     create_compiler_diagnostic, create_compiler_diagnostic_from_message_chain,
     create_diagnostic_for_node_in_source_file, create_file_diagnostic,
-    create_file_diagnostic_from_message_chain, create_symlink_cache, explain_if_file_is_redirect,
-    file_extension_is, file_extension_is_one_of, file_include_reason_to_diagnostics, find,
-    get_allow_js_compiler_option, get_base_file_name, get_directory_path, get_emit_declarations,
-    get_emit_module_kind, get_emit_module_resolution_kind, get_emit_script_target,
-    get_error_span_for_node, get_property_assignment, get_referenced_file_location,
+    create_file_diagnostic_from_message_chain, create_input_files, create_symlink_cache,
+    explain_if_file_is_redirect, file_extension_is, file_extension_is_one_of,
+    file_include_reason_to_diagnostics, find, for_each_emitted_file, get_allow_js_compiler_option,
+    get_base_file_name, get_directory_path, get_emit_declarations, get_emit_module_kind,
+    get_emit_module_resolution_kind, get_emit_script_target, get_error_span_for_node,
+    get_output_paths_for_bundle, get_property_assignment, get_referenced_file_location,
     get_root_length, get_spelling_suggestion, get_strict_option_value,
     get_ts_build_info_emit_output_file_path, get_ts_config_object_literal_expression,
     has_json_module_emit_enabled, has_zero_or_one_asterisk_character, inverse_jsx_option_map,
@@ -29,18 +30,19 @@ use crate::{
     maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
     remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
     resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
-    string_contains, supported_js_extensions_flat, to_file_name_lower_case, version, Comparison,
-    CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, Debug_, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    Diagnostics, DirectoryStructureHost, Extension, FileIncludeKind, FileIncludeReason,
+    string_contains, supported_js_extensions_flat, to_file_name_lower_case, version,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, DirectoryStructureHost,
+    EmitFileNames, EmitResult, Extension, FileIncludeKind, FileIncludeReason,
     FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
     FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, Path, Program,
-    ProjectReference, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
-    ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
-    SyntaxKind,
+    NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
+    Program, ProjectReference, ReadFileCallback, ReferencedFile, ResolvedConfigFileName,
+    ResolvedModuleFull, ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget,
+    SymlinkCache, SyntaxKind, WriteFileCallback,
 };
 
 impl Program {
@@ -935,9 +937,85 @@ impl Program {
         if self.options.no_emit != Some(true)
             && self.options.suppress_output_path_check != Some(true)
         {
-            // TODO
-            // unimplemented!()
-            // let emit_host = self.get_emit_host();
+            let emit_host = self.get_emit_host(None);
+            let mut emit_files_seen: HashSet<String> = Default::default();
+            for_each_emitted_file(
+                &**emit_host,
+                |emit_file_names, _| {
+                    if self.options.emit_declaration_only != Some(true) {
+                        self.verify_emit_file_path(
+                            emit_file_names.js_file_path.as_deref(),
+                            &mut emit_files_seen,
+                        );
+                    }
+                    self.verify_emit_file_path(
+                        emit_file_names.declaration_file_path.as_deref(),
+                        &mut emit_files_seen,
+                    );
+                },
+                Option::<Gc<Node>>::None,
+                None,
+                None,
+                None,
+            );
+        }
+    }
+
+    pub(super) fn verify_emit_file_path(
+        &self,
+        emit_file_name: Option<&str>,
+        emit_files_seen: &mut HashSet<String>,
+    ) {
+        if let Some(emit_file_name) =
+            emit_file_name.filter(|emit_file_name| !emit_file_name.is_empty())
+        {
+            let emit_file_path = self.to_path(emit_file_name);
+            if self.files_by_name().contains_key(&*emit_file_path) {
+                let mut chain: Option<DiagnosticMessageChain> = None;
+                if self
+                    .options
+                    .config_file_path
+                    .as_ref()
+                    .filter(|options_config_file_path| !options_config_file_path.is_empty())
+                    .is_none()
+                {
+                    chain = Some(chain_diagnostic_messages(
+                        None,
+                        &Diagnostics::Adding_a_tsconfig_json_file_will_help_organize_projects_that_contain_both_TypeScript_and_JavaScript_files_Learn_more_at_https_Colon_Slash_Slashaka_ms_Slashtsconfig,
+                        None,
+                    ));
+                }
+                chain = Some(chain_diagnostic_messages(
+                    chain,
+                    &Diagnostics::Cannot_write_file_0_because_it_would_overwrite_input_file,
+                    Some(vec![emit_file_name.to_owned()]),
+                ));
+                self.block_emitting_of_file(
+                    emit_file_name,
+                    Gc::new(
+                        create_compiler_diagnostic_from_message_chain(chain.unwrap(), None).into(),
+                    ),
+                );
+            }
+
+            let emit_file_key = if !CompilerHost::use_case_sensitive_file_names(&**self.host()) {
+                to_file_name_lower_case(&emit_file_path)
+            } else {
+                (&*emit_file_path).to_owned()
+            };
+            if emit_files_seen.contains(&emit_file_key) {
+                self.block_emitting_of_file(
+                    emit_file_name,
+                    Gc::new(create_compiler_diagnostic(
+                        &Diagnostics::Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files,
+                        Some(vec![
+                            emit_file_name.to_owned()
+                        ])
+                    ).into())
+                );
+            } else {
+                emit_files_seen.insert(emit_file_key);
+            }
         }
     }
 
@@ -1722,6 +1800,86 @@ pub trait ForEachResolvedProjectReference: Trace + Finalize {
     fn call(&self, callback: &mut dyn FnMut(Gc<ResolvedProjectReference>));
 }
 
+pub(crate) fn emit_skipped_with_no_diagnostics() -> EmitResult {
+    EmitResult {
+        emit_skipped: true,
+        diagnostics: Default::default(),
+        emitted_files: Default::default(),
+        source_maps: Default::default(),
+        exported_modules_from_declaration_emit: Default::default(),
+    }
+}
+
+pub(crate) fn handle_no_emit_options(
+    program: Gc<Box<Program>>,
+    source_file: Option<&Node /*SourceFile*/>,
+    write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
+    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+) -> Option<EmitResult> {
+    let options = program.get_compiler_options();
+    if options.no_emit == Some(true) {
+        program.get_semantic_diagnostics(source_file, cancellation_token.clone());
+        return Some(
+            if source_file.is_some()
+                || out_file(&options)
+                    .filter(|out_file| !out_file.is_empty())
+                    .is_some()
+            {
+                emit_skipped_with_no_diagnostics()
+            } else {
+                program.emit_build_info(write_file, cancellation_token)
+            },
+        );
+    }
+
+    if options.no_emit_on_error != Some(true) {
+        return None;
+    }
+    let mut diagnostics: Vec<Gc<Diagnostic>> = [
+        program
+            .get_options_diagnostics(cancellation_token.clone())
+            .into(),
+        program.get_syntactic_diagnostics(source_file, cancellation_token.clone()),
+        program
+            .get_global_diagnostics(cancellation_token.clone())
+            .into(),
+        program.get_semantic_diagnostics(source_file, cancellation_token.clone()),
+    ]
+    .concat();
+
+    if diagnostics.is_empty() && get_emit_declarations(&program.get_compiler_options()) {
+        diagnostics = program.get_declaration_diagnostics(None, cancellation_token.clone());
+    }
+
+    if diagnostics.is_empty() {
+        return None;
+    }
+    let mut emitted_files: Option<Vec<String>> = None;
+    if source_file.is_none()
+        && out_file(&options)
+            .filter(|out_file| !out_file.is_empty())
+            .is_none()
+    {
+        let emit_result = program.emit_build_info(write_file, cancellation_token);
+        let EmitResult {
+            diagnostics: mut emit_result_diagnostics,
+            emitted_files: emit_result_emitted_files,
+            ..
+        } = emit_result;
+        // if (emitResult.diagnostics) {
+        diagnostics.append(&mut emit_result_diagnostics);
+        // }
+        emitted_files = emit_result_emitted_files;
+    }
+    Some(EmitResult {
+        emit_skipped: true,
+        diagnostics,
+        emitted_files,
+        source_maps: Default::default(),
+        exported_modules_from_declaration_emit: Default::default(),
+    })
+}
+
 pub(super) fn filter_semantic_diagnostics(
     diagnostic: Vec<Gc<Diagnostic>>,
     option: &CompilerOptions,
@@ -1973,6 +2131,54 @@ impl ConfigFileDiagnosticsReporter for ParseConfigHostFromCompilerHostLike {
         self.host
             .on_un_recoverable_config_file_diagnostic(diagnostic)
     }
+}
+
+pub(crate) fn create_prepend_nodes(
+    project_references: Option<&[Rc<ProjectReference>]>,
+    mut get_command_line: impl FnMut(&ProjectReference, usize) -> Option<Gc<ParsedCommandLine>>,
+    read_file: Gc<Box<dyn ReadFileCallback>>,
+) -> Vec<Gc<Node /*InputFiles*/>> {
+    if project_references.is_none() {
+        return vec![];
+    }
+    let project_references = project_references.unwrap();
+    let mut nodes: Vec<Gc<Node /*InputFiles*/>> = vec![];
+    for (i, ref_) in project_references.into_iter().enumerate() {
+        let resolved_ref_opts = get_command_line(ref_, i);
+        if ref_.prepend == Some(true) {
+            if let Some(resolved_ref_opts) = resolved_ref_opts
+            /*&& resolvedRefOpts.options*/
+            {
+                let out = out_file(&resolved_ref_opts.options);
+                if out.filter(|out| !out.is_empty()).is_none() {
+                    continue;
+                }
+
+                let EmitFileNames {
+                    js_file_path,
+                    source_map_file_path,
+                    declaration_file_path,
+                    declaration_map_path,
+                    build_info_path,
+                } = get_output_paths_for_bundle(&resolved_ref_opts.options, true);
+                let node = create_input_files(
+                    read_file.clone(),
+                    js_file_path.clone().unwrap(),
+                    source_map_file_path.clone(),
+                    declaration_file_path.clone(),
+                    declaration_map_path.clone(),
+                    build_info_path.clone(),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                );
+                nodes.push(node);
+            }
+        }
+    }
+    nodes
 }
 
 pub fn resolve_project_reference_path(ref_: &ProjectReference) -> ResolvedConfigFileName {

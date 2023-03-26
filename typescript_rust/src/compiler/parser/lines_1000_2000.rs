@@ -54,7 +54,7 @@ impl ParserType {
         if is_declaration_file {
             self.set_context_flags(self.context_flags() | NodeFlags::Ambient);
         }
-        let source_flags = self.context_flags();
+        self.set_source_flags(self.context_flags());
 
         self.next_token();
 
@@ -71,7 +71,7 @@ impl ParserType {
             is_declaration_file,
             statements,
             end_of_file_token,
-            source_flags,
+            self.source_flags(),
         );
         let source_file_as_source_file = source_file.as_source_file();
 

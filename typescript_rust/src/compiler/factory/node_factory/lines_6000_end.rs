@@ -1,20 +1,21 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Gc, GcCell};
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
+use std::{fmt, ptr};
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
     add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
-    maybe_append_if_unique_gc, maybe_append_if_unique_rc, set_text_range, BaseNode,
-    BaseNodeFactory, BaseNodeFactoryConcrete, Debug_, EmitFlags, EmitNode, LanguageVariant, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner,
-    ScriptTarget, SourceMapRange, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    maybe_append_if_unique_gc, maybe_append_if_unique_rc, parse_base_node_factory,
+    parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    BuildInfo, Debug_, EmitFlags, EmitNode, InputFiles, LanguageVariant, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget,
+    SourceMapRange, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind,
+    TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -417,6 +418,77 @@ impl From<PseudoBigInt> for PseudoBigIntOrString {
 impl From<String> for PseudoBigIntOrString {
     fn from(string: String) -> Self {
         PseudoBigIntOrString::String(string)
+    }
+}
+
+pub fn create_input_files(
+    javascript_text_or_read_file_text: impl Into<StringOrReadFileCallback>,
+    declaration_text_or_javascript_path: String,
+    javascript_map_path: Option<String>,
+    javascript_map_text_or_declaration_path: Option<String>,
+    declaration_map_path: Option<String>,
+    declaration_map_text_or_build_info_path: Option<String>,
+    javascript_path: Option<String>,
+    declaration_path: Option<String>,
+    build_info_path: Option<String>,
+    build_info: Option<Gc<BuildInfo>>,
+    old_file_of_current_emit: Option<bool>,
+) -> Gc<Node /*InputFiles*/> {
+    let mut node: InputFiles = parse_base_node_factory.with(|parse_base_node_factory_| {
+        parse_node_factory.with(|parse_node_factory_| {
+            parse_node_factory_
+                .create_input_files(parse_base_node_factory_)
+                .into()
+        })
+    });
+    match javascript_text_or_read_file_text.into() {
+        StringOrReadFileCallback::ReadFileCallback(javascript_text_or_read_file_text) => {
+            node.initialize_with_read_file_callback(
+                javascript_text_or_read_file_text,
+                declaration_text_or_javascript_path,
+                javascript_map_path,
+                javascript_map_text_or_declaration_path,
+                declaration_map_path,
+                declaration_map_text_or_build_info_path,
+            );
+        }
+        StringOrReadFileCallback::String(javascript_text_or_read_file_text) => {
+            node.initialize_with_string(
+                javascript_text_or_read_file_text,
+                javascript_map_path,
+                javascript_map_text_or_declaration_path,
+                declaration_text_or_javascript_path,
+                declaration_map_path,
+                declaration_map_text_or_build_info_path,
+                javascript_path,
+                declaration_path,
+                build_info_path,
+                build_info,
+                old_file_of_current_emit,
+            );
+        }
+    }
+    node.into()
+}
+
+pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {
+    fn call(&self, path: &str) -> Option<String>;
+}
+
+pub enum StringOrReadFileCallback {
+    String(String),
+    ReadFileCallback(Gc<Box<dyn ReadFileCallback>>),
+}
+
+impl From<String> for StringOrReadFileCallback {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
+    fn from(value: Gc<Box<dyn ReadFileCallback>>) -> Self {
+        Self::ReadFileCallback(value)
     }
 }
 

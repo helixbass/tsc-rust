@@ -263,7 +263,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         UnparsedTextLike::new(node)
     }
 
-    fn create_input_files(&self, base_factory: &TBaseNodeFactory) -> InputFiles {
+    pub fn create_input_files(&self, base_factory: &TBaseNodeFactory) -> InputFiles {
         let node = self.create_base_node(base_factory, SyntaxKind::InputFiles);
         InputFiles::new(node, "".to_owned(), "".to_owned())
     }

@@ -2,3 +2,4 @@ target
 test-out*
 .vscode/
 out
+typescript_rust/typescript_src/tests/baselines/local/

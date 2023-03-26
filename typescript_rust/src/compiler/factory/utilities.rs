@@ -5,12 +5,12 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    first_or_undefined, get_emit_flags, get_jsdoc_type_tag, is_assignment_expression,
-    is_declaration_binding_element, is_identifier, is_in_js_file, is_object_literal_element_like,
-    is_parenthesized_expression, is_prologue_directive, is_spread_element, is_string_literal,
-    push_or_replace, AssertionLevel, Debug_, EmitFlags, HasInitializerInterface,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
-    SyntaxKind,
+    first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag,
+    is_assignment_expression, is_declaration_binding_element, is_identifier, is_in_js_file,
+    is_object_literal_element_like, is_parenthesized_expression, is_prologue_directive,
+    is_spread_element, is_string_literal, push_or_replace, AssertionLevel, Debug_, EmitFlags,
+    HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
 
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
@@ -64,7 +64,9 @@ pub fn is_jsdoc_type_assertion(node: &Node) -> bool {
 }
 
 pub fn get_jsdoc_type_assertion_type(node: &Node /*JSDocTypeAssertion*/) -> Gc<Node> {
-    unimplemented!()
+    let type_ = get_jsdoc_type(node);
+    Debug_.assert_is_defined(&type_, None);
+    type_.unwrap()
 }
 
 pub fn is_outer_expression(node: &Node, kinds: Option<OuterExpressionKinds>) -> bool {

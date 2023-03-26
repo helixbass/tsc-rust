@@ -419,11 +419,11 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 self.remove_trailing_whitespace(&mut self.comments());
                                 if self.comments_pos.is_none() {
                                     self.comments_pos = Some(self.parser.get_node_pos());
-                                    let tag = self.parse_tag(indent).wrap();
-                                    self.add_tag(Some(tag));
-                                    state = JSDocState::BeginningOfLine;
-                                    margin = None;
                                 }
+                                let tag = self.parse_tag(indent).wrap();
+                                self.add_tag(Some(tag));
+                                state = JSDocState::BeginningOfLine;
+                                margin = None;
                             } else {
                                 let margin_and_indent = self.push_comment(
                                     margin,
@@ -927,8 +927,12 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                     .look_ahead_bool(|| self.is_next_jsdoc_token_whitespace()))
                     {
                         comments.push(self.parser.scanner().get_token_text());
+                    } else {
+                        self.parser
+                            .scanner()
+                            .set_text_pos(self.parser.scanner().get_text_pos() - 1);
+                        break;
                     }
-                    break;
                 }
                 SyntaxKind::EndOfFileToken => {
                     break;

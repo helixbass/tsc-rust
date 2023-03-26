@@ -1,161 +1,26 @@
 use gc::{Finalize, Gc, Trace};
-use regex::Regex;
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{
     for_each_resolved_project_reference, get_implied_node_format_for_file, is_referenced_file,
     resolve_tripleslash_reference, FilesByNameValue, ForEachResolvedProjectReference,
 };
 use crate::{
-    append, change_extension, combine_paths, file_extension_is, flatten, for_each, for_each_bool,
+    change_extension, combine_paths, file_extension_is, flatten, for_each, for_each_bool,
     for_each_child_returns, get_common_source_directory_of_config, get_emit_script_target,
-    get_external_module_name, get_normalized_absolute_path_without_root,
-    get_output_declaration_file_name, get_text_of_identifier_or_literal, has_extension,
-    has_js_file_extension, has_jsdoc_nodes, has_syntactic_modifier, is_ambient_module,
-    is_any_import_or_re_export, is_declaration_file_name, is_external_module_name_relative,
-    is_import_call, is_literal_import_type_node, is_module_declaration, is_require_call,
-    is_string_literal, is_string_literal_like, maybe_for_each, maybe_map, node_modules_path_part,
-    out_file, package_id_to_string, resolve_module_name, set_parent_recursive,
-    set_resolved_type_reference_directive, starts_with, string_contains, to_file_name_lower_case,
-    AsDoubleDeref, CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
-    FileIncludeKind, FileIncludeReason, FileReference, LiteralLikeNodeInterface, ModifierFlags,
-    ModuleResolutionKind, Node, NodeArray, NodeInterface, PackageId, Path, Program,
-    ReadonlyTextRange, ReferencedFile, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ScriptReferenceHost, SourceFileLike, SourceOfProjectReferenceRedirect, SyntaxKind,
+    get_normalized_absolute_path_without_root, get_output_declaration_file_name, has_extension,
+    has_js_file_extension, has_jsdoc_nodes, is_declaration_file_name, maybe_for_each, maybe_map,
+    node_modules_path_part, out_file, package_id_to_string, resolve_module_name,
+    set_resolved_type_reference_directive, string_contains, to_file_name_lower_case, AsDoubleDeref,
+    CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
+    FileIncludeKind, FileIncludeReason, FileReference, ModuleResolutionKind, Node, NodeArray,
+    NodeInterface, PackageId, Path, Program, ReadonlyTextRange, ReferencedFile,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
+    SourceOfProjectReferenceRedirect, SyntaxKind,
 };
 
 impl Program {
-    pub(super) fn collect_module_references(
-        &self,
-        imports: &mut Option<Vec<Gc<Node>>>,
-        file: &Node,
-        is_external_module_file: bool,
-        module_augmentations: &mut Option<Vec<Gc<Node>>>,
-        ambient_modules: &mut Option<Vec<String>>,
-        node: &Node, /*Statement*/
-        in_ambient_module: bool,
-    ) {
-        if is_any_import_or_re_export(node) {
-            let module_name_expr = get_external_module_name(node);
-            if let Some(module_name_expr) = module_name_expr.as_ref().filter(|module_name_expr| {
-                is_string_literal(module_name_expr) && {
-                    let module_name_text = module_name_expr.as_string_literal().text();
-                    !module_name_text.is_empty()
-                        && (!in_ambient_module
-                            || !is_external_module_name_relative(&module_name_text))
-                }
-            }) {
-                set_parent_recursive(Some(node), false);
-                append(
-                    imports.get_or_insert_with(|| vec![]),
-                    Some(module_name_expr.clone()),
-                );
-                if !self.uses_uri_style_node_core_modules()
-                    && self.current_node_modules_depth() == 0
-                    && !file.as_source_file().is_declaration_file()
-                {
-                    self.set_uses_uri_style_node_core_modules(starts_with(
-                        &module_name_expr.as_string_literal().text(),
-                        "node:",
-                    ));
-                }
-            }
-        } else if is_module_declaration(node) {
-            if is_ambient_module(node)
-                && (in_ambient_module
-                    || has_syntactic_modifier(node, ModifierFlags::Ambient)
-                    || file.as_source_file().is_declaration_file())
-            {
-                let node_name = node.as_named_declaration().name();
-                node_name.set_parent(node.node_wrapper());
-                let name_text = get_text_of_identifier_or_literal(&node_name);
-                if is_external_module_file
-                    || (in_ambient_module && !is_external_module_name_relative(&name_text))
-                {
-                    module_augmentations
-                        .get_or_insert_with(|| vec![])
-                        .push(node_name);
-                } else if !in_ambient_module {
-                    if file.as_source_file().is_declaration_file() {
-                        ambient_modules
-                            .get_or_insert_with(|| vec![])
-                            .push(name_text.into_owned());
-                    }
-                    let body = node.as_module_declaration().body.as_ref();
-                    if let Some(body) = body {
-                        for statement in &body.as_module_block().statements {
-                            self.collect_module_references(
-                                imports,
-                                file,
-                                is_external_module_file,
-                                module_augmentations,
-                                ambient_modules,
-                                statement,
-                                true,
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub(super) fn collect_dynamic_import_or_require_calls(
-        &self,
-        is_java_script_file: bool,
-        imports: &mut Option<Vec<Gc<Node>>>,
-        file: &Node, /*SourceFile*/
-    ) {
-        lazy_static! {
-            static ref r: Regex = Regex::new(r"import|require").unwrap();
-        }
-        for match_ in r.find_iter(&file.as_source_file().text()) {
-            let ref node = self.get_node_at_position(
-                is_java_script_file,
-                file,
-                // TODO: I think this needs to use "char count" rather than "byte count" somehow?
-                match_.start().try_into().unwrap(),
-            );
-            if is_java_script_file && is_require_call(node, true) {
-                set_parent_recursive(Some(&**node), false);
-                if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
-                {
-                    append(
-                        imports.get_or_insert_with(|| vec![]),
-                        Some(node_arguments_0),
-                    );
-                }
-            } else if is_import_call(node) && {
-                let node_arguments = &node.as_call_expression().arguments;
-                node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0])
-            } {
-                set_parent_recursive(Some(&**node), false);
-                if let Some(node_arguments_0) = node.as_call_expression().arguments.get(0).cloned()
-                {
-                    append(
-                        imports.get_or_insert_with(|| vec![]),
-                        Some(node_arguments_0),
-                    );
-                }
-            } else if is_literal_import_type_node(node) {
-                set_parent_recursive(Some(&**node), false);
-                append(
-                    imports.get_or_insert_with(|| vec![]),
-                    Some(
-                        node.as_import_type_node()
-                            .argument
-                            .as_literal_type_node()
-                            .literal
-                            .clone(),
-                    ),
-                );
-            }
-        }
-    }
-
     pub(super) fn get_node_at_position(
         &self,
         is_java_script_file: bool,
@@ -183,6 +48,21 @@ impl Program {
             }
             current = child.unwrap();
         }
+    }
+
+    pub(super) fn get_lib_file_from_reference(
+        &self,
+        ref_: &FileReference,
+    ) -> Option<Gc<Node /*SourceFile*/>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_source_file_from_reference(
+        &self,
+        referencing_file: &Node, /*SourceFile | UnparsedSource*/
+        ref_: &FileReference,
+    ) -> Option<Gc<Node /*SourceFile*/>> {
+        unimplemented!()
     }
 
     pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Gc<Node>> {
@@ -582,7 +462,7 @@ impl Program {
                     })
                     .as_double_deref(),
                 self.host().as_dyn_module_resolution_host(),
-                &self.options,
+                self.options.clone(),
             ));
             self.add_file_include_reason(Some(&**file), reason);
 
@@ -656,14 +536,14 @@ impl Program {
     ) {
         let file = file.map(|file| file.borrow().node_wrapper());
         if let Some(redirected_path) = redirected_path {
-            self.files_by_name().insert(
+            self.files_by_name_mut().insert(
                 redirected_path.to_string(),
                 match file.as_ref() {
                     None => FilesByNameValue::Undefined,
                     Some(file) => FilesByNameValue::SourceFile(file.clone()),
                 },
             );
-            self.files_by_name().insert(
+            self.files_by_name_mut().insert(
                 path.to_string(),
                 match file.as_ref() {
                     None => FilesByNameValue::False,
@@ -671,7 +551,7 @@ impl Program {
                 },
             );
         } else {
-            self.files_by_name().insert(
+            self.files_by_name_mut().insert(
                 path.to_string(),
                 match file.as_ref() {
                     None => FilesByNameValue::Undefined,
