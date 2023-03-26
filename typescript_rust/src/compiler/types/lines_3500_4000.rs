@@ -204,6 +204,9 @@ pub struct SourceFileContents {
 
     js_doc_diagnostics: GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
+    additional_syntactic_diagnostics:
+        GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+
     #[unsafe_ignore_trace]
     line_map: RefCell<Option<Vec<usize>>>,
     #[unsafe_ignore_trace]
@@ -278,6 +281,7 @@ impl SourceFile {
                 bind_diagnostics: Default::default(),
                 bind_suggestion_diagnostics: Default::default(),
                 js_doc_diagnostics: Default::default(),
+                additional_syntactic_diagnostics: Default::default(),
                 line_map: Default::default(),
                 classifiable_names: Default::default(),
                 language_version: Cell::new(language_version),
@@ -585,6 +589,12 @@ impl SourceFile {
 
     pub fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Vec<Gc<Diagnostic>>) {
         *self.contents.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
+    }
+
+    pub fn maybe_additional_syntactic_diagnostics_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>> {
+        self.contents.additional_syntactic_diagnostics.borrow_mut()
     }
 
     pub fn set_classifiable_names(

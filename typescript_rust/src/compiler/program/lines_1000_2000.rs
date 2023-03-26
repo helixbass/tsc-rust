@@ -6,14 +6,14 @@ use crate::{
     compare_values, concatenate, contains, contains_path, create_type_checker, emit_files,
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
     get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
-    get_transformers, is_trace_enabled, libs, map_defined, node_modules_path_part, out_file,
-    package_id_to_string, remove_prefix, remove_suffix, skip_type_checking,
-    source_file_may_be_emitted, string_contains, to_path as to_path_helper, trace,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
-    Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
-    FileReference, ModuleSpecifierResolutionHost, MultiMap, Node, Path, Program, ProgramBuildInfo,
-    ReadFileCallback, RedirectTargetsMap, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
+    get_transformers, is_source_file_js, is_trace_enabled, libs, map_defined,
+    node_modules_path_part, out_file, package_id_to_string, remove_prefix, remove_suffix,
+    skip_type_checking, source_file_may_be_emitted, string_contains, to_path as to_path_helper,
+    trace, CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension,
+    FileIncludeReason, FileReference, ModuleSpecifierResolutionHost, MultiMap, Node, Path, Program,
+    ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap, ResolvedModuleFull,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
     StructureIsReused, SymlinkCache, TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
@@ -771,6 +771,20 @@ impl Program {
         // refactor eg get_diagnostics_helper() to use closures instead?
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
+        let source_file_as_source_file = source_file.as_source_file();
+        if is_source_file_js(source_file) {
+            let mut source_file_additional_syntactic_diagnostics =
+                source_file_as_source_file.maybe_additional_syntactic_diagnostics_mut();
+            let source_file_additional_syntactic_diagnostics =
+                source_file_additional_syntactic_diagnostics
+                    .get_or_insert_with(|| self.get_js_syntactic_diagnostics_for_file(source_file));
+            return concatenate(
+                source_file_additional_syntactic_diagnostics.clone(),
+                (*source_file.as_source_file().parse_diagnostics())
+                    .borrow()
+                    .clone(),
+            );
+        }
         (*source_file.as_source_file().parse_diagnostics())
             .borrow()
             .clone()

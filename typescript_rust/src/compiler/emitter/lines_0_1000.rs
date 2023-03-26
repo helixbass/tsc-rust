@@ -200,7 +200,38 @@ pub(crate) fn get_output_paths_for_bundle(
     options: &CompilerOptions,
     force_dts_paths: bool,
 ) -> EmitFileNames {
-    unimplemented!()
+    let out_path = out_file(options).unwrap();
+    let js_file_path = if options.emit_declaration_only == Some(true) {
+        None
+    } else {
+        Some(out_path)
+    };
+    let source_map_file_path = js_file_path
+        .filter(|js_file_path| !js_file_path.is_empty())
+        .and_then(|js_file_path| get_source_map_file_path(js_file_path, options));
+    let declaration_file_path = if force_dts_paths || get_emit_declarations(options) {
+        Some(format!(
+            "{}{}",
+            remove_file_extension(out_path),
+            Extension::Dts.to_str()
+        ))
+    } else {
+        None
+    };
+    let declaration_map_path = declaration_file_path
+        .as_ref()
+        .filter(|declaration_file_path| {
+            !declaration_file_path.is_empty() && get_are_declaration_maps_enabled(options)
+        })
+        .map(|declaration_file_path| format!("{declaration_file_path}.map"));
+    let build_info_path = get_ts_build_info_emit_output_file_path(options);
+    EmitFileNames {
+        js_file_path: js_file_path.map(ToOwned::to_owned),
+        source_map_file_path,
+        declaration_file_path,
+        declaration_map_path,
+        build_info_path,
+    }
 }
 
 pub(crate) fn get_output_paths_for(

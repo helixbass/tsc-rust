@@ -21,6 +21,12 @@ pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
     Value(TValue),
 }
 
+impl<TValue> From<TValue> for ForEachChildRecursivelyCallbackReturn<TValue> {
+    fn from(value: TValue) -> Self {
+        Self::Value(value)
+    }
+}
+
 pub fn for_each_child_recursively<
     TValue,
     TCBNode: FnMut(&Node, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
