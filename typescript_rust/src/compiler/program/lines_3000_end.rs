@@ -2153,7 +2153,6 @@ pub(crate) fn create_prepend_nodes(
                 if out.filter(|out| !out.is_empty()).is_none() {
                     continue;
                 }
-                let out = out.unwrap();
 
                 let EmitFileNames {
                     js_file_path,
@@ -2164,11 +2163,11 @@ pub(crate) fn create_prepend_nodes(
                 } = get_output_paths_for_bundle(&resolved_ref_opts.options, true);
                 let node = create_input_files(
                     read_file.clone(),
-                    js_file_path.as_deref().unwrap(),
-                    source_map_file_path.as_deref(),
-                    declaration_file_path.as_deref(),
-                    declaration_map_path.as_deref(),
-                    build_info_path.as_deref(),
+                    js_file_path.clone().unwrap(),
+                    source_map_file_path.clone(),
+                    declaration_file_path.clone(),
+                    declaration_map_path.clone(),
+                    build_info_path.clone(),
                     None,
                     None,
                     None,

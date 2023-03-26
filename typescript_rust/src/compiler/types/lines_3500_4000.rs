@@ -838,105 +838,6 @@ impl Bundle {
 }
 
 #[derive(Debug, Trace, Finalize)]
-struct InputFilesInitializedWithReadFileCallback {
-    read_file_callback: Gc<Box<dyn ReadFileCallback>>,
-    #[unsafe_ignore_trace]
-    cache: RefCell<HashMap<String, Option<String>>>,
-    declaration_text_or_javascript_path: String,
-    javascript_map_path: Option<String>,
-    javascript_map_text_or_declaration_path: String,
-    declaration_map_path: Option<String>,
-    declaration_map_text_or_build_info_path: Option<String>,
-    #[unsafe_ignore_trace]
-    build_info: RefCell<Option<Option<Rc<BuildInfo>>>>,
-}
-
-impl InputFilesInitializedWithReadFileCallback {
-    pub fn new(
-        read_file_callback: Gc<Box<dyn ReadFileCallback>>,
-        declaration_text_or_javascript_path: String,
-        javascript_map_path: Option<String>,
-        javascript_map_text_or_declaration_path: String,
-        declaration_map_path: Option<String>,
-        declaration_map_text_or_build_info_path: Option<String>,
-    ) -> Self {
-        Self {
-            read_file_callback,
-            cache: Default::default(),
-            declaration_text_or_javascript_path,
-            javascript_map_path,
-            javascript_map_text_or_declaration_path,
-            declaration_map_path,
-            declaration_map_text_or_build_info_path,
-            build_info: Default::default(),
-        }
-    }
-
-    fn cache_mut(&self) -> RefMut<HashMap<String, Option<String>>> {
-        self.cache.borrow_mut()
-    }
-
-    fn text_getter(&self, path: Option<&str>) -> Option<String> {
-        let path = path?;
-        let mut cache = self.cache_mut();
-        let mut value = cache.get(path).cloned();
-        if value.is_none() {
-            value = self.read_file_callback.call(path).map(|value| Some(value));
-            cache.insert(
-                path.to_owned(),
-                match value.clone() {
-                    Some(Some(value)) => Some(value),
-                    None => None,
-                    _ => unreachable!(),
-                },
-            );
-        }
-        value.flatten()
-    }
-
-    fn defined_text_getter(&self, path: &str) -> String {
-        let result = self.text_getter(Some(path));
-        result.unwrap_or_else(|| format!("/* Input file {path} was missing */\r\n"))
-    }
-
-    fn get_and_cache_build_info(
-        &self,
-        mut get_text: impl FnMut() -> Option<String>,
-    ) -> Option<Rc<BuildInfo>> {
-        let mut build_info = self.build_info.borrow_mut();
-        if build_info.is_none() {
-            let result = get_text();
-            *build_info = Some(result.map(|result| get_build_info(&result)));
-        }
-        build_info.clone().unwrap()
-    }
-}
-
-#[derive(Debug, Trace, Finalize)]
-enum InputFilesInitializedState {
-    Uninitialized,
-    InitializedWithReadFileCallback(InputFilesInitializedWithReadFileCallback),
-    InitializedWithString(String),
-}
-
-impl InputFilesInitializedState {
-    fn as_initialized_with_read_file_callback(&self) -> &InputFilesInitializedWithReadFileCallback {
-        if let Self::InitializedWithReadFileCallback(value) = self {
-            Some(value)
-        } else {
-            None
-        }
-        .unwrap()
-    }
-}
-
-impl Default for InputFilesInitializedState {
-    fn default() -> Self {
-        Self::Uninitialized
-    }
-}
-
-#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct InputFiles {
     _node: BaseNode,
@@ -999,6 +900,37 @@ impl InputFiles {
         self.build_info_path = declaration_map_text_or_build_info_path;
     }
 
+    pub fn initialize_with_string(
+        &mut self,
+        javascript_text_or_read_file_text: String,
+        javascript_map_path: Option<String>,
+        javascript_map_text_or_declaration_path: Option<String>,
+        declaration_text_or_javascript_path: String,
+        declaration_map_path: Option<String>,
+        declaration_map_text_or_build_info_path: Option<String>,
+        javascript_path: Option<String>,
+        declaration_path: Option<String>,
+        build_info_path: Option<String>,
+        build_info: Option<Gc<BuildInfo>>,
+        old_file_of_current_emit: Option<bool>,
+    ) {
+        self.initialized_state = InputFilesInitializedState::InitializedWithString(
+            InputFilesInitializedWithString::new(
+                javascript_text_or_read_file_text,
+                javascript_map_text_or_declaration_path,
+                declaration_text_or_javascript_path,
+                declaration_map_text_or_build_info_path,
+                build_info,
+            ),
+        );
+        self.javascript_map_path = javascript_map_path;
+        self.declaration_map_path = declaration_map_path;
+        self.javascript_path = javascript_path;
+        self.declaration_path = declaration_path;
+        self.build_info_path = build_info_path;
+        self.old_file_of_current_emit = old_file_of_current_emit;
+    }
+
     pub fn javascript_text(&self) -> String {
         match &self.initialized_state {
             InputFilesInitializedState::Uninitialized => self.fallback_javascript_text.clone(),
@@ -1007,8 +939,8 @@ impl InputFiles {
             ) => initialized_with_read_file_callback.defined_text_getter(
                 &initialized_with_read_file_callback.declaration_text_or_javascript_path,
             ),
-            InputFilesInitializedState::InitializedWithString(string) => {
-                unimplemented!()
+            InputFilesInitializedState::InitializedWithString(initialized_with_string) => {
+                initialized_with_string.javascript_text.clone()
             }
         }
     }
@@ -1023,8 +955,8 @@ impl InputFiles {
                     .javascript_map_path
                     .as_deref(),
             ),
-            InputFilesInitializedState::InitializedWithString(string) => {
-                unimplemented!()
+            InputFilesInitializedState::InitializedWithString(initialized_with_string) => {
+                initialized_with_string.javascript_map_text.clone()
             }
         }
     }
@@ -1037,8 +969,8 @@ impl InputFiles {
             ) => initialized_with_read_file_callback.defined_text_getter(
                 &initialized_with_read_file_callback.javascript_map_text_or_declaration_path,
             ),
-            InputFilesInitializedState::InitializedWithString(string) => {
-                unimplemented!()
+            InputFilesInitializedState::InitializedWithString(initialized_with_string) => {
+                initialized_with_string.declaration_text.clone()
             }
         }
     }
@@ -1053,13 +985,13 @@ impl InputFiles {
                     .declaration_map_path
                     .as_deref(),
             ),
-            InputFilesInitializedState::InitializedWithString(string) => {
-                unimplemented!()
+            InputFilesInitializedState::InitializedWithString(initialized_with_string) => {
+                initialized_with_string.declaration_map_text.clone()
             }
         }
     }
 
-    pub fn build_info(&self) -> Option<Rc<BuildInfo>> {
+    pub fn build_info(&self) -> Option<Gc<BuildInfo>> {
         match &self.initialized_state {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
@@ -1071,8 +1003,8 @@ impl InputFiles {
                         .as_deref(),
                 )
             }),
-            InputFilesInitializedState::InitializedWithString(string) => {
-                unimplemented!()
+            InputFilesInitializedState::InitializedWithString(initialized_with_string) => {
+                initialized_with_string.build_info.clone()
             }
         }
     }
@@ -1085,6 +1017,132 @@ pub trait HasOldFileOfCurrentEmitInterface {
 impl HasOldFileOfCurrentEmitInterface for InputFiles {
     fn maybe_old_file_of_current_emit(&self) -> Option<bool> {
         self.old_file_of_current_emit
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+enum InputFilesInitializedState {
+    Uninitialized,
+    InitializedWithReadFileCallback(InputFilesInitializedWithReadFileCallback),
+    InitializedWithString(InputFilesInitializedWithString),
+}
+
+impl InputFilesInitializedState {
+    fn as_initialized_with_read_file_callback(&self) -> &InputFilesInitializedWithReadFileCallback {
+        if let Self::InitializedWithReadFileCallback(value) = self {
+            Some(value)
+        } else {
+            None
+        }
+        .unwrap()
+    }
+}
+
+impl Default for InputFilesInitializedState {
+    fn default() -> Self {
+        Self::Uninitialized
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+struct InputFilesInitializedWithReadFileCallback {
+    read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+    #[unsafe_ignore_trace]
+    cache: RefCell<HashMap<String, Option<String>>>,
+    declaration_text_or_javascript_path: String,
+    javascript_map_path: Option<String>,
+    javascript_map_text_or_declaration_path: String,
+    declaration_map_path: Option<String>,
+    declaration_map_text_or_build_info_path: Option<String>,
+    #[unsafe_ignore_trace]
+    build_info: GcCell<Option<Option<Gc<BuildInfo>>>>,
+}
+
+impl InputFilesInitializedWithReadFileCallback {
+    pub fn new(
+        read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+        declaration_text_or_javascript_path: String,
+        javascript_map_path: Option<String>,
+        javascript_map_text_or_declaration_path: String,
+        declaration_map_path: Option<String>,
+        declaration_map_text_or_build_info_path: Option<String>,
+    ) -> Self {
+        Self {
+            read_file_callback,
+            cache: Default::default(),
+            declaration_text_or_javascript_path,
+            javascript_map_path,
+            javascript_map_text_or_declaration_path,
+            declaration_map_path,
+            declaration_map_text_or_build_info_path,
+            build_info: Default::default(),
+        }
+    }
+
+    fn cache_mut(&self) -> RefMut<HashMap<String, Option<String>>> {
+        self.cache.borrow_mut()
+    }
+
+    fn text_getter(&self, path: Option<&str>) -> Option<String> {
+        let path = path?;
+        let mut cache = self.cache_mut();
+        let mut value = cache.get(path).cloned();
+        if value.is_none() {
+            value = self.read_file_callback.call(path).map(|value| Some(value));
+            cache.insert(
+                path.to_owned(),
+                match value.clone() {
+                    Some(Some(value)) => Some(value),
+                    None => None,
+                    _ => unreachable!(),
+                },
+            );
+        }
+        value.flatten()
+    }
+
+    fn defined_text_getter(&self, path: &str) -> String {
+        let result = self.text_getter(Some(path));
+        result.unwrap_or_else(|| format!("/* Input file {path} was missing */\r\n"))
+    }
+
+    fn get_and_cache_build_info(
+        &self,
+        mut get_text: impl FnMut() -> Option<String>,
+    ) -> Option<Gc<BuildInfo>> {
+        let mut build_info = self.build_info.borrow_mut();
+        if build_info.is_none() {
+            let result = get_text();
+            *build_info = Some(result.map(|result| get_build_info(&result)));
+        }
+        build_info.clone().unwrap()
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+struct InputFilesInitializedWithString {
+    javascript_text: String,
+    javascript_map_text: Option<String>,
+    declaration_text: String,
+    declaration_map_text: Option<String>,
+    build_info: Option<Gc<BuildInfo>>,
+}
+
+impl InputFilesInitializedWithString {
+    pub fn new(
+        javascript_text: String,
+        javascript_map_text: Option<String>,
+        declaration_text: String,
+        declaration_map_text: Option<String>,
+        build_info: Option<Gc<BuildInfo>>,
+    ) -> Self {
+        Self {
+            javascript_text,
+            javascript_map_text,
+            declaration_text,
+            declaration_map_text,
+            build_info,
+        }
     }
 }
 

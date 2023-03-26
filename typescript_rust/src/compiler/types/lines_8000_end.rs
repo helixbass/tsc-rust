@@ -597,7 +597,6 @@ pub struct BundleFileInfo {
     pub sources: Option<SourceFileInfo>,
 }
 
-// TODO: remove the #[unsafe_ignore_trace] in InputFiles if BuildInfo ends up needing to be traversed
 // #[derive(Trace, Finalize)]
 pub type BuildInfo = ();
 

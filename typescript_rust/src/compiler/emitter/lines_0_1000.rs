@@ -374,7 +374,7 @@ pub(crate) fn emit_files(
     unimplemented!()
 }
 
-pub(crate) fn get_build_info(build_info_text: &str) -> Rc<BuildInfo> {
+pub(crate) fn get_build_info(build_info_text: &str) -> Gc<BuildInfo> {
     unimplemented!()
 }
 

@@ -423,15 +423,15 @@ impl From<String> for PseudoBigIntOrString {
 
 pub fn create_input_files(
     javascript_text_or_read_file_text: impl Into<StringOrReadFileCallback>,
-    declaration_text_or_javascript_path: &str,
-    javascript_map_path: Option<&str>,
-    javascript_map_text_or_declaration_path: Option<&str>,
-    declaration_map_path: Option<&str>,
-    declaration_map_text_or_build_info_path: Option<&str>,
-    javascript_path: Option<&str>,
-    declaration_path: Option<&str>,
-    build_info_path: Option<&str>,
-    build_info: Option<&BuildInfo>,
+    declaration_text_or_javascript_path: String,
+    javascript_map_path: Option<String>,
+    javascript_map_text_or_declaration_path: Option<String>,
+    declaration_map_path: Option<String>,
+    declaration_map_text_or_build_info_path: Option<String>,
+    javascript_path: Option<String>,
+    declaration_path: Option<String>,
+    build_info_path: Option<String>,
+    build_info: Option<Gc<BuildInfo>>,
     old_file_of_current_emit: Option<bool>,
 ) -> Gc<Node /*InputFiles*/> {
     let mut node: InputFiles = parse_base_node_factory.with(|parse_base_node_factory_| {
@@ -443,9 +443,30 @@ pub fn create_input_files(
     });
     match javascript_text_or_read_file_text.into() {
         StringOrReadFileCallback::ReadFileCallback(javascript_text_or_read_file_text) => {
-            let mut cache: HashMap<String, Option<String>> = Default::default();
+            node.initialize_with_read_file_callback(
+                javascript_text_or_read_file_text,
+                declaration_text_or_javascript_path,
+                javascript_map_path,
+                javascript_map_text_or_declaration_path,
+                declaration_map_path,
+                declaration_map_text_or_build_info_path,
+            );
         }
-        StringOrReadFileCallback::String(javascript_text_or_read_file_text) => {}
+        StringOrReadFileCallback::String(javascript_text_or_read_file_text) => {
+            node.initialize_with_string(
+                javascript_text_or_read_file_text,
+                javascript_map_path,
+                javascript_map_text_or_declaration_path,
+                declaration_text_or_javascript_path,
+                declaration_map_path,
+                declaration_map_text_or_build_info_path,
+                javascript_path,
+                declaration_path,
+                build_info_path,
+                build_info,
+                old_file_of_current_emit,
+            );
+        }
     }
     node.into()
 }
