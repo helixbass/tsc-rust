@@ -225,8 +225,8 @@ pub use compiler::program::{
     format_diagnostic, format_diagnostics, format_diagnostics_with_color_and_context,
     format_location, get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
     get_pre_emit_diagnostics, get_resolution_diagnostic, ActualResolveModuleNamesWorker,
-    ActualResolveTypeReferenceDirectiveNamesWorker, FilesByNameValue, FormatDiagnosticsHost,
-    ToPath,
+    ActualResolveTypeReferenceDirectiveNamesWorker, EmitHostWriteFileCallback, FilesByNameValue,
+    FormatDiagnosticsHost, ToPath,
 };
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position,
@@ -254,7 +254,7 @@ use compiler::sys::{ignored_paths, missing_file_modified_time};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
 pub use compiler::transformer::{
     get_transformers, no_emit_notification, no_emit_substitution, null_transformation_context,
-    WrapCustomTransformerFactoryHandleDefault,
+    transform_nodes, TransformNodesTransformationResult, WrapCustomTransformerFactoryHandleDefault,
 };
 pub use compiler::transformers::{
     chain_bundle, is_internal_declaration, transform_class_fields, transform_declarations,
@@ -303,20 +303,20 @@ pub use compiler::types::{
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     DidYouMeanOptionsDiagnostics, DoStatement, ElementAccessExpression, ElementFlags, EmitFlags,
-    EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, EmitHost, EmitResolver,
-    EmitResolverDebuggable, EmitResult, EmitTextWriter, EmitTransformers, EmptyStatement,
-    EnumDeclaration, EnumKind, EnumMember, EvolvingArrayType, ExitStatus, ExportAssignment,
-    ExportDeclaration, ExportSpecifier, ExpressionStatement, ExpressionWithTypeArguments,
-    Extension, ExternalModuleReference, FileExtensionInfo, FilePreprocessingDiagnostics,
-    FilePreprocessingDiagnosticsKind, FilePreprocessingFileExplainingDiagnostic,
-    FilePreprocessingReferencedDiagnostic, FileReference, FlowArrayMutation, FlowAssignment,
-    FlowCall, FlowCondition, FlowFlags, FlowLabel, FlowNode, FlowNodeBase, FlowReduceLabel,
-    FlowStart, FlowSwitchClause, FlowType, ForInStatement, ForOfStatement, ForStatement,
-    FreshObjectLiteralTypeInterface, FreshableIntrinsicType, FunctionDeclaration,
-    FunctionExpression, FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface,
-    FunctionTypeNode, GeneratedIdentifierFlags, GenericNamedDeclarationInterface,
-    GenericTypeInterface, GenericableTypeInterface, GetAccessorDeclaration, HasAntecedentInterface,
-    HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface, HasConditionInterface,
+    EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, EmitHost, EmitResolver, EmitResult,
+    EmitTextWriter, EmitTransformers, EmptyStatement, EnumDeclaration, EnumKind, EnumMember,
+    EvolvingArrayType, ExitStatus, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    ExpressionStatement, ExpressionWithTypeArguments, Extension, ExternalModuleReference,
+    FileExtensionInfo, FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
+    FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
+    FileReference, FlowArrayMutation, FlowAssignment, FlowCall, FlowCondition, FlowFlags,
+    FlowLabel, FlowNode, FlowNodeBase, FlowReduceLabel, FlowStart, FlowSwitchClause, FlowType,
+    ForInStatement, ForOfStatement, ForStatement, FreshObjectLiteralTypeInterface,
+    FreshableIntrinsicType, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationBase,
+    FunctionLikeDeclarationInterface, FunctionTypeNode, GeneratedIdentifierFlags,
+    GenericNamedDeclarationInterface, GenericTypeInterface, GenericableTypeInterface,
+    GetAccessorDeclaration, HasAntecedentInterface, HasArgumentsInterface,
+    HasAssertClauseInterface, HasChildrenInterface, HasConditionInterface,
     HasDotDotDotTokenInterface, HasElementsInterface, HasExpressionInterface,
     HasInitializerInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
     HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
@@ -363,9 +363,9 @@ pub use compiler::types::{
     PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
     PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, RedirectTargetsMap, RegularExpressionLiteral,
-    RelationComparisonResult, RequireResult, ResolvableTypeInterface, ResolvedConfigFileName,
-    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeInterface, ResolvedTypeReferenceDirective,
+    RelationComparisonResult, RelativeToBuildInfo, RequireResult, ResolvableTypeInterface,
+    ResolvedConfigFileName, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeInterface, ResolvedTypeReferenceDirective,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, RestTypeNode, ReturnStatement,
     ReverseMappedSymbol, ReverseMappedType, RootFile, ScriptKind, ScriptReferenceHost,
     ScriptTarget, SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment,
@@ -402,10 +402,11 @@ pub use compiler::types::{
     WriteFileCallback, YieldExpression, __String,
 };
 use compiler::types::{
-    AccessFlags, CommentDirectivesMap, EmitNode, ExternalEmitHelpers, FileIncludeKind,
-    FileIncludeReason, IterationTypes, IterationTypesKey, JsxReferenceKind, MemberOverrideStatus,
-    ModulePath, OutofbandVarianceMarkerHandler, RawSourceMap, ReadonlyPragmaMap, ReferencedFile,
-    SourceOfProjectReferenceRedirect, WideningContext,
+    AccessFlags, BundleBuildInfo, CommentDirectivesMap, EmitNode,
+    ExportedModulesFromDeclarationEmit, ExternalEmitHelpers, FileIncludeKind, FileIncludeReason,
+    IterationTypes, IterationTypesKey, JsxReferenceKind, MemberOverrideStatus, ModulePath,
+    OutofbandVarianceMarkerHandler, RawSourceMap, ReadonlyPragmaMap, ReferencedFile,
+    SourceMapEmitResult, SourceOfProjectReferenceRedirect, WideningContext,
 };
 pub use compiler::utilities::{
     add_related_info, array_is_homogeneous, attach_file_to_diagnostics, chain_diagnostic_messages,
@@ -521,9 +522,10 @@ pub use compiler::utilities::{
     is_right_side_of_qualified_name_or_property_access,
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_same_entity_name,
     is_shorthand_ambient_module_symbol, is_signed_numeric_literal, is_single_or_double_quote,
-    is_source_file_js, is_special_property_declaration, is_statement_with_locals, is_static,
-    is_string_double_quoted, is_string_or_numeric_literal_like, is_super_call, is_super_property,
-    is_this_identifier, is_this_in_type_query, is_this_initialized_declaration,
+    is_source_file_js, is_source_file_not_json, is_special_property_declaration,
+    is_statement_with_locals, is_static, is_string_double_quoted,
+    is_string_or_numeric_literal_like, is_super_call, is_super_property, is_this_identifier,
+    is_this_in_type_query, is_this_initialized_declaration,
     is_this_initialized_object_binding_expression, is_this_property, is_transient_symbol,
     is_type_alias, is_type_node_kind, is_umd_export_symbol, is_valid_es_symbol_declaration,
     is_valid_type_only_alias_use_site, is_value_signature_declaration, is_var_const,
@@ -550,10 +552,10 @@ pub use compiler::utilities::{
     try_remove_extension, type_has_call_or_construct_signatures, unreachable_code_is_error,
     unused_label_is_error, using_single_line_string_writer, walk_up_parenthesized_expressions,
     walk_up_parenthesized_types, walk_up_parenthesized_types_and_get_parent_and_child,
-    write_comment_range, write_file_ensuring_directories, AssignmentKind, Associativity,
-    ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames, FileMatcherPatterns,
-    FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax, OperatorPrecedence,
-    StringOrPattern, SymlinkCache,
+    write_comment_range, write_file, write_file_ensuring_directories, AssignmentKind,
+    Associativity, ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames,
+    FileMatcherPatterns, FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax,
+    OperatorPrecedence, StringOrPattern, SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,
@@ -642,12 +644,13 @@ pub use compiler::watch_public::{
 };
 pub use compiler::watch_utilities::DirectoryStructureHost;
 pub use execute_command_line::execute_command_line::execute_command_line;
-pub use rust_helpers::cell::gc_cell_ref_unwrapped;
+pub use rust_helpers::cell::{gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped};
 pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };
 pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
+pub use rust_helpers::option::NonEmpty;
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
     fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join, process_cwd,

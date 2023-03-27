@@ -15,8 +15,8 @@ use crate::{
     is_literal_type_node, is_omitted_expression, is_prefix_unary_expression, is_private_identifier,
     is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
     is_var_const, length, maybe_is_class_like, skip_trivia, text_span_end, token_to_string,
-    AllAccessorDeclarations, DiagnosticMessage, Diagnostics, EmitResolver, EmitResolverDebuggable,
-    HasInitializerInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    AllAccessorDeclarations, DiagnosticMessage, Diagnostics, EmitResolver, HasInitializerInterface,
+    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
     ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
     NodeInterface, ObjectFlags, ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget,
@@ -1197,8 +1197,6 @@ impl EmitResolver for EmitResolverCreateResolver {
         unimplemented!()
     }
 }
-
-impl EmitResolverDebuggable for EmitResolverCreateResolver {}
 
 pub(super) fn is_not_accessor(declaration: &Node /*Declaration*/) -> bool {
     !is_accessor(declaration)

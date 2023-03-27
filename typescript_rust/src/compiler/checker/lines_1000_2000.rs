@@ -36,15 +36,15 @@ use crate::{
     some, synthetic_factory, try_cast, visit_each_child, CancellationTokenDebuggable, Comparison,
     DiagnosticCategory, DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
-    DuplicateInfoForSymbol, EmitResolverDebuggable, FindAncestorCallbackReturn,
-    HasInitializerInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray,
-    NodeFlags, PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange,
-    ScriptTarget, VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores,
-    factory, get_first_identifier, get_or_update_indexmap, get_source_file_of_node,
-    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
-    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
-    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
-    TransientSymbol, TransientSymbolInterface, TypeChecker,
+    DuplicateInfoForSymbol, EmitResolver, FindAncestorCallbackReturn, HasInitializerInterface,
+    InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray, NodeFlags,
+    PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange, ScriptTarget,
+    VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
+    get_first_identifier, get_or_update_indexmap, get_source_file_of_node, is_jsx_opening_fragment,
+    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -250,7 +250,7 @@ impl TypeChecker {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Gc<Box<dyn EmitResolverDebuggable>> {
+    ) -> Gc<Box<dyn EmitResolver>> {
         self.get_diagnostics(source_file, cancellation_token);
         self.emit_resolver()
     }

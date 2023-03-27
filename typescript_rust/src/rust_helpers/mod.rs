@@ -7,6 +7,7 @@ pub mod cell;
 pub mod debugging;
 pub mod deref;
 pub mod number;
+pub mod option;
 pub mod sys;
 pub mod weak_self;
 

@@ -29,8 +29,8 @@ use crate::{
     NodeFlags, ObjectFlags, PragmaArgumentName, PragmaName, Signature, SignatureKind,
     SymbolInterface, SymbolTracker, SyntaxKind, TypeFlags, TypeInterface,
     TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
-    Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    Diagnostic, EmitResolver, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type,
+    TypeChecker,
 };
 
 impl TypeChecker {
@@ -722,7 +722,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn create_resolver(&self) -> Gc<Box<dyn EmitResolverDebuggable>> {
+    pub(super) fn create_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
         Gc::new(Box::new(EmitResolverCreateResolver::new()))
     }
 

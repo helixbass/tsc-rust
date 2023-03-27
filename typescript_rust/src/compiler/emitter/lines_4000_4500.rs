@@ -34,17 +34,17 @@ impl Printer {
                 self.write_line(None);
                 let pos = self.writer().get_text_pos();
                 self.emit(Some(&**prologue), None);
-                if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                    bundle_file_info
-                        .sections
-                        .push(Gc::new(BundleFileSection::new_prologue(
+                if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
+                    bundle_file_info.borrow_mut().sections.push(Gc::new(
+                        BundleFileSection::new_prologue(
                             prologue_as_unparsed_prologue
                                 .maybe_data()
                                 .unwrap()
                                 .to_owned(),
                             pos.try_into().unwrap(),
                             self.writer().get_text_pos().try_into().unwrap(),
-                        )));
+                        ),
+                    ));
                 }
                 // if (seenPrologueDirectives) {
                 seen_prologue_directives.insert(

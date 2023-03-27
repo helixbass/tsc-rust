@@ -6,21 +6,26 @@ use std::rc::Rc;
 use super::{create_brackets_map, TempFlags};
 use crate::{
     combine_paths, compare_paths, compute_common_source_directory_of_filenames,
-    directory_separator_str, factory, file_extension_is, file_extension_is_one_of,
+    create_diagnostic_collection, create_text_writer, directory_separator_str,
+    ensure_path_is_non_module_name, factory, file_extension_is, file_extension_is_one_of, filter,
     get_are_declaration_maps_enabled, get_base_file_name, get_declaration_emit_output_file_path,
     get_directory_path, get_emit_declarations, get_emit_module_kind_from_module_and_target,
     get_new_line_character, get_normalized_absolute_path, get_own_emit_output_file_path,
-    get_relative_path_from_directory, get_source_files_to_emit, is_expression, is_identifier,
-    is_incremental_compilation, is_json_source_file, is_option_str_empty, is_source_file,
-    last_or_undefined, no_emit_notification, no_emit_substitution, normalize_slashes, out_file,
-    remove_file_extension, resolve_path, with_synthetic_factory_and_factory,
-    BaseNodeFactorySynthetic, BuildInfo, BundleFileInfo, BundleFileSection,
+    get_relative_path_from_directory, get_source_files_to_emit, is_bundle, is_expression,
+    is_identifier, is_incremental_compilation, is_json_source_file, is_option_str_empty,
+    is_source_file, is_source_file_not_json, last_or_undefined, length, no_emit_notification,
+    no_emit_substitution, normalize_slashes, out_file, remove_file_extension, resolve_path,
+    transform_nodes, version, with_factory, with_synthetic_factory_and_factory, write_file,
+    BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo, BundleFileInfo, BundleFileSection,
     BundleFileSectionInterface, BundleFileSectionKind, Comparison, CompilerOptions,
-    CurrentParenthesizerRule, Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitFileNames,
-    EmitHint, EmitHost, EmitResolverDebuggable, EmitResult, EmitTextWriter, EmitTransformers,
-    Extension, JsxEmit, ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules,
-    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, ScriptReferenceHost,
-    SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
+    CurrentParenthesizerRule, Debug_, DetachedCommentInfo, DiagnosticCollection,
+    EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost, EmitHostWriteFileCallback,
+    EmitResolver, EmitResult, EmitTextWriter, EmitTransformers, ExportedModulesFromDeclarationEmit,
+    Extension, JsxEmit, ListFormat, Node, NodeArray, NodeId, NodeInterface, NonEmpty,
+    ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer, PrinterOptions,
+    RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult, SourceMapGenerator,
+    SourceMapSource, SyntaxKind, TextRange, TransformNodesTransformationResult,
+    TransformationResult, TransformerFactory,
 };
 
 lazy_static! {
@@ -391,7 +396,7 @@ pub(crate) fn get_common_source_directory_of_config(
 }
 
 pub(crate) fn emit_files(
-    resolver: Gc<Box<dyn EmitResolverDebuggable>>,
+    resolver: Gc<Box<dyn EmitResolver>>,
     host: Gc<Box<dyn EmitHost>>,
     target_source_file: Option<&Node /*SourceFile*/>,
     EmitTransformers {
@@ -402,6 +407,560 @@ pub(crate) fn emit_files(
     only_build_info: Option<bool>,
     force_dts_emit: Option<bool>,
 ) -> EmitResult {
+    let compiler_options = ScriptReferenceHost::get_compiler_options(&**host);
+    let mut source_map_data_list: Option<Vec<SourceMapEmitResult>> = if compiler_options.source_map
+        == Some(true)
+        || compiler_options.inline_source_map == Some(true)
+        || get_are_declaration_maps_enabled(&compiler_options)
+    {
+        Some(vec![])
+    } else {
+        None
+    };
+    let mut emitted_files_list: Option<Vec<String>> =
+        if compiler_options.list_emitted_files == Some(true) {
+            Some(vec![])
+        } else {
+            None
+        };
+    let mut emitter_diagnostics = create_diagnostic_collection();
+    let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.get_new_line()));
+    let writer = create_text_writer(&new_line);
+    // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
+    let mut bundle_build_info: Option<BundleBuildInfo> = None;
+    let mut emit_skipped = false;
+    let mut exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit> =
+        None;
+
+    // enter();
+    for_each_emitted_file(
+        &**host,
+        |emit_file_names, source_file_or_bundle| {
+            emit_source_file_or_bundle(emit_file_names, source_file_or_bundle);
+        },
+        Some(get_source_files_to_emit(
+            &**host,
+            target_source_file,
+            force_dts_emit,
+        )),
+        force_dts_emit,
+        only_build_info,
+        Some(target_source_file.is_none()),
+    );
+    // exit();
+
+    EmitResult {
+        emit_skipped,
+        diagnostics: emitter_diagnostics.get_diagnostics(None),
+        emitted_files: emitted_files_list,
+        source_maps: source_map_data_list,
+        exported_modules_from_declaration_emit,
+    }
+}
+
+fn emit_source_file_or_bundle(
+    host: &dyn EmitHost,
+    bundle_build_info: &mut Option<BundleBuildInfo>,
+    emitted_files_list: &mut Option<Vec<String>>,
+    emit_only_dts_files: Option<bool>,
+    emit_skipped: &mut bool,
+    emit_file_names: &EmitFileNames,
+    source_file_or_bundle: Option<&Node /*SourceFile | Bundle*/>,
+) {
+    let js_file_path = emit_file_names.js_file_path.as_deref();
+    let source_map_file_path = emit_file_names.source_map_file_path.as_deref();
+    let declaration_file_path = emit_file_names.declaration_file_path.as_deref();
+    let declaration_map_path = emit_file_names.declaration_map_path.as_deref();
+    let build_info_path = emit_file_names.build_info_path.as_deref();
+    let mut build_info_directory: Option<String> = None;
+    if let Some(build_info_path) =
+        build_info_path.filter(|build_info_path| !build_info_path.is_empty())
+    {
+        if let Some(source_file_or_bundle) =
+            source_file_or_bundle.filter(|source_file_or_bundle| is_bundle(source_file_or_bundle))
+        {
+            build_info_directory = Some(get_directory_path(&get_normalized_absolute_path(
+                build_info_path,
+                Some(&EmitHost::get_current_directory(host)),
+            )));
+            *bundle_build_info = Some(BundleBuildInfo {
+                common_source_directory: relative_to_build_info(
+                    build_info_directory.as_ref().unwrap(),
+                    host,
+                    &EmitHost::get_current_directory(host),
+                ),
+                source_files: source_file_or_bundle
+                    .as_bundle()
+                    .source_files
+                    .iter()
+                    .map(|file: &Gc<Node>| {
+                        relative_to_build_info(
+                            build_info_directory.as_ref().unwrap(),
+                            host,
+                            &get_normalized_absolute_path(
+                                &file.as_source_file().file_name(),
+                                Some(&EmitHost::get_current_directory(host)),
+                            ),
+                        )
+                    })
+                    .collect(),
+                js: Default::default(),
+                dts: Default::default(),
+            });
+        }
+    }
+    // tracing?.push(tracing.Phase.Emit, "emitJsFileOrBundle", { jsFilePath });
+    emit_js_file_or_bundle(
+        source_file_or_bundle,
+        js_file_path,
+        source_map_file_path,
+        |path| relative_to_build_info(build_info_directory.as_ref().unwrap(), host, path),
+    );
+    // tracing?.pop();
+
+    // tracing?.push(tracing.Phase.Emit, "emitDeclarationFileOrBundle", { declarationFilePath });
+    emit_declaration_file_or_bundle(
+        source_file_or_bundle,
+        declaration_file_path,
+        declaration_map_path,
+        |path| relative_to_build_info(build_info_directory.as_ref().unwrap(), host, path),
+    );
+    // tracing?.pop();
+
+    // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", { buildInfoPath });
+    emit_build_info(bundle_build_info.as_ref(), build_info_path);
+    // tracing?.pop();
+
+    if !*emit_skipped {
+        if let Some(emitted_files_list) = emitted_files_list.as_mut() {
+            if emit_only_dts_files != Some(true) {
+                if let Some(js_file_path) =
+                    js_file_path.filter(|js_file_path| !js_file_path.is_empty())
+                {
+                    emitted_files_list.push(js_file_path.to_owned());
+                }
+                if let Some(source_map_file_path) = source_map_file_path
+                    .filter(|source_map_file_path| !source_map_file_path.is_empty())
+                {
+                    emitted_files_list.push(source_map_file_path.to_owned());
+                }
+                if let Some(build_info_path) =
+                    build_info_path.filter(|build_info_path| !build_info_path.is_empty())
+                {
+                    emitted_files_list.push(build_info_path.to_owned());
+                }
+            }
+            if let Some(declaration_file_path) = declaration_file_path
+                .filter(|declaration_file_path| !declaration_file_path.is_empty())
+            {
+                emitted_files_list.push(declaration_file_path.to_owned());
+            }
+            if let Some(declaration_map_path) =
+                declaration_map_path.filter(|declaration_map_path| !declaration_map_path.is_empty())
+            {
+                emitted_files_list.push(declaration_map_path.to_owned());
+            }
+        }
+    }
+}
+
+fn relative_to_build_info(build_info_directory: &str, host: &dyn EmitHost, path: &str) -> String {
+    ensure_path_is_non_module_name(&get_relative_path_from_directory(
+        build_info_directory,
+        path,
+        Some(|path| host.get_canonical_file_name(path)),
+        None,
+    ))
+}
+
+fn emit_build_info(
+    target_source_file: Option<&Node /*SourceFile*/>,
+    emit_skipped: &mut bool,
+    host: Gc<Box<dyn EmitHost>>,
+    emitter_diagnostics: &mut DiagnosticCollection,
+    bundle: Option<Gc<BundleBuildInfo>>,
+    build_info_path: Option<&str>,
+) {
+    if !build_info_path.is_non_empty() || target_source_file.is_some() || *emit_skipped {
+        return;
+    }
+    let build_info_path = build_info_path.unwrap();
+    let program = host.get_program_build_info();
+    if host.is_emit_blocked(build_info_path) {
+        *emit_skipped = true;
+        return;
+    }
+    write_file(
+        &EmitHostWriteFileCallback::new(host.clone()),
+        emitter_diagnostics,
+        build_info_path,
+        &get_build_info_text(&BuildInfo {
+            bundle: bundle.clone(),
+            program: program.clone(),
+            version: version.to_owned(),
+        }),
+        false,
+        None,
+    );
+}
+
+fn emit_js_file_or_bundle(
+    emit_only_dts_files: Option<bool>,
+    host: Gc<Box<dyn EmitHost>>,
+    compiler_options: Gc<CompilerOptions>,
+    emit_skipped: &mut bool,
+    resolver: Gc<Box<dyn EmitResolver>>,
+    script_transformers: &[TransformerFactory],
+    bundle_build_info: &mut Option<BundleBuildInfo>,
+    source_file_or_bundle: Option<&Node /*SourceFile | Bundle*/>,
+    js_file_path: Option<&str>,
+    source_map_file_path: Option<&str>,
+    relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
+) {
+    if source_file_or_bundle.is_none()
+        || emit_only_dts_files == Some(true)
+        || !js_file_path.is_non_empty()
+    {
+        return;
+    }
+    let source_file_or_bundle = source_file_or_bundle.unwrap();
+    let js_file_path = js_file_path.unwrap();
+
+    if host.is_emit_blocked(js_file_path) || compiler_options.no_emit == Some(true) {
+        *emit_skipped = true;
+        return;
+    }
+    let transform = with_factory(|factory_| {
+        transform_nodes(
+            Some(resolver.clone()),
+            Some(host.clone()),
+            factory_.clone(),
+            compiler_options.clone(),
+            &[source_file_or_bundle.node_wrapper()],
+            script_transformers,
+            false,
+        )
+    });
+
+    let printer_options = PrinterOptions {
+        remove_comments: compiler_options.remove_comments,
+        new_line: compiler_options.new_line,
+        no_emit_helpers: compiler_options.no_emit_helpers,
+        module: compiler_options.module,
+        target: compiler_options.target,
+        source_map: compiler_options.source_map,
+        inline_source_map: compiler_options.inline_source_map,
+        inline_sources: compiler_options.inline_sources,
+        extended_diagnostics: compiler_options.extended_diagnostics,
+        write_bundle_file_info: Some(bundle_build_info.is_some()),
+        relative_to_build_info: Some(relative_to_build_info),
+        ..Default::default()
+    };
+
+    let printer = create_printer(
+        printer_options,
+        Some(Gc::new(Box::new(EmitJsFileOrBundlePrintHandlers::new(
+            resolver.clone(),
+            transform.clone(),
+        )))),
+    );
+
+    Debug_.assert(
+        transform.transformed().len() == 1,
+        Some("Should only see one output from the transform"),
+    );
+    print_source_file_or_bundle(
+        js_file_path,
+        source_map_file_path,
+        &transform.transformed()[0],
+        &printer,
+        &(&*compiler_options).into(),
+    );
+
+    transform.dispose();
+    if let Some(bundle_build_info) = bundle_build_info.as_mut() {
+        bundle_build_info.js = printer.maybe_bundle_file_info().clone();
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct EmitJsFileOrBundlePrintHandlers {
+    resolver: Gc<Box<dyn EmitResolver>>,
+    transform: Gc<Box<TransformNodesTransformationResult>>,
+}
+
+impl EmitJsFileOrBundlePrintHandlers {
+    fn new(
+        resolver: Gc<Box<dyn EmitResolver>>,
+        transform: Gc<Box<TransformNodesTransformationResult>>,
+    ) -> Self {
+        Self {
+            resolver,
+            transform,
+        }
+    }
+}
+
+impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
+    fn has_global_name(&self, name: &str) -> Option<bool> {
+        Some(self.resolver.has_global_name(name))
+    }
+
+    fn is_on_emit_node_supported(&self) -> bool {
+        true
+    }
+
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+        self.transform
+            .emit_node_with_notification(hint, node, emit_callback);
+    }
+
+    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
+        self.transform.is_emit_notification_enabled(node)
+    }
+
+    fn is_substitute_node_supported(&self) -> bool {
+        true
+    }
+
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Gc<Node>> {
+        Some(self.transform.substitute_node(hint, node))
+    }
+}
+
+fn emit_declaration_file_or_bundle(
+    emit_only_dts_files: Option<bool>,
+    compiler_options: Gc<CompilerOptions>,
+    emit_skipped: &mut bool,
+    force_dts_emit: Option<bool>,
+    resolver: Gc<Box<dyn EmitResolver>>,
+    host: Gc<Box<dyn EmitHost>>,
+    declaration_transformers: &[TransformerFactory],
+    emitter_diagnostics: &mut DiagnosticCollection,
+    exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
+    bundle_build_info: &mut Option<BundleBuildInfo>,
+    source_file_or_bundle: Option<&Node /*SourceFile | Bundle*/>,
+    declaration_file_path: Option<&str>,
+    declaration_map_path: Option<&str>,
+    relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
+) {
+    if source_file_or_bundle.is_none() {
+        return;
+    }
+    let source_file_or_bundle = source_file_or_bundle.unwrap();
+    if !declaration_file_path.is_non_empty() {
+        if emit_only_dts_files == Some(true) || compiler_options.emit_declaration_only == Some(true)
+        {
+            *emit_skipped = true;
+        }
+        return;
+    }
+    let declaration_file_path = declaration_file_path.unwrap();
+    let source_files = if is_source_file(source_file_or_bundle) {
+        vec![source_file_or_bundle.node_wrapper()]
+    } else {
+        source_file_or_bundle.as_bundle().source_files.clone()
+    };
+    let files_for_emit = if force_dts_emit == Some(true) {
+        source_files
+    } else {
+        filter(&source_files, |source_file: &Gc<Node>| {
+            is_source_file_not_json(source_file)
+        })
+    };
+    let input_list_or_bundle = if out_file(&compiler_options).is_non_empty() {
+        vec![with_synthetic_factory_and_factory(
+            |synthetic_factory_, factory_| {
+                factory_
+                    .create_bundle(
+                        synthetic_factory_,
+                        files_for_emit.clone(),
+                        if !is_source_file(source_file_or_bundle) {
+                            Some(source_file_or_bundle.as_bundle().prepends.clone())
+                        } else {
+                            None
+                        },
+                    )
+                    .into()
+            },
+        )]
+    } else {
+        files_for_emit.clone()
+    };
+    if emit_only_dts_files == Some(true) && !get_emit_declarations(&compiler_options) {
+        files_for_emit.iter().for_each(|file_for_emit| {
+            collect_linked_aliases(file_for_emit);
+        });
+    }
+    let declaration_transform = with_factory(|factory_| {
+        transform_nodes(
+            Some(resolver.clone()),
+            Some(host.clone()),
+            factory_.clone(),
+            compiler_options.clone(),
+            &input_list_or_bundle,
+            declaration_transformers,
+            false,
+        )
+    });
+    if length(declaration_transform.diagnostics().as_deref()) > 0 {
+        for diagnostic in declaration_transform.diagnostics().unwrap() {
+            emitter_diagnostics.add(diagnostic);
+        }
+    }
+
+    let printer_options = PrinterOptions {
+        remove_comments: compiler_options.remove_comments,
+        new_line: compiler_options.new_line,
+        no_emit_helpers: Some(true),
+        module: compiler_options.module,
+        target: compiler_options.target,
+        source_map: compiler_options.source_map,
+        inline_source_map: compiler_options.inline_source_map,
+        extended_diagnostics: compiler_options.extended_diagnostics,
+        only_print_js_doc_style: Some(true),
+        write_bundle_file_info: Some(bundle_build_info.is_some()),
+        record_internal_section: Some(bundle_build_info.is_some()),
+        relative_to_build_info: Some(relative_to_build_info),
+        ..Default::default()
+    };
+
+    let declaration_printer = create_printer(
+        printer_options,
+        Some(Gc::new(Box::new(
+            EmitDeclarationFileOrBundlePrintHandlers::new(
+                resolver.clone(),
+                declaration_transform.clone(),
+            ),
+        ))),
+    );
+    let decl_blocked = declaration_transform.diagnostics().is_non_empty()
+        || host.is_emit_blocked(declaration_file_path)
+        || compiler_options.no_emit == Some(true);
+    *emit_skipped = *emit_skipped || decl_blocked;
+    if !decl_blocked || force_dts_emit == Some(true) {
+        Debug_.assert(
+            declaration_transform.transformed().len() == 1,
+            Some("Should only see one output from the decl transform"),
+        );
+        print_source_file_or_bundle(
+            declaration_file_path,
+            declaration_map_path,
+            &declaration_transform.transformed()[0],
+            &declaration_printer,
+            &SourceMapOptions {
+                source_map: if force_dts_emit != Some(true) {
+                    compiler_options.declaration_map
+                } else {
+                    Some(false)
+                },
+                source_root: compiler_options.source_root.clone(),
+                map_root: compiler_options.map_root.clone(),
+                extended_diagnostics: compiler_options.extended_diagnostics,
+                inline_source_map: None,
+                inline_sources: None,
+            },
+        );
+        if force_dts_emit == Some(true)
+            && declaration_transform.transformed()[0].kind() == SyntaxKind::SourceFile
+        {
+            let source_file = declaration_transform.transformed()[0].clone();
+            *exported_modules_from_declaration_emit = source_file
+                .as_source_file()
+                .maybe_exported_modules_from_declaration_emit()
+                .clone();
+        }
+    }
+    declaration_transform.dispose();
+    if let Some(bundle_build_info) = bundle_build_info.as_mut() {
+        bundle_build_info.js = declaration_printer.maybe_bundle_file_info().clone();
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct EmitDeclarationFileOrBundlePrintHandlers {
+    resolver: Gc<Box<dyn EmitResolver>>,
+    declaration_transform: Gc<Box<TransformNodesTransformationResult>>,
+}
+
+impl EmitDeclarationFileOrBundlePrintHandlers {
+    fn new(
+        resolver: Gc<Box<dyn EmitResolver>>,
+        declaration_transform: Gc<Box<TransformNodesTransformationResult>>,
+    ) -> Self {
+        Self {
+            resolver,
+            declaration_transform,
+        }
+    }
+}
+
+impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
+    fn has_global_name(&self, name: &str) -> Option<bool> {
+        Some(self.resolver.has_global_name(name))
+    }
+
+    fn is_on_emit_node_supported(&self) -> bool {
+        true
+    }
+
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+        self.declaration_transform
+            .emit_node_with_notification(hint, node, emit_callback);
+    }
+
+    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
+        self.declaration_transform
+            .is_emit_notification_enabled(node)
+    }
+
+    fn is_substitute_node_supported(&self) -> bool {
+        true
+    }
+
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Gc<Node>> {
+        Some(self.declaration_transform.substitute_node(hint, node))
+    }
+}
+
+fn collect_linked_aliases(node: &Node) {
+    unimplemented!()
+}
+
+fn print_source_file_or_bundle(
+    js_file_path: &str,
+    source_map_file_path: Option<&str>,
+    source_file_or_bundle: &Node, /*SourceFile | Bundle*/
+    printer: &Printer,
+    map_options: &SourceMapOptions,
+) {
+    unimplemented!()
+}
+
+#[derive(Default)]
+struct SourceMapOptions {
+    pub source_map: Option<bool>,
+    pub inline_source_map: Option<bool>,
+    pub inline_sources: Option<bool>,
+    pub source_root: Option<String>,
+    pub map_root: Option<String>,
+    pub extended_diagnostics: Option<bool>,
+}
+
+impl From<&CompilerOptions> for SourceMapOptions {
+    fn from(value: &CompilerOptions) -> Self {
+        Self {
+            source_map: value.source_map,
+            inline_source_map: value.inline_source_map,
+            inline_sources: value.inline_sources,
+            source_root: value.source_root.clone(),
+            map_root: value.map_root.clone(),
+            extended_diagnostics: value.extended_diagnostics,
+        }
+    }
+}
+
+pub(crate) fn get_build_info_text(build_info: &BuildInfo) -> String {
     unimplemented!()
 }
 
@@ -467,10 +1026,10 @@ impl Printer {
         );
         let preserve_source_newlines = printer_options.preserve_source_newlines;
         let bundle_file_info = if printer_options.write_bundle_file_info == Some(true) {
-            Some(BundleFileInfo {
+            Some(Gc::new(GcCell::new(BundleFileInfo {
                 sections: vec![],
                 sources: None,
-            })
+            })))
         } else {
             None
         };
@@ -735,26 +1294,22 @@ impl Printer {
         self.is_own_file_emit.set(is_own_file_emit);
     }
 
-    pub(super) fn maybe_bundle_file_info(&self) -> GcCellRef<Option<BundleFileInfo>> {
-        self.bundle_file_info.borrow()
+    pub(super) fn maybe_bundle_file_info(&self) -> Option<Gc<GcCell<BundleFileInfo>>> {
+        self.bundle_file_info.borrow().clone()
     }
 
-    pub(super) fn maybe_bundle_file_info_mut(&self) -> GcCellRefMut<Option<BundleFileInfo>> {
+    pub(super) fn maybe_bundle_file_info_mut(
+        &self,
+    ) -> GcCellRefMut<Option<Gc<GcCell<BundleFileInfo>>>> {
         self.bundle_file_info.borrow_mut()
     }
 
-    pub(super) fn bundle_file_info(&self) -> GcCellRef<BundleFileInfo> {
-        GcCellRef::map(self.bundle_file_info.borrow(), |bundle_file_info| {
-            bundle_file_info.as_ref().unwrap()
-        })
+    pub(super) fn bundle_file_info(&self) -> Gc<GcCell<BundleFileInfo>> {
+        self.bundle_file_info.borrow().clone().unwrap()
     }
 
-    pub(super) fn bundle_file_info_mut(
-        &self,
-    ) -> GcCellRefMut<Option<BundleFileInfo>, BundleFileInfo> {
-        GcCellRefMut::map(self.bundle_file_info.borrow_mut(), |bundle_file_info| {
-            bundle_file_info.as_mut().unwrap()
-        })
+    pub(super) fn bundle_file_info_mut(&self) -> GcCellRefMut<BundleFileInfo> {
+        self.bundle_file_info().borrow_mut()
     }
 
     pub(super) fn relative_to_build_info(&self, value: &str) -> String {
