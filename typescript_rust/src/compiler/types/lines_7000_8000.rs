@@ -189,7 +189,7 @@ bitflags! {
     }
 }
 
-pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
+pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
     fn factory(&self) -> Gc<NodeFactory<TBaseNodeFactory>>;
 
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
@@ -219,8 +219,8 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
 }
 
 pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {
-    fn get_emit_resolver(&self) -> Rc<dyn EmitResolver>;
-    fn get_emit_host(&self) -> Rc<dyn EmitHost>;
+    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>>;
+    fn get_emit_host(&self) -> Gc<Box<dyn EmitHost>>;
     fn get_emit_helper_factory(&self) -> Rc<EmitHelperFactory>;
 
     fn request_emit_helper(&self, helper: Gc<EmitHelper>);
@@ -261,9 +261,16 @@ pub trait TransformationResult {
     fn dispose(&self);
 }
 
-pub type TransformerFactory = Rc<dyn Fn(Rc<dyn TransformationContext>) -> Transformer>;
+pub type TransformerFactory = Gc<Box<dyn TransformerFactoryInterface>>;
 
-// pub type Transformer = Rc<dyn FnMut(&Node) -> Gc<Node>>;
-pub type Transformer = Rc<dyn Fn(&Node) -> Gc<Node>>;
+pub trait TransformerFactoryInterface: Trace + Finalize {
+    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer;
+}
+
+pub type Transformer = Gc<Box<dyn TransformerInterface>>;
+
+pub trait TransformerInterface: Trace + Finalize {
+    fn call(&self, node: &Node) -> Gc<Node>;
+}
 
 pub type VisitResult = Option<Vec<Gc<Node>>>;

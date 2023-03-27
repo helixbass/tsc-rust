@@ -1,11 +1,42 @@
-use std::rc::Rc;
+use gc::{Finalize, Gc, Trace};
 
-use crate::{TransformationContext, Transformer, TransformerFactory};
+use crate::{
+    Node, TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerInterface,
+};
 
-fn transform_esnext_fn(context: Rc<dyn TransformationContext>) -> Transformer {
-    unimplemented!()
+#[derive(Trace, Finalize)]
+struct TransformESNext {
+    context: Gc<Box<dyn TransformationContext>>,
+}
+
+impl TransformESNext {
+    fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
+        Self { context }
+    }
+}
+
+impl TransformerInterface for TransformESNext {
+    fn call(&self, node: &crate::Node) -> Gc<Node> {
+        unimplemented!()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TransformESNextFactory {}
+
+impl TransformESNextFactory {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl TransformerFactoryInterface for TransformESNextFactory {
+    fn call(&self, context: gc::Gc<Box<dyn TransformationContext>>) -> Transformer {
+        Gc::new(Box::new(TransformESNext::new(context)))
+    }
 }
 
 pub fn transform_esnext() -> TransformerFactory {
-    Rc::new(|context| transform_esnext_fn(context))
+    Gc::new(Box::new(TransformESNextFactory::new()))
 }

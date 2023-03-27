@@ -38,13 +38,20 @@ pub enum StructureIsReused {
     Completely,
 }
 
-pub type CustomTransformerFactory = fn(Rc<dyn TransformationContext>) -> Rc<dyn CustomTransformer>;
+pub type CustomTransformerFactory = Gc<Box<dyn CustomTransformerFactoryInterface>>;
 
-pub trait CustomTransformer {
+pub trait CustomTransformerFactoryInterface: Trace + Finalize {
+    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> CustomTransformer;
+}
+
+pub type CustomTransformer = Gc<Box<dyn CustomTransformerInterface>>;
+
+pub trait CustomTransformerInterface: Trace + Finalize {
     fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node /*SourceFile*/>;
     fn transform_bundle(&self, node: &Node /*Bundle*/) -> Gc<Node /*Bundle*/>;
 }
 
+#[derive(Trace, Finalize)]
 pub enum TransformerFactoryOrCustomTransformerFactory {
     TransformerFactory(TransformerFactory),
     CustomTransformerFactory(CustomTransformerFactory),
@@ -63,10 +70,10 @@ impl From<CustomTransformerFactory> for TransformerFactoryOrCustomTransformerFac
 }
 
 pub struct CustomTransformers {
-    pub before: Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
-    pub after: Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub before: Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub after: Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
     pub after_declarations:
-        Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
+        Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
 }
 
 pub struct EmitTransformers {

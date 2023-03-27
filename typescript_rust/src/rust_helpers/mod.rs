@@ -3,6 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use std::mem;
 use std::rc::Rc;
 
+pub mod cell;
 pub mod debugging;
 pub mod deref;
 pub mod number;
