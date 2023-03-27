@@ -1124,7 +1124,7 @@ thread_local! {
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
-            name: "declaration_map".to_string(),
+            name: "declarationMap".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
             short_name: None,
