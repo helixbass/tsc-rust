@@ -809,11 +809,11 @@ pub fn get_relative_path_from_file<TGetCanonicalFileName: Fn(&str) -> String>(
     ))
 }
 
-pub fn get_relative_path_to_directory_or_url<TGetCanonicalFileName: Fn(&str) -> String>(
+pub fn get_relative_path_to_directory_or_url(
     directory_path_or_url: &str,
     relative_or_absolute_path: &str,
     current_directory: &str,
-    get_canonical_file_name: TGetCanonicalFileName,
+    get_canonical_file_name: impl Fn(&str) -> String,
     is_absolute_path_an_url: bool,
 ) -> String {
     let mut path_components = get_path_components_relative_to(

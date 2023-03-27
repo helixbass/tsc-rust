@@ -68,7 +68,7 @@ pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::{
     create_printer, for_each_emitted_file, for_each_emitted_file_returns, get_output_extension,
-    get_ts_build_info_emit_output_file_path, TempFlags,
+    get_ts_build_info_emit_output_file_path, SourceMapOptions, TempFlags,
 };
 use compiler::emitter::{
     emit_files, get_build_info, get_common_source_directory, get_common_source_directory_of_config,
@@ -245,7 +245,7 @@ pub use compiler::scanner::{
     reduce_each_trailing_comment_range, token_to_string, ErrorCallback, Scanner,
 };
 pub use compiler::semver::{Version, VersionRange};
-pub use compiler::sourcemap::try_parse_raw_source_map;
+pub use compiler::sourcemap::{create_source_map_generator, try_parse_raw_source_map};
 pub use compiler::sys::{
     generate_djb2_hash, get_sys, Buffer, DirectoryWatcherCallback, FileWatcher,
     FileWatcherCallback, System,
@@ -409,18 +409,18 @@ use compiler::types::{
     SourceMapEmitResult, SourceOfProjectReferenceRedirect, WideningContext,
 };
 pub use compiler::utilities::{
-    add_related_info, array_is_homogeneous, attach_file_to_diagnostics, chain_diagnostic_messages,
-    chain_diagnostic_messages_multiple, change_extension, compare_diagnostics,
-    compare_diagnostics_skip_related_information, concatenate_diagnostic_message_chains,
-    contains_ignored_path, contains_parse_error, copy_entries, create_comment_directives_map,
-    create_compiler_diagnostic, create_compiler_diagnostic_from_message_chain,
-    create_detached_diagnostic, create_diagnostic_collection,
-    create_diagnostic_for_file_from_message_chain, create_diagnostic_for_node,
-    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_diagnostic_for_node_in_source_file, create_diagnostic_for_range, create_file_diagnostic,
-    create_file_diagnostic_from_message_chain, create_symbol_table, create_symlink_cache,
-    create_text_writer, declaration_name_to_string, default_maximum_truncation_length,
-    directory_probably_exists, emit_detached_comments,
+    add_related_info, array_is_homogeneous, attach_file_to_diagnostics, base64_encode,
+    chain_diagnostic_messages, chain_diagnostic_messages_multiple, change_extension,
+    compare_diagnostics, compare_diagnostics_skip_related_information,
+    concatenate_diagnostic_message_chains, contains_ignored_path, contains_parse_error,
+    copy_entries, create_comment_directives_map, create_compiler_diagnostic,
+    create_compiler_diagnostic_from_message_chain, create_detached_diagnostic,
+    create_diagnostic_collection, create_diagnostic_for_file_from_message_chain,
+    create_diagnostic_for_node, create_diagnostic_for_node_array,
+    create_diagnostic_for_node_from_message_chain, create_diagnostic_for_node_in_source_file,
+    create_diagnostic_for_range, create_file_diagnostic, create_file_diagnostic_from_message_chain,
+    create_symbol_table, create_symlink_cache, create_text_writer, declaration_name_to_string,
+    default_maximum_truncation_length, directory_probably_exists, emit_detached_comments,
     emit_new_line_before_leading_comment_of_position, empty_file_system_entries,
     ensure_script_kind, entity_name_to_string, escape_jsx_attribute_string,
     escape_non_ascii_string, escape_string, export_assignment_is_alias,
@@ -472,9 +472,10 @@ pub use compiler::utilities::{
     get_resolved_module, get_rest_parameter_element_type, get_right_most_assigned_expression,
     get_root_declaration, get_script_target_features, get_selected_effective_modifier_flags,
     get_semantic_jsx_children, get_set_accessor_value_parameter, get_source_file_of_module,
-    get_source_file_of_node, get_source_files_to_emit, get_source_text_of_node_from_source_file,
-    get_span_of_token_at_position, get_strict_option_value, get_super_container,
-    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module,
+    get_source_file_of_node, get_source_file_path_in_new_dir, get_source_files_to_emit,
+    get_source_text_of_node_from_source_file, get_span_of_token_at_position,
+    get_strict_option_value, get_super_container, get_supported_extensions,
+    get_supported_extensions_with_json_if_resolve_json_module,
     get_symbol_name_for_private_identifier, get_syntactic_modifier_flags,
     get_text_of_identifier_or_literal, get_text_of_node, get_text_of_node_from_source_text,
     get_text_of_property_name, get_this_container, get_this_parameter, get_token_pos_of_node,
@@ -656,6 +657,7 @@ pub use rust_helpers::sys::{
     fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join, process_cwd,
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
 };
+pub use rust_helpers::uri::encode_uri;
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,

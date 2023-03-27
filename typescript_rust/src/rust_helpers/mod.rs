@@ -9,6 +9,7 @@ pub mod deref;
 pub mod number;
 pub mod option;
 pub mod sys;
+pub mod uri;
 pub mod weak_self;
 
 pub fn is_same_variant<TEnum>(value: &TEnum, other_value: &TEnum) -> bool {

@@ -5,27 +5,30 @@ use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
 use crate::{
-    combine_paths, compare_paths, compute_common_source_directory_of_filenames,
-    create_diagnostic_collection, create_text_writer, directory_separator_str,
-    ensure_path_is_non_module_name, factory, file_extension_is, file_extension_is_one_of, filter,
-    get_are_declaration_maps_enabled, get_base_file_name, get_declaration_emit_output_file_path,
-    get_directory_path, get_emit_declarations, get_emit_module_kind_from_module_and_target,
-    get_new_line_character, get_normalized_absolute_path, get_own_emit_output_file_path,
-    get_relative_path_from_directory, get_source_files_to_emit, is_bundle, is_expression,
-    is_identifier, is_incremental_compilation, is_json_source_file, is_option_str_empty,
-    is_source_file, is_source_file_not_json, last_or_undefined, length, no_emit_notification,
-    no_emit_substitution, normalize_slashes, out_file, remove_file_extension, resolve_path,
-    transform_nodes, version, with_factory, with_synthetic_factory_and_factory, write_file,
-    BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo, BundleFileInfo, BundleFileSection,
-    BundleFileSectionInterface, BundleFileSectionKind, Comparison, CompilerOptions,
-    CurrentParenthesizerRule, Debug_, DetachedCommentInfo, DiagnosticCollection,
-    EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost, EmitHostWriteFileCallback,
-    EmitResolver, EmitResult, EmitTextWriter, EmitTransformers, ExportedModulesFromDeclarationEmit,
-    Extension, JsxEmit, ListFormat, Node, NodeArray, NodeId, NodeInterface, NonEmpty,
-    ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer, PrinterOptions,
-    RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult, SourceMapGenerator,
-    SourceMapSource, SyntaxKind, TextRange, TransformNodesTransformationResult,
-    TransformationResult, TransformerFactory,
+    base64_encode, combine_paths, compare_paths, compute_common_source_directory_of_filenames,
+    create_diagnostic_collection, create_source_map_generator, create_text_writer,
+    directory_separator_str, encode_uri, ensure_path_is_non_module_name,
+    ensure_trailing_directory_separator, factory, file_extension_is, file_extension_is_one_of,
+    filter, for_each_child, get_are_declaration_maps_enabled, get_base_file_name,
+    get_declaration_emit_output_file_path, get_directory_path, get_emit_declarations,
+    get_emit_module_kind_from_module_and_target, get_new_line_character,
+    get_normalized_absolute_path, get_own_emit_output_file_path, get_relative_path_from_directory,
+    get_relative_path_to_directory_or_url, get_root_length, get_source_file_path_in_new_dir,
+    get_source_files_to_emit, get_sys, is_bundle, is_export_assignment, is_export_specifier,
+    is_expression, is_identifier, is_incremental_compilation, is_json_source_file,
+    is_option_str_empty, is_source_file, is_source_file_not_json, last_or_undefined, length,
+    no_emit_notification, no_emit_substitution, normalize_path, normalize_slashes, out_file,
+    remove_file_extension, resolve_path, transform_nodes, version, with_factory,
+    with_synthetic_factory_and_factory, write_file, BaseNodeFactorySynthetic, BuildInfo,
+    BundleBuildInfo, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
+    BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
+    DetachedCommentInfo, DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint,
+    EmitHost, EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter,
+    EmitTransformers, ExportedModulesFromDeclarationEmit, Extension, JsxEmit, ListFormat, Node,
+    NodeArray, NodeId, NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine,
+    PrintHandlers, Printer, PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost,
+    SourceMapEmitResult, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
+    TransformNodesTransformationResult, TransformationResult, TransformerFactory,
 };
 
 lazy_static! {
@@ -427,7 +430,7 @@ pub(crate) fn emit_files(
     let new_line = get_new_line_character(compiler_options.new_line, Some(|| host.get_new_line()));
     let writer = create_text_writer(&new_line);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
-    let mut bundle_build_info: Option<BundleBuildInfo> = None;
+    let mut bundle_build_info: Option<Gc<GcCell<BundleBuildInfo>>> = None;
     let mut emit_skipped = false;
     let mut exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit> =
         None;
@@ -436,7 +439,26 @@ pub(crate) fn emit_files(
     for_each_emitted_file(
         &**host,
         |emit_file_names, source_file_or_bundle| {
-            emit_source_file_or_bundle(emit_file_names, source_file_or_bundle);
+            emit_source_file_or_bundle(
+                host.clone(),
+                &mut bundle_build_info,
+                &mut emitted_files_list,
+                emit_only_dts_files,
+                &mut emit_skipped,
+                target_source_file,
+                &mut emitter_diagnostics,
+                compiler_options.clone(),
+                force_dts_emit,
+                resolver.clone(),
+                &declaration_transformers,
+                &mut exported_modules_from_declaration_emit,
+                writer.as_dyn_emit_text_writer(),
+                &mut source_map_data_list,
+                &new_line,
+                &script_transformers,
+                emit_file_names,
+                source_file_or_bundle,
+            );
         },
         Some(get_source_files_to_emit(
             &**host,
@@ -459,11 +481,22 @@ pub(crate) fn emit_files(
 }
 
 fn emit_source_file_or_bundle(
-    host: &dyn EmitHost,
-    bundle_build_info: &mut Option<BundleBuildInfo>,
+    host: Gc<Box<dyn EmitHost>>,
+    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
     emitted_files_list: &mut Option<Vec<String>>,
     emit_only_dts_files: Option<bool>,
     emit_skipped: &mut bool,
+    target_source_file: Option<&Node /*SourceFile*/>,
+    emitter_diagnostics: &mut DiagnosticCollection,
+    compiler_options: Gc<CompilerOptions>,
+    force_dts_emit: Option<bool>,
+    resolver: Gc<Box<dyn EmitResolver>>,
+    declaration_transformers: &[TransformerFactory],
+    exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
+    writer: Gc<Box<dyn EmitTextWriter>>,
+    source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
+    new_line: &str,
+    script_transformers: &[TransformerFactory],
     emit_file_names: &EmitFileNames,
     source_file_or_bundle: Option<&Node /*SourceFile | Bundle*/>,
 ) {
@@ -481,13 +514,13 @@ fn emit_source_file_or_bundle(
         {
             build_info_directory = Some(get_directory_path(&get_normalized_absolute_path(
                 build_info_path,
-                Some(&EmitHost::get_current_directory(host)),
+                Some(&EmitHost::get_current_directory(&**host)),
             )));
-            *bundle_build_info = Some(BundleBuildInfo {
+            *bundle_build_info = Some(Gc::new(GcCell::new(BundleBuildInfo {
                 common_source_directory: relative_to_build_info(
                     build_info_directory.as_ref().unwrap(),
-                    host,
-                    &EmitHost::get_current_directory(host),
+                    &**host,
+                    &EmitHost::get_current_directory(&**host),
                 ),
                 source_files: source_file_or_bundle
                     .as_bundle()
@@ -496,39 +529,76 @@ fn emit_source_file_or_bundle(
                     .map(|file: &Gc<Node>| {
                         relative_to_build_info(
                             build_info_directory.as_ref().unwrap(),
-                            host,
+                            &**host,
                             &get_normalized_absolute_path(
                                 &file.as_source_file().file_name(),
-                                Some(&EmitHost::get_current_directory(host)),
+                                Some(&EmitHost::get_current_directory(&**host)),
                             ),
                         )
                     })
                     .collect(),
                 js: Default::default(),
                 dts: Default::default(),
-            });
+            })));
         }
     }
     // tracing?.push(tracing.Phase.Emit, "emitJsFileOrBundle", { jsFilePath });
     emit_js_file_or_bundle(
+        emit_only_dts_files,
+        host.clone(),
+        compiler_options.clone(),
+        emit_skipped,
+        resolver.clone(),
+        script_transformers,
+        bundle_build_info,
+        writer.clone(),
+        source_map_data_list,
+        new_line,
+        emitter_diagnostics,
         source_file_or_bundle,
         js_file_path,
         source_map_file_path,
-        |path| relative_to_build_info(build_info_directory.as_ref().unwrap(), host, path),
+        Gc::new(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
+            build_info_directory.clone(),
+            host.clone(),
+        ))),
     );
     // tracing?.pop();
 
     // tracing?.push(tracing.Phase.Emit, "emitDeclarationFileOrBundle", { declarationFilePath });
     emit_declaration_file_or_bundle(
+        emit_only_dts_files,
+        compiler_options,
+        emit_skipped,
+        force_dts_emit,
+        resolver,
+        host.clone(),
+        declaration_transformers,
+        emitter_diagnostics,
+        exported_modules_from_declaration_emit,
+        bundle_build_info,
+        writer,
+        source_map_data_list,
+        new_line,
         source_file_or_bundle,
         declaration_file_path,
         declaration_map_path,
-        |path| relative_to_build_info(build_info_directory.as_ref().unwrap(), host, path),
+        Gc::new(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
+            build_info_directory.clone(),
+            host.clone(),
+        ))),
     );
     // tracing?.pop();
 
     // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", { buildInfoPath });
-    emit_build_info(bundle_build_info.as_ref(), build_info_path);
+    emit_build_info(
+        target_source_file,
+        emit_skipped,
+        host,
+        emitter_diagnostics,
+        bundle_build_info.clone(),
+        build_info_path,
+    );
     // tracing?.pop();
 
     if !*emit_skipped {
@@ -564,11 +634,36 @@ fn emit_source_file_or_bundle(
     }
 }
 
+#[derive(Trace, Finalize)]
+struct EmitSourceFileOrBundleRelativeToBuildInfo {
+    build_info_directory: Option<String>,
+    host: Gc<Box<dyn EmitHost>>,
+}
+
+impl EmitSourceFileOrBundleRelativeToBuildInfo {
+    fn new(build_info_directory: Option<String>, host: Gc<Box<dyn EmitHost>>) -> Self {
+        Self {
+            build_info_directory,
+            host,
+        }
+    }
+}
+
+impl RelativeToBuildInfo for EmitSourceFileOrBundleRelativeToBuildInfo {
+    fn call(&self, path: &str) -> String {
+        relative_to_build_info(
+            self.build_info_directory.as_ref().unwrap(),
+            &**self.host,
+            path,
+        )
+    }
+}
+
 fn relative_to_build_info(build_info_directory: &str, host: &dyn EmitHost, path: &str) -> String {
     ensure_path_is_non_module_name(&get_relative_path_from_directory(
         build_info_directory,
         path,
-        Some(|path| host.get_canonical_file_name(path)),
+        Some(|path: &str| host.get_canonical_file_name(path)),
         None,
     ))
 }
@@ -578,7 +673,7 @@ fn emit_build_info(
     emit_skipped: &mut bool,
     host: Gc<Box<dyn EmitHost>>,
     emitter_diagnostics: &mut DiagnosticCollection,
-    bundle: Option<Gc<BundleBuildInfo>>,
+    bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
     build_info_path: Option<&str>,
 ) {
     if !build_info_path.is_non_empty() || target_source_file.is_some() || *emit_skipped {
@@ -611,7 +706,11 @@ fn emit_js_file_or_bundle(
     emit_skipped: &mut bool,
     resolver: Gc<Box<dyn EmitResolver>>,
     script_transformers: &[TransformerFactory],
-    bundle_build_info: &mut Option<BundleBuildInfo>,
+    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
+    writer: Gc<Box<dyn EmitTextWriter>>,
+    source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
+    new_line: &str,
+    emitter_diagnostics: &mut DiagnosticCollection,
     source_file_or_bundle: Option<&Node /*SourceFile | Bundle*/>,
     js_file_path: Option<&str>,
     source_map_file_path: Option<&str>,
@@ -670,6 +769,12 @@ fn emit_js_file_or_bundle(
         Some("Should only see one output from the transform"),
     );
     print_source_file_or_bundle(
+        host.clone(),
+        writer,
+        source_map_data_list,
+        new_line,
+        emitter_diagnostics,
+        &compiler_options,
         js_file_path,
         source_map_file_path,
         &transform.transformed()[0],
@@ -678,8 +783,8 @@ fn emit_js_file_or_bundle(
     );
 
     transform.dispose();
-    if let Some(bundle_build_info) = bundle_build_info.as_mut() {
-        bundle_build_info.js = printer.maybe_bundle_file_info().clone();
+    if let Some(bundle_build_info) = bundle_build_info.clone() {
+        bundle_build_info.borrow_mut().js = printer.maybe_bundle_file_info().clone();
     }
 }
 
@@ -738,7 +843,10 @@ fn emit_declaration_file_or_bundle(
     declaration_transformers: &[TransformerFactory],
     emitter_diagnostics: &mut DiagnosticCollection,
     exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
-    bundle_build_info: &mut Option<BundleBuildInfo>,
+    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
+    writer: Gc<Box<dyn EmitTextWriter>>,
+    source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
+    new_line: &str,
     source_file_or_bundle: Option<&Node /*SourceFile | Bundle*/>,
     declaration_file_path: Option<&str>,
     declaration_map_path: Option<&str>,
@@ -789,7 +897,7 @@ fn emit_declaration_file_or_bundle(
     };
     if emit_only_dts_files == Some(true) && !get_emit_declarations(&compiler_options) {
         files_for_emit.iter().for_each(|file_for_emit| {
-            collect_linked_aliases(file_for_emit);
+            collect_linked_aliases(&**resolver, file_for_emit);
         });
     }
     let declaration_transform = with_factory(|factory_| {
@@ -844,6 +952,12 @@ fn emit_declaration_file_or_bundle(
             Some("Should only see one output from the decl transform"),
         );
         print_source_file_or_bundle(
+            host.clone(),
+            writer,
+            source_map_data_list,
+            new_line,
+            emitter_diagnostics,
+            &compiler_options,
             declaration_file_path,
             declaration_map_path,
             &declaration_transform.transformed()[0],
@@ -872,8 +986,8 @@ fn emit_declaration_file_or_bundle(
         }
     }
     declaration_transform.dispose();
-    if let Some(bundle_build_info) = bundle_build_info.as_mut() {
-        bundle_build_info.js = declaration_printer.maybe_bundle_file_info().clone();
+    if let Some(bundle_build_info) = bundle_build_info.clone() {
+        bundle_build_info.borrow_mut().js = declaration_printer.maybe_bundle_file_info().clone();
     }
 }
 
@@ -923,22 +1037,134 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
     }
 }
 
-fn collect_linked_aliases(node: &Node) {
-    unimplemented!()
+fn collect_linked_aliases(resolver: &dyn EmitResolver, node: &Node) {
+    if is_export_assignment(node) {
+        let node_as_export_assignment = node.as_export_assignment();
+        if node_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
+            resolver.collect_linked_aliases(&node_as_export_assignment.expression, Some(true));
+        }
+        return;
+    } else if is_export_specifier(node) {
+        let node_as_export_specifier = node.as_export_specifier();
+        resolver.collect_linked_aliases(
+            node_as_export_specifier
+                .property_name
+                .as_deref()
+                .unwrap_or(&*node_as_export_specifier.name),
+            Some(true),
+        );
+        return;
+    }
+    for_each_child(
+        node,
+        |node: &Node| collect_linked_aliases(resolver, node),
+        Option::<fn(&NodeArray)>::None,
+    );
 }
 
 fn print_source_file_or_bundle(
+    host: Gc<Box<dyn EmitHost>>,
+    writer: Gc<Box<dyn EmitTextWriter>>,
+    source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
+    new_line: &str,
+    emitter_diagnostics: &mut DiagnosticCollection,
+    compiler_options: &CompilerOptions,
     js_file_path: &str,
     source_map_file_path: Option<&str>,
     source_file_or_bundle: &Node, /*SourceFile | Bundle*/
     printer: &Printer,
     map_options: &SourceMapOptions,
 ) {
-    unimplemented!()
+    let bundle = if source_file_or_bundle.kind() == SyntaxKind::Bundle {
+        Some(source_file_or_bundle.node_wrapper())
+    } else {
+        None
+    };
+    let source_file = if source_file_or_bundle.kind() == SyntaxKind::SourceFile {
+        Some(source_file_or_bundle.node_wrapper())
+    } else {
+        None
+    };
+    let source_files = if let Some(bundle) = bundle.as_ref() {
+        bundle.as_bundle().source_files.clone()
+    } else {
+        vec![source_file.clone().unwrap()]
+    };
+
+    let mut source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>> = None;
+    if should_emit_source_maps(map_options, source_file_or_bundle) {
+        source_map_generator = Some(create_source_map_generator(
+            host.clone(),
+            &get_base_file_name(&normalize_slashes(js_file_path), None, None),
+            &get_source_root(map_options),
+            &get_source_map_directory(&**host, map_options, js_file_path, source_file.as_deref()),
+            &map_options.into(),
+        ));
+    }
+
+    if let Some(bundle) = bundle.as_ref() {
+        printer.write_bundle(bundle, writer.clone(), source_map_generator.clone());
+    } else {
+        printer.write_file(
+            source_file.as_ref().unwrap(),
+            writer.clone(),
+            source_map_generator.clone(),
+        );
+    }
+
+    if let Some(source_map_generator) = source_map_generator {
+        if let Some(source_map_data_list) = source_map_data_list.as_mut() {
+            source_map_data_list.push(SourceMapEmitResult {
+                input_source_file_names: source_map_generator.get_sources(),
+                source_map: source_map_generator.to_json(),
+            });
+        }
+
+        let source_mapping_url = get_source_mapping_url(
+            &**host,
+            map_options,
+            &**source_map_generator,
+            js_file_path,
+            source_map_file_path,
+            source_file.as_deref(),
+        );
+
+        if !source_mapping_url.is_empty() {
+            if !writer.is_at_start_of_line() {
+                writer.raw_write(new_line);
+            }
+            writer.write_comment(&format!("//# sourceMappingUrl={source_mapping_url}"));
+        }
+
+        if let Some(source_map_file_path) = source_map_file_path.non_empty() {
+            let source_map = source_map_generator.to_string();
+            write_file(
+                &EmitHostWriteFileCallback::new(host.clone()),
+                emitter_diagnostics,
+                source_map_file_path,
+                &source_map,
+                false,
+                Some(&source_files),
+            );
+        }
+    } else {
+        writer.write_line(None);
+    }
+
+    write_file(
+        &EmitHostWriteFileCallback::new(host.clone()),
+        emitter_diagnostics,
+        js_file_path,
+        &writer.get_text(),
+        compiler_options.emit_bom == Some(true),
+        Some(&source_files),
+    );
+
+    writer.clear();
 }
 
 #[derive(Default)]
-struct SourceMapOptions {
+pub struct SourceMapOptions {
     pub source_map: Option<bool>,
     pub inline_source_map: Option<bool>,
     pub inline_sources: Option<bool>,
@@ -958,6 +1184,106 @@ impl From<&CompilerOptions> for SourceMapOptions {
             extended_diagnostics: value.extended_diagnostics,
         }
     }
+}
+
+fn should_emit_source_maps(
+    map_options: &SourceMapOptions,
+    source_file_or_bundle: &Node, /*SourceFile | Bundle*/
+) -> bool {
+    (map_options.source_map == Some(true) || map_options.inline_source_map == Some(true))
+        && (source_file_or_bundle.kind() != SyntaxKind::SourceFile
+            || !file_extension_is(
+                &source_file_or_bundle.as_source_file().file_name(),
+                Extension::Json.to_str(),
+            ))
+}
+
+fn get_source_root(map_options: &SourceMapOptions) -> String {
+    let source_root = normalize_slashes(map_options.source_root.as_deref().unwrap_or(""));
+    if !source_root.is_empty() {
+        ensure_trailing_directory_separator(&source_root)
+    } else {
+        source_root
+    }
+}
+
+fn get_source_map_directory(
+    host: &dyn EmitHost,
+    map_options: &SourceMapOptions,
+    file_path: &str,
+    source_file: Option<&Node /*SourceFile*/>,
+) -> String {
+    if map_options.source_root.as_ref().is_non_empty() {
+        return host.get_common_source_directory();
+    }
+    if let Some(map_options_map_root) = map_options.map_root.as_ref().non_empty() {
+        let mut source_map_dir = normalize_slashes(map_options_map_root);
+        if let Some(source_file) = source_file {
+            source_map_dir = get_directory_path(&get_source_file_path_in_new_dir(
+                &source_file.as_source_file().file_name(),
+                host,
+                &source_map_dir,
+            ));
+        }
+        if get_root_length(&source_map_dir) == 0 {
+            source_map_dir = combine_paths(
+                &host.get_common_source_directory(),
+                &[Some(&source_map_dir)],
+            );
+        }
+        return source_map_dir;
+    }
+    get_directory_path(&normalize_path(file_path))
+}
+
+fn get_source_mapping_url(
+    host: &dyn EmitHost,
+    map_options: &SourceMapOptions,
+    source_map_generator: &dyn SourceMapGenerator,
+    file_path: &str,
+    source_map_file_path: Option<&str>,
+    source_file: Option<&Node /*SourceFile*/>,
+) -> String {
+    if map_options.inline_source_map == Some(true) {
+        let source_map_text = source_map_generator.to_string();
+        let base_64_source_map_text = base64_encode(
+            Some(|str_: &str| get_sys().base64_encode(str_)),
+            &source_map_text,
+        );
+        return format!("data:application/json;base64,{base_64_source_map_text}");
+    }
+
+    let source_map_file = get_base_file_name(
+        &normalize_slashes(Debug_.check_defined(source_map_file_path, None)),
+        None,
+        None,
+    );
+    if let Some(map_options_map_root) = map_options.map_root.as_ref().non_empty() {
+        let mut source_map_dir = normalize_slashes(map_options_map_root);
+        if let Some(source_file) = source_file {
+            source_map_dir = get_directory_path(&get_source_file_path_in_new_dir(
+                &source_file.as_source_file().file_name(),
+                host,
+                &source_map_dir,
+            ));
+        }
+        if get_root_length(&source_map_dir) == 0 {
+            source_map_dir = combine_paths(
+                &host.get_common_source_directory(),
+                &[Some(&source_map_dir)],
+            );
+            return encode_uri(&get_relative_path_to_directory_or_url(
+                &get_directory_path(&normalize_path(file_path)),
+                &combine_paths(&source_map_dir, &[Some(&source_map_file)]),
+                &EmitHost::get_current_directory(host),
+                |file_name| host.get_canonical_file_name(file_name),
+                true,
+            ));
+        } else {
+            return encode_uri(&combine_paths(&source_map_dir, &[Some(&source_map_file)]));
+        }
+    }
+    encode_uri(&source_map_file)
 }
 
 pub(crate) fn get_build_info_text(build_info: &BuildInfo) -> String {
@@ -1308,10 +1634,6 @@ impl Printer {
         self.bundle_file_info.borrow().clone().unwrap()
     }
 
-    pub(super) fn bundle_file_info_mut(&self) -> GcCellRefMut<BundleFileInfo> {
-        self.bundle_file_info().borrow_mut()
-    }
-
     pub(super) fn relative_to_build_info(&self, value: &str) -> String {
         self.relative_to_build_info.clone().unwrap().call(value)
     }
@@ -1614,7 +1936,8 @@ impl Printer {
         end: isize,
         kind: BundleFileSectionKind, /*BundleFileTextLikeKind*/
     ) {
-        let mut bundle_file_info = self.bundle_file_info_mut();
+        let bundle_file_info = self.bundle_file_info();
+        let mut bundle_file_info = bundle_file_info.borrow_mut();
         let last = last_or_undefined(&bundle_file_info.sections);
         if let Some(last) = last.filter(|last| last.kind() == kind) {
             last.set_end(end);

@@ -598,7 +598,7 @@ pub struct BundleFileInfo {
 }
 
 #[derive(Trace, Finalize)]
-pub(crate) struct BundleBuildInfo {
+pub struct BundleBuildInfo {
     pub js: Option<Gc<GcCell<BundleFileInfo>>>,
     pub dts: Option<BundleFileInfo>,
     pub common_source_directory: String,
@@ -607,7 +607,7 @@ pub(crate) struct BundleBuildInfo {
 
 #[derive(Trace, Finalize)]
 pub struct BuildInfo {
-    pub bundle: Option<Gc<BundleBuildInfo>>,
+    pub bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
     pub program: Option<Gc<ProgramBuildInfo>>,
     pub version: String,
 }
@@ -710,7 +710,10 @@ pub struct RawSourceMap {
 }
 
 pub trait SourceMapGenerator: Trace + Finalize {
+    fn get_sources(&self) -> Vec<String>;
     fn add_source(&self, file_name: &str) -> usize;
+    fn to_json(&self) -> RawSourceMap;
+    fn to_string(&self) -> String;
 }
 
 pub trait EmitTextWriter: SymbolWriter + Trace + Finalize {
