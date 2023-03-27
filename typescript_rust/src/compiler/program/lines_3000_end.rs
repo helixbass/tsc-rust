@@ -1520,7 +1520,38 @@ impl Program {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        unimplemented!()
+        let mut need_compiler_diagnostic = true;
+        let paths_syntax = self.get_options_paths_syntax();
+        for path_prop in paths_syntax {
+            let ref path_prop_initializer =
+                path_prop.as_has_initializer().maybe_initializer().unwrap();
+            if is_object_literal_expression(path_prop_initializer) {
+                for key_props in &get_property_assignment(path_prop_initializer, key, None) {
+                    let ref initializer =
+                        key_props.as_has_initializer().maybe_initializer().unwrap();
+                    if is_array_literal_expression(initializer) {
+                        let initializer_as_array_literal_expression =
+                            initializer.as_array_literal_expression();
+                        if initializer_as_array_literal_expression.elements.len() > value_index {
+                            self.program_diagnostics_mut().add(Gc::new(
+                                create_diagnostic_for_node_in_source_file(
+                                    self.options.config_file.as_ref().unwrap(),
+                                    &initializer_as_array_literal_expression.elements[value_index],
+                                    message,
+                                    args.clone(),
+                                )
+                                .into(),
+                            ));
+                            need_compiler_diagnostic = false;
+                        }
+                    }
+                }
+            }
+        }
+        if need_compiler_diagnostic {
+            self.program_diagnostics_mut()
+                .add(Gc::new(create_compiler_diagnostic(message, args).into()));
+        }
     }
 
     pub fn create_diagnostic_for_option_paths(
@@ -1530,7 +1561,42 @@ impl Program {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        unimplemented!()
+        let mut need_compiler_diagnostic = true;
+        let paths_syntax = self.get_options_paths_syntax();
+        for path_prop in paths_syntax {
+            let ref path_prop_initializer =
+                path_prop.as_has_initializer().maybe_initializer().unwrap();
+            if is_object_literal_expression(path_prop_initializer)
+                && self.create_option_diagnostic_in_object_literal_syntax(
+                    path_prop_initializer,
+                    on_key,
+                    key,
+                    None,
+                    message,
+                    args.clone(),
+                )
+            {
+                need_compiler_diagnostic = false;
+            }
+        }
+        if need_compiler_diagnostic {
+            self.program_diagnostics_mut()
+                .add(Gc::new(create_compiler_diagnostic(message, args).into()));
+        }
+    }
+
+    pub fn get_options_syntax_by_name(&self, name: &str) -> Option<Vec<Gc<Node>>> {
+        let compiler_options_object_literal_syntax =
+            self.get_compiler_options_object_literal_syntax();
+        compiler_options_object_literal_syntax.as_ref().map(
+            |compiler_options_object_literal_syntax| {
+                get_property_assignment(compiler_options_object_literal_syntax, name, None)
+            },
+        )
+    }
+
+    pub fn get_options_paths_syntax(&self) -> Vec<Gc<Node>> {
+        self.get_options_syntax_by_name("paths").unwrap_or_default()
     }
 
     pub fn get_options_syntax_by_value(&self, name: &str, value: &str) -> Option<Gc<Node>> {
