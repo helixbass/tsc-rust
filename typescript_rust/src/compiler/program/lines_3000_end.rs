@@ -215,7 +215,37 @@ impl Program {
         source_files: &[Gc<Node /*SourceFile*/>],
         root_directory: &str,
     ) -> bool {
-        unimplemented!()
+        let mut all_files_belong_to_path = true;
+        let absolute_root_directory_path =
+            self.host()
+                .get_canonical_file_name(&get_normalized_absolute_path(
+                    root_directory,
+                    Some(&**self.current_directory()),
+                ));
+        for source_file in source_files {
+            let source_file_as_source_file = source_file.as_source_file();
+            if !source_file_as_source_file.is_declaration_file() {
+                let absolute_source_file_path =
+                    self.host()
+                        .get_canonical_file_name(&get_normalized_absolute_path(
+                            &source_file_as_source_file.file_name(),
+                            Some(&**self.current_directory()),
+                        ));
+                if absolute_source_file_path.find(&absolute_root_directory_path) != Some(0) {
+                    self.add_program_diagnostic_explaining_file(
+                        source_file,
+                        &Diagnostics::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
+                        Some(vec![
+                            source_file_as_source_file.file_name().clone(),
+                            root_directory.to_owned(),
+                        ])
+                    );
+                    all_files_belong_to_path = false;
+                }
+            }
+        }
+
+        all_files_belong_to_path
     }
 
     pub fn parse_project_reference_config_file(
@@ -653,7 +683,7 @@ impl Program {
 
         if !is_option_str_empty(output_file) && self.options.emit_declaration_only != Some(true) {
             if matches!(
-                self.options.module,
+                self.options.module.filter(|options_module| *options_module != ModuleKind::None),
                 Some(options_module) if !matches!(
                     options_module,
                     ModuleKind::AMD | ModuleKind::System
