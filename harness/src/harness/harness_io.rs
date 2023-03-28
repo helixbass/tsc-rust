@@ -757,13 +757,16 @@ pub mod Compiler {
         errors: &mut Vec<Gc<Diagnostic>>,
     ) -> CompilerOptionsValue {
         match option.type_() {
-            // CommandLineOptionType::Boolean => Some(value.to_lowercase() == "true").into(),
-            CommandLineOptionType::Boolean => Some(match &*value.to_lowercase() {
-                "true" => true,
-                "false" => false,
-                _ => panic!("Unexpected boolean value: {:?}", value),
-            })
-            .into(),
+            CommandLineOptionType::Boolean => Some(value.to_lowercase() == "true").into(),
+            // TODO: this seems worth trying to upstream some tests with presumably "unexpected"
+            // boolean option settings (eg moduleAugmentationInAmbientModule3.ts seems to have
+            // `@declaration: true;` interpreted as false because of the trailing semicolon)?
+            // CommandLineOptionType::Boolean => Some(match &*value.to_lowercase() {
+            //     "true" => true,
+            //     "false" => false,
+            //     _ => panic!("Unexpected boolean value: {:?}", value),
+            // })
+            // .into(),
             CommandLineOptionType::String => Some(value.to_owned()).into(),
             CommandLineOptionType::Number => unimplemented!(),
             CommandLineOptionType::Object => unimplemented!(),

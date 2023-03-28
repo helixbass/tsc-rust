@@ -977,7 +977,7 @@ pub fn get_paths_base_path<TGetCurrentDirectory: Fn() -> Option<String>>(
     options.base_url.clone().or_else(|| Some(Debug_.check_defined(options.paths_base_path.clone().or_else(|| get_current_directory()), Some("Encounted 'paths' without a 'baseUrl', config file, or host 'getCurrentDirectory'."))))
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct EmitFileNames {
     pub js_file_path: Option<String>,
     pub source_map_file_path: Option<String>,
@@ -1062,18 +1062,18 @@ pub fn get_source_file_path_in_new_dir(
     )
 }
 
-pub fn get_source_file_path_in_new_dir_worker<TGetCanonicalFileName: Fn(&str) -> String>(
+pub fn get_source_file_path_in_new_dir_worker(
     file_name: &str,
     new_dir_path: &str,
     current_directory: &str,
     common_source_directory: &str,
-    get_canonical_file_name: TGetCanonicalFileName,
+    get_canonical_file_name: impl Fn(&str) -> String,
 ) -> String {
     let mut source_file_path = get_normalized_absolute_path(file_name, Some(current_directory));
     let is_source_file_in_common_source_directory = get_canonical_file_name(&source_file_path)
         .starts_with(&get_canonical_file_name(common_source_directory));
     source_file_path = if is_source_file_in_common_source_directory {
-        source_file_path[0..common_source_directory.len()].to_owned()
+        source_file_path[common_source_directory.len()..].to_owned()
     } else {
         source_file_path
     };

@@ -479,7 +479,9 @@ impl TypeChecker {
     ) {
         let type_ = self.get_type_of_symbol(symbol);
         if self.strict_null_checks
-            && !type_.flags().intersects(TypeFlags::Any | TypeFlags::Never)
+            && !type_
+                .flags()
+                .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Never)
             && !if self.exact_optional_property_types == Some(true) {
                 symbol.flags().intersects(SymbolFlags::Optional)
             } else {

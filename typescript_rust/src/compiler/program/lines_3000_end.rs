@@ -17,21 +17,25 @@ use crate::{
     create_diagnostic_for_node_in_source_file, create_file_diagnostic,
     create_file_diagnostic_from_message_chain, create_input_files, create_symlink_cache,
     explain_if_file_is_redirect, file_extension_is, file_extension_is_one_of,
-    file_include_reason_to_diagnostics, find, for_each_emitted_file, get_allow_js_compiler_option,
-    get_base_file_name, get_directory_path, get_emit_declarations, get_emit_module_kind,
-    get_emit_module_resolution_kind, get_emit_script_target, get_error_span_for_node,
-    get_output_paths_for_bundle, get_property_assignment, get_referenced_file_location,
-    get_root_length, get_spelling_suggestion, get_strict_option_value,
-    get_ts_build_info_emit_output_file_path, get_ts_config_object_literal_expression,
-    has_json_module_emit_enabled, has_zero_or_one_asterisk_character, inverse_jsx_option_map,
+    file_include_reason_to_diagnostics, find, first_defined, for_each_emitted_file, for_each_entry,
+    get_allow_js_compiler_option, get_base_file_name, get_directory_path, get_emit_declarations,
+    get_emit_module_kind, get_emit_module_resolution_kind, get_emit_script_target,
+    get_error_span_for_node, get_matched_file_spec, get_matched_include_spec,
+    get_normalized_absolute_path, get_output_paths_for_bundle, get_property_assignment,
+    get_referenced_file_location, get_root_length, get_spelling_suggestion,
+    get_strict_option_value, get_ts_build_info_emit_output_file_path,
+    get_ts_config_object_literal_expression, get_ts_config_prop_array,
+    get_ts_config_prop_array_element_value, has_json_module_emit_enabled,
+    has_zero_or_one_asterisk_character, inverse_jsx_option_map, is_array_literal_expression,
     is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
     is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
     is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs,
     maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
     remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
     resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
-    string_contains, supported_js_extensions_flat, to_file_name_lower_case, version,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    string_contains, supported_js_extensions_flat, target_option_declaration,
+    to_file_name_lower_case, version, CancellationTokenDebuggable, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, Comparison, CompilerHost, CompilerOptions,
     ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, DirectoryStructureHost,
     EmitFileNames, EmitResult, Extension, FileIncludeKind, FileIncludeReason,
@@ -211,7 +215,37 @@ impl Program {
         source_files: &[Gc<Node /*SourceFile*/>],
         root_directory: &str,
     ) -> bool {
-        unimplemented!()
+        let mut all_files_belong_to_path = true;
+        let absolute_root_directory_path =
+            self.host()
+                .get_canonical_file_name(&get_normalized_absolute_path(
+                    root_directory,
+                    Some(&**self.current_directory()),
+                ));
+        for source_file in source_files {
+            let source_file_as_source_file = source_file.as_source_file();
+            if !source_file_as_source_file.is_declaration_file() {
+                let absolute_source_file_path =
+                    self.host()
+                        .get_canonical_file_name(&get_normalized_absolute_path(
+                            &source_file_as_source_file.file_name(),
+                            Some(&**self.current_directory()),
+                        ));
+                if absolute_source_file_path.find(&absolute_root_directory_path) != Some(0) {
+                    self.add_program_diagnostic_explaining_file(
+                        source_file,
+                        &Diagnostics::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
+                        Some(vec![
+                            source_file_as_source_file.file_name().clone(),
+                            root_directory.to_owned(),
+                        ])
+                    );
+                    all_files_belong_to_path = false;
+                }
+            }
+        }
+
+        all_files_belong_to_path
     }
 
     pub fn parse_project_reference_config_file(
@@ -628,7 +662,10 @@ impl Program {
             {
                 let span = get_error_span_for_node(
                     first_non_ambient_external_module_source_file,
-                    first_non_ambient_external_module_source_file,
+                    &first_non_ambient_external_module_source_file
+                        .as_source_file()
+                        .maybe_external_module_indicator()
+                        .unwrap(),
                 );
                 self.program_diagnostics_mut().add(
                     Gc::new(
@@ -646,7 +683,7 @@ impl Program {
 
         if !is_option_str_empty(output_file) && self.options.emit_declaration_only != Some(true) {
             if matches!(
-                self.options.module,
+                self.options.module.filter(|options_module| *options_module != ModuleKind::None),
                 Some(options_module) if !matches!(
                     options_module,
                     ModuleKind::AMD | ModuleKind::System
@@ -1185,7 +1222,214 @@ impl Program {
         &self,
         reason: &FileIncludeReason,
     ) -> Option<Gc<DiagnosticRelatedInformation /*DiagnosticWithLocation*/>> {
-        unimplemented!()
+        if is_referenced_file(Some(reason)) {
+            let reference_location = get_referenced_file_location(
+                |path| self.get_source_file_by_path(path),
+                reason.as_referenced_file(),
+            );
+            let message: &DiagnosticMessage;
+            match reason.kind() {
+                FileIncludeKind::Import => {
+                    message = &*Diagnostics::File_is_included_via_import_here;
+                }
+                FileIncludeKind::ReferenceFile => {
+                    message = &*Diagnostics::File_is_included_via_reference_here;
+                }
+                FileIncludeKind::TypeReferenceDirective => {
+                    message = &*Diagnostics::File_is_included_via_type_library_reference_here;
+                }
+                FileIncludeKind::LibReferenceDirective => {
+                    message = &*Diagnostics::File_is_included_via_library_reference_here;
+                }
+                _ => {
+                    Debug_.assert_never(reason, None);
+                }
+            }
+            return if is_reference_file_location(&reference_location) {
+                let reference_location_as_reference_file_location =
+                    reference_location.as_reference_file_location();
+                Some(Gc::new(
+                    create_file_diagnostic(
+                        &reference_location_as_reference_file_location.file,
+                        reference_location_as_reference_file_location.pos,
+                        reference_location_as_reference_file_location.end
+                            - reference_location_as_reference_file_location.pos,
+                        message,
+                        None,
+                    )
+                    .into(),
+                ))
+            } else {
+                None
+            };
+        }
+
+        let options_config_file = self.options.config_file.as_ref()?;
+        let mut config_file_node: Option<Gc<Node>> = None;
+        let message: &DiagnosticMessage;
+        match reason.kind() {
+            FileIncludeKind::RootFile => {
+                if options_config_file
+                    .as_source_file()
+                    .maybe_config_file_specs()
+                    .is_none()
+                {
+                    return None;
+                }
+                let reason_as_root_file = reason.as_root_file();
+                let file_name = get_normalized_absolute_path(
+                    &self.root_names()[reason_as_root_file.index],
+                    Some(&**self.current_directory()),
+                );
+                let matched_by_files = get_matched_file_spec(self, &file_name);
+                if let Some(matched_by_files) =
+                    matched_by_files.filter(|matched_by_files| !matched_by_files.is_empty())
+                {
+                    config_file_node = get_ts_config_prop_array_element_value(
+                        Some(&**options_config_file),
+                        "files",
+                        &matched_by_files,
+                    );
+                    message = &*Diagnostics::File_is_matched_by_files_list_specified_here;
+                } else {
+                    let matched_by_include = get_matched_include_spec(self, &file_name)
+                        .filter(|matched_by_include| !matched_by_include.is_empty())?;
+                    config_file_node = get_ts_config_prop_array_element_value(
+                        Some(&**options_config_file),
+                        "include",
+                        &matched_by_include,
+                    );
+                    message = &*Diagnostics::File_is_matched_by_include_pattern_specified_here;
+                }
+            }
+            FileIncludeKind::SourceFromProjectReference
+            | FileIncludeKind::OutputFromProjectReference => {
+                let reason_as_project_reference_file = reason.as_project_reference_file();
+                let referenced_resolved_ref = Debug_.check_defined(
+                    self.maybe_resolved_project_references().as_ref().and_then(
+                        |resolved_project_references| {
+                            resolved_project_references
+                                .get(reason_as_project_reference_file.index)
+                                .cloned()
+                                .flatten()
+                        },
+                    ),
+                    None,
+                );
+                let reference_info = for_each_project_reference(
+                    self.maybe_project_references().as_deref(),
+                    self.maybe_resolved_project_references().as_deref(),
+                    |resolved_ref, parent, index| {
+                        if matches!(
+                            resolved_ref.as_ref(),
+                            Some(resolved_ref) if Gc::ptr_eq(
+                                resolved_ref,
+                                &referenced_resolved_ref,
+                            )
+                        ) {
+                            Some((
+                                /*sourceFile:*/
+                                parent.map_or_else(
+                                    || options_config_file.clone(),
+                                    |parent| parent.source_file.clone(),
+                                ),
+                                /*index:*/ index,
+                            ))
+                        } else {
+                            None
+                        }
+                    },
+                    Option::<
+                        fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> _,
+                    >::None,
+                )?;
+                let (source_file, index) = reference_info;
+                let references_syntax = first_defined(
+                    &get_ts_config_prop_array(Some(&*source_file), "references"),
+                    |property: &Gc<Node>, _| {
+                        property.as_has_initializer().maybe_initializer().filter(
+                            |property_initializer| {
+                                is_array_literal_expression(property_initializer)
+                            },
+                        )
+                    },
+                );
+                return references_syntax
+                    .filter(|references_syntax| {
+                        references_syntax
+                            .as_array_literal_expression()
+                            .elements
+                            .len()
+                            > index
+                    })
+                    .map(|references_syntax| {
+                        Gc::new(
+                        create_diagnostic_for_node_in_source_file(
+                            &source_file,
+                            &references_syntax.as_array_literal_expression().elements[index],
+                            if reason.kind() == FileIncludeKind::OutputFromProjectReference {
+                                &*Diagnostics::File_is_output_from_referenced_project_specified_here
+                            } else {
+                                &*Diagnostics::File_is_source_from_referenced_project_specified_here
+                            },
+                            None,
+                        ).into()
+                    )
+                    });
+            }
+            FileIncludeKind::AutomaticTypeDirectiveFile => {
+                if self.options.types.is_none() {
+                    return None;
+                }
+                config_file_node = self.get_options_syntax_by_array_element_value(
+                    "types",
+                    &reason.as_automatic_type_directive_file().type_reference,
+                );
+                message = &Diagnostics::File_is_entry_point_of_type_library_specified_here;
+            }
+            FileIncludeKind::LibFile => {
+                let reason_as_lib_file = reason.as_lib_file();
+                if let Some(reason_index) = reason_as_lib_file.index {
+                    config_file_node = self.get_options_syntax_by_array_element_value(
+                        "lib",
+                        &self.options.lib.as_ref().unwrap()[reason_index],
+                    );
+                    message = &Diagnostics::File_is_library_specified_here;
+                } else {
+                    let target = target_option_declaration.with(|target_option_declaration_| {
+                        for_each_entry(target_option_declaration_.type_().as_map(), |value, key| {
+                            if value
+                                == &CommandLineOptionMapTypeValue::ScriptTarget(
+                                    get_emit_script_target(&self.options),
+                                )
+                            {
+                                Some((*key).to_owned())
+                            } else {
+                                None
+                            }
+                        })
+                    });
+                    config_file_node = target
+                        .as_ref()
+                        .and_then(|target| self.get_options_syntax_by_value("target", target));
+                    message = &Diagnostics::File_is_default_library_for_target_specified_here;
+                }
+            }
+            _ => {
+                Debug_.assert_never(reason, None);
+            }
+        }
+        config_file_node.as_ref().map(|config_file_node| {
+            Gc::new(
+                create_diagnostic_for_node_in_source_file(
+                    options_config_file,
+                    config_file_node,
+                    message,
+                    None,
+                )
+                .into(),
+            )
+        })
     }
 
     pub fn verify_project_references(&self) {
@@ -1306,7 +1550,38 @@ impl Program {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        unimplemented!()
+        let mut need_compiler_diagnostic = true;
+        let paths_syntax = self.get_options_paths_syntax();
+        for path_prop in paths_syntax {
+            let ref path_prop_initializer =
+                path_prop.as_has_initializer().maybe_initializer().unwrap();
+            if is_object_literal_expression(path_prop_initializer) {
+                for key_props in &get_property_assignment(path_prop_initializer, key, None) {
+                    let ref initializer =
+                        key_props.as_has_initializer().maybe_initializer().unwrap();
+                    if is_array_literal_expression(initializer) {
+                        let initializer_as_array_literal_expression =
+                            initializer.as_array_literal_expression();
+                        if initializer_as_array_literal_expression.elements.len() > value_index {
+                            self.program_diagnostics_mut().add(Gc::new(
+                                create_diagnostic_for_node_in_source_file(
+                                    self.options.config_file.as_ref().unwrap(),
+                                    &initializer_as_array_literal_expression.elements[value_index],
+                                    message,
+                                    args.clone(),
+                                )
+                                .into(),
+                            ));
+                            need_compiler_diagnostic = false;
+                        }
+                    }
+                }
+            }
+        }
+        if need_compiler_diagnostic {
+            self.program_diagnostics_mut()
+                .add(Gc::new(create_compiler_diagnostic(message, args).into()));
+        }
     }
 
     pub fn create_diagnostic_for_option_paths(
@@ -1316,6 +1591,53 @@ impl Program {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
+        let mut need_compiler_diagnostic = true;
+        let paths_syntax = self.get_options_paths_syntax();
+        for path_prop in paths_syntax {
+            let ref path_prop_initializer =
+                path_prop.as_has_initializer().maybe_initializer().unwrap();
+            if is_object_literal_expression(path_prop_initializer)
+                && self.create_option_diagnostic_in_object_literal_syntax(
+                    path_prop_initializer,
+                    on_key,
+                    key,
+                    None,
+                    message,
+                    args.clone(),
+                )
+            {
+                need_compiler_diagnostic = false;
+            }
+        }
+        if need_compiler_diagnostic {
+            self.program_diagnostics_mut()
+                .add(Gc::new(create_compiler_diagnostic(message, args).into()));
+        }
+    }
+
+    pub fn get_options_syntax_by_name(&self, name: &str) -> Option<Vec<Gc<Node>>> {
+        let compiler_options_object_literal_syntax =
+            self.get_compiler_options_object_literal_syntax();
+        compiler_options_object_literal_syntax.as_ref().map(
+            |compiler_options_object_literal_syntax| {
+                get_property_assignment(compiler_options_object_literal_syntax, name, None)
+            },
+        )
+    }
+
+    pub fn get_options_paths_syntax(&self) -> Vec<Gc<Node>> {
+        self.get_options_syntax_by_name("paths").unwrap_or_default()
+    }
+
+    pub fn get_options_syntax_by_value(&self, name: &str, value: &str) -> Option<Gc<Node>> {
+        unimplemented!()
+    }
+
+    pub fn get_options_syntax_by_array_element_value(
+        &self,
+        name: &str,
+        value: &str,
+    ) -> Option<Gc<Node>> {
         unimplemented!()
     }
 

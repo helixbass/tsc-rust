@@ -18,18 +18,19 @@ use crate::{
     directory_separator, ensure_trailing_directory_separator, every, file_extension_is,
     file_extension_is_one_of, find, find_best_pattern_match, find_index, flat_map, flatten,
     for_each, format_string_from_args, get_directory_path, get_locale_specific_message,
-    get_normalized_path_components, get_string_comparer, has_extension, index_of,
-    index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map, normalize_path,
-    remove_trailing_directory_separator, skip_trivia, some, sort, to_path, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseTextRange, CharacterCodes, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
-    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, GetCanonicalFileName,
-    JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray,
-    NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange,
-    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike,
-    TypeAcquisition, WatchOptions,
+    get_normalized_path_components, get_string_comparer, get_token_pos_of_node, has_extension,
+    index_of, index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map,
+    normalize_path, remove_trailing_directory_separator, skip_trivia, some, sort, to_path,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseTextRange, CharacterCodes,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
+    FileExtensionInfo, GetCanonicalFileName, JsxEmit, LanguageVariant, MapLike, ModuleKind,
+    ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path, Pattern, PluginImport,
+    PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
+    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
+    WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -2001,7 +2002,10 @@ pub struct MinAndMax {
 }
 
 pub fn range_of_node(node: &Node) -> BaseTextRange {
-    unimplemented!()
+    BaseTextRange::new(
+        get_token_pos_of_node(node, Option::<&Node>::None, None),
+        node.end(),
+    )
 }
 
 pub fn range_of_type_parameters(

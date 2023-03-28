@@ -605,7 +605,7 @@ mod _CompilerOptionsDeriveTraceScope {
                 "downlevelIteration" => {
                     self.downlevel_iteration = value.into_option_bool();
                 }
-                "emitBom" => {
+                "emitBOM" => {
                     self.emit_bom = value.into_option_bool();
                 }
                 "emitDecoratorMetadata" => {
@@ -2365,6 +2365,10 @@ pub enum CommandLineOption {
 impl CommandLineOption {
     pub fn as_command_line_option_of_list_type(&self) -> &CommandLineOptionOfListType {
         enum_unwrapped!(self, [CommandLineOption, CommandLineOptionOfListType])
+    }
+
+    pub fn as_command_line_option_of_custom_type(&self) -> &CommandLineOptionOfCustomType {
+        enum_unwrapped!(self, [CommandLineOption, CommandLineOptionOfCustomType])
     }
 
     pub fn as_ts_config_only_option(&self) -> &TsConfigOnlyOption {

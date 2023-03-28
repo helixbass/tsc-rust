@@ -557,16 +557,16 @@ impl BinderType {
             let mut global_exports = file_symbol.maybe_global_exports();
             if global_exports.is_none() {
                 *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
-                self.declare_symbol(
-                    &mut global_exports.as_ref().unwrap().borrow_mut(),
-                    Some(self.file().symbol()),
-                    node,
-                    SymbolFlags::Alias,
-                    SymbolFlags::AliasExcludes,
-                    None,
-                    None,
-                );
             }
+            self.declare_symbol(
+                &mut global_exports.as_ref().unwrap().borrow_mut(),
+                Some(self.file().symbol()),
+                node,
+                SymbolFlags::Alias,
+                SymbolFlags::AliasExcludes,
+                None,
+                None,
+            );
         }
     }
 

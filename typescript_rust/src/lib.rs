@@ -629,7 +629,8 @@ pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
     create_watch_status_reporter, emit_files_and_report_errors_and_get_exit_status,
     explain_if_file_is_redirect, file_include_reason_to_diagnostics, get_error_count_for_summary,
-    get_error_summary_text, parse_config_file_with_system, perform_incremental_compilation,
+    get_error_summary_text, get_matched_file_spec, get_matched_include_spec,
+    parse_config_file_with_system, perform_incremental_compilation,
     CreateWatchCompilerHostOfConfigFileInput, IncrementalCompilationOptions,
     ProgramOrBuilderProgram,
 };
