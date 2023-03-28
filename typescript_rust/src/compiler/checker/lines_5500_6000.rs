@@ -918,17 +918,13 @@ impl NodeBuilder {
         node: &Node, /*BindingName*/
     ) -> Gc<Node /*BIndingName*/> {
         self.elide_initializer_and_set_emit_flags(context, node)
-            .unwrap()
-            .into_iter()
-            .next()
-            .unwrap()
     }
 
     pub(super) fn elide_initializer_and_set_emit_flags(
         &self,
         context: &NodeBuilderContext,
         node: &Node,
-    ) -> Option<Vec<Gc<Node>>> {
+    ) -> Gc<Node> {
         if context.tracker.is_track_symbol_supported()
             && is_computed_property_name(node)
             && self.type_checker.is_late_bindable_name(node)
@@ -941,7 +937,12 @@ impl NodeBuilder {
         }
         let mut visited = visit_each_child(
             Some(node),
-            |node: &Node| self.elide_initializer_and_set_emit_flags(context, node),
+            |node: &Node| {
+                Some(
+                    self.elide_initializer_and_set_emit_flags(context, node)
+                        .into(),
+                )
+            },
             &*null_transformation_context,
             Option::<
                 fn(
@@ -952,7 +953,12 @@ impl NodeBuilder {
                     Option<usize>,
                 ) -> NodeArray,
             >::None,
-            Some(|node: &Node| self.elide_initializer_and_set_emit_flags(context, node)),
+            Some(|node: &Node| {
+                Some(
+                    self.elide_initializer_and_set_emit_flags(context, node)
+                        .into(),
+                )
+            }),
             Option::<
                 fn(
                     Option<&Node>,
@@ -973,10 +979,7 @@ impl NodeBuilder {
                 factory_.clone_node(synthetic_factory_, &visited)
             });
         }
-        Some(vec![set_emit_flags(
-            visited,
-            EmitFlags::SingleLine | EmitFlags::NoAsciiEscaping,
-        )])
+        set_emit_flags(visited, EmitFlags::SingleLine | EmitFlags::NoAsciiEscaping)
     }
 
     pub(super) fn track_computed_name<TEnclosingDeclaration: Borrow<Node>>(

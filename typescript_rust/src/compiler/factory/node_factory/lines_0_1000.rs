@@ -1157,11 +1157,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_identifier<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn create_identifier(
         &self,
         base_factory: &TBaseNodeFactory,
         text: &str,
-        type_arguments: Option<TTypeArguments>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
         original_keyword_kind: Option<SyntaxKind>,
     ) -> Identifier {
         let mut node = self.create_base_identifier(base_factory, text, original_keyword_kind);
@@ -1197,6 +1197,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else {
             node.node_wrapper()
         }
+    }
+
+    pub fn create_temp_variable(
+        &self,
+        record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
+        reserved_in_nested_scopes: Option<bool>,
+    ) -> Gc<Node /*GeneratedIdentifier*/> {
+        unimplemented!()
     }
 
     pub fn create_private_identifier(

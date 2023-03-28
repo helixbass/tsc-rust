@@ -2,8 +2,9 @@
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::cell::RefCell;
+use local_macros::enum_unwrapped;
 use std::rc::Rc;
+use std::{cell::RefCell, ptr};
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
@@ -273,4 +274,61 @@ pub trait TransformerInterface: Trace + Finalize {
     fn call(&self, node: &Node) -> Gc<Node>;
 }
 
-pub type VisitResult = Option<Vec<Gc<Node>>>;
+pub type VisitResult = Option<SingleNodeOrVecNode>;
+
+pub trait VisitResultInterface {
+    fn ptr_eq_node(&self, node: &Node) -> bool;
+    fn into_single_node(self) -> Gc<Node>;
+}
+
+impl VisitResultInterface for VisitResult {
+    fn ptr_eq_node(&self, node: &Node) -> bool {
+        matches!(
+            self,
+            Some(SingleNodeOrVecNode::SingleNode(single_node)) if ptr::eq(
+                &**single_node,
+                node,
+            )
+        )
+    }
+
+    fn into_single_node(self) -> Gc<Node> {
+        self.unwrap().as_single_node().clone()
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub enum SingleNodeOrVecNode {
+    SingleNode(Gc<Node>),
+    VecNode(Vec<Gc<Node>>),
+}
+
+impl SingleNodeOrVecNode {
+    // TODO: suppress `gc`-generated Drop implementation to avoid this complaining?
+    // fn as_single_node(self) -> Gc<Node> {
+    //     enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode])
+    // }
+
+    // fn as_vec_node(self) -> Vec<Gc<Node>> {
+    //     enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
+    // }
+    fn as_single_node(&self) -> &Gc<Node> {
+        enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode])
+    }
+
+    fn as_vec_node(&self) -> &Vec<Gc<Node>> {
+        enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
+    }
+}
+
+impl From<Gc<Node>> for SingleNodeOrVecNode {
+    fn from(value: Gc<Node>) -> Self {
+        Self::SingleNode(value)
+    }
+}
+
+impl From<Vec<Gc<Node>>> for SingleNodeOrVecNode {
+    fn from(value: Vec<Gc<Node>>) -> Self {
+        Self::VecNode(value)
+    }
+}

@@ -169,7 +169,7 @@ pub use compiler::factory::utilities::{
     is_outer_expression, skip_outer_expressions, starts_with_use_strict,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
-pub use compiler::factory::utilities_public::set_text_range;
+pub use compiler::factory::utilities_public::{set_text_range, set_text_range_rc_node};
 use compiler::module_name_resolver::{
     create_mode_aware_cache, get_package_json_types_version_paths,
     get_package_name_from_types_package_name, get_package_scope_for_path, get_types_package_name,
@@ -370,11 +370,11 @@ pub use compiler::types::{
     ReverseMappedSymbol, ReverseMappedType, RootFile, ScriptKind, ScriptReferenceHost,
     ScriptTarget, SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment,
     Signature, SignatureDeclarationBase, SignatureDeclarationInterface, SignatureFlags,
-    SignatureKind, SignatureOptionalCallSignatureCache, SnippetElement, SnippetKind, SourceFile,
-    SourceFileLike, SourceFileMayBeEmittedHost, SourceFilePrologueDirective,
-    SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo, SourceMapGenerator,
-    SourceMapRange, SourceMapSource, SourceTextAsChars, SpreadAssignment, SpreadElement,
-    StringLiteral, StringLiteralType, StringMappingType, StringOrDiagnosticMessage,
+    SignatureKind, SignatureOptionalCallSignatureCache, SingleNodeOrVecNode, SnippetElement,
+    SnippetKind, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
+    SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
+    SourceMapGenerator, SourceMapRange, SourceMapSource, SourceTextAsChars, SpreadAssignment,
+    SpreadElement, StringLiteral, StringLiteralType, StringMappingType, StringOrDiagnosticMessage,
     StringOrNodeArray, StructureIsReused, SubstitutionType, SwitchStatement, Symbol,
     SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolFormatFlags, SymbolId,
     SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolVisibilityResult, SymbolWalker,
@@ -397,9 +397,9 @@ pub use compiler::types::{
     UnparsedPrepend, UnparsedPrologue, UnparsedSectionInterface, UnparsedSource,
     UnparsedSyntheticReference, UnparsedTextLike, UserPreferences, UserPreferencesBuilder,
     VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VarianceFlags, VisitResult, VoidExpression, WatchDirectoryFlags,
-    WatchDirectoryKind, WatchFileKind, WatchOptions, WhileStatement, WithStatement,
-    WriteFileCallback, YieldExpression, __String,
+    VariableStatement, VarianceFlags, VisitResult, VisitResultInterface, VoidExpression,
+    WatchDirectoryFlags, WatchDirectoryKind, WatchFileKind, WatchOptions, WhileStatement,
+    WithStatement, WriteFileCallback, YieldExpression, __String,
 };
 use compiler::types::{
     AccessFlags, BundleBuildInfo, CommentDirectivesMap, EmitNode,

@@ -243,7 +243,7 @@ impl TypeChecker {
                 ) -> Option<Gc<Node>>,
             >::None,
         )
-        .map(|rc_node| vec![rc_node])
+        .map(Into::into)
     }
 
     pub fn get_emit_resolver(
