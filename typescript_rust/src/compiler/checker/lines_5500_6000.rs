@@ -1378,17 +1378,18 @@ impl NodeBuilder {
             if ambient_module_symbol_regex.is_match(symbol.escaped_name()) {
                 return symbol.escaped_name()[1..symbol.escaped_name().len() - 1].to_owned();
             }
-            return get_source_file_of_node(get_non_augmentation_declaration(symbol))
-                .unwrap()
+            return get_source_file_of_node(&get_non_augmentation_declaration(symbol).unwrap())
                 .as_source_file()
                 .file_name()
                 .clone();
         }
-        let context_file = get_source_file_of_node(get_original_node(
-            context.maybe_enclosing_declaration(),
-            Option::<fn(Option<Gc<Node>>) -> bool>::None,
-        ))
-        .unwrap();
+        let context_file = get_source_file_of_node(
+            &get_original_node(
+                context.maybe_enclosing_declaration(),
+                Option::<fn(Option<Gc<Node>>) -> bool>::None,
+            )
+            .unwrap(),
+        );
         let links = self.type_checker.get_symbol_links(symbol);
         let mut specifier =
             (*links)

@@ -2,35 +2,32 @@
 
 use gc::Gc;
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
 
 use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, are_option_gcs_equal, are_option_rcs_equal, concatenate,
+    add_related_info, are_option_gcs_equal, bind_source_file, concatenate,
     create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text,
     for_each_child_bool, for_each_entry_bool, get_all_accessor_declarations,
     get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name,
     get_first_identifier, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
     is_ambient_module, is_binding_pattern, is_declaration, is_declaration_readonly,
     is_effective_external_module, is_entity_name, is_enum_const, is_expression,
-    is_function_declaration, is_function_like, is_generated_identifier, is_get_accessor,
-    is_global_scope_augmentation, is_identifier, is_jsdoc_parameter_tag, is_named_declaration,
-    is_private_identifier_class_element_declaration, is_property_access_expression,
-    is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
-    is_type_only_import_or_export_declaration, is_var_const, is_variable_declaration,
-    is_variable_like_or_accessor, maybe_is_class_like, modifier_to_flag, node_can_be_decorated,
-    node_is_present, parse_isolated_entity_name, should_preserve_const_enums, some,
-    token_to_string, try_cast, with_synthetic_factory_and_factory, Debug_, Diagnostics,
+    is_external_or_common_js_module, is_function_declaration, is_function_like,
+    is_generated_identifier, is_get_accessor, is_global_scope_augmentation, is_identifier,
+    is_jsdoc_parameter_tag, is_named_declaration, is_private_identifier_class_element_declaration,
+    is_property_access_expression, is_property_declaration, is_qualified_name, is_set_accessor,
+    is_string_literal, is_type_only_import_or_export_declaration, is_var_const,
+    is_variable_declaration, is_variable_like_or_accessor, maybe_get_source_file_of_node,
+    maybe_is_class_like, modifier_to_flag, node_can_be_decorated, node_is_present,
+    parse_isolated_entity_name, should_preserve_const_enums, some, token_to_string, try_cast,
+    with_synthetic_factory_and_factory, Debug_, Diagnostic, Diagnostics, EmitResolver,
     ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags,
-    NodeFlags, ObjectFlags, PragmaArgumentName, PragmaName, Signature, SignatureKind,
-    SymbolInterface, SymbolTracker, SyntaxKind, TypeFlags, TypeInterface,
-    TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
-    Diagnostic, EmitResolver, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type,
-    TypeChecker,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags,
+    NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName, PragmaName, Signature,
+    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -668,8 +665,7 @@ impl TypeChecker {
     ) -> Option<Gc<Node /*EntityName*/>> {
         /*location ?*/
         self.get_jsx_namespace_(Some(location));
-        get_source_file_of_node(Some(location))
-            .unwrap()
+        get_source_file_of_node(location)
             .as_source_file()
             .maybe_local_jsx_factory()
             .clone()
@@ -682,7 +678,7 @@ impl TypeChecker {
         location: &Node,
     ) -> Option<Gc<Node /*EntityName*/>> {
         // if (location) {
-        let file = get_source_file_of_node(Some(location));
+        let file = maybe_get_source_file_of_node(Some(location));
         if let Some(file) = file.as_ref() {
             let file_as_source_file = file.as_source_file();
             if let Some(file_local_jsx_fragment_factory) = file_as_source_file
@@ -1040,7 +1036,7 @@ impl TypeChecker {
         if self.requested_external_emit_helpers() & helpers != helpers
             && self.compiler_options.import_helpers == Some(true)
         {
-            let source_file = get_source_file_of_node(Some(location)).unwrap();
+            let source_file = get_source_file_of_node(location);
             if is_effective_external_module(&source_file, &self.compiler_options)
                 && !location.flags().intersects(NodeFlags::Ambient)
             {

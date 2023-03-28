@@ -41,10 +41,10 @@ use crate::{
     PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange, ScriptTarget,
     VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
     get_first_identifier, get_or_update_indexmap, get_source_file_of_node, is_jsx_opening_fragment,
-    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    maybe_get_source_file_of_node, parse_isolated_entity_name, unescape_leading_underscores,
+    visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node,
+    NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable,
+    SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -54,7 +54,7 @@ impl TypeChecker {
     ) -> __String {
         if let Some(location) = location {
             let location = location.borrow();
-            let file = get_source_file_of_node(Some(location));
+            let file = maybe_get_source_file_of_node(Some(location));
             if let Some(file) = file {
                 let file_as_source_file = file.as_source_file();
                 if is_jsx_opening_fragment(location) {
@@ -332,7 +332,7 @@ impl TypeChecker {
             if !is_error {
                 return;
             }
-            let file = get_source_file_of_node(Some(location)).unwrap();
+            let file = get_source_file_of_node(location);
             self.add_error_or_suggestion(
                 is_error,
                 Gc::new(match message {
@@ -653,14 +653,14 @@ impl TypeChecker {
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|source_declarations| {
-                        get_source_file_of_node(source_declarations.get(0).map(Clone::clone))
+                        maybe_get_source_file_of_node(source_declarations.get(0).cloned())
                     });
             let target_symbol_file =
                 target
                     .maybe_declarations()
                     .as_ref()
                     .and_then(|target_declarations| {
-                        get_source_file_of_node(target_declarations.get(0).map(Clone::clone))
+                        maybe_get_source_file_of_node(target_declarations.get(0).cloned())
                     });
             let symbol_name =
                 self.symbol_to_string_(source, Option::<&Node>::None, None, None, None);
@@ -1109,8 +1109,8 @@ impl TypeChecker {
         declaration: &Node, /*Declaration*/
         usage: &Node,
     ) -> bool {
-        let declaration_file = get_source_file_of_node(Some(declaration)).unwrap();
-        let use_file = get_source_file_of_node(Some(usage)).unwrap();
+        let declaration_file = get_source_file_of_node(declaration);
+        let use_file = get_source_file_of_node(usage);
         let decl_container = get_enclosing_block_scope_container(declaration).unwrap();
         if !Gc::ptr_eq(&declaration_file, &use_file) {
             if self.module_kind != ModuleKind::None

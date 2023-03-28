@@ -1,25 +1,23 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};
 use crate::{
-    are_option_gcs_equal, HasStatementsInterface, __String, are_option_rcs_equal, count_where,
-    create_diagnostic_for_node, declaration_name_to_string, for_each, for_each_entry_bool,
-    for_each_import_clause_declaration_bool, get_combined_node_flags,
-    get_effective_type_annotation_node, get_emit_declarations, get_es_module_interop,
-    get_external_module_name, get_first_identifier, get_source_file_of_node,
+    are_option_gcs_equal, count_where, create_diagnostic_for_node, declaration_name_to_string,
+    for_each, for_each_entry_bool, for_each_import_clause_declaration_bool,
+    get_combined_node_flags, get_effective_type_annotation_node, get_emit_declarations,
+    get_es_module_interop, get_external_module_name, get_first_identifier, get_source_file_of_node,
     has_effective_modifiers, has_syntactic_modifier, id_text, is_ambient_module,
     is_entity_name_expression, is_external_module_name_relative, is_external_module_reference,
     is_import_declaration, is_import_equals_declaration, is_import_specifier, is_in_js_file,
     is_internal_module_import_equals_declaration, is_module_exports_access_expression,
     is_named_exports, is_namespace_export, is_private_identifier, is_string_literal,
-    is_type_only_import_or_export_declaration, length, node_is_missing,
-    unescape_leading_underscores, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TypeChecker,
+    is_type_only_import_or_export_declaration, length, maybe_get_source_file_of_node,
+    node_is_missing, unescape_leading_underscores, Debug_, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, HasStatementsInterface, LiteralLikeNodeInterface, ModifierFlags,
+    ModuleKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker,
 };
 
 impl TypeChecker {
@@ -196,8 +194,8 @@ impl TypeChecker {
                         }
                         SyntaxKind::ExportSpecifier => {
                             if !are_option_gcs_equal(
-                                get_source_file_of_node(type_only_alias.as_deref()).as_ref(),
-                                get_source_file_of_node(Some(node)).as_ref(),
+                                maybe_get_source_file_of_node(type_only_alias.as_deref()).as_ref(),
+                                maybe_get_source_file_of_node(Some(node)).as_ref(),
                             ) {
                                 let message = if is_type {
                                     &*Diagnostics::Re_exporting_a_type_when_the_isolatedModules_flag_is_provided_requires_using_export_type
@@ -266,8 +264,7 @@ impl TypeChecker {
                 && get_es_module_interop(&self.compiler_options) == Some(true)
                 && self.module_kind != ModuleKind::System
                 && (self.module_kind < ModuleKind::ES2015
-                    || get_source_file_of_node(Some(node))
-                        .unwrap()
+                    || get_source_file_of_node(node)
                         .as_source_file()
                         .maybe_implied_node_format()
                         == Some(ModuleKind::CommonJS))
@@ -343,8 +340,7 @@ impl TypeChecker {
                         self.check_import_binding(import_clause_named_bindings);
                         if self.module_kind != ModuleKind::System
                             && (self.module_kind < ModuleKind::ES2015
-                                || get_source_file_of_node(Some(node))
-                                    .unwrap()
+                                || get_source_file_of_node(node)
                                     .as_source_file()
                                     .maybe_implied_node_format()
                                     == Some(ModuleKind::CommonJS))
@@ -440,8 +436,7 @@ impl TypeChecker {
                 }
             } else {
                 if self.module_kind >= ModuleKind::ES2015
-                    && get_source_file_of_node(Some(node))
-                        .unwrap()
+                    && get_source_file_of_node(node)
                         .as_source_file()
                         .maybe_implied_node_format()
                         .is_none()
@@ -549,8 +544,7 @@ impl TypeChecker {
                 }
                 if self.module_kind != ModuleKind::System
                     && (self.module_kind < ModuleKind::ES2015
-                        || get_source_file_of_node(Some(node))
-                            .unwrap()
+                        || get_source_file_of_node(node)
                             .as_source_file()
                             .maybe_implied_node_format()
                             == Some(ModuleKind::CommonJS))
@@ -773,8 +767,7 @@ impl TypeChecker {
             if get_es_module_interop(&self.compiler_options) == Some(true)
                 && self.module_kind != ModuleKind::System
                 && (self.module_kind < ModuleKind::ES2015
-                    || get_source_file_of_node(Some(node))
-                        .unwrap()
+                    || get_source_file_of_node(node)
                         .as_source_file()
                         .maybe_implied_node_format()
                         == Some(ModuleKind::CommonJS))
@@ -886,8 +879,7 @@ impl TypeChecker {
             && !node.flags().intersects(NodeFlags::Ambient)
         {
             if self.module_kind >= ModuleKind::ES2015
-                && get_source_file_of_node(Some(node))
-                    .unwrap()
+                && get_source_file_of_node(node)
                     .as_source_file()
                     .maybe_implied_node_format()
                     != Some(ModuleKind::CommonJS)

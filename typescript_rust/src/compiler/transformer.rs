@@ -2,26 +2,26 @@
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::mem;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
     factory as factory_static, gc_cell_ref_unwrapped, get_emit_flags, get_emit_module_kind,
-    get_emit_script_target, get_jsx_transform_enabled, get_parse_tree_node,
-    get_source_file_of_node, is_bundle, is_source_file, maybe_map, not_implemented, set_emit_flags,
+    get_emit_script_target, get_jsx_transform_enabled, get_parse_tree_node, is_bundle,
+    is_source_file, maybe_get_source_file_of_node, maybe_map, not_implemented, set_emit_flags,
     some, synthetic_factory, transform_class_fields, transform_declarations,
     transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
     transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
     transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
     transform_system_module, transform_type_script, BaseNodeFactorySynthetic, CompilerOptions,
-    CoreTransformationContext, CustomTransformer, CustomTransformerInterface, CustomTransformers,
-    Debug_, Diagnostic, EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint,
-    EmitHost, EmitResolver, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray,
-    NodeFactory, NodeFlags, NodeInterface, ScriptTarget, SyntaxKind, TransformationContext,
-    TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
+    CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_, Diagnostic,
+    EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver,
+    EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags,
+    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext, TransformationResult,
+    Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface,
 };
 
@@ -653,7 +653,7 @@ impl TransformNodesTransformationResult {
 
     fn call(&self) {
         for node in &self.nodes {
-            dispose_emit_nodes(get_source_file_of_node(get_parse_tree_node(
+            dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                 Some(&**node),
                 Option::<fn(&Node) -> bool>::None,
             )))
@@ -1217,7 +1217,7 @@ impl TransformationResult for TransformNodesTransformationResult {
     fn dispose(&self) {
         if self.state() < TransformationState::Disposed {
             for node in &self.nodes {
-                dispose_emit_nodes(get_source_file_of_node(get_parse_tree_node(
+                dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                     Some(&**node),
                     Option::<fn(&Node) -> bool>::None,
                 )))

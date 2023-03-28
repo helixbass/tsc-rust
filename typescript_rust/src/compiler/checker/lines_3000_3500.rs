@@ -866,7 +866,7 @@ impl TypeChecker {
         if ambient_module.is_some() {
             return ambient_module;
         }
-        let current_source_file = get_source_file_of_node(Some(location)).unwrap();
+        let current_source_file = get_source_file_of_node(location);
         let context_specifier = if is_string_literal_like(location) {
             Some(location.node_wrapper())
         } else {

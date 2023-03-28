@@ -3,26 +3,25 @@
 use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{CheckMode, TypeFacts};
 use crate::{
-    are_option_gcs_equal, every, get_containing_class, get_object_flags, token_to_string,
-    ExternalEmitHelpers, Number, __String, add_related_info, are_option_rcs_equal,
-    create_diagnostic_for_node, create_file_diagnostic, first_or_undefined, get_check_flags,
-    get_containing_function, get_containing_function_or_class_static_block,
-    get_declaration_modifier_flags_from_symbol, get_effective_return_type_node, get_function_flags,
-    get_source_file_of_node, get_span_of_token_at_position, has_context_sensitive_parameters,
-    is_access_expression, is_binary_expression, is_bindable_object_define_property_call,
-    is_call_expression, is_class_static_block_declaration, is_effective_external_module,
-    is_function_expression, is_in_top_level_context, is_object_literal_method,
-    is_private_identifier, is_property_access_expression, is_property_assignment,
-    parse_pseudo_big_int, skip_outer_expressions, skip_parentheses, some, AssignmentKind,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
-    FunctionFlags, LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node, NodeCheckFlags,
-    NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds, PseudoBigInt, ReadonlyTextRange,
-    ScriptTarget, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TextSpan, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    add_related_info, are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic,
+    every, first_or_undefined, get_check_flags, get_containing_class, get_containing_function,
+    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
+    get_effective_return_type_node, get_function_flags, get_object_flags, get_source_file_of_node,
+    get_span_of_token_at_position, has_context_sensitive_parameters, is_access_expression,
+    is_binary_expression, is_bindable_object_define_property_call, is_call_expression,
+    is_class_static_block_declaration, is_effective_external_module, is_function_expression,
+    is_in_top_level_context, is_object_literal_method, is_private_identifier,
+    is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
+    skip_outer_expressions, skip_parentheses, some, token_to_string, AssignmentKind, CheckFlags,
+    Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
+    ExternalEmitHelpers, FunctionFlags, LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node,
+    NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OuterExpressionKinds,
+    PseudoBigInt, ReadonlyTextRange, ScriptTarget, SignatureFlags, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -524,7 +523,7 @@ impl TypeChecker {
                 );
             } else if !node.flags().intersects(NodeFlags::AwaitContext) {
                 if is_in_top_level_context(node) {
-                    let source_file = get_source_file_of_node(Some(node)).unwrap();
+                    let source_file = get_source_file_of_node(node);
                     if !self.has_parse_diagnostics(&source_file) {
                         let mut span: Option<TextSpan> = None;
                         if !is_effective_external_module(&source_file, &self.compiler_options) {
@@ -549,8 +548,7 @@ impl TypeChecker {
                             self.module_kind,
                             ModuleKind::ES2022 | ModuleKind::ESNext | ModuleKind::System
                         ) && !(self.module_kind == ModuleKind::NodeNext
-                            && get_source_file_of_node(Some(node))
-                                .unwrap()
+                            && get_source_file_of_node(node)
                                 .as_source_file()
                                 .maybe_implied_node_format()
                                 == Some(ModuleKind::ESNext))
@@ -573,7 +571,7 @@ impl TypeChecker {
                         }
                     }
                 } else {
-                    let source_file = get_source_file_of_node(Some(node)).unwrap();
+                    let source_file = get_source_file_of_node(node);
                     if !self.has_parse_diagnostics(&source_file) {
                         let span = get_span_of_token_at_position(
                             &source_file,

@@ -2,10 +2,8 @@
 
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{
@@ -17,10 +15,10 @@ use crate::{
     is_external_module_name_relative, is_import_call, is_import_declaration,
     is_module_exports_access_expression, is_object_literal_expression, is_type_literal_node,
     is_variable_declaration, length, mangle_scoped_package_name, map_defined, node_is_synthesized,
-    push_if_unique_gc, push_if_unique_rc, unescape_leading_underscores, Diagnostics,
-    HasInitializerInterface, HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface,
-    ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    push_if_unique_gc, unescape_leading_underscores, Diagnostics, HasInitializerInterface,
+    HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags,
+    ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     UnderscoreEscapedMap, __String,
 };
 
@@ -631,7 +629,7 @@ impl TypeChecker {
         symbol: &Symbol,
         enclosing_declaration: &Node,
     ) -> Vec<Gc<Symbol>> {
-        let containing_file = get_source_file_of_node(Some(enclosing_declaration)).unwrap();
+        let containing_file = get_source_file_of_node(enclosing_declaration);
         let id = get_node_id(&containing_file);
         let links = self.get_symbol_links(symbol);
         let mut results: Option<Vec<Gc<Symbol>>> = None;
@@ -825,9 +823,7 @@ impl TypeChecker {
                                 &d_parent_as_binary_expression.left,
                             ) || is_exports_identifier(&d_parent_left_expression)
                             {
-                                return self.get_symbol_of_node(
-                                    &get_source_file_of_node(Some(&**d)).unwrap(),
-                                );
+                                return self.get_symbol_of_node(&get_source_file_of_node(d));
                             }
                             self.check_expression_cached(&d_parent_left_expression, None);
                             return (*self.get_node_links(&d_parent_left_expression))

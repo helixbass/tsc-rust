@@ -2,10 +2,8 @@
 
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{IterationUse, TypeFacts};
 use crate::{
@@ -15,8 +13,8 @@ use crate::{
     get_combined_node_flags, get_declaration_of_kind, get_declared_expando_initializer,
     get_effective_modifier_flags, get_effective_type_annotation_node, get_jsdoc_type,
     get_jsdoc_type_tag, get_object_flags, get_source_file_of_node, get_this_container,
-    has_only_expression_initializer, has_static_modifier, index_of_gc, index_of_rc,
-    is_access_expression, is_binary_expression, is_binding_pattern, is_call_expression,
+    has_only_expression_initializer, has_static_modifier, index_of_gc, is_access_expression,
+    is_binary_expression, is_binding_pattern, is_call_expression,
     is_class_static_block_declaration, is_function_type_node, is_in_js_file, is_jsx_attribute,
     is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
     is_parameter, is_parameter_declaration, is_property_access_expression, is_property_declaration,
@@ -25,9 +23,9 @@ use crate::{
     unescape_leading_underscores, walk_up_binding_elements_and_patterns, AccessFlags,
     AssignmentDeclarationKind, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
     InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, StrOrRcNode,
-    StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, StrOrRcNode, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -600,9 +598,8 @@ impl TypeChecker {
                 .as_ref()
                 .unwrap()
                 .get(0)
-                .map(Clone::clone),
-        )
-        .unwrap();
+                .unwrap(),
+        );
         let access_name = unescape_leading_underscores(symbol.escaped_name());
         let are_all_module_exports = every(
             symbol.maybe_declarations().as_deref().unwrap(),
@@ -1181,11 +1178,8 @@ impl TypeChecker {
                                 exported_member.maybe_value_declaration()
                             {
                                 if !Gc::ptr_eq(
-                                    &get_source_file_of_node(Some(&*s_value_declaration)).unwrap(),
-                                    &get_source_file_of_node(Some(
-                                        &*exported_member_value_declaration,
-                                    ))
-                                    .unwrap(),
+                                    &get_source_file_of_node(&s_value_declaration),
+                                    &get_source_file_of_node(&exported_member_value_declaration),
                                 ) {
                                     let unescaped_name =
                                         unescape_leading_underscores(s.escaped_name());

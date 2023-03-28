@@ -12,16 +12,16 @@ use super::{
     IntersectionState, JsxNames, RecursionFlags,
 };
 use crate::{
-    append, are_option_gcs_equal, are_option_rcs_equal, contains_gc, contains_rc, find_ancestor,
-    is_identifier, is_identifier_text, reduce_left, some, Diagnostic, ObjectFlagsTypeInterface,
-    UnionOrIntersectionTypeInterface, __String, add_related_info, chain_diagnostic_messages,
-    concatenate_diagnostic_message_chains, create_diagnostic_for_node,
-    create_diagnostic_for_node_from_message_chain, first_or_undefined, get_emit_script_target,
-    get_object_flags, get_source_file_of_node, is_import_call, is_jsx_attribute, is_jsx_attributes,
-    is_jsx_opening_like_element, is_object_literal_element_like, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface,
-    ObjectFlags, RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    add_related_info, append, are_option_gcs_equal, chain_diagnostic_messages,
+    concatenate_diagnostic_message_chains, contains_gc, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, find_ancestor, first_or_undefined,
+    get_emit_script_target, get_object_flags, is_identifier, is_identifier_text, is_import_call,
+    is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,
+    is_object_literal_element_like, maybe_get_source_file_of_node, reduce_left, some, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
+    Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 #[derive(Trace, Finalize)]
@@ -1423,9 +1423,11 @@ impl CheckTypeRelatedTo {
                                 .filter(|prop_value_declaration| {
                                     is_jsx_attribute(prop_value_declaration)
                                         && are_option_gcs_equal(
-                                            get_source_file_of_node(Some(&**error_node_present))
-                                                .as_ref(),
-                                            get_source_file_of_node(Some(
+                                            maybe_get_source_file_of_node(Some(
+                                                &**error_node_present,
+                                            ))
+                                            .as_ref(),
+                                            maybe_get_source_file_of_node(Some(
                                                 &*prop_value_declaration.as_jsx_attribute().name,
                                             ))
                                             .as_ref(),
@@ -1508,8 +1510,8 @@ impl CheckTypeRelatedTo {
                                     )
                                 ).is_some() &&
                                 are_option_gcs_equal(
-                                    get_source_file_of_node(object_literal_declaration.as_deref()).as_ref(),
-                                    get_source_file_of_node(Some(&**error_node_present)).as_ref(),
+                                    maybe_get_source_file_of_node(object_literal_declaration.as_deref()).as_ref(),
+                                    maybe_get_source_file_of_node(Some(&**error_node_present)).as_ref(),
                                 )
                             ) {
                                 let prop_declaration = prop_value_declaration;

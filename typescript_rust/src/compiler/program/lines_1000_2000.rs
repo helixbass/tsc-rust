@@ -275,7 +275,8 @@ impl Program {
     }
 
     pub(super) fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
-        unimplemented!()
+        self.has_emit_blocking_diagnostics()
+            .contains_key(&self.to_path(emit_file_name))
     }
 
     pub(super) fn emit_worker(

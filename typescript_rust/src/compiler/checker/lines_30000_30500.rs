@@ -414,7 +414,7 @@ impl TypeChecker {
             } else {
                 let mut related_information: Option<Gc<DiagnosticRelatedInformation>> = None;
                 if node_as_call_expression.arguments.len() == 1 {
-                    let source_file = get_source_file_of_node(Some(node)).unwrap();
+                    let source_file = get_source_file_of_node(node);
                     let text = source_file.as_source_file().text_as_chars();
                     if is_line_break(text_char_at_index(
                         &text,

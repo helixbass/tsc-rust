@@ -16,12 +16,12 @@ use crate::{
     is_expression_node, is_function_like, is_identifier, is_method_declaration,
     is_named_declaration, is_part_of_type_query, is_private_identifier,
     is_property_access_expression, is_static, is_this_identifier, is_this_property,
-    is_write_access, maybe_for_each, should_preserve_const_enums, symbol_name,
-    unescape_leading_underscores, AssignmentDeclarationKind, AssignmentKind, Debug_, Diagnostic,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, ExternalEmitHelpers,
-    FindAncestorCallbackReturn, Node, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, __String,
+    is_write_access, maybe_for_each, maybe_get_source_file_of_node, should_preserve_const_enums,
+    symbol_name, unescape_leading_underscores, AssignmentDeclarationKind, AssignmentKind, Debug_,
+    Diagnostic, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, Node, NodeFlags, NodeInterface, ScriptKind,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -774,7 +774,7 @@ impl TypeChecker {
     ) -> bool {
         let node = node.map(|node| node.borrow().node_wrapper());
         let suggestion = suggestion.map(|suggestion| suggestion.borrow().symbol_wrapper());
-        let file = get_source_file_of_node(node.as_deref());
+        let file = maybe_get_source_file_of_node(node.as_deref());
         if let Some(file) = file.as_ref() {
             let file_as_source_file = file.as_source_file();
             if self.compiler_options.check_js.is_none()
@@ -789,7 +789,7 @@ impl TypeChecker {
                         .as_ref()
                         .and_then(|suggestion| suggestion.maybe_declarations().clone())
                         .as_ref(),
-                    |declaration: &Gc<Node>, _| get_source_file_of_node(Some(&**declaration)),
+                    |declaration: &Gc<Node>, _| maybe_get_source_file_of_node(Some(&**declaration)),
                 );
                 return !matches!(
                     declaration_file.as_ref(),
@@ -927,8 +927,7 @@ impl TypeChecker {
     ) {
         let value_declaration = prop.maybe_value_declaration();
         if value_declaration.is_none()
-            || get_source_file_of_node(Some(node))
-                .unwrap()
+            || get_source_file_of_node(node)
                 .as_source_file()
                 .is_declaration_file()
         {

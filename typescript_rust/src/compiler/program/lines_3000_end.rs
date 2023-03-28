@@ -1528,7 +1528,7 @@ impl Program {
                                 ref_.path.clone()
                             ])
                         );
-                        self.has_emit_blocking_diagnostics()
+                        self.has_emit_blocking_diagnostics_mut()
                             .insert(self.to_path(build_info_path), true);
                     }
                 }
@@ -1759,7 +1759,7 @@ impl Program {
     }
 
     pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Gc<Diagnostic>) {
-        self.has_emit_blocking_diagnostics()
+        self.has_emit_blocking_diagnostics_mut()
             .insert(self.to_path(emit_file_name), true);
         self.program_diagnostics_mut().add(diag);
     }

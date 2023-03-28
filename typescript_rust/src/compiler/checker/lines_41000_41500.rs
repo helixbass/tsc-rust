@@ -4,7 +4,6 @@ use gc::Gc;
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{is_declaration_name_or_import_property_name, IterationUse};
 use crate::{
@@ -575,8 +574,7 @@ impl TypeChecker {
                             })
                         {
                             let symbol_file = parent_symbol_value_declaration;
-                            let ref reference_file =
-                                get_source_file_of_node(Some(&**node)).unwrap();
+                            let ref reference_file = get_source_file_of_node(node);
                             let symbol_is_umd_export = !Gc::ptr_eq(symbol_file, reference_file);
                             return if symbol_is_umd_export {
                                 None

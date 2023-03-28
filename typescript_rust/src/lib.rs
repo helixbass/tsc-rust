@@ -532,11 +532,11 @@ pub use compiler::utilities::{
     is_valid_type_only_alias_use_site, is_value_signature_declaration, is_var_const,
     is_variable_declaration_in_variable_statement, is_variable_like, is_variable_like_or_accessor,
     is_watch_set, is_write_access, is_write_only_access, make_identifier_from_module_name,
-    match_files, match_pattern_or_exact, maybe_set_parent, min_and_max, modifier_to_flag,
-    modifiers_to_flags, no_truncation_maximum_truncation_length, node_can_be_decorated,
-    node_is_decorated, node_is_missing, node_is_present, node_is_synthesized,
-    node_starts_new_lexical_environment, object_allocator, options_have_changes,
-    options_have_module_resolution_changes, out_file, package_id_to_string,
+    match_files, match_pattern_or_exact, maybe_get_source_file_of_node, maybe_set_parent,
+    min_and_max, modifier_to_flag, modifiers_to_flags, no_truncation_maximum_truncation_length,
+    node_can_be_decorated, node_is_decorated, node_is_missing, node_is_present,
+    node_is_synthesized, node_starts_new_lexical_environment, object_allocator,
+    options_have_changes, options_have_module_resolution_changes, out_file, package_id_to_string,
     parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
     positions_are_on_same_line, pseudo_big_int_to_string, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line, range_of_node,
@@ -645,7 +645,9 @@ pub use compiler::watch_public::{
 };
 pub use compiler::watch_utilities::DirectoryStructureHost;
 pub use execute_command_line::execute_command_line::execute_command_line;
-pub use rust_helpers::cell::{gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped};
+pub use rust_helpers::cell::{
+    gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, ref_mut_unwrapped, ref_unwrapped,
+};
 pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };

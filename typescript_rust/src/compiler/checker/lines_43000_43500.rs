@@ -4,7 +4,6 @@ use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     add_related_info, create_diagnostic_for_node, first, get_containing_function,
@@ -142,8 +141,7 @@ impl TypeChecker {
                     .flags()
                     .intersects(NodeFlags::AwaitContext)
                 {
-                    let source_file =
-                        get_source_file_of_node(Some(for_in_or_of_statement)).unwrap();
+                    let source_file = get_source_file_of_node(for_in_or_of_statement);
                     if is_in_top_level_context(for_in_or_of_statement) {
                         if !self.has_parse_diagnostics(&source_file) {
                             if !is_effective_external_module(&source_file, &self.compiler_options) {
@@ -161,8 +159,7 @@ impl TypeChecker {
                                 self.module_kind,
                                 ModuleKind::ES2022 | ModuleKind::ESNext | ModuleKind::System
                             ) && !(self.module_kind == ModuleKind::NodeNext
-                                && get_source_file_of_node(Some(for_in_or_of_statement))
-                                    .unwrap()
+                                && get_source_file_of_node(for_in_or_of_statement)
                                     .as_source_file()
                                     .maybe_implied_node_format()
                                     == Some(ModuleKind::ESNext))
@@ -909,8 +906,7 @@ impl TypeChecker {
         }
 
         if (self.module_kind < ModuleKind::ES2015
-            || get_source_file_of_node(Some(node))
-                .unwrap()
+            || get_source_file_of_node(node)
                 .as_source_file()
                 .maybe_implied_node_format()
                 == Some(ModuleKind::CommonJS))

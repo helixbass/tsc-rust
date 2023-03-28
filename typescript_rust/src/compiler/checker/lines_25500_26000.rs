@@ -169,7 +169,7 @@ impl TypeChecker {
                     if is_access_expression(target) {
                         let expression = target.as_has_expression().expression();
                         if in_js && is_identifier(&expression) {
-                            let source_file = get_source_file_of_node(Some(&*parent)).unwrap();
+                            let source_file = get_source_file_of_node(&parent);
                             if source_file
                                 .as_source_file()
                                 .maybe_common_js_module_indicator()

@@ -22,7 +22,7 @@ impl NodeServicesInterface for Node {
     }
 
     fn get_source_file(&self) -> Gc<Node /*SourceFile*/> {
-        get_source_file_of_node(Some(self)).unwrap()
+        get_source_file_of_node(self)
     }
 
     fn get_full_text(&self, source_file: Option<&Node /*SourceFile*/>) -> String {

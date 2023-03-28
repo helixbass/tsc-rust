@@ -3,7 +3,6 @@
 use gc::Gc;
 use indexmap::IndexMap;
 use std::borrow::Borrow;
-use std::rc::Rc;
 
 use super::UnusedKind;
 use crate::{
@@ -452,7 +451,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_node_deferred(&self, node: &Node) {
-        let ref enclosing_file = get_source_file_of_node(Some(node)).unwrap();
+        let ref enclosing_file = get_source_file_of_node(node);
         let links = self.get_node_links(enclosing_file);
         if !(*links)
             .borrow()
