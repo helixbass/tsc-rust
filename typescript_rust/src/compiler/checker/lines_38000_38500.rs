@@ -3,24 +3,22 @@
 use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, declaration_name_to_string, find_ancestor,
-    for_each, for_each_bool, for_each_child, get_class_extends_heritage_element,
-    get_declaration_of_kind, get_effective_base_type_node,
-    get_effective_constraint_of_type_parameter, get_effective_implements_type_nodes,
-    get_effective_type_parameter_declarations, get_name_of_declaration, get_object_flags,
-    get_source_file_of_node, get_span_of_token_at_position, get_text_of_node, has_static_modifier,
-    has_syntactic_modifier, is_class_like, is_entity_name_expression, is_function_like,
-    is_identifier, is_optional_chain, is_private_identifier,
-    is_private_identifier_class_element_declaration, is_static, length, maybe_for_each, some,
-    ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FindAncestorCallbackReturn, HasTypeArgumentsInterface, IndexInfo, InterfaceTypeInterface,
-    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, __String,
-    for_each_key, get_effective_type_annotation_node, get_root_declaration,
+    are_option_gcs_equal, declaration_name_to_string, find_ancestor, for_each, for_each_bool,
+    for_each_child, get_class_extends_heritage_element, get_declaration_of_kind,
+    get_effective_base_type_node, get_effective_constraint_of_type_parameter,
+    get_effective_implements_type_nodes, get_effective_type_parameter_declarations,
+    get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    get_span_of_token_at_position, get_text_of_node, has_static_modifier, has_syntactic_modifier,
+    is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
+    is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
+    maybe_for_each, some, ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, HasTypeArgumentsInterface, IndexInfo,
+    InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, __String, for_each_key, get_effective_type_annotation_node, get_root_declaration,
     HasInitializerInterface, TypeFlags, TypeInterface,
 };
 
@@ -39,7 +37,7 @@ impl TypeChecker {
         let node_as_with_statement = node.as_with_statement();
         self.check_expression(&node_as_with_statement.expression, None, None);
 
-        let source_file = get_source_file_of_node(Some(node)).unwrap();
+        let source_file = get_source_file_of_node(node);
         if !self.has_parse_diagnostics(&source_file) {
             let start =
                 get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap()).start;
@@ -489,8 +487,7 @@ impl TypeChecker {
         if self.language_version >= ScriptTarget::ES5
             && name.as_identifier().escaped_text == "Object"
             && (self.module_kind <= ModuleKind::ES2015
-                || get_source_file_of_node(Some(name))
-                    .unwrap()
+                || get_source_file_of_node(name)
                     .as_source_file()
                     .maybe_implied_node_format()
                     == Some(ModuleKind::CommonJS))

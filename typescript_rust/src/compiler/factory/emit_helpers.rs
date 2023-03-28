@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use gc::Gc;
 
 use crate::{Comparison, EmitHelper, TransformationContext};
 
@@ -7,7 +7,9 @@ use crate::{Comparison, EmitHelper, TransformationContext};
 // #[derive(Trace, Finalize)]
 pub struct EmitHelperFactory {}
 
-pub fn create_emit_helper_factory(context: Rc<dyn TransformationContext>) -> EmitHelperFactory {
+pub fn create_emit_helper_factory(
+    context: Gc<Box<dyn TransformationContext>>,
+) -> EmitHelperFactory {
     unimplemented!()
 }
 

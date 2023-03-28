@@ -917,7 +917,7 @@ impl TypeChecker {
                     && self.is_side_effect_free(left)
                     && !self.is_eval_node(right)
                 {
-                    let sf = get_source_file_of_node(Some(left)).unwrap();
+                    let sf = get_source_file_of_node(left);
                     let sf_as_source_file = sf.as_source_file();
                     let source_text = sf_as_source_file.text_as_chars();
                     let start = skip_trivia(&source_text, left.pos(), None, None, None);

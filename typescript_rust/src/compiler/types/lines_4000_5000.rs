@@ -38,13 +38,20 @@ pub enum StructureIsReused {
     Completely,
 }
 
-pub type CustomTransformerFactory = fn(Rc<dyn TransformationContext>) -> Rc<dyn CustomTransformer>;
+pub type CustomTransformerFactory = Gc<Box<dyn CustomTransformerFactoryInterface>>;
 
-pub trait CustomTransformer {
+pub trait CustomTransformerFactoryInterface: Trace + Finalize {
+    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> CustomTransformer;
+}
+
+pub type CustomTransformer = Gc<Box<dyn CustomTransformerInterface>>;
+
+pub trait CustomTransformerInterface: Trace + Finalize {
     fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node /*SourceFile*/>;
     fn transform_bundle(&self, node: &Node /*Bundle*/) -> Gc<Node /*Bundle*/>;
 }
 
+#[derive(Trace, Finalize)]
 pub enum TransformerFactoryOrCustomTransformerFactory {
     TransformerFactory(TransformerFactory),
     CustomTransformerFactory(CustomTransformerFactory),
@@ -63,10 +70,10 @@ impl From<CustomTransformerFactory> for TransformerFactoryOrCustomTransformerFac
 }
 
 pub struct CustomTransformers {
-    pub before: Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
-    pub after: Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub before: Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub after: Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
     pub after_declarations:
-        Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
+        Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
 }
 
 pub struct EmitTransformers {
@@ -183,7 +190,7 @@ pub struct TypeChecker {
     pub(crate) fresh_object_literal_flag: ObjectFlags,
     pub(crate) exact_optional_property_types: Option<bool>,
     pub(crate) check_binary_expression: GcCell<Option<Gc<CheckBinaryExpression>>>,
-    pub(crate) emit_resolver: Option<Gc<Box<dyn EmitResolverDebuggable>>>,
+    pub(crate) emit_resolver: Option<Gc<Box<dyn EmitResolver>>>,
     pub(crate) node_builder: GcCell<Option<Gc<NodeBuilder>>>,
     pub(crate) globals: Gc<GcCell<SymbolTable>>,
     pub(crate) undefined_symbol: Option<Gc<Symbol>>,
@@ -802,8 +809,6 @@ pub trait EmitResolver: Trace + Finalize {
     ) -> Option<Vec<Gc<Node /*Statement*/>>>;
     fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool;
 }
-
-pub trait EmitResolverDebuggable: EmitResolver + fmt::Debug {}
 
 bitflags! {
     pub struct SymbolFlags: u32 {

@@ -1,11 +1,42 @@
-use std::rc::Rc;
+use gc::{Finalize, Gc, Trace};
 
-use crate::{TransformationContext, Transformer, TransformerFactory};
+use crate::{
+    Node, TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerInterface,
+};
 
-fn transform_node_module_fn(context: Rc<dyn TransformationContext>) -> Transformer {
-    unimplemented!()
+#[derive(Trace, Finalize)]
+struct TransformNodeModule {
+    context: Gc<Box<dyn TransformationContext>>,
+}
+
+impl TransformNodeModule {
+    fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
+        Self { context }
+    }
+}
+
+impl TransformerInterface for TransformNodeModule {
+    fn call(&self, node: &crate::Node) -> Gc<Node> {
+        unimplemented!()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TransformNodeModuleFactory {}
+
+impl TransformNodeModuleFactory {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl TransformerFactoryInterface for TransformNodeModuleFactory {
+    fn call(&self, context: gc::Gc<Box<dyn TransformationContext>>) -> Transformer {
+        Gc::new(Box::new(TransformNodeModule::new(context)))
+    }
 }
 
 pub fn transform_node_module() -> TransformerFactory {
-    Rc::new(|context| transform_node_module_fn(context))
+    Gc::new(Box::new(TransformNodeModuleFactory::new()))
 }

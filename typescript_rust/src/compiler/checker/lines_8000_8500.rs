@@ -6,27 +6,26 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
-use std::rc::Rc;
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, create_printer, create_symbol_table,
-    declaration_name_to_string, escape_string, factory, find_ancestor, first_defined,
-    get_check_flags, get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
+    are_option_gcs_equal, create_printer, create_symbol_table, declaration_name_to_string,
+    escape_string, factory, find_ancestor, first_defined, get_check_flags,
+    get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
     get_emit_script_target, get_first_identifier, get_name_of_declaration, get_root_declaration,
-    get_source_file_of_node, has_effective_modifier, is_ambient_module,
-    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
-    is_computed_property_name, is_external_module_augmentation, is_identifier_text,
+    has_effective_modifier, is_ambient_module, is_bindable_object_define_property_call,
+    is_binding_pattern, is_call_expression, is_computed_property_name,
+    is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
-    map, maybe_for_each, parse_base_node_factory, parse_node_factory, push_if_unique_gc,
-    push_if_unique_rc, set_parent, set_text_range, starts_with, symbol_name, synthetic_factory,
-    try_add_to_set, walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint,
-    EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, __String,
+    map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
+    parse_node_factory, push_if_unique_gc, set_parent, set_text_range, starts_with, symbol_name,
+    synthetic_factory, try_add_to_set, walk_up_parenthesized_types, CharacterCodes, CheckFlags,
+    EmitHint, EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol,
+    SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
+    TypeSystemEntity, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -94,7 +93,9 @@ impl TypeChecker {
         );
         let source_file = enclosing_declaration
             .as_deref()
-            .and_then(|enclosing_declaration| get_source_file_of_node(Some(enclosing_declaration)));
+            .and_then(|enclosing_declaration| {
+                maybe_get_source_file_of_node(Some(enclosing_declaration))
+            });
         printer.write_node(
             EmitHint::Unspecified,
             &predicate,

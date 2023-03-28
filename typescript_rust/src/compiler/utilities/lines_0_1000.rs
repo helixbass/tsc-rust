@@ -742,9 +742,18 @@ fn aggregate_child_data(node: &Node) {
     }
 }
 
-pub fn get_source_file_of_node<TNode: Borrow<Node>>(
-    node: Option<TNode>,
+pub fn get_source_file_of_node(node: &Node) -> Gc<Node /*SourceFile*/> {
+    let mut node = node.node_wrapper();
+    while node.kind() != SyntaxKind::SourceFile {
+        node = node.parent();
+    }
+    node
+}
+
+pub fn maybe_get_source_file_of_node(
+    node: Option<impl Borrow<Node>>,
 ) -> Option<Gc<Node /*SourceFile*/>> {
+    // node.map(|node| get_source_file_of_node(node.borrow()))
     let mut node = node.map(|node| {
         let node = node.borrow();
         node.node_wrapper()
@@ -756,7 +765,7 @@ pub fn get_source_file_of_node<TNode: Borrow<Node>>(
 }
 
 pub fn get_source_file_of_module(module: &Symbol) -> Option<Gc<Node /*SourceFile*/>> {
-    get_source_file_of_node(
+    maybe_get_source_file_of_node(
         module
             .maybe_value_declaration()
             .as_ref()
@@ -785,7 +794,7 @@ pub fn get_start_position_of_line<TSourceFile: SourceFileLike>(
 }
 
 pub fn node_pos_to_string(node: &Node) -> String {
-    let file = get_source_file_of_node(Some(node)).unwrap();
+    let file = get_source_file_of_node(node);
     let file_as_source_file = file.as_source_file();
     let loc =
         get_line_and_character_of_position(file_as_source_file, node.pos().try_into().unwrap());
@@ -1007,7 +1016,7 @@ pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
             &source_file
                 .as_ref()
                 .map_or_else(
-                    || get_source_file_of_node(Some(node)).unwrap(),
+                    || get_source_file_of_node(node),
                     |source_file| source_file.borrow().node_wrapper(),
                 )
                 .as_source_file()
@@ -1038,7 +1047,7 @@ pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
         &source_file
             .as_ref()
             .map_or_else(
-                || get_source_file_of_node(Some(node)).unwrap(),
+                || get_source_file_of_node(node),
                 |source_file| source_file.borrow().node_wrapper(),
             )
             .as_source_file()
@@ -1062,7 +1071,7 @@ pub fn get_non_decorator_token_pos_of_node<TSourceFile: Borrow<Node>>(
         &source_file
             .as_ref()
             .map_or_else(
-                || get_source_file_of_node(Some(node)).unwrap(),
+                || get_source_file_of_node(node),
                 |source_file| source_file.borrow().node_wrapper(),
             )
             .as_source_file()
@@ -1158,7 +1167,7 @@ pub fn get_text_of_node_from_source_text(
 pub fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
-        &get_source_file_of_node(Some(node)).unwrap(),
+        &get_source_file_of_node(node),
         node,
         Some(include_trivia),
     )

@@ -1,12 +1,12 @@
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node, BaseTextRange, Debug_,
-    EmitFlags, EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement,
-    StringOrNumber, SyntaxKind, SynthesizedComment,
+    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node,
+    maybe_get_source_file_of_node, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, Node,
+    NodeInterface, ReadonlyTextRange, SnippetElement, StringOrNumber, SyntaxKind,
+    SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
@@ -34,8 +34,8 @@ pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
                     return ret;
                 }
 
-                let ref source_file = get_source_file_of_node(get_parse_tree_node(
-                    get_source_file_of_node(Some(node)),
+                let ref source_file = maybe_get_source_file_of_node(get_parse_tree_node(
+                    maybe_get_source_file_of_node(Some(node)),
                     Option::<fn(&Node) -> bool>::None,
                 ))
                 .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
@@ -62,10 +62,18 @@ pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
     node.maybe_emit_node().unwrap()
 }
 
-pub fn dispose_emit_nodes<TSourceFile: Borrow<Node>>(
-    source_file: Option<TSourceFile /*SourceFile*/>,
-) {
-    unimplemented!()
+pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>) {
+    let annotated_nodes = maybe_get_source_file_of_node(get_parse_tree_node(
+        source_file,
+        Option::<fn(&Node) -> _>::None,
+    ))
+    .and_then(|source_file| source_file.maybe_emit_node())
+    .and_then(|emit_node| (*emit_node).borrow().annotated_nodes.clone());
+    if let Some(annotated_nodes) = annotated_nodes.as_ref() {
+        for node in annotated_nodes {
+            node.set_emit_node(None);
+        }
+    }
 }
 
 pub fn set_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {

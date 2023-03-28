@@ -275,7 +275,8 @@ impl Program {
     }
 
     pub(super) fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
-        unimplemented!()
+        self.has_emit_blocking_diagnostics()
+            .contains_key(&self.to_path(emit_file_name))
     }
 
     pub(super) fn emit_worker(
@@ -918,7 +919,7 @@ impl EmitHost for ProgramEmitHost {
         CompilerHost::use_case_sensitive_file_names(&**self.program.host())
     }
 
-    fn get_program_build_info(&self) -> Option<ProgramBuildInfo> {
+    fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>> {
         // TODO: this looks like it's implemented as a dynamically-set property on Program in
         // createBuilderProgram()
         unimplemented!()
@@ -1031,6 +1032,36 @@ impl SourceFileMayBeEmittedHost for ProgramEmitHost {
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
         self.program
             .is_source_of_project_reference_redirect_(file_name)
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub struct EmitHostWriteFileCallback {
+    host: Gc<Box<dyn EmitHost>>,
+}
+
+impl EmitHostWriteFileCallback {
+    pub fn new(host: Gc<Box<dyn EmitHost>>) -> Self {
+        Self { host }
+    }
+}
+
+impl WriteFileCallback for EmitHostWriteFileCallback {
+    fn call(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+    ) {
+        self.host.write_file(
+            file_name,
+            data,
+            write_byte_order_mark,
+            on_error,
+            source_files,
+        )
     }
 }
 

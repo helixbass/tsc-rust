@@ -3,25 +3,23 @@
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
-use std::rc::Rc;
 
 use super::IterationUse;
 use crate::{
-    add_related_info, are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node,
-    declaration_name_to_string, find_ancestor, for_each, for_each_child_bool, get_ancestor,
-    get_combined_node_flags, get_containing_function, get_effective_initializer,
-    get_enclosing_block_scope_container, get_module_instance_state, get_name_of_declaration,
-    get_selected_effective_modifier_flags, get_source_file_of_node, has_question_token,
-    is_array_binding_pattern, is_binary_expression, is_binding_element, is_binding_pattern,
-    is_call_expression, is_class_expression, is_class_like, is_enum_declaration,
-    is_external_or_common_js_module, is_function_expression, is_function_like, is_identifier,
-    is_in_js_file, is_module_declaration, is_named_declaration, is_object_binding_pattern,
-    is_object_literal_expression, is_parameter_declaration, is_property_access_expression,
-    is_prototype_access, is_require_variable_declaration, is_variable_like, node_is_missing, some,
-    ClassLikeDeclarationInterface, Debug_, Diagnostics, ExternalEmitHelpers,
-    HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind, Node, NodeArray,
-    NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    add_related_info, are_option_gcs_equal, create_diagnostic_for_node, declaration_name_to_string,
+    find_ancestor, for_each, for_each_child_bool, get_ancestor, get_combined_node_flags,
+    get_containing_function, get_effective_initializer, get_enclosing_block_scope_container,
+    get_module_instance_state, get_name_of_declaration, get_selected_effective_modifier_flags,
+    get_source_file_of_node, has_question_token, is_array_binding_pattern, is_binary_expression,
+    is_binding_element, is_binding_pattern, is_call_expression, is_class_expression, is_class_like,
+    is_enum_declaration, is_external_or_common_js_module, is_function_expression, is_function_like,
+    is_identifier, is_in_js_file, is_module_declaration, is_named_declaration,
+    is_object_binding_pattern, is_object_literal_expression, is_parameter_declaration,
+    is_property_access_expression, is_prototype_access, is_require_variable_declaration,
+    is_variable_like, node_is_missing, some, ClassLikeDeclarationInterface, Debug_, Diagnostics,
+    ExternalEmitHelpers, HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind,
+    Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -84,8 +82,7 @@ impl TypeChecker {
     ) {
         if self.module_kind >= ModuleKind::ES2015
             && !(self.module_kind >= ModuleKind::Node12
-                && get_source_file_of_node(Some(node))
-                    .unwrap()
+                && get_source_file_of_node(node)
                     .as_source_file()
                     .maybe_implied_node_format()
                     == Some(ModuleKind::CommonJS))

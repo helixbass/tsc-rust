@@ -13,8 +13,9 @@ use crate::{
     length, Debug_, Diagnostics, ElementFlags, EnumKind, Extension, ExternalEmitHelpers,
     HasTypeArgumentsInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface,
     NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
-    TransientSymbolInterface, __String, has_initializer, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TransientSymbolInterface, __String, has_initializer, maybe_get_source_file_of_node, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -333,7 +334,7 @@ impl TypeChecker {
 
     pub(super) fn check_assertion(&self, node: &Node /*AssertionExpression*/) -> Gc<Type> {
         if node.kind() == SyntaxKind::TypeAssertionExpression {
-            let file = get_source_file_of_node(Some(node));
+            let file = maybe_get_source_file_of_node(Some(node));
             if matches!(
                 file.as_ref(),
                 Some(file) if file_extension_is_one_of(
@@ -524,8 +525,7 @@ impl TypeChecker {
 
     pub(super) fn check_import_meta_property(&self, node: &Node /*MetaProperty*/) -> Gc<Type> {
         if matches!(self.module_kind, ModuleKind::Node12 | ModuleKind::NodeNext) {
-            if get_source_file_of_node(Some(node))
-                .unwrap()
+            if get_source_file_of_node(node)
                 .as_source_file()
                 .maybe_implied_node_format()
                 != Some(ModuleKind::ESNext)
@@ -543,7 +543,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let file = get_source_file_of_node(Some(node)).unwrap();
+        let file = get_source_file_of_node(node);
         Debug_.assert(
             file.flags()
                 .intersects(NodeFlags::PossiblyContainsImportMeta),

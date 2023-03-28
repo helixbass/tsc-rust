@@ -4,11 +4,10 @@ use gc::Gc;
 use regex::Regex;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
-use std::rc::Rc;
 
 use crate::{
-    concatenate, contains_gc, contains_rc, create_file_diagnostic, create_scanner,
-    create_text_span, create_text_span_from_bounds, every, for_each_child, for_each_child_bool,
+    concatenate, contains_gc, create_file_diagnostic, create_scanner, create_text_span,
+    create_text_span_from_bounds, every, for_each_child, for_each_child_bool,
     get_combined_modifier_flags, get_combined_node_flags, get_emit_flags, get_end_line_position,
     get_leading_comment_ranges, get_line_and_character_of_position, get_source_file_of_node,
     get_trailing_comment_ranges, has_effective_readonly_modifier, has_static_modifier, is_accessor,
@@ -31,7 +30,7 @@ pub fn create_diagnostic_for_node(
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
-    let source_file = get_source_file_of_node(Some(node)).unwrap();
+    let source_file = get_source_file_of_node(node);
     create_diagnostic_for_node_in_source_file(&source_file, node, message, args)
 }
 
@@ -66,7 +65,7 @@ pub fn create_diagnostic_for_node_from_message_chain(
     message_chain: DiagnosticMessageChain,
     related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
-    let source_file = get_source_file_of_node(Some(node)).unwrap();
+    let source_file = get_source_file_of_node(node);
     let span = get_error_span_for_node(&source_file, node);
     create_file_diagnostic_from_message_chain(
         &source_file,

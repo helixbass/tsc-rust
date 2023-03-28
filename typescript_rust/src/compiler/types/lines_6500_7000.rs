@@ -909,7 +909,7 @@ pub trait EmitHost:
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ); // WriteFileCallback
-    fn get_program_build_info(&self) -> Option<ProgramBuildInfo>;
+    fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>>;
     fn get_source_file_from_reference(
         &self,
         referencing_file: &Node, /*SourceFile | UnparsedSource*/

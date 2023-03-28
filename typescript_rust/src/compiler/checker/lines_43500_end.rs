@@ -2,12 +2,11 @@
 
 use gc::{Finalize, Gc, Trace};
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node, create_file_diagnostic,
-    filter, find, first_or_undefined, for_each_bool, get_effective_return_type_node,
+    are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic, filter, find,
+    first_or_undefined, for_each_bool, get_effective_return_type_node,
     get_jsdoc_type_parameter_declarations, get_object_flags, get_source_file_of_node,
     get_span_of_token_at_position, has_abstract_modifier, has_syntactic_modifier, id_text,
     is_accessor, is_binary_expression, is_child_of_node_with_kind, is_computed_property_name,
@@ -15,8 +14,8 @@ use crate::{
     is_literal_type_node, is_omitted_expression, is_prefix_unary_expression, is_private_identifier,
     is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
     is_var_const, length, maybe_is_class_like, skip_trivia, text_span_end, token_to_string,
-    AllAccessorDeclarations, DiagnosticMessage, Diagnostics, EmitResolver, EmitResolverDebuggable,
-    HasInitializerInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    AllAccessorDeclarations, DiagnosticMessage, Diagnostics, EmitResolver, HasInitializerInterface,
+    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
     ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
     NodeInterface, ObjectFlags, ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget,
@@ -201,7 +200,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(Some(node)).unwrap();
+        let source_file = get_source_file_of_node(node);
         if !self.has_parse_diagnostics(&source_file) {
             let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
             self.diagnostics().add(Gc::new(
@@ -220,7 +219,7 @@ impl TypeChecker {
         message: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(Some(node_for_source_file)).unwrap();
+        let source_file = get_source_file_of_node(node_for_source_file);
         if !self.has_parse_diagnostics(&source_file) {
             self.diagnostics().add(Gc::new(
                 create_file_diagnostic(&source_file, start, length, message, args).into(),
@@ -237,7 +236,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(Some(node)).unwrap();
+        let source_file = get_source_file_of_node(node);
         if !self.has_parse_diagnostics(&source_file) {
             self.error_skipped_on(key, Some(node), message, args);
             return true;
@@ -251,7 +250,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(Some(node)).unwrap();
+        let source_file = get_source_file_of_node(node);
         if !self.has_parse_diagnostics(&source_file) {
             self.diagnostics().add(Gc::new(
                 create_diagnostic_for_node(node, message, args).into(),
@@ -302,8 +301,7 @@ impl TypeChecker {
                 range.pos()
             } else {
                 skip_trivia(
-                    &get_source_file_of_node(Some(node))
-                        .unwrap()
+                    &get_source_file_of_node(node)
                         .as_source_file()
                         .text_as_chars(),
                     range.pos(),
@@ -615,7 +613,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> bool {
-        let source_file = get_source_file_of_node(Some(node)).unwrap();
+        let source_file = get_source_file_of_node(node);
         if !self.has_parse_diagnostics(&source_file) {
             let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
             self.diagnostics().add(Gc::new(
@@ -1197,8 +1195,6 @@ impl EmitResolver for EmitResolverCreateResolver {
         unimplemented!()
     }
 }
-
-impl EmitResolverDebuggable for EmitResolverCreateResolver {}
 
 pub(super) fn is_not_accessor(declaration: &Node /*Declaration*/) -> bool {
     !is_accessor(declaration)

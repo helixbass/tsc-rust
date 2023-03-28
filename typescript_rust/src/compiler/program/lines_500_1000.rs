@@ -21,8 +21,8 @@ use crate::{
     get_emit_module_resolution_kind, get_package_scope_for_path, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, get_sys, is_import_call,
     is_import_equals_declaration, is_logging, map_defined, maybe_for_each, options_have_changes,
-    resolve_module_name, resolve_type_reference_directive, skip_trivia,
-    source_file_affecting_compiler_options, stable_sort, to_file_name_lower_case,
+    ref_mut_unwrapped, ref_unwrapped, resolve_module_name, resolve_type_reference_directive,
+    skip_trivia, source_file_affecting_compiler_options, stable_sort, to_file_name_lower_case,
     walk_up_parenthesized_expressions, AsDoubleDeref, AutomaticTypeDirectiveFile, CompilerHost,
     CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection, Extension,
     FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
@@ -1309,11 +1309,12 @@ impl Program {
         )
     }
 
-    pub(super) fn has_emit_blocking_diagnostics(&self) -> RefMut<HashMap<Path, bool>> {
-        RefMut::map(
-            self.has_emit_blocking_diagnostics.borrow_mut(),
-            |has_emit_blocking_diagnostics| has_emit_blocking_diagnostics.as_mut().unwrap(),
-        )
+    pub(super) fn has_emit_blocking_diagnostics(&self) -> Ref<HashMap<Path, bool>> {
+        ref_unwrapped(&self.has_emit_blocking_diagnostics)
+    }
+
+    pub(super) fn has_emit_blocking_diagnostics_mut(&self) -> RefMut<HashMap<Path, bool>> {
+        ref_mut_unwrapped(&self.has_emit_blocking_diagnostics)
     }
 
     pub(super) fn maybe_compiler_options_object_literal_syntax(&self) -> Option<Option<Gc<Node>>> {

@@ -1,26 +1,28 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::mem;
+use std::rc::Rc;
 
 use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
-    factory as factory_static, get_emit_flags, get_emit_module_kind, get_emit_script_target,
-    get_jsx_transform_enabled, get_parse_tree_node, get_source_file_of_node, is_bundle,
-    is_source_file, maybe_map, not_implemented, set_emit_flags, some, synthetic_factory,
-    transform_class_fields, transform_declarations, transform_ecmascript_module, transform_es2015,
-    transform_es2016, transform_es2017, transform_es2018, transform_es2019, transform_es2020,
-    transform_es2021, transform_es5, transform_esnext, transform_generators, transform_jsx,
-    transform_module, transform_node_module, transform_system_module, transform_type_script,
-    BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext, CustomTransformer,
-    CustomTransformers, Debug_, Diagnostic, EmitFlags, EmitHelper, EmitHelperBase,
-    EmitHelperFactory, EmitHint, EmitHost, EmitResolver, EmitTransformers, LexicalEnvironmentFlags,
-    ModuleKind, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface, ScriptTarget, SyntaxKind,
-    TransformationContext, TransformationResult, Transformer, TransformerFactory,
-    TransformerFactoryOrCustomTransformerFactory,
+    factory as factory_static, gc_cell_ref_unwrapped, get_emit_flags, get_emit_module_kind,
+    get_emit_script_target, get_jsx_transform_enabled, get_parse_tree_node, is_bundle,
+    is_source_file, maybe_get_source_file_of_node, maybe_map, not_implemented, set_emit_flags,
+    some, synthetic_factory, transform_class_fields, transform_declarations,
+    transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
+    transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
+    transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
+    transform_system_module, transform_type_script, BaseNodeFactorySynthetic, CompilerOptions,
+    CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_, Diagnostic,
+    EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver,
+    EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags,
+    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext, TransformationResult,
+    Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerFactoryOrCustomTransformerFactory, TransformerInterface,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -178,52 +180,113 @@ fn get_declaration_transformers(
     transformers
 }
 
-fn wrap_custom_transformer(transformer: Rc<dyn CustomTransformer>) -> Transformer /*<Bundle | SourceFile>*/
+fn wrap_custom_transformer(transformer: CustomTransformer) -> Transformer /*<Bundle | SourceFile>*/
 {
-    let wrapped_transformer = move |node: &Node| -> Gc<Node> {
+    Gc::new(Box::new(WrapCustomTransformer::new(transformer)))
+}
+
+#[derive(Trace, Finalize)]
+pub struct WrapCustomTransformer {
+    transformer: CustomTransformer,
+}
+
+impl WrapCustomTransformer {
+    pub fn new(transformer: CustomTransformer) -> Self {
+        Self { transformer }
+    }
+}
+
+impl TransformerInterface for WrapCustomTransformer {
+    fn call(&self, node: &Node) -> Gc<Node> {
         if is_bundle(node) {
-            transformer.transform_bundle(node)
+            self.transformer.transform_bundle(node)
         } else {
-            transformer.transform_source_file(node)
+            self.transformer.transform_source_file(node)
         }
-    };
-    Rc::new(wrapped_transformer)
+    }
+}
+
+pub trait WrapCustomTransformerFactoryHandleDefault: Trace + Finalize {
+    fn call(
+        &self,
+        context: Gc<Box<dyn TransformationContext>>,
+        transformer: Transformer,
+    ) -> Transformer /*<SourceFile | Bundle>*/;
 }
 
 fn wrap_custom_transformer_factory(
-    transformer: Rc<TransformerFactoryOrCustomTransformerFactory>,
-    handle_default: fn(Rc<dyn TransformationContext>, Transformer) -> Transformer, /*<SourceFile | Bundle>*/
+    transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
+    handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
 ) -> TransformerFactory /*<SourceFile | Bundle>*/ {
-    let factory = move |context: Rc<dyn TransformationContext>| match &*transformer.clone() {
-        TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
-            let custom_transformer = transformer(context.clone());
-            handle_default(context.clone(), custom_transformer)
+    Gc::new(Box::new(WrapCustomTransformerFactory::new(
+        transformer,
+        handle_default,
+    )))
+}
+
+#[derive(Trace, Finalize)]
+pub struct WrapCustomTransformerFactory {
+    transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
+    handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+}
+
+impl WrapCustomTransformerFactory {
+    pub fn new(
+        transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
+        handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+    ) -> Self {
+        Self {
+            transformer,
+            handle_default,
         }
-        TransformerFactoryOrCustomTransformerFactory::CustomTransformerFactory(transformer) => {
-            let custom_transformer = transformer(context.clone());
-            wrap_custom_transformer(custom_transformer)
+    }
+}
+
+impl TransformerFactoryInterface for WrapCustomTransformerFactory {
+    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+        match &*self.transformer {
+            TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
+                let custom_transformer = transformer.call(context.clone());
+                self.handle_default.call(context, custom_transformer)
+            }
+            TransformerFactoryOrCustomTransformerFactory::CustomTransformerFactory(transformer) => {
+                let custom_transformer = transformer.call(context);
+                wrap_custom_transformer(custom_transformer)
+            }
         }
-    };
-    Rc::new(factory)
+    }
 }
 
 fn wrap_script_transformer_factory(
-    transformer: Rc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
+    transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
-    wrap_custom_transformer_factory(transformer, chain_bundle)
+    wrap_custom_transformer_factory(transformer, chain_bundle())
 }
 
 fn wrap_declaration_transformer_factory(
-    transformer: Rc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
+    transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
-    wrap_custom_transformer_factory(transformer, passthrough_transformer)
+    wrap_custom_transformer_factory(transformer, passthrough_transformer())
 }
 
-fn passthrough_transformer(
-    _context: Rc<dyn TransformationContext>,
-    transform_source_file: Transformer,
-) -> Transformer {
-    transform_source_file
+#[derive(Trace, Finalize)]
+struct PassthroughTransformer;
+
+impl WrapCustomTransformerFactoryHandleDefault for PassthroughTransformer {
+    fn call(
+        &self,
+        _context: Gc<Box<dyn TransformationContext>>,
+        transform_source_file: Transformer,
+    ) -> Transformer {
+        transform_source_file
+    }
+}
+
+fn passthrough_transformer() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+    thread_local! {
+        static PASSTHROUGH_TRANSFORMER: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(PassthroughTransformer));
+    }
+    PASSTHROUGH_TRANSFORMER.with(|passthrough_transformer| passthrough_transformer.clone())
 }
 
 pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Gc<Node> {
@@ -235,15 +298,18 @@ pub fn no_emit_notification(hint: EmitHint, node: &Node, callback: &dyn Fn(EmitH
 }
 
 pub fn transform_nodes(
-    resolver: Option<Rc<dyn EmitResolver>>,
-    host: Option<Rc<dyn EmitHost>>,
+    resolver: Option<Gc<Box<dyn EmitResolver>>>,
+    host: Option<Gc<Box<dyn EmitHost>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     options: Gc<CompilerOptions>,
     nodes: &[Gc<Node>],
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
-    // ) -> impl TransformationResult {
-) -> Rc<dyn TransformationResult> {
+    // TODO: would presumably have to do some further Gc-dyn-casting shenanigans in order to return
+    // this type, but looks like there aren't any other TransformationResult implementers so maybe
+    // returning the concrete type is fine?
+    // ) -> Gc<Box<dyn TransformationResult>> {
+) -> Gc<Box<TransformNodesTransformationResult>> {
     let mut lexical_environment_variable_declarations: Option<Vec<Gc<Node>>> = None;
     let mut lexical_environment_function_declarations: Option<Vec<Gc<Node>>> = None;
     let mut lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
@@ -274,51 +340,46 @@ pub fn transform_nodes(
     transformation_result
 }
 
-// #[derive(Trace, Finalize)]
+#[derive(Trace, Finalize)]
 pub struct TransformNodesTransformationResult {
+    _rc_wrapper: GcCell<Option<Gc<Box<TransformNodesTransformationResult>>>>,
+    _dyn_transformation_context_wrapper: GcCell<Option<Gc<Box<dyn TransformationContext>>>>,
     transformed: GcCell<Vec<Gc<Node>>>,
-    // #[unsafe_ignore_trace]
+    #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
     nodes: Vec<Gc<Node>>,
-    // rc_wrapper: GcCell<Option<Gc<TransformNodesTransformationResult>>>,
-    rc_wrapper: RefCell<Option<Weak<TransformNodesTransformationResult>>>,
-    // #[unsafe_ignore_trace]
+    #[unsafe_ignore_trace]
     enabled_syntax_kind_features: RefCell<HashMap<SyntaxKind, SyntaxKindFeatureFlags>>,
     lexical_environment_variable_declarations:
         GcCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
     lexical_environment_function_declarations:
         GcCell<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>,
     lexical_environment_statements: GcCell<Option<Vec<Gc<Node /*Statement*/>>>>,
-    // #[unsafe_ignore_trace]
+    #[unsafe_ignore_trace]
     lexical_environment_flags: Cell<LexicalEnvironmentFlags>,
     lexical_environment_variable_declarations_stack:
         GcCell<Option<Vec<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>>>,
     lexical_environment_function_declarations_stack:
         GcCell<Option<Vec<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>>>,
     lexical_environment_statements_stack: GcCell<Option<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>>,
-    // #[unsafe_ignore_trace]
+    #[unsafe_ignore_trace]
     lexical_environment_flags_stack: RefCell<Option<Vec<LexicalEnvironmentFlags>>>,
-    // #[unsafe_ignore_trace]
+    #[unsafe_ignore_trace]
     lexical_environment_suspended: Cell<bool>,
     block_scoped_variable_declarations_stack:
         GcCell<Option<Vec<Option<Vec<Gc<Node /*Identifier*/>>>>>>,
-    // #[unsafe_ignore_trace]
+    #[unsafe_ignore_trace]
     block_scope_stack_offset: Cell<usize>,
     block_scoped_variable_declarations: GcCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
     emit_helpers: GcCell<Option<Vec<Gc<EmitHelper>>>>,
     diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
-    // TODO: this should become trace-able, just didn't want to do all the transformer stuff right
-    // now
-    // #[unsafe_ignore_trace]
-    transformers_with_context: RefCell<Option<Vec<Transformer>>>,
+    transformers_with_context: GcCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
     options: Gc<CompilerOptions>,
-    // resolver: Option<Gc<Box<dyn EmitResolver>>>,
-    resolver: Option<Rc<dyn EmitResolver>>,
-    // host: Option<Gc<Box<dyn EmitHost>>>,
-    host: Option<Rc<dyn EmitHost>>,
-    // #[unsafe_ignore_trace]
+    resolver: Option<Gc<Box<dyn EmitResolver>>>,
+    host: Option<Gc<Box<dyn EmitHost>>>,
+    #[unsafe_ignore_trace]
     created_emit_helper_factory: RefCell<Option<Rc<EmitHelperFactory>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
 }
@@ -337,61 +398,74 @@ impl TransformNodesTransformationResult {
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
         options: Gc<CompilerOptions>,
-        resolver: Option<Rc<dyn EmitResolver>>,
-        host: Option<Rc<dyn EmitHost>>,
+        resolver: Option<Gc<Box<dyn EmitResolver>>>,
+        host: Option<Gc<Box<dyn EmitHost>>>,
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    ) -> Rc<Self> {
-        let rc = Rc::new(Self {
-            transformed: GcCell::new(transformed),
-            state: Cell::new(state),
-            nodes,
-            rc_wrapper: Default::default(),
-            lexical_environment_variable_declarations: GcCell::new(
-                lexical_environment_variable_declarations,
-            ),
-            lexical_environment_function_declarations: GcCell::new(
-                lexical_environment_function_declarations,
-            ),
-            lexical_environment_statements: GcCell::new(Some(vec![])),
-            lexical_environment_variable_declarations_stack: GcCell::new(Some(
-                lexical_environment_variable_declarations_stack,
-            )),
-            lexical_environment_function_declarations_stack: GcCell::new(Some(
-                lexical_environment_function_declarations_stack,
-            )),
-            lexical_environment_statements_stack: GcCell::new(Some(vec![])),
-            lexical_environment_flags_stack: RefCell::new(Some(vec![])),
-            emit_helpers: GcCell::new(emit_helpers),
-            diagnostics: GcCell::new(diagnostics),
-            transformers,
-            transformers_with_context: Default::default(),
-            allow_dts_files,
-            enabled_syntax_kind_features: Default::default(),
-            lexical_environment_flags: Cell::new(LexicalEnvironmentFlags::None),
-            lexical_environment_suspended: Default::default(),
-            block_scoped_variable_declarations_stack: GcCell::new(Some(vec![])),
-            block_scoped_variable_declarations: GcCell::new(Some(vec![])),
-            block_scope_stack_offset: Default::default(),
-            options,
-            resolver,
-            host,
-            created_emit_helper_factory: Default::default(),
-            factory,
-        });
-        rc.set_rc_wrapper(rc.clone());
-        rc
+    ) -> Gc<Box<Self>> {
+        let dyn_transformation_context_wrapper: Gc<Box<dyn TransformationContext>> =
+            Gc::new(Box::new(Self {
+                _rc_wrapper: Default::default(),
+                _dyn_transformation_context_wrapper: Default::default(),
+                transformed: GcCell::new(transformed),
+                state: Cell::new(state),
+                nodes,
+                lexical_environment_variable_declarations: GcCell::new(
+                    lexical_environment_variable_declarations,
+                ),
+                lexical_environment_function_declarations: GcCell::new(
+                    lexical_environment_function_declarations,
+                ),
+                lexical_environment_statements: GcCell::new(Some(vec![])),
+                lexical_environment_variable_declarations_stack: GcCell::new(Some(
+                    lexical_environment_variable_declarations_stack,
+                )),
+                lexical_environment_function_declarations_stack: GcCell::new(Some(
+                    lexical_environment_function_declarations_stack,
+                )),
+                lexical_environment_statements_stack: GcCell::new(Some(vec![])),
+                lexical_environment_flags_stack: RefCell::new(Some(vec![])),
+                emit_helpers: GcCell::new(emit_helpers),
+                diagnostics: GcCell::new(diagnostics),
+                transformers,
+                transformers_with_context: Default::default(),
+                allow_dts_files,
+                enabled_syntax_kind_features: Default::default(),
+                lexical_environment_flags: Cell::new(LexicalEnvironmentFlags::None),
+                lexical_environment_suspended: Default::default(),
+                block_scoped_variable_declarations_stack: GcCell::new(Some(vec![])),
+                block_scoped_variable_declarations: GcCell::new(Some(vec![])),
+                block_scope_stack_offset: Default::default(),
+                options,
+                resolver,
+                host,
+                created_emit_helper_factory: Default::default(),
+                factory,
+            }));
+        let downcasted: Gc<Box<Self>> =
+            unsafe { mem::transmute(dyn_transformation_context_wrapper.clone()) };
+        *downcasted._dyn_transformation_context_wrapper.borrow_mut() =
+            Some(dyn_transformation_context_wrapper);
+        downcasted.set_rc_wrapper(downcasted.clone());
+        downcasted
+    }
+
+    pub fn as_dyn_transformation_context(&self) -> Gc<Box<dyn TransformationContext>> {
+        self._dyn_transformation_context_wrapper
+            .borrow()
+            .clone()
+            .unwrap()
     }
 
     fn state(&self) -> TransformationState {
         self.state.get()
     }
 
-    fn set_rc_wrapper(&self, rc: Rc<TransformNodesTransformationResult>) {
-        *self.rc_wrapper.borrow_mut() = Some(Rc::downgrade(&rc));
+    fn set_rc_wrapper(&self, rc: Gc<Box<TransformNodesTransformationResult>>) {
+        *self._rc_wrapper.borrow_mut() = Some(rc);
     }
 
-    fn rc_wrapper(&self) -> Rc<TransformNodesTransformationResult> {
-        self.rc_wrapper.borrow().clone().unwrap().upgrade().unwrap()
+    fn rc_wrapper(&self) -> Gc<Box<TransformNodesTransformationResult>> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     fn lexical_environment_variable_declarations(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
@@ -531,10 +605,8 @@ impl TransformNodesTransformationResult {
         self.diagnostics.borrow_mut()
     }
 
-    fn transformers_with_context(&self) -> Ref<Vec<Transformer>> {
-        Ref::map(self.transformers_with_context.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    fn transformers_with_context(&self) -> GcCellRef<Vec<Transformer>> {
+        gc_cell_ref_unwrapped(&self.transformers_with_context)
     }
 
     fn set_transformers_with_context(&self, transformers_with_context: Vec<Transformer>) {
@@ -581,7 +653,7 @@ impl TransformNodesTransformationResult {
 
     fn call(&self) {
         for node in &self.nodes {
-            dispose_emit_nodes(get_source_file_of_node(get_parse_tree_node(
+            dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                 Some(&**node),
                 Option::<fn(&Node) -> bool>::None,
             )))
@@ -592,7 +664,7 @@ impl TransformNodesTransformationResult {
         self.set_transformers_with_context(
             self.transformers
                 .iter()
-                .map(|t| t(self.rc_wrapper()))
+                .map(|t| t.call(self.as_dyn_transformation_context()))
                 .collect(),
         );
 
@@ -617,7 +689,7 @@ impl TransformNodesTransformationResult {
     fn transformation(&self, node: &Node) -> Gc<Node> {
         let mut node = node.node_wrapper();
         for transform in self.transformers_with_context().iter() {
-            node = transform(&node);
+            node = transform.call(&node);
         }
         node
     }
@@ -985,20 +1057,21 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
 }
 
 impl TransformationContext for TransformNodesTransformationResult {
-    fn get_emit_resolver(&self) -> Rc<dyn EmitResolver> {
-        self.resolver.as_ref().map(Clone::clone).unwrap()
+    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
+        self.resolver.clone().unwrap()
     }
 
-    fn get_emit_host(&self) -> Rc<dyn EmitHost> {
-        self.host.as_ref().map(Clone::clone).unwrap()
+    fn get_emit_host(&self) -> Gc<Box<dyn EmitHost>> {
+        self.host.clone().unwrap()
     }
 
     fn get_emit_helper_factory(&self) -> Rc<EmitHelperFactory> {
         /*memoize(*/
         let mut created_emit_helper_factory = self.created_emit_helper_factory();
         if created_emit_helper_factory.is_none() {
-            *created_emit_helper_factory =
-                Some(Rc::new(create_emit_helper_factory(self.rc_wrapper())));
+            *created_emit_helper_factory = Some(Rc::new(create_emit_helper_factory(
+                self.as_dyn_transformation_context(),
+            )));
         }
         created_emit_helper_factory
             .as_ref()
@@ -1144,7 +1217,7 @@ impl TransformationResult for TransformNodesTransformationResult {
     fn dispose(&self) {
         if self.state() < TransformationState::Disposed {
             for node in &self.nodes {
-                dispose_emit_nodes(get_source_file_of_node(get_parse_tree_node(
+                dispose_emit_nodes(maybe_get_source_file_of_node(get_parse_tree_node(
                     Some(&**node),
                     Option::<fn(&Node) -> bool>::None,
                 )))
@@ -1168,6 +1241,7 @@ lazy_static! {
         TransformationContextNull::new();
 }
 
+#[derive(Trace, Finalize)]
 pub struct TransformationContextNull {}
 
 impl TransformationContextNull {
@@ -1217,11 +1291,11 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
 }
 
 impl TransformationContext for TransformationContextNull {
-    fn get_emit_resolver(&self) -> Rc<dyn EmitResolver> {
+    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
         not_implemented()
     }
 
-    fn get_emit_host(&self) -> Rc<dyn EmitHost> {
+    fn get_emit_host(&self) -> Gc<Box<dyn EmitHost>> {
         not_implemented()
     }
 

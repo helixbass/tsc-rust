@@ -443,7 +443,7 @@ impl NodeBuilder {
                     synthetic_factory_,
                     &visit_each_child(
                         Some(node),
-                        |node: &Node| Some(vec![self.deep_clone_or_reuse_node(node)]),
+                        |node: &Node| Some(self.deep_clone_or_reuse_node(node).into()),
                         &*null_transformation_context,
                         Option::<
                             fn(

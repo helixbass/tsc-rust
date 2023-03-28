@@ -793,14 +793,14 @@ impl Printer {
         if has_no_default_lib {
             let pos = self.writer().get_text_pos();
             self.write_comment("/// <reference no-default-lib=\"true\"/>");
-            if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                bundle_file_info
-                    .sections
-                    .push(Gc::new(BundleFileSection::new_has_no_default_lib(
+            if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
+                bundle_file_info.borrow_mut().sections.push(Gc::new(
+                    BundleFileSection::new_has_no_default_lib(
                         None,
                         pos.try_into().unwrap(),
                         self.writer().get_text_pos().try_into().unwrap(),
-                    )));
+                    ),
+                ));
             }
             self.write_line(None);
         }
@@ -850,15 +850,15 @@ impl Printer {
                 "/// <reference path=\"{}\" />",
                 directive.file_name,
             ));
-            if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                bundle_file_info
-                    .sections
-                    .push(Gc::new(BundleFileSection::new_reference(
+            if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
+                bundle_file_info.borrow_mut().sections.push(Gc::new(
+                    BundleFileSection::new_reference(
                         BundleFileSectionKind::Reference,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
                         self.writer().get_text_pos().try_into().unwrap(),
-                    )));
+                    ),
+                ));
             }
             self.write_line(None);
         }
@@ -868,15 +868,15 @@ impl Printer {
                 "/// <reference types=\"{}\" />",
                 directive.file_name,
             ));
-            if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                bundle_file_info
-                    .sections
-                    .push(Gc::new(BundleFileSection::new_reference(
+            if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
+                bundle_file_info.borrow_mut().sections.push(Gc::new(
+                    BundleFileSection::new_reference(
                         BundleFileSectionKind::Type,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
                         self.writer().get_text_pos().try_into().unwrap(),
-                    )));
+                    ),
+                ));
             }
             self.write_line(None);
         }
@@ -886,15 +886,15 @@ impl Printer {
                 "/// <reference lib=\"{}\" />",
                 directive.file_name,
             ));
-            if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                bundle_file_info
-                    .sections
-                    .push(Gc::new(BundleFileSection::new_reference(
+            if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
+                bundle_file_info.borrow_mut().sections.push(Gc::new(
+                    BundleFileSection::new_reference(
                         BundleFileSectionKind::Lib,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
                         self.writer().get_text_pos().try_into().unwrap(),
-                    )));
+                    ),
+                ));
             }
             self.write_line(None);
         }
@@ -978,8 +978,8 @@ impl Printer {
                     let pos = self.writer().get_text_pos();
                     self.emit(Some(&**statement), None);
                     if record_bundle_file_section == Some(true) {
-                        if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                            bundle_file_info.sections.push(Gc::new(
+                        if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
+                            bundle_file_info.borrow_mut().sections.push(Gc::new(
                                 BundleFileSection::new_prologue(
                                     statement
                                         .as_expression_statement()

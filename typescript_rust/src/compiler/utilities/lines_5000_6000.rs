@@ -189,6 +189,13 @@ pub fn try_extract_ts_extension(file_name: &str) -> Option<Extension> {
     .copied()
 }
 
+pub fn base64_encode(
+    host_base64_encode: Option<impl FnMut(&str) -> Option<String>>,
+    input: &str,
+) -> String {
+    unimplemented!()
+}
+
 pub fn read_json<THostReadFile: FnMut(&str) -> io::Result<Option<String>>>(
     path: &str,
     mut host_read_file: THostReadFile,

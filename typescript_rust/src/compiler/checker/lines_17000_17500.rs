@@ -11,17 +11,16 @@ use super::{
     signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
 };
 use crate::{
-    are_gc_slices_equal, get_source_file_of_node, id_text, is_jsx_spread_attribute,
-    unescape_leading_underscores, HasInitializerInterface, SignatureDeclarationInterface,
-    SymbolFlags, SymbolInterface, Ternary, TypeComparer, __String, add_related_info,
-    are_rc_slices_equal, create_diagnostic_for_node, format_message, get_function_flags,
-    get_semantic_jsx_children, get_text_of_node, has_type, is_block, is_computed_non_literal_name,
-    is_identifier_type_predicate, is_jsx_element, is_jsx_opening_element, is_omitted_expression,
-    is_spread_assignment, length, map, some, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
-    NamedDeclarationInterface, Node, NodeInterface, Number, RelationComparisonResult, Signature,
-    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    UnionOrIntersectionTypeInterface,
+    add_related_info, are_gc_slices_equal, create_diagnostic_for_node, format_message,
+    get_function_flags, get_semantic_jsx_children, get_source_file_of_node, get_text_of_node,
+    has_type, id_text, is_block, is_computed_non_literal_name, is_identifier_type_predicate,
+    is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute, is_omitted_expression,
+    is_spread_assignment, length, map, some, unescape_leading_underscores, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Number, RelationComparisonResult, Signature, SignatureDeclarationInterface,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
+    TypeComparer, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -613,8 +612,7 @@ impl TypeChecker {
                             if let Some(index_info) = index_info.as_ref() {
                                 if let Some(index_info_declaration) =
                                     index_info.declaration.as_ref().filter(|declaration| {
-                                        !get_source_file_of_node(Some(&***declaration))
-                                            .unwrap()
+                                        !get_source_file_of_node(declaration)
                                             .as_source_file()
                                             .has_no_default_lib()
                                     })
@@ -653,8 +651,7 @@ impl TypeChecker {
                             } else {
                                 target.symbol().maybe_declarations().as_ref().unwrap()[0].clone()
                             };
-                            if !get_source_file_of_node(Some(&*target_node))
-                                .unwrap()
+                            if !get_source_file_of_node(&target_node)
                                 .as_source_file()
                                 .has_no_default_lib()
                             {

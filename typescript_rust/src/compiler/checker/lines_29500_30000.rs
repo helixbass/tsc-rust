@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
 use std::cmp;
@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
 use crate::{
-    add_related_info, are_option_gcs_equal, are_option_rcs_equal, chain_diagnostic_messages,
+    add_related_info, are_option_gcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
     create_file_diagnostic, every, factory, filter, find, first, flat_map, flatten, for_each,
@@ -326,7 +326,7 @@ impl TypeChecker {
     ) -> GetDiagnosticSpanForCallNodeReturn {
         let start: isize;
         let length: isize;
-        let source_file = get_source_file_of_node(Some(node)).unwrap();
+        let source_file = get_source_file_of_node(node);
 
         let node_as_call_expression = node.as_call_expression();
         if is_property_access_expression(&node_as_call_expression.expression) {
@@ -593,7 +593,7 @@ impl TypeChecker {
             set_text_range_pos_end(&error_span, pos, end);
             Gc::new(
                 create_diagnostic_for_node_array(
-                    &get_source_file_of_node(Some(node)).unwrap(),
+                    &get_source_file_of_node(node),
                     &error_span,
                     error,
                     Some(vec![parameter_range, args.len().to_string()]),
@@ -616,7 +616,7 @@ impl TypeChecker {
             let max = length(sig.maybe_type_parameters().as_deref());
             return Gc::new(
                 create_diagnostic_for_node_array(
-                    &get_source_file_of_node(Some(node)).unwrap(),
+                    &get_source_file_of_node(node),
                     type_arguments,
                     &Diagnostics::Expected_0_type_arguments_but_got_1,
                     Some(vec![
@@ -651,7 +651,7 @@ impl TypeChecker {
             if above_arg_count != usize::MAX {
                 return Gc::new(
                     create_diagnostic_for_node_array(
-                        &get_source_file_of_node(Some(node)).unwrap(),
+                        &get_source_file_of_node(node),
                         type_arguments,
                         &Diagnostics::No_overload_expects_0_type_arguments_but_overloads_do_exist_that_expect_either_1_or_2_type_arguments,
                         Some(vec![
@@ -665,7 +665,7 @@ impl TypeChecker {
         }
         Gc::new(
             create_diagnostic_for_node_array(
-                &get_source_file_of_node(Some(node)).unwrap(),
+                &get_source_file_of_node(node),
                 type_arguments,
                 &Diagnostics::Expected_0_type_arguments_but_got_1,
                 Some(vec![

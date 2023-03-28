@@ -366,7 +366,7 @@ impl TypeChecker {
         );
         if is_in_js_file(Some(declaration))
             && !is_check_js_enabled_for_file(
-                &get_source_file_of_node(Some(declaration)).unwrap(),
+                &get_source_file_of_node(declaration),
                 &self.compiler_options,
             )
         {

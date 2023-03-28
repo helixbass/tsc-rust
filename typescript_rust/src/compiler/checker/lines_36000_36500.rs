@@ -237,7 +237,7 @@ impl TypeChecker {
         node: &Node, /*PotentiallyUnusedIdentifier*/
     ) {
         if self.produce_diagnostics {
-            let source_file = get_source_file_of_node(Some(node)).unwrap();
+            let source_file = get_source_file_of_node(node);
             let mut all_potentially_unused_identifiers = self.all_potentially_unused_identifiers();
             let potentially_unused_identifiers = all_potentially_unused_identifiers
                 .entry(source_file.as_source_file().path().clone())
@@ -467,7 +467,7 @@ impl TypeChecker {
                     .all(|type_parameter| self.is_type_parameter_unused(type_parameter))
             {
                 if try_add_to_set(&mut seen_parents_with_every_unused, &*parent) {
-                    let source_file = get_source_file_of_node(Some(&*parent)).unwrap();
+                    let source_file = get_source_file_of_node(&parent);
                     let range = if is_jsdoc_template_tag(&parent) {
                         range_of_node(&parent)
                     } else {

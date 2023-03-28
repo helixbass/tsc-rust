@@ -68,7 +68,7 @@ pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::{
     create_printer, for_each_emitted_file, for_each_emitted_file_returns, get_output_extension,
-    get_ts_build_info_emit_output_file_path, TempFlags,
+    get_ts_build_info_emit_output_file_path, SourceMapOptions, TempFlags,
 };
 use compiler::emitter::{
     emit_files, get_build_info, get_common_source_directory, get_common_source_directory_of_config,
@@ -169,7 +169,7 @@ pub use compiler::factory::utilities::{
     is_outer_expression, skip_outer_expressions, starts_with_use_strict,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
-pub use compiler::factory::utilities_public::set_text_range;
+pub use compiler::factory::utilities_public::{set_text_range, set_text_range_rc_node};
 use compiler::module_name_resolver::{
     create_mode_aware_cache, get_package_json_types_version_paths,
     get_package_name_from_types_package_name, get_package_scope_for_path, get_types_package_name,
@@ -225,8 +225,8 @@ pub use compiler::program::{
     format_diagnostic, format_diagnostics, format_diagnostics_with_color_and_context,
     format_location, get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
     get_pre_emit_diagnostics, get_resolution_diagnostic, ActualResolveModuleNamesWorker,
-    ActualResolveTypeReferenceDirectiveNamesWorker, FilesByNameValue, FormatDiagnosticsHost,
-    ToPath,
+    ActualResolveTypeReferenceDirectiveNamesWorker, EmitHostWriteFileCallback, FilesByNameValue,
+    FormatDiagnosticsHost, ToPath,
 };
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position,
@@ -245,7 +245,7 @@ pub use compiler::scanner::{
     reduce_each_trailing_comment_range, token_to_string, ErrorCallback, Scanner,
 };
 pub use compiler::semver::{Version, VersionRange};
-pub use compiler::sourcemap::try_parse_raw_source_map;
+pub use compiler::sourcemap::{create_source_map_generator, try_parse_raw_source_map};
 pub use compiler::sys::{
     generate_djb2_hash, get_sys, Buffer, DirectoryWatcherCallback, FileWatcher,
     FileWatcherCallback, System,
@@ -254,6 +254,7 @@ use compiler::sys::{ignored_paths, missing_file_modified_time};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
 pub use compiler::transformer::{
     get_transformers, no_emit_notification, no_emit_substitution, null_transformation_context,
+    transform_nodes, TransformNodesTransformationResult, WrapCustomTransformerFactoryHandleDefault,
 };
 pub use compiler::transformers::{
     chain_bundle, is_internal_declaration, transform_class_fields, transform_declarations,
@@ -296,13 +297,13 @@ pub use compiler::types::{
     ConditionalType, ConditionalTypeNode, ConfigFileSpecs, ConstructSignatureDeclaration,
     ConstructorDeclaration, ConstructorTypeNode, ContextFlags, ContinueStatement,
     CoreTransformationContext, CreateProgramOptions, CurrentParenthesizerRule, CustomTransformer,
-    CustomTransformerFactory, CustomTransformers, DebuggerStatement, Decorator, DefaultClause,
-    DeleteExpression, DetachedCommentInfo, Diagnostic, DiagnosticCategory, DiagnosticCollection,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, DidYouMeanOptionsDiagnostics,
-    DoStatement, ElementAccessExpression, ElementFlags, EmitFlags, EmitHelper, EmitHelperBase,
-    EmitHelperText, EmitHint, EmitHost, EmitResolver, EmitResolverDebuggable, EmitResult,
+    CustomTransformerFactory, CustomTransformerFactoryInterface, CustomTransformerInterface,
+    CustomTransformers, DebuggerStatement, Decorator, DefaultClause, DeleteExpression,
+    DetachedCommentInfo, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    DidYouMeanOptionsDiagnostics, DoStatement, ElementAccessExpression, ElementFlags, EmitFlags,
+    EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, EmitHost, EmitResolver, EmitResult,
     EmitTextWriter, EmitTransformers, EmptyStatement, EnumDeclaration, EnumKind, EnumMember,
     EvolvingArrayType, ExitStatus, ExportAssignment, ExportDeclaration, ExportSpecifier,
     ExpressionStatement, ExpressionWithTypeArguments, Extension, ExternalModuleReference,
@@ -362,18 +363,18 @@ pub use compiler::types::{
     PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
     PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, RedirectTargetsMap, RegularExpressionLiteral,
-    RelationComparisonResult, RequireResult, ResolvableTypeInterface, ResolvedConfigFileName,
-    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeInterface, ResolvedTypeReferenceDirective,
+    RelationComparisonResult, RelativeToBuildInfo, RequireResult, ResolvableTypeInterface,
+    ResolvedConfigFileName, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeInterface, ResolvedTypeReferenceDirective,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, RestTypeNode, ReturnStatement,
     ReverseMappedSymbol, ReverseMappedType, RootFile, ScriptKind, ScriptReferenceHost,
     ScriptTarget, SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment,
     Signature, SignatureDeclarationBase, SignatureDeclarationInterface, SignatureFlags,
-    SignatureKind, SignatureOptionalCallSignatureCache, SnippetElement, SnippetKind, SourceFile,
-    SourceFileLike, SourceFileMayBeEmittedHost, SourceFilePrologueDirective,
-    SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo, SourceMapGenerator,
-    SourceMapRange, SourceMapSource, SourceTextAsChars, SpreadAssignment, SpreadElement,
-    StringLiteral, StringLiteralType, StringMappingType, StringOrDiagnosticMessage,
+    SignatureKind, SignatureOptionalCallSignatureCache, SingleNodeOrVecNode, SnippetElement,
+    SnippetKind, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
+    SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
+    SourceMapGenerator, SourceMapRange, SourceMapSource, SourceTextAsChars, SpreadAssignment,
+    SpreadElement, StringLiteral, StringLiteralType, StringMappingType, StringOrDiagnosticMessage,
     StringOrNodeArray, StructureIsReused, SubstitutionType, SwitchStatement, Symbol,
     SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolFormatFlags, SymbolId,
     SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolVisibilityResult, SymbolWalker,
@@ -383,10 +384,11 @@ pub use compiler::types::{
     TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
     ThisTypeNode, ThrowStatement, ToHashMapOfCompilerOptionsValues, TokenFlags, TransformFlags,
     TransformationContext, TransformationResult, Transformer, TransformerFactory,
-    TransformerFactoryOrCustomTransformerFactory, TransientSymbol, TransientSymbolInterface,
-    TryStatement, TsConfigOnlyOption, TupleType, TupleTypeNode, Type, TypeAcquisition,
-    TypeAliasDeclaration, TypeAssertion, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeComparer, TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper,
+    TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
+    TransformerInterface, TransientSymbol, TransientSymbolInterface, TryStatement,
+    TsConfigOnlyOption, TupleType, TupleTypeNode, Type, TypeAcquisition, TypeAliasDeclaration,
+    TypeAssertion, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeComparer,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper,
     TypeMapperCallback, TypeOfExpression, TypeOperatorNode, TypeParameter,
     TypeParameterDeclaration, TypePredicate, TypePredicateKind, TypePredicateNode, TypeQueryNode,
     TypeReference, TypeReferenceInterface, TypeReferenceNode, TypeReferenceSerializationKind,
@@ -395,29 +397,30 @@ pub use compiler::types::{
     UnparsedPrepend, UnparsedPrologue, UnparsedSectionInterface, UnparsedSource,
     UnparsedSyntheticReference, UnparsedTextLike, UserPreferences, UserPreferencesBuilder,
     VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VarianceFlags, VisitResult, VoidExpression, WatchDirectoryFlags,
-    WatchDirectoryKind, WatchFileKind, WatchOptions, WhileStatement, WithStatement,
-    WriteFileCallback, YieldExpression, __String,
+    VariableStatement, VarianceFlags, VisitResult, VisitResultInterface, VoidExpression,
+    WatchDirectoryFlags, WatchDirectoryKind, WatchFileKind, WatchOptions, WhileStatement,
+    WithStatement, WriteFileCallback, YieldExpression, __String,
 };
 use compiler::types::{
-    AccessFlags, CommentDirectivesMap, EmitNode, ExternalEmitHelpers, FileIncludeKind,
-    FileIncludeReason, IterationTypes, IterationTypesKey, JsxReferenceKind, MemberOverrideStatus,
-    ModulePath, OutofbandVarianceMarkerHandler, RawSourceMap, ReadonlyPragmaMap, ReferencedFile,
-    SourceOfProjectReferenceRedirect, WideningContext,
+    AccessFlags, BundleBuildInfo, CommentDirectivesMap, EmitNode,
+    ExportedModulesFromDeclarationEmit, ExternalEmitHelpers, FileIncludeKind, FileIncludeReason,
+    IterationTypes, IterationTypesKey, JsxReferenceKind, MemberOverrideStatus, ModulePath,
+    OutofbandVarianceMarkerHandler, RawSourceMap, ReadonlyPragmaMap, ReferencedFile,
+    SourceMapEmitResult, SourceOfProjectReferenceRedirect, WideningContext,
 };
 pub use compiler::utilities::{
-    add_related_info, array_is_homogeneous, attach_file_to_diagnostics, chain_diagnostic_messages,
-    chain_diagnostic_messages_multiple, change_extension, compare_diagnostics,
-    compare_diagnostics_skip_related_information, concatenate_diagnostic_message_chains,
-    contains_ignored_path, contains_parse_error, copy_entries, create_comment_directives_map,
-    create_compiler_diagnostic, create_compiler_diagnostic_from_message_chain,
-    create_detached_diagnostic, create_diagnostic_collection,
-    create_diagnostic_for_file_from_message_chain, create_diagnostic_for_node,
-    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_diagnostic_for_node_in_source_file, create_diagnostic_for_range, create_file_diagnostic,
-    create_file_diagnostic_from_message_chain, create_symbol_table, create_symlink_cache,
-    create_text_writer, declaration_name_to_string, default_maximum_truncation_length,
-    directory_probably_exists, emit_detached_comments,
+    add_related_info, array_is_homogeneous, attach_file_to_diagnostics, base64_encode,
+    chain_diagnostic_messages, chain_diagnostic_messages_multiple, change_extension,
+    compare_diagnostics, compare_diagnostics_skip_related_information,
+    concatenate_diagnostic_message_chains, contains_ignored_path, contains_parse_error,
+    copy_entries, create_comment_directives_map, create_compiler_diagnostic,
+    create_compiler_diagnostic_from_message_chain, create_detached_diagnostic,
+    create_diagnostic_collection, create_diagnostic_for_file_from_message_chain,
+    create_diagnostic_for_node, create_diagnostic_for_node_array,
+    create_diagnostic_for_node_from_message_chain, create_diagnostic_for_node_in_source_file,
+    create_diagnostic_for_range, create_file_diagnostic, create_file_diagnostic_from_message_chain,
+    create_symbol_table, create_symlink_cache, create_text_writer, declaration_name_to_string,
+    default_maximum_truncation_length, directory_probably_exists, emit_detached_comments,
     emit_new_line_before_leading_comment_of_position, empty_file_system_entries,
     ensure_script_kind, entity_name_to_string, escape_jsx_attribute_string,
     escape_non_ascii_string, escape_string, export_assignment_is_alias,
@@ -469,9 +472,10 @@ pub use compiler::utilities::{
     get_resolved_module, get_rest_parameter_element_type, get_right_most_assigned_expression,
     get_root_declaration, get_script_target_features, get_selected_effective_modifier_flags,
     get_semantic_jsx_children, get_set_accessor_value_parameter, get_source_file_of_module,
-    get_source_file_of_node, get_source_files_to_emit, get_source_text_of_node_from_source_file,
-    get_span_of_token_at_position, get_strict_option_value, get_super_container,
-    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module,
+    get_source_file_of_node, get_source_file_path_in_new_dir, get_source_files_to_emit,
+    get_source_text_of_node_from_source_file, get_span_of_token_at_position,
+    get_strict_option_value, get_super_container, get_supported_extensions,
+    get_supported_extensions_with_json_if_resolve_json_module,
     get_symbol_name_for_private_identifier, get_syntactic_modifier_flags,
     get_text_of_identifier_or_literal, get_text_of_node, get_text_of_node_from_source_text,
     get_text_of_property_name, get_this_container, get_this_parameter, get_token_pos_of_node,
@@ -519,19 +523,20 @@ pub use compiler::utilities::{
     is_right_side_of_qualified_name_or_property_access,
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_same_entity_name,
     is_shorthand_ambient_module_symbol, is_signed_numeric_literal, is_single_or_double_quote,
-    is_source_file_js, is_special_property_declaration, is_statement_with_locals, is_static,
-    is_string_double_quoted, is_string_or_numeric_literal_like, is_super_call, is_super_property,
-    is_this_identifier, is_this_in_type_query, is_this_initialized_declaration,
+    is_source_file_js, is_source_file_not_json, is_special_property_declaration,
+    is_statement_with_locals, is_static, is_string_double_quoted,
+    is_string_or_numeric_literal_like, is_super_call, is_super_property, is_this_identifier,
+    is_this_in_type_query, is_this_initialized_declaration,
     is_this_initialized_object_binding_expression, is_this_property, is_transient_symbol,
     is_type_alias, is_type_node_kind, is_umd_export_symbol, is_valid_es_symbol_declaration,
     is_valid_type_only_alias_use_site, is_value_signature_declaration, is_var_const,
     is_variable_declaration_in_variable_statement, is_variable_like, is_variable_like_or_accessor,
     is_watch_set, is_write_access, is_write_only_access, make_identifier_from_module_name,
-    match_files, match_pattern_or_exact, maybe_set_parent, min_and_max, modifier_to_flag,
-    modifiers_to_flags, no_truncation_maximum_truncation_length, node_can_be_decorated,
-    node_is_decorated, node_is_missing, node_is_present, node_is_synthesized,
-    node_starts_new_lexical_environment, object_allocator, options_have_changes,
-    options_have_module_resolution_changes, out_file, package_id_to_string,
+    match_files, match_pattern_or_exact, maybe_get_source_file_of_node, maybe_set_parent,
+    min_and_max, modifier_to_flag, modifiers_to_flags, no_truncation_maximum_truncation_length,
+    node_can_be_decorated, node_is_decorated, node_is_missing, node_is_present,
+    node_is_synthesized, node_starts_new_lexical_environment, object_allocator,
+    options_have_changes, options_have_module_resolution_changes, out_file, package_id_to_string,
     parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
     positions_are_on_same_line, pseudo_big_int_to_string, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line, range_of_node,
@@ -548,10 +553,10 @@ pub use compiler::utilities::{
     try_remove_extension, type_has_call_or_construct_signatures, unreachable_code_is_error,
     unused_label_is_error, using_single_line_string_writer, walk_up_parenthesized_expressions,
     walk_up_parenthesized_types, walk_up_parenthesized_types_and_get_parent_and_child,
-    write_comment_range, write_file_ensuring_directories, AssignmentKind, Associativity,
-    ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames, FileMatcherPatterns,
-    FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax, OperatorPrecedence,
-    StringOrPattern, SymlinkCache,
+    write_comment_range, write_file, write_file_ensuring_directories, AssignmentKind,
+    Associativity, ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames,
+    FileMatcherPatterns, FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax,
+    OperatorPrecedence, StringOrPattern, SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,
@@ -640,16 +645,21 @@ pub use compiler::watch_public::{
 };
 pub use compiler::watch_utilities::DirectoryStructureHost;
 pub use execute_command_line::execute_command_line::execute_command_line;
+pub use rust_helpers::cell::{
+    gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, ref_mut_unwrapped, ref_unwrapped,
+};
 pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };
 pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
+pub use rust_helpers::option::NonEmpty;
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
     fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join, process_cwd,
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
 };
+pub use rust_helpers::uri::encode_uri;
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,

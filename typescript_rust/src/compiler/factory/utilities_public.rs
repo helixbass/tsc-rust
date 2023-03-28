@@ -1,8 +1,10 @@
-use crate::{set_text_range_pos_end, ReadonlyTextRange};
+use gc::Gc;
 
-pub fn set_text_range<'a, TRange: ReadonlyTextRange, TLocation: ReadonlyTextRange>(
+use crate::{set_text_range_pos_end, Node, ReadonlyTextRange};
+
+pub fn set_text_range<'a, TRange: ReadonlyTextRange>(
     range: &'a TRange,
-    location: Option<&TLocation>,
+    location: Option<&impl ReadonlyTextRange>,
 ) -> &'a TRange {
     match location {
         Some(location) => {
@@ -11,4 +13,12 @@ pub fn set_text_range<'a, TRange: ReadonlyTextRange, TLocation: ReadonlyTextRang
         }
         None => range,
     }
+}
+
+pub fn set_text_range_rc_node(
+    node: Gc<Node>,
+    location: Option<&impl ReadonlyTextRange>,
+) -> Gc<Node> {
+    set_text_range(&*node, location);
+    node
 }

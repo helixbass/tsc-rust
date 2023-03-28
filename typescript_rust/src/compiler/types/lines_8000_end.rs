@@ -14,8 +14,8 @@ use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, S
 use crate::{
     BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason,
     ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path,
-    RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SymlinkCache, SyntaxKind,
-    TempFlags, TextRange,
+    ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SymlinkCache,
+    SyntaxKind, TempFlags, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -56,7 +56,7 @@ pub struct Printer {
     pub write: Cell<fn(&Printer, &str)>,
     #[unsafe_ignore_trace]
     pub is_own_file_emit: Cell<bool>,
-    pub bundle_file_info: GcCell<Option<BundleFileInfo>>,
+    pub bundle_file_info: GcCell<Option<Gc<GcCell<BundleFileInfo>>>>,
     pub relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
     pub record_internal_section: Option<bool>,
     #[unsafe_ignore_trace]
@@ -597,8 +597,30 @@ pub struct BundleFileInfo {
     pub sources: Option<SourceFileInfo>,
 }
 
-// #[derive(Trace, Finalize)]
-pub type BuildInfo = ();
+#[derive(Trace, Finalize)]
+pub struct BundleBuildInfo {
+    pub js: Option<Gc<GcCell<BundleFileInfo>>>,
+    pub dts: Option<BundleFileInfo>,
+    pub common_source_directory: String,
+    pub source_files: Vec<String>,
+}
+
+#[derive(Trace, Finalize)]
+pub struct BuildInfo {
+    pub bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
+    pub program: Option<Gc<ProgramBuildInfo>>,
+    pub version: String,
+}
+
+impl std::fmt::Debug for BuildInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuildInfo")
+            // .field("bundle", &self.bundle)
+            // .field("program", &self.program)
+            .field("version", &self.version)
+            .finish()
+    }
+}
 
 pub trait PrintHandlers: Trace + Finalize {
     fn has_global_name(&self, name: &str) -> Option<bool> {
@@ -688,7 +710,10 @@ pub struct RawSourceMap {
 }
 
 pub trait SourceMapGenerator: Trace + Finalize {
+    fn get_sources(&self) -> Vec<String>;
     fn add_source(&self, file_name: &str) -> usize;
+    fn to_json(&self) -> RawSourceMap;
+    fn to_string(&self) -> String;
 }
 
 pub trait EmitTextWriter: SymbolWriter + Trace + Finalize {

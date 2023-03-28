@@ -14,9 +14,9 @@ use crate::{
     get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
-    get_source_file_of_node, get_source_text_of_node_from_source_file, get_starts_on_new_line,
-    guess_indentation, id_text, is_binding_pattern, is_generated_identifier, is_identifier,
-    is_literal_expression, is_numeric_literal, is_private_identifier, last_or_undefined,
+    get_source_text_of_node_from_source_file, get_starts_on_new_line, guess_indentation, id_text,
+    is_binding_pattern, is_generated_identifier, is_identifier, is_literal_expression,
+    is_numeric_literal, is_private_identifier, last_or_undefined, maybe_get_source_file_of_node,
     node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line,
     range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags,
@@ -510,7 +510,7 @@ impl Printer {
                     && matches!(
                         self.maybe_current_source_file().as_ref(),
                         Some(current_source_file) if !are_option_gcs_equal(
-                            get_source_file_of_node(Some(node)).as_ref(),
+                            maybe_get_source_file_of_node(Some(node)).as_ref(),
                             get_original_node(
                                 Some(&**current_source_file),
                                 Option::<fn(Option<Gc<Node>>) -> bool>::None

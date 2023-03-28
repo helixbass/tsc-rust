@@ -22,6 +22,8 @@ itertools = "0.10.5"
 # gc = { git = "https://github.com/manishearth/rust-gc", rev = "6c5f754", features = ["derive", "serde"] }
 # gc = { path = "../../rust-gc/gc", features = ["derive", "serde", "unstable-config"] }
 gc = { git = "https://github.com/helixbass/rust-gc", rev = "32dfa44", features = ["derive", "serde"] }
+once_cell = "1.17.1"
+uri_encode = "1.0.1"
 
 [dev-dependencies]
 rstest = "0.15.0"

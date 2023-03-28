@@ -7,10 +7,10 @@ use crate::{
     NodeArray, NodeInterface, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
 };
 
-pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeArray)>(
+pub fn for_each_child(
     node: &Node,
-    mut cb_node: TNodeCallback,
-    mut cb_nodes: Option<TNodesCallback>,
+    mut cb_node: impl FnMut(&Node),
+    mut cb_nodes: Option<impl FnMut(&NodeArray)>,
 ) {
     if
     /* !node ||*/

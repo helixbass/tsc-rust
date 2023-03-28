@@ -86,15 +86,16 @@ impl Printer {
         for prepend in &bundle_as_bundle.prepends {
             self.write_line(None);
             let pos = self.writer().get_text_pos();
-            let mut bundle_file_info = self.maybe_bundle_file_info_mut();
+            let bundle_file_info = self.maybe_bundle_file_info();
             let saved_sections = bundle_file_info
                 .as_ref()
-                .map(|bundle_file_info| bundle_file_info.sections.clone());
+                .map(|bundle_file_info| (**bundle_file_info).borrow().sections.clone());
             if saved_sections.is_some() {
-                bundle_file_info.as_mut().unwrap().sections = vec![];
+                bundle_file_info.as_ref().unwrap().borrow_mut().sections = vec![];
             }
             self.print(EmitHint::Unspecified, prepend, None);
-            if let Some(bundle_file_info) = bundle_file_info.as_mut() {
+            if let Some(bundle_file_info) = bundle_file_info {
+                let mut bundle_file_info = bundle_file_info.borrow_mut();
                 let mut new_sections = bundle_file_info.sections.clone();
                 bundle_file_info.sections = saved_sections.unwrap();
                 if prepend
@@ -123,14 +124,15 @@ impl Printer {
         for source_file in &bundle_as_bundle.source_files {
             self.print(EmitHint::SourceFile, source_file, Some(source_file));
         }
-        let mut bundle_file_info = self.maybe_bundle_file_info_mut();
-        if let Some(bundle_file_info) = bundle_file_info.as_mut() {
+        let bundle_file_info = self.maybe_bundle_file_info();
+        if let Some(bundle_file_info) = bundle_file_info {
             if !bundle_as_bundle.source_files.is_empty() {
                 let end = self.writer().get_text_pos();
                 if self.record_bundle_file_text_like_section(end) {
                     let prologues = self.get_prologue_directives_from_bundled_source_files(bundle);
                     if let Some(prologues) = prologues {
                         bundle_file_info
+                            .borrow_mut()
                             .sources
                             .get_or_insert_with(Default::default)
                             .prologues = Some(prologues);
@@ -139,6 +141,7 @@ impl Printer {
                     let helpers = self.get_helpers_from_bundled_source_files(bundle);
                     if let Some(helpers) = helpers {
                         bundle_file_info
+                            .borrow_mut()
                             .sources
                             .get_or_insert_with(Default::default)
                             .helpers = Some(helpers);

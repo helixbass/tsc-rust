@@ -564,9 +564,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.16.0"
+version = "1.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86f0b0d4bf799edbc74508c1e8bf170ff5f41238e5f8225603ca7caaae2b7860"
+checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
 name = "os_str_bytes"
@@ -934,11 +934,13 @@ dependencies = [
  "itertools",
  "lazy_static",
  "local-macros",
+ "once_cell",
  "pretty_assertions",
  "regex",
  "rstest",
  "serde",
  "serde_json",
+ "uri_encode",
 ]
 
 [[package]]
@@ -960,6 +962,12 @@ name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
+
+[[package]]
+name = "uri_encode"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34acb51c736f8784bdbca2692c3cc57213bfc1b329fd6eb7668d5e4af8f87ceb"
 
 [[package]]
 name = "version_check"

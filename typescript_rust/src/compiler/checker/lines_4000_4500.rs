@@ -2,23 +2,21 @@
 
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
     concatenate, create_symbol_table, filter, find_ancestor, for_each_entry,
-    get_declaration_of_kind, is_ambient_module, is_external_module,
+    get_declaration_of_kind, get_source_file_of_node, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
     is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
-    node_is_present, push_if_unique_gc, push_if_unique_rc, some, BaseInterfaceType,
-    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
-    IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, ResolvableTypeInterface,
-    ResolvedTypeInterface, Signature, SignatureFlags, Symbol, SymbolAccessibility,
-    SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter, __String, get_source_file_of_node,
+    node_is_present, push_if_unique_gc, some, BaseInterfaceType, BaseIntrinsicType, BaseObjectType,
+    BaseType, CharacterCodes, FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName,
+    Node, NodeInterface, ObjectFlags, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
+    SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeParameter,
 };
 
 impl TypeChecker {
@@ -656,7 +654,7 @@ impl TypeChecker {
                     && symbol_from_symbol_table.escaped_name() != InternalSymbolName::ExportEquals
                     && symbol_from_symbol_table.escaped_name() != InternalSymbolName::Default
                     && !(is_umd_export_symbol(Some(&**symbol_from_symbol_table))
-                        && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(Some(enclosing_declaration)).unwrap())))
+                        && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(enclosing_declaration))))
                     && (!use_only_external_aliasing
                         || some(
                             symbol_from_symbol_table.maybe_declarations().as_deref(),

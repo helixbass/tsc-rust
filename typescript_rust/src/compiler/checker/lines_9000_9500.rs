@@ -2,15 +2,13 @@
 
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, create_symbol_table, find_last_index_returns_isize,
-    for_each, for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
+    are_option_gcs_equal, create_symbol_table, find_last_index_returns_isize, for_each,
+    for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
     get_effective_return_type_node, get_effective_set_accessor_type_annotation_node,
     get_effective_type_annotation_node, get_root_declaration, get_source_file_of_node,
     get_this_container, is_accessor, is_binary_expression,
@@ -27,7 +25,6 @@ use crate::{
     IndexInfo, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeSystemPropertyName,
-    __String,
 };
 
 impl TypeChecker {
@@ -418,9 +415,7 @@ impl TypeChecker {
         if symbol.flags().intersects(SymbolFlags::ModuleExports) {
             if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
                 let file_symbol = self
-                    .get_symbol_of_node(
-                        &get_source_file_of_node(Some(&*symbol_value_declaration)).unwrap(),
-                    )
+                    .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))
                     .unwrap();
                 let result: Gc<Symbol> = self
                     .create_symbol(file_symbol.flags(), "exports".to_owned(), None)

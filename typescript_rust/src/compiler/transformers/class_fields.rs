@@ -1,11 +1,42 @@
-use std::rc::Rc;
+use gc::{Finalize, Gc, Trace};
 
-use crate::{TransformationContext, Transformer, TransformerFactory};
+use crate::{
+    Node, TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerInterface,
+};
 
-fn transform_class_fields_fn(context: Rc<dyn TransformationContext>) -> Transformer {
-    unimplemented!()
+#[derive(Trace, Finalize)]
+struct TransformClassFields {
+    context: Gc<Box<dyn TransformationContext>>,
+}
+
+impl TransformClassFields {
+    fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
+        Self { context }
+    }
+}
+
+impl TransformerInterface for TransformClassFields {
+    fn call(&self, node: &crate::Node) -> Gc<Node> {
+        unimplemented!()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TransformClassFieldsFactory {}
+
+impl TransformClassFieldsFactory {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl TransformerFactoryInterface for TransformClassFieldsFactory {
+    fn call(&self, context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+        Gc::new(Box::new(TransformClassFields::new(context)))
+    }
 }
 
 pub fn transform_class_fields() -> TransformerFactory {
-    Rc::new(|context| transform_class_fields_fn(context))
+    Gc::new(Box::new(TransformClassFieldsFactory::new()))
 }

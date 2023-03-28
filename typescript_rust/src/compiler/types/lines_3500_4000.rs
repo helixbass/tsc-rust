@@ -233,6 +233,7 @@ pub struct SourceFileContents {
     local_jsx_factory: GcCell<Option<Gc<Node>>>,
     local_jsx_fragment_factory: GcCell<Option<Gc<Node>>>,
 
+    exported_modules_from_declaration_emit: GcCell<Option<ExportedModulesFromDeclarationEmit>>,
     end_flow_node: GcCell<Option<Gc<FlowNode>>>,
 
     // TsConfigSourceFile
@@ -306,6 +307,7 @@ impl SourceFile {
                 local_jsx_fragment_namespace: Default::default(),
                 local_jsx_factory: Default::default(),
                 local_jsx_fragment_factory: Default::default(),
+                exported_modules_from_declaration_emit: Default::default(),
                 end_flow_node: Default::default(),
                 extended_source_files: Default::default(),
                 config_file_specs: Default::default(),
@@ -720,6 +722,14 @@ impl SourceFile {
 
     pub fn set_config_file_specs(&self, config_file_specs: Option<Rc<ConfigFileSpecs>>) {
         *self.contents.config_file_specs.borrow_mut() = config_file_specs;
+    }
+
+    pub fn maybe_exported_modules_from_declaration_emit(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>> {
+        self.contents
+            .exported_modules_from_declaration_emit
+            .borrow_mut()
     }
 
     pub fn maybe_end_flow_node(&self) -> GcCellRefMut<Option<Gc<FlowNode>>> {

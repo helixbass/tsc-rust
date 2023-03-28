@@ -467,9 +467,9 @@ pub fn is_parse_tree_node(node: &Node) -> bool {
     !node.flags().intersects(NodeFlags::Synthesized)
 }
 
-pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(&Node) -> bool>(
-    node: Option<TNode>,
-    node_test: Option<TNodeTest>,
+pub fn get_parse_tree_node(
+    node: Option<impl Borrow<Node>>,
+    node_test: Option<impl FnOnce(&Node) -> bool>,
 ) -> Option<Gc<Node>> {
     let node = node.map(|node| node.borrow().node_wrapper());
 

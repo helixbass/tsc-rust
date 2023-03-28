@@ -287,6 +287,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.node_wrapper()
     }
 
+    pub fn create_global_method_call(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        global_object_name: String,
+        method_name: String,
+        arguments_list: Vec<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
         unimplemented!()
     }

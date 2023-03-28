@@ -8,9 +8,9 @@ use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    add_related_info, concatenate, create_diagnostic_for_node, deduplicate_gc, deduplicate_rc,
-    ends_with, escape_leading_underscores, export_assignment_is_alias, find, find_ancestor,
-    find_last, get_assignment_declaration_kind, get_es_module_interop,
+    add_related_info, concatenate, create_diagnostic_for_node, declaration_name_to_string,
+    deduplicate_gc, ends_with, escape_leading_underscores, export_assignment_is_alias, find,
+    find_ancestor, find_last, get_assignment_declaration_kind, get_es_module_interop,
     get_external_module_import_equals_declaration_expression, get_external_module_require_argument,
     get_immediately_invoked_function_expression, get_jsdoc_host, get_leftmost_access_expression,
     get_mode_for_usage_location, get_name_of_declaration, get_root_declaration,
@@ -24,11 +24,11 @@ use crate::{
     is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
     is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, map, maybe_is_class_like,
-    should_preserve_const_enums, some, AssignmentDeclarationKind, Diagnostic, Diagnostics,
-    Extension, FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface,
-    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, ModuleKind, NodeFlags, SyntaxKind,
-    TypeFlags, TypeInterface, __String, declaration_name_to_string, unescape_leading_underscores,
-    Debug_, Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    should_preserve_const_enums, some, unescape_leading_underscores, AssignmentDeclarationKind,
+    Debug_, Diagnostic, Diagnostics, Extension, FindAncestorCallbackReturn,
+    HasInitializerInterface, HasTypeInterface, InterfaceTypeInterface, InternalSymbolName,
+    ModifierFlags, ModuleKind, Node, NodeFlags, NodeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -876,8 +876,7 @@ impl TypeChecker {
     ) -> Option<ModuleKind> {
         if is_string_literal_like(usage) {
             get_mode_for_usage_location(
-                get_source_file_of_node(Some(usage))
-                    .unwrap()
+                get_source_file_of_node(usage)
                     .as_source_file()
                     .maybe_implied_node_format(),
                 usage,
