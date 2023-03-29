@@ -1432,6 +1432,13 @@ impl Node {
         enum_unwrapped!(self, [Node, HeritageClause])
     }
 
+    pub fn maybe_as_heritage_clause(&self) -> Option<&HeritageClause> {
+        match self {
+            Node::HeritageClause(node) => Some(node),
+            _ => None,
+        }
+    }
+
     pub fn as_jsdoc_implements_tag(&self) -> &JSDocImplementsTag {
         enum_unwrapped!(self, [Node, JSDocImplementsTag])
     }

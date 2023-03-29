@@ -1754,9 +1754,10 @@ impl TypeChecker {
                                 .as_expression_with_type_arguments()
                                 .expression,
                         ),
-                    ) && location_unwrapped.parent().as_heritage_clause().token
-                        == SyntaxKind::ExtendsKeyword
-                    {
+                    ) && matches!(
+                        location_unwrapped.parent().maybe_as_heritage_clause(),
+                        Some(location_parent) if location_parent.token == SyntaxKind::ExtendsKeyword
+                    ) {
                         let container = location_unwrapped.parent().parent();
                         if is_class_like(&container) {
                             result = lookup(
