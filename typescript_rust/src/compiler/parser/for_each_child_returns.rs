@@ -1,6 +1,6 @@
 use super::{visit_node_returns, visit_nodes_returns};
 use crate::{
-    for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
+    for_each, maybe_for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasQuestionTokenInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
@@ -1434,6 +1434,14 @@ pub fn for_each_child_returns<
         }
         Node::JSDocLinkCode(node) => {
             visit_node_returns(&mut cb_node, node.name.clone())
+        }
+        Node::JSDocLinkPlain(node) => {
+            visit_node_returns(&mut cb_node, node.name.clone())
+        }
+        Node::JSDocTypeLiteral(node) => {
+            maybe_for_each(node.js_doc_property_tags.as_deref(), |node, _| {
+                cb_node(node)
+            })
         }
         Node::PartiallyEmittedExpression(node) => {
             visit_node_returns(&mut cb_node, Some(&*node.expression))

@@ -2,8 +2,7 @@
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::rc::Rc;
+use std::cell::Cell;
 
 use super::{
     BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasElementsInterface,
