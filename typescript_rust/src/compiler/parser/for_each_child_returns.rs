@@ -75,7 +75,7 @@ pub fn for_each_child_returns<
             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.dot_dot_dot_token.clone()).or_else(|| {
-                        visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
+                        visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                             visit_node_returns(&mut cb_node, node.question_token.clone()).or_else(
                                 || {
                                     visit_node_returns(&mut cb_node, node.maybe_type()).or_else(

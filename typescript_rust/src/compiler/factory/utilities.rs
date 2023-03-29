@@ -179,20 +179,14 @@ pub(crate) fn get_jsdoc_type_alias_name<TFullName: Borrow<Node>>(
         let full_name = full_name.borrow();
         let mut right_node = full_name.node_wrapper();
         loop {
-            if is_identifier(&right_node)
-                || right_node.as_jsdoc_namespace_declaration().body.is_none()
-            {
+            if is_identifier(&right_node) || right_node.as_module_declaration().body.is_none() {
                 return if is_identifier(&right_node) {
                     right_node
                 } else {
-                    right_node.as_jsdoc_namespace_declaration().name.clone()
+                    right_node.as_module_declaration().name.clone()
                 };
             }
-            right_node = right_node
-                .as_jsdoc_namespace_declaration()
-                .body
-                .clone()
-                .unwrap();
+            right_node = right_node.as_module_declaration().body.clone().unwrap();
         }
     })
 }

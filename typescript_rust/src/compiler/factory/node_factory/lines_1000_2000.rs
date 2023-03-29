@@ -220,8 +220,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         let question_token_is_some = question_token.is_some();
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
-        let mut node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
-        if is_this_identifier(Some(node.name())) {
+        let node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
+        if is_this_identifier(node.maybe_name()) {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(

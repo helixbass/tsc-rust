@@ -60,7 +60,7 @@ pub fn for_each_child(
                 node.maybe_modifiers().as_ref(),
             );
             visit_node(&mut cb_node, node.dot_dot_dot_token.clone());
-            visit_node(&mut cb_node, Some(node.name()));
+            visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.question_token.clone());
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_initializer())

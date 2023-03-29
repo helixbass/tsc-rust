@@ -5,7 +5,6 @@ use gc::Gc;
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
-use std::rc::Rc;
 
 use super::ParserType;
 use crate::{

@@ -36,10 +36,10 @@ use super::{
     InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
-    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
-    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
-    JSDocTypeLiteral, JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute,
-    JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag,
+    JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
+    JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute, JsxAttributes,
+    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
     MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
@@ -397,7 +397,6 @@ pub enum Node {
     JSDocFunctionType(JSDocFunctionType),
     JSDocTypeLiteral(JSDocTypeLiteral),
     JSDocSignature(JSDocSignature),
-    JSDocNamespaceDeclaration(JSDocNamespaceDeclaration),
     JSDocNameReference(JSDocNameReference),
     JsxElement(JsxElement),
     JsxSelfClosingElement(JsxSelfClosingElement),
@@ -471,7 +470,6 @@ impl Node {
             Node::EnumMember(node) => Some(node),
             Node::EnumDeclaration(node) => Some(node),
             Node::ModuleDeclaration(node) => Some(node),
-            Node::JSDocNamespaceDeclaration(node) => Some(node),
             Node::ImportEqualsDeclaration(node) => Some(node),
             Node::FunctionExpression(node) => Some(node),
             Node::ArrowFunction(node) => Some(node),
@@ -1241,10 +1239,6 @@ impl Node {
 
     pub fn as_spread_assignment(&self) -> &SpreadAssignment {
         enum_unwrapped!(self, [Node, SpreadAssignment])
-    }
-
-    pub fn as_jsdoc_namespace_declaration(&self) -> &JSDocNamespaceDeclaration {
-        enum_unwrapped!(self, [Node, JSDocNamespaceDeclaration])
     }
 
     pub fn as_import_equals_declaration(&self) -> &ImportEqualsDeclaration {

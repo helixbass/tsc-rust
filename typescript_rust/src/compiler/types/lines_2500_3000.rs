@@ -1650,38 +1650,6 @@ impl NamedDeclarationInterface for ModuleDeclaration {
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
-pub struct JSDocNamespaceDeclaration {
-    _node: BaseNode,
-    pub name: Gc<Node /*Identifier*/>,
-    pub body: Option<Gc<Node /*JSDocNamespaceBody*/>>,
-}
-
-impl JSDocNamespaceDeclaration {
-    pub fn new(base_node: BaseNode, name: Gc<Node>, body: Option<Gc<Node>>) -> Self {
-        Self {
-            _node: base_node,
-            name,
-            body,
-        }
-    }
-}
-
-impl NamedDeclarationInterface for JSDocNamespaceDeclaration {
-    fn maybe_name(&self) -> Option<Gc<Node>> {
-        Some(self.name.clone())
-    }
-
-    fn name(&self) -> Gc<Node> {
-        self.name.clone()
-    }
-
-    fn set_name(&mut self, name: Gc<Node>) {
-        self.name = name;
-    }
-}
-
-#[derive(Debug, Trace, Finalize)]
-#[ast_type]
 pub struct ModuleBlock {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/
