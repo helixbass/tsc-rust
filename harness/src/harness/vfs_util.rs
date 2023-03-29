@@ -4,6 +4,7 @@ pub mod vfs {
     use std::borrow::Cow;
     use std::cell::{Cell, Ref, RefCell, RefMut};
     use std::collections::HashMap;
+    use std::io;
     use std::iter::FromIterator;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -641,7 +642,7 @@ pub mod vfs {
             &self,
             path: &str,
             encoding: Option<&str /*BufferEncoding*/>,
-        ) -> StringOrBuffer {
+        ) -> io::Result<StringOrBuffer> {
             let WalkResult { node, .. } = self
                 ._walk(
                     &self._resolve(path),
@@ -650,28 +651,27 @@ pub mod vfs {
                 )
                 .unwrap();
             if node.is_none() {
-                // throw createIOError("ENOENT");
-                panic!("ENOENT");
+                return Err(io::Error::new(io::ErrorKind::NotFound, "ENOENT"));
             }
             let ref node = node.unwrap();
             if is_directory(Some(node)) {
-                // throw createIOError("EISDIR");
-                panic!("EISDIR");
+                // return Err(io::Error::new(io::ErrorKind::IsADirectory, "EISDIR"));
+                return Err(io::Error::new(io::ErrorKind::Other, "EISDIR"));
             }
             if !is_file(Some(node)) {
-                // throw createIOError("EBADF");
-                panic!("EBADF");
+                // return Err(io::Error::new(io::ErrorKind::Uncategorized, "EBADF"));
+                return Err(io::Error::new(io::ErrorKind::Other, "EBADF"));
             }
 
             let buffer = self._get_buffer(node).clone();
-            if let Some(encoding) = encoding {
+            Ok(if let Some(encoding) = encoding {
                 if encoding != "utf8" {
                     unimplemented!()
                 }
                 String::from_utf8(buffer).unwrap().into()
             } else {
                 buffer.into()
-            }
+            })
         }
 
         pub fn write_file_sync<'data, TData: Into<StringOrRefBuffer<'data>>>(

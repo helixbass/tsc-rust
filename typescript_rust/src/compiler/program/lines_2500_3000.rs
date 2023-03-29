@@ -75,14 +75,11 @@ impl Program {
         None
     }
 
-    pub(super) fn get_source_file_from_reference_worker<
-        TGetSourceFile: FnMut(&str) -> Option<Gc<Node>>,
-        TFail: FnMut(&'static DiagnosticMessage, Option<Vec<String>>),
-    >(
+    pub(super) fn get_source_file_from_reference_worker(
         &self,
         file_name: &str,
-        mut get_source_file: TGetSourceFile,
-        mut fail: Option<TFail>,
+        mut get_source_file: impl FnMut(&str) -> Option<Gc<Node>>,
+        mut fail: Option<impl FnMut(&'static DiagnosticMessage, Option<Vec<String>>)>,
         reason: Option<&FileIncludeReason>,
     ) -> Option<Gc<Node>> {
         if has_extension(file_name) {
