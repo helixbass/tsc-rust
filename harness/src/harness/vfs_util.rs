@@ -9,8 +9,8 @@ pub mod vfs {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use typescript_rust::{
-        get_sys, is_option_str_empty, millis_since_epoch_to_system_time, Buffer, Comparison,
-        FileSystemEntries, Node,
+        get_sys, io_error_from_name, is_option_str_empty, millis_since_epoch_to_system_time,
+        Buffer, Comparison, FileSystemEntries, Node,
     };
 
     use crate::collections::SortOptionsComparer;
@@ -651,16 +651,14 @@ pub mod vfs {
                 )
                 .unwrap();
             if node.is_none() {
-                return Err(io::Error::new(io::ErrorKind::NotFound, "ENOENT"));
+                return io_error_from_name("ENOENT");
             }
             let ref node = node.unwrap();
             if is_directory(Some(node)) {
-                // return Err(io::Error::new(io::ErrorKind::IsADirectory, "EISDIR"));
-                return Err(io::Error::new(io::ErrorKind::Other, "EISDIR"));
+                return io_error_from_name("EISDIR");
             }
             if !is_file(Some(node)) {
-                // return Err(io::Error::new(io::ErrorKind::Uncategorized, "EBADF"));
-                return Err(io::Error::new(io::ErrorKind::Other, "EBADF"));
+                return io_error_from_name("EBADF");
             }
 
             let buffer = self._get_buffer(node).clone();

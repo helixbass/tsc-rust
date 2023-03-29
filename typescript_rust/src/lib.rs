@@ -652,6 +652,7 @@ pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };
 pub use rust_helpers::deref::AsDoubleDeref;
+pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::NonEmpty;
 pub use rust_helpers::sys::{
