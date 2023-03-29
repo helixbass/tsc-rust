@@ -933,7 +933,7 @@ impl TypeChecker {
             if (*self.get_node_links(left))
                 .borrow()
                 .resolved_symbol
-                .is_some()
+                .is_none()
                 && get_containing_class(left).is_some()
             {
                 let is_unchecked_js =
