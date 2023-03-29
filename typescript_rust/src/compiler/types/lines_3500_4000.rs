@@ -101,7 +101,7 @@ pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
     text[start..end].chars().count()
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct AmdDependency {
     pub path: String,
     pub name: Option<String>,
@@ -120,24 +120,24 @@ pub trait SourceFileLike {
     ) -> Option<usize>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct RedirectInfo {
     pub redirect_target: Gc<Node /*SourceFile*/>,
-    pub undirected: Gc<Node /*SourceFile*/>,
+    pub unredirected: Gc<Node /*SourceFile*/>,
 }
 
 pub trait HasStatementsInterface {
     fn statements(&self) -> &NodeArray;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SourceFile {
     _node: BaseNode,
     contents: Box<SourceFileContents>,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct SourceFileContents {
     statements: NodeArray,
     end_of_file_token: Gc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
@@ -368,7 +368,11 @@ impl SourceFile {
         *self.contents.original_file_name.borrow_mut() = original_file_name;
     }
 
-    pub fn maybe_redirect_info(&self) -> GcCellRefMut<Option<RedirectInfo>> {
+    pub fn maybe_redirect_info(&self) -> GcCellRef<Option<RedirectInfo>> {
+        self.contents.redirect_info.borrow()
+    }
+
+    pub fn maybe_redirect_info_mut(&self) -> GcCellRefMut<Option<RedirectInfo>> {
         self.contents.redirect_info.borrow_mut()
     }
 

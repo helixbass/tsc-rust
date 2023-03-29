@@ -132,6 +132,10 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_id(id)
                     }
 
+                    fn set_id_override(&self, id_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeIdOverride>>) {
+                        self.#first_field_name.set_id_override(id_override)
+                    }
+
                     fn maybe_parent(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
                         self.#first_field_name.maybe_parent()
                     }
@@ -162,6 +166,10 @@ fn get_ast_struct_interface_impl(
 
                     fn set_symbol(&self, symbol: ::gc::Gc<crate::Symbol>) {
                         self.#first_field_name.set_symbol(symbol);
+                    }
+
+                    fn set_symbol_override(&self, symbol_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeSymbolOverride>>) {
+                        self.#first_field_name.set_symbol_override(symbol_override)
                     }
 
                     fn maybe_locals(&self) -> ::std::option::Option<::gc::Gc<::gc::GcCell<crate::SymbolTable>>> {
@@ -598,6 +606,12 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
+                    fn set_id_override(&self, id_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeIdOverride>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_id_override(id_override)),*
+                        }
+                    }
+
                     fn maybe_parent(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_parent()),*
@@ -643,6 +657,12 @@ fn get_ast_enum_interface_impl(
                     fn set_symbol(&self, symbol: ::gc::Gc<crate::Symbol>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
+                        }
+                    }
+
+                    fn set_symbol_override(&self, symbol_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeSymbolOverride>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_symbol_override(symbol_override)),*
                         }
                     }
 

@@ -15,9 +15,10 @@ use crate::{
     set_resolved_type_reference_directive, string_contains, to_file_name_lower_case, AsDoubleDeref,
     CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
     FileIncludeKind, FileIncludeReason, FileReference, ModuleResolutionKind, Node, NodeArray,
-    NodeInterface, PackageId, Path, Program, ReadonlyTextRange, ReferencedFile,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
-    SourceOfProjectReferenceRedirect, SyntaxKind,
+    NodeId, NodeIdOverride, NodeInterface, NodeSymbolOverride, PackageId, Path, Program,
+    ReadonlyTextRange, RedirectInfo, ReferencedFile, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile, SourceFileLike,
+    SourceOfProjectReferenceRedirect, Symbol, SyntaxKind,
 };
 
 impl Program {
@@ -235,7 +236,25 @@ impl Program {
         resolved_path: &Path,
         original_file_name: &str,
     ) -> Gc<Node /*SourceFile*/> {
-        unimplemented!()
+        let mut redirect: SourceFile = redirect_target.as_source_file().clone();
+        redirect.set_file_name(file_name.to_owned());
+        redirect.set_path(path.clone());
+        redirect.set_resolved_path(Some(resolved_path.clone()));
+        redirect.set_original_file_name(Some(original_file_name.to_owned()));
+        *redirect.maybe_redirect_info_mut() = Some(RedirectInfo {
+            redirect_target: redirect_target.node_wrapper(),
+            unredirected: unredirected.node_wrapper(),
+        });
+        self.source_files_found_searching_node_modules_mut()
+            .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
+        let redirect: Gc<Node> = redirect.into();
+        redirect.set_id_override(Gc::new(Box::new(RedirectSourceFileIdOverride::new(
+            redirect.clone(),
+        ))));
+        redirect.set_symbol_override(Gc::new(Box::new(RedirectSourceFileSymbolOverride::new(
+            redirect.clone(),
+        ))));
+        redirect
     }
 
     pub fn find_source_file(
@@ -343,7 +362,7 @@ impl Program {
                     Some(true)
                 ) && self.current_node_modules_depth() == 0
             }) {
-                self.source_files_found_searching_node_modules()
+                self.source_files_found_searching_node_modules_mut()
                     .insert(file.as_source_file().path().to_string(), false);
                 if self.options.no_resolve != Some(true) {
                     self.process_referenced_files(file, is_default_lib);
@@ -443,7 +462,7 @@ impl Program {
         self.add_file_to_files_by_name(file.as_deref(), &path, redirected_path.as_ref());
 
         if let Some(file) = file.as_ref() {
-            self.source_files_found_searching_node_modules()
+            self.source_files_found_searching_node_modules_mut()
                 .insert(path.to_string(), self.current_node_modules_depth() > 0);
             let file_as_source_file = file.as_source_file();
             file_as_source_file.set_file_name(file_name.clone());
@@ -960,6 +979,76 @@ impl Program {
                 .clone();
         }
         combine_paths(&self.default_library_path(), &[Some(lib_file_name)])
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+struct RedirectSourceFileIdOverride {
+    redirect_source_file: Gc<Node>,
+}
+
+impl RedirectSourceFileIdOverride {
+    fn new(redirect_source_file: Gc<Node>) -> Self {
+        Self {
+            redirect_source_file,
+        }
+    }
+}
+
+impl NodeIdOverride for RedirectSourceFileIdOverride {
+    fn maybe_id(&self) -> Option<NodeId> {
+        self.redirect_source_file
+            .as_source_file()
+            .maybe_redirect_info()
+            .as_ref()
+            .unwrap()
+            .redirect_target
+            .maybe_id()
+    }
+
+    fn set_id(&self, value: NodeId) {
+        self.redirect_source_file
+            .as_source_file()
+            .maybe_redirect_info()
+            .as_ref()
+            .unwrap()
+            .redirect_target
+            .set_id(value);
+    }
+}
+
+#[derive(Debug, Trace, Finalize)]
+struct RedirectSourceFileSymbolOverride {
+    redirect_source_file: Gc<Node>,
+}
+
+impl RedirectSourceFileSymbolOverride {
+    fn new(redirect_source_file: Gc<Node>) -> Self {
+        Self {
+            redirect_source_file,
+        }
+    }
+}
+
+impl NodeSymbolOverride for RedirectSourceFileSymbolOverride {
+    fn maybe_symbol(&self) -> Option<Gc<Symbol>> {
+        self.redirect_source_file
+            .as_source_file()
+            .maybe_redirect_info()
+            .as_ref()
+            .unwrap()
+            .redirect_target
+            .maybe_symbol()
+    }
+
+    fn set_symbol(&self, value: Gc<Symbol>) {
+        self.redirect_source_file
+            .as_source_file()
+            .maybe_redirect_info()
+            .as_ref()
+            .unwrap()
+            .redirect_target
+            .set_symbol(value);
     }
 }
 

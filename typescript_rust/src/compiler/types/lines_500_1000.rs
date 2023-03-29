@@ -2,8 +2,7 @@
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::rc::Rc;
+use std::{cell::Cell, fmt};
 
 use crate::{
     CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
@@ -187,6 +186,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
+    fn set_id_override(&self, id_override: Gc<Box<dyn NodeIdOverride>>);
     fn maybe_parent(&self) -> Option<Gc<Node>>;
     fn parent(&self) -> Gc<Node>;
     fn set_parent(&self, parent: Gc<Node>);
@@ -195,6 +195,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
     fn symbol(&self) -> Gc<Symbol>;
     fn set_symbol(&self, symbol: Gc<Symbol>);
+    fn set_symbol_override(&self, symbol_override: Gc<Box<dyn NodeSymbolOverride>>);
     fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>>;
     fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
     fn locals(&self) -> Gc<GcCell<SymbolTable>>;
@@ -224,6 +225,16 @@ pub trait NodeInterface: ReadonlyTextRange {
     // _children: Node[] | undefined;
     // IncrementalNode
     // hasBeenIncrementallyParsed: boolean;
+}
+
+pub trait NodeIdOverride: fmt::Debug + Trace + Finalize {
+    fn maybe_id(&self) -> Option<NodeId>;
+    fn set_id(&self, id: NodeId);
+}
+
+pub trait NodeSymbolOverride: fmt::Debug + Trace + Finalize {
+    fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
+    fn set_symbol(&self, symbol: Gc<Symbol>);
 }
 
 #[derive(Debug, Finalize, Trace)]
@@ -1676,9 +1687,20 @@ impl Node {
     }
 }
 
+impl Clone for Node {
+    fn clone(&self) -> Self {
+        match self {
+            Self::SourceFile(node) => Self::SourceFile(node.clone()),
+            _ => unimplemented!(),
+        }
+    }
+}
+
 #[derive(Debug, Finalize, Trace)]
 pub struct BaseNode {
     _node_wrapper: GcCell<Option<Gc<Node>>>,
+    _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
+    _symbol_override: GcCell<Option<Gc<Box<dyn NodeSymbolOverride>>>>,
     #[unsafe_ignore_trace]
     pub kind: SyntaxKind,
     #[unsafe_ignore_trace]
@@ -1721,6 +1743,8 @@ impl BaseNode {
     ) -> Self {
         Self {
             _node_wrapper: Default::default(),
+            _id_override: Default::default(),
+            _symbol_override: Default::default(),
             kind,
             flags: Cell::new(flags),
             modifier_flags_cache: Cell::new(ModifierFlags::None),
@@ -1805,15 +1829,29 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_id(&self) -> Option<NodeId> {
-        self.id.get()
+        match self._id_override.borrow().as_ref() {
+            Some(id_override) => id_override.maybe_id(),
+            None => self.id.get(),
+        }
     }
 
     fn id(&self) -> NodeId {
-        self.id.get().unwrap()
+        self.maybe_id().unwrap()
     }
 
     fn set_id(&self, id: NodeId) {
-        self.id.set(Some(id));
+        match self._id_override.borrow().as_ref() {
+            Some(id_override) => {
+                id_override.set_id(id);
+            }
+            None => {
+                self.id.set(Some(id));
+            }
+        }
+    }
+
+    fn set_id_override(&self, id_override: Gc<Box<dyn NodeIdOverride>>) {
+        *self._id_override.borrow_mut() = Some(id_override);
     }
 
     fn maybe_parent(&self) -> Option<Gc<Node>> {
@@ -1837,15 +1875,29 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_symbol(&self) -> Option<Gc<Symbol>> {
-        self.symbol.borrow().clone()
+        match self._symbol_override.borrow().as_ref() {
+            Some(symbol_override) => symbol_override.maybe_symbol(),
+            None => self.symbol.borrow().clone(),
+        }
     }
 
     fn symbol(&self) -> Gc<Symbol> {
-        self.symbol.borrow().clone().unwrap()
+        self.maybe_symbol().unwrap()
     }
 
     fn set_symbol(&self, symbol: Gc<Symbol>) {
-        *self.symbol.borrow_mut() = Some(symbol);
+        match self._symbol_override.borrow().as_ref() {
+            Some(symbol_override) => {
+                symbol_override.set_symbol(symbol);
+            }
+            None => {
+                *self.symbol.borrow_mut() = Some(symbol);
+            }
+        }
+    }
+
+    fn set_symbol_override(&self, symbol_override: Gc<Box<dyn NodeSymbolOverride>>) {
+        *self._symbol_override.borrow_mut() = Some(symbol_override);
     }
 
     fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>> {
@@ -1970,6 +2022,38 @@ impl From<BaseNode> for Gc<Node> {
         let rc = Gc::new(Node::BaseNode(base_node));
         rc.set_node_wrapper(rc.clone());
         rc
+    }
+}
+
+impl Clone for BaseNode {
+    fn clone(&self) -> Self {
+        Self {
+            _node_wrapper: Default::default(),
+            _id_override: self._id_override.clone(),
+            _symbol_override: self._symbol_override.clone(),
+            kind: self.kind.clone(),
+            flags: self.flags.clone(),
+            modifier_flags_cache: self.modifier_flags_cache.clone(),
+            transform_flags: self.transform_flags.clone(),
+            decorators: self.decorators.clone(),
+            modifiers: self.modifiers.clone(),
+            id: self.id.clone(),
+            parent: self.parent.clone(),
+            original: self.original.clone(),
+            pos: self.pos.clone(),
+            end: self.end.clone(),
+            symbol: self.symbol.clone(),
+            locals: self.locals.clone(),
+            next_container: self.next_container.clone(),
+            local_symbol: self.local_symbol.clone(),
+            emit_node: self.emit_node.clone(),
+            contextual_type: self.contextual_type.clone(),
+            inference_context: self.inference_context.clone(),
+            flow_node: self.flow_node.clone(),
+            js_doc: self.js_doc.clone(),
+            js_doc_cache: self.js_doc_cache.clone(),
+            intersects_change: self.intersects_change.clone(),
+        }
     }
 }
 

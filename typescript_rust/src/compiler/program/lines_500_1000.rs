@@ -1215,7 +1215,11 @@ impl Program {
         self.modules_with_elided_imports.borrow_mut()
     }
 
-    pub(super) fn source_files_found_searching_node_modules(
+    pub(super) fn source_files_found_searching_node_modules(&self) -> Ref<HashMap<String, bool>> {
+        self.source_files_found_searching_node_modules.borrow()
+    }
+
+    pub(super) fn source_files_found_searching_node_modules_mut(
         &self,
     ) -> RefMut<HashMap<String, bool>> {
         self.source_files_found_searching_node_modules.borrow_mut()
