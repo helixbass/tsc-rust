@@ -376,7 +376,15 @@ pub mod vfs {
         }
 
         pub fn apply(&self, files: &FileSet) {
-            unimplemented!()
+            self._apply_files(
+                files,
+                {
+                    let value = self.maybe_cwd().clone();
+                    value
+                }
+                .as_deref()
+                .unwrap(),
+            );
         }
 
         pub fn mount_sync(&self, source: &str, target: &str, resolver: Gc<FileSystemResolver>) {
@@ -575,7 +583,47 @@ pub mod vfs {
         }
 
         pub fn symlink_sync(&self, target: &str, linkpath: &str) {
-            unimplemented!()
+            if self.is_readonly() {
+                // throw createIOError("EROFS");
+                panic!("EROFS");
+            }
+
+            let WalkResult {
+                parent,
+                links,
+                node: existing_node,
+                basename,
+                ..
+            } = self
+                ._walk(
+                    &self._resolve(linkpath),
+                    Some(true),
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if parent.is_none() {
+                // throw createIOError("EPERM");
+                panic!("EPERM");
+            }
+            let parent = parent.unwrap();
+            if existing_node.is_some() {
+                // throw createIOError("EEXIST");
+                panic!("EEXIST");
+            }
+
+            let time = self.time();
+            let mut node = self._mknod(parent.dev(), S_IFLNK, 0o666, Some(time));
+            node.as_symlink_inode_mut().symlink = Some(vpath::validate(
+                target,
+                Some(vpath::ValidationFlags::RelativeOrAbsolute),
+            ));
+            self._add_link(
+                Some(&parent),
+                &mut links.borrow_mut(),
+                &basename,
+                Gc::new(node),
+                Some(time),
+            );
         }
 
         pub fn realpath_sync(&self, path: &str) -> String {
@@ -914,11 +962,11 @@ pub mod vfs {
             })
         }
 
-        fn _walk<TOnError: FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>(
+        fn _walk(
             &self,
             path: &str,
             no_follow: Option<bool>,
-            mut on_error: Option<TOnError>,
+            mut on_error: Option<impl FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>,
         ) -> Option<WalkResult> {
             let mut links = self._get_root_links();
             let mut parent: Option<Gc<Inode>> = None;

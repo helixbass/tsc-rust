@@ -1446,7 +1446,7 @@ pub fn for_each_child_returns<
         Node::PartiallyEmittedExpression(node) => {
             visit_node_returns(&mut cb_node, Some(&*node.expression))
         }
-        _ => unimplemented!(),
+        _ => None
     }
 }
 
