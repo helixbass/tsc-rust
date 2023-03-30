@@ -2,16 +2,16 @@
 
 use gc::Gc;
 use std::borrow::Borrow;
-use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, FileReference,
-    HasStatementsInterface, InputFiles, LanguageVariant, NamedDeclarationInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
-    PropertyAssignment, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
-    SpreadAssignment, StrOrRcNode, StringOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags,
-    Type, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
+    every, is_outer_expression, is_statement_or_block, single_or_undefined, BaseNodeFactory,
+    BaseUnparsedNode, Bundle, Debug_, EnumMember, FileReference, HasStatementsInterface,
+    InputFiles, LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind,
+    ScriptTarget, ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StrOrRcNode,
+    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -325,5 +325,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
         unimplemented!()
+    }
+
+    pub fn lift_to_block(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        nodes: &[Gc<Node>],
+    ) -> Gc<Node /*Statement*/> {
+        Debug_.assert(
+            every(nodes, |node: &Gc<Node>, _| is_statement_or_block(node)),
+            Some("Cannot lift nodes to a Block."),
+        );
+        single_or_undefined(Some(nodes))
+            .cloned()
+            .unwrap_or_else(|| {
+                self.create_block(base_factory, nodes.to_owned(), None)
+                    .into()
+            })
     }
 }

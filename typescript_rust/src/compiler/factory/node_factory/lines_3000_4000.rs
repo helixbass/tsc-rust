@@ -149,10 +149,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_block<TStatements: Into<NodeArrayOrVec>>(
+    pub fn create_block(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: TStatements, /*Statement*/
+        statements: impl Into<NodeArrayOrVec>, /*Statement*/
         multi_line: Option<bool>,
     ) -> Block {
         let node = self.create_base_node(base_factory, SyntaxKind::Block);
@@ -163,6 +163,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
+    }
+
+    pub fn update_block(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,                           /*Block*/
+        statements: impl Into<NodeArrayOrVec>, /*Statement*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_variable_statement<
@@ -327,6 +336,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_for_in_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ForInStatement*/
+        initializer: Gc<Node /*ForInitializer*/>,
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_for_of_statement(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -356,6 +376,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsES2018);
         }
         node
+    }
+
+    pub fn update_for_of_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ForOfStatement*/
+        await_modifier: Option<Gc<Node /*AwaitKeyword*/>>,
+        initializer: Gc<Node /*ForInitializer*/>,
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_continue_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(

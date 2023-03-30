@@ -81,8 +81,8 @@ pub use compiler::factory::base_node_factory::{
 use compiler::factory::emit_helpers::compare_emit_helpers;
 pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
 pub use compiler::factory::emit_node::{
-    add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, get_comment_range,
-    get_constant_value, get_emit_helpers, get_synthetic_leading_comments,
+    add_emit_flags, add_emit_helpers, add_synthetic_leading_comment, dispose_emit_nodes,
+    get_comment_range, get_constant_value, get_emit_helpers, get_synthetic_leading_comments,
     get_synthetic_trailing_comments, set_comment_range, set_emit_flags,
     set_synthetic_leading_comments,
 };
@@ -497,8 +497,8 @@ pub use compiler::utilities::{
     is_child_of_node_with_kind, is_computed_non_literal_name, is_declaration_name,
     is_declaration_readonly, is_defaulted_expando_initializer, is_delete_target,
     is_destructuring_assignment, is_dotted_name, is_dynamic_name, is_effective_external_module,
-    is_effective_module_declaration, is_empty_object_literal, is_entity_name_expression,
-    is_enum_const, is_exports_identifier, is_expression_node,
+    is_effective_module_declaration, is_effective_strict_mode_source_file, is_empty_object_literal,
+    is_entity_name_expression, is_enum_const, is_exports_identifier, is_expression_node,
     is_expression_with_type_arguments_in_class_extends_clause, is_external_module_augmentation,
     is_external_module_import_equals_declaration, is_external_or_common_js_module,
     is_file_level_unique_name, is_function_block, is_function_expression_or_arrow_function,
@@ -513,14 +513,14 @@ pub use compiler::utilities::{
     is_literal_import_type_node, is_logical_or_coalescing_assignment_operator,
     is_module_augmentation_external, is_module_exports_access_expression, is_module_identifier,
     is_module_with_string_literal_name, is_namespace_reexport_declaration, is_node_descendant_of,
-    is_non_global_ambient_module, is_object_literal_method,
-    is_object_literal_or_class_expression_method_or_accessor, is_parameter_declaration,
-    is_parameter_or_catch_clause_variable, is_part_of_type_node, is_part_of_type_query,
-    is_pinned_comment, is_prologue_directive, is_property_access_entity_name_expression,
-    is_property_name_literal, is_prototype_access, is_prototype_property_assignment,
-    is_push_or_unshift_identifier, is_recognized_triple_slash_comment, is_require_call,
-    is_require_variable_declaration, is_rest_parameter,
-    is_right_side_of_qualified_name_or_property_access,
+    is_node_with_possible_hoisted_declaration, is_non_global_ambient_module,
+    is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
+    is_parameter_declaration, is_parameter_or_catch_clause_variable, is_part_of_type_node,
+    is_part_of_type_query, is_pinned_comment, is_prologue_directive,
+    is_property_access_entity_name_expression, is_property_name_literal, is_prototype_access,
+    is_prototype_property_assignment, is_push_or_unshift_identifier,
+    is_recognized_triple_slash_comment, is_require_call, is_require_variable_declaration,
+    is_rest_parameter, is_right_side_of_qualified_name_or_property_access,
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_same_entity_name,
     is_shorthand_ambient_module_symbol, is_signed_numeric_literal, is_single_or_double_quote,
     is_source_file_js, is_source_file_not_json, is_special_property_declaration,
@@ -629,7 +629,9 @@ use compiler::utilities_public::{
     needs_scope_marker, node_has_name, supported_locale_directories,
     text_range_contains_position_inclusive,
 };
-pub use compiler::visitor_public::{visit_each_child, visit_node, visit_nodes};
+pub use compiler::visitor_public::{
+    visit_each_child, visit_iteration_body, visit_node, visit_nodes,
+};
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
     create_watch_status_reporter, emit_files_and_report_errors_and_get_exit_status,

@@ -145,6 +145,10 @@ pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNu
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
 }
 
+pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
+    unimplemented!()
+}
+
 pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().helpers.clone())
