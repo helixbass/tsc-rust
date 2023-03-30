@@ -9,8 +9,8 @@ use gc::{Finalize, Gc, Trace};
 use crate::{
     chain_bundle, get_emit_script_target, BaseNodeFactorySynthetic, CompilerOptions, EmitResolver,
     Node, NodeCheckFlags, NodeFactory, ScriptTarget, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, __String,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, __String,
 };
 
 bitflags! {
@@ -76,6 +76,12 @@ impl TransformES2017 {
                 previous_on_emit_node,
             )))
         });
+        context.override_on_substitute_node(&mut |previous_on_substitute_node| {
+            Gc::new(Box::new(TransformES2017OnSubstituteNodeOverrider::new(
+                ret.clone(),
+                previous_on_substitute_node,
+            )))
+        });
         ret
     }
 
@@ -115,6 +121,30 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2017OnEmitNodeOverr
         node: &Node,
         emit_callback: &dyn Fn(crate::EmitHint, &Node),
     ) {
+        unimplemented!()
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TransformES2017OnSubstituteNodeOverrider {
+    transform_es2017: Transformer,
+    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+}
+
+impl TransformES2017OnSubstituteNodeOverrider {
+    fn new(
+        transform_es2017: Transformer,
+        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    ) -> Self {
+        Self {
+            transform_es2017,
+            previous_on_substitute_node,
+        }
+    }
+}
+
+impl TransformationContextOnSubstituteNodeOverrider for TransformES2017OnSubstituteNodeOverrider {
+    fn on_substitute_node(&self, hint: crate::EmitHint, node: &Node) -> Gc<Node> {
         unimplemented!()
     }
 }

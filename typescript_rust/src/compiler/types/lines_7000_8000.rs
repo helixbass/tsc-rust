@@ -233,6 +233,13 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
     fn is_substitution_enabled(&self, node: &Node) -> bool;
 
     fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
+    fn override_on_substitute_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        )
+            -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    );
 
     fn enable_emit_notification(&self, kind: SyntaxKind);
 
@@ -250,13 +257,11 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 }
 
 pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
-    fn on_emit_node(
-        &self,
-        hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node),
-        // previous_on_emit_node: &dyn Fn(EmitHint, &Node, &dyn Fn(EmitHint, &Node)),
-    );
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node));
+}
+
+pub trait TransformationContextOnSubstituteNodeOverrider: Trace + Finalize {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
 }
 
 pub trait TransformationResult {
