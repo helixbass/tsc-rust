@@ -20,9 +20,10 @@ use crate::{
     CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_, Diagnostic,
     EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver,
     EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags,
-    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext, TransformationResult,
-    Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerFactoryOrCustomTransformerFactory, TransformerInterface,
+    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
+    TransformerInterface,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -344,6 +345,8 @@ pub fn transform_nodes(
 pub struct TransformNodesTransformationResult {
     _rc_wrapper: GcCell<Option<Gc<Box<TransformNodesTransformationResult>>>>,
     _dyn_transformation_context_wrapper: GcCell<Option<Gc<Box<dyn TransformationContext>>>>,
+    on_emit_node_outermost_override_or_original_method:
+        GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     transformed: GcCell<Vec<Gc<Node>>>,
     #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
@@ -406,6 +409,9 @@ impl TransformNodesTransformationResult {
             Gc::new(Box::new(Self {
                 _rc_wrapper: Default::default(),
                 _dyn_transformation_context_wrapper: Default::default(),
+                on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
+                    NoEmitNotificationTransformationContextOnEmitNodeOverrider,
+                ))),
                 transformed: GcCell::new(transformed),
                 state: Cell::new(state),
                 nodes,
@@ -1157,13 +1163,38 @@ impl TransformationContext for TransformNodesTransformationResult {
             && !get_emit_flags(node).intersects(EmitFlags::AdviseOnEmitNode)
     }
 
-    // TODO: need to support setting of onEmitNode?
     fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
-        no_emit_notification(hint, node, emit_callback)
+        self.on_emit_node_outermost_override_or_original_method
+            .borrow()
+            .on_emit_node(hint, node, emit_callback)
+    }
+
+    fn override_on_emit_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    ) {
+        let mut on_emit_node_outermost_override_or_original_method = self
+            .on_emit_node_outermost_override_or_original_method
+            .borrow_mut();
+        let previous_on_emit_node = on_emit_node_outermost_override_or_original_method.clone();
+        *on_emit_node_outermost_override_or_original_method = overrider(previous_on_emit_node);
     }
 
     fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {
         self.diagnostics().push(diag);
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct NoEmitNotificationTransformationContextOnEmitNodeOverrider;
+
+impl TransformationContextOnEmitNodeOverrider
+    for NoEmitNotificationTransformationContextOnEmitNodeOverrider
+{
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+        no_emit_notification(hint, node, emit_callback)
     }
 }
 
@@ -1327,6 +1358,14 @@ impl TransformationContext for TransformationContextNull {
 
     fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
         no_emit_notification(hint, node, emit_callback)
+    }
+    fn override_on_emit_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    ) {
+        unreachable!("maybe?")
     }
 
     fn add_diagnostic(&self, _diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {}

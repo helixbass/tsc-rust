@@ -239,8 +239,24 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
     fn is_emit_notification_enabled(&self, node: &Node) -> bool;
 
     fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node));
+    fn override_on_emit_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    );
 
     fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>);
+}
+
+pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node),
+        // previous_on_emit_node: &dyn Fn(EmitHint, &Node, &dyn Fn(EmitHint, &Node)),
+    );
 }
 
 pub trait TransformationResult {

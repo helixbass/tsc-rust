@@ -382,23 +382,23 @@ pub use compiler::types::{
     TemplateLiteralLikeNodeInterface, TemplateLiteralType, TemplateLiteralTypeNode,
     TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
     ThisTypeNode, ThrowStatement, ToHashMapOfCompilerOptionsValues, TokenFlags, TransformFlags,
-    TransformationContext, TransformationResult, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
-    TransformerInterface, TransientSymbol, TransientSymbolInterface, TryStatement,
-    TsConfigOnlyOption, TupleType, TupleTypeNode, Type, TypeAcquisition, TypeAliasDeclaration,
-    TypeAssertion, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeComparer,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper,
-    TypeMapperCallback, TypeOfExpression, TypeOperatorNode, TypeParameter,
-    TypeParameterDeclaration, TypePredicate, TypePredicateKind, TypePredicateNode, TypeQueryNode,
-    TypeReference, TypeReferenceInterface, TypeReferenceNode, TypeReferenceSerializationKind,
-    UnaryExpressionInterface, UnderscoreEscapedMap, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode, UniqueESSymbolType,
-    UnparsedPrepend, UnparsedPrologue, UnparsedSectionInterface, UnparsedSource,
-    UnparsedSyntheticReference, UnparsedTextLike, UserPreferences, UserPreferencesBuilder,
-    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VarianceFlags, VisitResult, VisitResultInterface, VoidExpression,
-    WatchDirectoryFlags, WatchDirectoryKind, WatchFileKind, WatchOptions, WhileStatement,
-    WithStatement, WriteFileCallback, YieldExpression, __String,
+    TransformationContext, TransformationContextOnEmitNodeOverrider, TransformationResult,
+    Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerFactoryOrCustomTransformerFactory, TransformerInterface, TransientSymbol,
+    TransientSymbolInterface, TryStatement, TsConfigOnlyOption, TupleType, TupleTypeNode, Type,
+    TypeAcquisition, TypeAliasDeclaration, TypeAssertion, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeComparer, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    TypeLiteralNode, TypeMapper, TypeMapperCallback, TypeOfExpression, TypeOperatorNode,
+    TypeParameter, TypeParameterDeclaration, TypePredicate, TypePredicateKind, TypePredicateNode,
+    TypeQueryNode, TypeReference, TypeReferenceInterface, TypeReferenceNode,
+    TypeReferenceSerializationKind, UnaryExpressionInterface, UnderscoreEscapedMap,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
+    UnionTypeNode, UniqueESSymbolType, UnparsedPrepend, UnparsedPrologue, UnparsedSectionInterface,
+    UnparsedSource, UnparsedSyntheticReference, UnparsedTextLike, UserPreferences,
+    UserPreferencesBuilder, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, VarianceFlags, VisitResult,
+    VisitResultInterface, VoidExpression, WatchDirectoryFlags, WatchDirectoryKind, WatchFileKind,
+    WatchOptions, WhileStatement, WithStatement, WriteFileCallback, YieldExpression, __String,
 };
 use compiler::types::{
     AccessFlags, BundleBuildInfo, CommentDirectivesMap, EmitNode,
@@ -653,7 +653,7 @@ pub use rust_helpers::debugging::{
 pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
-pub use rust_helpers::option::NonEmpty;
+pub use rust_helpers::option::{GetOrInsertDefault, NonEmpty};
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
     fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join, process_cwd,
