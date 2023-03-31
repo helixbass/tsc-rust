@@ -174,14 +174,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         unimplemented!()
     }
 
-    pub fn create_variable_statement<
-        TModifiers: Into<NodeArrayOrVec>,
-        TDeclarationList: Into<RcNodeOrNodeArrayOrVec>,
-    >(
+    pub fn create_variable_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<TModifiers>,
-        declaration_list: TDeclarationList,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        declaration_list: impl Into<RcNodeOrNodeArrayOrVec>,
     ) -> VariableStatement {
         let node = self.create_base_declaration(
             base_factory,
@@ -536,10 +533,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         DebuggerStatement::new(node)
     }
 
-    pub fn create_variable_declaration<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_variable_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: Option<TName /*BindingName*/>,
+        name: Option<impl Into<StrOrRcNode<'name> /*BindingName*/>>,
         exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
@@ -565,10 +562,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_variable_declaration_list<TDeclarations: Into<NodeArrayOrVec>>(
+    pub fn create_variable_declaration_list(
         &self,
         base_factory: &TBaseNodeFactory,
-        declarations: TDeclarations,
+        declarations: impl Into<NodeArrayOrVec>,
         flags: Option<NodeFlags>,
     ) -> VariableDeclarationList {
         let flags = flags.unwrap_or(NodeFlags::None);

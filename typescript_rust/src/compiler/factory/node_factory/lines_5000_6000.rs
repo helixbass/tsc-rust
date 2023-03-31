@@ -15,10 +15,10 @@ use crate::{
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn create_property_assignment<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_property_assignment<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: TName, /*PropertyName*/
+        name: impl Into<StrOrRcNode<'name> /*PropertyName*/>,
         initializer: Gc<Node /*Expression*/>,
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(

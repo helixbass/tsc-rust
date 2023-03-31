@@ -17,16 +17,17 @@ use crate::{
     is_entity_name, is_function_like, is_identifier, is_modifier,
     is_node_with_possible_hoisted_declaration, is_omitted_expression,
     is_property_access_expression, is_super_property, is_token, is_variable_declaration_list, map,
-    ref_mut_unwrapped, ref_unwrapped, set_original_node, set_source_map_range, set_text_range,
-    set_text_range_node_array, set_text_range_rc_node, visit_each_child, visit_function_body,
-    visit_iteration_body, visit_node, visit_nodes, visit_parameter_list, with_synthetic_factory,
-    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitHint, EmitResolver, FunctionFlags,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeFactory, NodeFlags, NodeId,
-    NodeInterface, NonEmpty, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
-    SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TypeReferenceSerializationKind,
-    VisitResult,
+    ref_mut_unwrapped, ref_unwrapped, set_emit_flags, set_original_node, set_source_map_range,
+    set_text_range, set_text_range_node_array, set_text_range_rc_node,
+    unescape_leading_underscores, visit_each_child, visit_function_body, visit_iteration_body,
+    visit_node, visit_nodes, visit_parameter_list, with_synthetic_factory,
+    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHint, EmitResolver,
+    FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags,
+    NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange, ScriptTarget,
+    SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TypeReferenceSerializationKind, VisitResult,
 };
 
 bitflags! {
@@ -1555,7 +1556,58 @@ impl TransformES2017 {
         argument_expression: &Node,        /*Expression*/
         location: &impl ReadonlyTextRange, /*TextRange*/
     ) -> Gc<Node /*LeftHandSideExpression*/> {
-        unimplemented!()
+        if self
+            .enclosing_super_container_flags()
+            .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
+        {
+            set_text_range_rc_node(
+                with_synthetic_factory(|synthetic_factory_| {
+                    self.factory
+                        .create_property_access_expression(
+                            synthetic_factory_,
+                            self.factory
+                                .create_call_expression(
+                                    synthetic_factory_,
+                                    self.factory.create_unique_name(
+                                        synthetic_factory_,
+                                        "_superIndex",
+                                        Some(
+                                            GeneratedIdentifierFlags::Optimistic
+                                                | GeneratedIdentifierFlags::FileLevel,
+                                        ),
+                                    ),
+                                    Option::<NodeArray>::None,
+                                    Some(vec![argument_expression.node_wrapper()]),
+                                )
+                                .into(),
+                            "value",
+                        )
+                        .into()
+                }),
+                Some(location),
+            )
+        } else {
+            set_text_range_rc_node(
+                with_synthetic_factory(|synthetic_factory_| {
+                    self.factory
+                        .create_call_expression(
+                            synthetic_factory_,
+                            self.factory.create_unique_name(
+                                synthetic_factory_,
+                                "_superIndex",
+                                Some(
+                                    GeneratedIdentifierFlags::Optimistic
+                                        | GeneratedIdentifierFlags::FileLevel,
+                                ),
+                            ),
+                            Option::<NodeArray>::None,
+                            Some(vec![argument_expression.node_wrapper()]),
+                        )
+                        .into()
+                }),
+                Some(location),
+            )
+        }
     }
 }
 
@@ -1690,5 +1742,176 @@ pub fn create_super_access_variable_statement(
     node: &Node, /*FunctionLikeDeclaration*/
     names: &HashSet<__String>,
 ) -> Gc<Node> {
-    unimplemented!()
+    let has_binding = resolver
+        .get_node_check_flags(node)
+        .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding);
+    let mut accessors: Vec<Gc<Node /*PropertyAssignment*/>> = Default::default();
+    names.iter().for_each(|key| {
+        let name = unescape_leading_underscores(key);
+        let mut getter_and_setter: Vec<Gc<Node /*PropertyAssignment*/>> = Default::default();
+        getter_and_setter.push(with_synthetic_factory(|synthetic_factory_| {
+            factory
+                .create_property_assignment(
+                    synthetic_factory_,
+                    "get",
+                    factory
+                        .create_arrow_function(
+                            synthetic_factory_,
+                            Option::<NodeArray>::None,
+                            Option::<NodeArray>::None,
+                            vec![],
+                            None,
+                            None,
+                            set_emit_flags(
+                                factory
+                                    .create_property_access_expression(
+                                        synthetic_factory_,
+                                        set_emit_flags(
+                                            factory.create_super(synthetic_factory_).into(),
+                                            EmitFlags::NoSubstitution,
+                                        ),
+                                        name,
+                                    )
+                                    .into(),
+                                EmitFlags::NoSubstitution,
+                            ),
+                        )
+                        .into(),
+                )
+                .into()
+        }));
+        if has_binding {
+            getter_and_setter.push(with_synthetic_factory(|synthetic_factory_| {
+                factory
+                    .create_property_assignment(
+                        synthetic_factory_,
+                        "set",
+                        factory
+                            .create_arrow_function(
+                                synthetic_factory_,
+                                Option::<NodeArray>::None,
+                                Option::<NodeArray>::None,
+                                vec![factory
+                                    .create_parameter_declaration(
+                                        synthetic_factory_,
+                                        Option::<NodeArray>::None,
+                                        Option::<NodeArray>::None,
+                                        None,
+                                        Some("v"),
+                                        None,
+                                        None,
+                                        None,
+                                    )
+                                    .into()],
+                                None,
+                                None,
+                                factory
+                                    .create_assignment(
+                                        synthetic_factory_,
+                                        set_emit_flags(
+                                            factory
+                                                .create_property_access_expression(
+                                                    synthetic_factory_,
+                                                    set_emit_flags(
+                                                        factory
+                                                            .create_super(synthetic_factory_)
+                                                            .into(),
+                                                        EmitFlags::NoSubstitution,
+                                                    ),
+                                                    name,
+                                                )
+                                                .into(),
+                                            EmitFlags::NoSubstitution,
+                                        ),
+                                        factory
+                                            .create_identifier(
+                                                synthetic_factory_,
+                                                "v",
+                                                Option::<NodeArray>::None,
+                                                None,
+                                            )
+                                            .into(),
+                                    )
+                                    .into(),
+                            )
+                            .into(),
+                    )
+                    .into()
+            }));
+        }
+        accessors.push(with_synthetic_factory(|synthetic_factory_| {
+            factory
+                .create_property_assignment(
+                    synthetic_factory_,
+                    name,
+                    factory
+                        .create_object_literal_expression(
+                            synthetic_factory_,
+                            Some(getter_and_setter),
+                            None,
+                        )
+                        .into(),
+                )
+                .into()
+        }));
+    });
+    with_synthetic_factory(|synthetic_factory_| {
+        factory
+            .create_variable_statement(
+                synthetic_factory_,
+                Option::<NodeArray>::None,
+                Gc::<Node>::from(factory.create_variable_declaration_list(
+                    synthetic_factory_,
+                    vec![factory
+                            .create_variable_declaration(
+                                synthetic_factory_,
+                                Some(factory.create_unique_name(
+                                    synthetic_factory_,
+                                    "_super",
+                                    Some(
+                                        GeneratedIdentifierFlags::Optimistic
+                                            | GeneratedIdentifierFlags::FileLevel,
+                                    ),
+                                )),
+                                None,
+                                None,
+                                Some(
+                                    factory
+                                        .create_call_expression(
+                                            synthetic_factory_,
+                                            factory
+                                                .create_property_access_expression(
+                                                    synthetic_factory_,
+                                                    factory
+                                                        .create_identifier(
+                                                            synthetic_factory_,
+                                                            "Object",
+                                                            Option::<NodeArray>::None,
+                                                            None,
+                                                        )
+                                                        .into(),
+                                                    "create",
+                                                )
+                                                .into(),
+                                            Option::<NodeArray>::None,
+                                            Some(vec![
+                                                factory.create_null(synthetic_factory_).into(),
+                                                factory
+                                                    .create_object_literal_expression(
+                                                        synthetic_factory_,
+                                                        Some(accessors),
+                                                        Some(true),
+                                                    )
+                                                    .into(),
+                                            ]),
+                                        )
+                                        .into(),
+                                ),
+                            )
+                            .into()],
+                    Some(NodeFlags::Const),
+                )),
+            )
+            .into()
+    })
 }

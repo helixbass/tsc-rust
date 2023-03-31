@@ -314,10 +314,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_object_literal_expression<TProperties: Into<NodeArrayOrVec>>(
+    pub fn create_object_literal_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        properties: Option<TProperties>, /*ObjectLiteralElementLike*/
+        properties: Option<impl Into<NodeArrayOrVec> /*ObjectLiteralElementLike*/>,
         multi_line: Option<bool>,
     ) -> ObjectLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ObjectLiteralExpression);

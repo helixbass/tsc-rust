@@ -189,18 +189,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_parameter_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn create_parameter_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
-        name: Option<TName>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
         question_token: Option<Gc<Node /*QuestionToken*/>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
