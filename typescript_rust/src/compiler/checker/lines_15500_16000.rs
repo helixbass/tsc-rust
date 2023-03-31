@@ -487,10 +487,10 @@ impl TypeChecker {
     ) -> Gc<Type> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
-            .maybe_resolved_true_type()
+            .maybe_resolved_inferred_true_type()
             .is_none()
         {
-            *type_as_conditional_type.maybe_resolved_true_type() = Some(
+            *type_as_conditional_type.maybe_resolved_inferred_true_type() = Some(
                 if let Some(type_combined_mapper) = type_as_conditional_type.combined_mapper.clone()
                 {
                     self.instantiate_type(
@@ -510,7 +510,7 @@ impl TypeChecker {
             );
         }
         type_as_conditional_type
-            .maybe_resolved_true_type()
+            .maybe_resolved_inferred_true_type()
             .clone()
             .unwrap()
     }

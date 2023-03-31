@@ -274,7 +274,7 @@ impl BinderType {
                 let is_top_level = self.is_top_level_namespace_assignment(&decl_name.parent());
                 if is_top_level {
                     self.bind_potentially_missing_namespaces(
-                        Some(self.file().symbol()),
+                        self.file().maybe_symbol(),
                         &decl_name.parent(),
                         is_top_level,
                         find_ancestor(Some(&*decl_name), |d| {
