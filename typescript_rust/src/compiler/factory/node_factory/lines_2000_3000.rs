@@ -781,16 +781,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_arrow_function<
-        TModifiers: Into<NodeArrayOrVec>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_function_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<TModifiers>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        node: &Node, /*FunctionExpression*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        name: Option<Gc<Node /*Identifier*/>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Gc<Node /*Block*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_arrow_function(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node>>,
         equals_greater_than_token: Option<Gc<Node /*EqualsGreaterThanToken*/>>,
         body: Gc<Node /*ConciseBody*/>,
@@ -826,6 +837,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             );
         }
         node
+    }
+
+    pub fn update_arrow_function(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ArrowFunction*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        equals_greater_than_token: Gc<Node /*EqualsGreaterThanToken*/>,
+        body: Gc<Node /*ConciseBody*/>,
+    ) -> Gc<Node /*ArrowFunction*/> {
+        unimplemented!()
     }
 
     pub fn create_delete_expression(

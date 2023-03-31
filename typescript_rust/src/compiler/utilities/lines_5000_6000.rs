@@ -25,7 +25,8 @@ use crate::{
     Extension, MapLike, ModifierFlags, NamedDeclarationInterface, NewLineKind, Node, NodeFlags,
     NodeInterface, ObjectFlags, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind,
     SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransformFlags,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String, filter,
+    HasInitializerInterface,
 };
 
 pub fn get_first_identifier(node: &Node) -> Gc<Node /*Identifier*/> {
@@ -325,6 +326,17 @@ pub fn get_lines_between_position_and_next_non_whitespace_character(
     include_comments: Option<bool>,
 ) -> usize {
     unimplemented!()
+}
+
+pub fn get_initialized_variables(node: &Node /*VariableDeclarationList*/) -> Vec<Gc<Node>> {
+    filter(
+        &node.as_variable_declaration_list().declarations,
+        |declaration: &Gc<Node>| is_initialized_variable(declaration),
+    )
+}
+
+fn is_initialized_variable(node: &Node /*VariableDeclaration*/) -> bool {
+    node.as_variable_declaration().maybe_initializer().is_some()
 }
 
 pub fn is_watch_set(options: &CompilerOptions) -> bool {

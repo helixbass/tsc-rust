@@ -405,9 +405,9 @@ fn try_set_language_and_territory(
     true
 }
 
-pub fn get_original_node<TNode: Borrow<Node>, TNodeTest: FnOnce(Option<Gc<Node>>) -> bool>(
-    node: Option<TNode>,
-    node_test: Option<TNodeTest>,
+pub fn get_original_node(
+    node: Option<impl Borrow<Node>>,
+    node_test: Option<impl FnOnce(Option<Gc<Node>>) -> bool>,
 ) -> Option<Gc<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
 

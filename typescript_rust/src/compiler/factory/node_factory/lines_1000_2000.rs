@@ -375,23 +375,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_method_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_method_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        name: TName,
+        name: impl Into<StrOrRcNode<'name>>,
         question_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> MethodDeclaration {
@@ -429,6 +422,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsGenerator);
         }
         node
+    }
+
+    pub fn update_method_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*MethodDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        name: Gc<Node /*PropertyName*/>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Option<Gc<Node /*Block*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_class_static_block_declaration<

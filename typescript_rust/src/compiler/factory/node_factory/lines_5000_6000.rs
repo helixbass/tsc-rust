@@ -11,7 +11,7 @@ use crate::{
     NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind,
     ScriptTarget, ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StrOrRcNode,
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike,
+    UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -301,9 +301,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         unimplemented!()
     }
 
-    pub fn restore_outer_expressions<TOuterExpression: Borrow<Node>>(
+    pub fn restore_outer_expressions(
         &self,
-        outer_expression: Option<TOuterExpression /*Expression*/>,
+        outer_expression: Option<impl Borrow<Node> /*Expression*/>,
         inner_expression: &Node, /*Expression*/
         kinds: Option<OuterExpressionKinds>,
     ) -> Gc<Node /*Expression*/> {
@@ -318,12 +318,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         inner_expression.node_wrapper()
     }
 
-    pub fn get_declaration_name<TNode: Borrow<Node>>(
+    pub fn inline_expressions(
         &self,
-        node: Option<TNode /*Declaration*/>,
+        base_factory: &TBaseNodeFactory,
+        expressions: &[Gc<Node /*Expression*/>],
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn get_declaration_name(
+        &self,
+        node: Option<impl Borrow<Node> /*Declaration*/>,
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
+        unimplemented!()
+    }
+
+    pub fn copy_prologue(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        source: &[Gc<Node /*Statement*/>],
+        target: &mut Vec<Gc<Node /*Statement*/>>,
+        ensure_use_strict: Option<bool>,
+        visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
+    ) -> usize {
         unimplemented!()
     }
 

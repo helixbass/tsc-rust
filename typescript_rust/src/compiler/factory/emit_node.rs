@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::{
     get_parse_tree_node, get_source_file_of_node, is_parse_tree_node,
     maybe_get_source_file_of_node, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, Node,
-    NodeInterface, ReadonlyTextRange, SnippetElement, StringOrNumber, SyntaxKind,
+    NodeInterface, ReadonlyTextRange, SnippetElement, SourceMapRange, StringOrNumber, SyntaxKind,
     SynthesizedComment,
 };
 
@@ -88,6 +88,11 @@ pub fn add_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
     node
 }
 
+pub fn set_source_map_range(node: Gc<Node>, range: Option<Gc<SourceMapRange>>) -> Gc<Node> {
+    get_or_create_emit_node(&node).borrow_mut().source_map_range = range;
+    node
+}
+
 pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
     node.maybe_emit_node()
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
@@ -143,6 +148,10 @@ pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<Synthesized
 pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
+}
+
+pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Gc<Node> {
+    unimplemented!()
 }
 
 pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {

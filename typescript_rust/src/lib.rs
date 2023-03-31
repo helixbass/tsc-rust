@@ -79,12 +79,14 @@ pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
 use compiler::factory::emit_helpers::compare_emit_helpers;
-pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
+pub use compiler::factory::emit_helpers::{
+    advanced_async_super_helper, async_super_helper, create_emit_helper_factory, EmitHelperFactory,
+};
 pub use compiler::factory::emit_node::{
-    add_emit_flags, add_emit_helpers, add_synthetic_leading_comment, dispose_emit_nodes,
-    get_comment_range, get_constant_value, get_emit_helpers, get_synthetic_leading_comments,
-    get_synthetic_trailing_comments, set_comment_range, set_emit_flags,
-    set_synthetic_leading_comments,
+    add_emit_flags, add_emit_helper, add_emit_helpers, add_synthetic_leading_comment,
+    dispose_emit_nodes, get_comment_range, get_constant_value, get_emit_helpers,
+    get_synthetic_leading_comments, get_synthetic_trailing_comments, set_comment_range,
+    set_emit_flags, set_source_map_range, set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,
@@ -169,7 +171,9 @@ pub use compiler::factory::utilities::{
     is_outer_expression, skip_outer_expressions, starts_with_use_strict,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
-pub use compiler::factory::utilities_public::{set_text_range, set_text_range_rc_node};
+pub use compiler::factory::utilities_public::{
+    set_text_range, set_text_range_node_array, set_text_range_rc_node,
+};
 use compiler::module_name_resolver::{
     create_mode_aware_cache, get_package_json_types_version_paths,
     get_package_name_from_types_package_name, get_package_scope_for_path, get_types_package_name,
@@ -454,11 +458,12 @@ pub use compiler::utilities::{
     get_external_module_require_argument, get_file_matcher_patterns,
     get_first_constructor_with_body, get_first_identifier, get_full_width, get_function_flags,
     get_host_signature_from_jsdoc, get_immediately_invoked_function_expression,
-    get_initializer_of_binary_expression, get_interface_base_type_nodes, get_invoked_expression,
-    get_jsdoc_comment_ranges, get_jsdoc_comments_and_tags, get_jsdoc_host, get_jsdoc_root,
-    get_jsdoc_type_parameter_declarations, get_jsx_implicit_import_base, get_jsx_runtime_import,
-    get_jsx_transform_enabled, get_language_variant, get_leftmost_access_expression,
-    get_leftmost_expression, get_lines_between_position_and_next_non_whitespace_character,
+    get_initialized_variables, get_initializer_of_binary_expression, get_interface_base_type_nodes,
+    get_invoked_expression, get_jsdoc_comment_ranges, get_jsdoc_comments_and_tags, get_jsdoc_host,
+    get_jsdoc_root, get_jsdoc_type_parameter_declarations, get_jsx_implicit_import_base,
+    get_jsx_runtime_import, get_jsx_transform_enabled, get_language_variant,
+    get_leftmost_access_expression, get_leftmost_expression,
+    get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text,
     get_local_symbol_for_export_default, get_locale_specific_message, get_members_of_declaration,
@@ -487,12 +492,13 @@ pub use compiler::utilities::{
     has_js_file_extension, has_json_module_emit_enabled, has_override_modifier, has_question_token,
     has_rest_parameter, has_static_modifier, has_syntactic_modifier, has_ts_file_extension,
     has_zero_or_one_asterisk_character, host_get_canonical_file_name, index_of_node,
-    introduces_arguments_exotic_object, is_access_expression, is_aliasable_expression,
-    is_ambient_module, is_any_import_or_re_export, is_assignment_declaration,
-    is_assignment_expression, is_assignment_operator, is_assignment_target, is_async_function,
-    is_bindable_object_define_property_call, is_bindable_static_access_expression,
-    is_bindable_static_element_access_expression, is_bindable_static_name_expression,
-    is_block_or_catch_scoped, is_block_scoped_container_top_level, is_bundle_file_text_like,
+    insert_statements_after_standard_prologue, introduces_arguments_exotic_object,
+    is_access_expression, is_aliasable_expression, is_ambient_module, is_any_import_or_re_export,
+    is_assignment_declaration, is_assignment_expression, is_assignment_operator,
+    is_assignment_target, is_async_function, is_bindable_object_define_property_call,
+    is_bindable_static_access_expression, is_bindable_static_element_access_expression,
+    is_bindable_static_name_expression, is_block_or_catch_scoped,
+    is_block_scoped_container_top_level, is_bundle_file_text_like,
     is_catch_clause_variable_declaration_or_binding_element, is_check_js_enabled_for_file,
     is_child_of_node_with_kind, is_computed_non_literal_name, is_declaration_name,
     is_declaration_readonly, is_defaulted_expando_initializer, is_delete_target,
@@ -630,7 +636,8 @@ use compiler::utilities_public::{
     text_range_contains_position_inclusive,
 };
 pub use compiler::visitor_public::{
-    visit_each_child, visit_iteration_body, visit_node, visit_nodes,
+    visit_each_child, visit_function_body, visit_iteration_body, visit_node, visit_nodes,
+    visit_parameter_list,
 };
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,

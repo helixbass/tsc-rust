@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
-    collections::HashSet,
+    collections::{HashMap, HashSet},
 };
 
 use bitflags::bitflags;
@@ -8,14 +8,21 @@ use gc::{Finalize, Gc, Trace};
 
 use crate::{
     is_expression, is_for_initializer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, __String, add_emit_helpers, chain_bundle, get_emit_script_target,
-    is_effective_strict_mode_source_file, is_identifier, is_node_with_possible_hoisted_declaration,
-    is_omitted_expression, is_property_access_expression, is_token, ref_unwrapped,
-    visit_each_child, visit_iteration_body, visit_node, with_synthetic_factory,
-    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitResolver, Node, NodeArray,
-    NodeCheckFlags, NodeFactory, NodeInterface, ScriptTarget, SyntaxKind, TransformFlags,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, VisitResult,
+    TransformerInterface, __String, add_emit_helper, add_emit_helpers, advanced_async_super_helper,
+    async_super_helper, chain_bundle, concatenate, for_each, get_emit_script_target,
+    get_function_flags, get_initialized_variables, get_node_id, get_original_node,
+    insert_statements_after_standard_prologue, is_effective_strict_mode_source_file,
+    is_function_like, is_identifier, is_modifier, is_node_with_possible_hoisted_declaration,
+    is_omitted_expression, is_property_access_expression, is_token, is_variable_declaration_list,
+    map, ref_mut_unwrapped, ref_unwrapped, set_original_node, set_source_map_range, set_text_range,
+    set_text_range_node_array, set_text_range_rc_node, visit_each_child, visit_function_body,
+    visit_iteration_body, visit_node, visit_nodes, visit_parameter_list, with_synthetic_factory,
+    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitResolver, FunctionFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, NamedDeclarationInterface, Node,
+    NodeArray, NodeCheckFlags, NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty,
+    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, VisitResult,
 };
 
 bitflags! {
@@ -52,7 +59,7 @@ struct TransformES2017 {
     #[unsafe_ignore_trace]
     has_super_element_access: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
-    substituted_super_accessors: RefCell<Vec<bool>>,
+    substituted_super_accessors: RefCell<HashMap<NodeId, bool>>,
     #[unsafe_ignore_trace]
     context_flags: Cell<ContextFlags>,
 }
@@ -90,24 +97,39 @@ impl TransformES2017 {
         ret
     }
 
+    fn maybe_enclosing_function_parameter_names(&self) -> Ref<Option<HashSet<__String>>> {
+        self.enclosing_function_parameter_names.borrow()
+    }
+
     fn enclosing_function_parameter_names(&self) -> Ref<HashSet<__String>> {
         ref_unwrapped(&self.enclosing_function_parameter_names)
     }
 
+    fn enclosing_function_parameter_names_mut(&self) -> RefMut<HashSet<__String>> {
+        ref_mut_unwrapped(&self.enclosing_function_parameter_names)
+    }
+
     fn set_enclosing_function_parameter_names(
         &self,
-        enclosing_function_parameter_names: HashSet<__String>,
+        enclosing_function_parameter_names: Option<HashSet<__String>>,
     ) {
-        *self.enclosing_function_parameter_names.borrow_mut() =
-            Some(enclosing_function_parameter_names);
+        *self.enclosing_function_parameter_names.borrow_mut() = enclosing_function_parameter_names;
     }
 
     fn maybe_captured_super_properties(&self) -> Ref<Option<HashSet<__String>>> {
         self.captured_super_properties.borrow()
     }
 
+    fn captured_super_properties(&self) -> Ref<HashSet<__String>> {
+        ref_unwrapped(&self.captured_super_properties)
+    }
+
     fn maybe_captured_super_properties_mut(&self) -> RefMut<Option<HashSet<__String>>> {
         self.captured_super_properties.borrow_mut()
+    }
+
+    fn set_captured_super_properties(&self, captured_super_properties: Option<HashSet<__String>>) {
+        *self.captured_super_properties.borrow_mut() = captured_super_properties;
     }
 
     fn maybe_has_super_element_access(&self) -> Option<bool> {
@@ -116,6 +138,10 @@ impl TransformES2017 {
 
     fn set_has_super_element_access(&self, has_super_element_access: Option<bool>) {
         self.has_super_element_access.set(has_super_element_access);
+    }
+
+    fn substituted_super_accessors_mut(&self) -> RefMut<HashMap<NodeId, bool>> {
+        self.substituted_super_accessors.borrow_mut()
     }
 
     fn context_flags(&self) -> ContextFlags {
@@ -468,8 +494,8 @@ impl TransformES2017 {
 
         if let Some(catch_clause_unshadowed_names) = catch_clause_unshadowed_names {
             let saved_enclosing_function_parameter_names =
-                self.enclosing_function_parameter_names().clone();
-            self.set_enclosing_function_parameter_names(catch_clause_unshadowed_names);
+                self.maybe_enclosing_function_parameter_names().clone();
+            self.set_enclosing_function_parameter_names(Some(catch_clause_unshadowed_names));
             let result = visit_each_child(
                 Some(node),
                 |node: &Node| self.async_body_visitor(node),
@@ -529,9 +555,9 @@ impl TransformES2017 {
         node: &Node, /*VariableStatement*/
     ) -> Option<Gc<Node>> {
         let node_as_variable_statement = node.as_variable_statement();
-        if self.is_variable_declaration_list_with_colliding_name(
-            &node_as_variable_statement.declaration_list,
-        ) {
+        if self.is_variable_declaration_list_with_colliding_name(Some(
+            &*node_as_variable_statement.declaration_list,
+        )) {
             let expression = self.visit_variable_declaration_list_with_colliding_names(
                 &node_as_variable_statement.declaration_list,
                 false,
@@ -578,9 +604,9 @@ impl TransformES2017 {
             self.factory.update_for_in_statement(
                 synthetic_factory_,
                 node,
-                if self.is_variable_declaration_list_with_colliding_name(
-                    &node_as_for_in_statement.initializer,
-                ) {
+                if self.is_variable_declaration_list_with_colliding_name(Some(
+                    &*node_as_for_in_statement.initializer,
+                )) {
                     self.visit_variable_declaration_list_with_colliding_names(
                         &node_as_for_in_statement.initializer,
                         true,
@@ -626,9 +652,9 @@ impl TransformES2017 {
                     Some(is_token),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 ),
-                if self.is_variable_declaration_list_with_colliding_name(
-                    &node_as_for_of_statement.initializer,
-                ) {
+                if self.is_variable_declaration_list_with_colliding_name(Some(
+                    &*node_as_for_of_statement.initializer,
+                )) {
                     self.visit_variable_declaration_list_with_colliding_names(
                         &node_as_for_of_statement.initializer,
                         true,
@@ -660,31 +686,319 @@ impl TransformES2017 {
     }
 
     fn visit_for_statement_in_async_body(&self, node: &Node /*ForStatement*/) -> Gc<Node> {
-        unimplemented!()
+        let node_as_for_statement = node.as_for_statement();
+        let initializer = node_as_for_statement.initializer.as_deref();
+        with_synthetic_factory(|synthetic_factory_| {
+            self.factory.update_for_statement(
+                synthetic_factory_,
+                node,
+                if self.is_variable_declaration_list_with_colliding_name(initializer) {
+                    self.visit_variable_declaration_list_with_colliding_names(
+                        initializer.unwrap(),
+                        false,
+                    )
+                } else {
+                    visit_node(
+                        initializer,
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_for_initializer),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                },
+                visit_node(
+                    node_as_for_statement.condition.as_deref(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                ),
+                visit_node(
+                    node_as_for_statement.incrementor.as_deref(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                ),
+                visit_iteration_body(
+                    &node_as_for_statement.statement,
+                    |node: &Node| self.async_body_visitor(node),
+                    &**self.context,
+                ),
+            )
+        })
     }
 
-    fn visit_await_expression(&self, node: &Node /*AwaitExpression*/) -> Gc<Node> {
-        unimplemented!()
+    fn visit_await_expression(
+        &self,
+        node: &Node, /*AwaitExpression*/
+    ) -> Gc<Node /*Expression*/> {
+        if self.in_top_level_context() {
+            return visit_each_child(
+                Some(node),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<fn(&Node) -> VisitResult>,
+                        Option<fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> NodeArray,
+                >::None,
+                Option::<fn(&Node) -> VisitResult>::None,
+                Option::<
+                    fn(
+                        Option<&Node>,
+                        Option<fn(&Node) -> VisitResult>,
+                        Option<fn(&Node) -> bool>,
+                        Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                    ) -> Option<Gc<Node>>,
+                >::None,
+            )
+            .unwrap();
+        }
+        set_original_node(
+            set_text_range_rc_node(
+                with_synthetic_factory(|synthetic_factory_| {
+                    self.factory
+                        .create_yield_expression(
+                            synthetic_factory_,
+                            None,
+                            visit_node(
+                                Some(&*node.as_await_expression().expression),
+                                Some(|node: &Node| self.visitor(node)),
+                                Some(is_expression),
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                            ),
+                        )
+                        .into()
+                }),
+                Some(node),
+            ),
+            Some(node.node_wrapper()),
+        )
     }
 
     fn visit_method_declaration(&self, node: &Node /*MethodDeclaration*/) -> Gc<Node> {
-        unimplemented!()
+        let node_as_method_declaration = node.as_method_declaration();
+        with_synthetic_factory(|synthetic_factory_| {
+            self.factory.update_method_declaration(
+                synthetic_factory_,
+                node,
+                Option::<NodeArray>::None,
+                visit_nodes(
+                    node.maybe_modifiers().as_ref(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_modifier),
+                    None,
+                    None,
+                ),
+                node_as_method_declaration.maybe_asterisk_token(),
+                node_as_method_declaration.name(),
+                None,
+                Option::<NodeArray>::None,
+                visit_parameter_list(
+                    Some(node_as_method_declaration.parameters()),
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                    Option::<
+                        fn(
+                            Option<&NodeArray>,
+                            Option<fn(&Node) -> VisitResult>,
+                            Option<fn(&Node) -> bool>,
+                            Option<usize>,
+                            Option<usize>,
+                        ) -> NodeArray,
+                    >::None,
+                )
+                .unwrap(),
+                None,
+                if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+                    Some(self.transform_async_function_body(node))
+                } else {
+                    visit_function_body(
+                        node_as_method_declaration.maybe_body().as_deref(),
+                        |node: &Node| self.visitor(node),
+                        &**self.context,
+                        Option::<
+                            fn(
+                                Option<&Node>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                            ) -> Option<Gc<Node>>,
+                        >::None,
+                    )
+                },
+            )
+        })
     }
 
     fn visit_function_declaration(&self, node: &Node /*FunctionDeclaration*/) -> VisitResult /*<Statement>*/
     {
-        unimplemented!()
+        let node_as_function_declaration = node.as_function_declaration();
+        Some(
+            with_synthetic_factory(|synthetic_factory_| {
+                self.factory.update_function_declaration(
+                    synthetic_factory_,
+                    node,
+                    Option::<NodeArray>::None,
+                    visit_nodes(
+                        node.maybe_modifiers().as_ref(),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_as_function_declaration.maybe_asterisk_token(),
+                    node_as_function_declaration.maybe_name(),
+                    Option::<NodeArray>::None,
+                    visit_parameter_list(
+                        Some(node_as_function_declaration.parameters()),
+                        |node: &Node| self.visitor(node),
+                        &**self.context,
+                        Option::<
+                            fn(
+                                Option<&NodeArray>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<usize>,
+                                Option<usize>,
+                            ) -> NodeArray,
+                        >::None,
+                    )
+                    .unwrap(),
+                    None,
+                    if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+                        Some(self.transform_async_function_body(node))
+                    } else {
+                        visit_function_body(
+                            node_as_function_declaration.maybe_body().as_deref(),
+                            |node: &Node| self.visitor(node),
+                            &**self.context,
+                            Option::<
+                                fn(
+                                    Option<&Node>,
+                                    Option<fn(&Node) -> VisitResult>,
+                                    Option<fn(&Node) -> bool>,
+                                    Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                                ) -> Option<Gc<Node>>,
+                            >::None,
+                        )
+                    },
+                )
+            })
+            .into(),
+        )
     }
 
     fn visit_function_expression(
         &self,
         node: &Node, /*FunctionExpression*/
     ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        let node_as_function_expression = node.as_function_expression();
+        with_synthetic_factory(|synthetic_factory_| {
+            self.factory.update_function_expression(
+                synthetic_factory_,
+                node,
+                visit_nodes(
+                    node.maybe_modifiers().as_ref(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_modifier),
+                    None,
+                    None,
+                ),
+                node_as_function_expression.maybe_asterisk_token(),
+                node_as_function_expression.maybe_name(),
+                Option::<NodeArray>::None,
+                visit_parameter_list(
+                    Some(node_as_function_expression.parameters()),
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                    Option::<
+                        fn(
+                            Option<&NodeArray>,
+                            Option<fn(&Node) -> VisitResult>,
+                            Option<fn(&Node) -> bool>,
+                            Option<usize>,
+                            Option<usize>,
+                        ) -> NodeArray,
+                    >::None,
+                )
+                .unwrap(),
+                None,
+                if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+                    self.transform_async_function_body(node)
+                } else {
+                    visit_function_body(
+                        node_as_function_expression.maybe_body().as_deref(),
+                        |node: &Node| self.visitor(node),
+                        &**self.context,
+                        Option::<
+                            fn(
+                                Option<&Node>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                            ) -> Option<Gc<Node>>,
+                        >::None,
+                    )
+                    .unwrap()
+                },
+            )
+        })
     }
 
     fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> Gc<Node> {
-        unimplemented!()
+        let node_as_arrow_function = node.as_arrow_function();
+        with_synthetic_factory(|synthetic_factory_| {
+            self.factory.update_arrow_function(
+                synthetic_factory_,
+                node,
+                visit_nodes(
+                    node.maybe_modifiers().as_ref(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_modifier),
+                    None,
+                    None,
+                ),
+                Option::<NodeArray>::None,
+                visit_parameter_list(
+                    Some(node_as_arrow_function.parameters()),
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                    Option::<
+                        fn(
+                            Option<&NodeArray>,
+                            Option<fn(&Node) -> VisitResult>,
+                            Option<fn(&Node) -> bool>,
+                            Option<usize>,
+                            Option<usize>,
+                        ) -> NodeArray,
+                    >::None,
+                )
+                .unwrap(),
+                None,
+                node_as_arrow_function.equals_greater_than_token.clone(),
+                if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+                    self.transform_async_function_body(node)
+                } else {
+                    visit_function_body(
+                        node_as_arrow_function.maybe_body().as_deref(),
+                        |node: &Node| self.visitor(node),
+                        &**self.context,
+                        Option::<
+                            fn(
+                                Option<&Node>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                            ) -> Option<Gc<Node>>,
+                        >::None,
+                    )
+                    .unwrap()
+                },
+            )
+        })
     }
 
     fn record_declaration_name(&self, name: &Node, names: &mut HashSet<__String>) {
@@ -701,9 +1015,21 @@ impl TransformES2017 {
 
     fn is_variable_declaration_list_with_colliding_name(
         &self,
-        node: &Node, /*ForInitializer*/
+        node: Option<&Node /*ForInitializer*/>,
     ) -> bool {
-        unimplemented!()
+        if node.is_none() {
+            return false;
+        }
+        let node = node.unwrap();
+        is_variable_declaration_list(node)
+            && !node.flags().intersects(NodeFlags::BlockScoped)
+            && node
+                .as_variable_declaration_list()
+                .declarations
+                .iter()
+                .any(|node: &Gc<Node>| {
+                    self.collides_with_parameter_name(&node.as_named_declaration().name())
+                })
     }
 
     fn visit_variable_declaration_list_with_colliding_names(
@@ -711,6 +1037,308 @@ impl TransformES2017 {
         node: &Node, /*VariableDeclarationList*/
         has_receiver: bool,
     ) -> Option<Gc<Node>> {
+        let node_as_variable_declaration_list = node.as_variable_declaration_list();
+        self.hoist_variable_declaration_list(node);
+
+        let variables = get_initialized_variables(node);
+        if variables.is_empty() {
+            if has_receiver {
+                return visit_node(
+                    Some(with_synthetic_factory(|synthetic_factory_| {
+                        self.factory
+                            .converters()
+                            .convert_to_assignment_element_target(
+                                synthetic_factory_,
+                                &node_as_variable_declaration_list.declarations[0]
+                                    .as_variable_declaration()
+                                    .name(),
+                            )
+                    })),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                );
+            }
+            return None;
+        }
+
+        Some(with_synthetic_factory(|synthetic_factory_| {
+            self.factory.inline_expressions(
+                synthetic_factory_,
+                &map(&variables, |variable: &Gc<Node>, _| {
+                    self.transform_initialized_variable(variable)
+                }),
+            )
+        }))
+    }
+
+    fn hoist_variable_declaration_list(&self, node: &Node /*VariableDeclarationList*/) {
+        for_each(
+            &node.as_variable_declaration_list().declarations,
+            |declaration: &Gc<Node>, _| -> Option<()> {
+                self.hoist_variable(&declaration.as_named_declaration().name());
+                None
+            },
+        );
+    }
+
+    fn hoist_variable(&self, name: &Node) {
+        if is_identifier(name) {
+            self.context.hoist_variable_declaration(name);
+        } else {
+            for element in name.as_has_elements().elements() {
+                if !is_omitted_expression(element) {
+                    self.hoist_variable(element);
+                }
+            }
+        }
+    }
+
+    fn transform_initialized_variable(&self, node: &Node /*VariableDeclaration*/) -> Gc<Node> {
+        let node_as_variable_declaration = node.as_variable_declaration();
+        let converted = set_source_map_range(
+            with_synthetic_factory(|synthetic_factory_| {
+                self.factory
+                    .create_assignment(
+                        synthetic_factory_,
+                        self.factory
+                            .converters()
+                            .convert_to_assignment_element_target(
+                                synthetic_factory_,
+                                &node_as_variable_declaration.name(),
+                            ),
+                        node_as_variable_declaration.maybe_initializer().unwrap(),
+                    )
+                    .into()
+            }),
+            Some(node.into()),
+        );
+        visit_node(
+            Some(converted),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )
+        .unwrap()
+    }
+
+    fn collides_with_parameter_name(&self, name: &Node) -> bool {
+        if is_identifier(name) {
+            return self
+                .enclosing_function_parameter_names()
+                .contains(&name.as_identifier().escaped_text);
+        } else {
+            for element in name.as_has_elements().elements() {
+                if !is_omitted_expression(element) && self.collides_with_parameter_name(element) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn transform_async_function_body(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> Gc<Node /*ConciseBody*/> {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        self.context.resume_lexical_environment();
+
+        let ref original = get_original_node(
+            Some(node),
+            Some(|node: Option<Gc<Node>>| is_function_like(node.as_deref())),
+        )
+        .unwrap();
+        let node_type = original.as_has_type().maybe_type();
+        let promise_constructor = if self.language_version < ScriptTarget::ES2015 {
+            self.get_promise_constructor(node_type.as_deref())
+        } else {
+            None
+        };
+        let is_arrow_function = node.kind() == SyntaxKind::ArrowFunction;
+        let has_lexical_arguments = self
+            .resolver
+            .get_node_check_flags(node)
+            .intersects(NodeCheckFlags::CaptureArguments);
+
+        let saved_enclosing_function_parameter_names =
+            self.maybe_enclosing_function_parameter_names().clone();
+        self.set_enclosing_function_parameter_names(Some(HashSet::new()));
+        for parameter in node_as_function_like_declaration.parameters() {
+            self.record_declaration_name(
+                parameter,
+                &mut self.enclosing_function_parameter_names_mut(),
+            );
+        }
+
+        let saved_captured_super_properties = self.maybe_captured_super_properties().clone();
+        let saved_has_super_element_access = self.maybe_has_super_element_access();
+        if !is_arrow_function {
+            self.set_captured_super_properties(Some(HashSet::new()));
+            self.set_has_super_element_access(Some(false));
+        }
+
+        let result: Gc<Node /*ConciseBody*/>;
+        if !is_arrow_function {
+            let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+            let statement_offset = with_synthetic_factory(|synthetic_factory_| {
+                self.factory.copy_prologue(
+                    synthetic_factory_,
+                    &node_as_function_like_declaration
+                        .maybe_body()
+                        .unwrap()
+                        .as_block()
+                        .statements,
+                    &mut statements,
+                    Some(false),
+                    Some(|node: &Node| self.visitor(node)),
+                )
+            });
+            statements.push(with_synthetic_factory(|synthetic_factory_| {
+                self.factory
+                    .create_return_statement(
+                        synthetic_factory_,
+                        Some(
+                            self.context
+                                .get_emit_helper_factory()
+                                .create_awaiter_helper(
+                                    self.in_has_lexical_this_context(),
+                                    has_lexical_arguments,
+                                    promise_constructor.clone(),
+                                    self.transform_async_function_body_worker(
+                                        &node_as_function_like_declaration.maybe_body().unwrap(),
+                                        Some(statement_offset),
+                                    ),
+                                ),
+                        ),
+                    )
+                    .into()
+            }));
+
+            insert_statements_after_standard_prologue(
+                &mut statements,
+                self.context.end_lexical_environment().as_deref(),
+            );
+
+            let emit_super_helpers = self.language_version >= ScriptTarget::ES2015
+                && self.resolver.get_node_check_flags(node).intersects(
+                    NodeCheckFlags::AsyncMethodWithSuperBinding
+                        | NodeCheckFlags::AsyncMethodWithSuper,
+                );
+
+            if emit_super_helpers {
+                self.enable_substitution_for_async_methods_with_super();
+                if !self.captured_super_properties().is_empty() {
+                    let variable_statement = create_super_access_variable_statement(
+                        &self.factory,
+                        &**self.resolver,
+                        node,
+                        &self.captured_super_properties(),
+                    );
+                    self.substituted_super_accessors_mut()
+                        .insert(get_node_id(&variable_statement), true);
+                    insert_statements_after_standard_prologue(
+                        &mut statements,
+                        Some(&[variable_statement]),
+                    );
+                }
+            }
+
+            let block: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                self.factory
+                    .create_block(synthetic_factory_, statements, Some(true))
+                    .into()
+            });
+            set_text_range(
+                &*block,
+                node_as_function_like_declaration.maybe_body().as_deref(),
+            );
+
+            if emit_super_helpers && self.maybe_has_super_element_access() == Some(true) {
+                if self
+                    .resolver
+                    .get_node_check_flags(node)
+                    .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
+                {
+                    add_emit_helper(&block, advanced_async_super_helper());
+                } else if self
+                    .resolver
+                    .get_node_check_flags(node)
+                    .intersects(NodeCheckFlags::AsyncMethodWithSuper)
+                {
+                    add_emit_helper(&block, async_super_helper());
+                }
+            }
+
+            result = block;
+        } else {
+            let expression = self
+                .context
+                .get_emit_helper_factory()
+                .create_awaiter_helper(
+                    self.in_has_lexical_this_context(),
+                    has_lexical_arguments,
+                    promise_constructor,
+                    self.transform_async_function_body_worker(
+                        &node_as_function_like_declaration.maybe_body().unwrap(),
+                        None,
+                    ),
+                );
+
+            let declarations = self.context.end_lexical_environment();
+            if let Some(declarations) = declarations.non_empty()
+            /*some(declarations)*/
+            {
+                let block = with_synthetic_factory(|synthetic_factory_| {
+                    self.factory.converters().convert_to_function_block(
+                        synthetic_factory_,
+                        &expression,
+                        None,
+                    )
+                });
+                let block_as_block = block.as_block();
+                result = with_synthetic_factory(|synthetic_factory_| {
+                    self.factory.update_block(
+                        synthetic_factory_,
+                        &block,
+                        set_text_range_node_array(
+                            self.factory.create_node_array(
+                                Some(concatenate(
+                                    declarations,
+                                    block_as_block.statements.to_vec(),
+                                )),
+                                None,
+                            ),
+                            Some(&block_as_block.statements),
+                        ),
+                    )
+                });
+            } else {
+                result = expression;
+            }
+        }
+
+        self.set_enclosing_function_parameter_names(saved_enclosing_function_parameter_names);
+        if !is_arrow_function {
+            self.set_captured_super_properties(saved_captured_super_properties);
+            self.set_has_super_element_access(saved_has_super_element_access);
+        }
+        result
+    }
+
+    fn transform_async_function_body_worker(
+        &self,
+        body: &Node, /*ConciseBody*/
+        start: Option<usize>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    fn get_promise_constructor(&self, type_: Option<&Node /*TypeNode*/>) -> Option<Gc<Node>> {
+        unimplemented!()
+    }
+
+    fn enable_substitution_for_async_methods_with_super(&self) {
         unimplemented!()
     }
 }
@@ -791,4 +1419,13 @@ impl TransformerFactoryInterface for TransformES2017Factory {
 
 pub fn transform_es2017() -> TransformerFactory {
     Gc::new(Box::new(TransformES2017Factory::new()))
+}
+
+pub fn create_super_access_variable_statement(
+    factory: &NodeFactory<BaseNodeFactorySynthetic>,
+    resolver: &dyn EmitResolver,
+    node: &Node, /*FunctionLikeDeclaration*/
+    names: &HashSet<__String>,
+) -> Gc<Node> {
+    unimplemented!()
 }

@@ -37,13 +37,56 @@ pub fn visit_node(
     visited_node
 }
 
-pub fn visit_nodes<TVisitor: FnMut(&Node) -> VisitResult, TTest: Fn(&Node) -> bool>(
+pub fn visit_nodes(
     nodes: Option<&NodeArray>,
-    visitor: Option<TVisitor>,
-    test: Option<TTest>,
+    visitor: Option<impl FnMut(&Node) -> VisitResult>,
+    test: Option<impl Fn(&Node) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
 ) -> Option<NodeArray> {
+    unimplemented!()
+}
+
+pub fn visit_parameter_list<
+    TContext: TransformationContext + ?Sized,
+    TNodesVisitorVisitor: FnMut(&Node) -> VisitResult,
+    TNodesVisitorTest: Fn(&Node) -> bool,
+>(
+    nodes: Option<&NodeArray>,
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &TContext,
+    nodes_visitor: Option<
+        impl FnMut(
+            Option<&NodeArray>,
+            Option<TNodesVisitorVisitor>,
+            Option<TNodesVisitorTest>,
+            Option<usize>,
+            Option<usize>,
+        ) -> NodeArray,
+    >,
+) -> Option<NodeArray> {
+    unimplemented!()
+}
+
+pub fn visit_function_body<
+    TContext: TransformationContext + ?Sized,
+    TNodeVisitorNode: Borrow<Node>,
+    TNodeVisitorVisitor: FnMut(&Node) -> VisitResult,
+    TNodeVisitorTest: Fn(&Node) -> bool,
+    TNodeVisitorLift: Fn(&[Gc<Node>]) -> Gc<Node>,
+>(
+    node: Option<&Node /*ConciseBody*/>,
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &TContext,
+    node_visitor: Option<
+        impl FnMut(
+            Option<TNodeVisitorNode>,
+            Option<TNodeVisitorVisitor>,
+            Option<TNodeVisitorTest>,
+            Option<TNodeVisitorLift>,
+        ) -> Option<Gc<Node>>,
+    >,
+) -> Option<Gc<Node /*ConciseBody*/>> {
     unimplemented!()
 }
 

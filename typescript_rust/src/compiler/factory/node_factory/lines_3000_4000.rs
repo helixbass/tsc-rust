@@ -314,6 +314,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_for_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ForStatement*/
+        initializer: Option<Gc<Node /*ForInitializer*/>>,
+        condition: Option<Gc<Node /*Expression*/>>,
+        incrementor: Option<Gc<Node /*Expression*/>>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_for_in_statement(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -634,6 +646,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }
         }
         node
+    }
+
+    pub fn update_function_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*FunctionDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        name: Option<Gc<Node /*Identifier*/>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Option<Gc<Node /*Block*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_class_declaration<

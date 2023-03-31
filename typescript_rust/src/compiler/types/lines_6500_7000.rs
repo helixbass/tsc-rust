@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     CancellationToken, Cloneable, ModuleResolutionCache, ParseConfigHost, ParsedCommandLine, Path,
-    ProgramBuildInfo, StringOrNumber, SymlinkCache,
+    ProgramBuildInfo, ReadonlyTextRange, StringOrNumber, SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {
@@ -549,6 +549,18 @@ impl TextRange for SourceMapRange {
 
     fn set_end(&self, end: isize) {
         self.end.set(end);
+    }
+}
+
+impl From<&Node> for SourceMapRange {
+    fn from(value: &Node) -> Self {
+        Self::new(value.pos(), value.end(), None)
+    }
+}
+
+impl From<&Node> for Gc<SourceMapRange> {
+    fn from(value: &Node) -> Self {
+        Gc::new(value.into())
     }
 }
 
