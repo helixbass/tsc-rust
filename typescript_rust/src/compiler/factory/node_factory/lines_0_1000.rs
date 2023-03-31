@@ -2,8 +2,7 @@
 
 use bitflags::bitflags;
 use gc::{Gc, GcCellRef};
-use std::cell::{Ref, RefCell};
-use std::rc::Rc;
+use std::cell::RefCell;
 
 use super::{
     aggregate_children_flags, propagate_child_flags, propagate_children_flags,
@@ -27,7 +26,6 @@ use crate::{
     SignatureDeclarationInterface, StringLiteral, StringOrNodeArray, SyntaxKind, TokenFlags,
     TransformFlags,
 };
-use local_macros::enum_unwrapped;
 
 thread_local! {
     pub(super) static next_auto_generate_id: RefCell<usize> = RefCell::new(0);
@@ -1204,6 +1202,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
         reserved_in_nested_scopes: Option<bool>,
     ) -> Gc<Node /*GeneratedIdentifier*/> {
+        unimplemented!()
+    }
+
+    pub fn create_unique_name(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: &str,
+        flags: Option<GeneratedIdentifierFlags>,
+    ) -> Gc<Node /*Identifier*/> {
+        let flags = flags.unwrap_or_default();
         unimplemented!()
     }
 

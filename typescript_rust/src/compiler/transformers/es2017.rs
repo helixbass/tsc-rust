@@ -1,28 +1,32 @@
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
+    mem,
 };
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 
 use crate::{
-    is_expression, is_for_initializer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, __String, add_emit_helper, add_emit_helpers, advanced_async_super_helper,
-    async_super_helper, chain_bundle, concatenate, for_each, get_emit_script_target,
-    get_function_flags, get_initialized_variables, get_node_id, get_original_node,
-    insert_statements_after_standard_prologue, is_effective_strict_mode_source_file,
-    is_function_like, is_identifier, is_modifier, is_node_with_possible_hoisted_declaration,
-    is_omitted_expression, is_property_access_expression, is_token, is_variable_declaration_list,
-    map, ref_mut_unwrapped, ref_unwrapped, set_original_node, set_source_map_range, set_text_range,
+    is_concise_body, is_expression, is_for_initializer, is_statement, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, __String, add_emit_helper, add_emit_helpers,
+    advanced_async_super_helper, async_super_helper, chain_bundle, concatenate, for_each,
+    get_emit_script_target, get_entity_name_from_type_node, get_function_flags,
+    get_initialized_variables, get_node_id, get_original_node,
+    insert_statements_after_standard_prologue, is_block, is_effective_strict_mode_source_file,
+    is_entity_name, is_function_like, is_identifier, is_modifier,
+    is_node_with_possible_hoisted_declaration, is_omitted_expression,
+    is_property_access_expression, is_super_property, is_token, is_variable_declaration_list, map,
+    ref_mut_unwrapped, ref_unwrapped, set_original_node, set_source_map_range, set_text_range,
     set_text_range_node_array, set_text_range_rc_node, visit_each_child, visit_function_body,
     visit_iteration_body, visit_node, visit_nodes, visit_parameter_list, with_synthetic_factory,
-    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitResolver, FunctionFlags,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeCheckFlags, NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty,
-    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, VisitResult,
+    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitHint, EmitResolver, FunctionFlags,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeFactory, NodeFlags, NodeId,
+    NodeInterface, NonEmpty, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
+    SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TypeReferenceSerializationKind,
+    VisitResult,
 };
 
 bitflags! {
@@ -42,6 +46,7 @@ bitflags! {
 
 #[derive(Trace, Finalize)]
 struct TransformES2017 {
+    _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Gc<Box<dyn TransformationContext>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     resolver: Gc<Box<dyn EmitResolver>>,
@@ -65,10 +70,11 @@ struct TransformES2017 {
 }
 
 impl TransformES2017 {
-    fn new(context: Gc<Box<dyn TransformationContext>>) -> Transformer {
+    fn new(context: Gc<Box<dyn TransformationContext>>) -> Gc<Box<Self>> {
         let compiler_options = context.get_compiler_options();
 
-        let ret: Transformer = Gc::new(Box::new(Self {
+        let transformer_wrapper: Transformer = Gc::new(Box::new(Self {
+            _transformer_wrapper: Default::default(),
             factory: context.factory(),
             resolver: context.get_emit_resolver(),
             context: context.clone(),
@@ -82,19 +88,42 @@ impl TransformES2017 {
             substituted_super_accessors: Default::default(),
             context_flags: Cell::new(ContextFlags::None),
         }));
+        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(transformer_wrapper.clone()) };
+        *downcasted._transformer_wrapper.borrow_mut() = Some(transformer_wrapper);
         context.override_on_emit_node(&mut |previous_on_emit_node| {
             Gc::new(Box::new(TransformES2017OnEmitNodeOverrider::new(
-                ret.clone(),
+                downcasted.clone(),
                 previous_on_emit_node,
             )))
         });
         context.override_on_substitute_node(&mut |previous_on_substitute_node| {
             Gc::new(Box::new(TransformES2017OnSubstituteNodeOverrider::new(
-                ret.clone(),
+                downcasted.clone(),
                 previous_on_substitute_node,
             )))
         });
-        ret
+        downcasted
+    }
+
+    fn as_transformer(&self) -> Transformer {
+        self._transformer_wrapper.borrow().clone().unwrap()
+    }
+
+    fn maybe_enabled_substitutions(&self) -> Option<ES2017SubstitutionFlags> {
+        self.enabled_substitutions.get()
+    }
+
+    fn set_enabled_substitutions(&self, enabled_substitutions: Option<ES2017SubstitutionFlags>) {
+        self.enabled_substitutions.set(enabled_substitutions);
+    }
+
+    fn enclosing_super_container_flags(&self) -> NodeCheckFlags {
+        self.enclosing_super_container_flags.get()
+    }
+
+    fn set_enclosing_super_container_flags(&self, enclosing_super_container_flags: NodeCheckFlags) {
+        self.enclosing_super_container_flags
+            .set(enclosing_super_container_flags);
     }
 
     fn maybe_enclosing_function_parameter_names(&self) -> Ref<Option<HashSet<__String>>> {
@@ -138,6 +167,10 @@ impl TransformES2017 {
 
     fn set_has_super_element_access(&self, has_super_element_access: Option<bool>) {
         self.has_super_element_access.set(has_super_element_access);
+    }
+
+    fn substituted_super_accessors(&self) -> Ref<HashMap<NodeId, bool>> {
+        self.substituted_super_accessors.borrow()
     }
 
     fn substituted_super_accessors_mut(&self) -> RefMut<HashMap<NodeId, bool>> {
@@ -1331,14 +1364,197 @@ impl TransformES2017 {
         body: &Node, /*ConciseBody*/
         start: Option<usize>,
     ) -> Gc<Node> {
-        unimplemented!()
+        if is_block(body) {
+            with_synthetic_factory(|synthetic_factory_| {
+                self.factory.update_block(
+                    synthetic_factory_,
+                    body,
+                    visit_nodes(
+                        Some(&body.as_block().statements),
+                        Some(|node: &Node| self.async_body_visitor(node)),
+                        Some(is_statement),
+                        start,
+                        None,
+                    )
+                    .unwrap(),
+                )
+            })
+        } else {
+            with_synthetic_factory(|synthetic_factory_| {
+                self.factory.converters().convert_to_function_block(
+                    synthetic_factory_,
+                    &visit_node(
+                        Some(body),
+                        Some(|node: &Node| self.async_body_visitor(node)),
+                        Some(is_concise_body),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                    None,
+                )
+            })
+        }
     }
 
     fn get_promise_constructor(&self, type_: Option<&Node /*TypeNode*/>) -> Option<Gc<Node>> {
-        unimplemented!()
+        type_
+            .and_then(get_entity_name_from_type_node)
+            .filter(|type_name| is_entity_name(type_name))
+            .and_then(|type_name| {
+                let serialization_kind = self
+                    .resolver
+                    .get_type_reference_serialization_kind(&type_name, None);
+                if matches!(
+                    serialization_kind,
+                    TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue
+                        | TypeReferenceSerializationKind::Unknown
+                ) {
+                    Some(type_name)
+                } else {
+                    None
+                }
+            })
     }
 
     fn enable_substitution_for_async_methods_with_super(&self) {
+        if let Some(enabled_substitutions) =
+            self.maybe_enabled_substitutions()
+                .filter(|enabled_substitutions| {
+                    !enabled_substitutions
+                        .intersects(ES2017SubstitutionFlags::AsyncMethodsWithSuper)
+                })
+        {
+            self.set_enabled_substitutions(Some(
+                enabled_substitutions | ES2017SubstitutionFlags::AsyncMethodsWithSuper,
+            ));
+
+            self.context.enable_substitution(SyntaxKind::CallExpression);
+            self.context
+                .enable_substitution(SyntaxKind::PropertyAccessExpression);
+            self.context
+                .enable_substitution(SyntaxKind::ElementAccessExpression);
+
+            self.context
+                .enable_emit_notification(SyntaxKind::ClassDeclaration);
+            self.context
+                .enable_emit_notification(SyntaxKind::MethodDeclaration);
+            self.context
+                .enable_emit_notification(SyntaxKind::GetAccessor);
+            self.context
+                .enable_emit_notification(SyntaxKind::SetAccessor);
+            self.context
+                .enable_emit_notification(SyntaxKind::Constructor);
+            self.context
+                .enable_emit_notification(SyntaxKind::VariableStatement);
+        }
+    }
+
+    fn substitute_expression(&self, node: &Node /*Expression*/) -> Gc<Node> {
+        match node.kind() {
+            SyntaxKind::PropertyAccessExpression => {
+                self.substitute_property_access_expression(node)
+            }
+            SyntaxKind::ElementAccessExpression => self.substitute_element_access_expression(node),
+            SyntaxKind::CallExpression => self.substitute_call_expression(node),
+            _ => node.node_wrapper(),
+        }
+    }
+
+    fn substitute_property_access_expression(
+        &self,
+        node: &Node, /*PropertyAccessExpression*/
+    ) -> Gc<Node> {
+        let node_as_property_access_expression = node.as_property_access_expression();
+        if node_as_property_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
+            return set_text_range_rc_node(
+                with_synthetic_factory(|synthetic_factory_| {
+                    self.factory
+                        .create_property_access_expression(
+                            synthetic_factory_,
+                            self.factory.create_unique_name(
+                                synthetic_factory_,
+                                "_super",
+                                Some(
+                                    GeneratedIdentifierFlags::Optimistic
+                                        | GeneratedIdentifierFlags::FileLevel,
+                                ),
+                            ),
+                            node_as_property_access_expression.name.clone(),
+                        )
+                        .into()
+                }),
+                Some(node),
+            );
+        }
+        node.node_wrapper()
+    }
+
+    fn substitute_element_access_expression(
+        &self,
+        node: &Node, /*ElementAccessExpression*/
+    ) -> Gc<Node> {
+        let node_as_element_access_expression = node.as_element_access_expression();
+        if node_as_element_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
+            return self.create_super_element_access_in_async_method(
+                &node_as_element_access_expression.argument_expression,
+                node,
+            );
+        }
+        node.node_wrapper()
+    }
+
+    fn substitute_call_expression(&self, node: &Node /*CallExpression*/) -> Gc<Node> {
+        let node_as_call_expression = node.as_call_expression();
+        let expression = &node_as_call_expression.expression;
+        if is_super_property(expression) {
+            let argument_expression = if is_property_access_expression(expression) {
+                self.substitute_property_access_expression(expression)
+            } else {
+                self.substitute_element_access_expression(expression)
+            };
+            return with_synthetic_factory(|synthetic_factory_| {
+                self.factory
+                    .create_call_expression(
+                        synthetic_factory_,
+                        self.factory
+                            .create_property_access_expression(
+                                synthetic_factory_,
+                                argument_expression,
+                                "call",
+                            )
+                            .into(),
+                        Option::<NodeArray>::None,
+                        Some(
+                            [
+                                vec![self.factory.create_this(synthetic_factory_).into()],
+                                node_as_call_expression.arguments.to_vec(),
+                            ]
+                            .concat(),
+                        ),
+                    )
+                    .into()
+            });
+        }
+        node.node_wrapper()
+    }
+
+    fn is_super_container(&self, node: &Node) -> bool {
+        let kind = node.kind();
+        matches!(
+            kind,
+            SyntaxKind::ClassDeclaration
+                | SyntaxKind::Constructor
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+        )
+    }
+
+    fn create_super_element_access_in_async_method(
+        &self,
+        argument_expression: &Node,        /*Expression*/
+        location: &impl ReadonlyTextRange, /*TextRange*/
+    ) -> Gc<Node /*LeftHandSideExpression*/> {
         unimplemented!()
     }
 }
@@ -1351,13 +1567,13 @@ impl TransformerInterface for TransformES2017 {
 
 #[derive(Trace, Finalize)]
 struct TransformES2017OnEmitNodeOverrider {
-    transform_es2017: Transformer,
+    transform_es2017: Gc<Box<TransformES2017>>,
     previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformES2017OnEmitNodeOverrider {
     fn new(
-        transform_es2017: Transformer,
+        transform_es2017: Gc<Box<TransformES2017>>,
         previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
@@ -1368,25 +1584,60 @@ impl TransformES2017OnEmitNodeOverrider {
 }
 
 impl TransformationContextOnEmitNodeOverrider for TransformES2017OnEmitNodeOverrider {
-    fn on_emit_node(
-        &self,
-        hint: crate::EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(crate::EmitHint, &Node),
-    ) {
-        unimplemented!()
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+        if matches!(
+            self.transform_es2017.maybe_enabled_substitutions(),
+            Some(enabled_substitutions) if enabled_substitutions.intersects(ES2017SubstitutionFlags::AsyncMethodsWithSuper)
+        ) && self.transform_es2017.is_super_container(node)
+        {
+            let super_container_flags = self.transform_es2017.resolver.get_node_check_flags(node)
+                & (NodeCheckFlags::AsyncMethodWithSuper
+                    | NodeCheckFlags::AsyncMethodWithSuperBinding);
+            if super_container_flags != self.transform_es2017.enclosing_super_container_flags() {
+                let saved_enclosing_super_container_flags =
+                    self.transform_es2017.enclosing_super_container_flags();
+                self.transform_es2017
+                    .set_enclosing_super_container_flags(super_container_flags);
+                self.previous_on_emit_node
+                    .on_emit_node(hint, node, emit_callback);
+                self.transform_es2017
+                    .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
+                return;
+            }
+        } else if matches!(
+            self.transform_es2017.maybe_enabled_substitutions(),
+            Some(enabled_substitutions) if enabled_substitutions != ES2017SubstitutionFlags::None
+        ) && self
+            .transform_es2017
+            .substituted_super_accessors()
+            .get(&get_node_id(node))
+            .cloned()
+            == Some(true)
+        {
+            let saved_enclosing_super_container_flags =
+                self.transform_es2017.enclosing_super_container_flags();
+            self.transform_es2017
+                .set_enclosing_super_container_flags(NodeCheckFlags::None);
+            self.previous_on_emit_node
+                .on_emit_node(hint, node, emit_callback);
+            self.transform_es2017
+                .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
+            return;
+        }
+        self.previous_on_emit_node
+            .on_emit_node(hint, node, emit_callback);
     }
 }
 
 #[derive(Trace, Finalize)]
 struct TransformES2017OnSubstituteNodeOverrider {
-    transform_es2017: Transformer,
+    transform_es2017: Gc<Box<TransformES2017>>,
     previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformES2017OnSubstituteNodeOverrider {
     fn new(
-        transform_es2017: Transformer,
+        transform_es2017: Gc<Box<TransformES2017>>,
         previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
@@ -1397,8 +1648,17 @@ impl TransformES2017OnSubstituteNodeOverrider {
 }
 
 impl TransformationContextOnSubstituteNodeOverrider for TransformES2017OnSubstituteNodeOverrider {
-    fn on_substitute_node(&self, hint: crate::EmitHint, node: &Node) -> Gc<Node> {
-        unimplemented!()
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
+        let node = self
+            .previous_on_substitute_node
+            .on_substitute_node(hint, node);
+        if hint == EmitHint::Expression
+            && self.transform_es2017.enclosing_super_container_flags() != NodeCheckFlags::None
+        {
+            return self.transform_es2017.substitute_expression(&node);
+        }
+
+        node
     }
 }
 
@@ -1413,7 +1673,10 @@ impl TransformES2017Factory {
 
 impl TransformerFactoryInterface for TransformES2017Factory {
     fn call(&self, context: gc::Gc<Box<dyn TransformationContext>>) -> Transformer {
-        chain_bundle().call(context.clone(), TransformES2017::new(context))
+        chain_bundle().call(
+            context.clone(),
+            TransformES2017::new(context).as_transformer(),
+        )
     }
 }
 

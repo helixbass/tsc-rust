@@ -188,6 +188,7 @@ impl From<Vec<Gc<Node>>> for RcNodeOrNodeArrayOrVec {
 }
 
 bitflags! {
+    #[derive(Default)]
     pub struct GeneratedIdentifierFlags: u32 {
         const None = 0;
         const Auto = 1;

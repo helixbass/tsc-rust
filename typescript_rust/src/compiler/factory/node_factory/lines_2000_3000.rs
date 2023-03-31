@@ -330,14 +330,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_property_access_expression<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_property_access_expression<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
-        name: TName,
+        name: impl Into<StrOrRcNode<'name>>,
     ) -> PropertyAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PropertyAccessExpression);
-        let mut node = PropertyAccessExpression::new(
+        let node = PropertyAccessExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(base_factory, &expression),
@@ -440,15 +440,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_call_expression<
-        TTypeArguments: Into<NodeArrayOrVec>,
-        TArgumentsArray: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_call_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
-        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
-        arguments_array: Option<TArgumentsArray /*<Expression>*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
+        arguments_array: Option<impl Into<NodeArrayOrVec /*<Expression>*/>>,
     ) -> CallExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
         let mut node = CallExpression::new(
