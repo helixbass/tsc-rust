@@ -93,7 +93,7 @@ use compiler::factory::emit_node::{
 };
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
-    create_input_files, create_node_factory, factory, has_option_node_array_changed,
+    create_input_files, create_node_factory, factory, get_factory, has_option_node_array_changed,
     set_original_node, synthetic_factory, with_factory, with_synthetic_factory,
     with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, MaybeChangedNodeArray,
     NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
@@ -462,7 +462,7 @@ pub use compiler::utilities::{
     get_invoked_expression, get_jsdoc_comment_ranges, get_jsdoc_comments_and_tags, get_jsdoc_host,
     get_jsdoc_root, get_jsdoc_type_parameter_declarations, get_jsx_implicit_import_base,
     get_jsx_runtime_import, get_jsx_transform_enabled, get_language_variant,
-    get_leftmost_access_expression, get_leftmost_expression,
+    get_leading_comment_ranges_of_node, get_leftmost_access_expression, get_leftmost_expression,
     get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text,

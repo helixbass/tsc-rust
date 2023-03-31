@@ -404,6 +404,10 @@ thread_local! {
         create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
 }
 
+pub fn get_factory() -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
+    factory.with(|factory_| factory_.clone())
+}
+
 pub enum PseudoBigIntOrString {
     PseudoBigInt(PseudoBigInt),
     String(String),

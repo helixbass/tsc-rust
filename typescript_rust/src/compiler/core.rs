@@ -59,12 +59,9 @@ pub fn maybe_for_each<
     }
 }
 
-pub fn maybe_for_each_bool<
-    TCollection: IntoIterator,
-    TCallback: FnMut(TCollection::Item, usize) -> bool,
->(
+pub fn maybe_for_each_bool<TCollection: IntoIterator>(
     array: Option<TCollection>,
-    callback: TCallback,
+    callback: impl FnMut(TCollection::Item, usize) -> bool,
 ) -> bool {
     match array {
         Some(array) => for_each_bool(array, callback),
