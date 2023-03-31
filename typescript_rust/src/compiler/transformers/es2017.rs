@@ -31,14 +31,14 @@ use crate::{
 };
 
 bitflags! {
-    pub(crate) struct ES2017SubstitutionFlags: u32 {
+    struct ES2017SubstitutionFlags: u32 {
         const None = 0;
         const AsyncMethodsWithSuper = 1 << 0;
     }
 }
 
 bitflags! {
-    pub(crate) struct ContextFlags: u32 {
+    struct ContextFlags: u32 {
         const None = 0;
         const NonTopLevel = 1 << 0;
         const HasLexicalThis = 1 << 1;
