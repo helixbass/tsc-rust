@@ -8,10 +8,16 @@ use crate::{
     first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag,
     is_assignment_expression, is_declaration_binding_element, is_identifier, is_in_js_file,
     is_object_literal_element_like, is_parenthesized_expression, is_prologue_directive,
-    is_spread_element, is_string_literal, push_or_replace, AssertionLevel, Debug_, EmitFlags,
-    HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, OuterExpressionKinds, SyntaxKind,
+    is_spread_element, is_string_literal, push_or_replace, AssertionLevel, BaseNodeFactory, Debug_,
+    EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
+    NodeFactory, NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
+
+pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
+    factory: &NodeFactory<TBaseNodeFactory>,
+) -> Gc<Node> {
+    unimplemented!()
+}
 
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)

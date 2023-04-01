@@ -2,26 +2,33 @@ use std::{
     borrow::Cow,
     cell::{Cell, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    mem,
+    mem, ptr,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
-    compiler::scanner::skip_trivia, create_diagnostic_for_node, declaration_name_to_string, filter,
-    gc_cell_ref_mut_unwrapped, get_factory, get_leading_comment_ranges,
+    add_related_info, add_related_info_rc, can_produce_diagnostics, compiler::scanner::skip_trivia,
+    create_diagnostic_for_node, create_empty_exports,
+    create_get_symbol_accessibility_diagnostic_for_node, create_unparsed_source_file,
+    declaration_name_to_string, filter, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped,
+    get_directory_path, get_factory, get_leading_comment_ranges,
     get_leading_comment_ranges_of_node, get_name_of_declaration, get_original_node_id,
-    get_parse_tree_node, get_source_file_of_node, get_text_of_node, get_trailing_comment_ranges,
-    is_export_assignment, is_source_file_not_json, last, maybe_concatenate, maybe_for_each_bool,
-    push_if_unique_gc, string_contains, transform_nodes, BaseNodeFactorySynthetic, CommentRange,
-    CompilerOptions, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResolver,
+    get_output_paths_for, get_parse_tree_node, get_resolved_external_module_name,
+    get_source_file_of_node, get_text_of_node, get_trailing_comment_ranges, is_any_import_syntax,
+    is_export_assignment, is_external_module, is_external_or_common_js_module, is_json_source_file,
+    is_source_file_js, is_source_file_not_json, last, map, map_defined, maybe_concatenate,
+    maybe_filter, maybe_for_each_bool, normalize_slashes, push_if_unique_gc,
+    set_text_range_node_array, string_contains, transform_nodes, visit_nodes,
+    with_synthetic_factory, BaseNodeFactorySynthetic, CommentRange, CompilerOptions, Debug_,
+    Diagnostic, Diagnostics, EmitHost, EmitResolver, FileReference,
     GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
-    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeBuilderFlags, NodeFactory,
-    NodeId, NodeInterface, NonEmpty, ReadonlyTextRange, ScriptReferenceHost, SourceFileLike,
-    Symbol, SymbolAccessibility, SymbolAccessibilityDiagnostic, SymbolAccessibilityResult,
-    SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, TextRange, TransformationContext,
-    TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, VisitResult,
+    HasStatementsInterface, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node,
+    NodeArray, NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
+    ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
+    SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
+    SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 pub mod diagnostics;
@@ -229,22 +236,95 @@ impl TransformDeclarations {
         self.get_symbol_accessibility_diagnostic.borrow().clone()
     }
 
+    fn set_get_symbol_accessibility_diagnostic(
+        &self,
+        get_symbol_accessibility_diagnostic: GetSymbolAccessibilityDiagnostic,
+    ) {
+        *self.get_symbol_accessibility_diagnostic.borrow_mut() =
+            get_symbol_accessibility_diagnostic;
+    }
+
+    fn set_needs_declare(&self, needs_declare: bool) {
+        self.needs_declare.set(needs_declare);
+    }
+
     fn is_bundled_emit(&self) -> bool {
         self.is_bundled_emit.get()
+    }
+
+    fn set_is_bundled_emit(&self, is_bundled_emit: bool) {
+        self.is_bundled_emit.set(is_bundled_emit);
+    }
+
+    fn result_has_external_module_indicator(&self) -> bool {
+        self.result_has_external_module_indicator.get()
+    }
+
+    fn set_result_has_external_module_indicator(&self, result_has_external_module_indicator: bool) {
+        self.result_has_external_module_indicator
+            .set(result_has_external_module_indicator);
+    }
+
+    fn needs_scope_fix_marker(&self) -> bool {
+        self.needs_scope_fix_marker.get()
+    }
+
+    fn set_needs_scope_fix_marker(&self, needs_scope_fix_marker: bool) {
+        self.needs_scope_fix_marker.set(needs_scope_fix_marker);
+    }
+
+    fn result_has_scope_marker(&self) -> bool {
+        self.result_has_scope_marker.get()
+    }
+
+    fn set_result_has_scope_marker(&self, result_has_scope_marker: bool) {
+        self.result_has_scope_marker.set(result_has_scope_marker);
+    }
+
+    fn set_enclosing_declaration(&self, enclosing_declaration: Option<Gc<Node>>) {
+        *self.enclosing_declaration.borrow_mut() = enclosing_declaration;
     }
 
     fn maybe_necessary_type_references_mut(&self) -> RefMut<Option<HashSet<String>>> {
         self.necessary_type_references.borrow_mut()
     }
 
+    fn set_necessary_type_references(&self, necessary_type_references: Option<HashSet<String>>) {
+        *self.necessary_type_references.borrow_mut() = necessary_type_references;
+    }
+
     fn maybe_late_marked_statements_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.late_marked_statements.borrow_mut()
+    }
+
+    fn set_late_marked_statements(&self, late_marked_statements: Option<Vec<Gc<Node>>>) {
+        *self.late_marked_statements.borrow_mut() = late_marked_statements;
+    }
+
+    fn set_late_statement_replacement_map(
+        &self,
+        late_statement_replacement_map: Option<HashMap<NodeId, VisitResult>>,
+    ) {
+        *self.late_statement_replacement_map.borrow_mut() = late_statement_replacement_map;
+    }
+
+    fn set_suppress_new_diagnostic_contexts(&self, suppress_new_diagnostic_contexts: Option<bool>) {
+        self.suppress_new_diagnostic_contexts
+            .set(suppress_new_diagnostic_contexts);
+    }
+
+    fn maybe_exported_modules_from_declaration_emit(&self) -> GcCellRef<Option<Vec<Gc<Symbol>>>> {
+        self.exported_modules_from_declaration_emit.borrow()
     }
 
     fn maybe_exported_modules_from_declaration_emit_mut(
         &self,
     ) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>> {
         self.exported_modules_from_declaration_emit.borrow_mut()
+    }
+
+    fn symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self.symbol_tracker.borrow().clone().unwrap()
     }
 
     fn maybe_error_name_node(&self) -> Option<Gc<Node>> {
@@ -255,10 +335,38 @@ impl TransformDeclarations {
         self.error_fallback_node.borrow().clone()
     }
 
+    fn current_source_file(&self) -> Gc<Node> {
+        self.current_source_file.borrow().clone().unwrap()
+    }
+
+    fn set_current_source_file(&self, current_source_file: Option<Gc<Node>>) {
+        *self.current_source_file.borrow_mut() = current_source_file;
+    }
+
+    fn refs(&self) -> GcCellRef<HashMap<NodeId, Gc<Node>>> {
+        gc_cell_ref_unwrapped(&self.refs)
+    }
+
     fn refs_mut(
         &self,
     ) -> GcCellRefMut<Option<HashMap<NodeId, Gc<Node>>>, HashMap<NodeId, Gc<Node>>> {
         gc_cell_ref_mut_unwrapped(&self.refs)
+    }
+
+    fn set_refs(&self, refs: Option<HashMap<NodeId, Gc<Node>>>) {
+        *self.refs.borrow_mut() = refs;
+    }
+
+    fn libs_mut(&self) -> GcCellRefMut<Option<HashMap<String, bool>>, HashMap<String, bool>> {
+        gc_cell_ref_mut_unwrapped(&self.libs)
+    }
+
+    fn set_libs(&self, libs: Option<HashMap<String, bool>>) {
+        *self.libs.borrow_mut() = libs;
+    }
+
+    fn set_emitted_imports(&self, emitted_imports: Option<Vec<Gc<Node>>>) {
+        *self.emitted_imports.borrow_mut() = emitted_imports;
     }
 
     fn record_type_reference_directives_if_necessary(
@@ -357,7 +465,370 @@ impl TransformDeclarations {
         false
     }
 
+    fn transform_declarations_for_js(
+        &self,
+        source_file: &Node, /*SourceFile*/
+        bundled: Option<bool>,
+    ) -> Option<Vec<Gc<Node>>> {
+        let old_diag = self.get_symbol_accessibility_diagnostic();
+        self.set_get_symbol_accessibility_diagnostic(Gc::new(Box::new(
+            TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic::new(
+                source_file.node_wrapper(),
+            ),
+        )));
+        let result = self.resolver.get_declaration_statements_for_source_file(
+            source_file,
+            declaration_emit_node_builder_flags(),
+            &**self.symbol_tracker(),
+            bundled,
+        );
+        self.set_get_symbol_accessibility_diagnostic(old_diag);
+        result
+    }
+
     fn transform_root(&self, node: &Node /*SourceFile | Bundle*/) -> Gc<Node> {
+        if node.kind() == SyntaxKind::SourceFile && node.as_source_file().is_declaration_file() {
+            return node.node_wrapper();
+        }
+
+        if node.kind() == SyntaxKind::Bundle {
+            let node_as_bundle = node.as_bundle();
+            self.set_is_bundled_emit(true);
+            self.set_refs(Some(HashMap::new()));
+            self.set_libs(Some(HashMap::new()));
+            let mut has_no_default_lib = false;
+            let mut bundle = with_synthetic_factory(|synthetic_factory_| {
+                self.factory.create_bundle(
+                    synthetic_factory_,
+                    map(
+                        &node_as_bundle.source_files,
+                        |source_file: &Option<Gc<Node>>, _| -> Option<Gc<Node>> {
+                            let source_file = source_file.as_ref().unwrap();
+                            let source_file_as_source_file = source_file.as_source_file();
+                            if source_file_as_source_file.is_declaration_file() {
+                                return None
+                            }
+                            has_no_default_lib = has_no_default_lib || source_file_as_source_file.has_no_default_lib();
+                            self.set_current_source_file(
+                                Some(source_file.clone())
+                            );
+                            self.set_enclosing_declaration(
+                                Some(source_file.clone())
+                            );
+                            self.set_late_marked_statements(None);
+                            self.set_suppress_new_diagnostic_contexts(Some(false));
+                            self.set_late_statement_replacement_map(
+                                Some(HashMap::new())
+                            );
+                            self.set_get_symbol_accessibility_diagnostic(throw_diagnostic());
+                            self.set_needs_scope_fix_marker(false);
+                            self.set_result_has_scope_marker(false);
+                            self.collect_references(
+                                source_file,
+                                &mut self.refs_mut()
+                            );
+                            self.collect_libs(
+                                source_file,
+                                &mut self.libs_mut()
+                            );
+                            if is_external_or_common_js_module(source_file) || is_json_source_file(source_file) {
+                                self.set_result_has_external_module_indicator(false);
+                                self.set_needs_declare(false);
+                                let statements = if is_source_file_js(source_file) {
+                                    self.factory.create_node_array(
+                                        self.transform_declarations_for_js(
+                                            source_file,
+                                            Some(true)
+                                        ),
+                                        None,
+                                    )
+                                } else {
+                                    visit_nodes(
+                                        Some(source_file_as_source_file.statements()),
+                                        Some(|node: &Node| self.visit_declaration_statements(node)),
+                                        Option::<fn(&Node) -> bool>::None,
+                                        None,
+                                        None,
+                                    ).unwrap()
+                                };
+                                let new_file = with_synthetic_factory(|synthetic_factory_| {
+                                    self.factory.update_source_file(
+                                        synthetic_factory_,
+                                        source_file,
+                                        vec![
+                                            self.factory.create_module_declaration(
+                                                synthetic_factory_,
+                                                Some(vec![]),
+                                                Some(vec![
+                                                    self.factory.create_modifier(
+                                                        synthetic_factory_,
+                                                        SyntaxKind::DeclareKeyword,
+                                                    ).into()
+                                                ]),
+                                                self.factory.create_string_literal(
+                                                    synthetic_factory_,
+                                                    get_resolved_external_module_name(
+                                                        &**self.context.get_emit_host(),
+                                                        source_file,
+                                                        Option::<&Node>::None,
+                                                    ),
+                                                    None,
+                                                    None,
+                                                ).into(),
+                                                Some(
+                                                    self.factory.create_module_block(
+                                                        synthetic_factory_,
+                                                        Some(
+                                                            set_text_range_node_array(
+                                                                self.factory.create_node_array(
+                                                                    Some(self.transform_and_replace_late_painted_statements(
+                                                                        &statements,
+                                                                    )),
+                                                                    None,
+                                                                ),
+                                                                Some(source_file_as_source_file.statements()),
+                                                            )
+                                                        )
+                                                    ).into()
+                                                ),
+                                                None,
+                                            ).into()
+                                        ],
+                                        Some(true),
+                                        Some(vec![]),
+                                        Some(vec![]),
+                                        Some(false),
+                                        Some(vec![]),
+                                    )
+                                });
+                                return Some(new_file);
+                            }
+                            self.set_needs_declare(true);
+                            let updated = if is_source_file_js(source_file) {
+                                self.factory.create_node_array(
+                                    self.transform_declarations_for_js(source_file, None),
+                                    None,
+                                )
+                            } else {
+                                visit_nodes(
+                                    Some(source_file_as_source_file.statements()),
+                                    Some(|node: &Node| self.visit_declaration_statements(node)),
+                                    Option::<fn(&Node) -> bool>::None,
+                                    None,
+                                    None,
+                                ).unwrap()
+                            };
+                            Some(with_synthetic_factory(|synthetic_factory| {
+                                self.factory.update_source_file(
+                                    synthetic_factory_,
+                                    source_file,
+                                    self.transform_and_replace_late_painted_statements(
+                                        &updated
+                                    ),
+                                    Some(true),
+                                    Some(vec![]),
+                                    Some(vec![]),
+                                    Some(false),
+                                    Some(vec![]),
+                                )
+                            }))
+                        }
+                    ),
+                    Some(map_defined(
+                        Some(&node_as_bundle.prepends),
+                        |prepend: &Gc<Node>, _| -> Option<Gc<Node>> {
+                            if prepend.kind() == SyntaxKind::InputFiles {
+                                let source_file = create_unparsed_source_file(
+                                    prepend.clone(),
+                                    Some("dts"),
+                                    self.strip_internal,
+                                );
+                                let source_file_as_unparsed_source = source_file.as_unparsed_source();
+                                has_no_default_lib = has_no_default_lib || source_file_as_unparsed_source.has_no_default_lib == Some(true);
+                                self.collect_references(
+                                    &source_file,
+                                    &mut self.refs_mut(),
+                                );
+                                self.record_type_reference_directives_if_necessary(
+                                    source_file_as_unparsed_source.type_reference_directives.as_deref()
+                                );
+                                self.collect_libs(
+                                    &source_file,
+                                    &mut self.libs_mut(),
+                                );
+                                return Some(source_file);
+                            }
+                            Some(prepend.clone())
+                        }
+                    )),
+                )
+            });
+            bundle.synthetic_file_references = Some(vec![]);
+            bundle.synthetic_type_references =
+                Some(self.get_file_references_for_used_type_references());
+            bundle.synthetic_lib_references = Some(self.get_lib_references());
+            bundle.has_no_default_lib = Some(has_no_default_lib);
+            let output_file_path = get_directory_path(&normalize_slashes(
+                get_output_paths_for(node, &**self.host, true)
+                    .declaration_file_path
+                    .as_ref()
+                    .unwrap(),
+            ));
+            {
+                let reference_visitor = self.map_references_into_array(
+                    bundle.synthetic_file_references.as_ref().unwrap(),
+                    &output_file_path,
+                );
+                self.refs().values().for_each(|ref_: &Gc<Node>| {
+                    reference_visitor(ref_);
+                });
+            }
+            return bundle.into();
+        }
+        let node_as_source_file = node.as_source_file();
+
+        self.set_needs_declare(true);
+        self.set_needs_scope_fix_marker(false);
+        self.set_result_has_scope_marker(false);
+        self.set_enclosing_declaration(Some(node.node_wrapper()));
+        self.set_current_source_file(Some(node.node_wrapper()));
+        self.set_get_symbol_accessibility_diagnostic(throw_diagnostic());
+        self.set_is_bundled_emit(false);
+        self.set_result_has_external_module_indicator(false);
+        self.set_suppress_new_diagnostic_contexts(Some(false));
+        self.set_late_marked_statements(None);
+        self.set_late_statement_replacement_map(Some(Default::default()));
+        self.set_necessary_type_references(None);
+        self.set_refs(Some(Default::default()));
+        {
+            let mut refs = self.refs_mut();
+            self.collect_references(&self.current_source_file(), &mut refs);
+        }
+        self.set_libs(Some(Default::default()));
+        {
+            let mut libs = self.libs_mut();
+            self.collect_libs(&self.current_source_file(), &mut libs);
+        }
+        let mut references: Vec<FileReference> = vec![];
+        let output_file_path = get_directory_path(&normalize_slashes(
+            get_output_paths_for(node, &**self.host, true)
+                .declaration_file_path
+                .as_ref()
+                .unwrap(),
+        ));
+        let reference_visitor = self.map_references_into_array(&references, &output_file_path);
+        let mut combined_statements: NodeArray/*<Statement>*/;
+        if is_source_file_js(&self.current_source_file()) {
+            combined_statements = self
+                .factory
+                .create_node_array(self.transform_declarations_for_js(node, None), None);
+            self.refs().values().for_each(|ref_: &Gc<Node>| {
+                reference_visitor(ref_);
+            });
+            self.set_emitted_imports(Some(filter(
+                &combined_statements,
+                |statement: &Gc<Node>| is_any_import_syntax(statement),
+            )));
+        } else {
+            let statements = visit_nodes(
+                Some(node_as_source_file.statements()),
+                Some(|node: &Node| self.visit_declaration_statements(node)),
+                Option::<fn(&Node) -> bool>::None,
+                None,
+                None,
+            )
+            .unwrap();
+            combined_statements = set_text_range_node_array(
+                self.factory.create_node_array(
+                    Some(self.transform_and_replace_late_painted_statements(&statements)),
+                    None,
+                ),
+                Some(node_as_source_file.statements()),
+            );
+            self.refs().values().for_each(|ref_: &Gc<Node>| {
+                reference_visitor(ref_);
+            });
+            self.set_emitted_imports(Some(filter(
+                &combined_statements,
+                |statement: &Gc<Node>| is_any_import_syntax(statement),
+            )));
+            if is_external_module(node)
+                && (!self.result_has_external_module_indicator()
+                    || self.needs_scope_fix_marker() && !self.result_has_scope_marker())
+            {
+                combined_statements = set_text_range_node_array(
+                    self.factory.create_node_array(
+                        Some({
+                            let mut combined_statements = combined_statements.to_vec();
+                            combined_statements.push(create_empty_exports(&self.factory));
+                            combined_statements
+                        }),
+                        None,
+                    ),
+                    Some(&combined_statements),
+                );
+            }
+        }
+        drop(reference_visitor);
+        let updated = with_synthetic_factory(|synthetic_factory_| {
+            self.factory.update_source_file(
+                synthetic_factory_,
+                node,
+                combined_statements,
+                Some(true),
+                Some(references),
+                Some(self.get_file_references_for_used_type_references()),
+                Some(node_as_source_file.has_no_default_lib()),
+                Some(self.get_lib_references()),
+            )
+        });
+        *updated
+            .as_source_file()
+            .maybe_exported_modules_from_declaration_emit() =
+            self.maybe_exported_modules_from_declaration_emit().clone();
+        updated
+    }
+
+    fn get_lib_references(&self) -> Vec<FileReference> {
+        unimplemented!()
+    }
+
+    fn get_file_references_for_used_type_references(&self) -> Vec<FileReference> {
+        unimplemented!()
+    }
+
+    fn map_references_into_array<'arg>(
+        &self,
+        references: &'arg [FileReference],
+        output_file_path: &'arg str,
+    ) -> impl Fn(&Node /*SourceFile*/) + 'arg {
+        |file: &Node| unimplemented!()
+    }
+
+    fn collect_references(
+        &self,
+        source_file: &Node, /*SourceFile | UnparsedSource*/
+        ret: &mut HashMap<NodeId, Gc<Node /*SourceFile*/>>,
+    ) {
+        unimplemented!()
+    }
+
+    fn collect_libs(
+        &self,
+        source_file: &Node, /*SourceFile | UnparsedSource*/
+        ret: &mut HashMap<String, bool>,
+    ) {
+        unimplemented!()
+    }
+
+    fn transform_and_replace_late_painted_statements(
+        &self,
+        statements: &NodeArray, /*<Statement>*/
+    ) -> NodeArray /*<Statement>*/ {
+        unimplemented!()
+    }
+
+    fn visit_declaration_statements(&self, input: &Node) -> VisitResult /*<Node>*/ {
         unimplemented!()
     }
 }
@@ -566,7 +1037,11 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
             self.transform_declarations.context.add_diagnostic(
-                create_diagnostic_for_node(error_name_node_or_error_fallback_node, &Diagnostics::The_inferred_type_of_this_node_exceeds_the_maximum_length_the_compiler_will_serialize_An_explicit_type_annotation_is_needed, None).into()
+                create_diagnostic_for_node(
+                    error_name_node_or_error_fallback_node,
+                    &Diagnostics::The_inferred_type_of_this_node_exceeds_the_maximum_length_the_compiler_will_serialize_An_explicit_type_annotation_is_needed,
+                    None
+                ).into()
             );
         }
     }
@@ -621,9 +1096,44 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         &self,
         containing_file: &Node, /*SourceFile*/
         parent_symbol: &Symbol,
-        augmenting_symbol: &Symbol,
+        symbol: &Symbol,
     ) {
-        unimplemented!()
+        let primary_declaration =
+            parent_symbol
+                .maybe_declarations()
+                .as_ref()
+                .and_then(|parent_symbol_declarations| {
+                    parent_symbol_declarations
+                        .into_iter()
+                        .find(|d: &&Gc<Node>| {
+                            ptr::eq(&*get_source_file_of_node(d), containing_file)
+                        })
+                        .cloned()
+                });
+        let augmenting_declarations =
+            maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>| {
+                !ptr::eq(&*get_source_file_of_node(d), containing_file)
+            });
+        if let Some(augmenting_declarations) = augmenting_declarations {
+            for augmentations in augmenting_declarations {
+                self.transform_declarations.context.add_diagnostic(
+                    add_related_info_rc(
+                        create_diagnostic_for_node(
+                            &augmentations,
+                            &Diagnostics::Declaration_augments_declaration_in_another_file_This_cannot_be_serialized,
+                            None,
+                        ).into(),
+                        vec![
+                            create_diagnostic_for_node(
+                                primary_declaration.as_ref().unwrap(),
+                                &Diagnostics::This_is_the_declaration_being_augmented_Consider_moving_the_augmenting_declaration_into_the_same_file,
+                                None,
+                            ).into(),
+                        ]
+                    )
+                );
+            }
+        }
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
@@ -631,11 +1141,63 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 
     fn report_non_serializable_property(&self, property_name: &str) {
-        unimplemented!()
+        if let Some(ref error_name_node_or_error_fallback_node) = self
+            .transform_declarations
+            .maybe_error_name_node()
+            .or_else(|| self.transform_declarations.maybe_error_fallback_node())
+        {
+            self.transform_declarations.context.add_diagnostic(
+                create_diagnostic_for_node(
+                    error_name_node_or_error_fallback_node,
+                    &Diagnostics::The_type_of_this_node_cannot_be_serialized_because_its_property_0_cannot_be_serialized,
+                    Some(vec![
+                        property_name.to_owned()
+                    ])
+                ).into()
+            );
+        }
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         true
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
+    source_file: Gc<Node /*SourceFile*/>,
+}
+
+impl TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
+    fn new(source_file: Gc<Node /*SourceFile*/>) -> Self {
+        Self { source_file }
+    }
+}
+
+impl GetSymbolAccessibilityDiagnosticInterface
+    for TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic
+{
+    fn call(&self, s: &SymbolAccessibilityResult) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+        if let Some(s_error_node) = s
+            .error_node
+            .as_ref()
+            .filter(|s_error_node| can_produce_diagnostics(s_error_node))
+        {
+            create_get_symbol_accessibility_diagnostic_for_node(s_error_node).call(s)
+        } else {
+            Some(Gc::new(SymbolAccessibilityDiagnostic {
+                diagnostic_message: if s.error_module_name.as_ref().non_empty().is_some() {
+                    &*Diagnostics::Declaration_emit_for_this_file_requires_using_private_name_0_from_module_1_An_explicit_type_annotation_may_unblock_declaration_emit
+                } else {
+                    &*Diagnostics::Declaration_emit_for_this_file_requires_using_private_name_0_An_explicit_type_annotation_may_unblock_declaration_emit
+                },
+                error_node: s
+                    .error_node
+                    .clone()
+                    .unwrap_or_else(|| self.source_file.clone()),
+                type_name: None,
+            }))
+        }
     }
 }
 

@@ -79,6 +79,7 @@ impl Printer {
                 );
             }
             for source_file in &source_file_or_bundle_as_bundle.source_files {
+                let source_file = source_file.as_ref().unwrap();
                 self.emit_prologue_directives(
                     source_file.as_source_file().statements(),
                     Some(&**source_file),
@@ -98,7 +99,7 @@ impl Printer {
         let mut prologues: Option<Vec<SourceFilePrologueInfo>> = None;
         let bundle_as_bundle = bundle.as_bundle();
         for index in 0..bundle_as_bundle.source_files.len() {
-            let source_file = &bundle_as_bundle.source_files[index];
+            let source_file = bundle_as_bundle.source_files[index].as_ref().unwrap();
             let mut directives: Option<Vec<SourceFilePrologueDirective>> = None;
             let mut end = 0;
             let source_file_as_source_file = source_file.as_source_file();
@@ -181,7 +182,7 @@ impl Printer {
                 }
             }
             for source_file in &source_file_or_bundle_as_bundle.source_files {
-                if self.emit_shebang_if_needed(source_file) {
+                if self.emit_shebang_if_needed(source_file.as_ref().unwrap()) {
                     return true;
                 }
             }

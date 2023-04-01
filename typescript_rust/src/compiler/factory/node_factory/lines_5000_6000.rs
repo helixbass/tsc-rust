@@ -140,11 +140,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn update_source_file<TStatements: Into<NodeArrayOrVec>>(
+    pub fn update_source_file(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*SourceFile*/
-        statements: TStatements,
+        statements: impl Into<NodeArrayOrVec>,
         is_declaration_file: Option<bool>,
         referenced_files: Option<Vec<FileReference>>,
         type_reference_directives: Option<Vec<FileReference>>,
@@ -187,7 +187,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_bundle(
         &self,
         base_factory: &TBaseNodeFactory,
-        source_files: Vec<Gc<Node /*<SourceFile>*/>>,
+        source_files: Vec<Option<Gc<Node /*<SourceFile>*/>>>,
         prepends: Option<Vec<Gc<Node /*<UnparsedSource | InputFiles>*/>>>,
     ) -> Bundle {
         let prepends = prepends.unwrap_or_else(|| vec![]);

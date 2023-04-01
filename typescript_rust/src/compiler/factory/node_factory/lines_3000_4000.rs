@@ -796,14 +796,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_module_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_module_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Gc<Node /*ModuleName*/>,
         body: Option<Gc<Node /*ModuleBody*/>>,
         flags: Option<NodeFlags>,
@@ -839,10 +836,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_module_block<TStatements: Into<NodeArrayOrVec>>(
+    pub fn create_module_block(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: Option<TStatements>,
+        statements: Option<impl Into<NodeArrayOrVec>>,
     ) -> ModuleBlock {
         let node = self.create_base_node(base_factory, SyntaxKind::ModuleBlock);
         let mut node = ModuleBlock::new(node, self.create_node_array(statements, None));

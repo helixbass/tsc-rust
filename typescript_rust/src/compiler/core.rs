@@ -239,9 +239,9 @@ pub fn count_where<TItem, TPredicate: FnMut(&TItem, usize) -> bool>(
     count
 }
 
-pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+pub fn filter<TItem: Clone>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem) -> bool,
 ) -> Vec<TItem> {
     array
         .into_iter()
@@ -376,13 +376,9 @@ pub fn flat_map_to_mutable<
     flat_map(array, mapfn)
 }
 
-pub fn map_defined<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn map_defined<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
-    mut map_fn: TCallback,
+    mut map_fn: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Vec<TReturn> {
     let mut result = vec![];
     if let Some(array) = array {

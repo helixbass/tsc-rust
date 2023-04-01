@@ -20,10 +20,10 @@ use crate::{
     path_is_relative, remove_file_extension, str_to_source_text_as_chars, string_contains, to_path,
     AllAccessorDeclarations, CharacterCodes, CompilerOptions, Debug_, DiagnosticCollection,
     Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
-    FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind, NamedDeclarationInterface,
-    Node, NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface,
-    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
-    WriteFileCallback,
+    FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
+    NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface, SourceFileMayBeEmittedHost,
+    Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind, WriteFileCallback,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -783,13 +783,10 @@ pub trait ResolveModuleNameResolutionHost {
     fn get_current_directory(&self) -> String;
 }
 
-pub fn get_resolved_external_module_name<
-    THost: ResolveModuleNameResolutionHost,
-    TReferenceFile: Borrow<Node>,
->(
-    host: &THost,
+pub fn get_resolved_external_module_name(
+    host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     file: &Node, /*SourceFile*/
-    reference_file: Option<TReferenceFile /*SourceFile*/>,
+    reference_file: Option<impl Borrow<Node /*SourceFile*/>>,
 ) -> String {
     let file_as_source_file = file.as_source_file();
     file_as_source_file
@@ -855,8 +852,8 @@ pub fn get_external_module_name_from_declaration<THost: ResolveModuleNameResolut
     ))
 }
 
-pub fn get_external_module_name_from_path<THost: ResolveModuleNameResolutionHost>(
-    host: &THost,
+pub fn get_external_module_name_from_path(
+    host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     file_name: &str,
     reference_path: Option<&str>,
 ) -> String {
@@ -910,7 +907,9 @@ pub fn get_declaration_emit_output_file_path(file_name: &str, host: &dyn EmitHos
         file_name,
         &ScriptReferenceHost::get_compiler_options(host),
         &ScriptReferenceHost::get_current_directory(host),
-        &host.get_common_source_directory(),
+        &ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(
+            host,
+        ),
         |f| host.get_canonical_file_name(f),
     )
 }
@@ -1056,8 +1055,10 @@ pub fn get_source_file_path_in_new_dir(
     get_source_file_path_in_new_dir_worker(
         file_name,
         new_dir_path,
-        &EmitHost::get_current_directory(host),
-        &host.get_common_source_directory(),
+        &ScriptReferenceHost::get_current_directory(host),
+        &ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(
+            host,
+        ),
         |f| host.get_canonical_file_name(f),
     )
 }

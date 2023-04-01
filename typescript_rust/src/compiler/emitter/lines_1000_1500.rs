@@ -122,6 +122,7 @@ impl Printer {
 
         self.set_source_file_text_pos(self.get_text_pos_with_write_line());
         for source_file in &bundle_as_bundle.source_files {
+            let source_file = source_file.as_ref().unwrap();
             self.print(EmitHint::SourceFile, source_file, Some(source_file));
         }
         let bundle_file_info = self.maybe_bundle_file_info();

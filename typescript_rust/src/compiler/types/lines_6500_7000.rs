@@ -16,7 +16,8 @@ use super::{
 use crate::{
     CancellationToken, Cloneable, ModuleResolutionCache,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ParseConfigHost, ParsedCommandLine,
-    Path, ProgramBuildInfo, ReadonlyTextRange, StringOrNumber, SymlinkCache,
+    Path, ProgramBuildInfo, ReadonlyTextRange, ResolveModuleNameResolutionHost, StringOrNumber,
+    SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {
@@ -900,17 +901,18 @@ pub trait EmitHost:
     ScriptReferenceHost
     + ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
     + SourceFileMayBeEmittedHost
+    + ResolveModuleNameResolutionHost
     + Trace
     + Finalize
 {
     // fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
     fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
     fn use_case_sensitive_file_names(&self) -> bool;
-    fn get_current_directory(&self) -> String;
+    // fn get_current_directory(&self) -> String;
 
     fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Gc<Node /*SourceFile*/>>;
 
-    fn get_canonical_file_name(&self, file_name: &str) -> String;
+    // fn get_canonical_file_name(&self, file_name: &str) -> String;
     fn get_new_line(&self) -> String;
 
     fn is_emit_blocked(&self, emit_file_name: &str) -> bool;

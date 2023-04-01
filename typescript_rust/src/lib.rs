@@ -72,8 +72,8 @@ pub use compiler::emitter::{
 };
 use compiler::emitter::{
     emit_files, get_build_info, get_common_source_directory, get_common_source_directory_of_config,
-    get_output_declaration_file_name, get_output_paths_for_bundle, is_build_info_file,
-    EmitBinaryExpression,
+    get_output_declaration_file_name, get_output_paths_for, get_output_paths_for_bundle,
+    is_build_info_file, EmitBinaryExpression,
 };
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
@@ -93,11 +93,11 @@ use compiler::factory::emit_node::{
 };
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
-    create_input_files, create_node_factory, factory, get_factory, has_option_node_array_changed,
-    set_original_node, synthetic_factory, with_factory, with_synthetic_factory,
-    with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, MaybeChangedNodeArray,
-    NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
-    StringOrRcNode, SyntaxKindOrRcNode,
+    create_input_files, create_node_factory, create_unparsed_source_file, factory, get_factory,
+    has_option_node_array_changed, set_original_node, synthetic_factory, with_factory,
+    with_synthetic_factory, with_synthetic_factory_and_factory, BaseNodeFactorySynthetic,
+    MaybeChangedNodeArray, NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber,
+    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,
@@ -164,7 +164,7 @@ pub use compiler::factory::parenthesizer_rules::{
 };
 use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
-    create_binary_expression_trampoline, find_use_strict_prologue,
+    create_binary_expression_trampoline, create_empty_exports, find_use_strict_prologue,
     get_elements_of_binding_or_assignment_pattern, get_external_helpers_module_name,
     get_jsdoc_type_assertion_type, get_target_of_binding_or_assignment_element,
     has_recorded_external_helpers, is_comma_sequence, is_jsdoc_type_assertion, is_local_name,
@@ -261,6 +261,7 @@ pub use compiler::transformer::{
     transform_nodes, TransformNodesTransformationResult, WrapCustomTransformerFactoryHandleDefault,
 };
 pub use compiler::transformers::declarations::diagnostics::{
+    can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,
     GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
     SymbolAccessibilityDiagnostic,
 };
@@ -418,8 +419,8 @@ use compiler::types::{
     SourceMapEmitResult, SourceOfProjectReferenceRedirect, WideningContext,
 };
 pub use compiler::utilities::{
-    add_related_info, array_is_homogeneous, attach_file_to_diagnostics, base64_encode,
-    chain_diagnostic_messages, chain_diagnostic_messages_multiple, change_extension,
+    add_related_info, add_related_info_rc, array_is_homogeneous, attach_file_to_diagnostics,
+    base64_encode, chain_diagnostic_messages, chain_diagnostic_messages_multiple, change_extension,
     compare_diagnostics, compare_diagnostics_skip_related_information,
     concatenate_diagnostic_message_chains, contains_ignored_path, contains_parse_error,
     copy_entries, create_comment_directives_map, create_compiler_diagnostic,
@@ -479,10 +480,11 @@ pub use compiler::utilities::{
     get_paths_base_path, get_pattern_from_spec, get_property_assignment,
     get_property_name_for_property_name_node, get_regex_from_pattern,
     get_regular_expression_for_wildcard, get_regular_expressions_for_wildcards,
-    get_resolved_module, get_rest_parameter_element_type, get_right_most_assigned_expression,
-    get_root_declaration, get_script_target_features, get_selected_effective_modifier_flags,
-    get_semantic_jsx_children, get_set_accessor_value_parameter, get_source_file_of_module,
-    get_source_file_of_node, get_source_file_path_in_new_dir, get_source_files_to_emit,
+    get_resolved_external_module_name, get_resolved_module, get_rest_parameter_element_type,
+    get_right_most_assigned_expression, get_root_declaration, get_script_target_features,
+    get_selected_effective_modifier_flags, get_semantic_jsx_children,
+    get_set_accessor_value_parameter, get_source_file_of_module, get_source_file_of_node,
+    get_source_file_path_in_new_dir, get_source_files_to_emit,
     get_source_text_of_node_from_source_file, get_span_of_token_at_position,
     get_strict_option_value, get_super_container, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module,
@@ -499,11 +501,11 @@ pub use compiler::utilities::{
     has_zero_or_one_asterisk_character, host_get_canonical_file_name, index_of_node,
     insert_statements_after_standard_prologue, introduces_arguments_exotic_object,
     is_access_expression, is_aliasable_expression, is_ambient_module, is_any_import_or_re_export,
-    is_assignment_declaration, is_assignment_expression, is_assignment_operator,
-    is_assignment_target, is_async_function, is_bindable_object_define_property_call,
-    is_bindable_static_access_expression, is_bindable_static_element_access_expression,
-    is_bindable_static_name_expression, is_block_or_catch_scoped,
-    is_block_scoped_container_top_level, is_bundle_file_text_like,
+    is_any_import_syntax, is_assignment_declaration, is_assignment_expression,
+    is_assignment_operator, is_assignment_target, is_async_function,
+    is_bindable_object_define_property_call, is_bindable_static_access_expression,
+    is_bindable_static_element_access_expression, is_bindable_static_name_expression,
+    is_block_or_catch_scoped, is_block_scoped_container_top_level, is_bundle_file_text_like,
     is_catch_clause_variable_declaration_or_binding_element, is_check_js_enabled_for_file,
     is_child_of_node_with_kind, is_computed_non_literal_name, is_declaration_name,
     is_declaration_readonly, is_defaulted_expando_initializer, is_delete_target,
@@ -567,7 +569,7 @@ pub use compiler::utilities::{
     write_comment_range, write_file, write_file_ensuring_directories, AssignmentKind,
     Associativity, ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames,
     FileMatcherPatterns, FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax,
-    OperatorPrecedence, StringOrPattern, SymlinkCache,
+    OperatorPrecedence, ResolveModuleNameResolutionHost, StringOrPattern, SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,

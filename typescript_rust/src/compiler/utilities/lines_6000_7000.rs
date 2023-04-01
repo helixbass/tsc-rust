@@ -1978,6 +1978,14 @@ pub fn add_related_info(
     // return diagnostic;
 }
 
+pub fn add_related_info_rc(
+    diagnostic: Gc<Diagnostic>,
+    related_information: Vec<Gc<DiagnosticRelatedInformation>>,
+) -> Gc<Diagnostic> {
+    add_related_info(&diagnostic, related_information);
+    diagnostic
+}
+
 pub fn min_and_max<TItem, TGetValue: FnMut(&TItem) -> usize>(
     arr: &[TItem],
     mut get_value: TGetValue,

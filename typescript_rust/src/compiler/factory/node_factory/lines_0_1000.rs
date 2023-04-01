@@ -652,9 +652,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         self.create_postfix_unary_expression(base_factory, operand, SyntaxKind::MinusMinusToken)
     }
 
-    pub fn create_node_array<TElements: Into<NodeArrayOrVec>>(
+    pub fn create_node_array(
         &self,
-        elements: Option<TElements>,
+        elements: Option<impl Into<NodeArrayOrVec>>,
         has_trailing_comma: Option<bool>,
     ) -> NodeArray {
         let elements_is_none = elements.is_none();

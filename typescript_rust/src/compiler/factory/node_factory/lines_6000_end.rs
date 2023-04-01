@@ -14,8 +14,8 @@ use crate::{
     parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BuildInfo, Debug_, EmitFlags, EmitNode, InputFiles, LanguageVariant, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget,
-    SourceMapRange, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind,
-    TransformFlags,
+    SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -423,6 +423,14 @@ impl From<String> for PseudoBigIntOrString {
     fn from(string: String) -> Self {
         PseudoBigIntOrString::String(string)
     }
+}
+
+pub fn create_unparsed_source_file(
+    text_or_input_files: impl Into<StringOrRcNode>,
+    map_path_or_type: Option<&str>,
+    map_text_or_strip_internal: Option<impl Into<StringOrBool>>,
+) -> Gc<Node /*UnparsedSource*/> {
+    unimplemented!()
 }
 
 pub fn create_input_files(

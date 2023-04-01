@@ -837,7 +837,7 @@ pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Gc<Symbol>>;
 pub struct Bundle {
     _node: BaseNode,
     pub prepends: Vec<Gc<Node /*InputFiles | UnparsedSource*/>>,
-    pub source_files: Vec<Gc<Node /*SourceFile*/>>,
+    pub source_files: Vec<Option<Gc<Node /*SourceFile*/>>>,
     #[unsafe_ignore_trace]
     pub(crate) synthetic_file_references: Option<Vec<FileReference>>,
     #[unsafe_ignore_trace]
@@ -848,7 +848,11 @@ pub struct Bundle {
 }
 
 impl Bundle {
-    pub fn new(base_node: BaseNode, prepends: Vec<Gc<Node>>, source_files: Vec<Gc<Node>>) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        prepends: Vec<Gc<Node>>,
+        source_files: Vec<Option<Gc<Node>>>,
+    ) -> Self {
         Self {
             _node: base_node,
             prepends,

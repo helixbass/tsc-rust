@@ -17,10 +17,11 @@ use crate::{
     CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension,
     FileIncludeReason, FileReference, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, Path, Program,
-    ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
-    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
-    StructureIsReused, SymlinkCache, TypeChecker, TypeCheckerHost, WriteFileCallback,
+    ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap, ResolveModuleNameResolutionHost,
+    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ScriptReferenceHost, SourceFileLike, SourceFileMayBeEmittedHost,
+    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, TypeChecker,
+    TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -861,14 +862,6 @@ impl EmitHost for ProgramEmitHost {
         self.program.get_prepend_nodes()
     }
 
-    fn get_canonical_file_name(&self, file_name: &str) -> String {
-        self.program.get_canonical_file_name(file_name)
-    }
-
-    fn get_current_directory(&self) -> String {
-        self.program.current_directory().clone()
-    }
-
     fn get_new_line(&self) -> String {
         self.program.host().get_new_line()
     }
@@ -1045,6 +1038,20 @@ impl SourceFileMayBeEmittedHost for ProgramEmitHost {
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
         self.program
             .is_source_of_project_reference_redirect_(file_name)
+    }
+}
+
+impl ResolveModuleNameResolutionHost for ProgramEmitHost {
+    fn get_canonical_file_name(&self, file_name: &str) -> String {
+        self.program.get_canonical_file_name(file_name)
+    }
+
+    fn get_common_source_directory(&self) -> String {
+        self.program.get_common_source_directory()
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.program.current_directory().clone()
     }
 }
 
