@@ -238,6 +238,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_parameter_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ParameterDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_decorator(
         &self,
         base_factory: &TBaseNodeFactory,

@@ -19,19 +19,21 @@ use crate::{
     get_trailing_comment_ranges, has_extension, is_any_import_syntax, is_export_assignment,
     is_external_module, is_external_module_reference, is_external_or_common_js_module,
     is_import_declaration, is_import_equals_declaration, is_json_source_file, is_source_file_js,
-    is_source_file_not_json, is_string_literal, is_string_literal_like, last, map, map_defined,
-    maybe_concatenate, maybe_filter, maybe_for_each_bool, module_specifiers, normalize_slashes,
-    path_contains_node_modules, path_is_relative, push_if_unique_gc, set_text_range_node_array,
-    starts_with, string_contains, to_path, transform_nodes, visit_nodes, with_synthetic_factory,
+    is_source_file_not_json, is_string_literal, is_string_literal_like, is_unparsed_source, last,
+    map, map_defined, maybe_concatenate, maybe_filter, maybe_for_each, maybe_for_each_bool,
+    module_specifiers, normalize_slashes, path_contains_node_modules, path_is_relative,
+    push_if_unique_gc, set_text_range_node_array, starts_with, string_contains,
+    to_file_name_lower_case, to_path, transform_nodes, visit_nodes, with_synthetic_factory,
     BaseNodeFactorySynthetic, CommentRange, CompilerOptions, Debug_, Diagnostic, Diagnostics,
     EmitHost, EmitResolver, FileReference, GetSymbolAccessibilityDiagnostic,
-    GetSymbolAccessibilityDiagnosticInterface, HasStatementsInterface, LiteralLikeNodeInterface,
-    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeBuilderFlags,
-    NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange, ScriptReferenceHost,
-    SourceFileLike, Symbol, SymbolAccessibility, SymbolAccessibilityDiagnostic,
-    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, TextRange,
-    TransformationContext, TransformationResult, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, VisitResult,
+    GetSymbolAccessibilityDiagnosticInterface, HasInitializerInterface, HasStatementsInterface,
+    HasTypeInterface, LiteralLikeNodeInterface, ModifierFlags,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
+    NodeArray, NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
+    ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
+    SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
+    SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 pub mod diagnostics;
@@ -313,6 +315,10 @@ impl TransformDeclarations {
         late_statement_replacement_map: Option<HashMap<NodeId, VisitResult>>,
     ) {
         *self.late_statement_replacement_map.borrow_mut() = late_statement_replacement_map;
+    }
+
+    fn maybe_suppress_new_diagnostic_contexts(&self) -> Option<bool> {
+        self.suppress_new_diagnostic_contexts.get()
     }
 
     fn set_suppress_new_diagnostic_contexts(&self, suppress_new_diagnostic_contexts: Option<bool>) {
@@ -940,7 +946,25 @@ impl TransformDeclarations {
         source_file: &Node, /*SourceFile | UnparsedSource*/
         ret: &mut HashMap<NodeId, Gc<Node /*SourceFile*/>>,
     ) {
-        unimplemented!()
+        if self.no_resolve == Some(true)
+            || !is_unparsed_source(source_file) && is_source_file_js(source_file)
+        {
+            return /*ret*/;
+        }
+        maybe_for_each(
+            source_file
+                .as_source_file()
+                .maybe_referenced_files()
+                .as_deref(),
+            |f: &FileReference, _| -> Option<()> {
+                let elem = self.host.get_source_file_from_reference(source_file, f);
+                if let Some(elem) = elem {
+                    ret.insert(get_original_node_id(&elem), elem);
+                }
+                None
+            },
+        );
+        // return ret;
     }
 
     fn collect_libs(
@@ -948,6 +972,175 @@ impl TransformDeclarations {
         source_file: &Node, /*SourceFile | UnparsedSource*/
         ret: &mut HashMap<String, bool>,
     ) {
+        let maybe_source_file_as_source_file_lib_reference_directives = match source_file.kind() {
+            SyntaxKind::SourceFile => Some(
+                source_file
+                    .as_source_file()
+                    .maybe_lib_reference_directives(),
+            ),
+            _ => None,
+        };
+        maybe_for_each(
+            // TODO: expose some trait for unifying this?
+            match source_file.kind() {
+                SyntaxKind::SourceFile => maybe_source_file_as_source_file_lib_reference_directives
+                    .as_ref()
+                    .unwrap()
+                    .as_deref(),
+                SyntaxKind::UnparsedSource => {
+                    Some(&*source_file.as_unparsed_source().lib_reference_directives)
+                }
+                _ => unreachable!(),
+            },
+            |ref_: &FileReference, _| -> Option<()> {
+                let lib = self.host.get_lib_file_from_reference(ref_);
+                if lib.is_some() {
+                    ret.insert(to_file_name_lower_case(&ref_.file_name), true);
+                }
+                None
+            },
+        );
+        // return ret;
+    }
+
+    fn filter_binding_pattern_initializers(&self, name: &Node /*BindingName*/) -> Gc<Node> {
+        if name.kind() == SyntaxKind::Identifier {
+            return name.node_wrapper();
+        } else {
+            if name.kind() == SyntaxKind::ArrayBindingPattern {
+                return with_synthetic_factory(|synthetic_factory_| {
+                    self.factory.update_array_binding_pattern(
+                        synthetic_factory_,
+                        name,
+                        visit_nodes(
+                            Some(&name.as_array_binding_pattern().elements),
+                            Some(|node: &Node| Some(self.visit_binding_element(node).into())),
+                            Option::<fn(&Node) -> bool>::None,
+                            None,
+                            None,
+                        )
+                        .unwrap(),
+                    )
+                });
+            } else {
+                return with_synthetic_factory(|synthetic_factory_| {
+                    self.factory.update_object_binding_pattern(
+                        synthetic_factory_,
+                        name,
+                        visit_nodes(
+                            Some(&name.as_object_binding_pattern().elements),
+                            Some(|node: &Node| Some(self.visit_binding_element(node).into())),
+                            Option::<fn(&Node) -> bool>::None,
+                            None,
+                            None,
+                        )
+                        .unwrap(),
+                    )
+                });
+            }
+        }
+    }
+
+    fn visit_binding_element(&self, elem: &Node /*ArrayBindingElement*/) -> Gc<Node> {
+        if elem.kind() == SyntaxKind::OmittedExpression {
+            return elem.node_wrapper();
+        }
+        let elem_as_binding_element = elem.as_binding_element();
+        with_synthetic_factory(|synthetic_factory_| {
+            self.factory.update_binding_element(
+                synthetic_factory_,
+                elem,
+                elem_as_binding_element.dot_dot_dot_token.clone(),
+                elem_as_binding_element.property_name.clone(),
+                self.filter_binding_pattern_initializers(&elem_as_binding_element.name()),
+                if self.should_print_with_initializer(elem) {
+                    elem_as_binding_element.maybe_initializer()
+                } else {
+                    None
+                },
+            )
+        })
+    }
+
+    fn ensure_parameter(
+        &self,
+        p: &Node, /*ParameterDeclaration*/
+        modifier_mask: Option<ModifierFlags>,
+        type_: Option<&Node /*TypeNode*/>,
+    ) -> Gc<Node /*ParameterDeclaration*/> {
+        let p_as_parameter_declaration = p.as_parameter_declaration();
+        let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
+        if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
+            old_diag = Some(self.get_symbol_accessibility_diagnostic());
+            self.set_get_symbol_accessibility_diagnostic(
+                create_get_symbol_accessibility_diagnostic_for_node(p),
+            );
+        }
+        let new_param = with_synthetic_factory(|synthetic_factory_| {
+            self.factory.update_parameter_declaration(
+                synthetic_factory_,
+                p,
+                Option::<NodeArray>::None,
+                Some(mask_modifiers(p, modifier_mask, None)),
+                p_as_parameter_declaration.dot_dot_dot_token.clone(),
+                Some(self.filter_binding_pattern_initializers(&p_as_parameter_declaration.name())),
+                if self.resolver.is_optional_parameter(p) {
+                    Some(
+                        p_as_parameter_declaration
+                            .question_token
+                            .clone()
+                            .unwrap_or_else(|| {
+                                self.factory
+                                    .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
+                                    .into()
+                            }),
+                    )
+                } else {
+                    None
+                },
+                self.ensure_type(
+                    p,
+                    type_
+                        .map(Node::node_wrapper)
+                        .or_else(|| p_as_parameter_declaration.maybe_type())
+                        .as_deref(),
+                    Some(true),
+                ),
+                self.ensure_no_initializer(p),
+            )
+        });
+        if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
+            self.set_get_symbol_accessibility_diagnostic(old_diag.unwrap());
+        }
+        new_param
+    }
+
+    fn should_print_with_initializer(&self, node: &Node) -> bool {
+        can_have_literal_initializer(node)
+            && self.resolver.is_literal_const_declaration(
+                &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
+            )
+    }
+
+    fn ensure_no_initializer(
+        &self,
+        node: &Node, /*CanHaveLiteralInitializer*/
+    ) -> Option<Gc<Node>> {
+        if self.should_print_with_initializer(node) {
+            return Some(self.resolver.create_literal_const_value(
+                &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
+                &**self.symbol_tracker(),
+            ));
+        }
+        None
+    }
+
+    fn ensure_type(
+        &self,
+        node: &Node, /*HasInferredType*/
+        type_: Option<&Node /*TypeNode*/>,
+        ignore_private: Option<bool>,
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
@@ -1348,4 +1541,16 @@ impl TransformerFactoryInterface for TransformDeclarationsFactory {
 
 pub fn transform_declarations() -> TransformerFactory {
     Gc::new(Box::new(TransformDeclarationsFactory::new()))
+}
+
+fn mask_modifiers(
+    node: &Node,
+    modifier_mask: Option<ModifierFlags>,
+    modifier_additions: Option<ModifierFlags>,
+) -> Vec<Gc<Node /*Modifier*/>> {
+    unimplemented!()
+}
+
+fn can_have_literal_initializer(node: &Node) -> bool {
+    unimplemented!()
 }

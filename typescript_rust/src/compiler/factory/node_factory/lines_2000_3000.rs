@@ -182,10 +182,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_object_binding_pattern<TElements: Into<NodeArrayOrVec>>(
+    pub fn create_object_binding_pattern(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements, /*<BindingElement>*/
+        elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ObjectBindingPattern {
         let node = self.create_base_node(base_factory, SyntaxKind::ObjectBindingPattern);
         let mut node =
@@ -206,10 +206,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_array_binding_pattern<TElements: Into<NodeArrayOrVec>>(
+    pub fn update_object_binding_pattern(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements, /*<BindingElement>*/
+        node: &Node, /*ObjectBindingPattern*/
+        elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_array_binding_pattern(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ArrayBindingPattern {
         let node = self.create_base_node(base_factory, SyntaxKind::ArrayBindingPattern);
         let mut node = ArrayBindingPattern::new(node, self.create_node_array(Some(elements), None));
@@ -221,17 +230,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_binding_element<
-        'property_name,
-        'name,
-        TPropertyName: Into<StrOrRcNode<'property_name>>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn update_array_binding_pattern(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ArrayBindingPattern*/
+        elements: impl Into<NodeArrayOrVec /*<ArrayBindingElement>*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_binding_element<'property_name, 'name>(
         &self,
         base_factory: &TBaseNodeFactory,
         dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
-        property_name: Option<TPropertyName /*PropertyName*/>,
-        name: TName, /*BindingName*/
+        property_name: Option<impl Into<StrOrRcNode<'property_name> /*PropertyName*/>>,
+        name: impl Into<StrOrRcNode<'name>>, /*BindingName*/
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> BindingElement {
         let node = self.create_base_binding_like_declaration(
@@ -265,6 +278,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsRestOrSpread);
         }
         node
+    }
+
+    pub fn update_binding_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*BindingElement*/
+        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        property_name: Option<Gc<Node /*PropertyName*/>>,
+        name: Gc<Node /*BindingName*/>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub(crate) fn create_base_expression(
