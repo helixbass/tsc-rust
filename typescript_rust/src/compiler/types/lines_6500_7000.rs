@@ -14,8 +14,9 @@ use super::{
     SynthesizedComment, TextRange,
 };
 use crate::{
-    CancellationToken, Cloneable, ModuleResolutionCache, ParseConfigHost, ParsedCommandLine, Path,
-    ProgramBuildInfo, ReadonlyTextRange, StringOrNumber, SymlinkCache,
+    CancellationToken, Cloneable, ModuleResolutionCache,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ParseConfigHost, ParsedCommandLine,
+    Path, ProgramBuildInfo, ReadonlyTextRange, StringOrNumber, SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {
@@ -896,7 +897,11 @@ pub trait SourceFileMayBeEmittedHost {
 }
 
 pub trait EmitHost:
-    ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost + Trace + Finalize
+    ScriptReferenceHost
+    + ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
+    + SourceFileMayBeEmittedHost
+    + Trace
+    + Finalize
 {
     // fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
     fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
@@ -905,7 +910,6 @@ pub trait EmitHost:
 
     fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Gc<Node /*SourceFile*/>>;
 
-    fn get_common_source_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
     fn get_new_line(&self) -> String;
 
@@ -929,4 +933,7 @@ pub trait EmitHost:
     ) -> Option<Gc<Node /*SourceFile*/>>;
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>>;
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost;
+    fn as_module_specifier_resolution_host_and_get_common_source_directory(
+        &self,
+    ) -> &dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory;
 }

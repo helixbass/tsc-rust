@@ -712,8 +712,8 @@ pub(crate) fn get_non_assigned_name_of_declaration(
         .and_then(|declaration| declaration.maybe_name())
 }
 
-pub fn get_name_of_declaration<TNode: Borrow<Node>>(
-    declaration: Option<TNode /*Declaration | Expression*/>,
+pub fn get_name_of_declaration(
+    declaration: Option<impl Borrow<Node> /*Declaration | Expression*/>,
 ) -> Option<Gc<Node /*DeclarationName*/>> {
     if declaration.is_none() {
         return None;

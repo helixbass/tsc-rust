@@ -1,6 +1,12 @@
 use gc::{Finalize, Gc, Trace};
 
-use crate::{TransformationContext, Transformer, WrapCustomTransformerFactoryHandleDefault};
+use crate::{
+    Node, NodeId, TransformationContext, Transformer, WrapCustomTransformerFactoryHandleDefault,
+};
+
+pub fn get_original_node_id(node: &Node) -> NodeId {
+    unimplemented!()
+}
 
 // TODO: does chain_bundle() need to accept any CoreTnansformationContext's that aren't TransformationContext's?
 // pub fn chain_bundle<

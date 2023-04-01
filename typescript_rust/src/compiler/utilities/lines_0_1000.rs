@@ -1762,7 +1762,7 @@ pub fn for_each_enclosing_block_scope_container<TCallback: FnMut(&Node)>(
     }
 }
 
-pub fn declaration_name_to_string<TName: Borrow<Node>>(name: Option<TName>) -> Cow<'static, str> {
+pub fn declaration_name_to_string(name: Option<impl Borrow<Node>>) -> Cow<'static, str> {
     match name {
         None => "(Missing)".into(),
         Some(name) => {

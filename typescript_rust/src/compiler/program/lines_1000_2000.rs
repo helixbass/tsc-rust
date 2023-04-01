@@ -15,7 +15,8 @@ use crate::{
     skip_type_checking, source_file_may_be_emitted, string_contains, to_path as to_path_helper,
     trace, CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
     CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension,
-    FileIncludeReason, FileReference, ModuleSpecifierResolutionHost, MultiMap, Node, Path, Program,
+    FileIncludeReason, FileReference, ModuleSpecifierResolutionHost,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, Path, Program,
     ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
@@ -864,10 +865,6 @@ impl EmitHost for ProgramEmitHost {
         self.program.get_canonical_file_name(file_name)
     }
 
-    fn get_common_source_directory(&self) -> String {
-        self.program.get_common_source_directory()
-    }
-
     fn get_current_directory(&self) -> String {
         self.program.current_directory().clone()
     }
@@ -940,6 +937,12 @@ impl EmitHost for ProgramEmitHost {
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost {
         self
     }
+
+    fn as_module_specifier_resolution_host_and_get_common_source_directory(
+        &self,
+    ) -> &dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
+        self
+    }
 }
 
 impl ScriptReferenceHost for ProgramEmitHost {
@@ -957,6 +960,16 @@ impl ScriptReferenceHost for ProgramEmitHost {
 
     fn get_current_directory(&self) -> String {
         self.program.current_directory().clone()
+    }
+}
+
+impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory for ProgramEmitHost {
+    fn get_common_source_directory(&self) -> String {
+        self.program.get_common_source_directory()
+    }
+
+    fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost {
+        self
     }
 }
 

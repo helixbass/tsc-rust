@@ -260,8 +260,13 @@ pub use compiler::transformer::{
     get_transformers, no_emit_notification, no_emit_substitution, null_transformation_context,
     transform_nodes, TransformNodesTransformationResult, WrapCustomTransformerFactoryHandleDefault,
 };
+pub use compiler::transformers::declarations::diagnostics::{
+    GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
+    SymbolAccessibilityDiagnostic,
+};
+pub use compiler::transformers::utilities::{chain_bundle, get_original_node_id};
 pub use compiler::transformers::{
-    chain_bundle, is_internal_declaration, transform_class_fields, transform_declarations,
+    is_internal_declaration, transform_class_fields, transform_declarations,
     transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
     transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
     transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
