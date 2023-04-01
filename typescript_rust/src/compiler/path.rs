@@ -481,10 +481,10 @@ pub fn get_normalized_absolute_path_without_root(
     ))
 }
 
-pub fn to_path<TGetCanonicalFileName: Fn(&str) -> String>(
+pub fn to_path(
     file_name: &str,
     base_path: Option<&str>,
-    get_canonical_file_name: TGetCanonicalFileName,
+    get_canonical_file_name: impl Fn(&str) -> String,
 ) -> Path {
     let non_canonicalized_path = if is_rooted_disk_path(file_name) {
         normalize_path(file_name)

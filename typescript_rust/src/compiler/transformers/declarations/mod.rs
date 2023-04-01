@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    cell::{Cell, RefCell, RefMut},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     mem, ptr,
 };
@@ -8,27 +8,30 @@ use std::{
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
-    add_related_info, add_related_info_rc, can_produce_diagnostics, compiler::scanner::skip_trivia,
-    create_diagnostic_for_node, create_empty_exports,
-    create_get_symbol_accessibility_diagnostic_for_node, create_unparsed_source_file,
-    declaration_name_to_string, filter, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped,
-    get_directory_path, get_factory, get_leading_comment_ranges,
+    add_related_info_rc, are_option_gcs_equal, can_produce_diagnostics,
+    compiler::scanner::skip_trivia, contains_comparer, create_diagnostic_for_node,
+    create_empty_exports, create_get_symbol_accessibility_diagnostic_for_node,
+    create_unparsed_source_file, declaration_name_to_string, filter, gc_cell_ref_mut_unwrapped,
+    gc_cell_ref_unwrapped, get_directory_path, get_factory, get_leading_comment_ranges,
     get_leading_comment_ranges_of_node, get_name_of_declaration, get_original_node_id,
-    get_output_paths_for, get_parse_tree_node, get_resolved_external_module_name,
-    get_source_file_of_node, get_text_of_node, get_trailing_comment_ranges, is_any_import_syntax,
-    is_export_assignment, is_external_module, is_external_or_common_js_module, is_json_source_file,
-    is_source_file_js, is_source_file_not_json, last, map, map_defined, maybe_concatenate,
-    maybe_filter, maybe_for_each_bool, normalize_slashes, push_if_unique_gc,
-    set_text_range_node_array, string_contains, transform_nodes, visit_nodes,
-    with_synthetic_factory, BaseNodeFactorySynthetic, CommentRange, CompilerOptions, Debug_,
-    Diagnostic, Diagnostics, EmitHost, EmitResolver, FileReference,
-    GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
-    HasStatementsInterface, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node,
-    NodeArray, NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
-    ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
-    SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
-    SymbolTracker, SyntaxKind, TextRange, TransformationContext, TransformationResult, Transformer,
-    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
+    get_output_paths_for, get_parse_tree_node, get_relative_path_to_directory_or_url,
+    get_resolved_external_module_name, get_source_file_of_node, get_text_of_node,
+    get_trailing_comment_ranges, has_extension, is_any_import_syntax, is_export_assignment,
+    is_external_module, is_external_module_reference, is_external_or_common_js_module,
+    is_import_declaration, is_import_equals_declaration, is_json_source_file, is_source_file_js,
+    is_source_file_not_json, is_string_literal, is_string_literal_like, last, map, map_defined,
+    maybe_concatenate, maybe_filter, maybe_for_each_bool, module_specifiers, normalize_slashes,
+    path_contains_node_modules, path_is_relative, push_if_unique_gc, set_text_range_node_array,
+    starts_with, string_contains, to_path, transform_nodes, visit_nodes, with_synthetic_factory,
+    BaseNodeFactorySynthetic, CommentRange, CompilerOptions, Debug_, Diagnostic, Diagnostics,
+    EmitHost, EmitResolver, FileReference, GetSymbolAccessibilityDiagnostic,
+    GetSymbolAccessibilityDiagnosticInterface, HasStatementsInterface, LiteralLikeNodeInterface,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeBuilderFlags,
+    NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange, ScriptReferenceHost,
+    SourceFileLike, Symbol, SymbolAccessibility, SymbolAccessibilityDiagnostic,
+    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, TextRange,
+    TransformationContext, TransformationResult, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 pub mod diagnostics;
@@ -285,6 +288,10 @@ impl TransformDeclarations {
         *self.enclosing_declaration.borrow_mut() = enclosing_declaration;
     }
 
+    fn maybe_necessary_type_references(&self) -> Ref<Option<HashSet<String>>> {
+        self.necessary_type_references.borrow()
+    }
+
     fn maybe_necessary_type_references_mut(&self) -> RefMut<Option<HashSet<String>>> {
         self.necessary_type_references.borrow_mut()
     }
@@ -357,12 +364,20 @@ impl TransformDeclarations {
         *self.refs.borrow_mut() = refs;
     }
 
+    fn libs(&self) -> GcCellRef<HashMap<String, bool>> {
+        gc_cell_ref_unwrapped(&self.libs)
+    }
+
     fn libs_mut(&self) -> GcCellRefMut<Option<HashMap<String, bool>>, HashMap<String, bool>> {
         gc_cell_ref_mut_unwrapped(&self.libs)
     }
 
     fn set_libs(&self, libs: Option<HashMap<String, bool>>) {
         *self.libs.borrow_mut() = libs;
+    }
+
+    fn maybe_emitted_imports(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
+        self.emitted_imports.borrow()
     }
 
     fn set_emitted_imports(&self, emitted_imports: Option<Vec<Gc<Node>>>) {
@@ -675,8 +690,9 @@ impl TransformDeclarations {
                     .unwrap(),
             ));
             {
-                let reference_visitor = self.map_references_into_array(
-                    bundle.synthetic_file_references.as_ref().unwrap(),
+                let mut reference_visitor = self.map_references_into_array(
+                    node,
+                    bundle.synthetic_file_references.as_mut().unwrap(),
                     &output_file_path,
                 );
                 self.refs().values().for_each(|ref_: &Gc<Node>| {
@@ -716,7 +732,8 @@ impl TransformDeclarations {
                 .as_ref()
                 .unwrap(),
         ));
-        let reference_visitor = self.map_references_into_array(&references, &output_file_path);
+        let mut reference_visitor =
+            self.map_references_into_array(node, &mut references, &output_file_path);
         let mut combined_statements: NodeArray/*<Statement>*/;
         if is_source_file_js(&self.current_source_file()) {
             combined_statements = self
@@ -790,19 +807,132 @@ impl TransformDeclarations {
     }
 
     fn get_lib_references(&self) -> Vec<FileReference> {
-        unimplemented!()
+        map(self.libs().keys(), |lib: &String, _| {
+            FileReference::new(-1, -1, lib.clone())
+        })
     }
 
     fn get_file_references_for_used_type_references(&self) -> Vec<FileReference> {
-        unimplemented!()
+        self.maybe_necessary_type_references()
+            .as_ref()
+            .map(|necessary_type_references| {
+                map_defined(Some(necessary_type_references), |key: &String, _| {
+                    self.get_file_reference_for_type_name(key)
+                })
+            })
+            .unwrap_or_default()
+    }
+
+    fn get_file_reference_for_type_name(&self, type_name: &str) -> Option<FileReference> {
+        if let Some(emitted_imports) = self.maybe_emitted_imports().as_ref() {
+            for import_statement in emitted_imports {
+                if is_import_equals_declaration(import_statement)
+                    && is_external_module_reference(
+                        &import_statement
+                            .as_import_equals_declaration()
+                            .module_reference,
+                    )
+                {
+                    let expr = &import_statement
+                        .as_import_equals_declaration()
+                        .module_reference
+                        .as_external_module_reference()
+                        .expression;
+                    if is_string_literal_like(expr)
+                        && &**expr.as_literal_like_node().text() == type_name
+                    {
+                        return None;
+                    }
+                } else if is_import_declaration(import_statement) && {
+                    let import_statement_as_import_declaration =
+                        import_statement.as_import_declaration();
+                    is_string_literal(&import_statement_as_import_declaration.module_specifier)
+                        && &**import_statement_as_import_declaration
+                            .module_specifier
+                            .as_string_literal()
+                            .text()
+                            == type_name
+                } {
+                    return None;
+                }
+            }
+        }
+        Some(FileReference::new(-1, -1, type_name.to_owned()))
     }
 
     fn map_references_into_array<'arg>(
-        &self,
-        references: &'arg [FileReference],
+        &'arg self,
+        node: &'arg Node,
+        references: &'arg mut Vec<FileReference>,
         output_file_path: &'arg str,
-    ) -> impl Fn(&Node /*SourceFile*/) + 'arg {
-        |file: &Node| unimplemented!()
+    ) -> impl FnMut(&Node /*SourceFile*/) + 'arg {
+        |file: &Node| {
+            let file_as_source_file = file.as_source_file();
+            let decl_file_name: String;
+            if file_as_source_file.is_declaration_file() {
+                decl_file_name = file_as_source_file.file_name().clone();
+            } else {
+                if self.is_bundled_emit()
+                    && contains_comparer(
+                        Some(&node.as_bundle().source_files),
+                        &Some(file.node_wrapper()),
+                        |a: &Option<Gc<Node>>, b: &Option<Gc<Node>>| {
+                            are_option_gcs_equal(a.as_ref(), b.as_ref())
+                        },
+                    )
+                {
+                    return;
+                }
+                let paths = get_output_paths_for(file, &**self.host, true);
+                decl_file_name = paths
+                    .declaration_file_path
+                    .clone()
+                    .non_empty()
+                    .or_else(|| paths.js_file_path.clone().non_empty())
+                    .unwrap_or_else(|| file_as_source_file.file_name().clone());
+            }
+
+            if !decl_file_name.is_empty() {
+                let specifier = module_specifiers::get_module_specifier(
+                    &self.options,
+                    &self.current_source_file(),
+                    &to_path(
+                        output_file_path,
+                        Some(&ScriptReferenceHost::get_current_directory(&**self.host)),
+                        |file_name| self.host.get_canonical_file_name(file_name),
+                    ),
+                    &to_path(
+                        &decl_file_name,
+                        Some(&ScriptReferenceHost::get_current_directory(&**self.host)),
+                        |file_name| self.host.get_canonical_file_name(file_name),
+                    ),
+                    &**self.host,
+                );
+                if !path_is_relative(&specifier) {
+                    self.record_type_reference_directives_if_necessary(Some(&[specifier]));
+                    return;
+                }
+
+                let mut file_name = get_relative_path_to_directory_or_url(
+                    output_file_path,
+                    &decl_file_name,
+                    &ScriptReferenceHost::get_current_directory(&**self.host),
+                    |file_name: &str| self.host.get_canonical_file_name(file_name),
+                    false,
+                );
+                if starts_with(&file_name, "./") && has_extension(&file_name) {
+                    file_name = file_name[2..].to_owned();
+                }
+
+                if starts_with(&file_name, "node_modules/")
+                    || path_contains_node_modules(&file_name)
+                {
+                    return;
+                }
+
+                references.push(FileReference::new(-1, -1, file_name));
+            }
+        }
     }
 
     fn collect_references(

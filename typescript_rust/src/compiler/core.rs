@@ -194,10 +194,10 @@ pub fn contains_gc<TItem: Trace + Finalize>(
     })
 }
 
-pub fn contains_comparer<TItem, TEqualityComparer: Fn(&TItem, &TItem) -> bool>(
+pub fn contains_comparer<TItem>(
     array: Option<&[TItem]>,
     value: &TItem,
-    equality_comparer: TEqualityComparer,
+    equality_comparer: impl Fn(&TItem, &TItem) -> bool,
 ) -> bool {
     array.map_or(false, |array| {
         array.iter().any(|item| equality_comparer(item, value))
