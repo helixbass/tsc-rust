@@ -821,16 +821,10 @@ impl TypeChecker {
                     {
                         add_related_info(
                             &err,
-                            vec![Gc::new(
-                                create_diagnostic_for_node(
-                                    &base_constructor_type_symbol_declarations[0],
-                                    &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1,
-                                    Some(vec![
+                            vec![create_diagnostic_for_node(&base_constructor_type_symbol_declarations[0], &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1, Some(vec![
                                         self.symbol_to_string_(&base_constructor_type.symbol(), Option::<&Node>::None, None, None, None),
                                         self.type_to_string_(&ctor_return, Option::<&Node>::None, None, None)
-                                    ])
-                                ).into()
-                            )]
+                                    ])).into()]
                         );
                     }
                 }

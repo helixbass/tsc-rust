@@ -254,20 +254,18 @@ impl TypeChecker {
                 let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
                 add_related_info(
                     &diagnostic,
-                    vec![Gc::new(
-                        create_diagnostic_for_node(
-                            node,
-                            if
-                            /*signatures === constructSignatures*/
-                            signatures_index == 1 {
-                                &Diagnostics::Did_you_mean_to_use_new_with_this_expression
-                            } else {
-                                &Diagnostics::Did_you_mean_to_call_this_expression
-                            },
-                            None,
-                        )
-                        .into(),
-                    )],
+                    vec![create_diagnostic_for_node(
+                        node,
+                        if
+                        /*signatures === constructSignatures*/
+                        signatures_index == 1 {
+                            &Diagnostics::Did_you_mean_to_use_new_with_this_expression
+                        } else {
+                            &Diagnostics::Did_you_mean_to_call_this_expression
+                        },
+                        None,
+                    )
+                    .into()],
                 );
                 return true;
             }
@@ -357,13 +355,7 @@ impl TypeChecker {
                         add_related_info(
                             &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
                             vec![
-                                Gc::new(
-                                    create_diagnostic_for_node(
-                                        &target_symbol_declarations[0],
-                                        &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
-                                        None,
-                                    ).into()
-                                )
+                                create_diagnostic_for_node(&target_symbol_declarations[0], &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature, None).into()
                             ]
                         );
                     }
@@ -384,14 +376,12 @@ impl TypeChecker {
                 {
                     add_related_info(
                         &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
-                        vec![Gc::new(
-                            create_diagnostic_for_node(
-                                node,
-                                &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
-                                None,
-                            )
-                            .into(),
-                        )],
+                        vec![create_diagnostic_for_node(
+                            node,
+                            &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
+                            None,
+                        )
+                        .into()],
                     );
                 }
                 return true;
@@ -536,11 +526,7 @@ impl TypeChecker {
                             Some(&*target_prop_type),
                         )
                     {
-                        let diag: Gc<Diagnostic> = Gc::new(
-                            create_diagnostic_for_node(
-                                &prop,
-                                &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target,
-                                Some(vec![
+                        let diag: Gc<Diagnostic> = create_diagnostic_for_node(&prop, &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target, Some(vec![
                                     self.type_to_string_(
                                         &specific_source,
                                         Option::<&Node>::None,
@@ -553,9 +539,7 @@ impl TypeChecker {
                                         None,
                                         None,
                                     ),
-                                ])
-                            ).into()
-                        );
+                                ])).into();
                         self.diagnostics().add(diag.clone());
                         result_obj.set_errors(vec![diag]);
                     } else {
@@ -621,13 +605,7 @@ impl TypeChecker {
                                     add_related_info(
                                         &reported_diag,
                                         vec![
-                                            Gc::new(
-                                                create_diagnostic_for_node(
-                                                    index_info_declaration,
-                                                    &Diagnostics::The_expected_type_comes_from_this_index_signature,
-                                                    None,
-                                                ).into()
-                                            )
+                                            create_diagnostic_for_node(index_info_declaration, &Diagnostics::The_expected_type_comes_from_this_index_signature, None).into()
                                         ]
                                     );
                                 }
@@ -658,11 +636,7 @@ impl TypeChecker {
                                 add_related_info(
                                     &reported_diag,
                                     vec![
-                                        Gc::new(
-                                            create_diagnostic_for_node(
-                                                &target_node,
-                                                &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
-                                                Some(vec![
+                                        create_diagnostic_for_node(&target_node, &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1, Some(vec![
                                                     if property_name.is_some() && !name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
                                                         unescape_leading_underscores(property_name.as_ref().unwrap()).to_owned()
                                                     } else {
@@ -679,9 +653,7 @@ impl TypeChecker {
                                                         None,
                                                         None,
                                                     )
-                                                ])
-                                            ).into()
-                                        )
+                                                ])).into()
                                     ]
                                 );
                             }

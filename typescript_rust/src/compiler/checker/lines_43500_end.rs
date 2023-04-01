@@ -252,9 +252,8 @@ impl TypeChecker {
     ) -> bool {
         let source_file = get_source_file_of_node(node);
         if !self.has_parse_diagnostics(&source_file) {
-            self.diagnostics().add(Gc::new(
-                create_diagnostic_for_node(node, message, args).into(),
-            ));
+            self.diagnostics()
+                .add(create_diagnostic_for_node(node, message, args).into());
             return true;
         }
         false

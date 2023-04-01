@@ -955,14 +955,14 @@ impl TypeChecker {
                     if !self.is_duplicated_common_js_export(declarations.as_deref()) {
                         for declaration in declarations.as_ref().unwrap() {
                             if is_not_overload(declaration) {
-                                self.diagnostics().add(Gc::new(
+                                self.diagnostics().add(
                                     create_diagnostic_for_node(
                                         declaration,
                                         &Diagnostics::Cannot_redeclare_exported_variable_0,
                                         Some(vec![unescape_leading_underscores(id).to_owned()]),
                                     )
                                     .into(),
-                                ));
+                                );
                             }
                         }
                     }

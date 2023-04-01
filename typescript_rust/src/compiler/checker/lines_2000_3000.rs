@@ -75,18 +75,16 @@ impl TypeChecker {
         let type_only_declaration = type_only_declaration.borrow();
         add_related_info(
             &diagnostic,
-            vec![Gc::new(
-                create_diagnostic_for_node(
-                    type_only_declaration,
-                    if type_only_declaration.kind() == SyntaxKind::ExportSpecifier {
-                        &Diagnostics::_0_was_exported_here
-                    } else {
-                        &Diagnostics::_0_was_imported_here
-                    },
-                    Some(vec![unescaped_name.to_owned()]),
-                )
-                .into(),
-            )],
+            vec![create_diagnostic_for_node(
+                type_only_declaration,
+                if type_only_declaration.kind() == SyntaxKind::ExportSpecifier {
+                    &Diagnostics::_0_was_exported_here
+                } else {
+                    &Diagnostics::_0_was_imported_here
+                },
+                Some(vec![unescaped_name.to_owned()]),
+            )
+            .into()],
         );
         diagnostic
     }
@@ -631,14 +629,12 @@ impl TypeChecker {
             if let Some(diagnostic_message) = diagnostic_message {
                 add_related_info(
                     &diagnostic_message,
-                    vec![Gc::new(
-                        create_diagnostic_for_node(
-                            &declaration,
-                            &Diagnostics::_0_is_declared_here,
-                            Some(vec![declaration_name]),
-                        )
-                        .into(),
-                    )],
+                    vec![create_diagnostic_for_node(
+                        &declaration,
+                        &Diagnostics::_0_is_declared_here,
+                        Some(vec![declaration_name]),
+                    )
+                    .into()],
                 );
             }
         }
@@ -826,14 +822,12 @@ impl TypeChecker {
                     message,
                     None,
                 ),
-                vec![Gc::new(
-                    create_diagnostic_for_node(
-                        &type_only_declaration,
-                        related_message,
-                        Some(vec![name.to_owned()]),
-                    )
-                    .into(),
-                )],
+                vec![create_diagnostic_for_node(
+                    &type_only_declaration,
+                    related_message,
+                    Some(vec![name.to_owned()]),
+                )
+                .into()],
             );
         }
     }
@@ -1050,13 +1044,7 @@ impl TypeChecker {
                 if let Some(export_assignment) = export_assignment {
                     add_related_info(
                         &err,
-                        vec![Gc::new(
-                            create_diagnostic_for_node(
-                                &export_assignment,
-                                &Diagnostics::This_module_is_declared_with_using_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag,
-                                Some(vec![compiler_option_name.to_owned()])
-                            ).into()
-                        )]
+                        vec![create_diagnostic_for_node(&export_assignment, &Diagnostics::This_module_is_declared_with_using_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag, Some(vec![compiler_option_name.to_owned()])).into()]
                     );
                 }
             } else {
@@ -1134,14 +1122,12 @@ impl TypeChecker {
                 if let Some(default_export) = default_export {
                     add_related_info(
                         &diagnostic,
-                        vec![Gc::new(
-                            create_diagnostic_for_node(
-                                &default_export,
-                                &Diagnostics::export_Asterisk_does_not_re_export_a_default,
-                                None,
-                            )
-                            .into(),
-                        )],
+                        vec![create_diagnostic_for_node(
+                            &default_export,
+                            &Diagnostics::export_Asterisk_does_not_re_export_a_default,
+                            None,
+                        )
+                        .into()],
                     );
                 }
             }
@@ -1445,14 +1431,12 @@ impl TypeChecker {
                     {
                         add_related_info(
                             &diagnostic,
-                            vec![Gc::new(
-                                create_diagnostic_for_node(
-                                    &suggestion_value_declaration,
-                                    &Diagnostics::_0_is_declared_here,
-                                    Some(vec![suggestion_name]),
-                                )
-                                .into(),
-                            )],
+                            vec![create_diagnostic_for_node(
+                                &suggestion_value_declaration,
+                                &Diagnostics::_0_is_declared_here,
+                                Some(vec![suggestion_name]),
+                            )
+                            .into()],
                         );
                     }
                 } else {
@@ -1571,18 +1555,16 @@ impl TypeChecker {
                     add_related_info(
                         &diagnostic,
                         map(local_symbol_declarations, |decl: &Gc<Node>, index| {
-                            Gc::new(
-                                create_diagnostic_for_node(
-                                    decl,
-                                    if index == 0 {
-                                        &Diagnostics::_0_is_declared_here
-                                    } else {
-                                        &Diagnostics::and_here
-                                    },
-                                    Some(vec![declaration_name.clone()]),
-                                )
-                                .into(),
+                            create_diagnostic_for_node(
+                                decl,
+                                if index == 0 {
+                                    &Diagnostics::_0_is_declared_here
+                                } else {
+                                    &Diagnostics::and_here
+                                },
+                                Some(vec![declaration_name.clone()]),
                             )
+                            .into()
                         }),
                     );
                 }

@@ -368,14 +368,12 @@ impl TypeChecker {
     ) -> Gc<Diagnostic> {
         let diagnostic = self.error(Some(location), message, args);
         if maybe_missing_await {
-            let related: Gc<DiagnosticRelatedInformation> = Gc::new(
-                create_diagnostic_for_node(
-                    location,
-                    &Diagnostics::Did_you_forget_to_use_await,
-                    None,
-                )
-                .into(),
-            );
+            let related: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+                location,
+                &Diagnostics::Did_you_forget_to_use_await,
+                None,
+            )
+            .into();
             add_related_info(&diagnostic, vec![related]);
         }
         diagnostic
@@ -392,14 +390,12 @@ impl TypeChecker {
         if let Some(deprecated_tag) = deprecated_tag {
             add_related_info(
                 &diagnostic,
-                vec![Gc::new(
-                    create_diagnostic_for_node(
-                        &deprecated_tag,
-                        &Diagnostics::The_declaration_was_marked_as_deprecated_here,
-                        None,
-                    )
-                    .into(),
-                )],
+                vec![create_diagnostic_for_node(
+                    &deprecated_tag,
+                    &Diagnostics::The_declaration_was_marked_as_deprecated_here,
+                    None,
+                )
+                .into()],
             );
         }
         self.suggestion_diagnostics().add(diagnostic.clone());
@@ -412,14 +408,12 @@ impl TypeChecker {
         declarations: &[Gc<Node>],
         deprecated_entity: &str,
     ) -> Gc<Diagnostic> {
-        let diagnostic: Gc<Diagnostic> = Gc::new(
-            create_diagnostic_for_node(
-                location,
-                &Diagnostics::_0_is_deprecated,
-                Some(vec![deprecated_entity.to_owned()]),
-            )
-            .into(),
-        );
+        let diagnostic: Gc<Diagnostic> = create_diagnostic_for_node(
+            location,
+            &Diagnostics::_0_is_deprecated,
+            Some(vec![deprecated_entity.to_owned()]),
+        )
+        .into();
         self.add_deprecated_suggestion_worker(declarations, diagnostic)
     }
 
@@ -807,17 +801,14 @@ impl TypeChecker {
                         *err_related_information = Some(vec![]);
                     }
                 }
-                let leading_message: Gc<DiagnosticRelatedInformation> = Gc::new(
-                    create_diagnostic_for_node(
-                        &adjusted_node,
-                        &Diagnostics::_0_was_also_declared_here,
-                        Some(vec![symbol_name.to_owned()]),
-                    )
-                    .into(),
-                );
-                let follow_on_message: Gc<DiagnosticRelatedInformation> = Gc::new(
-                    create_diagnostic_for_node(&adjusted_node, &Diagnostics::and_here, None).into(),
-                );
+                let leading_message: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+                    &adjusted_node,
+                    &Diagnostics::_0_was_also_declared_here,
+                    Some(vec![symbol_name.to_owned()]),
+                )
+                .into();
+                let follow_on_message: Gc<DiagnosticRelatedInformation> =
+                    create_diagnostic_for_node(&adjusted_node, &Diagnostics::and_here, None).into();
                 if length(err.maybe_related_information().as_deref()) >= 5
                     || some(
                         err.maybe_related_information().as_deref(),
@@ -1004,14 +995,14 @@ impl TypeChecker {
                 maybe_for_each(
                     target_symbol.maybe_declarations().as_deref(),
                     |declaration: &Gc<Node /*Declaration*/>, _| {
-                        self.diagnostics().add(Gc::new(
+                        self.diagnostics().add(
                             create_diagnostic_for_node(
                                 declaration,
                                 message,
                                 Some(vec![unescape_leading_underscores(id).to_owned()]),
                             )
                             .into(),
-                        ));
+                        );
                         Option::<()>::None
                     },
                 );
@@ -2028,14 +2019,12 @@ impl TypeChecker {
                             {
                                 add_related_info(
                                     &diagnostic,
-                                    vec![Gc::new(
-                                        create_diagnostic_for_node(
-                                            &suggestion_value_declaration,
-                                            &Diagnostics::_0_is_declared_here,
-                                            Some(vec![suggestion_name]),
-                                        )
-                                        .into(),
-                                    )],
+                                    vec![create_diagnostic_for_node(
+                                        &suggestion_value_declaration,
+                                        &Diagnostics::_0_is_declared_here,
+                                        Some(vec![suggestion_name]),
+                                    )
+                                    .into()],
                                 );
                             }
                         }

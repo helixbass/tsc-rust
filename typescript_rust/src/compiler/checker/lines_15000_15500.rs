@@ -489,7 +489,7 @@ impl TypeChecker {
                                 .flags()
                                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
                         {
-                            self.diagnostics().add(Gc::new(
+                            self.diagnostics().add(
                                 create_diagnostic_for_node(
                                     access_expression,
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
@@ -512,7 +512,7 @@ impl TypeChecker {
                                     ]),
                                 )
                                 .into(),
-                            ));
+                            );
                             return Some(self.undefined_type());
                         } else if index_type
                             .flags()

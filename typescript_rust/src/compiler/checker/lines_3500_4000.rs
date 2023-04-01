@@ -572,14 +572,10 @@ impl TypeChecker {
                 }
                 let exports_with_duplicate = exports_with_duplicate.unwrap();
                 for node in exports_with_duplicate {
-                    self.diagnostics().add(Gc::new(create_diagnostic_for_node(
-                        node,
-                        &Diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity,
-                        Some(vec![
+                    self.diagnostics().add(create_diagnostic_for_node(node, &Diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity, Some(vec![
                             lookup_table.get(id).unwrap().specifier_text.clone(),
                             unescape_leading_underscores(id).to_owned()
-                        ])
-                    ).into()));
+                        ])).into());
                 }
             }
             self.extend_export_symbols(

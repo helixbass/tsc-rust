@@ -292,11 +292,7 @@ impl CheckTypeRelatedTo {
                                     None,
                                 );
                                 if helpful_retry {
-                                    let diag: Gc<DiagnosticRelatedInformation> = Gc::new(create_diagnostic_for_node(
-                                        &links_originating_import,
-                                        &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
-                                        None,
-                                    ).into());
+                                    let diag: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(&links_originating_import, &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead, None).into();
                                     if related_information.is_none() {
                                         related_information = Some(vec![]);
                                         append(related_information.as_mut().unwrap(), Some(diag));
