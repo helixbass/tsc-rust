@@ -8,10 +8,10 @@ use super::{ParserType, SignatureFlags, Tristate};
 use crate::{
     get_binary_operator_precedence, is_assignment_operator, is_async_modifier,
     is_jsdoc_function_type, is_left_hand_side_expression, is_modifier_kind, node_is_present,
-    skip_trivia, some, token_to_string, ArrowFunction, AsExpression, AwaitExpression,
-    BinaryExpression, Debug_, DeleteExpression, Diagnostics, LanguageVariant, Node, NodeArray,
-    NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression, ReadonlyTextRange,
-    SyntaxKind, TypeOfExpression, VoidExpression, YieldExpression,
+    skip_trivia, some, token_to_string, ArrowFunction, AsDoubleDeref, AsExpression,
+    AwaitExpression, BinaryExpression, Debug_, DeleteExpression, Diagnostics, LanguageVariant,
+    Node, NodeArray, NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression,
+    ReadonlyTextRange, SyntaxKind, TypeOfExpression, VoidExpression, YieldExpression,
 };
 
 impl ParserType {
@@ -297,7 +297,7 @@ impl ParserType {
         &self,
         pos: isize,
         identifier: Gc<Node /*Identifier*/>,
-        async_modifier: Option<NodeArray /*<Modifier>*/>,
+        async_modifier: Option<Gc<NodeArray> /*<Modifier>*/>,
     ) -> Gc<Node> {
         Debug_.assert(
             self.token() == SyntaxKind::EqualsGreaterThanToken,
@@ -306,8 +306,8 @@ impl ParserType {
         let identifier_pos = identifier.pos();
         let parameter = self.factory.create_parameter_declaration(
             self,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             None,
             Some(identifier),
             None,
@@ -330,7 +330,7 @@ impl ParserType {
         let node = self.factory.create_arrow_function(
             self,
             async_modifier,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             parameters,
             None,
             Some(equals_greater_than_token.wrap()),
@@ -556,7 +556,7 @@ impl ParserType {
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let modifiers = self.parse_modifiers_for_arrow_function();
         let is_async = if some(
-            modifiers.as_deref(),
+            modifiers.as_double_deref(),
             Some(|modifier: &Gc<Node>| is_async_modifier(modifier)),
         ) {
             SignatureFlags::Await
@@ -565,7 +565,7 @@ impl ParserType {
         };
         let type_parameters = self.parse_type_parameters();
 
-        let parameters: NodeArray;
+        let parameters: Gc<NodeArray>;
         if !self.parse_expected(SyntaxKind::OpenParenToken, None, None) {
             if !allow_ambiguity {
                 return None;
@@ -602,7 +602,7 @@ impl ParserType {
             SyntaxKind::EqualsGreaterThanToken | SyntaxKind::OpenBraceToken
         ) {
             self.parse_arrow_function_expression_body(some(
-                modifiers.as_deref(),
+                modifiers.as_double_deref(),
                 Some(|modifier: &Gc<Node>| is_async_modifier(modifier)),
             ))
         } else {

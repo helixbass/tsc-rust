@@ -49,14 +49,14 @@ impl TypeChecker {
             });
         let base_static_type = self.get_base_constructor_type_of_class(type_);
 
-        for member in node.as_class_like_declaration().members() {
+        for member in &node.as_class_like_declaration().members() {
             if has_ambient_modifier(member) {
                 continue;
             }
 
             if is_constructor_declaration(member) {
                 for_each(
-                    member.as_constructor_declaration().parameters(),
+                    &member.as_constructor_declaration().parameters(),
                     |param: &Gc<Node>, _| -> Option<()> {
                         if is_parameter_property_declaration(param, member) {
                             self.check_existing_member_for_override_modifier(
@@ -253,7 +253,7 @@ impl TypeChecker {
     ) {
         let mut issued_member_error = false;
         let node_as_class_like_declaration = node.as_class_like_declaration();
-        for member in node_as_class_like_declaration.members() {
+        for member in &node_as_class_like_declaration.members() {
             if is_static(member) {
                 continue;
             }

@@ -248,7 +248,7 @@ impl TypeChecker {
             /*if (parameterName)*/
             {
                 let mut has_reported_error = false;
-                for parameter in parent.as_signature_declaration().parameters() {
+                for parameter in &parent.as_signature_declaration().parameters() {
                     let name = parameter.as_named_declaration().name();
                     if is_binding_pattern(Some(&*name))
                         && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
@@ -303,7 +303,7 @@ impl TypeChecker {
         predicate_variable_node: &Node,
         predicate_variable_name: &str,
     ) -> bool {
-        for element in pattern.as_has_elements().elements() {
+        for element in &pattern.as_has_elements().elements() {
             if is_omitted_expression(element) {
                 continue;
             }
@@ -374,7 +374,7 @@ impl TypeChecker {
 
         let node_as_signature_declaration = node.as_signature_declaration();
         for_each(
-            node_as_signature_declaration.parameters(),
+            &node_as_signature_declaration.parameters(),
             |parameter: &Gc<Node>, _| -> Option<()> {
                 self.check_parameter(parameter);
                 None
@@ -477,9 +477,9 @@ impl TypeChecker {
         let mut instance_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut static_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut private_identifiers: HashMap<__String, DeclarationMeaning> = HashMap::new();
-        for member in node.as_class_like_declaration().members() {
+        for member in &node.as_class_like_declaration().members() {
             if member.kind() == SyntaxKind::Constructor {
-                for param in member.as_constructor_declaration().parameters() {
+                for param in &member.as_constructor_declaration().parameters() {
                     if is_parameter_property_declaration(param, member)
                         && !is_binding_pattern(param.as_named_declaration().maybe_name())
                     {
@@ -610,7 +610,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ClassLikeDeclaration*/
     ) {
-        for member in node.as_class_like_declaration().members() {
+        for member in &node.as_class_like_declaration().members() {
             let member_name_node = member.as_named_declaration().maybe_name();
             let is_static_member = is_static(member);
             if is_static_member {
@@ -645,7 +645,7 @@ impl TypeChecker {
         node: &Node, /*TypeLiteralNode | InterfaceDeclaration*/
     ) {
         let mut names: HashMap<String, bool> = HashMap::new();
-        for member in node.as_has_members().members() {
+        for member in &node.as_has_members().members() {
             if member.kind() == SyntaxKind::PropertySignature {
                 let member_name: String;
                 let name = member.as_named_declaration().name();

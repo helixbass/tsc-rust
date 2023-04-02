@@ -43,7 +43,7 @@ pub fn visit_nodes(
     test: Option<impl Fn(&Node) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
-) -> Option<NodeArray> {
+) -> Option<Gc<NodeArray>> {
     unimplemented!()
 }
 
@@ -62,9 +62,9 @@ pub fn visit_parameter_list<
             Option<TNodesVisitorTest>,
             Option<usize>,
             Option<usize>,
-        ) -> NodeArray,
+        ) -> Gc<NodeArray>,
     >,
-) -> Option<NodeArray> {
+) -> Option<Gc<NodeArray>> {
     unimplemented!()
 }
 
@@ -149,7 +149,7 @@ pub fn visit_each_child<
             Option<TNodesVisitorTest>,
             Option<usize>,
             Option<usize>,
-        ) -> NodeArray,
+        ) -> Gc<NodeArray>,
     >,
     token_visitor: Option<impl FnMut(&Node) -> VisitResult>,
     node_visitor: Option<

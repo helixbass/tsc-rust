@@ -17,7 +17,7 @@ use crate::{
     is_iteration_statement, is_method_declaration, is_object_literal_expression,
     is_property_assignment, is_property_declaration, is_source_file, is_static, is_super_call,
     is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
-    push_if_unique_gc, push_if_unique_rc, text_range_contains_position_inclusive,
+    push_if_unique_gc, push_if_unique_rc, text_range_contains_position_inclusive, AsDoubleDeref,
     AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
     HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, ReadonlyTextRange,
@@ -320,7 +320,7 @@ impl TypeChecker {
                 container.as_has_initializer().maybe_initializer().as_deref(),
                 Some(container_initializer) if text_range_contains_position_inclusive(container_initializer, this_expression.pos())
             )
-            && length(container.parent().maybe_decorators().as_deref()) > 0
+            && length(container.parent().maybe_decorators().as_double_deref()) > 0
         {
             self.error(
                 Some(this_expression),

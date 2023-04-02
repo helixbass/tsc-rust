@@ -287,7 +287,7 @@ impl TypeChecker {
             return false;
         }
         if some(
-            Some(node_as_arrow_function.parameters()),
+            Some(&node_as_arrow_function.parameters()),
             Some(|parameter: &Gc<Node>| has_type(parameter)),
         ) {
             return false;

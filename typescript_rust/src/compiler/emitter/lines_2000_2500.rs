@@ -42,8 +42,8 @@ impl Printer {
 
     pub(super) fn emit_parameter(&self, node: &Node /*ParameterDeclaration*/) {
         let node_as_parameter_declaration = node.as_parameter_declaration();
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.emit(
             node_as_parameter_declaration.dot_dot_dot_token.as_deref(),
             None,
@@ -103,8 +103,8 @@ impl Printer {
 
     pub(super) fn emit_property_signature(&self, node: &Node /*PropertySignature*/) {
         let node_as_property_signature = node.as_property_signature();
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.emit_node_with_writer(
             Some(&*node_as_property_signature.name()),
             Printer::write_property,
@@ -116,8 +116,8 @@ impl Printer {
 
     pub(super) fn emit_property_declaration(&self, node: &Node /*PropertyDeclaration*/) {
         let node_as_property_declaration = node.as_property_declaration();
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.emit(node_as_property_declaration.maybe_name().as_deref(), None);
         self.emit(node_as_property_declaration.question_token.as_deref(), None);
         self.emit(
@@ -144,14 +144,14 @@ impl Printer {
 
     pub(super) fn emit_method_signature(&self, node: &Node /*MethodSignature*/) {
         self.push_name_generation_scope(Some(node));
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         let node_as_method_signature = node.as_method_signature();
         self.emit(node_as_method_signature.maybe_name().as_deref(), None);
         self.emit(node_as_method_signature.question_token.as_deref(), None);
         self.emit_type_parameters(
             node,
-            node_as_method_signature.maybe_type_parameters().as_ref(),
+            node_as_method_signature.maybe_type_parameters().as_deref(),
         );
         self.emit_parameters(node, &node_as_method_signature.parameters());
         self.emit_type_annotation(node_as_method_signature.maybe_type());
@@ -160,8 +160,8 @@ impl Printer {
     }
 
     pub(super) fn emit_method_declaration(&self, node: &Node /*MethodDeclaration*/) {
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         let node_as_method_declaration = node.as_method_declaration();
         self.emit(
             node_as_method_declaration.maybe_asterisk_token().as_deref(),
@@ -179,21 +179,21 @@ impl Printer {
         &self,
         node: &Node, /*ClassStaticBlockDeclaration*/
     ) {
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("static");
         self.emit_block_function_body(&node.as_class_static_block_declaration().body);
     }
 
     pub(super) fn emit_constructor(&self, node: &Node /*ConstructorDeclaration*/) {
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("constructor");
         self.emit_signature_and_body(node, |node: &Node| self.emit_signature_head(node));
     }
 
     pub(super) fn emit_accessor_declaration(&self, node: &Node /*AccessorDeclaration*/) {
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword(if node.kind() == SyntaxKind::GetAccessor {
             "get"
         } else {
@@ -206,14 +206,14 @@ impl Printer {
 
     pub(super) fn emit_call_signature(&self, node: &Node /*CallSignatureDeclaration*/) {
         self.push_name_generation_scope(Some(node));
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         let node_as_call_signature_declaration = node.as_call_signature_declaration();
         self.emit_type_parameters(
             node,
             node_as_call_signature_declaration
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         self.emit_parameters(node, &node_as_call_signature_declaration.parameters());
         self.emit_type_annotation(node_as_call_signature_declaration.maybe_type());
@@ -226,8 +226,8 @@ impl Printer {
         node: &Node, /*ConstructSignatureDeclaration*/
     ) {
         self.push_name_generation_scope(Some(node));
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("new");
         self.write_space();
         let node_as_construct_signature_declaration = node.as_construct_signature_declaration();
@@ -235,7 +235,7 @@ impl Printer {
             node,
             node_as_construct_signature_declaration
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         self.emit_parameters(node, &node_as_construct_signature_declaration.parameters());
         self.emit_type_annotation(node_as_construct_signature_declaration.maybe_type());
@@ -244,8 +244,8 @@ impl Printer {
     }
 
     pub(super) fn emit_index_signature(&self, node: &Node /*IndexSignatureDeclaration*/) {
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         let node_as_index_signature_declaration = node.as_index_signature_declaration();
         self.emit_parameters_for_index_signature(
             node,
@@ -285,7 +285,9 @@ impl Printer {
         self.emit(Some(&*node_as_type_reference_node.type_name), None);
         self.emit_type_arguments(
             node,
-            node_as_type_reference_node.maybe_type_arguments().as_ref(),
+            node_as_type_reference_node
+                .maybe_type_arguments()
+                .as_deref(),
         );
     }
 
@@ -294,7 +296,9 @@ impl Printer {
         let node_as_function_type_node = node.as_function_type_node();
         self.emit_type_parameters(
             node,
-            node_as_function_type_node.maybe_type_parameters().as_ref(),
+            node_as_function_type_node
+                .maybe_type_parameters()
+                .as_deref(),
         );
         self.emit_parameters_for_arrow(node, &node_as_function_type_node.parameters());
         self.write_space();
@@ -338,7 +342,7 @@ impl Printer {
 
     pub(super) fn emit_constructor_type(&self, node: &Node /*ConstructorTypeNode*/) {
         self.push_name_generation_scope(Some(node));
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("new");
         self.write_space();
         let node_as_constructor_type_node = node.as_constructor_type_node();
@@ -346,7 +350,7 @@ impl Printer {
             node,
             node_as_constructor_type_node
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         self.emit_parameters(node, &node_as_constructor_type_node.parameters());
         self.write_space();
@@ -649,7 +653,7 @@ impl Printer {
         }
         self.emit_type_arguments(
             node,
-            node_as_import_type_node.maybe_type_arguments().as_ref(),
+            node_as_import_type_node.maybe_type_arguments().as_deref(),
         );
     }
 

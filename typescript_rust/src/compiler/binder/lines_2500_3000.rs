@@ -364,7 +364,7 @@ impl BinderType {
                 self.bind_export_assignment(node);
             }
             SyntaxKind::SourceFile => {
-                self.update_strict_mode_statement_list(node.as_source_file().statements());
+                self.update_strict_mode_statement_list(&node.as_source_file().statements());
                 self.bind_source_file_if_external_module();
             }
             SyntaxKind::Block => {

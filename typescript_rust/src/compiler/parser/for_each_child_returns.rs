@@ -7,14 +7,10 @@ use crate::{
     NodeArray, NodeInterface, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
 };
 
-pub fn for_each_child_returns<
-    TReturn,
-    TNodeCallback: FnMut(&Node) -> Option<TReturn>,
-    TNodesCallback: FnMut(&NodeArray) -> Option<TReturn>,
->(
+pub fn for_each_child_returns<TReturn>(
     node: &Node,
-    mut cb_node: TNodeCallback,
-    mut cb_nodes: Option<TNodesCallback>,
+    mut cb_node: impl FnMut(&Node) -> Option<TReturn>,
+    mut cb_nodes: Option<impl FnMut(&NodeArray) -> Option<TReturn>>,
 ) -> Option<TReturn> {
     if
     /* !node ||*/
@@ -34,10 +30,10 @@ pub fn for_each_child_returns<
         Node::ShorthandPropertyAssignment(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
@@ -69,10 +65,10 @@ pub fn for_each_child_returns<
         Node::ParameterDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.dot_dot_dot_token.clone()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -97,10 +93,10 @@ pub fn for_each_child_returns<
             visit_nodes_returns(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             )
             .or_else(|| {
-                visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref())
+                visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref())
                     .or_else(|| {
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.question_token.clone()).or_else(
@@ -124,10 +120,10 @@ pub fn for_each_child_returns<
         Node::PropertySignature(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                         visit_node_returns(&mut cb_node, node.question_token.clone()).or_else(
@@ -144,10 +140,10 @@ pub fn for_each_child_returns<
         Node::PropertyAssignment(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                         visit_node_returns(&mut cb_node, node.question_token.clone())
@@ -159,10 +155,10 @@ pub fn for_each_child_returns<
         Node::VariableDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                         visit_node_returns(&mut cb_node, node.exclamation_token.clone()).or_else(
@@ -179,10 +175,10 @@ pub fn for_each_child_returns<
         Node::BindingElement(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.dot_dot_dot_token.clone()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.property_name.clone()).or_else(|| {
@@ -197,21 +193,21 @@ pub fn for_each_child_returns<
         Node::FunctionTypeNode(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_ref(),
+                        node.maybe_type_parameters().as_deref(),
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(node.parameters()),
+                            Some(&node.parameters()),
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
                     })
@@ -221,21 +217,21 @@ pub fn for_each_child_returns<
         Node::ConstructorTypeNode(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_ref(),
+                        node.maybe_type_parameters().as_deref(),
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(node.parameters()),
+                            Some(&node.parameters()),
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
                     })
@@ -245,21 +241,21 @@ pub fn for_each_child_returns<
         Node::CallSignatureDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_ref(),
+                        node.maybe_type_parameters().as_deref(),
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(node.parameters()),
+                            Some(&node.parameters()),
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
                     })
@@ -269,21 +265,21 @@ pub fn for_each_child_returns<
         Node::ConstructSignatureDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_ref(),
+                        node.maybe_type_parameters().as_deref(),
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(node.parameters()),
+                            Some(&node.parameters()),
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
                     })
@@ -293,21 +289,21 @@ pub fn for_each_child_returns<
         Node::IndexSignatureDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_ref(),
+                        node.maybe_type_parameters().as_deref(),
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(node.parameters()),
+                            Some(&node.parameters()),
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
                     })
@@ -317,10 +313,10 @@ pub fn for_each_child_returns<
         Node::MethodDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
@@ -331,14 +327,14 @@ pub fn for_each_child_returns<
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_ref(),
+                                                node.maybe_type_parameters().as_deref(),
                                             )
                                             .or_else(
                                                 || {
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(node.parameters()),
+                                                        Some(&node.parameters()),
                                                     )
                                                     .or_else(|| {
                                                         visit_node_returns(
@@ -365,22 +361,22 @@ pub fn for_each_child_returns<
         Node::MethodSignature(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            node.maybe_type_parameters().as_ref(),
+                            node.maybe_type_parameters().as_deref(),
                         )
                         .or_else(|| {
                             visit_nodes_returns(
                                 &mut cb_node,
                                 cb_nodes.as_mut(),
-                                Some(node.parameters()),
+                                Some(&node.parameters()),
                             )
                             .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
                         })
@@ -391,10 +387,10 @@ pub fn for_each_child_returns<
         Node::ConstructorDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -405,14 +401,14 @@ pub fn for_each_child_returns<
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_ref(),
+                                                node.maybe_type_parameters().as_deref(),
                                             )
                                             .or_else(
                                                 || {
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(node.parameters()),
+                                                        Some(&node.parameters()),
                                                     )
                                                     .or_else(|| {
                                                         visit_node_returns(
@@ -439,10 +435,10 @@ pub fn for_each_child_returns<
         Node::GetAccessorDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
@@ -453,14 +449,14 @@ pub fn for_each_child_returns<
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_ref(),
+                                                node.maybe_type_parameters().as_deref(),
                                             )
                                             .or_else(
                                                 || {
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(node.parameters()),
+                                                        Some(&node.parameters()),
                                                     )
                                                     .or_else(|| {
                                                         visit_node_returns(
@@ -487,10 +483,10 @@ pub fn for_each_child_returns<
         Node::SetAccessorDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
@@ -501,14 +497,14 @@ pub fn for_each_child_returns<
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_ref(),
+                                                node.maybe_type_parameters().as_deref(),
                                             )
                                             .or_else(
                                                 || {
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(node.parameters()),
+                                                        Some(&node.parameters()),
                                                     )
                                                     .or_else(|| {
                                                         visit_node_returns(
@@ -535,10 +531,10 @@ pub fn for_each_child_returns<
         Node::FunctionExpression(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -549,14 +545,14 @@ pub fn for_each_child_returns<
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_ref(),
+                                                node.maybe_type_parameters().as_deref(),
                                             )
                                             .or_else(
                                                 || {
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(node.parameters()),
+                                                        Some(&node.parameters()),
                                                     )
                                                     .or_else(|| {
                                                         visit_node_returns(
@@ -583,10 +579,10 @@ pub fn for_each_child_returns<
         Node::FunctionDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -597,14 +593,14 @@ pub fn for_each_child_returns<
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_ref(),
+                                                node.maybe_type_parameters().as_deref(),
                                             )
                                             .or_else(
                                                 || {
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(node.parameters()),
+                                                        Some(&node.parameters()),
                                                     )
                                                     .or_else(|| {
                                                         visit_node_returns(
@@ -631,10 +627,10 @@ pub fn for_each_child_returns<
         Node::ArrowFunction(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -645,14 +641,14 @@ pub fn for_each_child_returns<
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_ref(),
+                                                node.maybe_type_parameters().as_deref(),
                                             )
                                             .or_else(
                                                 || {
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(node.parameters()),
+                                                        Some(&node.parameters()),
                                                     )
                                                     .or_else(|| {
                                                         visit_node_returns(
@@ -688,10 +684,10 @@ pub fn for_each_child_returns<
         Node::ClassStaticBlockDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref())
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref())
                 .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.body)))
         }),
         Node::TypeReferenceNode(node) => {
@@ -699,7 +695,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.maybe_type_arguments().as_ref(),
+                    node.maybe_type_arguments().as_deref(),
                 )
             })
         }
@@ -740,7 +736,7 @@ pub fn for_each_child_returns<
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_arguments().as_ref(),
+                        node.maybe_type_arguments().as_deref(),
                     )
                 })
             }),
@@ -760,7 +756,7 @@ pub fn for_each_child_returns<
                                     visit_nodes_returns(
                                         &mut cb_node,
                                         cb_nodes.as_mut(),
-                                        node.members.as_ref(),
+                                        node.members.as_deref(),
                                     )
                                 })
                             },
@@ -807,7 +803,7 @@ pub fn for_each_child_returns<
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_arguments().as_ref(),
+                        node.maybe_type_arguments().as_deref(),
                     )
                     .or_else(|| {
                         visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.arguments))
@@ -819,10 +815,10 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.maybe_type_arguments().as_ref(),
+                    node.maybe_type_arguments().as_deref(),
                 )
                 .or_else(|| {
-                    visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.arguments.as_ref())
+                    visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.arguments.as_deref())
                 })
             }),
         Node::TaggedTemplateExpression(node) => visit_node_returns(&mut cb_node, Some(&*node.tag))
@@ -831,7 +827,7 @@ pub fn for_each_child_returns<
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_arguments().as_ref(),
+                        node.maybe_type_arguments().as_deref(),
                     )
                     .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.template)))
                 })
@@ -880,16 +876,16 @@ pub fn for_each_child_returns<
             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.statements))
         }
         Node::SourceFile(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.statements()))
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.statements()))
                 .or_else(|| visit_node_returns(&mut cb_node, Some(node.end_of_file_token())))
         }
         Node::VariableStatement(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref())
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref())
                 .or_else(|| visit_node_returns(&mut cb_node, Some(node.declaration_list.clone())))
         }),
         Node::VariableDeclarationList(node) => {
@@ -962,22 +958,22 @@ pub fn for_each_child_returns<
         Node::ClassDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            node.maybe_type_parameters().as_ref(),
+                            node.maybe_type_parameters().as_deref(),
                         )
                         .or_else(|| {
                             visit_nodes_returns(
                                 &mut cb_node,
                                 cb_nodes.as_mut(),
-                                node.maybe_heritage_clauses(),
+                                node.maybe_heritage_clauses().as_deref(),
                             )
                             .or_else(|| {
                                 visit_nodes_returns(
@@ -994,22 +990,22 @@ pub fn for_each_child_returns<
         Node::ClassExpression(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            node.maybe_type_parameters().as_ref(),
+                            node.maybe_type_parameters().as_deref(),
                         )
                         .or_else(|| {
                             visit_nodes_returns(
                                 &mut cb_node,
                                 cb_nodes.as_mut(),
-                                node.maybe_heritage_clauses(),
+                                node.maybe_heritage_clauses().as_deref(),
                             )
                             .or_else(|| {
                                 visit_nodes_returns(
@@ -1026,22 +1022,22 @@ pub fn for_each_child_returns<
         Node::InterfaceDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            node.maybe_type_parameters().as_ref(),
+                            node.maybe_type_parameters().as_deref(),
                         )
                         .or_else(|| {
                             visit_nodes_returns(
                                 &mut cb_node,
                                 cb_nodes.as_mut(),
-                                node.maybe_heritage_clauses(),
+                                node.maybe_heritage_clauses().as_deref(),
                             )
                             .or_else(|| {
                                 visit_nodes_returns(
@@ -1058,16 +1054,16 @@ pub fn for_each_child_returns<
         Node::TypeAliasDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            node.maybe_type_parameters().as_ref(),
+                            node.maybe_type_parameters().as_deref(),
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, Some(node.type_.clone())))
                     })
@@ -1077,10 +1073,10 @@ pub fn for_each_child_returns<
         Node::EnumDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                         visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.members))
@@ -1093,10 +1089,10 @@ pub fn for_each_child_returns<
         Node::ModuleDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_name())
                         .or_else(|| visit_node_returns(&mut cb_node, node.body.clone()))
@@ -1106,10 +1102,10 @@ pub fn for_each_child_returns<
         Node::ImportEqualsDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_name())
                         .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.module_reference)))
@@ -1119,10 +1115,10 @@ pub fn for_each_child_returns<
         Node::ImportDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.import_clause.clone()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(&*node.module_specifier)).or_else(
@@ -1153,10 +1149,10 @@ pub fn for_each_child_returns<
         Node::ExportDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.export_clause.clone()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.module_specifier.clone()).or_else(
@@ -1173,10 +1169,10 @@ pub fn for_each_child_returns<
         Node::ExportAssignment(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref())
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref())
                 .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.expression)))
         }),
         Node::TemplateExpression(node) => visit_node_returns(&mut cb_node, Some(&*node.head))
@@ -1202,7 +1198,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.maybe_type_arguments().as_ref(),
+                    node.maybe_type_arguments().as_deref(),
                 )
             })
         }
@@ -1212,7 +1208,7 @@ pub fn for_each_child_returns<
         Node::MissingDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_ref(),
+            node.maybe_decorators().as_deref(),
         ),
         Node::CommaListExpression(node) => {
             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.elements))
@@ -1232,7 +1228,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.maybe_type_arguments().as_ref(),
+                    node.maybe_type_arguments().as_deref(),
                 )
                 .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.attributes)))
             })
@@ -1242,7 +1238,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.maybe_type_arguments().as_ref(),
+                    node.maybe_type_arguments().as_deref(),
                 )
                 .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.attributes)))
             }),
@@ -1262,7 +1258,7 @@ pub fn for_each_child_returns<
         Node::JSDocTypeExpression(node) => visit_node_returns(&mut cb_node, Some(&*node.type_)),
         Node::BaseJSDocUnaryType(node) => visit_node_returns(&mut cb_node, node.type_.clone()),
         Node::JSDocFunctionType(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()))
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()))
                 .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
         }
         Node::JSDoc(node) => {
@@ -1271,7 +1267,7 @@ pub fn for_each_child_returns<
             } else {
                 None
             })
-            .or_else(|| visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.tags.as_ref()))
+            .or_else(|| visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.tags.as_deref()))
         }
         Node::JSDocSeeTag(node) => {
             visit_node_returns(&mut cb_node, Some(node.tag_name())).or_else(|| {

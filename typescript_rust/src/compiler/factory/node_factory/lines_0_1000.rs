@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use gc::{Gc, GcCellRef};
-use std::cell::RefCell;
+use std::{cell::RefCell, ptr};
 
 use super::{
     aggregate_children_flags, propagate_child_flags, propagate_children_flags,
@@ -656,22 +656,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         elements: Option<impl Into<NodeArrayOrVec>>,
         has_trailing_comma: Option<bool>,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         let elements_is_none = elements.is_none();
         let elements = match elements {
             None => NodeArrayOrVec::Vec(vec![]),
             Some(elements) => elements.into(),
         };
         match elements {
-            NodeArrayOrVec::NodeArray(mut elements) => {
+            NodeArrayOrVec::NodeArray(elements) => {
                 if match has_trailing_comma {
                     None => true,
                     Some(has_trailing_comma) => elements.has_trailing_comma == has_trailing_comma,
                 } {
-                    if elements.transform_flags.is_none() {
-                        aggregate_children_flags(&mut elements);
+                    if elements.maybe_transform_flags().is_none() {
+                        aggregate_children_flags(&elements);
                     }
-                    Debug_.attach_node_array_debug_info(&mut elements);
+                    Debug_.attach_node_array_debug_info(&elements);
                     return elements;
                 }
 
@@ -680,7 +680,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     elements.pos(),
                     elements.end(),
                     has_trailing_comma.unwrap(),
-                    elements.transform_flags,
+                    elements.maybe_transform_flags(),
                 );
                 Debug_.attach_node_array_debug_info(&mut array);
                 array
@@ -688,10 +688,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             NodeArrayOrVec::Vec(elements) => {
                 // let length = elements.len();
                 let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
-                let mut array =
+                let array =
                     NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None);
-                aggregate_children_flags(&mut array);
-                Debug_.attach_node_array_debug_info(&mut array);
+                aggregate_children_flags(&array);
+                Debug_.attach_node_array_debug_info(&array);
                 array
             }
         }
@@ -718,8 +718,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = self.create_base_node(base_factory, kind);
         node.set_decorators(self.as_node_array(decorators));
         node.set_modifiers(self.as_node_array(modifiers));
-        let flags = propagate_children_flags(node.maybe_decorators().as_ref())
-            | propagate_children_flags(node.maybe_modifiers().as_ref());
+        let flags = propagate_children_flags(node.maybe_decorators().as_deref())
+            | propagate_children_flags(node.maybe_modifiers().as_deref());
         node.add_transform_flags(flags);
         // node.symbol = undefined!;
         // node.localSymbol = undefined!;
@@ -782,7 +782,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node =
             self.create_base_named_declaration(base_factory, kind, decorators, modifiers, name);
         let mut node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
-        let flags = propagate_children_flags(node.maybe_type_parameters().as_ref());
+        let flags = propagate_children_flags(node.maybe_type_parameters().as_deref());
         node.add_transform_flags(flags);
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -819,7 +819,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node =
             BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
         node.add_transform_flags(
-            propagate_children_flags(Some(node.parameters()))
+            propagate_children_flags(Some(&node.parameters()))
                 | propagate_child_flags(node.maybe_type()),
         );
         if node.maybe_type().is_some() {
@@ -896,7 +896,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         let mut node =
             BaseInterfaceOrClassLikeDeclaration::new(node, self.as_node_array(heritage_clauses));
-        node.add_transform_flags(propagate_children_flags(node.maybe_heritage_clauses()));
+        node.add_transform_flags(propagate_children_flags(
+            node.maybe_heritage_clauses().as_deref(),
+        ));
         node
     }
 
@@ -930,7 +932,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         let mut node =
             ClassLikeDeclarationBase::new(node, self.create_node_array(Some(members), None));
-        node.add_transform_flags(propagate_children_flags(Some(node.members())));
+        node.add_transform_flags(propagate_children_flags(Some(&node.members())));
         node
     }
 
@@ -1173,23 +1175,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn update_identifier<TTypeArguments: Into<MaybeChangedNodeArray>>(
+    pub fn update_identifier(
         &self,
         base_factory: &TBaseNodeFactory,
-        node: &Node,                    /*Identifier*/
-        type_arguments: TTypeArguments, /*<TypeNode | TypeParameterDeclaration>*/
+        node: &Node, /*Identifier*/
+        type_arguments: Option<
+            impl Into<NodeArrayOrVec>, /*<TypeNode | TypeParameterDeclaration>*/
+        >,
     ) -> Gc<Node> {
-        let type_arguments = type_arguments.into();
+        let type_arguments = type_arguments.map(Into::into);
         let node_type_arguments = node.as_identifier().maybe_type_arguments();
-        if has_option_node_array_changed(node_type_arguments.as_ref(), &type_arguments) {
+        if has_option_node_array_changed(node_type_arguments.as_deref(), type_arguments.as_ref()) {
             self.update(
-                self.create_identifier(
-                    base_factory,
-                    &id_text(node),
-                    type_arguments.into_update_value(node_type_arguments.as_ref()),
-                    None,
-                )
-                .into(),
+                self.create_identifier(base_factory, &id_text(node), type_arguments, None)
+                    .into(),
                 node,
             )
         } else {
@@ -1301,37 +1300,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
 pub fn has_option_node_array_changed(
     existing: Option<&NodeArray>,
-    maybe_changed: &MaybeChangedNodeArray,
+    maybe_changed: Option<&NodeArrayOrVec>,
 ) -> bool {
-    match maybe_changed {
-        MaybeChangedNodeArray::Unchanged => false,
-        MaybeChangedNodeArray::Changed(None) => existing.is_some(),
-        _ => true,
-    }
-}
-
-pub enum MaybeChangedNodeArray {
-    Unchanged,
-    Changed(Option<NodeArray>),
-}
-
-impl MaybeChangedNodeArray {
-    pub fn into_update_value(self, existing_value: Option<&NodeArray>) -> Option<NodeArray> {
-        match self {
-            // TODO: I think this doesn't technically match the Typescript version's semantics
-            // since we're not sharing identity in the "reuse existing" case, but I guess that
-            // would only matter if there are cases where the "updated node" or "existing node"
-            // then mutate the NodeArray (do NodeArray's ever get mutated?) (and the
-            // shared-identity both-get-mutated semantics is "used" somewhere)?
-            Self::Unchanged => existing_value.cloned(),
-            Self::Changed(value) => value,
+    match (existing, maybe_changed) {
+        (None, None) => false,
+        (Some(existing), Some(NodeArrayOrVec::NodeArray(maybe_changed))) => {
+            !ptr::eq(existing, &**maybe_changed)
         }
-    }
-}
-
-impl From<Option<NodeArray>> for MaybeChangedNodeArray {
-    fn from(value: Option<NodeArray>) -> Self {
-        Self::Changed(value)
+        _ => true,
     }
 }
 

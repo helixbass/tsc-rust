@@ -15,7 +15,7 @@ use crate::{
     HasStatementsInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     JSDocTagInterface, JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SourceFileLike, StrOrNodeArrayRef, SyntaxKind, TextRange,
+    SourceFileLike, StrOrNodeArray, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -41,7 +41,7 @@ impl Printer {
             node,
             node_as_jsx_self_closing_element
                 .maybe_type_arguments()
-                .as_ref(),
+                .as_deref(),
         );
         self.write_space();
         self.emit(Some(&*node_as_jsx_self_closing_element.attributes), None);
@@ -77,7 +77,9 @@ impl Printer {
             self.emit_jsx_tag_name(&node_as_jsx_opening_element.tag_name);
             self.emit_type_arguments(
                 node,
-                node_as_jsx_opening_element.maybe_type_arguments().as_ref(),
+                node_as_jsx_opening_element
+                    .maybe_type_arguments()
+                    .as_deref(),
             );
             if
             /*node.attributes.properties &&*/
@@ -696,7 +698,7 @@ impl Printer {
         self.emit(Some(tag_name), None);
     }
 
-    pub(super) fn emit_jsdoc_comment(&self, comment: Option<StrOrNodeArrayRef>) {
+    pub(super) fn emit_jsdoc_comment(&self, comment: Option<StrOrNodeArray>) {
         let text = get_text_of_jsdoc_comment(comment);
         if let Some(text) = text.filter(|text| !text.is_empty()) {
             self.write_space();
@@ -727,7 +729,7 @@ impl Printer {
             || !is_prologue_directive(&statements[0])
             || node_is_synthesized(&*statements[0]);
         if should_emit_detached_comment {
-            self.emit_body_with_detached_comments(node, statements, |node: &Node| {
+            self.emit_body_with_detached_comments(node, &*statements, |node: &Node| {
                 self.emit_source_file_worker(node)
             });
             return;
@@ -903,20 +905,20 @@ impl Printer {
     pub(super) fn emit_source_file_worker(&self, node: &Node /*SourceFile*/) {
         let statements = node.as_source_file().statements();
         self.push_name_generation_scope(Some(node));
-        for_each(statements, |statement: &Gc<Node>, _| -> Option<()> {
+        for_each(&statements, |statement: &Gc<Node>, _| -> Option<()> {
             self.generate_names(Some(&**statement));
             None
         });
         self.emit_helpers(node);
         let index = find_index(
-            statements,
+            &statements,
             |statement: &Gc<Node>, _| !is_prologue_directive(statement),
             None,
         );
         self.emit_triple_slash_directives_if_needed(node);
         self.emit_list(
             Some(node),
-            Some(statements),
+            Some(&statements),
             ListFormat::MultiLine,
             None,
             Some(index.unwrap_or_else(|| statements.len())),

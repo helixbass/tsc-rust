@@ -18,9 +18,10 @@ use crate::{
     is_method_or_accessor, is_module_declaration, is_namespace_export, is_namespace_import,
     is_parenthesized_expression, is_qualified_name, is_require_call, is_source_file,
     is_string_literal, is_type_alias_declaration, is_variable_like, is_variable_statement, last,
-    last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, AssignmentDeclarationKind,
-    Debug_, HasQuestionTokenInterface, HasTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, OuterExpressionKinds, SignatureDeclarationInterface, Symbol, SyntaxKind,
+    last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, AsDoubleDeref,
+    AssignmentDeclarationKind, Debug_, HasQuestionTokenInterface, HasTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
+    SignatureDeclarationInterface, Symbol, SyntaxKind,
 };
 
 pub fn try_get_import_from_module_specifier(
@@ -192,7 +193,7 @@ pub fn has_question_token(node: &Node) -> bool {
 
 pub fn is_jsdoc_construct_signature(node: &Node) -> bool {
     let param: Option<Gc<Node>> = if is_jsdoc_function_type(node) {
-        first_or_undefined(node.as_jsdoc_function_type().parameters()).map(Clone::clone)
+        first_or_undefined(&node.as_jsdoc_function_type().parameters()).cloned()
     } else {
         None
     };
@@ -411,9 +412,10 @@ fn filter_owned_jsdoc_tags(
     js_doc: &Node, /*JSDoc | JSDocTag*/
 ) -> Option<Vec<Gc<Node /*JSDoc | JSDocTag*/>>> {
     if is_jsdoc(js_doc) {
-        let owned_tags = maybe_filter(js_doc.as_jsdoc().tags.as_deref(), |tag| {
-            owns_jsdoc_tag(host_node, tag)
-        });
+        let owned_tags = maybe_filter(
+            js_doc.as_jsdoc().tags.as_double_deref(),
+            |tag: &Gc<Node>| owns_jsdoc_tag(host_node, tag),
+        );
         return if match (js_doc.as_jsdoc().tags.as_ref(), owned_tags.as_ref()) {
             (Some(js_doc_tags), Some(owned_tags)) if js_doc_tags.len() == owned_tags.len() => true,
             (None, None) => true,
@@ -501,10 +503,14 @@ pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Op
         .escaped_text;
     let decl = get_host_signature_from_jsdoc(node);
     let decl = decl?;
-    let parameter = find(decl.as_signature_declaration().parameters(), |p, _| {
-        let p_name = p.as_parameter_declaration().name();
-        p_name.kind() == SyntaxKind::Identifier && &p_name.as_identifier().escaped_text == name
-    });
+    let parameter = find(
+        &decl.as_signature_declaration().parameters(),
+        |p: &Gc<Node>, _| {
+            let p_name = p.as_parameter_declaration().name();
+            p_name.kind() == SyntaxKind::Identifier && &p_name.as_identifier().escaped_text == name
+        },
+    )
+    .cloned();
     parameter.and_then(|parameter| parameter.maybe_symbol())
 }
 
@@ -587,13 +593,15 @@ pub fn get_type_parameter_from_js_doc(
 
 pub fn has_rest_parameter(node: &Node /*SignatureDeclaration | JSDocSignature*/) -> bool {
     let last = match node.kind() {
-        SyntaxKind::JSDocSignature => last_or_undefined(&node.as_jsdoc_signature().parameters),
-        _ => last_or_undefined(node.as_signature_declaration().parameters()),
+        SyntaxKind::JSDocSignature => {
+            last_or_undefined(&node.as_jsdoc_signature().parameters).cloned()
+        }
+        _ => last_or_undefined(&node.as_signature_declaration().parameters()).cloned(),
     };
     if last.is_none() {
         return false;
     }
-    let last = last.unwrap();
+    let ref last = last.unwrap();
     is_rest_parameter(last)
 }
 

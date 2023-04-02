@@ -16,7 +16,7 @@ use crate::{
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
     is_source_file, is_type_alias, length, maybe_append_if_unique_gc, maybe_append_if_unique_rc,
     maybe_first_defined, maybe_map, maybe_same_map, resolving_empty_array, same_map, some,
-    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
+    AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface,
     ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
@@ -1014,7 +1014,7 @@ impl TypeChecker {
                 base_type_node
                     .as_expression_with_type_arguments()
                     .maybe_type_arguments()
-                    .as_deref(),
+                    .as_double_deref(),
                 &base_type_node,
             );
             if constructors.is_empty() {

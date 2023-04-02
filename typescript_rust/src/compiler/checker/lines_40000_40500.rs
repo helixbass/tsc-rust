@@ -336,7 +336,7 @@ impl TypeChecker {
         let ref parent = node.parent();
         if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
             if !Gc::ptr_eq(
-                last(parent.parent().as_jsdoc_function_type().parameters()),
+                last(&parent.parent().as_jsdoc_function_type().parameters()),
                 parent,
             ) {
                 self.error(
@@ -376,7 +376,7 @@ impl TypeChecker {
         if match host.as_ref() {
             None => true,
             Some(host) => !matches!(
-                last(host.as_signature_declaration().parameters()).maybe_symbol().as_ref(),
+                last(&host.as_signature_declaration().parameters()).maybe_symbol().as_ref(),
                 Some(symbol) if Gc::ptr_eq(
                     symbol,
                     param
@@ -594,7 +594,7 @@ impl TypeChecker {
             clear(&mut self.potential_reflect_collisions());
 
             let node_as_source_file = node.as_source_file();
-            for_each(node_as_source_file.statements(), |statement, _| {
+            for_each(&node_as_source_file.statements(), |statement, _| {
                 self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });

@@ -9,9 +9,9 @@ use crate::{
     is_binary_expression, is_block, is_call_expression, is_comma_sequence,
     is_function_or_constructor_type_node, is_left_hand_side_expression, is_literal_kind,
     is_unary_expression, maybe_same_map, same_map, set_text_range,
-    skip_partially_emitted_expressions, some, Associativity, BaseNodeFactory, Comparison,
-    HasTypeArgumentsInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
+    skip_partially_emitted_expressions, some, AsDoubleDeref, Associativity, BaseNodeFactory,
+    Comparison, HasTypeArgumentsInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -407,7 +407,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         elements: NodeArrayOrVec,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         let result = same_map(&elements, |element, _| {
             self.parenthesize_expression_for_disallowed_comma(base_node_factory, element)
         });
@@ -427,7 +427,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         // );
         match elements {
             NodeArrayOrVec::NodeArray(elements) => {
-                set_text_range(&node_array, Some(&elements));
+                set_text_range(&*node_array, Some(&*elements));
             }
             NodeArrayOrVec::Vec(_) => (),
         }
@@ -485,7 +485,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
                     ),
                     emitted_expression_as_call_expression
                         .maybe_type_arguments()
-                        .as_deref(),
+                        .as_double_deref(),
                     &emitted_expression_as_call_expression.arguments,
                 );
                 return self.factory.restore_outer_expressions(
@@ -588,7 +588,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         members: NodeArrayOrVec,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         let members = match members {
             NodeArrayOrVec::NodeArray(members) => members.to_vec(),
             NodeArrayOrVec::Vec(members) => members,
@@ -605,7 +605,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         type_arguments: Option<NodeArrayOrVec>,
-    ) -> Option<NodeArray> {
+    ) -> Option<Gc<NodeArray>> {
         if some(
             type_arguments.as_deref(),
             Option::<fn(&Gc<Node>) -> bool>::None,
@@ -734,7 +734,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         elements: NodeArrayOrVec,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         match elements {
             NodeArrayOrVec::NodeArray(elements) => elements,
             NodeArrayOrVec::Vec(_) => {
@@ -795,7 +795,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         members: NodeArrayOrVec,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         match members {
             NodeArrayOrVec::NodeArray(members) => members,
             NodeArrayOrVec::Vec(_) => {
@@ -808,7 +808,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         type_parameters: Option<NodeArrayOrVec>,
-    ) -> Option<NodeArray> {
+    ) -> Option<Gc<NodeArray>> {
         type_parameters.map(|type_parameters| match type_parameters {
             NodeArrayOrVec::NodeArray(type_parameters) => type_parameters,
             NodeArrayOrVec::Vec(_) => {

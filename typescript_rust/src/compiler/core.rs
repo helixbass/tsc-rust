@@ -131,9 +131,9 @@ pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .map(|(_, value)| value)
 }
 
-pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn find_index<TItem>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
     start_index: Option<usize>,
 ) -> Option<usize> {
     array
@@ -143,9 +143,9 @@ pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .position(|(index, value)| predicate(value, index))
 }
 
-pub fn find_last_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn find_last_index<TItem>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
     start_index: Option<usize>,
 ) -> Option<usize> {
     if array.is_empty() {
@@ -164,9 +164,9 @@ pub fn find_last_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     None
 }
 
-pub fn find_last_index_returns_isize<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn find_last_index_returns_isize<TItem>(
     array: &[TItem],
-    predicate: TCallback,
+    predicate: impl FnMut(&TItem, usize) -> bool,
     start_index: Option<usize>,
 ) -> isize {
     match find_last_index(array, predicate, start_index) {

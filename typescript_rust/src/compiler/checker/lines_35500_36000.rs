@@ -304,7 +304,7 @@ impl TypeChecker {
         match node.kind() {
             SyntaxKind::IntersectionType | SyntaxKind::UnionType => self
                 .get_entity_name_for_decorator_metadata_from_type_list(
-                    node.as_union_or_intersection_type_node().types(),
+                    &node.as_union_or_intersection_type_node().types(),
                 ),
 
             SyntaxKind::ConditionalType => {
@@ -409,7 +409,7 @@ impl TypeChecker {
                 SyntaxKind::ClassDeclaration => {
                     let constructor = get_first_constructor_with_body(node);
                     if let Some(constructor) = constructor.as_ref() {
-                        for parameter in constructor.as_signature_declaration().parameters() {
+                        for parameter in &constructor.as_signature_declaration().parameters() {
                             self.mark_decorator_medata_data_type_node_as_referenced(
                                 self.get_parameter_type_node_for_decorator_check(parameter),
                             );
@@ -437,7 +437,7 @@ impl TypeChecker {
                     );
                 }
                 SyntaxKind::MethodDeclaration => {
-                    for parameter in node.as_function_like_declaration().parameters() {
+                    for parameter in &node.as_function_like_declaration().parameters() {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
                         );
@@ -459,7 +459,7 @@ impl TypeChecker {
                         self.get_parameter_type_node_for_decorator_check(node),
                     );
                     let containing_signature = node.parent();
-                    for parameter in containing_signature.as_signature_declaration().parameters() {
+                    for parameter in &containing_signature.as_signature_declaration().parameters() {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
                         );

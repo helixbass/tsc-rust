@@ -5,21 +5,21 @@ use std::convert::TryInto;
 use std::ptr;
 
 use crate::{
-    are_option_gcs_equal, declaration_name_to_string, find_ancestor, for_each, for_each_bool,
-    for_each_child, get_class_extends_heritage_element, get_declaration_of_kind,
-    get_effective_base_type_node, get_effective_constraint_of_type_parameter,
-    get_effective_implements_type_nodes, get_effective_type_parameter_declarations,
-    get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    Type, TypeChecker, __String, are_option_gcs_equal, declaration_name_to_string, find_ancestor,
+    for_each, for_each_bool, for_each_child, for_each_key, get_class_extends_heritage_element,
+    get_declaration_of_kind, get_effective_base_type_node,
+    get_effective_constraint_of_type_parameter, get_effective_implements_type_nodes,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    get_name_of_declaration, get_object_flags, get_root_declaration, get_source_file_of_node,
     get_span_of_token_at_position, get_text_of_node, has_static_modifier, has_syntactic_modifier,
     is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
     is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
-    maybe_for_each, some, ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, HasTypeArgumentsInterface, IndexInfo,
-    InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, __String, for_each_key, get_effective_type_annotation_node, get_root_declaration,
-    HasInitializerInterface, TypeFlags, TypeInterface,
+    maybe_for_each, some, AsDoubleDeref, ClassLikeDeclarationInterface, DiagnosticMessage,
+    Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn, HasInitializerInterface,
+    HasTypeArgumentsInterface, IndexInfo, InterfaceTypeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
+    ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -105,7 +105,7 @@ impl TypeChecker {
                 }
                 let clause_as_case_or_default_clause = clause.as_case_or_default_clause();
                 for_each(
-                    clause_as_case_or_default_clause.statements(),
+                    &clause_as_case_or_default_clause.statements(),
                     |statement: &Gc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**statement));
                         None
@@ -295,7 +295,7 @@ impl TypeChecker {
             .as_ref()
             .filter(|type_declaration| is_class_like(type_declaration))
         {
-            for member in type_declaration.as_class_like_declaration().members() {
+            for member in &type_declaration.as_class_like_declaration().members() {
                 if !is_static(member) && !self.has_bindable_name(member) {
                     let symbol = self.get_symbol_of_node(member).unwrap();
                     self.check_index_constraint_for_property(
@@ -697,7 +697,7 @@ impl TypeChecker {
 
     pub(super) fn check_class_expression_deferred(&self, node: &Node /*ClassExpression*/) {
         for_each(
-            node.as_class_expression().members(),
+            &node.as_class_expression().members(),
             |member: &Gc<Node>, _| -> Option<()> {
                 self.check_source_element(Some(&**member));
                 None
@@ -709,10 +709,10 @@ impl TypeChecker {
     pub(super) fn check_class_declaration(&self, node: &Node /*ClassDeclaration*/) {
         let node_as_class_declaration = node.as_class_declaration();
         if some(
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators().as_double_deref(),
             Option::<fn(&Gc<Node>) -> bool>::None,
         ) && some(
-            Some(node_as_class_declaration.members()),
+            Some(&node_as_class_declaration.members()),
             Some(|p: &Gc<Node>| {
                 has_static_modifier(p) && is_private_identifier_class_element_declaration(p)
             }),
@@ -734,7 +734,7 @@ impl TypeChecker {
         }
         self.check_class_like_declaration(node);
         for_each(
-            node_as_class_declaration.members(),
+            &node_as_class_declaration.members(),
             |member: &Gc<Node>, _| -> Option<()> {
                 self.check_source_element(Some(&**member));
                 None
@@ -811,7 +811,7 @@ impl TypeChecker {
                 if some(
                     base_type_node_as_expression_with_type_arguments
                         .maybe_type_arguments()
-                        .as_deref(),
+                        .as_double_deref(),
                     Option::<fn(&Gc<Node>) -> bool>::None,
                 ) {
                     maybe_for_each(
@@ -827,7 +827,7 @@ impl TypeChecker {
                         &static_base_type,
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
-                            .as_deref(),
+                            .as_double_deref(),
                         base_type_node,
                     ) {
                         if !self.check_type_argument_constraints(
@@ -906,7 +906,7 @@ impl TypeChecker {
                         &static_base_type,
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
-                            .as_deref(),
+                            .as_double_deref(),
                         base_type_node,
                     );
                     if for_each_bool(&constructors, |sig: &Gc<Signature>, _| {

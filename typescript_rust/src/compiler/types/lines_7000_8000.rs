@@ -3,8 +3,8 @@
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 use local_macros::enum_unwrapped;
+use std::ptr;
 use std::rc::Rc;
-use std::{cell::RefCell, ptr};
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
@@ -87,7 +87,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
         &self,
         base_factory: &TBaseNodeFactory,
         elements: NodeArrayOrVec, /*<Expression>*/
-    ) -> NodeArray /*<Expression>*/;
+    ) -> Gc<NodeArray> /*<Expression>*/;
     fn parenthesize_expression_for_disallowed_comma(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -122,12 +122,12 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
         &self,
         base_factory: &TBaseNodeFactory,
         members: NodeArrayOrVec, /*<TypeNode>*/
-    ) -> NodeArray /*<TypeNode>*/;
+    ) -> Gc<NodeArray> /*<TypeNode>*/;
     fn parenthesize_type_arguments(
         &self,
         base_factory: &TBaseNodeFactory,
         type_parameters: Option<NodeArrayOrVec /*<TypeNode>*/>,
-    ) -> Option<NodeArray /*<TypeNode>*/>;
+    ) -> Option<Gc<NodeArray> /*<TypeNode>*/>;
 }
 
 pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {

@@ -218,22 +218,15 @@ fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> 
     range
 }
 
-pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(range: &TRange, pos: isize, end: isize) {
+pub fn set_text_range_pos_end(range: &impl ReadonlyTextRange, pos: isize, end: isize) {
     set_text_range_end(set_text_range_pos(range, pos), end);
 }
 
-pub fn set_text_range_pos_width<TRange: ReadonlyTextRange>(
-    range: &TRange,
-    pos: isize,
-    width: isize,
-) {
+pub fn set_text_range_pos_width(range: &impl ReadonlyTextRange, pos: isize, width: isize) {
     set_text_range_pos_end(range, pos, pos + width);
 }
 
-pub fn set_node_flags<TNode: Borrow<Node>>(
-    node: Option<TNode>,
-    new_flags: NodeFlags,
-) -> Option<Gc<Node>> {
+pub fn set_node_flags(node: Option<impl Borrow<Node>>, new_flags: NodeFlags) -> Option<Gc<Node>> {
     node.map(|node| {
         let node = node.borrow();
         node.set_flags(new_flags);
@@ -241,7 +234,7 @@ pub fn set_node_flags<TNode: Borrow<Node>>(
     })
 }
 
-pub fn set_parent<TParent: Borrow<Node>>(child: &Node, parent: Option<TParent>) -> &Node {
+pub fn set_parent(child: &Node, parent: Option<impl Borrow<Node>>) -> &Node {
     if let Some(parent) = parent {
         let parent = parent.borrow();
         child.set_parent(parent.node_wrapper());
@@ -262,7 +255,7 @@ pub fn maybe_set_parent<TChild: Borrow<Node>>(
     child
 }
 
-pub fn set_parent_recursive<TNode: Borrow<Node>>(root_node: Option<TNode>, incremental: bool) {
+pub fn set_parent_recursive(root_node: Option<impl Borrow<Node>>, incremental: bool) {
     if root_node.is_none() {
         return /*rootNode*/;
     }
@@ -311,7 +304,9 @@ fn bind_jsdoc(
                 |child, parent| -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
                     bind_parent_to_child_ignoring_jsdoc(incremental, child, parent)
                 },
-                Option::<fn(&NodeArray, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<()>>>::None,
+                Option::<
+                    fn(&NodeArray, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
+                >::None,
             );
         }
     }
@@ -384,7 +379,7 @@ pub fn contains_ignored_path(path: &str) -> bool {
     )
 }
 
-pub fn get_containing_node_array(node: &Node) -> Option<NodeArray> {
+pub fn get_containing_node_array(node: &Node) -> Option<Gc<NodeArray>> {
     unimplemented!()
 }
 
@@ -401,7 +396,8 @@ pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/)
             return true;
         }
         if node.kind() != SyntaxKind::ArrowFunction {
-            let parameter = first_or_undefined(node_as_function_like_declaration.parameters());
+            let node_parameters = node_as_function_like_declaration.parameters();
+            let parameter = first_or_undefined(&node_parameters);
             if !matches!(
                 parameter,
                 Some(parameter) if parameter_is_this_keyword(parameter)

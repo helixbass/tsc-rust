@@ -56,7 +56,7 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
 #[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorCreated {
     source_file: Gc<Node /*SourceFile*/>,
-    current_array: GcCell<Option<NodeArray>>,
+    current_array: GcCell<Option<Gc<NodeArray>>>,
     #[unsafe_ignore_trace]
     current_array_index: Cell<Option<usize>>,
     current: GcCell<Option<Gc<Node>>>,
@@ -80,13 +80,11 @@ impl IncrementalParserSyntaxCursorCreated {
         }
     }
 
-    fn current_array(&self) -> GcCellRef<NodeArray> {
-        GcCellRef::map(self.current_array.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    fn current_array(&self) -> Gc<NodeArray> {
+        self.current_array.borrow().clone().unwrap()
     }
 
-    fn set_current_array(&self, current_array: Option<NodeArray>) {
+    fn set_current_array(&self, current_array: Option<Gc<NodeArray>>) {
         *self.current_array.borrow_mut() = current_array;
     }
 
@@ -149,7 +147,7 @@ impl IncrementalParserSyntaxCursorCreated {
             for (i, child) in array.iter().enumerate() {
                 // if (child) {
                 if child.pos() == position_as_isize {
-                    self.set_current_array(Some(array.clone()));
+                    self.set_current_array(Some(array.rc_wrapper()));
                     self.set_current_array_index(Some(i));
                     self.set_current(Some(child.clone()));
                     return true;

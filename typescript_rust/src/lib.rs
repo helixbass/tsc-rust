@@ -96,8 +96,8 @@ pub use compiler::factory::node_factory::{
     create_input_files, create_node_factory, create_unparsed_source_file, factory, get_factory,
     has_option_node_array_changed, set_original_node, synthetic_factory, with_factory,
     with_synthetic_factory, with_synthetic_factory_and_factory, BaseNodeFactorySynthetic,
-    MaybeChangedNodeArray, NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber,
-    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,
+    NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
+    StringOrRcNode, SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,
@@ -612,7 +612,7 @@ pub use compiler::utilities_public::{
     text_span_intersects_with_position, text_span_intersects_with_text_span, text_span_is_empty,
     text_span_overlap, text_span_overlaps_with, unchanged_text_change_range,
     unescape_leading_underscores, validate_locale_and_set_language,
-    walk_up_binding_elements_and_patterns, FindAncestorCallbackReturn, StrOrNodeArrayRef,
+    walk_up_binding_elements_and_patterns, FindAncestorCallbackReturn, StrOrNodeArray,
 };
 use compiler::utilities_public::{
     get_assigned_name, get_combined_node_flags_always_include_jsdoc,

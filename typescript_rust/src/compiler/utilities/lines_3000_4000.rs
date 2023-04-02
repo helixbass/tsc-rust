@@ -163,7 +163,8 @@ pub fn get_class_extends_heritage_element(
 ) -> Option<Gc<Node>> {
     let heritage_clause = get_heritage_clause(
         node.maybe_as_interface_or_class_like_declaration()
-            .and_then(|node| node.maybe_heritage_clauses()),
+            .and_then(|node| node.maybe_heritage_clauses())
+            .as_deref(),
         SyntaxKind::ExtendsKeyword,
     )?;
     let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
@@ -187,7 +188,8 @@ pub fn get_effective_implements_type_nodes(
     } else {
         let heritage_clause = get_heritage_clause(
             node.as_interface_or_class_like_declaration()
-                .maybe_heritage_clauses(),
+                .maybe_heritage_clauses()
+                .as_deref(),
             SyntaxKind::ImplementsKeyword,
         )?;
         Some(heritage_clause.as_heritage_clause().types.to_vec())
@@ -207,9 +209,13 @@ pub fn get_all_super_type_nodes(node: &Node) -> Vec<Gc<Node>> {
     }
 }
 
-pub fn get_interface_base_type_nodes(node: &Node, /*InterfaceDeclaration*/) -> Option<NodeArray> {
+pub fn get_interface_base_type_nodes(
+    node: &Node, /*InterfaceDeclaration*/
+) -> Option<Gc<NodeArray>> {
     let heritage_clause = get_heritage_clause(
-        node.as_interface_declaration().maybe_heritage_clauses(),
+        node.as_interface_declaration()
+            .maybe_heritage_clauses()
+            .as_deref(),
         SyntaxKind::ExtendsKeyword,
     )?;
     Some(heritage_clause.as_heritage_clause().types.clone())

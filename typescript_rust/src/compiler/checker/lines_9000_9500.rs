@@ -209,7 +209,7 @@ impl TypeChecker {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> Gc<Type> {
-        let elements = pattern.as_has_elements().elements();
+        let ref elements = pattern.as_has_elements().elements();
         let last_element = last_or_undefined(&**elements);
         let rest_element = last_element.filter(|last_element| {
             last_element.kind() == SyntaxKind::BindingElement

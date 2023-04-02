@@ -59,7 +59,7 @@ pub fn for_each_child_recursively<
                         }
                     }
                 }
-                for current_child in current.into_vec().iter().rev() {
+                for current_child in current.to_vec().iter().rev() {
                     queue.push(current_child.clone().into());
                     parents.push(parent.clone());
                 }
@@ -112,7 +112,7 @@ pub fn for_each_child_recursively_bool<
                         return true;
                     }
                 }
-                for current_child in current.into_vec().iter().rev() {
+                for current_child in current.to_vec().iter().rev() {
                     queue.push(current_child.clone().into());
                     parents.push(parent.clone());
                 }
@@ -136,7 +136,7 @@ pub fn for_each_child_recursively_bool<
 
 enum RcNodeOrNodeArray {
     RcNode(Gc<Node>),
-    NodeArray(NodeArray),
+    NodeArray(Gc<NodeArray>),
 }
 
 impl From<Gc<Node>> for RcNodeOrNodeArray {
@@ -145,8 +145,8 @@ impl From<Gc<Node>> for RcNodeOrNodeArray {
     }
 }
 
-impl From<NodeArray> for RcNodeOrNodeArray {
-    fn from(value: NodeArray) -> Self {
+impl From<Gc<NodeArray>> for RcNodeOrNodeArray {
+    fn from(value: Gc<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }
@@ -159,7 +159,9 @@ fn gather_possible_children(node: &Node) -> Vec<RcNodeOrNodeArray> {
             children.borrow_mut().insert(0, child.node_wrapper().into());
         },
         Some(|node_array: &NodeArray| {
-            children.borrow_mut().insert(0, node_array.clone().into());
+            children
+                .borrow_mut()
+                .insert(0, node_array.rc_wrapper().into());
         }),
     );
     children.into_inner()
@@ -766,7 +768,7 @@ impl ParserType {
 
         self.next_token();
         let pos = self.get_node_pos();
-        let statements: NodeArray;
+        let statements: Gc<NodeArray>;
         let end_of_file_token: Gc<Node>;
         if self.token() == SyntaxKind::EndOfFileToken {
             statements = self.create_node_array(vec![], pos, Some(pos), None);

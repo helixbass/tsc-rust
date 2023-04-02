@@ -221,7 +221,7 @@ impl TypeChecker {
     pub(super) fn check_reflect_collision(&self, node: &Node) {
         let mut has_collision = false;
         if is_class_expression(node) {
-            for member in node.as_class_expression().members() {
+            for member in &node.as_class_expression().members() {
                 if self
                     .get_node_check_flags(member)
                     .intersects(NodeCheckFlags::ContainsSuperPropertyInStaticInitializer)
@@ -476,7 +476,7 @@ impl TypeChecker {
             }
 
             for_each(
-                node_name.as_has_elements().elements(),
+                &node_name.as_has_elements().elements(),
                 |element: &Gc<Node>, _| -> Option<()> {
                     self.check_source_element(Some(&**element));
                     None

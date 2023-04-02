@@ -236,7 +236,7 @@ pub fn is_parameter_property_declaration(node: &Node, parent: &Node) -> bool {
 
 pub fn is_empty_binding_pattern(node: &Node /*BindingName*/) -> bool {
     if is_binding_pattern(Some(node)) {
-        return every(node.as_has_elements().elements(), |element, _| {
+        return every(&node.as_has_elements().elements(), |element, _| {
             is_empty_binding_element(element)
         });
     }
@@ -1065,40 +1065,40 @@ pub fn get_all_jsdoc_tags_of_kind(node: &Node, kind: SyntaxKind) -> Vec<Gc<Node 
         .collect()
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum StrOrNodeArrayRef<'a> {
+#[derive(Clone, Debug)]
+pub enum StrOrNodeArray<'a> {
     Str(&'a str),
-    NodeArray(&'a NodeArray),
+    NodeArray(Gc<NodeArray>),
 }
 
-impl<'a> From<&'a str> for StrOrNodeArrayRef<'a> {
+impl<'a> From<&'a str> for StrOrNodeArray<'a> {
     fn from(value: &'a str) -> Self {
         Self::Str(value)
     }
 }
 
-impl<'a> From<&'a NodeArray> for StrOrNodeArrayRef<'a> {
-    fn from(value: &'a NodeArray) -> Self {
+impl<'a> From<Gc<NodeArray>> for StrOrNodeArray<'a> {
+    fn from(value: Gc<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }
 
-impl<'a> From<&'a StringOrNodeArray> for StrOrNodeArrayRef<'a> {
+impl<'a> From<&'a StringOrNodeArray> for StrOrNodeArray<'a> {
     fn from(value: &'a StringOrNodeArray) -> Self {
         match value {
             StringOrNodeArray::String(value) => Self::Str(value),
-            StringOrNodeArray::NodeArray(value) => Self::NodeArray(value),
+            StringOrNodeArray::NodeArray(value) => Self::NodeArray(value.clone()),
         }
     }
 }
 
-pub fn get_text_of_jsdoc_comment<'a, TComment: Into<StrOrNodeArrayRef<'a>>>(
+pub fn get_text_of_jsdoc_comment<'a, TComment: Into<StrOrNodeArray<'a>>>(
     comment: Option<TComment>,
 ) -> Option<Cow<'a, str>> {
     match comment {
         Some(comment) => match comment.into() {
-            StrOrNodeArrayRef::Str(comment) => Some(comment.into()),
-            StrOrNodeArrayRef::NodeArray(comment) => Some(
+            StrOrNodeArray::Str(comment) => Some(comment.into()),
+            StrOrNodeArray::NodeArray(comment) => Some(
                 comment
                     .iter()
                     .map(|c| {
@@ -1134,7 +1134,7 @@ pub fn get_effective_type_parameter_declarations(
     }
     if is_jsdoc_type_alias(node) {
         Debug_.assert(node.parent().kind() == SyntaxKind::JSDocComment, None);
-        return flat_map(node.parent().as_jsdoc().tags.as_ref(), |tag, _| {
+        return flat_map(node.parent().as_jsdoc().tags.as_deref(), |tag, _| {
             if is_jsdoc_template_tag(&**tag) {
                 tag.as_jsdoc_template_tag().type_parameters.to_vec()
             } else {
@@ -1143,12 +1143,8 @@ pub fn get_effective_type_parameter_declarations(
             }
         });
     }
-    if let Some(type_parameters) = node
-        .as_has_type_parameters()
-        .maybe_type_parameters()
-        .as_ref()
-    {
-        return type_parameters.into();
+    if let Some(type_parameters) = node.as_has_type_parameters().maybe_type_parameters() {
+        return type_parameters.to_vec();
     }
     if is_in_js_file(Some(node)) {
         let decls = get_jsdoc_type_parameter_declarations(node);
@@ -1467,12 +1463,12 @@ pub fn is_binding_name(node: &Node) -> bool {
     )
 }
 
-pub fn is_function_like<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn is_function_like(node: Option<impl Borrow<Node>>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
 }
 
-pub(crate) fn is_function_like_or_class_static_block_declaration<TNode: Borrow<Node>>(
-    node: Option<TNode>,
+pub(crate) fn is_function_like_or_class_static_block_declaration(
+    node: Option<impl Borrow<Node>>,
 ) -> bool {
     node.map_or(false, |node| {
         let node = node.borrow();

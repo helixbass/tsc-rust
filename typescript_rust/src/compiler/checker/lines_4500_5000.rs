@@ -624,7 +624,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+    ) -> Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             self.type_parameters_to_type_parameter_declarations(symbol, context)
         })
@@ -925,7 +925,7 @@ impl NodeBuilder {
                                 .create_type_reference_node(
                                     synthetic_factory_,
                                     &*member_name,
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                 )
                                 .into()
                         })
@@ -1268,7 +1268,7 @@ impl NodeBuilder {
                                         Into::<Gc<Node>>::into(factory_.create_identifier(
                                             synthetic_factory_,
                                             "",
-                                            Option::<NodeArray>::None,
+                                            Option::<Gc<NodeArray>>::None,
                                             None,
                                         )),
                                         type_argument_nodes,
@@ -1343,10 +1343,10 @@ impl NodeBuilder {
                                 Into::<Gc<Node>>::into(factory_.create_identifier(
                                     synthetic_factory_,
                                     &id_text(&name),
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                     None,
                                 )),
-                                Option::<NodeArray>::None,
+                                Option::<Gc<NodeArray>>::None,
                             )
                             .into()
                     })
@@ -1363,10 +1363,10 @@ impl NodeBuilder {
                                 Into::<Gc<Node>>::into(factory_.create_identifier(
                                     synthetic_factory_,
                                     "?",
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                     None,
                                 )),
-                                Option::<NodeArray>::None,
+                                Option::<Gc<NodeArray>>::None,
                             )
                             .into()
                     })

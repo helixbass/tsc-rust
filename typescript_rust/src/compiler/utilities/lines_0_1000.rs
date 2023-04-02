@@ -1634,7 +1634,7 @@ pub fn is_effective_strict_mode_source_file(
     if get_strict_option_value(compiler_options, "alwaysStrict") {
         return true;
     }
-    if starts_with_use_strict(node_as_source_file.statements()) {
+    if starts_with_use_strict(&node_as_source_file.statements()) {
         return true;
     }
     if is_external_module(node) || compiler_options.isolated_modules.unwrap_or(false) {

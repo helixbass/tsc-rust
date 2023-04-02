@@ -207,7 +207,7 @@ impl TransformES2017 {
                     Option<fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> NodeArray,
+                ) -> Gc<NodeArray>,
             >::None,
             Option::<fn(&Node) -> VisitResult>::None,
             Option::<
@@ -272,7 +272,7 @@ impl TransformES2017 {
                     Option<fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> NodeArray,
+                ) -> Gc<NodeArray>,
             >::None,
             Option::<fn(&Node) -> VisitResult>::None,
             Option::<
@@ -363,7 +363,7 @@ impl TransformES2017 {
                             Option<fn(&Node) -> bool>,
                             Option<usize>,
                             Option<usize>,
-                        ) -> NodeArray,
+                        ) -> Gc<NodeArray>,
                     >::None,
                     Option::<fn(&Node) -> VisitResult>::None,
                     Option::<
@@ -396,7 +396,7 @@ impl TransformES2017 {
                             Option<fn(&Node) -> bool>,
                             Option<usize>,
                             Option<usize>,
-                        ) -> NodeArray,
+                        ) -> Gc<NodeArray>,
                     >::None,
                     Option::<fn(&Node) -> VisitResult>::None,
                     Option::<
@@ -432,7 +432,7 @@ impl TransformES2017 {
                         Option<fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> NodeArray,
+                    ) -> Gc<NodeArray>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<
@@ -485,7 +485,7 @@ impl TransformES2017 {
                             Option<fn(&Node) -> bool>,
                             Option<usize>,
                             Option<usize>,
-                        ) -> NodeArray,
+                        ) -> Gc<NodeArray>,
                     >::None,
                     Option::<fn(&Node) -> VisitResult>::None,
                     Option::<
@@ -541,7 +541,7 @@ impl TransformES2017 {
                         Option<fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> NodeArray,
+                    ) -> Gc<NodeArray>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<
@@ -568,7 +568,7 @@ impl TransformES2017 {
                         Option<fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> NodeArray,
+                    ) -> Gc<NodeArray>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<
@@ -615,7 +615,7 @@ impl TransformES2017 {
                     Option<fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> NodeArray,
+                ) -> Gc<NodeArray>,
             >::None,
             Option::<fn(&Node) -> VisitResult>::None,
             Option::<
@@ -776,7 +776,7 @@ impl TransformES2017 {
                         Option<fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> NodeArray,
+                    ) -> Gc<NodeArray>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<
@@ -818,9 +818,9 @@ impl TransformES2017 {
             self.factory.update_method_declaration(
                 synthetic_factory_,
                 node,
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 visit_nodes(
-                    node.maybe_modifiers().as_ref(),
+                    node.maybe_modifiers().as_deref(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_modifier),
                     None,
@@ -829,9 +829,9 @@ impl TransformES2017 {
                 node_as_method_declaration.maybe_asterisk_token(),
                 node_as_method_declaration.name(),
                 None,
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 visit_parameter_list(
-                    Some(node_as_method_declaration.parameters()),
+                    Some(&node_as_method_declaration.parameters()),
                     |node: &Node| self.visitor(node),
                     &**self.context,
                     Option::<
@@ -841,7 +841,7 @@ impl TransformES2017 {
                             Option<fn(&Node) -> bool>,
                             Option<usize>,
                             Option<usize>,
-                        ) -> NodeArray,
+                        ) -> Gc<NodeArray>,
                     >::None,
                 )
                 .unwrap(),
@@ -875,9 +875,9 @@ impl TransformES2017 {
                 self.factory.update_function_declaration(
                     synthetic_factory_,
                     node,
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     visit_nodes(
-                        node.maybe_modifiers().as_ref(),
+                        node.maybe_modifiers().as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_modifier),
                         None,
@@ -885,9 +885,9 @@ impl TransformES2017 {
                     ),
                     node_as_function_declaration.maybe_asterisk_token(),
                     node_as_function_declaration.maybe_name(),
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(node_as_function_declaration.parameters()),
+                        Some(&node_as_function_declaration.parameters()),
                         |node: &Node| self.visitor(node),
                         &**self.context,
                         Option::<
@@ -897,7 +897,7 @@ impl TransformES2017 {
                                 Option<fn(&Node) -> bool>,
                                 Option<usize>,
                                 Option<usize>,
-                            ) -> NodeArray,
+                            ) -> Gc<NodeArray>,
                         >::None,
                     )
                     .unwrap(),
@@ -935,7 +935,7 @@ impl TransformES2017 {
                 synthetic_factory_,
                 node,
                 visit_nodes(
-                    node.maybe_modifiers().as_ref(),
+                    node.maybe_modifiers().as_deref(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_modifier),
                     None,
@@ -943,9 +943,9 @@ impl TransformES2017 {
                 ),
                 node_as_function_expression.maybe_asterisk_token(),
                 node_as_function_expression.maybe_name(),
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 visit_parameter_list(
-                    Some(node_as_function_expression.parameters()),
+                    Some(&node_as_function_expression.parameters()),
                     |node: &Node| self.visitor(node),
                     &**self.context,
                     Option::<
@@ -955,7 +955,7 @@ impl TransformES2017 {
                             Option<fn(&Node) -> bool>,
                             Option<usize>,
                             Option<usize>,
-                        ) -> NodeArray,
+                        ) -> Gc<NodeArray>,
                     >::None,
                 )
                 .unwrap(),
@@ -989,15 +989,15 @@ impl TransformES2017 {
                 synthetic_factory_,
                 node,
                 visit_nodes(
-                    node.maybe_modifiers().as_ref(),
+                    node.maybe_modifiers().as_deref(),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_modifier),
                     None,
                     None,
                 ),
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 visit_parameter_list(
-                    Some(node_as_arrow_function.parameters()),
+                    Some(&node_as_arrow_function.parameters()),
                     |node: &Node| self.visitor(node),
                     &**self.context,
                     Option::<
@@ -1007,7 +1007,7 @@ impl TransformES2017 {
                             Option<fn(&Node) -> bool>,
                             Option<usize>,
                             Option<usize>,
-                        ) -> NodeArray,
+                        ) -> Gc<NodeArray>,
                     >::None,
                 )
                 .unwrap(),
@@ -1039,7 +1039,7 @@ impl TransformES2017 {
         if is_identifier(name) {
             names.insert(name.as_identifier().escaped_text.clone());
         } else {
-            for element in name.as_has_elements().elements() {
+            for element in &name.as_has_elements().elements() {
                 if !is_omitted_expression(element) {
                     self.record_declaration_name(element, names);
                 }
@@ -1120,7 +1120,7 @@ impl TransformES2017 {
         if is_identifier(name) {
             self.context.hoist_variable_declaration(name);
         } else {
-            for element in name.as_has_elements().elements() {
+            for element in &name.as_has_elements().elements() {
                 if !is_omitted_expression(element) {
                     self.hoist_variable(element);
                 }
@@ -1162,7 +1162,7 @@ impl TransformES2017 {
                 .enclosing_function_parameter_names()
                 .contains(&name.as_identifier().escaped_text);
         } else {
-            for element in name.as_has_elements().elements() {
+            for element in &name.as_has_elements().elements() {
                 if !is_omitted_expression(element) && self.collides_with_parameter_name(element) {
                     return true;
                 }
@@ -1198,7 +1198,7 @@ impl TransformES2017 {
         let saved_enclosing_function_parameter_names =
             self.maybe_enclosing_function_parameter_names().clone();
         self.set_enclosing_function_parameter_names(Some(HashSet::new()));
-        for parameter in node_as_function_like_declaration.parameters() {
+        for parameter in &node_as_function_like_declaration.parameters() {
             self.record_declaration_name(
                 parameter,
                 &mut self.enclosing_function_parameter_names_mut(),
@@ -1343,7 +1343,7 @@ impl TransformES2017 {
                                 )),
                                 None,
                             ),
-                            Some(&block_as_block.statements),
+                            Some(&*block_as_block.statements),
                         ),
                     )
                 });
@@ -1524,7 +1524,7 @@ impl TransformES2017 {
                                 "call",
                             )
                             .into(),
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         Some(
                             [
                                 vec![self.factory.create_this(synthetic_factory_).into()],
@@ -1576,7 +1576,7 @@ impl TransformES2017 {
                                                 | GeneratedIdentifierFlags::FileLevel,
                                         ),
                                     ),
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                     Some(vec![argument_expression.node_wrapper()]),
                                 )
                                 .into(),
@@ -1600,7 +1600,7 @@ impl TransformES2017 {
                                         | GeneratedIdentifierFlags::FileLevel,
                                 ),
                             ),
-                            Option::<NodeArray>::None,
+                            Option::<Gc<NodeArray>>::None,
                             Some(vec![argument_expression.node_wrapper()]),
                         )
                         .into()
@@ -1757,8 +1757,8 @@ pub fn create_super_access_variable_statement(
                     factory
                         .create_arrow_function(
                             synthetic_factory_,
-                            Option::<NodeArray>::None,
-                            Option::<NodeArray>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
                             vec![],
                             None,
                             None,
@@ -1789,13 +1789,13 @@ pub fn create_super_access_variable_statement(
                         factory
                             .create_arrow_function(
                                 synthetic_factory_,
-                                Option::<NodeArray>::None,
-                                Option::<NodeArray>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
                                 vec![factory
                                     .create_parameter_declaration(
                                         synthetic_factory_,
-                                        Option::<NodeArray>::None,
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                         Some("v"),
                                         None,
@@ -1827,7 +1827,7 @@ pub fn create_super_access_variable_statement(
                                             .create_identifier(
                                                 synthetic_factory_,
                                                 "v",
-                                                Option::<NodeArray>::None,
+                                                Option::<Gc<NodeArray>>::None,
                                                 None,
                                             )
                                             .into(),
@@ -1859,7 +1859,7 @@ pub fn create_super_access_variable_statement(
         factory
             .create_variable_statement(
                 synthetic_factory_,
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 Gc::<Node>::from(factory.create_variable_declaration_list(
                     synthetic_factory_,
                     vec![factory
@@ -1886,14 +1886,14 @@ pub fn create_super_access_variable_statement(
                                                         .create_identifier(
                                                             synthetic_factory_,
                                                             "Object",
-                                                            Option::<NodeArray>::None,
+                                                            Option::<Gc<NodeArray>>::None,
                                                             None,
                                                         )
                                                         .into(),
                                                     "create",
                                                 )
                                                 .into(),
-                                            Option::<NodeArray>::None,
+                                            Option::<Gc<NodeArray>>::None,
                                             Some(vec![
                                                 factory.create_null(synthetic_factory_).into(),
                                                 factory

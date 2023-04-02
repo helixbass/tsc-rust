@@ -2,21 +2,26 @@ use std::{borrow::Borrow, ptr};
 
 use gc::Gc;
 
-use super::{declaration_emit_node_builder_flags, TransformDeclarations};
+use super::{declaration_emit_node_builder_flags, is_processed_component, TransformDeclarations};
 use crate::{
-    create_get_symbol_accessibility_diagnostic_for_node, get_comment_range,
-    get_external_module_import_equals_declaration_expression,
-    get_external_module_name_from_declaration, get_original_node_id, get_parse_tree_node,
-    get_set_accessor_value_parameter, get_this_parameter, has_effective_modifier, has_jsdoc_nodes,
-    is_binding_pattern, is_class_declaration, is_external_module, is_external_module_indicator,
+    can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,
+    get_comment_range, get_external_module_import_equals_declaration_expression,
+    get_external_module_name_from_declaration, get_line_and_character_of_position,
+    get_original_node_id, get_parse_tree_node, get_set_accessor_value_parameter,
+    get_this_parameter, has_dynamic_name, has_effective_modifier, has_jsdoc_nodes,
+    is_binding_pattern, is_class_declaration, is_declaration, is_entity_name,
+    is_entity_name_expression, is_external_module, is_external_module_indicator,
     is_function_declaration, is_function_like, is_index_signature_declaration,
     is_interface_declaration, is_late_visibility_painted_statement, is_mapped_type_node,
-    is_module_declaration, is_omitted_expression, is_set_accessor_declaration, is_source_file,
-    is_string_literal_like, is_type_alias_declaration, length, map_defined, maybe_map,
-    needs_scope_marker, set_comment_range_rc, some, visit_node, visit_nodes,
-    with_synthetic_factory, AllAccessorDeclarations, Debug_, FunctionLikeDeclarationInterface,
-    GetSymbolAccessibilityDiagnostic, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, NonEmpty, SymbolInterface, SyntaxKind, VisitResult,
+    is_method_declaration, is_method_signature, is_module_declaration, is_omitted_expression,
+    is_semicolon_class_element, is_set_accessor_declaration, is_source_file,
+    is_string_literal_like, is_tuple_type_node, is_type_alias_declaration, is_type_query_node,
+    length, map_defined, maybe_map, needs_scope_marker, set_comment_range_rc, set_emit_flags,
+    set_original_node, some, visit_each_child, visit_node, visit_nodes, with_synthetic_factory,
+    AllAccessorDeclarations, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
+    GetSymbolAccessibilityDiagnostic, HasTypeArgumentsInterface, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, NonEmpty, ReadonlyTextRange,
+    SymbolInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformDeclarations {
@@ -82,7 +87,7 @@ impl TransformDeclarations {
             node.kind(),
             SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
         ) {
-            return Some(self.cleanup(
+            return Some(self.ensure_type_cleanup(
                 old_diag,
                 self.resolver.create_type_of_declaration(
                     node,
@@ -98,7 +103,7 @@ impl TransformDeclarations {
             SyntaxKind::Parameter | SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature
         ) {
             if node.as_has_initializer().maybe_initializer().is_none() {
-                return Some(self.cleanup(
+                return Some(self.ensure_type_cleanup(
                     old_diag,
                     self.resolver.create_type_of_declaration(
                         node,
@@ -110,7 +115,7 @@ impl TransformDeclarations {
                 ));
             }
             return Some(
-                self.cleanup(
+                self.ensure_type_cleanup(
                     old_diag,
                     self.resolver
                         .create_type_of_declaration(
@@ -131,7 +136,7 @@ impl TransformDeclarations {
                 ),
             );
         }
-        Some(self.cleanup(
+        Some(self.ensure_type_cleanup(
             old_diag,
             self.resolver.create_return_type_of_signature_declaration(
                 node,
@@ -142,7 +147,7 @@ impl TransformDeclarations {
         ))
     }
 
-    pub(super) fn cleanup(
+    pub(super) fn ensure_type_cleanup(
         &self,
         old_diag: Option<GetSymbolAccessibilityDiagnostic>,
         return_value: Option<impl Borrow<Node> /*TypeNode*/>,
@@ -233,7 +238,7 @@ impl TransformDeclarations {
             .as_ref()
         {
             some(
-                Some(elem_name.as_has_elements().elements()),
+                Some(&elem_name.as_has_elements().elements()),
                 Some(|element: &Gc<Node>| self.get_binding_name_visible(element)),
             )
         } else {
@@ -246,7 +251,7 @@ impl TransformDeclarations {
         node: &Node,
         params: Option<&NodeArray /*<ParameterDeclaration>*/>,
         modifier_mask: Option<ModifierFlags>,
-    ) -> Option<NodeArray /*<ParameterDeclaration>*/> {
+    ) -> Option<Gc<NodeArray> /*<ParameterDeclaration>*/> {
         if has_effective_modifier(node, ModifierFlags::Private) {
             return None;
         }
@@ -263,7 +268,7 @@ impl TransformDeclarations {
         &self,
         input: &Node, /*AccessorDeclaration*/
         is_private: bool,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         let mut new_params: Vec<Gc<Node /*ParameterDeclaration*/>> = Default::default();
         if !is_private {
             let this_parameter = get_this_parameter(input);
@@ -292,8 +297,8 @@ impl TransformDeclarations {
                     self.factory
                         .create_parameter_declaration(
                             synthetic_factory_,
-                            Option::<NodeArray>::None,
-                            Option::<NodeArray>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
                             None,
                             Some("value"),
                             None,
@@ -313,7 +318,7 @@ impl TransformDeclarations {
         &self,
         node: &Node,
         params: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
-    ) -> Option<NodeArray> {
+    ) -> Option<Gc<NodeArray>> {
         if has_effective_modifier(node, ModifierFlags::Private) {
             None
         } else {
@@ -421,7 +426,7 @@ impl TransformDeclarations {
                 self.factory.update_import_equals_declaration(
                     synthetic_factory_,
                     decl,
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
                     decl_as_import_equals_declaration.is_type_only,
                     decl_as_import_equals_declaration.name(),
@@ -457,7 +462,7 @@ impl TransformDeclarations {
                 self.factory.update_import_declaration(
                     synthetic_factory_,
                     decl,
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
                     decl_as_import_declaration.import_clause.clone(),
                     self.rewrite_module_specifier(
@@ -481,7 +486,7 @@ impl TransformDeclarations {
                     self.factory.update_import_declaration(
                         synthetic_factory_,
                         decl,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         decl.maybe_modifiers().clone(),
                         Some(self.factory.update_import_clause(
                             synthetic_factory_,
@@ -518,7 +523,7 @@ impl TransformDeclarations {
                     self.factory.update_import_declaration(
                         synthetic_factory_,
                         decl,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         decl.maybe_modifiers().clone(),
                         Some(self.factory.update_import_clause(
                             synthetic_factory_,
@@ -560,7 +565,7 @@ impl TransformDeclarations {
                 self.factory.update_import_declaration(
                     synthetic_factory_,
                     decl,
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
                     Some(self.factory.update_import_clause(
                         synthetic_factory_,
@@ -593,7 +598,7 @@ impl TransformDeclarations {
                 self.factory.update_import_declaration(
                     synthetic_factory_,
                     decl,
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
                     None,
                     self.rewrite_module_specifier(
@@ -611,7 +616,7 @@ impl TransformDeclarations {
     pub(super) fn transform_and_replace_late_painted_statements(
         &self,
         statements: &NodeArray, /*<Statement>*/
-    ) -> NodeArray /*<Statement>*/ {
+    ) -> Gc<NodeArray> /*<Statement>*/ {
         while length(self.maybe_late_marked_statements().as_deref()) > 0 {
             let ref i = self.late_marked_statements_mut().remove(0);
             if !is_late_visibility_painted_statement(i) {
@@ -684,7 +689,302 @@ impl TransformDeclarations {
     }
 
     pub(super) fn visit_declaration_subtree(&self, input: &Node) -> VisitResult /*<Node>*/ {
-        unimplemented!()
+        if self.should_strip_internal(input) {
+            return None;
+        }
+        if is_declaration(input) {
+            if self.is_declaration_and_not_visible(input) {
+                return None;
+            }
+            if has_dynamic_name(input)
+                && !self.resolver.is_late_bound(
+                    &get_parse_tree_node(Some(input), Option::<fn(&Node) -> bool>::None).unwrap(),
+                )
+            {
+                return None;
+            }
+        }
+
+        if is_function_like(Some(input))
+            && self.resolver.is_implementation_of_overload(input) == Some(true)
+        {
+            return None;
+        }
+
+        if is_semicolon_class_element(input) {
+            return None;
+        }
+
+        let mut previous_enclosing_declaration: Option<Gc<Node>> = Default::default();
+        if self.is_enclosing_declaration(input) {
+            previous_enclosing_declaration = self.maybe_enclosing_declaration();
+            self.set_enclosing_declaration(Some(input.node_wrapper()));
+        }
+        let old_diag = self.get_symbol_accessibility_diagnostic();
+
+        let can_produce_diagnostic = can_produce_diagnostics(input);
+        let old_within_object_literal_type = self.maybe_suppress_new_diagnostic_contexts();
+        let should_enter_suppress_new_diagnostics_context_context = matches!(
+            input.kind(),
+            SyntaxKind::TypeLiteral | SyntaxKind::MappedType
+        ) && input.parent().kind()
+            != SyntaxKind::TypeAliasDeclaration;
+
+        if is_method_declaration(input) || is_method_signature(input) {
+            if has_effective_modifier(input, ModifierFlags::Private) {
+                if matches!(
+                    input.maybe_symbol(),
+                    Some(input_symbol) if matches!(
+                        input_symbol.maybe_declarations().as_ref(),
+                        Some(input_symbol_declarations) if !ptr::eq(
+                            &*input_symbol_declarations[0],
+                            input
+                        )
+                    )
+                ) {
+                    return None;
+                }
+                return self.visit_declaration_subtree_cleanup(
+                    input,
+                    can_produce_diagnostic,
+                    previous_enclosing_declaration.as_ref(),
+                    &old_diag,
+                    should_enter_suppress_new_diagnostics_context_context,
+                    old_within_object_literal_type,
+                    Some(&with_synthetic_factory(|synthetic_factory_| {
+                        self.factory.create_property_declaration(
+                            synthetic_factory_,
+                            Option::<Gc<NodeArray>>::None,
+                            self.ensure_modifiers(input),
+                            input.as_named_declaration().name(),
+                            None,
+                            None,
+                            None,
+                        )
+                    })),
+                );
+            }
+        }
+
+        if can_produce_diagnostic && self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
+            self.set_get_symbol_accessibility_diagnostic(
+                create_get_symbol_accessibility_diagnostic_for_node(input),
+            );
+        }
+
+        if is_type_query_node(input) {
+            self.check_entity_name_visibility(
+                &input.as_type_query_node().expr_name,
+                &self.enclosing_declaration(),
+            );
+        }
+
+        if should_enter_suppress_new_diagnostics_context_context {
+            self.set_suppress_new_diagnostic_contexts(Some(true));
+        }
+
+        if is_processed_component(input) {
+            return match input.kind() {
+                SyntaxKind::ExpressionWithTypeArguments => {
+                    let input_as_expression_with_type_arguments =
+                        input.as_expression_with_type_arguments();
+                    if is_entity_name(&input_as_expression_with_type_arguments.expression)
+                        || is_entity_name_expression(
+                            &input_as_expression_with_type_arguments.expression,
+                        )
+                    {
+                        self.check_entity_name_visibility(
+                            &input_as_expression_with_type_arguments.expression,
+                            &self.enclosing_declaration(),
+                        );
+                    }
+                    let ref node = visit_each_child(
+                        Some(input),
+                        |node: &Node| self.visit_declaration_subtree(node),
+                        &**self.context,
+                        Option::<
+                            fn(
+                                Option<&NodeArray>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<usize>,
+                                Option<usize>,
+                            ) -> Gc<NodeArray>,
+                        >::None,
+                        Option::<fn(&Node) -> VisitResult>::None,
+                        Option::<
+                            fn(
+                                Option<&Node>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                            ) -> Option<Gc<Node>>,
+                        >::None,
+                    )
+                    .unwrap();
+                    let node_as_expression_with_type_arguments =
+                        node.as_expression_with_type_arguments();
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_expression_with_type_arguments(
+                                synthetic_factory_,
+                                node,
+                                node_as_expression_with_type_arguments.expression.clone(),
+                                node_as_expression_with_type_arguments
+                                    .maybe_type_arguments()
+                                    .clone(),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::TypeReference => {
+                    self.check_entity_name_visibility(
+                        &input.as_type_reference_node().type_name,
+                        &self.enclosing_declaration(),
+                    );
+                    let ref node = visit_each_child(
+                        Some(input),
+                        |node: &Node| self.visit_declaration_subtree(node),
+                        &**self.context,
+                        Option::<
+                            fn(
+                                Option<&NodeArray>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<usize>,
+                                Option<usize>,
+                            ) -> Gc<NodeArray>,
+                        >::None,
+                        Option::<fn(&Node) -> VisitResult>::None,
+                        Option::<
+                            fn(
+                                Option<&Node>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                            ) -> Option<Gc<Node>>,
+                        >::None,
+                    )
+                    .unwrap();
+                    let node_as_type_reference_node = node.as_type_reference_node();
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_type_reference_node(
+                                synthetic_factory_,
+                                node,
+                                node_as_type_reference_node.type_name.clone(),
+                                node_as_type_reference_node.maybe_type_arguments(),
+                            )
+                        })),
+                    )
+                }
+                _ => Debug_.assert_never(
+                    input,
+                    Some(&format!(
+                        "Attempted to process unhandled node kind: {:?}",
+                        input.kind()
+                    )),
+                ),
+            };
+        }
+
+        if is_tuple_type_node(input)
+            && get_line_and_character_of_position(
+                self.current_source_file().as_source_file(),
+                input.pos().try_into().unwrap(),
+            )
+            .line
+                == get_line_and_character_of_position(
+                    self.current_source_file().as_source_file(),
+                    input.end().try_into().unwrap(),
+                )
+                .line
+        {
+            set_emit_flags(input, EmitFlags::SingleLine);
+        }
+
+        self.visit_declaration_subtree_cleanup(
+            input,
+            can_produce_diagnostic,
+            previous_enclosing_declaration.as_ref(),
+            &old_diag,
+            should_enter_suppress_new_diagnostics_context_context,
+            old_within_object_literal_type,
+            visit_each_child(
+                Some(input),
+                |node: &Node| self.visit_declaration_subtree(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<fn(&Node) -> VisitResult>,
+                        Option<fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Gc<NodeArray>,
+                >::None,
+                Option::<fn(&Node) -> VisitResult>::None,
+                Option::<
+                    fn(
+                        Option<&Node>,
+                        Option<fn(&Node) -> VisitResult>,
+                        Option<fn(&Node) -> bool>,
+                        Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                    ) -> Option<Gc<Node>>,
+                >::None,
+            )
+            .as_deref(),
+        )
+    }
+
+    pub(super) fn visit_declaration_subtree_cleanup(
+        &self,
+        input: &Node,
+        can_produce_diagnostic: bool,
+        previous_enclosing_declaration: Option<&Gc<Node>>,
+        old_diag: &GetSymbolAccessibilityDiagnostic,
+        should_enter_suppress_new_diagnostics_context_context: bool,
+        old_within_object_literal_type: Option<bool>,
+        return_value: Option<&Node>,
+    ) -> VisitResult {
+        if return_value.is_some() && can_produce_diagnostic && has_dynamic_name(input) {
+            self.check_name(input);
+        }
+        if self.is_enclosing_declaration(input) {
+            self.set_enclosing_declaration(previous_enclosing_declaration.cloned());
+        }
+        if can_produce_diagnostic && self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
+            self.set_get_symbol_accessibility_diagnostic(old_diag.clone());
+        }
+        if should_enter_suppress_new_diagnostics_context_context {
+            self.set_suppress_new_diagnostic_contexts(old_within_object_literal_type);
+        }
+        if matches!(
+            return_value,
+            Some(return_value) if ptr::eq(return_value, input)
+        ) {
+            return return_value.map(Node::node_wrapper).map(Into::into);
+        }
+        return_value
+            .map(|return_value| {
+                set_original_node(
+                    self.preserve_js_doc(return_value, input),
+                    Some(input.node_wrapper()),
+                )
+            })
+            .map(Into::into)
     }
 
     pub(super) fn visit_declaration_statements(&self, input: &Node) -> VisitResult /*<Node>*/ {
@@ -694,14 +994,6 @@ impl TransformDeclarations {
     pub(super) fn transform_top_level_declaration(
         &self,
         input: &Node, /*LateVisibilityPaintedStatement*/
-    ) -> Option<Gc<Node>> {
-        unimplemented!()
-    }
-
-    pub(super) fn get_type_annotation_from_all_accessor_declarations(
-        &self,
-        node: &Node, /*AccessorDeclaration*/
-        accessors: &AllAccessorDeclarations,
     ) -> Option<Gc<Node>> {
         unimplemented!()
     }

@@ -22,7 +22,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub(super) fn as_node_array<TArray: Into<NodeArrayOrVec>>(
         &self,
         array: Option<TArray>,
-    ) -> Option<NodeArray> {
+    ) -> Option<Gc<NodeArray>> {
         array.map(|array| self.create_node_array(Some(array), None))
     }
 
@@ -33,7 +33,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> Option<Gc<Node>> {
         name.map(|name| match name.into() {
             StrOrRcNode::Str(name) => self
-                .create_identifier(base_factory, name, Option::<NodeArray>::None, None)
+                .create_identifier(base_factory, name, Option::<Gc<NodeArray>>::None, None)
                 .into(),
             StrOrRcNode::RcNode(name) => name,
         })
@@ -248,16 +248,16 @@ pub(super) fn propagate_child_flags<TNode: Borrow<Node>>(child: Option<TNode>) -
 
 pub(super) fn propagate_children_flags(children: Option<&NodeArray>) -> TransformFlags {
     children.map_or(TransformFlags::None, |children| {
-        children.transform_flags.unwrap()
+        children.maybe_transform_flags().unwrap()
     })
 }
 
-pub(super) fn aggregate_children_flags(children: &mut NodeArray) {
+pub(super) fn aggregate_children_flags(children: &NodeArray) {
     let mut subtree_flags = TransformFlags::None;
     for child in children.iter() {
         subtree_flags |= propagate_child_flags(Some(&**child));
     }
-    children.transform_flags = Some(subtree_flags);
+    children.set_transform_flags(Some(subtree_flags));
 }
 
 pub(crate) fn get_transform_flags_subtree_exclusions(kind: SyntaxKind) -> TransformFlags {

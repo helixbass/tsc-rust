@@ -862,8 +862,8 @@ pub(crate) fn compute_line_of_position(
     line_number.try_into().unwrap()
 }
 
-pub(crate) fn get_lines_between_positions<TSourceFileLike: SourceFileLike>(
-    source_file: &TSourceFileLike,
+pub(crate) fn get_lines_between_positions(
+    source_file: &impl SourceFileLike,
     pos1: usize,
     pos2: usize,
 ) -> usize {
@@ -883,8 +883,8 @@ pub(crate) fn get_lines_between_positions<TSourceFileLike: SourceFileLike>(
     }
 }
 
-pub fn get_line_and_character_of_position<TSourceFileLike: SourceFileLike>(
-    source_file: &TSourceFileLike,
+pub fn get_line_and_character_of_position(
+    source_file: &impl SourceFileLike,
     position: usize,
 ) -> LineAndCharacter {
     compute_line_and_character_of_position(&get_line_starts(source_file), position)

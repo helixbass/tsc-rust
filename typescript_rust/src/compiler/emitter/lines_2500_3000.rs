@@ -36,7 +36,7 @@ impl Printer {
         self.emit(node_as_call_expression.question_dot_token.as_deref(), None);
         self.emit_type_arguments(
             node,
-            node_as_call_expression.maybe_type_arguments().as_ref(),
+            node_as_call_expression.maybe_type_arguments().as_deref(),
         );
         self.emit_expression_list(
             Some(node),
@@ -68,10 +68,13 @@ impl Printer {
                 ParenthesizeExpressionOfNewCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         );
-        self.emit_type_arguments(node, node_as_new_expression.maybe_type_arguments().as_ref());
+        self.emit_type_arguments(
+            node,
+            node_as_new_expression.maybe_type_arguments().as_deref(),
+        );
         self.emit_expression_list(
             Some(node),
-            node_as_new_expression.arguments.as_ref(),
+            node_as_new_expression.arguments.as_deref(),
             ListFormat::NewExpressionArguments,
             Some(Gc::new(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -108,7 +111,7 @@ impl Printer {
             node,
             node_as_tagged_template_expression
                 .maybe_type_arguments()
-                .as_ref(),
+                .as_deref(),
         );
         self.write_space();
         self.emit_expression(Some(&*node_as_tagged_template_expression.template), None);
@@ -154,8 +157,8 @@ impl Printer {
     }
 
     pub(super) fn emit_arrow_function(&self, node: &Node /*ArrowFunction*/) {
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.emit_signature_and_body(node, |node: &Node| self.emit_arrow_function_head(node));
     }
 
@@ -163,7 +166,7 @@ impl Printer {
         let node_as_arrow_function = node.as_arrow_function();
         self.emit_type_parameters(
             node,
-            node_as_arrow_function.maybe_type_parameters().as_ref(),
+            node_as_arrow_function.maybe_type_parameters().as_deref(),
         );
         self.emit_parameters_for_arrow(node, &node_as_arrow_function.parameters());
         self.emit_type_annotation(node_as_arrow_function.maybe_type());
@@ -436,7 +439,7 @@ impl Printer {
             node,
             node_as_expression_with_type_arguments
                 .maybe_type_arguments()
-                .as_ref(),
+                .as_deref(),
         );
     }
 
@@ -507,7 +510,7 @@ impl Printer {
         };
         self.emit_list(
             Some(node),
-            Some(node.as_has_statements().statements()),
+            Some(&node.as_has_statements().statements()),
             format,
             None,
             None,
@@ -523,7 +526,7 @@ impl Printer {
     }
 
     pub(super) fn emit_variable_statement(&self, node: &Node /*VariableStatement*/) {
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.emit(Some(&*node.as_variable_statement().declaration_list), None);
         self.write_trailing_semicolon();
     }

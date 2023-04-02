@@ -162,7 +162,7 @@ impl TypeChecker {
                                     .create_identifier(
                                         synthetic_factory_,
                                         &unescape_leading_underscores(&_jsx_namespace),
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                     )
                                     .into(),
@@ -231,7 +231,7 @@ impl TypeChecker {
                     Option<fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> NodeArray,
+                ) -> Gc<NodeArray>,
             >::None,
             Option::<fn(&Node) -> VisitResult>::None,
             Option::<
@@ -1285,7 +1285,7 @@ impl TypeChecker {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                                 let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(declaration).unwrap());
-                                let static_blocks = filter(declaration.parent().as_class_like_declaration().members(), |node: &Gc<Node>| is_class_static_block_declaration(node));
+                                let static_blocks = filter(&declaration.parent().as_class_like_declaration().members(), |node: &Gc<Node>| is_class_static_block_declaration(node));
                                 if self.is_property_initialized_in_static_blocks(&prop_name, &type_, &static_blocks, declaration.parent().pos(), current.pos()) {
                                     return true.into();
                                 }
@@ -1375,7 +1375,7 @@ impl TypeChecker {
                 if links.declaration_requires_scope_change.is_none() {
                     links.declaration_requires_scope_change = Some(
                         for_each_bool(
-                            function_location.unwrap().parameters(),
+                            &function_location.unwrap().parameters(),
                             |node: &Gc<Node>, _| self.requires_scope_change(target, node),
                         ) || false,
                     );

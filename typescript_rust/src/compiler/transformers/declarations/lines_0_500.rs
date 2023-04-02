@@ -293,6 +293,10 @@ impl TransformDeclarations {
         self.result_has_scope_marker.set(result_has_scope_marker);
     }
 
+    pub(super) fn maybe_enclosing_declaration(&self) -> Option<Gc<Node>> {
+        self.enclosing_declaration.borrow().clone()
+    }
+
     pub(super) fn enclosing_declaration(&self) -> Gc<Node> {
         self.enclosing_declaration.borrow().clone().unwrap()
     }
@@ -610,7 +614,7 @@ impl TransformDeclarations {
                                     )
                                 } else {
                                     visit_nodes(
-                                        Some(source_file_as_source_file.statements()),
+                                        Some(&source_file_as_source_file.statements()),
                                         Some(|node: &Node| self.visit_declaration_statements(node)),
                                         Option::<fn(&Node) -> bool>::None,
                                         None,
@@ -652,7 +656,7 @@ impl TransformDeclarations {
                                                                     )),
                                                                     None,
                                                                 ),
-                                                                Some(source_file_as_source_file.statements()),
+                                                                Some(&*source_file_as_source_file.statements()),
                                                             )
                                                         )
                                                     ).into()
@@ -677,7 +681,7 @@ impl TransformDeclarations {
                                 )
                             } else {
                                 visit_nodes(
-                                    Some(source_file_as_source_file.statements()),
+                                    Some(&source_file_as_source_file.statements()),
                                     Some(|node: &Node| self.visit_declaration_statements(node)),
                                     Option::<fn(&Node) -> bool>::None,
                                     None,
@@ -785,7 +789,7 @@ impl TransformDeclarations {
         ));
         let mut reference_visitor =
             self.map_references_into_array(node, &mut references, &output_file_path);
-        let mut combined_statements: NodeArray/*<Statement>*/;
+        let mut combined_statements: Gc<NodeArray>/*<Statement>*/;
         if is_source_file_js(&self.current_source_file()) {
             combined_statements = self
                 .factory
@@ -799,7 +803,7 @@ impl TransformDeclarations {
             )));
         } else {
             let statements = visit_nodes(
-                Some(node_as_source_file.statements()),
+                Some(&node_as_source_file.statements()),
                 Some(|node: &Node| self.visit_declaration_statements(node)),
                 Option::<fn(&Node) -> bool>::None,
                 None,
@@ -811,7 +815,7 @@ impl TransformDeclarations {
                     Some(self.transform_and_replace_late_painted_statements(&statements)),
                     None,
                 ),
-                Some(node_as_source_file.statements()),
+                Some(&*node_as_source_file.statements()),
             );
             self.refs().values().for_each(|ref_: &Gc<Node>| {
                 reference_visitor(ref_);
@@ -833,7 +837,7 @@ impl TransformDeclarations {
                         }),
                         None,
                     ),
-                    Some(&combined_statements),
+                    Some(&*combined_statements),
                 );
             }
         }
@@ -1134,7 +1138,7 @@ impl TransformDeclarations {
             self.factory.update_parameter_declaration(
                 synthetic_factory_,
                 p,
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 Some(mask_modifiers(p, modifier_mask, None)),
                 p_as_parameter_declaration.dot_dot_dot_token.clone(),
                 Some(self.filter_binding_pattern_initializers(&p_as_parameter_declaration.name())),

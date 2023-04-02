@@ -5,7 +5,6 @@ use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::io;
 use std::mem;
-use std::rc::Rc;
 
 use super::is_static;
 use crate::{
@@ -1155,11 +1154,11 @@ pub fn get_line_of_local_position_from_line_map(line_map: &[usize], pos: usize) 
 pub fn get_first_constructor_with_body(
     node: &Node, /*ClassLikeDeclaration*/
 ) -> Option<Gc<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
-    find(node.as_class_like_declaration().members(), |member, _| {
+    find(&node.as_class_like_declaration().members(), |member, _| {
         is_constructor_declaration(member)
             && node_is_present(member.as_constructor_declaration().maybe_body())
     })
-    .map(Clone::clone)
+    .cloned()
 }
 
 pub fn get_set_accessor_value_parameter(

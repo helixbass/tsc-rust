@@ -22,8 +22,8 @@ use crate::{
     is_in_js_file, is_jsdoc_construct_signature, is_object_literal_expression, is_prototype_access,
     is_qualified_name, is_same_entity_name, is_transient_symbol, is_var_const,
     is_variable_declaration, length, maybe_for_each, skip_parentheses, synthetic_factory,
-    try_get_property_access_or_identifier_to_string, walk_up_parenthesized_expressions, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
+    try_get_property_access_or_identifier_to_string, walk_up_parenthesized_expressions,
+    AsDoubleDeref, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Diagnostics, HasInitializerInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
@@ -316,12 +316,12 @@ impl TypeChecker {
                 factory_
                     .create_function_type_node(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         vec![factory_
                             .create_parameter_declaration(
                                 synthetic_factory_,
-                                Option::<NodeArray>::None,
-                                Option::<NodeArray>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
                                 None,
                                 Some("props"),
                                 None,
@@ -339,7 +339,7 @@ impl TypeChecker {
                                 .create_type_reference_node(
                                     synthetic_factory_,
                                     return_node,
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                 )
                                 .into()
                         } else {
@@ -411,8 +411,7 @@ impl TypeChecker {
             if length(
                 node_as_jsx_opening_like_element
                     .maybe_type_arguments()
-                    .as_ref()
-                    .map(|type_arguments| &**type_arguments),
+                    .as_double_deref(),
             ) > 0
             {
                 maybe_for_each(
@@ -437,8 +436,7 @@ impl TypeChecker {
                             length(
                                 node_as_jsx_opening_like_element
                                     .maybe_type_arguments()
-                                    .as_ref()
-                                    .map(|type_arguments| &**type_arguments),
+                                    .as_double_deref(),
                             )
                             .to_string(),
                         ]),
@@ -811,9 +809,11 @@ impl TypeChecker {
     ) -> Gc<Type> {
         if !self.check_grammar_type_arguments(
             node,
-            node.as_has_type_arguments().maybe_type_arguments().as_ref(),
+            node.as_has_type_arguments()
+                .maybe_type_arguments()
+                .as_deref(),
         ) {
-            self.check_grammar_arguments(node.as_has_arguments().maybe_arguments());
+            self.check_grammar_arguments(node.as_has_arguments().maybe_arguments().as_deref());
         }
 
         let signature = self.get_resolved_signature_(node, None, check_mode);

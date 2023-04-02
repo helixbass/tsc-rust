@@ -24,8 +24,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::PropertyAssignment,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
         );
         let mut node = PropertyAssignment::new(
@@ -49,8 +49,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::ShorthandPropertyAssignment,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
         );
         let mut node = ShorthandPropertyAssignment::new(
@@ -134,7 +134,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.set_flags(node.flags() | flags);
         node.add_transform_flags(
-            propagate_children_flags(Some(node.statements()))
+            propagate_children_flags(Some(&node.statements()))
                 | propagate_child_flags(Some(node.end_of_file_token())),
         );
         node

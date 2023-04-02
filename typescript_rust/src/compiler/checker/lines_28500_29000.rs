@@ -806,7 +806,7 @@ impl TypeChecker {
             self.check_expression(&node.as_jsx_opening_like_element().attributes(), None, None);
         } else if node.kind() != SyntaxKind::Decorator {
             maybe_for_each(
-                node.as_has_arguments().maybe_arguments(),
+                node.as_has_arguments().maybe_arguments().as_deref(),
                 |argument: &Gc<Node>, _| -> Option<()> {
                     self.check_expression(argument, None, None);
                     None

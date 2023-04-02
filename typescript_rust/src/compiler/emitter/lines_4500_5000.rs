@@ -296,7 +296,7 @@ impl Printer {
     pub(super) fn get_closing_line_terminator_count(
         &self,
         parent_node: Option<&Node>,
-        children: RefNodeArrayOrSlice,
+        children: NodeArrayOrSlice,
         format: ListFormat,
     ) -> usize {
         if format.intersects(ListFormat::PreserveLines)
@@ -329,7 +329,7 @@ impl Printer {
                     }
             }) {
                 if self.maybe_preserve_source_newlines() == Some(true) {
-                    let end = if let RefNodeArrayOrSlice::NodeArray(children) = children {
+                    let end = if let NodeArrayOrSlice::NodeArray(children) = &children {
                         if !position_is_synthesized(children.end()) {
                             children.end()
                         } else {
@@ -406,7 +406,7 @@ impl Printer {
             self.get_closing_line_terminator_count(
                 Some(parent),
                 // (&[node.node_wrapper()]).into(),
-                RefNodeArrayOrSlice::Slice(&[node.node_wrapper()]),
+                NodeArrayOrSlice::Slice(&[node.node_wrapper()]),
                 ListFormat::None,
             )
         } else {
@@ -679,7 +679,7 @@ impl Printer {
             }
             SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
                 for_each(
-                    node.as_has_statements().statements(),
+                    &node.as_has_statements().statements(),
                     |statement: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
@@ -720,7 +720,7 @@ impl Printer {
                 self.generate_name_if_needed(node_as_function_declaration.maybe_name().as_deref());
                 if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope) {
                     for_each(
-                        node_as_function_declaration.parameters(),
+                        &node_as_function_declaration.parameters(),
                         |parameter: &Gc<Node>, _| -> Option<()> {
                             self.generate_names(Some(parameter));
                             None
@@ -731,7 +731,7 @@ impl Printer {
             }
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
                 for_each(
-                    node.as_has_elements().elements(),
+                    &node.as_has_elements().elements(),
                     |element: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
@@ -821,28 +821,28 @@ impl Printer {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum RefNodeArrayOrSlice<'a> {
-    NodeArray(&'a NodeArray),
+#[derive(Clone)]
+pub enum NodeArrayOrSlice<'a> {
+    NodeArray(Gc<NodeArray>),
     Slice(&'a [Gc<Node>]),
 }
 
-impl<'a> RefNodeArrayOrSlice<'a> {
+impl<'a> NodeArrayOrSlice<'a> {
     pub fn as_slice(&'a self) -> &'a [Gc<Node>] {
-        match *self {
-            Self::NodeArray(value) => &*value,
-            Self::Slice(value) => value,
+        match self {
+            Self::NodeArray(value) => &**value,
+            Self::Slice(value) => *value,
         }
     }
 }
 
-impl<'a> From<&'a NodeArray> for RefNodeArrayOrSlice<'a> {
-    fn from(value: &'a NodeArray) -> Self {
+impl<'a> From<Gc<NodeArray>> for NodeArrayOrSlice<'a> {
+    fn from(value: Gc<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }
 
-impl<'a> From<&'a [Gc<Node>]> for RefNodeArrayOrSlice<'a> {
+impl<'a> From<&'a [Gc<Node>]> for NodeArrayOrSlice<'a> {
     fn from(value: &'a [Gc<Node>]) -> Self {
         Self::Slice(value)
     }

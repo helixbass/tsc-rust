@@ -76,8 +76,8 @@ pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>)
     }
 }
 
-pub fn set_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
-    get_or_create_emit_node(&node).borrow_mut().flags = Some(emit_flags);
+pub fn set_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
+    get_or_create_emit_node(node.borrow()).borrow_mut().flags = Some(emit_flags);
     node
 }
 

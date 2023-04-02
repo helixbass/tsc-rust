@@ -1,22 +1,21 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_external_module_reference, modifiers_to_flags, AsExpression, BaseNodeFactory, Block,
-    BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement,
-    DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
-    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    is_external_module_reference, modifiers_to_flags, AsDoubleDeref, AsExpression, BaseNodeFactory,
+    Block, BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_,
+    DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
+    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, HasTypeArgumentsInterface, IfStatement, ImportClause,
     ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement,
     MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
     OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StrOrRcNode,
-    StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags,
-    TryStatement, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
-    VariableStatement, WhileStatement, WithStatement,
+    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -25,11 +24,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         OmittedExpression::new(node)
     }
 
-    pub fn create_expression_with_type_arguments<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn create_expression_with_type_arguments(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node>, /*Expression*/
-        type_arguments: Option<TTypeArguments>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> ExpressionWithTypeArguments {
         let node = self.create_base_node(base_factory, SyntaxKind::ExpressionWithTypeArguments);
         let mut node = ExpressionWithTypeArguments::new(
@@ -43,10 +42,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | TransformFlags::ContainsES2015,
         );
         node
+    }
+
+    pub fn update_expression_with_type_arguments(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,          /*ExpressionWithTypeArguments*/
+        expression: Gc<Node>, /*Expression*/
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_as_expression(
@@ -183,7 +192,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_declaration(
             base_factory,
             SyntaxKind::VariableStatement,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
         );
         let mut node = VariableStatement::new(
@@ -199,7 +208,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list)));
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Ambient)
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
@@ -544,8 +554,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_variable_like_declaration(
             base_factory,
             SyntaxKind::VariableDeclaration,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             name,
             type_,
             initializer.map(|initializer| {
@@ -618,7 +628,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.asterisk_token = asterisk_token;
         let mut node = FunctionDeclaration::new(node);
         if node.maybe_body().is_none()
-            || modifiers_to_flags(node.maybe_modifiers().as_deref())
+            || modifiers_to_flags(node.maybe_modifiers().as_double_deref())
                 .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
@@ -627,7 +637,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 propagate_child_flags(node.maybe_asterisk_token())
                     | TransformFlags::ContainsHoistedDeclarationOrCompletion,
             );
-            if modifiers_to_flags(node.maybe_modifiers().as_deref())
+            if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
                 .intersects(ModifierFlags::Async)
             {
                 match node.maybe_asterisk_token() {
@@ -690,7 +700,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             members,
         );
         let mut node = ClassDeclaration::new(node);
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
@@ -820,7 +831,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                         | NodeFlags::GlobalAugmentation)),
         );
         let mut node = ModuleDeclaration::new(node, name, body);
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
@@ -866,8 +878,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::NamespaceExportDeclaration,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
         );
         let mut node = NamespaceExportDeclaration::new(node);

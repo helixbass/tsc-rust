@@ -181,7 +181,7 @@ impl TypeChecker {
     }
 
     pub(super) fn assign_binding_element_types(&self, pattern: &Node /*BindingPattern*/) {
-        for element in pattern.as_has_elements().elements() {
+        for element in &pattern.as_has_elements().elements() {
             if !is_omitted_expression(element) {
                 let element_as_binding_element = element.as_binding_element();
                 if element_as_binding_element.name().kind() == SyntaxKind::Identifier {

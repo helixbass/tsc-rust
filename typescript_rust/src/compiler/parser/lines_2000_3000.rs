@@ -288,11 +288,11 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_list<TParseElement: FnMut() -> Gc<Node>>(
+    pub(super) fn parse_list(
         &self,
         kind: ParsingContext,
-        parse_element: &mut TParseElement,
-    ) -> NodeArray {
+        parse_element: &mut impl FnMut() -> Gc<Node>,
+    ) -> Gc<NodeArray> {
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | kind);
         let mut list = vec![];
@@ -675,7 +675,7 @@ impl ParserType {
         kind: ParsingContext,
         mut parse_element: TParseElement,
         consider_semicolon_as_delimiter: Option<bool>,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         let consider_semicolon_as_delimiter = consider_semicolon_as_delimiter.unwrap_or(false);
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | kind);
@@ -740,14 +740,14 @@ impl ParserType {
         }
     }
 
-    pub(super) fn create_missing_list(&self) -> NodeArray {
-        let mut list = self.create_node_array(vec![], self.get_node_pos(), None, None);
-        list.is_missing_list = true;
+    pub(super) fn create_missing_list(&self) -> Gc<NodeArray> {
+        let list = self.create_node_array(vec![], self.get_node_pos(), None, None);
+        list.set_is_missing_list(true);
         list
     }
 
     pub(super) fn is_missing_list(&self, arr: &NodeArray) -> bool {
-        arr.is_missing_list
+        arr.is_missing_list()
     }
 
     pub(super) fn parse_bracketed_list<TParseElement: FnMut() -> Gc<Node>>(
@@ -756,7 +756,7 @@ impl ParserType {
         parse_element: TParseElement,
         open: SyntaxKind,
         close: SyntaxKind,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         if self.parse_expected(open, None, None) {
             let result = self.parse_delimited_list(kind, parse_element, None);
             self.parse_expected(close, None, None);
@@ -856,7 +856,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_template_spans(&self, is_tagged_template: bool) -> NodeArray /*<TemplateSpan>*/
+    pub(super) fn parse_template_spans(&self, is_tagged_template: bool) -> Gc<NodeArray> /*<TemplateSpan>*/
     {
         let pos = self.get_node_pos();
         let mut list = vec![];
@@ -896,7 +896,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_template_type_spans(&self) -> NodeArray /*<TemplateLiteralTypeSpan>*/ {
+    pub(super) fn parse_template_type_spans(&self) -> Gc<NodeArray> /*<TemplateLiteralTypeSpan>*/ {
         let pos = self.get_node_pos();
         let mut list = vec![];
         let mut node: TemplateLiteralTypeSpan;
@@ -1066,7 +1066,7 @@ impl ParserType {
 
     pub(super) fn parse_type_arguments_of_type_reference(
         &self,
-    ) -> Option<NodeArray /*<TypeNode>*/> {
+    ) -> Option<Gc<NodeArray> /*<TypeNode>*/> {
         if !self.scanner().has_preceding_line_break()
             && self.re_scan_less_than_token() == SyntaxKind::LessThanToken
         {
@@ -1105,7 +1105,7 @@ impl ParserType {
                 let node_as_signature_declaration = node.as_signature_declaration();
                 let parameters = node_as_signature_declaration.parameters();
                 let type_ = node_as_signature_declaration.maybe_type().unwrap();
-                self.is_missing_list(parameters)
+                self.is_missing_list(&parameters)
                     || self.type_has_arrow_function_blocking_parse_error(&type_)
             }
             SyntaxKind::ParenthesizedType => self.type_has_arrow_function_blocking_parse_error(

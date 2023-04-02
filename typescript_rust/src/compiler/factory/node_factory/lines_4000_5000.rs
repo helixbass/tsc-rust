@@ -22,7 +22,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_assert_clause(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: NodeArray, /*<AssertEntry>*/
+        elements: Gc<NodeArray>, /*<AssertEntry>*/
         multi_line: Option<bool>,
     ) -> AssertClause {
         let node = self.create_base_node(base_factory, SyntaxKind::AssertClause);
@@ -241,8 +241,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_declaration(
             base_factory,
             SyntaxKind::MissingDeclaration,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
         );
         MissingDeclaration::new(node)
     }
@@ -298,10 +298,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::JSDocFunctionType,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Option::<Gc<Node>>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(parameters),
             type_,
         );
@@ -362,7 +362,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.create_identifier(
                 base_factory,
                 default_tag_name,
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 None,
             )
             .into()
@@ -395,8 +395,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocTemplateTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "template", Option::<NodeArray>::None, None)
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    "template",
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -419,7 +424,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocTypedefTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "typedef", Option::<NodeArray>::None, None)
+                self.create_identifier(base_factory, "typedef", Option::<Gc<NodeArray>>::None, None)
                     .into()
             }),
             comment,
@@ -446,7 +451,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocParameterTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "param", Option::<NodeArray>::None, None)
+                self.create_identifier(base_factory, "param", Option::<Gc<NodeArray>>::None, None)
                     .into()
             }),
             comment,
@@ -474,7 +479,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocPropertyTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "prop", Option::<NodeArray>::None, None)
+                self.create_identifier(base_factory, "prop", Option::<Gc<NodeArray>>::None, None)
                     .into()
             }),
             comment,
@@ -500,8 +505,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocCallbackTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "callback", Option::<NodeArray>::None, None)
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    "callback",
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -524,8 +534,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocAugmentsTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "augments", Option::<NodeArray>::None, None)
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    "augments",
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -543,8 +558,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocImplementsTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "implements", Option::<NodeArray>::None, None)
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    "implements",
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -562,7 +582,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocSeeTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "see", Option::<NodeArray>::None, None)
+                self.create_identifier(base_factory, "see", Option::<Gc<NodeArray>>::None, None)
                     .into()
             }),
             comment,
@@ -637,7 +657,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 self.create_identifier(
                     base_factory,
                     get_default_tag_name_for_kind(kind),
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     None,
                 )
                 .into()
@@ -661,7 +681,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 self.create_identifier(
                     base_factory,
                     get_default_tag_name_for_kind(kind),
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     None,
                 )
                 .into()
@@ -734,7 +754,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag_name))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_child_flags(Some(&*node.attributes))
                 | TransformFlags::ContainsJsx,
         );
@@ -760,7 +780,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag_name))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_child_flags(Some(&*node.attributes))
                 | TransformFlags::ContainsJsx,
         );

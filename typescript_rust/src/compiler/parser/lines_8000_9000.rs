@@ -852,8 +852,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             let body = self.parse_jsdoc_type_name_with_namespace(Some(true));
             let js_doc_namespace_node = self.parser.factory.create_module_declaration(
                 self.parser,
-                Option::<NodeArray>::None,
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
                 type_name_or_namespace_name.wrap(),
                 body.map(Node::wrap),
                 if nested {
@@ -877,7 +877,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         Some(type_name_or_namespace_name)
     }
 
-    pub(super) fn parse_callback_tag_parameters(&self, indent: usize) -> NodeArray /*<JSDocParameterTag>*/
+    pub(super) fn parse_callback_tag_parameters(&self, indent: usize) -> Gc<NodeArray> /*<JSDocParameterTag>*/
     {
         let pos = self.parser.get_node_pos();
         let mut parameters: Option<Vec<Gc<Node>>> = None;
@@ -925,7 +925,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let type_expression = self.parser.finish_node(
             self.parser.factory.create_jsdoc_signature(
                 self.parser,
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 parameters,
                 return_tag,
             ),
@@ -1108,7 +1108,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         ))
     }
 
-    pub(super) fn parse_template_tag_type_parameters(&self) -> NodeArray /*<TypeParameterDeclaration>*/
+    pub(super) fn parse_template_tag_type_parameters(&self) -> Gc<NodeArray> /*<TypeParameterDeclaration>*/
     {
         let pos = self.parser.get_node_pos();
         let mut type_parameters: Vec<Gc<Node>> = vec![];
@@ -1207,7 +1207,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 self.parser.factory.create_identifier(
                     self.parser,
                     &text,
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     Some(original_keyword_kind),
                 ),
                 pos.try_into().unwrap(),

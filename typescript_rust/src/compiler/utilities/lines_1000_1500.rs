@@ -16,13 +16,14 @@ use crate::{
     is_literal_type_node, is_meta_property, is_parameter_property_declaration,
     is_property_declaration, is_property_signature, is_string_literal, is_variable_declaration,
     is_variable_statement, maybe_filter, maybe_text_char_at_index, node_is_missing,
-    single_or_undefined, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    CharacterCodes, ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticWithLocation, EmitFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars,
-    SyntaxKind, TextRange, TextSpan,
+    single_or_undefined, skip_trivia, AsDoubleDeref, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, CharacterCodes, ClassLikeDeclarationInterface, CommentRange,
+    Debug_, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeArgumentsInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
+    TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
@@ -615,13 +616,16 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                         parent
                             .as_call_expression()
                             .maybe_type_arguments()
-                            .as_deref(),
+                            .as_double_deref(),
                         &node,
                     );
                 }
                 SyntaxKind::NewExpression => {
                     return contains_gc(
-                        parent.as_new_expression().maybe_type_arguments().as_deref(),
+                        parent
+                            .as_new_expression()
+                            .maybe_type_arguments()
+                            .as_double_deref(),
                         &node,
                     );
                 }
@@ -779,17 +783,16 @@ pub fn get_rest_parameter_element_type<TNode: Borrow<Node>>(
         SyntaxKind::TypeReference => single_or_undefined(
             node.as_type_reference_node()
                 .maybe_type_arguments()
-                .as_deref(),
+                .as_double_deref(),
         )
         .cloned(),
         _ => None,
     }
 }
 
-// TODO: could presumably return Option<&NodeArray> instead of cloning
 pub fn get_members_of_declaration(
     node: &Node, /*Declaration*/
-) -> Option<NodeArray /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
+) -> Option<Gc<NodeArray> /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
     match node.kind() {
         SyntaxKind::InterfaceDeclaration => Some(node.as_interface_declaration().members.clone()),
         SyntaxKind::ClassDeclaration => Some(node.as_class_declaration().members().clone()),

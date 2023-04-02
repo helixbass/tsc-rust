@@ -114,7 +114,7 @@ impl ParserType {
                                     self.factory.create_identifier(
                                         self,
                                         "",
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                     ),
                                     end,
@@ -307,7 +307,7 @@ impl ParserType {
     pub(super) fn parse_jsx_children(
         &self,
         opening_tag: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
-    ) -> NodeArray /*<JsxChild>*/ {
+    ) -> Gc<NodeArray> /*<JsxChild>*/ {
         let mut list: Vec<Gc<Node>> = vec![];
         let list_pos = self.get_node_pos();
         let save_parsing_context = self.parsing_context();
@@ -782,7 +782,7 @@ impl ParserType {
         pos: isize,
         tag: Gc<Node /*LeftHandSideExpression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-        type_arguments: Option<NodeArray /*TypeNode*/>,
+        type_arguments: Option<Gc<NodeArray> /*TypeNode*/>,
     ) -> Gc<Node> {
         let mut tag_expression = self.factory.create_tagged_template_expression(
             self,
@@ -859,14 +859,14 @@ impl ParserType {
                         self,
                         expression,
                         question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         Some(argument_list),
                     )
                 } else {
                     self.factory.create_call_expression(
                         self,
                         expression,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         Some(argument_list),
                     )
                 };

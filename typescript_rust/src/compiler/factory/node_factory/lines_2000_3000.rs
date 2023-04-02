@@ -14,7 +14,7 @@ use crate::{
     is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_logical_or_coalescing_assignment_operator, is_object_literal_expression,
     is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
-    modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction,
+    modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction, AsDoubleDeref,
     AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
     BindingElement, CallExpression, ClassExpression, ConditionalExpression, Debug_,
     DeleteExpression, ElementAccessExpression, FunctionExpression,
@@ -87,7 +87,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ImportTypeNode*/
         argument: Gc<Node /*TypeNode*/>,
         qualifier: Option<Gc<Node /*EntityName*/>>,
-        type_arguments: Option<Vec<Gc<Node /*TypeNode*/>>>,
+        type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         is_type_of: Option<bool>,
     ) -> Gc<Node> {
         let node_as_import_type_node = node.as_import_type_node();
@@ -250,8 +250,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_binding_like_declaration(
             base_factory,
             SyntaxKind::BindingElement,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
@@ -487,7 +487,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(Some(&node.arguments)),
         );
         if node.maybe_type_arguments().is_some() {
@@ -584,7 +584,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(node.question_dot_token.clone())
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(Some(&node.arguments))
                 | TransformFlags::ContainsES2020,
         );
@@ -684,8 +684,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
-                | propagate_children_flags(node.arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
+                | propagate_children_flags(node.arguments.as_deref())
                 | TransformFlags::ContainsES2020,
         );
         if node.maybe_type_arguments().is_some() {
@@ -694,11 +694,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_tagged_template_expression<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn create_tagged_template_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         tag: Gc<Node /*Expression*/>,
-        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
         template: Gc<Node /*TemplateLiteral*/>,
     ) -> TaggedTemplateExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TaggedTemplateExpression);
@@ -712,7 +712,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_child_flags(Some(&*node.template))
                 | TransformFlags::ContainsES2015,
         );
@@ -777,7 +777,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = self.create_base_function_like_declaration(
             base_factory,
             SyntaxKind::FunctionExpression,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
             name,
             type_parameters,
@@ -791,7 +791,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Async)
+        {
             if node.maybe_asterisk_token().is_some() {
                 node.add_transform_flags(TransformFlags::ContainsES2018);
             } else {
@@ -831,7 +833,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = self.create_base_function_like_declaration(
             base_factory,
             SyntaxKind::ArrowFunction,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
             Option::<Gc<Node>>::None,
             type_parameters,
@@ -853,7 +855,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.equals_greater_than_token))
                 | TransformFlags::ContainsES2015,
         );
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Async)
+        {
             node.add_transform_flags(
                 TransformFlags::ContainsES2017 | TransformFlags::ContainsLexicalThis,
             );

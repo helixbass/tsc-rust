@@ -839,7 +839,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                     .with(|synthetic_factory_| {
                         self.factory.create_variable_statement(
                             synthetic_factory_,
-                            Option::<NodeArray>::None,
+                            Option::<Gc<NodeArray>>::None,
                             Into::<Gc<Node>>::into(self.factory.create_variable_declaration_list(
                                 synthetic_factory_,
                                 lexical_environment_variable_declarations.clone(),
@@ -989,7 +989,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                 self.factory()
                     .create_variable_statement(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         Into::<Gc<Node>>::into(
                             self.factory().create_variable_declaration_list(
                                 synthetic_factory_,

@@ -41,7 +41,7 @@ impl TypeChecker {
             }
         } else {
             let elements = name.as_has_elements().elements();
-            for element in elements {
+            for element in &elements {
                 if !is_omitted_expression(element) {
                     return self.check_es_module_marker(&element.as_binding_element().name());
                 }
@@ -64,7 +64,7 @@ impl TypeChecker {
             }
         } else {
             let elements = name.as_has_elements().elements();
-            for element in elements {
+            for element in &elements {
                 if !is_omitted_expression(element) {
                     self.check_grammar_name_in_let_or_const_declarations(
                         &element.as_binding_element().name(),
@@ -474,7 +474,7 @@ impl TypeChecker {
         &self,
         file: &Node, /*SourceFile*/
     ) -> bool {
-        for decl in file.as_source_file().statements() {
+        for decl in &file.as_source_file().statements() {
             if is_declaration(decl) || decl.kind() == SyntaxKind::VariableStatement {
                 if self.check_grammar_top_level_element_for_required_declare_modifier(decl) {
                     return true;
@@ -669,7 +669,7 @@ impl TypeChecker {
         named_bindings: &Node, /*NamedImportsOrExports*/
     ) -> bool {
         for_each_bool(
-            named_bindings.as_has_elements().elements(),
+            &named_bindings.as_has_elements().elements(),
             |specifier: &Gc<Node>, _| {
                 if specifier.as_has_is_type_only().is_type_only() {
                     return self.grammar_error_on_first_token(

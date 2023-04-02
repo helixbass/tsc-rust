@@ -13,7 +13,7 @@ use crate::{
     is_object_literal_or_class_expression_method_or_accessor, is_omitted_expression,
     is_optional_chain, is_optional_chain_root, is_outermost_optional_chain,
     is_push_or_unshift_identifier, is_source_file, is_static, set_parent, set_parent_recursive,
-    skip_parentheses, try_cast, try_parse_pattern, BinaryExpressionStateMachine,
+    skip_parentheses, try_cast, try_parse_pattern, AsDoubleDeref, BinaryExpressionStateMachine,
     BinaryExpressionTrampoline, Diagnostics, FlowFlags, FlowNode, HasInitializerInterface,
     HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags,
     NodeInterface, PatternAmbientModule, StringOrNodeArray, StringOrPattern, Symbol, SymbolFlags,
@@ -70,7 +70,7 @@ impl BinderType {
             None
         };
         if is_binding_pattern(Some(node)) {
-            for child in node.as_has_elements().elements() {
+            for child in &node.as_has_elements().elements() {
                 self.bind_initialized_variable_flow(child);
             }
         } else {
@@ -94,8 +94,8 @@ impl BinderType {
     pub(super) fn bind_binding_element_flow(&self, node: &Node /*BindingElement*/) {
         let node_as_binding_element = node.as_binding_element();
         if is_binding_pattern(node_as_binding_element.maybe_name()) {
-            self.bind_each(node_as_binding_element.maybe_decorators().as_deref());
-            self.bind_each(node_as_binding_element.maybe_modifiers().as_deref());
+            self.bind_each(node_as_binding_element.maybe_decorators().as_double_deref());
+            self.bind_each(node_as_binding_element.maybe_modifiers().as_double_deref());
             self.bind(node_as_binding_element.dot_dot_dot_token.clone());
             self.bind(node_as_binding_element.property_name.clone());
             self.bind(node_as_binding_element.maybe_initializer());
@@ -185,7 +185,11 @@ impl BinderType {
             SyntaxKind::CallExpression => {
                 let node_as_call_expression = node.as_call_expression();
                 self.bind(node_as_call_expression.question_dot_token.clone());
-                self.bind_each(node_as_call_expression.maybe_type_arguments().as_deref());
+                self.bind_each(
+                    node_as_call_expression
+                        .maybe_type_arguments()
+                        .as_double_deref(),
+                );
                 self.bind_each(Some(&node_as_call_expression.arguments));
             }
             _ => (),
@@ -292,7 +296,11 @@ impl BinderType {
                 expr.kind(),
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
             ) {
-                self.bind_each(node_as_call_expression.maybe_type_arguments().as_deref());
+                self.bind_each(
+                    node_as_call_expression
+                        .maybe_type_arguments()
+                        .as_double_deref(),
+                );
                 self.bind_each(Some(&*node_as_call_expression.arguments));
                 self.bind(Some(&*node_as_call_expression.expression));
             } else {

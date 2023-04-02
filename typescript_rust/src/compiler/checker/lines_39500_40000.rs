@@ -666,7 +666,7 @@ impl TypeChecker {
         &self,
         source_file: &Node, /*SourceFile*/
     ) {
-        for statement in source_file.as_source_file().statements() {
+        for statement in &source_file.as_source_file().statements() {
             if self.can_convert_import_declaration_to_type_only(statement)
                 || self.can_convert_import_equals_declaration_to_type_only(statement)
             {

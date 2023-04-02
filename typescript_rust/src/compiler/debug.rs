@@ -203,7 +203,7 @@ impl DebugType {
         unimplemented!()
     }
 
-    pub fn attach_node_array_debug_info(&self, array: &mut NodeArray) {
+    pub fn attach_node_array_debug_info(&self, array: &NodeArray) {
         // TODO: implement this?
     }
 

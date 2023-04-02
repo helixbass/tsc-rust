@@ -78,7 +78,7 @@ impl ParserType {
             expression = Some(
                 self.finish_node(
                     self.factory
-                        .create_identifier(self, "", Option::<NodeArray>::None, None),
+                        .create_identifier(self, "", Option::<Gc<NodeArray>>::None, None),
                     self.get_node_pos(),
                     None,
                 )
@@ -498,8 +498,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<Gc<NodeArray>>,
+        modifiers: Option<Gc<NodeArray>>,
     ) -> Gc<Node> /*Statement*/ {
         match self.token() {
             SyntaxKind::VarKeyword | SyntaxKind::LetKeyword | SyntaxKind::ConstKeyword => {
