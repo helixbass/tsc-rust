@@ -17,12 +17,12 @@ use crate::{
     is_omitted_expression, is_private_identifier, is_semicolon_class_element,
     is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
     is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined, maybe_map,
-    needs_scope_marker, set_comment_range_rc, set_emit_flags, set_original_node, some,
-    visit_each_child, visit_node, visit_nodes, with_synthetic_factory, Debug_, EmitFlags,
-    FunctionLikeDeclarationInterface, GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, NonEmpty, ReadonlyTextRange,
-    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, VisitResult,
+    needs_scope_marker, set_comment_range_rc, set_emit_flags, some, visit_each_child, visit_node,
+    visit_nodes, with_synthetic_factory, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
+    GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, NonEmpty, ReadonlyTextRange, SignatureDeclarationInterface,
+    SymbolInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformDeclarations {

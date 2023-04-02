@@ -1,28 +1,11 @@
-use std::{borrow::Borrow, ptr};
+use std::ptr;
 
 use gc::Gc;
 
-use super::{declaration_emit_node_builder_flags, is_processed_component, TransformDeclarations};
+use super::TransformDeclarations;
 use crate::{
-    can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,
-    get_comment_range, get_external_module_import_equals_declaration_expression,
-    get_external_module_name_from_declaration, get_line_and_character_of_position,
-    get_original_node_id, get_parse_tree_node, get_set_accessor_value_parameter,
-    get_this_parameter, has_dynamic_name, has_effective_modifier, has_jsdoc_nodes,
-    is_binding_pattern, is_class_declaration, is_declaration, is_entity_name,
-    is_entity_name_expression, is_external_module, is_external_module_indicator,
-    is_function_declaration, is_function_like, is_index_signature_declaration,
-    is_interface_declaration, is_late_visibility_painted_statement, is_literal_import_type_node,
-    is_mapped_type_node, is_method_declaration, is_method_signature, is_module_declaration,
-    is_omitted_expression, is_private_identifier, is_semicolon_class_element,
-    is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
-    is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined, maybe_map,
-    needs_scope_marker, set_comment_range_rc, set_emit_flags, set_original_node, some,
-    visit_each_child, visit_node, visit_nodes, with_synthetic_factory, Debug_, EmitFlags,
-    FunctionLikeDeclarationInterface, GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, NonEmpty, ReadonlyTextRange,
-    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, VisitResult,
+    has_dynamic_name, set_original_node, GetSymbolAccessibilityDiagnostic, Node, NodeInterface,
+    VisitResult,
 };
 
 impl TransformDeclarations {
