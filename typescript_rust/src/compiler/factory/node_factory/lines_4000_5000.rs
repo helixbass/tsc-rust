@@ -73,10 +73,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_named_imports<TElements: Into<NodeArrayOrVec>>(
+    pub fn create_named_imports(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements,
+        elements: impl Into<NodeArrayOrVec>,
     ) -> NamedImports {
         let node = self.create_base_node(base_factory, SyntaxKind::NamedImports);
         let mut node = NamedImports::new(node, self.create_node_array(Some(elements), None));
@@ -85,6 +85,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_named_imports(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamedImports*/
+        elements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_import_specifier(
@@ -250,6 +259,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_external_module_reference(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ExternalModuleReference*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub(crate) fn create_jsdoc_primary_type_worker(

@@ -97,6 +97,10 @@ impl BaseTextRange {
             end: Cell::new(end),
         }
     }
+
+    pub fn into_readonly_text_range(self) -> impl ReadonlyTextRange {
+        ReadonlyTextRangeConcrete::new(self.pos(), self.end())
+    }
 }
 
 impl TextRange for BaseTextRange {

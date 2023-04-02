@@ -244,7 +244,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_js_doc()
                     }
 
-                    fn set_js_doc(&self, js_doc: ::std::vec::Vec<::gc::Gc<crate::Node>>) {
+                    fn set_js_doc(&self, js_doc: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
                         self.#first_field_name.set_js_doc(js_doc)
                     }
 
@@ -774,7 +774,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_js_doc(&self, js_doc: ::std::vec::Vec<::gc::Gc<crate::Node>>) {
+                    fn set_js_doc(&self, js_doc: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc(js_doc)),*
                         }

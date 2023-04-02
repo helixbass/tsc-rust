@@ -875,18 +875,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_import_equals_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn create_import_equals_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
-        name: TName,
+        name: impl Into<StrOrRcNode<'name>>,
         module_reference: Gc<Node /*ModuleReference*/>,
     ) -> ImportEqualsDeclaration {
         let node = self.create_base_named_declaration(
@@ -907,14 +902,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_import_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_import_equals_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        node: &Node, /*ImportEqualsDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        is_type_only: bool,
+        name: Gc<Node /*Identifier*/>,
+        module_reference: Gc<Node /*ModuleReference*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_import_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         import_clause: Option<Gc<Node /*ImportClause*/>>,
         module_specifier: Gc<Node /*Expression*/>,
         assert_clause: Option<Gc<Node /*AssertClause*/>>,
@@ -931,6 +936,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.module_specifier)),
         );
         node
+    }
+
+    pub fn update_import_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ImportDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        import_clause: Option<Gc<Node /*ImportClause*/>>,
+        module_specifier: Gc<Node /*Expression*/>,
+        assert_clause: Option<Gc<Node /*AssertClause*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_import_clause(
@@ -953,5 +971,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_import_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ImportClause*/
+        is_type_only: bool,
+        name: Option<Gc<Node /*Identifier*/>>,
+        named_bindings: Option<Gc<Node /*NamedImportBindings*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 }

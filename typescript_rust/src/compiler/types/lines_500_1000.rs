@@ -214,7 +214,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Gc<Type>>>;
     fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Gc<Node /*JSDoc*/>>>;
-    fn set_js_doc(&self, js_doc: Vec<Gc<Node /*JSDoc*/>>);
+    fn set_js_doc(&self, js_doc: Option<Vec<Gc<Node /*JSDoc*/>>>);
     fn maybe_js_doc_cache(&self) -> GcCellRef<Option<Vec<Gc<Node /*JSDocTag*/>>>>;
     fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Gc<Node /*JSDocTag*/>>>);
     // IncrementalElement
@@ -1966,8 +1966,8 @@ impl NodeInterface for BaseNode {
         self.js_doc.borrow().clone()
     }
 
-    fn set_js_doc(&self, js_doc: Vec<Gc<Node>>) {
-        *self.js_doc.borrow_mut() = Some(js_doc);
+    fn set_js_doc(&self, js_doc: Option<Vec<Gc<Node>>>) {
+        *self.js_doc.borrow_mut() = js_doc;
     }
 
     fn maybe_js_doc_cache(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {

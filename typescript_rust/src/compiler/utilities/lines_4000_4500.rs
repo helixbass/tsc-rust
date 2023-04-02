@@ -808,8 +808,8 @@ pub fn get_resolved_external_module_name(
         )
 }
 
-pub(super) fn get_canonical_absolute_path<THost: ResolveModuleNameResolutionHost>(
-    host: &THost,
+pub(super) fn get_canonical_absolute_path(
+    host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     path: &str,
 ) -> String {
     host.get_canonical_file_name(&get_normalized_absolute_path(
@@ -818,9 +818,9 @@ pub(super) fn get_canonical_absolute_path<THost: ResolveModuleNameResolutionHost
     ))
 }
 
-pub fn get_external_module_name_from_declaration<THost: ResolveModuleNameResolutionHost>(
-    host: &THost,
-    resolver: &dyn EmitResolver,
+pub fn get_external_module_name_from_declaration(
+    host: &(impl ResolveModuleNameResolutionHost + ?Sized),
+    resolver: &(impl EmitResolver + ?Sized),
     declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
 ) -> Option<String> {
     let file = resolver.get_external_module_file_from_declaration(declaration);

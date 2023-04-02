@@ -318,7 +318,7 @@ impl VisitResultInterface for VisitResult {
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Clone, Trace, Finalize)]
 pub enum SingleNodeOrVecNode {
     SingleNode(Gc<Node>),
     VecNode(Vec<Gc<Node>>),
@@ -333,12 +333,16 @@ impl SingleNodeOrVecNode {
     // fn as_vec_node(self) -> Vec<Gc<Node>> {
     //     enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
     // }
-    fn as_single_node(&self) -> &Gc<Node> {
+    pub fn as_single_node(&self) -> &Gc<Node> {
         enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode])
     }
 
-    fn as_vec_node(&self) -> &Vec<Gc<Node>> {
+    pub fn as_vec_node(&self) -> &Vec<Gc<Node>> {
         enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
+    }
+
+    pub fn iter(&self) -> SingleNodeOrVecNodeIter {
+        SingleNodeOrVecNodeIter::new(self)
     }
 }
 
@@ -351,5 +355,52 @@ impl From<Gc<Node>> for SingleNodeOrVecNode {
 impl From<Vec<Gc<Node>>> for SingleNodeOrVecNode {
     fn from(value: Vec<Gc<Node>>) -> Self {
         Self::VecNode(value)
+    }
+}
+
+pub struct SingleNodeOrVecNodeIter<'single_node_or_vec_node> {
+    single_node_or_vec_node: &'single_node_or_vec_node SingleNodeOrVecNode,
+    current_index: usize,
+}
+
+impl<'single_node_or_vec_node> SingleNodeOrVecNodeIter<'single_node_or_vec_node> {
+    pub fn new(single_node_or_vec_node: &'single_node_or_vec_node SingleNodeOrVecNode) -> Self {
+        Self {
+            single_node_or_vec_node,
+            current_index: 0,
+        }
+    }
+}
+
+impl<'single_node_or_vec_node> Iterator for SingleNodeOrVecNodeIter<'single_node_or_vec_node> {
+    type Item = &'single_node_or_vec_node Gc<Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.single_node_or_vec_node {
+            SingleNodeOrVecNode::SingleNode(single_node_or_vec_node) => {
+                if self.current_index > 0 {
+                    return None;
+                }
+                self.current_index += 1;
+                Some(single_node_or_vec_node)
+            }
+            SingleNodeOrVecNode::VecNode(single_node_or_vec_node) => {
+                if self.current_index >= single_node_or_vec_node.len() {
+                    return None;
+                }
+                let ret = &single_node_or_vec_node[self.current_index];
+                self.current_index += 1;
+                Some(ret)
+            }
+        }
+    }
+}
+
+impl<'single_node_or_vec_node> IntoIterator for &'single_node_or_vec_node SingleNodeOrVecNode {
+    type Item = &'single_node_or_vec_node Gc<Node>;
+    type IntoIter = SingleNodeOrVecNodeIter<'single_node_or_vec_node>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

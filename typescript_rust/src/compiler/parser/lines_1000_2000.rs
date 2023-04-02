@@ -133,7 +133,7 @@ impl ParserType {
             },
         );
         if !js_doc.is_empty() {
-            node.set_js_doc(js_doc);
+            node.set_js_doc(Some(js_doc));
         }
         if self.has_deprecated_tag() {
             self.set_has_deprecated_tag(false);

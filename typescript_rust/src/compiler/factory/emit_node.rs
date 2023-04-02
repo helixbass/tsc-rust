@@ -113,10 +113,18 @@ pub fn get_comment_range(node: &Node) -> BaseTextRange {
         .unwrap_or_else(|| BaseTextRange::new(node.pos(), node.end()))
 }
 
-pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, range: &TRange)
+pub fn set_comment_range(node: &Node, range: &impl ReadonlyTextRange /*TextRange*/)
 /*-> Gc<Node>*/
 {
     // unimplemented!()
+}
+
+pub fn set_comment_range_rc(
+    node: Gc<Node>,
+    range: &impl ReadonlyTextRange, /*TextRange*/
+) -> Gc<Node> {
+    set_comment_range(&node, range);
+    node
 }
 
 pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
