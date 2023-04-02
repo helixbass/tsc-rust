@@ -572,6 +572,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_variable_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*VariableDeclaration*/
+        name: Option<Gc<Node /*BindingName*/>>,
+        exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_variable_declaration_list(
         &self,
         base_factory: &TBaseNodeFactory,

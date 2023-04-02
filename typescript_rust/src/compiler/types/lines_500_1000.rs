@@ -1679,6 +1679,10 @@ impl Node {
     pub fn as_unparsed_prologue(&self) -> &UnparsedPrologue {
         enum_unwrapped!(self, [Node, UnparsedPrologue])
     }
+
+    pub fn as_get_accessor_declaration(&self) -> &GetAccessorDeclaration {
+        enum_unwrapped!(self, [Node, GetAccessorDeclaration])
+    }
 }
 
 impl Clone for Node {

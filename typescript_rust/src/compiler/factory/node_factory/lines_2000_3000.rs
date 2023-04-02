@@ -182,6 +182,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_literal_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*LiteralTypeNode*/
+        literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_object_binding_pattern(
         &self,
         base_factory: &TBaseNodeFactory,

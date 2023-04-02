@@ -4,6 +4,13 @@ use super::TransformDeclarations;
 use crate::{AllAccessorDeclarations, ModifierFlags, Node, NodeArrayOrVec};
 
 impl TransformDeclarations {
+    pub(super) fn recreate_binding_pattern(
+        &self,
+        d: &Node, /*BindingPattern*/
+    ) -> Vec<Gc<Node /*VariableDeclaration*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn check_name(&self, node: &Node /*DeclarationDiagnosticProducing*/) {
         unimplemented!()
     }

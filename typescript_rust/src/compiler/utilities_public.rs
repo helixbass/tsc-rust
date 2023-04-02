@@ -1609,7 +1609,7 @@ pub fn is_function_or_constructor_type_node(node: &Node) -> bool {
     )
 }
 
-pub fn is_binding_pattern<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn is_binding_pattern(node: Option<impl Borrow<Node>>) -> bool {
     if let Some(node) = node {
         let kind = node.borrow().kind();
         return matches!(

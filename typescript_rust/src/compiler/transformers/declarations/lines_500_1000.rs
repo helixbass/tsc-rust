@@ -12,16 +12,17 @@ use crate::{
     is_binding_pattern, is_class_declaration, is_declaration, is_entity_name,
     is_entity_name_expression, is_external_module, is_external_module_indicator,
     is_function_declaration, is_function_like, is_index_signature_declaration,
-    is_interface_declaration, is_late_visibility_painted_statement, is_mapped_type_node,
-    is_method_declaration, is_method_signature, is_module_declaration, is_omitted_expression,
-    is_semicolon_class_element, is_set_accessor_declaration, is_source_file,
-    is_string_literal_like, is_tuple_type_node, is_type_alias_declaration, is_type_query_node,
-    length, map_defined, maybe_map, needs_scope_marker, set_comment_range_rc, set_emit_flags,
-    set_original_node, some, visit_each_child, visit_node, visit_nodes, with_synthetic_factory,
-    AllAccessorDeclarations, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
-    GetSymbolAccessibilityDiagnostic, HasTypeArgumentsInterface, ModifierFlags,
+    is_interface_declaration, is_late_visibility_painted_statement, is_literal_import_type_node,
+    is_mapped_type_node, is_method_declaration, is_method_signature, is_module_declaration,
+    is_omitted_expression, is_private_identifier, is_semicolon_class_element,
+    is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
+    is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined, maybe_map,
+    needs_scope_marker, set_comment_range_rc, set_emit_flags, set_original_node, some,
+    visit_each_child, visit_node, visit_nodes, with_synthetic_factory, Debug_, EmitFlags,
+    FunctionLikeDeclarationInterface, GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, NonEmpty, ReadonlyTextRange,
-    SymbolInterface, SyntaxKind, VisitResult,
+    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformDeclarations {
@@ -724,7 +725,7 @@ impl TransformDeclarations {
 
         let can_produce_diagnostic = can_produce_diagnostics(input);
         let old_within_object_literal_type = self.maybe_suppress_new_diagnostic_contexts();
-        let should_enter_suppress_new_diagnostics_context_context = matches!(
+        let mut should_enter_suppress_new_diagnostics_context_context = matches!(
             input.kind(),
             SyntaxKind::TypeLiteral | SyntaxKind::MappedType
         ) && input.parent().kind()
@@ -886,6 +887,669 @@ impl TransformDeclarations {
                                 node,
                                 node_as_type_reference_node.type_name.clone(),
                                 node_as_type_reference_node.maybe_type_arguments(),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::ConstructSignature => {
+                    let input_as_construct_signature_declaration =
+                        input.as_construct_signature_declaration();
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_construct_signature(
+                                synthetic_factory_,
+                                input,
+                                self.ensure_type_params(
+                                    input,
+                                    input_as_construct_signature_declaration
+                                        .maybe_type_parameters()
+                                        .as_deref(),
+                                ),
+                                self.update_params_list(
+                                    input,
+                                    Some(&input_as_construct_signature_declaration.parameters()),
+                                    None,
+                                )
+                                .unwrap(),
+                                self.ensure_type(
+                                    input,
+                                    input_as_construct_signature_declaration
+                                        .maybe_type()
+                                        .as_deref(),
+                                    None,
+                                ),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::Constructor => {
+                    let input_as_constructor_declaration = input.as_constructor_declaration();
+                    let ctor: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                        self.factory
+                            .create_constructor_declaration(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                self.ensure_modifiers(input),
+                                self.update_params_list(
+                                    input,
+                                    Some(&input_as_constructor_declaration.parameters()),
+                                    Some(ModifierFlags::None),
+                                )
+                                .unwrap(),
+                                None,
+                            )
+                            .into()
+                    });
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&ctor),
+                    )
+                }
+                SyntaxKind::MethodDeclaration => {
+                    let input_as_method_declaration = input.as_method_declaration();
+                    if is_private_identifier(&input_as_method_declaration.name()) {
+                        return self.visit_declaration_subtree_cleanup(
+                            input,
+                            can_produce_diagnostic,
+                            previous_enclosing_declaration.as_ref(),
+                            &old_diag,
+                            should_enter_suppress_new_diagnostics_context_context,
+                            old_within_object_literal_type,
+                            None,
+                        );
+                    }
+                    let sig: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                        self.factory
+                            .create_method_declaration(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                self.ensure_modifiers(input),
+                                None,
+                                input_as_method_declaration.name(),
+                                input_as_method_declaration.maybe_question_token(),
+                                self.ensure_type_params(
+                                    input,
+                                    input_as_method_declaration
+                                        .maybe_type_parameters()
+                                        .as_deref(),
+                                ),
+                                self.update_params_list(
+                                    input,
+                                    Some(&input_as_method_declaration.parameters()),
+                                    None,
+                                )
+                                .unwrap(),
+                                self.ensure_type(
+                                    input,
+                                    input_as_method_declaration.maybe_type().as_deref(),
+                                    None,
+                                ),
+                                None,
+                            )
+                            .into()
+                    });
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&sig),
+                    )
+                }
+                SyntaxKind::GetAccessor => {
+                    let input_as_get_accessor_declaration = input.as_get_accessor_declaration();
+                    if is_private_identifier(&input_as_get_accessor_declaration.name()) {
+                        return self.visit_declaration_subtree_cleanup(
+                            input,
+                            can_produce_diagnostic,
+                            previous_enclosing_declaration.as_ref(),
+                            &old_diag,
+                            should_enter_suppress_new_diagnostics_context_context,
+                            old_within_object_literal_type,
+                            None,
+                        );
+                    }
+                    let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
+                        input,
+                        &self.resolver.get_all_accessor_declarations(input),
+                    );
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_get_accessor_declaration(
+                                synthetic_factory_,
+                                input,
+                                Option::<Gc<NodeArray>>::None,
+                                self.ensure_modifiers(input),
+                                input_as_get_accessor_declaration.name(),
+                                self.update_accessor_params_list(
+                                    input,
+                                    has_effective_modifier(input, ModifierFlags::Private),
+                                ),
+                                self.ensure_type(input, accessor_type.as_deref(), None),
+                                None,
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::SetAccessor => {
+                    let input_as_set_accessor_declaration = input.as_set_accessor_declaration();
+                    if is_private_identifier(&input_as_set_accessor_declaration.name()) {
+                        return self.visit_declaration_subtree_cleanup(
+                            input,
+                            can_produce_diagnostic,
+                            previous_enclosing_declaration.as_ref(),
+                            &old_diag,
+                            should_enter_suppress_new_diagnostics_context_context,
+                            old_within_object_literal_type,
+                            None,
+                        );
+                    }
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_set_accessor_declaration(
+                                synthetic_factory_,
+                                input,
+                                Option::<Gc<NodeArray>>::None,
+                                self.ensure_modifiers(input),
+                                input_as_set_accessor_declaration.name(),
+                                self.update_accessor_params_list(
+                                    input,
+                                    has_effective_modifier(input, ModifierFlags::Private),
+                                ),
+                                None,
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::PropertyDeclaration => {
+                    let input_as_property_declaration = input.as_property_declaration();
+                    if is_private_identifier(&input_as_property_declaration.name()) {
+                        return self.visit_declaration_subtree_cleanup(
+                            input,
+                            can_produce_diagnostic,
+                            previous_enclosing_declaration.as_ref(),
+                            &old_diag,
+                            should_enter_suppress_new_diagnostics_context_context,
+                            old_within_object_literal_type,
+                            None,
+                        );
+                    }
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_property_declaration(
+                                synthetic_factory_,
+                                input,
+                                Option::<Gc<NodeArray>>::None,
+                                self.ensure_modifiers(input),
+                                input_as_property_declaration.name(),
+                                input_as_property_declaration.maybe_question_token(),
+                                self.ensure_type(
+                                    input,
+                                    input_as_property_declaration.maybe_type().as_deref(),
+                                    None,
+                                ),
+                                self.ensure_no_initializer(input),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::PropertySignature => {
+                    let input_as_property_signature = input.as_property_signature();
+                    if is_private_identifier(&input_as_property_signature.name()) {
+                        return self.visit_declaration_subtree_cleanup(
+                            input,
+                            can_produce_diagnostic,
+                            previous_enclosing_declaration.as_ref(),
+                            &old_diag,
+                            should_enter_suppress_new_diagnostics_context_context,
+                            old_within_object_literal_type,
+                            None,
+                        );
+                    }
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_property_signature(
+                                synthetic_factory_,
+                                input,
+                                self.ensure_modifiers(input),
+                                input_as_property_signature.name(),
+                                input_as_property_signature.maybe_question_token(),
+                                self.ensure_type(
+                                    input,
+                                    input_as_property_signature.maybe_type().as_deref(),
+                                    None,
+                                ),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::MethodSignature => {
+                    let input_as_method_signature = input.as_method_signature();
+                    if is_private_identifier(&input_as_method_signature.name()) {
+                        return self.visit_declaration_subtree_cleanup(
+                            input,
+                            can_produce_diagnostic,
+                            previous_enclosing_declaration.as_ref(),
+                            &old_diag,
+                            should_enter_suppress_new_diagnostics_context_context,
+                            old_within_object_literal_type,
+                            None,
+                        );
+                    }
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_method_signature(
+                                synthetic_factory_,
+                                input,
+                                self.ensure_modifiers(input),
+                                input_as_method_signature.name(),
+                                input_as_method_signature.maybe_question_token(),
+                                self.ensure_type_params(
+                                    input,
+                                    input_as_method_signature.maybe_type_parameters().as_deref(),
+                                ),
+                                self.update_params_list(
+                                    input,
+                                    Some(&input_as_method_signature.parameters()),
+                                    None,
+                                )
+                                .unwrap(),
+                                self.ensure_type(
+                                    input,
+                                    input_as_method_signature.maybe_type().as_deref(),
+                                    None,
+                                ),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::CallSignature => {
+                    let input_as_call_signature_declaration = input.as_call_signature_declaration();
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_call_signature(
+                                synthetic_factory_,
+                                input,
+                                self.ensure_type_params(
+                                    input,
+                                    input_as_call_signature_declaration
+                                        .maybe_type_parameters()
+                                        .as_deref(),
+                                ),
+                                self.update_params_list(
+                                    input,
+                                    Some(&input_as_call_signature_declaration.parameters()),
+                                    None,
+                                )
+                                .unwrap(),
+                                self.ensure_type(
+                                    input,
+                                    input_as_call_signature_declaration.maybe_type().as_deref(),
+                                    None,
+                                ),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::IndexSignature => {
+                    let input_as_index_signature_declaration =
+                        input.as_index_signature_declaration();
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_index_signature(
+                                synthetic_factory_,
+                                input,
+                                Option::<Gc<NodeArray>>::None,
+                                self.ensure_modifiers(input),
+                                self.update_params_list(
+                                    input,
+                                    Some(&input_as_index_signature_declaration.parameters()),
+                                    None,
+                                )
+                                .unwrap(),
+                                visit_node(
+                                    input_as_index_signature_declaration.maybe_type(),
+                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                    Option::<fn(&Node) -> bool>::None,
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                )
+                                .unwrap_or_else(|| {
+                                    with_synthetic_factory(|synthetic_factory_| {
+                                        self.factory
+                                            .create_keyword_type_node(
+                                                synthetic_factory_,
+                                                SyntaxKind::AnyKeyword,
+                                            )
+                                            .into()
+                                    })
+                                }),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::VariableDeclaration => {
+                    let input_as_variable_declaration = input.as_variable_declaration();
+                    if is_binding_pattern(input_as_variable_declaration.maybe_name()) {
+                        return Some(
+                            self.recreate_binding_pattern(&input_as_variable_declaration.name())
+                                .into(),
+                        );
+                    }
+                    should_enter_suppress_new_diagnostics_context_context = true;
+                    self.set_suppress_new_diagnostic_contexts(Some(true));
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_variable_declaration(
+                                synthetic_factory_,
+                                input,
+                                input_as_variable_declaration.maybe_name(),
+                                None,
+                                self.ensure_type(
+                                    input,
+                                    input_as_variable_declaration.maybe_type().as_deref(),
+                                    None,
+                                ),
+                                self.ensure_no_initializer(input),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::TypeParameter => {
+                    let input_as_type_parameter_declaration = input.as_type_parameter_declaration();
+                    if self.is_private_method_type_parameter(input)
+                        && (input_as_type_parameter_declaration.default.is_some()
+                            || input_as_type_parameter_declaration.constraint.is_some())
+                    {
+                        return self.visit_declaration_subtree_cleanup(
+                            input,
+                            can_produce_diagnostic,
+                            previous_enclosing_declaration.as_ref(),
+                            &old_diag,
+                            should_enter_suppress_new_diagnostics_context_context,
+                            old_within_object_literal_type,
+                            Some(&with_synthetic_factory(|synthetic_factory_| {
+                                self.factory.update_type_parameter_declaration(
+                                    synthetic_factory_,
+                                    input,
+                                    input_as_type_parameter_declaration.name(),
+                                    None,
+                                    None,
+                                )
+                            })),
+                        );
+                    }
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        visit_each_child(
+                            Some(input),
+                            |node: &Node| self.visit_declaration_subtree(node),
+                            &**self.context,
+                            Option::<
+                                fn(
+                                    Option<&NodeArray>,
+                                    Option<fn(&Node) -> VisitResult>,
+                                    Option<fn(&Node) -> bool>,
+                                    Option<usize>,
+                                    Option<usize>,
+                                ) -> Gc<NodeArray>,
+                            >::None,
+                            Option::<fn(&Node) -> VisitResult>::None,
+                            Option::<
+                                fn(
+                                    Option<&Node>,
+                                    Option<fn(&Node) -> VisitResult>,
+                                    Option<fn(&Node) -> bool>,
+                                    Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                                ) -> Option<Gc<Node>>,
+                            >::None,
+                        )
+                        .as_deref(),
+                    )
+                }
+                SyntaxKind::ConditionalType => {
+                    let input_as_conditional_type_node = input.as_conditional_type_node();
+                    let check_type = visit_node(
+                        Some(&*input_as_conditional_type_node.check_type),
+                        Some(|node: &Node| self.visit_declaration_subtree(node)),
+                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap();
+                    let extends_type = visit_node(
+                        Some(&*input_as_conditional_type_node.extends_type),
+                        Some(|node: &Node| self.visit_declaration_subtree(node)),
+                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap();
+                    let old_enclosing_decl = self.maybe_enclosing_declaration();
+                    self.set_enclosing_declaration(Some(
+                        input_as_conditional_type_node.true_type.clone(),
+                    ));
+                    let true_type = visit_node(
+                        Some(&*input_as_conditional_type_node.true_type),
+                        Some(|node: &Node| self.visit_declaration_subtree(node)),
+                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap();
+                    self.set_enclosing_declaration(old_enclosing_decl);
+                    let false_type = visit_node(
+                        Some(&*input_as_conditional_type_node.false_type),
+                        Some(|node: &Node| self.visit_declaration_subtree(node)),
+                        Option::<fn(&Node) -> bool>::None,
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap();
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_conditional_type_node(
+                                synthetic_factory_,
+                                input,
+                                check_type,
+                                extends_type,
+                                true_type,
+                                false_type,
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::FunctionType => {
+                    let input_as_function_type_node = input.as_function_type_node();
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_function_type_node(
+                                synthetic_factory_,
+                                input,
+                                visit_nodes(
+                                    input_as_function_type_node
+                                        .maybe_type_parameters()
+                                        .as_deref(),
+                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                    Option::<fn(&Node) -> bool>::None,
+                                    None,
+                                    None,
+                                ),
+                                self.update_params_list(
+                                    input,
+                                    Some(&input_as_function_type_node.parameters()),
+                                    None,
+                                )
+                                .unwrap(),
+                                visit_node(
+                                    input_as_function_type_node.maybe_type(),
+                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                    Option::<fn(&Node) -> bool>::None,
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                ),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::ConstructorType => {
+                    let input_as_constructor_type_node = input.as_constructor_type_node();
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_constructor_type_node(
+                                synthetic_factory_,
+                                input,
+                                self.ensure_modifiers(input),
+                                visit_nodes(
+                                    input_as_constructor_type_node
+                                        .maybe_type_parameters()
+                                        .as_deref(),
+                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                    Option::<fn(&Node) -> bool>::None,
+                                    None,
+                                    None,
+                                ),
+                                self.update_params_list(
+                                    input,
+                                    Some(&input_as_constructor_type_node.parameters()),
+                                    None,
+                                )
+                                .unwrap(),
+                                visit_node(
+                                    input_as_constructor_type_node.maybe_type(),
+                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                    Option::<fn(&Node) -> bool>::None,
+                                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                                ),
+                            )
+                        })),
+                    )
+                }
+                SyntaxKind::ImportType => {
+                    let input_as_import_type_node = input.as_import_type_node();
+                    if !is_literal_import_type_node(input) {
+                        return self.visit_declaration_subtree_cleanup(
+                            input,
+                            can_produce_diagnostic,
+                            previous_enclosing_declaration.as_ref(),
+                            &old_diag,
+                            should_enter_suppress_new_diagnostics_context_context,
+                            old_within_object_literal_type,
+                            Some(input),
+                        );
+                    }
+                    self.visit_declaration_subtree_cleanup(
+                        input,
+                        can_produce_diagnostic,
+                        previous_enclosing_declaration.as_ref(),
+                        &old_diag,
+                        should_enter_suppress_new_diagnostics_context_context,
+                        old_within_object_literal_type,
+                        Some(&with_synthetic_factory(|synthetic_factory_| {
+                            self.factory.update_import_type_node(
+                                synthetic_factory_,
+                                input,
+                                self.factory.update_literal_type_node(
+                                    synthetic_factory_,
+                                    &input_as_import_type_node.argument,
+                                    self.rewrite_module_specifier(
+                                        input,
+                                        Some(
+                                            &input_as_import_type_node
+                                                .argument
+                                                .as_literal_type_node()
+                                                .literal,
+                                        ),
+                                    )
+                                    .unwrap(),
+                                ),
+                                input_as_import_type_node.qualifier.clone(),
+                                visit_nodes(
+                                    input_as_import_type_node.maybe_type_arguments().as_deref(),
+                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                    Some(is_type_node),
+                                    None,
+                                    None,
+                                ),
+                                Some(input_as_import_type_node.is_type_of()),
                             )
                         })),
                     )
