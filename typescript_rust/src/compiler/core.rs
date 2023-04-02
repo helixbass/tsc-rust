@@ -286,13 +286,9 @@ pub fn clear<TItem>(array: &mut Vec<TItem>) {
     array.clear();
 }
 
-pub fn map<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> TReturn,
->(
+pub fn map<TCollection: IntoIterator, TReturn>(
     array: TCollection,
-    mut f: TCallback,
+    mut f: impl FnMut(TCollection::Item, usize) -> TReturn,
 ) -> Vec<TReturn> {
     let mut result = vec![];
     for (i, item) in array.into_iter().enumerate() {
@@ -301,13 +297,9 @@ pub fn map<
     result
 }
 
-pub fn maybe_map<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> TReturn,
->(
+pub fn maybe_map<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
-    f: TCallback,
+    f: impl FnMut(TCollection::Item, usize) -> TReturn,
 ) -> Option<Vec<TReturn>> {
     array.map(|array| map(array, f))
 }
@@ -417,10 +409,7 @@ pub fn try_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) 
     false
 }
 
-pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
-    array: Option<&[TItem]>,
-    predicate: Option<TPredicate>,
-) -> bool {
+pub fn some<TItem>(array: Option<&[TItem]>, predicate: Option<impl FnMut(&TItem) -> bool>) -> bool {
     array.map_or(false, |array| {
         predicate.map_or(!array.is_empty(), |predicate| array.iter().any(predicate))
     })
