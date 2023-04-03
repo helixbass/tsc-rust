@@ -3,15 +3,26 @@ use std::borrow::Borrow;
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
-    Node, NodeId, TransformationContext, Transformer, WrapCustomTransformerFactoryHandleDefault,
+    get_node_id, get_original_node, Node, NodeId, TransformationContext, Transformer,
+    WrapCustomTransformerFactoryHandleDefault,
 };
 
 pub fn get_original_node_id(node: &Node) -> NodeId {
-    unimplemented!()
+    let node = get_original_node(Some(node), Option::<fn(Option<Gc<Node>>) -> bool>::None);
+    if let Some(node) = node {
+        get_node_id(&node)
+    } else {
+        0
+    }
 }
 
 pub fn maybe_get_original_node_id(node: Option<impl Borrow<Node>>) -> NodeId {
-    unimplemented!()
+    let node = get_original_node(node, Option::<fn(Option<Gc<Node>>) -> bool>::None);
+    if let Some(node) = node {
+        get_node_id(&node)
+    } else {
+        0
+    }
 }
 
 // TODO: does chain_bundle() need to accept any CoreTnansformationContext's that aren't TransformationContext's?

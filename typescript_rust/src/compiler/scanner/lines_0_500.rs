@@ -833,7 +833,7 @@ pub(crate) fn compute_line_and_character_of_position(
     line_starts: &[usize],
     position: usize,
 ) -> LineAndCharacter {
-    let line_number = compute_line_of_position(line_starts, position, None);
+    let line_number = compute_line_of_position(line_starts, position.try_into().unwrap(), None);
     LineAndCharacter {
         line: line_number,
         character: position - line_starts[line_number],
@@ -842,16 +842,20 @@ pub(crate) fn compute_line_and_character_of_position(
 
 pub(crate) fn compute_line_of_position(
     line_starts: &[usize],
-    position: usize,
+    position: isize,
     lower_bound: Option<usize>,
 ) -> usize {
-    let mut line_number = binary_search_copy_key(
-        line_starts,
-        &position,
-        /*identity*/ |value, _| *value,
-        |a, b| compare_values(Some(a), Some(b)),
-        lower_bound,
-    );
+    let mut line_number = if position == -1 {
+        -1
+    } else {
+        binary_search_copy_key(
+            line_starts,
+            &position.try_into().unwrap(),
+            /*identity*/ |value, _| *value,
+            |a, b| compare_values(Some(a), Some(b)),
+            lower_bound,
+        )
+    };
     if line_number < 0 {
         line_number = !line_number - 1;
         Debug_.assert(
@@ -864,8 +868,8 @@ pub(crate) fn compute_line_of_position(
 
 pub(crate) fn get_lines_between_positions(
     source_file: &impl SourceFileLike,
-    pos1: usize,
-    pos2: usize,
+    pos1: isize,
+    pos2: isize,
 ) -> usize {
     if pos1 == pos2 {
         return 0;
@@ -877,9 +881,9 @@ pub(crate) fn get_lines_between_positions(
     let lower_line = compute_line_of_position(&line_starts, lower, None);
     let upper_line = compute_line_of_position(&line_starts, upper, Some(lower_line));
     if is_negative {
-        lower_line - upper_line
+        (lower_line - upper_line).try_into().unwrap()
     } else {
-        upper_line - lower_line
+        (upper_line - lower_line).try_into().unwrap()
     }
 }
 

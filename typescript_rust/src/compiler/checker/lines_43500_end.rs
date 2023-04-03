@@ -6,23 +6,23 @@ use std::convert::TryInto;
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{
     are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic, filter, find,
-    first_or_undefined, for_each_bool, get_effective_return_type_node,
-    get_jsdoc_type_parameter_declarations, get_object_flags, get_source_file_of_node,
-    get_span_of_token_at_position, has_abstract_modifier, has_syntactic_modifier, id_text,
-    is_accessor, is_binary_expression, is_child_of_node_with_kind, is_computed_property_name,
-    is_declaration, is_declaration_name, is_function_like, is_identifier, is_in_js_file, is_let,
-    is_literal_type_node, is_omitted_expression, is_prefix_unary_expression, is_private_identifier,
-    is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
-    is_var_const, length, maybe_is_class_like, skip_trivia, text_span_end, token_to_string,
-    AllAccessorDeclarations, DiagnosticMessage, Diagnostics, EmitResolver, HasInitializerInterface,
-    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget,
-    Signature, SignatureFlags, SignatureKind, SourceFileLike, StringOrNumber, Symbol,
-    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult,
-    SyntaxKind, Ternary, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceSerializationKind,
+    first_or_undefined, for_each_bool, get_check_flags, get_effective_return_type_node,
+    get_jsdoc_type_parameter_declarations, get_object_flags, get_parse_tree_node,
+    get_source_file_of_node, get_span_of_token_at_position, has_abstract_modifier,
+    has_syntactic_modifier, id_text, is_accessor, is_binary_expression, is_child_of_node_with_kind,
+    is_computed_property_name, is_declaration, is_declaration_name, is_function_like,
+    is_identifier, is_in_js_file, is_let, is_literal_type_node, is_omitted_expression,
+    is_prefix_unary_expression, is_private_identifier, is_property_declaration, is_spread_element,
+    is_static, is_string_literal, is_type_literal_node, is_var_const, length, maybe_is_class_like,
+    skip_trivia, text_span_end, token_to_string, AllAccessorDeclarations, CheckFlags,
+    DiagnosticMessage, Diagnostics, EmitResolver, HasInitializerInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, IterationTypesKey,
+    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
+    NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, ScriptTarget, Signature, SignatureFlags, SignatureKind,
+    SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
+    SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -928,11 +928,13 @@ impl TypeChecker {
 }
 
 #[derive(Debug, Trace, Finalize)]
-pub(super) struct EmitResolverCreateResolver {}
+pub(super) struct EmitResolverCreateResolver {
+    type_checker: Gc<TypeChecker>,
+}
 
 impl EmitResolverCreateResolver {
-    pub fn new() -> Self {
-        Self {}
+    pub(super) fn new(type_checker: Gc<TypeChecker>) -> Self {
+        Self { type_checker }
     }
 }
 
@@ -980,11 +982,18 @@ impl EmitResolver for EmitResolverCreateResolver {
     }
 
     fn is_declaration_visible(&self, node: &Node /*Declaration | AnyImportSyntax*/) -> bool {
-        unimplemented!()
+        self.type_checker.is_declaration_visible(node)
     }
 
     fn is_late_bound(&self, node: &Node /*Declaration*/) -> bool {
-        unimplemented!()
+        let node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
+        let symbol = node
+            .as_ref()
+            .and_then(|node| self.type_checker.get_symbol_of_node(node));
+        matches!(
+            symbol.as_ref(),
+            Some(symbol) if get_check_flags(symbol).intersects(CheckFlags::Late)
+        )
     }
 
     fn collect_linked_aliases(

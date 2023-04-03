@@ -1144,11 +1144,11 @@ pub fn write_file_ensuring_directories<
 
 pub fn get_line_of_local_position(source_file: &Node /*SourceFile*/, pos: usize) -> usize {
     let line_starts = get_line_starts(source_file.as_source_file());
-    compute_line_of_position(&line_starts, pos, None)
+    compute_line_of_position(&line_starts, pos.try_into().unwrap(), None)
 }
 
 pub fn get_line_of_local_position_from_line_map(line_map: &[usize], pos: usize) -> usize {
-    compute_line_of_position(line_map, pos, None)
+    compute_line_of_position(line_map, pos.try_into().unwrap(), None)
 }
 
 pub fn get_first_constructor_with_body(

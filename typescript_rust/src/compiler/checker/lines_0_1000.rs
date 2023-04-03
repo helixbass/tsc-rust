@@ -827,7 +827,6 @@ pub fn create_type_checker(
             (".json", ".json"),
         ],
     };
-    type_checker.emit_resolver = Some(type_checker.create_resolver());
     type_checker.undefined_symbol = Some(
         type_checker
             .create_symbol(SymbolFlags::Property, "undefined".to_owned(), None)
@@ -1335,6 +1334,7 @@ pub fn create_type_checker(
 
     *rc_wrapped.check_binary_expression.borrow_mut() =
         Some(Gc::new(rc_wrapped.create_check_binary_expression()));
+    *rc_wrapped.emit_resolver.borrow_mut() = Some(rc_wrapped.create_resolver());
 
     rc_wrapped
 }
@@ -1539,7 +1539,7 @@ impl TypeChecker {
     }
 
     pub(super) fn emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
-        self.emit_resolver.clone().unwrap()
+        self.emit_resolver.borrow().clone().unwrap()
     }
 
     pub(super) fn check_binary_expression(&self) -> Gc<CheckBinaryExpression> {
