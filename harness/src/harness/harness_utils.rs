@@ -68,7 +68,7 @@ fn assert_invariants_worker(
             |child: &Node| {
                 queue.push((Some(child.node_wrapper()), Some(node.node_wrapper())));
             },
-            Option::<fn(&Gc<NodeArray>)>::None,
+            Option::<fn(&NodeArray)>::None,
         );
 
         let current_pos = Cell::new(0);
@@ -78,7 +78,7 @@ fn assert_invariants_worker(
                 assert!(!(child.pos() < current_pos.get()), "child.pos < currentPos");
                 current_pos.set(child.end());
             },
-            Some(|array: &Gc<NodeArray>| {
+            Some(|array: &NodeArray| {
                 assert!(!(array.pos() < node.pos()), "array.pos < node.pos");
                 assert!(!(array.end() > node.end()), "array.end > node.end");
                 assert!(!(array.pos() < current_pos.get()), "array.pos < currentPos");
@@ -103,10 +103,10 @@ fn assert_invariants_worker(
                     .borrow_mut()
                     .push(child.node_wrapper().into());
             },
-            Some(|array: &Gc<NodeArray>| {
+            Some(|array: &NodeArray| {
                 child_nodes_and_arrays
                     .borrow_mut()
-                    .push(array.clone().into());
+                    .push(array.rc_wrapper().into());
             }),
         );
 

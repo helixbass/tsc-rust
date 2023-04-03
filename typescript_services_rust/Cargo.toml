@@ -9,7 +9,9 @@ default-run = "tsserver-rust"
 [dependencies]
 # tsc-rust = { git = "https://github.com/helixbass/tsc-rust", rev = "fa1079d5" }
 typescript_rust = { path = "../typescript_rust" }
-gc = { git = "https://github.com/helixbass/rust-gc", rev = "32dfa44", features = ["derive", "serde"] }
+# gc = { git = "https://github.com/manishearth/rust-gc", rev = "6c5f754", features = ["derive", "serde"] }
+# gc = { path = "../../rust-gc/gc", features = ["derive", "serde", "unstable-config"] }
+gc = { git = "https://github.com/helixbass/rust-gc", rev = "3a7c3cc", features = ["derive", "serde"] }
 
 [lib]
 name = "typescript_services_rust"
