@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
@@ -5,6 +7,10 @@ use crate::{
 };
 
 pub fn get_original_node_id(node: &Node) -> NodeId {
+    unimplemented!()
+}
+
+pub fn maybe_get_original_node_id(node: Option<impl Borrow<Node>>) -> NodeId {
     unimplemented!()
 }
 

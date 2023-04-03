@@ -336,13 +336,9 @@ pub fn flatten<TItem: Clone>(array: &[Vec<TItem>]) -> Vec<TItem> {
     result
 }
 
-pub fn flat_map<
-    TCollection: IntoIterator,
-    TReturn: Clone,
-    TCallback: FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
->(
+pub fn flat_map<TCollection: IntoIterator, TReturn: Clone>(
     array: Option<TCollection>,
-    mut mapfn: TCallback,
+    mut mapfn: impl FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
 ) -> Vec<TReturn> {
     let mut result: Option<Vec<_>> = None;
     if let Some(array) = array {

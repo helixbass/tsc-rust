@@ -683,23 +683,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         unimplemented!()
     }
 
-    pub fn create_class_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        THeritageClauses: Into<NodeArrayOrVec>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_class_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName /*string | Identifier*/>,
-        type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
-        heritage_clauses: Option<THeritageClauses /*<HeritageClause>*/>,
-        members: TMembers, /*<ClassElement>*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<
+            impl Into<StrOrRcNode<'name>>,
+            /*string | Identifier*/
+        >,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        heritage_clauses: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<HeritageClause>*/
+        >,
+        members: impl Into<NodeArrayOrVec>, /*<ClassElement>*/
     ) -> ClassDeclaration {
         let node = self.create_base_class_like_declaration(
             base_factory,
@@ -728,23 +729,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_interface_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        THeritageClauses: Into<NodeArrayOrVec>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_class_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
-        type_parameters: Option<TTypeParameters>,
-        heritage_clauses: Option<THeritageClauses>,
-        members: TMembers,
+        node: &Node, /*ClassDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<Gc<Node>>,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        heritage_clauses: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<HeritageClause>*/
+        >,
+        members: impl Into<NodeArrayOrVec>, /*<ClassElement>*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_interface_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        heritage_clauses: Option<impl Into<NodeArrayOrVec>>,
+        members: impl Into<NodeArrayOrVec>,
     ) -> InterfaceDeclaration {
         let node = self.create_base_interface_or_class_like_declaration(
             base_factory,
@@ -760,19 +773,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_alias_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_interface_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
-        type_parameters: Option<TTypeParameters>,
+        node: &Node, /*InterfaceDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        heritage_clauses: Option<impl Into<NodeArrayOrVec>>,
+        members: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_type_alias_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
         type_: Gc<Node /*TypeNode*/>,
     ) -> TypeAliasDeclaration {
         let node = self.create_base_generic_named_declaration(
@@ -788,19 +809,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_enum_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_type_alias_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
-        members: Option<TMembers>,
+        node: &Node, /*TypeAliasDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_enum_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        members: Option<impl Into<NodeArrayOrVec>>,
     ) -> EnumDeclaration {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -817,6 +845,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_enum_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*EnumDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node>,
+        members: Option<impl Into<NodeArrayOrVec>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_module_declaration(
@@ -860,6 +900,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_module_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ModuleDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node /*ModuleName*/>,
+        body: Option<Gc<Node /*ModuleBody*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_module_block(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -869,6 +921,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ModuleBlock::new(node, self.create_node_array(statements, None));
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
+    }
+
+    pub fn update_module_block(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ModuleBlock*/
+        statements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_case_block<TClauses: Into<NodeArrayOrVec>>(

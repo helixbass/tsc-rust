@@ -89,10 +89,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_enum_member<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_enum_member<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: TName, /*Identifier*/
+        name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> EnumMember {
         let node = self.create_base_node(base_factory, SyntaxKind::EnumMember);
@@ -110,6 +110,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsTypeScript,
         );
         node
+    }
+
+    pub fn update_enum_member(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*EnumMember*/
+        name: Gc<Node>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_source_file<TStatements: Into<NodeArrayOrVec>>(

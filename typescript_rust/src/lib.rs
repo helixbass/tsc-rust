@@ -164,12 +164,12 @@ pub use compiler::factory::parenthesizer_rules::{
 };
 use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
-    create_binary_expression_trampoline, create_empty_exports, find_use_strict_prologue,
-    get_elements_of_binding_or_assignment_pattern, get_external_helpers_module_name,
-    get_jsdoc_type_assertion_type, get_target_of_binding_or_assignment_element,
-    has_recorded_external_helpers, is_comma_sequence, is_jsdoc_type_assertion, is_local_name,
-    is_outer_expression, skip_outer_expressions, starts_with_use_strict,
-    BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
+    can_have_modifiers, create_binary_expression_trampoline, create_empty_exports,
+    find_use_strict_prologue, get_elements_of_binding_or_assignment_pattern,
+    get_external_helpers_module_name, get_jsdoc_type_assertion_type,
+    get_target_of_binding_or_assignment_element, has_recorded_external_helpers, is_comma_sequence,
+    is_jsdoc_type_assertion, is_local_name, is_outer_expression, skip_outer_expressions,
+    starts_with_use_strict, BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
 pub use compiler::factory::utilities_public::{
     set_text_range, set_text_range_node_array, set_text_range_rc_node,
@@ -191,9 +191,10 @@ pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively,
     for_each_child_recursively_bool, for_each_child_returns, is_external_module,
     parse_base_node_factory, parse_isolated_entity_name, parse_json_text, parse_node_factory,
-    ForEachChildRecursivelyCallbackReturn, IncrementalParser, IncrementalParserSyntaxCursor,
-    IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
-    IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
+    with_parse_base_node_factory_and_factory, ForEachChildRecursivelyCallbackReturn,
+    IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface,
+    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
     is_declaration_file_name, is_jsdoc_like_text, process_comment_pragmas,
@@ -265,7 +266,9 @@ pub use compiler::transformers::declarations::diagnostics::{
     GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
     SymbolAccessibilityDiagnostic,
 };
-pub use compiler::transformers::utilities::{chain_bundle, get_original_node_id};
+pub use compiler::transformers::utilities::{
+    chain_bundle, get_original_node_id, maybe_get_original_node_id,
+};
 pub use compiler::transformers::{
     is_internal_declaration, transform_class_fields, transform_declarations,
     transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
@@ -538,9 +541,9 @@ pub use compiler::utilities::{
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_same_entity_name,
     is_shorthand_ambient_module_symbol, is_signed_numeric_literal, is_single_or_double_quote,
     is_source_file_js, is_source_file_not_json, is_special_property_declaration,
-    is_statement_with_locals, is_static, is_string_double_quoted,
-    is_string_or_numeric_literal_like, is_super_call, is_super_property, is_this_identifier,
-    is_this_in_type_query, is_this_initialized_declaration,
+    is_statement_with_locals, is_static, is_string_a_non_contextual_keyword,
+    is_string_double_quoted, is_string_or_numeric_literal_like, is_super_call, is_super_property,
+    is_this_identifier, is_this_in_type_query, is_this_initialized_declaration,
     is_this_initialized_object_binding_expression, is_this_property, is_transient_symbol,
     is_type_alias, is_type_node_kind, is_umd_export_symbol, is_valid_es_symbol_declaration,
     is_valid_type_only_alias_use_site, is_value_signature_declaration, is_var_const,

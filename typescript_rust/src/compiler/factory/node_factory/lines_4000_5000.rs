@@ -115,14 +115,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_export_assignment<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_export_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_export_equals: Option<bool>,
         expression: Gc<Node /*Expression*/>,
     ) -> ExportAssignment {
@@ -155,14 +152,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_export_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_export_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        node: &Node, /*ExportAssignment*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_export_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
         export_clause: Option<Gc<Node /*NamedExportBindings*/>>,
         module_specifier: Option<Gc<Node /*Expression*/>>,
@@ -191,10 +196,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_named_exports<TElements: Into<NodeArrayOrVec>>(
+    pub fn update_export_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements,
+        node: &Node, /*ExportDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        is_type_only: bool,
+        export_clause: Option<Gc<Node /*NamedExportBindings*/>>,
+        module_specifier: Option<Gc<Node /*Expression*/>>,
+        assert_clause: Option<Gc<Node /*AssertClause*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_named_exports(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: impl Into<NodeArrayOrVec>,
     ) -> NamedExports {
         let node = self.create_base_node(base_factory, SyntaxKind::NamedExports);
         let mut node = NamedExports::new(node, self.create_node_array(Some(elements), None));
@@ -205,17 +224,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_export_specifier<
-        'property_name,
-        'name,
-        TPropertyName: Into<StrOrRcNode<'property_name>>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn create_export_specifier<'property_name, 'name>(
         &self,
         base_factory: &TBaseNodeFactory,
         is_type_only: bool,
-        property_name: Option<TPropertyName /*Identifier*/>,
-        name: TName, /*Identifier*/
+        property_name: Option<
+            impl Into<StrOrRcNode<'property_name>>,
+            /*Identifier*/
+        >,
+        name: impl Into<StrOrRcNode<'name>>,
+        /*Identifier*/
     ) -> ExportSpecifier {
         let node = self.create_base_node(base_factory, SyntaxKind::ExportSpecifier);
         let mut node = ExportSpecifier::new(
@@ -951,11 +969,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_heritage_clause<TTypes: Into<NodeArrayOrVec>>(
+    pub fn create_heritage_clause(
         &self,
         base_factory: &TBaseNodeFactory,
-        token: SyntaxKind, /*HeritageClause["token"]*/
-        types: TTypes,     /*<ExpressionWithTypeArguments>*/
+        token: SyntaxKind,                /*HeritageClause["token"]*/
+        types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
     ) -> HeritageClause {
         let node = self.create_base_node(base_factory, SyntaxKind::HeritageClause);
         let mut node = HeritageClause::new(node, token, self.create_node_array(Some(types), None));
@@ -970,6 +988,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             _ => Debug_.assert_never(token, None),
         }
         node
+    }
+
+    pub fn update_heritage_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,                      /*HeritageClause*/
+        types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_catch_clause<

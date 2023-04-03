@@ -14,6 +14,7 @@ use crate::{
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
+    base_factory: &TBaseNodeFactory,
     factory: &NodeFactory<TBaseNodeFactory>,
 ) -> Gc<Node> {
     unimplemented!()
@@ -178,8 +179,8 @@ pub fn get_elements_of_binding_or_assignment_pattern(
     }
 }
 
-pub(crate) fn get_jsdoc_type_alias_name<TFullName: Borrow<Node>>(
-    full_name: Option<TFullName /*JSDocNamespaceBody*/>,
+pub(crate) fn get_jsdoc_type_alias_name(
+    full_name: Option<impl Borrow<Node> /*JSDocNamespaceBody*/>,
 ) -> Option<Gc<Node /*Identifier*/>> {
     full_name.map(|full_name| {
         let full_name = full_name.borrow();
@@ -195,6 +196,10 @@ pub(crate) fn get_jsdoc_type_alias_name<TFullName: Borrow<Node>>(
             right_node = right_node.as_module_declaration().body.clone().unwrap();
         }
     })
+}
+
+pub fn can_have_modifiers(node: &Node) -> bool {
+    unimplemented!()
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

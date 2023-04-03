@@ -639,7 +639,7 @@ impl TransformDeclarations {
             let result = self.transform_top_level_declaration(i);
             self.set_needs_declare(prior_needs_declare);
             self.late_statement_replacement_map_mut()
-                .insert(get_original_node_id(i), result.map(Into::into));
+                .insert(get_original_node_id(i), result);
         }
 
         visit_nodes(

@@ -12,16 +12,25 @@ use crate::{
     add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
     maybe_append_if_unique_gc, maybe_append_if_unique_rc, parse_base_node_factory,
     parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BuildInfo, Debug_, EmitFlags, EmitNode, InputFiles, LanguageVariant, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget,
-    SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    BuildInfo, Debug_, EmitFlags, EmitNode, InputFiles, LanguageVariant, ModifierFlags, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner,
+    ScriptTarget, SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode,
+    StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub(super) fn as_node_array<TArray: Into<NodeArrayOrVec>>(
+    pub fn update_modifiers(
         &self,
-        array: Option<TArray>,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*HasModifiers*/
+        modifiers: impl Into<VecNodeOrModifierFlags>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn as_node_array(
+        &self,
+        array: Option<impl Into<NodeArrayOrVec>>,
     ) -> Option<Gc<NodeArray>> {
         array.map(|array| self.create_node_array(Some(array), None))
     }
@@ -79,6 +88,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else {
             statement
         }
+    }
+}
+
+pub enum VecNodeOrModifierFlags {
+    VecNode(Vec<Gc<Node>>),
+    ModifierFlags(ModifierFlags),
+}
+
+impl From<Vec<Gc<Node>>> for VecNodeOrModifierFlags {
+    fn from(value: Vec<Gc<Node>>) -> Self {
+        Self::VecNode(value)
+    }
+}
+
+impl From<ModifierFlags> for VecNodeOrModifierFlags {
+    fn from(value: ModifierFlags) -> Self {
+        Self::ModifierFlags(value)
     }
 }
 

@@ -314,7 +314,7 @@ impl VisitResultInterface for VisitResult {
     }
 
     fn into_single_node(self) -> Gc<Node> {
-        self.unwrap().as_single_node().clone()
+        self.unwrap().as_single_node()
     }
 }
 
@@ -333,8 +333,8 @@ impl SingleNodeOrVecNode {
     // fn as_vec_node(self) -> Vec<Gc<Node>> {
     //     enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
     // }
-    pub fn as_single_node(&self) -> &Gc<Node> {
-        enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode])
+    pub fn as_single_node(&self) -> Gc<Node> {
+        enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode]).clone()
     }
 
     pub fn as_vec_node(&self) -> &Vec<Gc<Node>> {

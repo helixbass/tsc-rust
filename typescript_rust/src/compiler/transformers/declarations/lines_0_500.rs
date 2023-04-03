@@ -395,6 +395,10 @@ impl TransformDeclarations {
         self.error_fallback_node.borrow().clone()
     }
 
+    pub(super) fn set_error_fallback_node(&self, error_fallback_node: Option<Gc<Node>>) {
+        *self.error_fallback_node.borrow_mut() = error_fallback_node;
+    }
+
     pub(super) fn current_source_file(&self) -> Gc<Node> {
         self.current_source_file.borrow().clone().unwrap()
     }
@@ -832,7 +836,11 @@ impl TransformDeclarations {
                     self.factory.create_node_array(
                         Some({
                             let mut combined_statements = combined_statements.to_vec();
-                            combined_statements.push(create_empty_exports(&self.factory));
+                            combined_statements.push(with_synthetic_factory(
+                                |synthetic_factory_| {
+                                    create_empty_exports(synthetic_factory_, &self.factory)
+                                },
+                            ));
                             combined_statements
                         }),
                         None,

@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use gc::{Gc, GcCellRef};
-use std::{cell::RefCell, ptr};
+use std::{borrow::Borrow, cell::RefCell, ptr};
 
 use super::{
     aggregate_children_flags, propagate_child_flags, propagate_children_flags,
@@ -999,10 +999,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         BaseLiteralLikeNode::new(node, text)
     }
 
-    pub fn create_numeric_literal<TValue: Into<StringOrNumber>>(
+    pub fn create_numeric_literal(
         &self,
         base_factory: &TBaseNodeFactory,
-        value: TValue,
+        value: impl Into<StringOrNumber>,
         numeric_literal_flags: Option<TokenFlags>,
     ) -> NumericLiteral {
         let numeric_literal_flags = numeric_literal_flags.unwrap_or(TokenFlags::None);
@@ -1208,6 +1208,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         text: &str,
+        flags: Option<GeneratedIdentifierFlags>,
+    ) -> Gc<Node /*Identifier*/> {
+        let flags = flags.unwrap_or_default();
+        unimplemented!()
+    }
+
+    pub fn get_generated_name_for_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: Option<impl Borrow<Node>>,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> Gc<Node /*Identifier*/> {
         let flags = flags.unwrap_or_default();

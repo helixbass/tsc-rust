@@ -1,9 +1,16 @@
 use gc::Gc;
 
 use super::TransformDeclarations;
-use crate::{AllAccessorDeclarations, ModifierFlags, Node, NodeArrayOrVec};
+use crate::{AllAccessorDeclarations, ModifierFlags, Node, NodeArray, NodeArrayOrVec};
 
 impl TransformDeclarations {
+    pub(super) fn transform_variable_statement(
+        &self,
+        input: &Node, /*VariableStatement*/
+    ) -> Option<Gc<Node>> {
+        unimplemented!()
+    }
+
     pub(super) fn recreate_binding_pattern(
         &self,
         d: &Node, /*BindingPattern*/
@@ -19,6 +26,10 @@ impl TransformDeclarations {
         unimplemented!()
     }
 
+    pub(super) fn has_scope_marker(&self, statements: &NodeArray) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn ensure_modifiers(&self, node: &Node) -> Option<NodeArrayOrVec> {
         unimplemented!()
     }
@@ -28,6 +39,13 @@ impl TransformDeclarations {
         node: &Node, /*AccessorDeclaration*/
         accessors: &AllAccessorDeclarations,
     ) -> Option<Gc<Node>> {
+        unimplemented!()
+    }
+
+    pub(super) fn transform_heritage_clauses(
+        &self,
+        nodes: Option<&NodeArray /*<HeritageClause>*/>,
+    ) -> Gc<NodeArray> {
         unimplemented!()
     }
 }
@@ -41,6 +59,10 @@ pub(super) fn mask_modifiers(
 }
 
 pub(super) fn can_have_literal_initializer(node: &Node) -> bool {
+    unimplemented!()
+}
+
+pub(super) fn is_preserved_declaration_statement(node: &Node) -> bool {
     unimplemented!()
 }
 
