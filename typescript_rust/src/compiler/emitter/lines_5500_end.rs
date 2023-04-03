@@ -7,10 +7,12 @@ use std::rc::Rc;
 
 use super::{brackets, PipelinePhase};
 use crate::{
-    emit_detached_comments, for_each_leading_comment_range, for_each_trailing_comment_range,
-    is_recognized_triple_slash_comment, last, try_parse_raw_source_map, write_comment_range,
-    EmitHint, EmitTextWriter, ListFormat, Node, Printer, RawSourceMap, ReadonlyTextRange,
-    SourceFileLike, SourceMapSource, SourceTextAsChars, SyntaxKind,
+    emit_detached_comments, file_extension_is, for_each_leading_comment_range,
+    for_each_trailing_comment_range, get_line_and_character_of_position,
+    is_recognized_triple_slash_comment, last, position_is_synthesized, try_parse_raw_source_map,
+    write_comment_range, EmitHint, EmitTextWriter, Extension, LineAndCharacter, ListFormat, Node,
+    Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike, SourceMapSource, SourceTextAsChars,
+    SyntaxKind,
 };
 
 impl Printer {
@@ -352,7 +354,25 @@ impl Printer {
     }
 
     pub(super) fn emit_pos(&self, pos: isize) {
-        unimplemented!()
+        if self.source_maps_disabled()
+            || position_is_synthesized(pos)
+            || self.is_json_source_map_source(&self.source_map_source())
+        {
+            return;
+        }
+
+        let LineAndCharacter {
+            line: source_line,
+            character: source_character,
+        } = get_line_and_character_of_position(&*self.source_map_source(), pos.try_into().unwrap());
+        self.source_map_generator().add_mapping(
+            self.writer().get_line(),
+            self.writer().get_column(),
+            self.source_map_source_index(),
+            source_line,
+            source_character,
+            None,
+        );
     }
 
     pub(super) fn set_source_map_source(&self, source: Gc<SourceMapSource>) {
@@ -394,7 +414,7 @@ impl Printer {
     }
 
     pub(super) fn is_json_source_map_source(&self, source_file: &SourceMapSource) -> bool {
-        unimplemented!()
+        file_extension_is(&source_file.file_name(), Extension::Json.to_str())
     }
 }
 

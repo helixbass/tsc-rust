@@ -712,6 +712,15 @@ pub struct RawSourceMap {
 pub trait SourceMapGenerator: Trace + Finalize {
     fn get_sources(&self) -> Vec<String>;
     fn add_source(&self, file_name: &str) -> usize;
+    fn add_mapping(
+        &self,
+        generated_line: usize,
+        generated_character: usize,
+        source_index: isize,
+        source_line: usize,
+        source_character: usize,
+        name_index: Option<usize>,
+    );
     fn to_json(&self) -> RawSourceMap;
     fn to_string(&self) -> String;
 }

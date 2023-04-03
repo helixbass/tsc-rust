@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
@@ -14,10 +14,10 @@ use super::{
     SynthesizedComment, TextRange,
 };
 use crate::{
-    CancellationToken, Cloneable, ModuleResolutionCache,
+    ref_unwrapped, CancellationToken, Cloneable, ModuleResolutionCache,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ParseConfigHost, ParsedCommandLine,
-    Path, ProgramBuildInfo, ReadonlyTextRange, ResolveModuleNameResolutionHost, StringOrNumber,
-    SymlinkCache,
+    Path, ProgramBuildInfo, ReadonlyTextRange, ResolveModuleNameResolutionHost, SourceFileLike,
+    SourceTextAsChars, StringOrNumber, SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {
@@ -581,6 +581,52 @@ impl SourceMapSource {
     }
 }
 
+impl SourceFileLike for SourceMapSource {
+    fn text(&self) -> Ref<String> {
+        match self {
+            Self::SourceFile(value) => value.as_source_file().text(),
+            Self::SourceMapSourceConcrete(value) => value.text(),
+        }
+    }
+
+    fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
+        match self {
+            Self::SourceFile(value) => value.as_source_file().text_as_chars(),
+            Self::SourceMapSourceConcrete(value) => value.text_as_chars(),
+        }
+    }
+
+    fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {
+        match self {
+            Self::SourceFile(value) => value.as_source_file().maybe_line_map(),
+            Self::SourceMapSourceConcrete(value) => value.maybe_line_map(),
+        }
+    }
+
+    fn line_map(&self) -> Ref<Vec<usize>> {
+        match self {
+            Self::SourceFile(value) => value.as_source_file().line_map(),
+            Self::SourceMapSourceConcrete(value) => value.line_map(),
+        }
+    }
+
+    fn maybe_get_position_of_line_and_character(
+        &self,
+        line: usize,
+        character: usize,
+        allow_edits: Option<bool>,
+    ) -> Option<usize> {
+        match self {
+            Self::SourceFile(value) => value
+                .as_source_file()
+                .maybe_get_position_of_line_and_character(line, character, allow_edits),
+            Self::SourceMapSourceConcrete(value) => {
+                value.maybe_get_position_of_line_and_character(line, character, allow_edits)
+            }
+        }
+    }
+}
+
 impl From<Gc<Node /*SourceFile*/>> for SourceMapSource {
     fn from(value: Gc<Node>) -> Self {
         Self::SourceFile(value)
@@ -596,9 +642,31 @@ impl From<SourceMapSourceConcrete> for SourceMapSource {
 #[derive(Trace, Finalize)]
 pub struct SourceMapSourceConcrete {
     pub file_name: String,
-    pub text: String,
-    pub(crate) line_map: Vec<usize>,
+    #[unsafe_ignore_trace]
+    text: RefCell<String>,
+    #[unsafe_ignore_trace]
+    text_as_chars: RefCell<SourceTextAsChars>,
+    #[unsafe_ignore_trace]
+    line_map: RefCell<Option<Vec<usize>>>,
     pub skip_trivia: Option<Gc<Box<dyn SkipTrivia>>>,
+}
+
+impl SourceMapSourceConcrete {
+    pub fn new(
+        file_name: String,
+        text: String,
+        text_as_chars: SourceTextAsChars,
+        line_map: Option<Vec<usize>>,
+        skip_trivia: Option<Gc<Box<dyn SkipTrivia>>>,
+    ) -> Self {
+        Self {
+            file_name,
+            text: RefCell::new(text),
+            text_as_chars: RefCell::new(text_as_chars),
+            line_map: RefCell::new(line_map),
+            skip_trivia,
+        }
+    }
 }
 
 pub trait SkipTrivia: Trace + Finalize {
@@ -608,6 +676,33 @@ pub trait SkipTrivia: Trace + Finalize {
 impl fmt::Debug for SourceMapSourceConcrete {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SourceMapSource").finish()
+    }
+}
+
+impl SourceFileLike for SourceMapSourceConcrete {
+    fn text(&self) -> Ref<String> {
+        self.text.borrow()
+    }
+
+    fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
+        self.text_as_chars.borrow()
+    }
+
+    fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {
+        self.line_map.borrow_mut()
+    }
+
+    fn line_map(&self) -> Ref<Vec<usize>> {
+        ref_unwrapped(&self.line_map)
+    }
+
+    fn maybe_get_position_of_line_and_character(
+        &self,
+        line: usize,
+        character: usize,
+        allow_edits: Option<bool>,
+    ) -> Option<usize> {
+        None
     }
 }
 

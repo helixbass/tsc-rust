@@ -1691,6 +1691,10 @@ impl Printer {
         self.source_map_generator.borrow().clone().unwrap()
     }
 
+    pub(super) fn source_map_source(&self) -> Gc<SourceMapSource> {
+        self.source_map_source.borrow().clone().unwrap()
+    }
+
     pub(super) fn set_source_map_source_(&self, source_map_source: Option<Gc<SourceMapSource>>) {
         *self.source_map_source.borrow_mut() = source_map_source;
     }
