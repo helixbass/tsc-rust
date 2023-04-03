@@ -260,7 +260,7 @@ impl Program {
         transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
     ) -> EmitResult {
-        return super::emit_skipped_with_no_diagnostics();
+        // return super::emit_skipped_with_no_diagnostics();
         // tracing?.push(tracing.Phase.Emit, "emit", { path: sourceFile?.path }, /*separateBeginAndEnd*/ true);
         let result = self.run_with_cancellation_token(|| {
             self.emit_worker(

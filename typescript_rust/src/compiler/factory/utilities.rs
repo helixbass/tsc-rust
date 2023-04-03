@@ -5,12 +5,12 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag,
+    first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag, get_original_node,
     is_assignment_expression, is_declaration_binding_element, is_identifier, is_in_js_file,
     is_object_literal_element_like, is_parenthesized_expression, is_prologue_directive,
-    is_spread_element, is_string_literal, push_or_replace, AssertionLevel, BaseNodeFactory, Debug_,
-    EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
-    NodeFactory, NodeInterface, OuterExpressionKinds, SyntaxKind,
+    is_source_file, is_spread_element, is_string_literal, push_or_replace, AssertionLevel,
+    BaseNodeFactory, Debug_, EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeFactory, NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -112,7 +112,19 @@ pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Gc
 }
 
 pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool {
-    unimplemented!()
+    let parse_node = get_original_node(
+        Some(source_file),
+        Some(|node: Option<Gc<Node>>| is_source_file(node.as_ref().unwrap())),
+    );
+    let emit_node = parse_node.and_then(|parse_node| parse_node.maybe_emit_node());
+    matches!(
+        emit_node,
+        Some(emit_node) if {
+            let emit_node = (*emit_node).borrow();
+            emit_node.external_helpers_module_name.is_some() ||
+                emit_node.external_helpers == Some(true)
+        }
+    )
 }
 
 pub fn get_target_of_binding_or_assignment_element(
