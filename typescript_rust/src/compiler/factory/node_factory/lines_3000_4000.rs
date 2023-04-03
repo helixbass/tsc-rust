@@ -216,6 +216,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_variable_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*VariableStatement*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        declaration_list: Gc<Node /*VariableDeclarationList*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_empty_statement(&self, base_factory: &TBaseNodeFactory) -> EmptyStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::EmptyStatement);
         EmptyStatement::new(node)
@@ -605,6 +615,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             );
         }
         node
+    }
+
+    pub fn update_variable_declaration_list(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*VariableDeclarationList*/
+        declarations: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_function_declaration<
