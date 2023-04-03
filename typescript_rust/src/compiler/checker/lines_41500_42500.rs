@@ -1217,7 +1217,7 @@ impl TypeChecker {
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
         ) {
             let accessors = get_all_accessor_declarations(
-                node.parent().as_class_like_declaration().members(),
+                &node.parent().as_class_like_declaration().members(),
                 node,
             );
             if accessors.first_accessor.maybe_decorators().is_some()

@@ -1,6 +1,6 @@
 use gc::Gc;
 
-use crate::{set_text_range_pos_end, Node, ReadonlyTextRange};
+use crate::{set_text_range_pos_end, Node, NodeArray, ReadonlyTextRange};
 
 pub fn set_text_range<'a, TRange: ReadonlyTextRange>(
     range: &'a TRange,
@@ -21,4 +21,12 @@ pub fn set_text_range_rc_node(
 ) -> Gc<Node> {
     set_text_range(&*node, location);
     node
+}
+
+pub fn set_text_range_node_array(
+    node_array: Gc<NodeArray>,
+    location: Option<&impl ReadonlyTextRange>,
+) -> Gc<NodeArray> {
+    set_text_range(&*node_array, location);
+    node_array
 }

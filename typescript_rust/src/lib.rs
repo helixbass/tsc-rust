@@ -40,25 +40,25 @@ pub use compiler::core::{
     arrays_equal, binary_search, binary_search_copy_key, cartesian_product, cast, cast_present,
     clear, clone, compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, comparison_to_ordering, concatenate,
-    contains, contains_gc, contains_rc, count_where, create_get_canonical_file_name,
-    create_multi_map, create_underscore_escaped_multi_map, deduplicate_gc, deduplicate_rc,
-    ends_with, equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values,
-    every, filter, filter_iter, filter_mutate, filter_owning, find, find_best_pattern_match,
-    find_index, find_last, find_last_index, find_last_index_returns_isize, first, first_defined,
-    first_or_undefined, flat_map, flat_map_to_mutable, flatten, for_each, for_each_bool,
-    get_or_update, get_or_update_indexmap, get_ranges_where, get_spelling_suggestion,
-    get_string_comparer, identity_str_to_cow, identity_str_to_owned, index_of_any_char_code,
-    insert_sorted, last, last_or_undefined, length, map, map_defined, matched_text,
-    maybe_add_range, maybe_append_if_unique_gc, maybe_append_if_unique_rc, maybe_concatenate,
-    maybe_every, maybe_filter, maybe_first_defined, maybe_for_each, maybe_for_each_bool, maybe_map,
-    maybe_same_map, not_implemented, ordered_remove_item_at, pad_left, pad_right, pattern_text,
-    push_if_unique_gc, push_if_unique_rc, range_equals_gc, range_equals_rc, reduce_left,
-    reduce_left_no_initial_value, reduce_left_no_initial_value_optional, relative_complement,
-    remove_prefix, remove_suffix, replace_element, same_map, set_ui_locale, single_element_array,
-    single_or_undefined, some, sort, sort_and_deduplicate, stable_sort, starts_with,
-    string_contains, sum, to_file_name_lower_case, trim_string, trim_string_end, trim_string_start,
-    try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap, Pattern,
-    UnderscoreEscapedMultiMap,
+    contains, contains_comparer, contains_gc, contains_rc, count_where,
+    create_get_canonical_file_name, create_multi_map, create_underscore_escaped_multi_map,
+    deduplicate_gc, deduplicate_rc, ends_with, equate_strings_case_insensitive,
+    equate_strings_case_sensitive, equate_values, every, filter, filter_iter, filter_mutate,
+    filter_owning, find, find_best_pattern_match, find_index, find_last, find_last_index,
+    find_last_index_returns_isize, first, first_defined, first_or_undefined, flat_map,
+    flat_map_to_mutable, flatten, for_each, for_each_bool, get_or_update, get_or_update_indexmap,
+    get_ranges_where, get_spelling_suggestion, get_string_comparer, identity_str_to_cow,
+    identity_str_to_owned, index_of_any_char_code, insert_sorted, last, last_or_undefined, length,
+    map, map_defined, matched_text, maybe_add_range, maybe_append_if_unique_gc,
+    maybe_append_if_unique_rc, maybe_concatenate, maybe_every, maybe_filter, maybe_first_defined,
+    maybe_for_each, maybe_for_each_bool, maybe_map, maybe_same_map, not_implemented,
+    ordered_remove_item_at, pad_left, pad_right, pattern_text, push_if_unique_gc,
+    push_if_unique_rc, range_equals_gc, range_equals_rc, reduce_left, reduce_left_no_initial_value,
+    reduce_left_no_initial_value_optional, relative_complement, remove_prefix, remove_suffix,
+    replace_element, same_map, set_ui_locale, single_element_array, single_or_undefined, some,
+    sort, sort_and_deduplicate, stable_sort, starts_with, string_contains, sum,
+    to_file_name_lower_case, trim_string, trim_string_end, trim_string_start, try_add_to_set,
+    try_cast, AssertionLevel, Cloneable, MultiMap, Pattern, UnderscoreEscapedMultiMap,
 };
 pub use compiler::core_public::{
     version, version_major_minor, Comparer, Comparison, MapLike, Push, ReadonlyCollection,
@@ -72,28 +72,30 @@ pub use compiler::emitter::{
 };
 use compiler::emitter::{
     emit_files, get_build_info, get_common_source_directory, get_common_source_directory_of_config,
-    get_output_declaration_file_name, get_output_paths_for_bundle, is_build_info_file,
-    EmitBinaryExpression,
+    get_output_declaration_file_name, get_output_paths_for, get_output_paths_for_bundle,
+    is_build_info_file, EmitBinaryExpression,
 };
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
 use compiler::factory::emit_helpers::compare_emit_helpers;
-pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
+pub use compiler::factory::emit_helpers::{
+    advanced_async_super_helper, async_super_helper, create_emit_helper_factory, EmitHelperFactory,
+};
 pub use compiler::factory::emit_node::{
-    add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, get_comment_range,
-    get_constant_value, get_emit_helpers, get_synthetic_leading_comments,
-    get_synthetic_trailing_comments, set_comment_range, set_emit_flags,
-    set_synthetic_leading_comments,
+    add_emit_flags, add_emit_helper, add_emit_helpers, add_synthetic_leading_comment,
+    dispose_emit_nodes, get_comment_range, get_constant_value, get_emit_helpers,
+    get_synthetic_leading_comments, get_synthetic_trailing_comments, set_comment_range,
+    set_comment_range_rc, set_emit_flags, set_source_map_range, set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,
 };
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
-    create_input_files, create_node_factory, factory, has_option_node_array_changed,
-    set_original_node, synthetic_factory, with_factory, with_synthetic_factory,
-    with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, MaybeChangedNodeArray,
+    create_input_files, create_node_factory, create_unparsed_source_file, factory, get_factory,
+    has_option_node_array_changed, set_original_node, synthetic_factory, with_factory,
+    with_synthetic_factory, with_synthetic_factory_and_factory, BaseNodeFactorySynthetic,
     NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
     StringOrRcNode, SyntaxKindOrRcNode,
 };
@@ -162,14 +164,16 @@ pub use compiler::factory::parenthesizer_rules::{
 };
 use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
-    create_binary_expression_trampoline, find_use_strict_prologue,
-    get_elements_of_binding_or_assignment_pattern, get_external_helpers_module_name,
-    get_jsdoc_type_assertion_type, get_target_of_binding_or_assignment_element,
-    has_recorded_external_helpers, is_comma_sequence, is_jsdoc_type_assertion, is_local_name,
-    is_outer_expression, skip_outer_expressions, starts_with_use_strict,
-    BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
+    can_have_modifiers, create_binary_expression_trampoline, create_empty_exports,
+    find_use_strict_prologue, get_elements_of_binding_or_assignment_pattern,
+    get_external_helpers_module_name, get_jsdoc_type_assertion_type,
+    get_target_of_binding_or_assignment_element, has_recorded_external_helpers, is_comma_sequence,
+    is_jsdoc_type_assertion, is_local_name, is_outer_expression, skip_outer_expressions,
+    starts_with_use_strict, BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
-pub use compiler::factory::utilities_public::{set_text_range, set_text_range_rc_node};
+pub use compiler::factory::utilities_public::{
+    set_text_range, set_text_range_node_array, set_text_range_rc_node,
+};
 use compiler::module_name_resolver::{
     create_mode_aware_cache, get_package_json_types_version_paths,
     get_package_name_from_types_package_name, get_package_scope_for_path, get_types_package_name,
@@ -187,9 +191,10 @@ pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively,
     for_each_child_recursively_bool, for_each_child_returns, is_external_module,
     parse_base_node_factory, parse_isolated_entity_name, parse_json_text, parse_node_factory,
-    ForEachChildRecursivelyCallbackReturn, IncrementalParser, IncrementalParserSyntaxCursor,
-    IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
-    IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
+    with_parse_base_node_factory_and_factory, ForEachChildRecursivelyCallbackReturn,
+    IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface,
+    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
     is_declaration_file_name, is_jsdoc_like_text, process_comment_pragmas,
@@ -256,8 +261,16 @@ pub use compiler::transformer::{
     get_transformers, no_emit_notification, no_emit_substitution, null_transformation_context,
     transform_nodes, TransformNodesTransformationResult, WrapCustomTransformerFactoryHandleDefault,
 };
+pub use compiler::transformers::declarations::diagnostics::{
+    can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,
+    GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
+    SymbolAccessibilityDiagnostic,
+};
+pub use compiler::transformers::utilities::{
+    chain_bundle, get_original_node_id, maybe_get_original_node_id,
+};
 pub use compiler::transformers::{
-    chain_bundle, is_internal_declaration, transform_class_fields, transform_declarations,
+    is_internal_declaration, transform_class_fields, transform_declarations,
     transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
     transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
     transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
@@ -333,12 +346,11 @@ pub use compiler::types::{
     IntersectionTypeNode, IntrinsicType, IntrinsicTypeInterface, IterationTypeCacheKey, JSDoc,
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocHeritageTagInterface,
     JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
-    JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
-    JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute, JsxAttributes,
-    JsxClosingElement, JsxClosingFragment, JsxElement, JsxEmit, JsxExpression, JsxFlags,
-    JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxOpeningLikeElementInterface,
+    JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
+    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
+    JSDocTypeLiteral, JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute,
+    JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxEmit, JsxExpression,
+    JsxFlags, JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxOpeningLikeElementInterface,
     JsxSelfClosingElement, JsxSpreadAttribute, JsxText, KeywordTypeNode, LabeledStatement,
     LanguageVariant, LexicalEnvironmentFlags, LibFile, LineAndCharacter, ListFormat,
     LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, LiteralTypeNode, MappedSymbol,
@@ -349,20 +361,20 @@ pub use compiler::types::{
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface,
     NamedExports, NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration,
     NamespaceImport, NewExpression, NewLineKind, Node, NodeArray, NodeArrayOrVec, NodeBuilderFlags,
-    NodeCheckFlags, NodeConverters, NodeFactory, NodeFlags, NodeId, NodeInterface, NodeLinks,
-    NodeLinksSerializedType, NonNullExpression, NotActuallyInterfaceType, NumberLiteralType,
-    NumericLiteral, ObjectBindingPattern, ObjectFlags, ObjectFlagsTypeInterface,
-    ObjectLiteralExpression, ObjectType, ObjectTypeInterface, OmittedExpression, OptionalTypeNode,
-    OuterExpressionKinds, PackageId, ParameterDeclaration, ParenthesizedExpression,
-    ParenthesizedTypeNode, ParenthesizerRules, ParseConfigHost, ParsedCommandLine,
-    ParsedCommandLineWithBaseOptions, PartiallyEmittedExpression, Path, PatternAmbientModule,
-    PluginImport, PollingWatchKind, PostfixUnaryExpression, PragmaArgument, PragmaArgumentName,
-    PragmaArgumentWithCapturedSpan, PragmaArguments, PragmaKindFlags, PragmaName,
-    PragmaPseudoMapEntry, PragmaSpec, PragmaValue, PrefixUnaryExpression, PrintHandlers, Printer,
-    PrinterOptions, PrinterOptionsBuilder, PrivateIdentifier, Program, ProjectReference,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
-    ReadonlyTextRangeConcrete, RedirectTargetsMap, RegularExpressionLiteral,
+    NodeCheckFlags, NodeConverters, NodeFactory, NodeFlags, NodeId, NodeIdOverride, NodeInterface,
+    NodeLinks, NodeLinksSerializedType, NodeSymbolOverride, NonNullExpression,
+    NotActuallyInterfaceType, NumberLiteralType, NumericLiteral, ObjectBindingPattern, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectLiteralExpression, ObjectType, ObjectTypeInterface,
+    OmittedExpression, OptionalTypeNode, OuterExpressionKinds, PackageId, ParameterDeclaration,
+    ParenthesizedExpression, ParenthesizedTypeNode, ParenthesizerRules, ParseConfigHost,
+    ParsedCommandLine, ParsedCommandLineWithBaseOptions, PartiallyEmittedExpression, Path,
+    PatternAmbientModule, PluginImport, PollingWatchKind, PostfixUnaryExpression, PragmaArgument,
+    PragmaArgumentName, PragmaArgumentWithCapturedSpan, PragmaArguments, PragmaKindFlags,
+    PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue, PrefixUnaryExpression,
+    PrintHandlers, Printer, PrinterOptions, PrinterOptionsBuilder, PrivateIdentifier, Program,
+    ProjectReference, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    PropertySignature, PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, RedirectInfo, RedirectTargetsMap, RegularExpressionLiteral,
     RelationComparisonResult, RelativeToBuildInfo, RequireResult, ResolvableTypeInterface,
     ResolvedConfigFileName, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
     ResolvedProjectReference, ResolvedTypeInterface, ResolvedTypeReferenceDirective,
@@ -383,8 +395,9 @@ pub use compiler::types::{
     TemplateLiteralLikeNodeInterface, TemplateLiteralType, TemplateLiteralTypeNode,
     TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
     ThisTypeNode, ThrowStatement, ToHashMapOfCompilerOptionsValues, TokenFlags, TransformFlags,
-    TransformationContext, TransformationResult, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
+    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, TransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
     TransformerInterface, TransientSymbol, TransientSymbolInterface, TryStatement,
     TsConfigOnlyOption, TupleType, TupleTypeNode, Type, TypeAcquisition, TypeAliasDeclaration,
     TypeAssertion, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeComparer,
@@ -409,8 +422,8 @@ use compiler::types::{
     SourceMapEmitResult, SourceOfProjectReferenceRedirect, WideningContext,
 };
 pub use compiler::utilities::{
-    add_related_info, array_is_homogeneous, attach_file_to_diagnostics, base64_encode,
-    chain_diagnostic_messages, chain_diagnostic_messages_multiple, change_extension,
+    add_related_info, add_related_info_rc, array_is_homogeneous, attach_file_to_diagnostics,
+    base64_encode, chain_diagnostic_messages, chain_diagnostic_messages_multiple, change_extension,
     compare_diagnostics, compare_diagnostics_skip_related_information,
     concatenate_diagnostic_message_chains, contains_ignored_path, contains_parse_error,
     copy_entries, create_comment_directives_map, create_compiler_diagnostic,
@@ -451,14 +464,16 @@ pub use compiler::utilities::{
     get_error_span_for_node, get_es_module_interop, get_escaped_text_of_identifier_or_literal,
     get_expando_initializer, get_expression_associativity, get_expression_precedence,
     get_external_module_import_equals_declaration_expression, get_external_module_name,
-    get_external_module_require_argument, get_file_matcher_patterns,
-    get_first_constructor_with_body, get_first_identifier, get_full_width, get_function_flags,
-    get_host_signature_from_jsdoc, get_immediately_invoked_function_expression,
+    get_external_module_name_from_declaration, get_external_module_require_argument,
+    get_file_matcher_patterns, get_first_constructor_with_body, get_first_identifier,
+    get_full_width, get_function_flags, get_host_signature_from_jsdoc,
+    get_immediately_invoked_function_expression, get_initialized_variables,
     get_initializer_of_binary_expression, get_interface_base_type_nodes, get_invoked_expression,
     get_jsdoc_comment_ranges, get_jsdoc_comments_and_tags, get_jsdoc_host, get_jsdoc_root,
     get_jsdoc_type_parameter_declarations, get_jsx_implicit_import_base, get_jsx_runtime_import,
-    get_jsx_transform_enabled, get_language_variant, get_leftmost_access_expression,
-    get_leftmost_expression, get_lines_between_position_and_next_non_whitespace_character,
+    get_jsx_transform_enabled, get_language_variant, get_leading_comment_ranges_of_node,
+    get_leftmost_access_expression, get_leftmost_expression,
+    get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text,
     get_local_symbol_for_export_default, get_locale_specific_message, get_members_of_declaration,
@@ -469,10 +484,11 @@ pub use compiler::utilities::{
     get_paths_base_path, get_pattern_from_spec, get_property_assignment,
     get_property_name_for_property_name_node, get_regex_from_pattern,
     get_regular_expression_for_wildcard, get_regular_expressions_for_wildcards,
-    get_resolved_module, get_rest_parameter_element_type, get_right_most_assigned_expression,
-    get_root_declaration, get_script_target_features, get_selected_effective_modifier_flags,
-    get_semantic_jsx_children, get_set_accessor_value_parameter, get_source_file_of_module,
-    get_source_file_of_node, get_source_file_path_in_new_dir, get_source_files_to_emit,
+    get_resolved_external_module_name, get_resolved_module, get_rest_parameter_element_type,
+    get_right_most_assigned_expression, get_root_declaration, get_script_target_features,
+    get_selected_effective_modifier_flags, get_semantic_jsx_children,
+    get_set_accessor_value_parameter, get_source_file_of_module, get_source_file_of_node,
+    get_source_file_path_in_new_dir, get_source_files_to_emit,
     get_source_text_of_node_from_source_file, get_span_of_token_at_position,
     get_strict_option_value, get_super_container, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module,
@@ -487,9 +503,10 @@ pub use compiler::utilities::{
     has_js_file_extension, has_json_module_emit_enabled, has_override_modifier, has_question_token,
     has_rest_parameter, has_static_modifier, has_syntactic_modifier, has_ts_file_extension,
     has_zero_or_one_asterisk_character, host_get_canonical_file_name, index_of_node,
-    introduces_arguments_exotic_object, is_access_expression, is_aliasable_expression,
-    is_ambient_module, is_any_import_or_re_export, is_assignment_declaration,
-    is_assignment_expression, is_assignment_operator, is_assignment_target, is_async_function,
+    insert_statements_after_standard_prologue, introduces_arguments_exotic_object,
+    is_access_expression, is_aliasable_expression, is_ambient_module, is_any_import_or_re_export,
+    is_any_import_syntax, is_assignment_declaration, is_assignment_expression,
+    is_assignment_operator, is_assignment_target, is_async_function,
     is_bindable_object_define_property_call, is_bindable_static_access_expression,
     is_bindable_static_element_access_expression, is_bindable_static_name_expression,
     is_block_or_catch_scoped, is_block_scoped_container_top_level, is_bundle_file_text_like,
@@ -497,8 +514,8 @@ pub use compiler::utilities::{
     is_child_of_node_with_kind, is_computed_non_literal_name, is_declaration_name,
     is_declaration_readonly, is_defaulted_expando_initializer, is_delete_target,
     is_destructuring_assignment, is_dotted_name, is_dynamic_name, is_effective_external_module,
-    is_effective_module_declaration, is_empty_object_literal, is_entity_name_expression,
-    is_enum_const, is_exports_identifier, is_expression_node,
+    is_effective_module_declaration, is_effective_strict_mode_source_file, is_empty_object_literal,
+    is_entity_name_expression, is_enum_const, is_exports_identifier, is_expression_node,
     is_expression_with_type_arguments_in_class_extends_clause, is_external_module_augmentation,
     is_external_module_import_equals_declaration, is_external_or_common_js_module,
     is_file_level_unique_name, is_function_block, is_function_expression_or_arrow_function,
@@ -513,20 +530,20 @@ pub use compiler::utilities::{
     is_literal_import_type_node, is_logical_or_coalescing_assignment_operator,
     is_module_augmentation_external, is_module_exports_access_expression, is_module_identifier,
     is_module_with_string_literal_name, is_namespace_reexport_declaration, is_node_descendant_of,
-    is_non_global_ambient_module, is_object_literal_method,
-    is_object_literal_or_class_expression_method_or_accessor, is_parameter_declaration,
-    is_parameter_or_catch_clause_variable, is_part_of_type_node, is_part_of_type_query,
-    is_pinned_comment, is_prologue_directive, is_property_access_entity_name_expression,
-    is_property_name_literal, is_prototype_access, is_prototype_property_assignment,
-    is_push_or_unshift_identifier, is_recognized_triple_slash_comment, is_require_call,
-    is_require_variable_declaration, is_rest_parameter,
-    is_right_side_of_qualified_name_or_property_access,
+    is_node_with_possible_hoisted_declaration, is_non_global_ambient_module,
+    is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
+    is_parameter_declaration, is_parameter_or_catch_clause_variable, is_part_of_type_node,
+    is_part_of_type_query, is_pinned_comment, is_prologue_directive,
+    is_property_access_entity_name_expression, is_property_name_literal, is_prototype_access,
+    is_prototype_property_assignment, is_push_or_unshift_identifier,
+    is_recognized_triple_slash_comment, is_require_call, is_require_variable_declaration,
+    is_rest_parameter, is_right_side_of_qualified_name_or_property_access,
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_same_entity_name,
     is_shorthand_ambient_module_symbol, is_signed_numeric_literal, is_single_or_double_quote,
     is_source_file_js, is_source_file_not_json, is_special_property_declaration,
-    is_statement_with_locals, is_static, is_string_double_quoted,
-    is_string_or_numeric_literal_like, is_super_call, is_super_property, is_this_identifier,
-    is_this_in_type_query, is_this_initialized_declaration,
+    is_statement_with_locals, is_static, is_string_a_non_contextual_keyword,
+    is_string_double_quoted, is_string_or_numeric_literal_like, is_super_call, is_super_property,
+    is_this_identifier, is_this_in_type_query, is_this_initialized_declaration,
     is_this_initialized_object_binding_expression, is_this_property, is_transient_symbol,
     is_type_alias, is_type_node_kind, is_umd_export_symbol, is_valid_es_symbol_declaration,
     is_valid_type_only_alias_use_site, is_value_signature_declaration, is_var_const,
@@ -556,7 +573,7 @@ pub use compiler::utilities::{
     write_comment_range, write_file, write_file_ensuring_directories, AssignmentKind,
     Associativity, ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames,
     FileMatcherPatterns, FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax,
-    OperatorPrecedence, StringOrPattern, SymlinkCache,
+    OperatorPrecedence, ResolveModuleNameResolutionHost, StringOrPattern, SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,
@@ -598,7 +615,7 @@ pub use compiler::utilities_public::{
     text_span_intersects_with_position, text_span_intersects_with_text_span, text_span_is_empty,
     text_span_overlap, text_span_overlaps_with, unchanged_text_change_range,
     unescape_leading_underscores, validate_locale_and_set_language,
-    walk_up_binding_elements_and_patterns, FindAncestorCallbackReturn, StrOrNodeArrayRef,
+    walk_up_binding_elements_and_patterns, FindAncestorCallbackReturn, StrOrNodeArray,
 };
 use compiler::utilities_public::{
     get_assigned_name, get_combined_node_flags_always_include_jsdoc,
@@ -629,7 +646,10 @@ use compiler::utilities_public::{
     needs_scope_marker, node_has_name, supported_locale_directories,
     text_range_contains_position_inclusive,
 };
-pub use compiler::visitor_public::{visit_each_child, visit_node, visit_nodes};
+pub use compiler::visitor_public::{
+    visit_each_child, visit_function_body, visit_iteration_body, visit_node, visit_nodes,
+    visit_parameter_list,
+};
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
     create_watch_status_reporter, emit_files_and_report_errors_and_get_exit_status,
@@ -652,8 +672,9 @@ pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };
 pub use rust_helpers::deref::AsDoubleDeref;
+pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
-pub use rust_helpers::option::NonEmpty;
+pub use rust_helpers::option::{GetOrInsertDefault, NonEmpty};
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
     fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join, process_cwd,

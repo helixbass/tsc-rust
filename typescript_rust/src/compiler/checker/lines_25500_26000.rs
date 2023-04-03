@@ -265,7 +265,7 @@ impl TypeChecker {
                 .dot_dot_dot_token
                 .is_some()
                 && matches!(
-                    last_or_undefined(func_as_function_like_declaration.parameters()),
+                    last_or_undefined(&func_as_function_like_declaration.parameters()),
                     Some(last) if ptr::eq(&**last, parameter)
                 ) {
                 Some(self.get_rest_type_at_position(contextual_signature, index))

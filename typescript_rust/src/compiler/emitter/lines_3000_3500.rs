@@ -174,8 +174,8 @@ impl Printer {
         &self,
         node: &Node, /*FunctionDeclaration | FunctionExpression*/
     ) {
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("function");
         let node_as_function_like_declaration = node.as_function_like_declaration();
         self.emit(
@@ -205,7 +205,7 @@ impl Printer {
 
                 self.push_name_generation_scope(Some(node));
                 for_each(
-                    node_as_function_like_declaration.parameters(),
+                    &node_as_function_like_declaration.parameters(),
                     |parameter: &Gc<Node>, _| -> Option<()> {
                         self.generate_names(Some(&**parameter));
                         None
@@ -247,7 +247,7 @@ impl Printer {
             node,
             node_as_signature_declaration
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         self.emit_parameters(node, &node_as_signature_declaration.parameters());
         self.emit_type_annotation(node_as_signature_declaration.maybe_type().as_deref());
@@ -278,7 +278,7 @@ impl Printer {
         ) > 0
             || self.get_closing_line_terminator_count(
                 Some(body),
-                (&body_as_block.statements).into(),
+                body_as_block.statements.clone().into(),
                 ListFormat::PreserveLines,
             ) > 0
         {
@@ -312,7 +312,7 @@ impl Printer {
         let should_emit_block_function_body_on_single_line =
             self.should_emit_block_function_body_on_single_line(body);
         // if (emitBodyWithDetachedComments) {
-        self.emit_body_with_detached_comments(body, &body_as_block.statements, |node: &Node| {
+        self.emit_body_with_detached_comments(body, &*body_as_block.statements, |node: &Node| {
             if should_emit_block_function_body_on_single_line {
                 self.emit_block_function_body_on_single_line(node);
             } else {
@@ -384,15 +384,15 @@ impl Printer {
     ) {
         let node_as_class_like_declaration = node.as_class_like_declaration();
         for_each(
-            node_as_class_like_declaration.members(),
+            &node_as_class_like_declaration.members(),
             |member: &Gc<Node>, _| -> Option<()> {
                 self.generate_member_names(Some(&**member));
                 None
             },
         );
 
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("class");
         if let Some(node_name) = node_as_class_like_declaration.maybe_name().as_ref() {
             self.write_space();
@@ -408,11 +408,13 @@ impl Printer {
             node,
             node_as_class_like_declaration
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         self.emit_list(
             Some(node),
-            node_as_class_like_declaration.maybe_heritage_clauses(),
+            node_as_class_like_declaration
+                .maybe_heritage_clauses()
+                .as_deref(),
             ListFormat::ClassHeritageClauses,
             None,
             None,
@@ -423,7 +425,7 @@ impl Printer {
         self.write_punctuation("{");
         self.emit_list(
             Some(node),
-            Some(node_as_class_like_declaration.members()),
+            Some(&node_as_class_like_declaration.members()),
             ListFormat::ClassMembers,
             None,
             None,
@@ -437,8 +439,8 @@ impl Printer {
     }
 
     pub(super) fn emit_interface_declaration(&self, node: &Node /*InterfaceDeclaration*/) {
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("interface");
         self.write_space();
         let node_as_interface_declaration = node.as_interface_declaration();
@@ -447,11 +449,13 @@ impl Printer {
             node,
             node_as_interface_declaration
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         self.emit_list(
             Some(node),
-            node_as_interface_declaration.maybe_heritage_clauses(),
+            node_as_interface_declaration
+                .maybe_heritage_clauses()
+                .as_deref(),
             ListFormat::HeritageClauses,
             None,
             None,
@@ -471,8 +475,8 @@ impl Printer {
     }
 
     pub(super) fn emit_type_alias_declaration(&self, node: &Node /*TypeAliasDeclaration*/) {
-        self.emit_decorators(node, node.maybe_decorators().as_ref());
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_decorators(node, node.maybe_decorators().as_deref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("type");
         self.write_space();
         let node_as_type_alias_declaration = node.as_type_alias_declaration();
@@ -481,7 +485,7 @@ impl Printer {
             node,
             node_as_type_alias_declaration
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         self.write_space();
         self.write_punctuation("=");
@@ -491,7 +495,7 @@ impl Printer {
     }
 
     pub(super) fn emit_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.write_keyword("enum");
         self.write_space();
         let node_as_enum_declaration = node.as_enum_declaration();
@@ -511,7 +515,7 @@ impl Printer {
     }
 
     pub(super) fn emit_module_declaration(&self, node: &Node /*ModuleDeclaration*/) {
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         if (!node.flags()).intersects(NodeFlags::GlobalAugmentation) {
             self.write_keyword(if node.flags().intersects(NodeFlags::Namespace) {
                 "namespace"
@@ -581,7 +585,7 @@ impl Printer {
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
     ) {
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.emit_token_with_comment(
             SyntaxKind::ImportKeyword,
             node.maybe_modifiers()
@@ -629,7 +633,7 @@ impl Printer {
     }
 
     pub(super) fn emit_import_declaration(&self, node: &Node /*ImportDeclaration*/) {
-        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_deref());
         self.emit_token_with_comment(
             SyntaxKind::ImportKeyword,
             node.maybe_modifiers()
@@ -919,7 +923,7 @@ impl Printer {
         self.write_punctuation("{");
         self.emit_list(
             Some(node),
-            Some(node.as_has_elements().elements()),
+            Some(&node.as_has_elements().elements()),
             ListFormat::NamedImportsOrExportsElements,
             None,
             None,

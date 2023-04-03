@@ -20,8 +20,9 @@ use crate::{
     CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_, Diagnostic,
     EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver,
     EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags,
-    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext, TransformationResult,
-    Transformer, TransformerFactory, TransformerFactoryInterface,
+    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface,
 };
 
@@ -75,6 +76,7 @@ fn get_script_transformers(
     custom_transformers: Option<&CustomTransformers>,
     emit_only_dts_files: Option<bool>,
 ) -> Vec<TransformerFactory> {
+    return vec![];
     let emit_only_dts_files = emit_only_dts_files.unwrap_or(false);
     if emit_only_dts_files {
         return vec![];
@@ -344,6 +346,10 @@ pub fn transform_nodes(
 pub struct TransformNodesTransformationResult {
     _rc_wrapper: GcCell<Option<Gc<Box<TransformNodesTransformationResult>>>>,
     _dyn_transformation_context_wrapper: GcCell<Option<Gc<Box<dyn TransformationContext>>>>,
+    on_emit_node_outermost_override_or_original_method:
+        GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
+    on_substitute_node_outermost_override_or_original_method:
+        GcCell<Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
     transformed: GcCell<Vec<Gc<Node>>>,
     #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
@@ -406,6 +412,12 @@ impl TransformNodesTransformationResult {
             Gc::new(Box::new(Self {
                 _rc_wrapper: Default::default(),
                 _dyn_transformation_context_wrapper: Default::default(),
+                on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
+                    NoEmitNotificationTransformationContextOnEmitNodeOverrider,
+                ))),
+                on_substitute_node_outermost_override_or_original_method: GcCell::new(Gc::new(
+                    Box::new(NoEmitNotificationTransformationContextOnSubstituteNodeOverrider),
+                )),
                 transformed: GcCell::new(transformed),
                 state: Cell::new(state),
                 nodes,
@@ -828,7 +840,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                     .with(|synthetic_factory_| {
                         self.factory.create_variable_statement(
                             synthetic_factory_,
-                            Option::<NodeArray>::None,
+                            Option::<Gc<NodeArray>>::None,
                             Into::<Gc<Node>>::into(self.factory.create_variable_declaration_list(
                                 synthetic_factory_,
                                 lexical_environment_variable_declarations.clone(),
@@ -978,7 +990,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                 self.factory()
                     .create_variable_statement(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         Into::<Gc<Node>>::into(
                             self.factory().create_variable_declaration_list(
                                 synthetic_factory_,
@@ -1135,9 +1147,26 @@ impl TransformationContext for TransformNodesTransformationResult {
             && !get_emit_flags(node).intersects(EmitFlags::NoSubstitution)
     }
 
-    // TODO: need to support setting of onSubstituteNode?
     fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
-        no_emit_substitution(hint, node)
+        self.on_substitute_node_outermost_override_or_original_method
+            .borrow()
+            .on_substitute_node(hint, node)
+    }
+
+    fn override_on_substitute_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        )
+            -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    ) {
+        let mut on_substitute_node_outermost_override_or_original_method = self
+            .on_substitute_node_outermost_override_or_original_method
+            .borrow_mut();
+        let previous_on_substitute_node =
+            on_substitute_node_outermost_override_or_original_method.clone();
+        *on_substitute_node_outermost_override_or_original_method =
+            overrider(previous_on_substitute_node);
     }
 
     fn enable_emit_notification(&self, kind: SyntaxKind) {
@@ -1157,13 +1186,49 @@ impl TransformationContext for TransformNodesTransformationResult {
             && !get_emit_flags(node).intersects(EmitFlags::AdviseOnEmitNode)
     }
 
-    // TODO: need to support setting of onEmitNode?
     fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
-        no_emit_notification(hint, node, emit_callback)
+        self.on_emit_node_outermost_override_or_original_method
+            .borrow()
+            .on_emit_node(hint, node, emit_callback)
+    }
+
+    fn override_on_emit_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    ) {
+        let mut on_emit_node_outermost_override_or_original_method = self
+            .on_emit_node_outermost_override_or_original_method
+            .borrow_mut();
+        let previous_on_emit_node = on_emit_node_outermost_override_or_original_method.clone();
+        *on_emit_node_outermost_override_or_original_method = overrider(previous_on_emit_node);
     }
 
     fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {
         self.diagnostics().push(diag);
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct NoEmitNotificationTransformationContextOnEmitNodeOverrider;
+
+impl TransformationContextOnEmitNodeOverrider
+    for NoEmitNotificationTransformationContextOnEmitNodeOverrider
+{
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+        no_emit_notification(hint, node, emit_callback)
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct NoEmitNotificationTransformationContextOnSubstituteNodeOverrider;
+
+impl TransformationContextOnSubstituteNodeOverrider
+    for NoEmitNotificationTransformationContextOnSubstituteNodeOverrider
+{
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
+        no_emit_substitution(hint, node)
     }
 }
 
@@ -1319,6 +1384,16 @@ impl TransformationContext for TransformationContextNull {
         no_emit_substitution(hint, node)
     }
 
+    fn override_on_substitute_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        )
+            -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    ) {
+        unreachable!("maybe?")
+    }
+
     fn enable_emit_notification(&self, _kind: SyntaxKind) {}
 
     fn is_emit_notification_enabled(&self, _node: &Node) -> bool {
@@ -1327,6 +1402,15 @@ impl TransformationContext for TransformationContextNull {
 
     fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
         no_emit_notification(hint, node, emit_callback)
+    }
+
+    fn override_on_emit_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    ) {
+        unreachable!("maybe?")
     }
 
     fn add_diagnostic(&self, _diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {}

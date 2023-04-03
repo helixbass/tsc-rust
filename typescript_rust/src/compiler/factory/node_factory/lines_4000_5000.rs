@@ -22,7 +22,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_assert_clause(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: NodeArray, /*<AssertEntry>*/
+        elements: Gc<NodeArray>, /*<AssertEntry>*/
         multi_line: Option<bool>,
     ) -> AssertClause {
         let node = self.create_base_node(base_factory, SyntaxKind::AssertClause);
@@ -73,10 +73,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_named_imports<TElements: Into<NodeArrayOrVec>>(
+    pub fn create_named_imports(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements,
+        elements: impl Into<NodeArrayOrVec>,
     ) -> NamedImports {
         let node = self.create_base_node(base_factory, SyntaxKind::NamedImports);
         let mut node = NamedImports::new(node, self.create_node_array(Some(elements), None));
@@ -85,6 +85,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_named_imports(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamedImports*/
+        elements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_import_specifier(
@@ -106,14 +115,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_export_assignment<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_export_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_export_equals: Option<bool>,
         expression: Gc<Node /*Expression*/>,
     ) -> ExportAssignment {
@@ -146,14 +152,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_export_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_export_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        node: &Node, /*ExportAssignment*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_export_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
         export_clause: Option<Gc<Node /*NamedExportBindings*/>>,
         module_specifier: Option<Gc<Node /*Expression*/>>,
@@ -182,10 +196,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_named_exports<TElements: Into<NodeArrayOrVec>>(
+    pub fn update_export_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements,
+        node: &Node, /*ExportDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        is_type_only: bool,
+        export_clause: Option<Gc<Node /*NamedExportBindings*/>>,
+        module_specifier: Option<Gc<Node /*Expression*/>>,
+        assert_clause: Option<Gc<Node /*AssertClause*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_named_exports(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: impl Into<NodeArrayOrVec>,
     ) -> NamedExports {
         let node = self.create_base_node(base_factory, SyntaxKind::NamedExports);
         let mut node = NamedExports::new(node, self.create_node_array(Some(elements), None));
@@ -196,17 +224,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_export_specifier<
-        'property_name,
-        'name,
-        TPropertyName: Into<StrOrRcNode<'property_name>>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn create_export_specifier<'property_name, 'name>(
         &self,
         base_factory: &TBaseNodeFactory,
         is_type_only: bool,
-        property_name: Option<TPropertyName /*Identifier*/>,
-        name: TName, /*Identifier*/
+        property_name: Option<
+            impl Into<StrOrRcNode<'property_name>>,
+            /*Identifier*/
+        >,
+        name: impl Into<StrOrRcNode<'name>>,
+        /*Identifier*/
     ) -> ExportSpecifier {
         let node = self.create_base_node(base_factory, SyntaxKind::ExportSpecifier);
         let mut node = ExportSpecifier::new(
@@ -232,8 +259,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_declaration(
             base_factory,
             SyntaxKind::MissingDeclaration,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
         );
         MissingDeclaration::new(node)
     }
@@ -250,6 +277,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_external_module_reference(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ExternalModuleReference*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub(crate) fn create_jsdoc_primary_type_worker(
@@ -280,10 +316,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::JSDocFunctionType,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Option::<Gc<Node>>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(parameters),
             type_,
         );
@@ -344,7 +380,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.create_identifier(
                 base_factory,
                 default_tag_name,
-                Option::<NodeArray>::None,
+                Option::<Gc<NodeArray>>::None,
                 None,
             )
             .into()
@@ -377,8 +413,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocTemplateTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "template", Option::<NodeArray>::None, None)
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    "template",
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -401,7 +442,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocTypedefTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "typedef", Option::<NodeArray>::None, None)
+                self.create_identifier(base_factory, "typedef", Option::<Gc<NodeArray>>::None, None)
                     .into()
             }),
             comment,
@@ -428,7 +469,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocParameterTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "param", Option::<NodeArray>::None, None)
+                self.create_identifier(base_factory, "param", Option::<Gc<NodeArray>>::None, None)
                     .into()
             }),
             comment,
@@ -456,7 +497,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocPropertyTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "prop", Option::<NodeArray>::None, None)
+                self.create_identifier(base_factory, "prop", Option::<Gc<NodeArray>>::None, None)
                     .into()
             }),
             comment,
@@ -482,8 +523,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocCallbackTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "callback", Option::<NodeArray>::None, None)
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    "callback",
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -506,8 +552,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocAugmentsTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "augments", Option::<NodeArray>::None, None)
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    "augments",
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -525,8 +576,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocImplementsTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "implements", Option::<NodeArray>::None, None)
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    "implements",
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -544,7 +600,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::JSDocSeeTag,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, "see", Option::<NodeArray>::None, None)
+                self.create_identifier(base_factory, "see", Option::<Gc<NodeArray>>::None, None)
                     .into()
             }),
             comment,
@@ -619,7 +675,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 self.create_identifier(
                     base_factory,
                     get_default_tag_name_for_kind(kind),
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     None,
                 )
                 .into()
@@ -643,7 +699,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 self.create_identifier(
                     base_factory,
                     get_default_tag_name_for_kind(kind),
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     None,
                 )
                 .into()
@@ -716,7 +772,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag_name))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_child_flags(Some(&*node.attributes))
                 | TransformFlags::ContainsJsx,
         );
@@ -742,7 +798,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag_name))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_child_flags(Some(&*node.attributes))
                 | TransformFlags::ContainsJsx,
         );
@@ -913,11 +969,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_heritage_clause<TTypes: Into<NodeArrayOrVec>>(
+    pub fn create_heritage_clause(
         &self,
         base_factory: &TBaseNodeFactory,
-        token: SyntaxKind, /*HeritageClause["token"]*/
-        types: TTypes,     /*<ExpressionWithTypeArguments>*/
+        token: SyntaxKind,                /*HeritageClause["token"]*/
+        types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
     ) -> HeritageClause {
         let node = self.create_base_node(base_factory, SyntaxKind::HeritageClause);
         let mut node = HeritageClause::new(node, token, self.create_node_array(Some(types), None));
@@ -932,6 +988,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             _ => Debug_.assert_never(token, None),
         }
         node
+    }
+
+    pub fn update_heritage_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,                      /*HeritageClause*/
+        types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_catch_clause<

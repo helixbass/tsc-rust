@@ -125,14 +125,16 @@ pub mod fakes {
             self.output.borrow_mut().push(message.to_owned());
         }
 
+        // TODO: at least for this implementor, the Typescript version looks like it catches all exceptions and
+        // translates to undefined so maybe the return type should just be Option<String>?
         fn read_file(&self, path: &str) -> io::Result<Option<String>> {
             // try {
             let content = self
                 .vfs
                 .read_file_sync(path, Some("utf8"))
-                .as_string_owned();
-            /*content === undefined ? undefined :*/
-            Ok(Some(Utils::remove_byte_order_mark(content)))
+                .ok()
+                .map(|string_or_buffer| string_or_buffer.as_string_owned());
+            Ok(content.map(Utils::remove_byte_order_mark))
             // }
             // catch {
             //     return undefined;

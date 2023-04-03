@@ -122,6 +122,7 @@ impl Printer {
 
         self.set_source_file_text_pos(self.get_text_pos_with_write_line());
         for source_file in &bundle_as_bundle.source_files {
+            let source_file = source_file.as_ref().unwrap();
             self.print(EmitHint::SourceFile, source_file, Some(source_file));
         }
         let bundle_file_info = self.maybe_bundle_file_info();
@@ -173,13 +174,13 @@ impl Printer {
         source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) {
         self.set_is_own_file_emit(true);
-        let previous_writer = self.writer();
+        let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), source_map_generator);
         self.emit_shebang_if_needed(source_file);
         self.emit_prologue_directives_if_needed(source_file);
         self.print(EmitHint::SourceFile, source_file, Some(source_file));
         self.reset();
-        *self.writer.borrow_mut() = Some(previous_writer);
+        *self.writer.borrow_mut() = previous_writer;
     }
 
     pub(super) fn begin_print(&self) -> Gc<Box<dyn EmitTextWriter>> {

@@ -15,11 +15,13 @@ use crate::{
     skip_type_checking, source_file_may_be_emitted, string_contains, to_path as to_path_helper,
     trace, CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
     CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension,
-    FileIncludeReason, FileReference, ModuleSpecifierResolutionHost, MultiMap, Node, Path, Program,
-    ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
-    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
-    StructureIsReused, SymlinkCache, TypeChecker, TypeCheckerHost, WriteFileCallback,
+    FileIncludeReason, FileReference, ModuleSpecifierResolutionHost,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, Path, Program,
+    ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap, ResolveModuleNameResolutionHost,
+    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ScriptReferenceHost, SourceFileLike, SourceFileMayBeEmittedHost,
+    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, TypeChecker,
+    TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -258,7 +260,7 @@ impl Program {
         transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
     ) -> EmitResult {
-        return super::emit_skipped_with_no_diagnostics();
+        // return super::emit_skipped_with_no_diagnostics();
         // tracing?.push(tracing.Phase.Emit, "emit", { path: sourceFile?.path }, /*separateBeginAndEnd*/ true);
         let result = self.run_with_cancellation_token(|| {
             self.emit_worker(
@@ -860,18 +862,6 @@ impl EmitHost for ProgramEmitHost {
         self.program.get_prepend_nodes()
     }
 
-    fn get_canonical_file_name(&self, file_name: &str) -> String {
-        self.program.get_canonical_file_name(file_name)
-    }
-
-    fn get_common_source_directory(&self) -> String {
-        self.program.get_common_source_directory()
-    }
-
-    fn get_current_directory(&self) -> String {
-        self.program.current_directory().clone()
-    }
-
     fn get_new_line(&self) -> String {
         self.program.host().get_new_line()
     }
@@ -940,6 +930,12 @@ impl EmitHost for ProgramEmitHost {
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost {
         self
     }
+
+    fn as_module_specifier_resolution_host_and_get_common_source_directory(
+        &self,
+    ) -> &dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
+        self
+    }
 }
 
 impl ScriptReferenceHost for ProgramEmitHost {
@@ -957,6 +953,16 @@ impl ScriptReferenceHost for ProgramEmitHost {
 
     fn get_current_directory(&self) -> String {
         self.program.current_directory().clone()
+    }
+}
+
+impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory for ProgramEmitHost {
+    fn get_common_source_directory(&self) -> String {
+        self.program.get_common_source_directory()
+    }
+
+    fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost {
+        self
     }
 }
 
@@ -1032,6 +1038,20 @@ impl SourceFileMayBeEmittedHost for ProgramEmitHost {
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
         self.program
             .is_source_of_project_reference_redirect_(file_name)
+    }
+}
+
+impl ResolveModuleNameResolutionHost for ProgramEmitHost {
+    fn get_canonical_file_name(&self, file_name: &str) -> String {
+        self.program.get_canonical_file_name(file_name)
+    }
+
+    fn get_common_source_directory(&self) -> String {
+        self.program.get_common_source_directory()
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.program.current_directory().clone()
     }
 }
 

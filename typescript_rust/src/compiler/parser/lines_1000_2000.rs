@@ -133,7 +133,7 @@ impl ParserType {
             },
         );
         if !js_doc.is_empty() {
-            node.set_js_doc(js_doc);
+            node.set_js_doc(Some(js_doc));
         }
         if self.has_deprecated_tag() {
             self.set_has_deprecated_tag(false);
@@ -168,11 +168,11 @@ impl ParserType {
             let next_statement = &source_file_statements[start_present];
             add_range(
                 &mut statements,
-                Some(source_file_statements),
+                Some(&source_file_statements),
                 pos.map(|pos| pos.try_into().unwrap()),
                 Some(start_present.try_into().unwrap()),
             );
-            pos = self.find_next_statement_without_await(source_file_statements, start_present);
+            pos = self.find_next_statement_without_await(&source_file_statements, start_present);
 
             let diagnostic_start = find_index(
                 &saved_parse_diagnostics,
@@ -221,7 +221,7 @@ impl ParserType {
                             }
                             if statement.end() > non_await_statement.pos() {
                                 pos = self.find_next_statement_without_await(
-                                    source_file_statements,
+                                    &source_file_statements,
                                     pos_present + 1,
                                 );
                             }
@@ -235,14 +235,14 @@ impl ParserType {
             );
 
             start = pos
-                .and_then(|pos| self.find_next_statement_with_await(source_file_statements, pos));
+                .and_then(|pos| self.find_next_statement_with_await(&source_file_statements, pos));
         }
 
         if let Some(pos) = pos {
             let prev_statement = &source_file_statements[pos];
             add_range(
                 &mut statements,
-                Some(source_file_statements),
+                Some(&source_file_statements),
                 Some(pos.try_into().unwrap()),
                 None,
             );
@@ -264,7 +264,7 @@ impl ParserType {
 
         self.set_syntax_cursor(saved_syntax_cursor);
         let new_statements = self.factory.create_node_array(Some(statements), None);
-        set_text_range(&new_statements, Some(source_file_statements));
+        set_text_range(&*new_statements, Some(&*source_file_statements));
         self.factory.update_source_file(
             self,
             source_file,
@@ -1092,12 +1092,12 @@ impl ParserType {
         pos: isize,
         end: Option<isize>,
         has_trailing_comma: Option<bool>,
-    ) -> NodeArray {
+    ) -> Gc<NodeArray> {
         let array = self
             .factory
             .create_node_array(Some(elements), has_trailing_comma);
         set_text_range_pos_end(
-            &array,
+            &*array,
             pos,
             end.unwrap_or_else(|| self.scanner().get_start_pos().try_into().unwrap()),
         );
@@ -1157,7 +1157,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
             self.factory
-                .create_identifier(self, "", Option::<NodeArray>::None, None)
+                .create_identifier(self, "", Option::<Gc<NodeArray>>::None, None)
                 .into()
         } else if is_template_literal_kind(kind) {
             self.factory
@@ -1215,7 +1215,7 @@ impl ParserType {
                     .create_identifier(
                         self,
                         &text,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         Some(original_keyword_kind),
                     )
                     .into(),

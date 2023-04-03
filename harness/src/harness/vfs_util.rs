@@ -4,12 +4,13 @@ pub mod vfs {
     use std::borrow::Cow;
     use std::cell::{Cell, Ref, RefCell, RefMut};
     use std::collections::HashMap;
+    use std::io;
     use std::iter::FromIterator;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use typescript_rust::{
-        get_sys, is_option_str_empty, millis_since_epoch_to_system_time, Buffer, Comparison,
-        FileSystemEntries, Node,
+        get_sys, io_error_from_name, is_option_str_empty, millis_since_epoch_to_system_time,
+        Buffer, Comparison, FileSystemEntries, Node,
     };
 
     use crate::collections::SortOptionsComparer;
@@ -376,7 +377,15 @@ pub mod vfs {
         }
 
         pub fn apply(&self, files: &FileSet) {
-            unimplemented!()
+            self._apply_files(
+                files,
+                {
+                    let value = self.maybe_cwd().clone();
+                    value
+                }
+                .as_deref()
+                .unwrap(),
+            );
         }
 
         pub fn mount_sync(&self, source: &str, target: &str, resolver: Gc<FileSystemResolver>) {
@@ -575,7 +584,47 @@ pub mod vfs {
         }
 
         pub fn symlink_sync(&self, target: &str, linkpath: &str) {
-            unimplemented!()
+            if self.is_readonly() {
+                // throw createIOError("EROFS");
+                panic!("EROFS");
+            }
+
+            let WalkResult {
+                parent,
+                links,
+                node: existing_node,
+                basename,
+                ..
+            } = self
+                ._walk(
+                    &self._resolve(linkpath),
+                    Some(true),
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if parent.is_none() {
+                // throw createIOError("EPERM");
+                panic!("EPERM");
+            }
+            let parent = parent.unwrap();
+            if existing_node.is_some() {
+                // throw createIOError("EEXIST");
+                panic!("EEXIST");
+            }
+
+            let time = self.time();
+            let mut node = self._mknod(parent.dev(), S_IFLNK, 0o666, Some(time));
+            node.as_symlink_inode_mut().symlink = Some(vpath::validate(
+                target,
+                Some(vpath::ValidationFlags::RelativeOrAbsolute),
+            ));
+            self._add_link(
+                Some(&parent),
+                &mut links.borrow_mut(),
+                &basename,
+                Gc::new(node),
+                Some(time),
+            );
         }
 
         pub fn realpath_sync(&self, path: &str) -> String {
@@ -593,7 +642,7 @@ pub mod vfs {
             &self,
             path: &str,
             encoding: Option<&str /*BufferEncoding*/>,
-        ) -> StringOrBuffer {
+        ) -> io::Result<StringOrBuffer> {
             let WalkResult { node, .. } = self
                 ._walk(
                     &self._resolve(path),
@@ -602,28 +651,25 @@ pub mod vfs {
                 )
                 .unwrap();
             if node.is_none() {
-                // throw createIOError("ENOENT");
-                panic!("ENOENT");
+                return io_error_from_name("ENOENT");
             }
             let ref node = node.unwrap();
             if is_directory(Some(node)) {
-                // throw createIOError("EISDIR");
-                panic!("EISDIR");
+                return io_error_from_name("EISDIR");
             }
             if !is_file(Some(node)) {
-                // throw createIOError("EBADF");
-                panic!("EBADF");
+                return io_error_from_name("EBADF");
             }
 
             let buffer = self._get_buffer(node).clone();
-            if let Some(encoding) = encoding {
+            Ok(if let Some(encoding) = encoding {
                 if encoding != "utf8" {
                     unimplemented!()
                 }
                 String::from_utf8(buffer).unwrap().into()
             } else {
                 buffer.into()
-            }
+            })
         }
 
         pub fn write_file_sync<'data, TData: Into<StringOrRefBuffer<'data>>>(
@@ -914,11 +960,11 @@ pub mod vfs {
             })
         }
 
-        fn _walk<TOnError: FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>(
+        fn _walk(
             &self,
             path: &str,
             no_follow: Option<bool>,
-            mut on_error: Option<TOnError>,
+            mut on_error: Option<impl FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>,
         ) -> Option<WalkResult> {
             let mut links = self._get_root_links();
             let mut parent: Option<Gc<Inode>> = None;

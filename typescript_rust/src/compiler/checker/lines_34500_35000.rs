@@ -352,7 +352,7 @@ impl TypeChecker {
         let node_as_has_type_arguments = node.as_has_type_arguments();
         self.check_grammar_type_arguments(
             node,
-            node_as_has_type_arguments.maybe_type_arguments().as_ref(),
+            node_as_has_type_arguments.maybe_type_arguments().as_deref(),
         );
         if node.kind() == SyntaxKind::TypeReference {
             if let Some(node_type_name_jsdoc_dot_pos) = node
@@ -562,7 +562,7 @@ impl TypeChecker {
         node: &Node, /*UnionOrIntersectionTypeNode*/
     ) {
         for_each(
-            node.as_union_or_intersection_type_node().types(),
+            &node.as_union_or_intersection_type_node().types(),
             |type_, _| {
                 self.check_source_element(Some(&**type_));
                 Option::<()>::None

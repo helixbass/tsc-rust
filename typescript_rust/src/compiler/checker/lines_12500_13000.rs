@@ -243,8 +243,9 @@ impl TypeChecker {
         if is_jsdoc_signature(declaration) || !self.contains_arguments_reference(declaration) {
             return false;
         }
-        let last_param = last_or_undefined(declaration.as_signature_declaration().parameters());
-        let last_param_tags = if let Some(last_param) = last_param {
+        let last_param =
+            last_or_undefined(&declaration.as_signature_declaration().parameters()).cloned();
+        let last_param_tags = if let Some(last_param) = last_param.as_ref() {
             get_jsdoc_parameter_tags(last_param)
         } else {
             get_jsdoc_tags(declaration)

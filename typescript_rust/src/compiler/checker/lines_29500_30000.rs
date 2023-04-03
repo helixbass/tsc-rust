@@ -590,7 +590,7 @@ impl TypeChecker {
             if end == pos {
                 end += 1;
             }
-            set_text_range_pos_end(&error_span, pos, end);
+            set_text_range_pos_end(&*error_span, pos, end);
             Gc::new(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(node),
@@ -695,7 +695,7 @@ impl TypeChecker {
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(node);
         let report_errors = candidates_out_array.is_none() && self.produce_diagnostics;
 
-        let mut type_arguments: Option<NodeArray /*<TypeNode>*/> = None;
+        let mut type_arguments: Option<Gc<NodeArray> /*<TypeNode>*/> = None;
 
         if !is_decorator {
             type_arguments = node.as_has_type_arguments().maybe_type_arguments().clone();
@@ -758,7 +758,7 @@ impl TypeChecker {
                 &mut candidates_for_argument_error,
                 &mut candidate_for_argument_arity_error,
                 &mut candidate_for_type_argument_error,
-                type_arguments.as_ref(),
+                type_arguments.as_deref(),
                 node,
                 &args,
                 &mut arg_check_mode,
@@ -773,7 +773,7 @@ impl TypeChecker {
                 &mut candidates_for_argument_error,
                 &mut candidate_for_argument_arity_error,
                 &mut candidate_for_type_argument_error,
-                type_arguments.as_ref(),
+                type_arguments.as_deref(),
                 node,
                 &args,
                 &mut arg_check_mode,
@@ -842,7 +842,7 @@ impl TypeChecker {
                                 &mut candidates_for_argument_error,
                                 &mut candidate_for_argument_arity_error,
                                 &mut candidate_for_type_argument_error,
-                                type_arguments.as_ref(),
+                                type_arguments.as_deref(),
                                 node,
                                 &args,
                                 &mut arg_check_mode,
@@ -960,7 +960,7 @@ impl TypeChecker {
                         &mut candidates_for_argument_error,
                         &mut candidate_for_argument_arity_error,
                         &mut candidate_for_type_argument_error,
-                        type_arguments.as_ref(),
+                        type_arguments.as_deref(),
                         node,
                         &args,
                         &mut arg_check_mode,
@@ -992,7 +992,7 @@ impl TypeChecker {
             } else {
                 let signatures_with_correct_type_argument_arity =
                     filter(signatures, |s: &Gc<Signature>| {
-                        self.has_correct_type_argument_arity(s, type_arguments.as_ref())
+                        self.has_correct_type_argument_arity(s, type_arguments.as_deref())
                     });
                 if signatures_with_correct_type_argument_arity.is_empty() {
                     self.diagnostics().add(self.get_type_argument_arity_error(

@@ -1,22 +1,21 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
     has_option_node_array_changed, has_static_modifier, is_computed_property_name,
     is_exclamation_token, is_question_token, is_this_identifier, modifiers_to_flags, ArrayTypeNode,
-    BaseNode, BaseNodeFactory, CallSignatureDeclaration, ClassStaticBlockDeclaration,
-    ComputedPropertyName, ConditionalTypeNode, ConstructSignatureDeclaration,
-    ConstructorDeclaration, ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface,
-    FunctionTypeNode, GetAccessorDeclaration, HasInitializerInterface, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, IndexSignatureDeclaration, IntersectionTypeNode,
-    MaybeChangedNodeArray, MethodDeclaration, MethodSignature, ModifierFlags,
-    NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration, PropertySignature,
-    QualifiedName, RestTypeNode, SetAccessorDeclaration, StrOrRcNode, StringOrRcNode, SyntaxKind,
-    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
+    AsDoubleDeref, BaseNode, BaseNodeFactory, CallSignatureDeclaration,
+    ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalTypeNode,
+    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
+    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
+    HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
+    IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
+    ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration,
+    PropertySignature, QualifiedName, RestTypeNode, SetAccessorDeclaration, StrOrRcNode,
+    SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
     TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
@@ -170,18 +169,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_parameter_declaration<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_type_parameter_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: TName,
+        name: impl Into<StrOrRcNode<'name>>,
         constraint: Option<Gc<Node /*TypeNode*/>>,
         default_type: Option<Gc<Node /*TypeNode*/>>,
     ) -> TypeParameterDeclaration {
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::TypeParameter,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
         );
         let mut node = TypeParameterDeclaration::new(node, constraint, default_type);
@@ -189,18 +188,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_parameter_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn update_type_parameter_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        node: &Node, /*TypeParameterDeclaration*/
+        name: Gc<Node>,
+        constraint: Option<Gc<Node /*TypeNode*/>>,
+        default_type: Option<Gc<Node /*TypeNode*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_parameter_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
-        name: Option<TName>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
         question_token: Option<Gc<Node /*QuestionToken*/>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
@@ -220,8 +225,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         let question_token_is_some = question_token.is_some();
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
-        let mut node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
-        if is_this_identifier(Some(node.name())) {
+        let node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
+        if is_this_identifier(node.maybe_name()) {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(
@@ -231,7 +236,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             if question_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsTypeScript);
             }
-            if modifiers_to_flags(node.maybe_modifiers().as_deref())
+            if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
                 .intersects(ModifierFlags::ParameterPropertyModifier)
             {
                 node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
@@ -241,6 +246,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }
         }
         node
+    }
+
+    pub fn update_parameter_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ParameterDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_decorator(
@@ -262,22 +282,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_property_signature<
-        'name,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn create_property_signature<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<TModifiers>,
-        name: TName,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
         question_token: Option<Gc<Node>>,
         type_: Option<Gc<Node>>,
     ) -> PropertySignature {
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::PropertySignature,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
             Some(name),
         );
@@ -286,17 +302,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_property_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn update_property_signature(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
+        node: &Node, /*PropertySignature*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node>,
+        question_token: Option<Gc<Node>>,
+        type_: Option<Gc<Node>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_property_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
         question_or_exclamation_token: Option<Gc<Node /*QuestionToken | ExclamationToken*/>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
@@ -336,7 +359,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
         }
         if question_or_exclamation_token_is_some
-            || modifiers_to_flags(node.maybe_modifiers().as_deref())
+            || modifiers_to_flags(node.maybe_modifiers().as_double_deref())
                 .intersects(ModifierFlags::Ambient)
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -344,26 +367,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_method_signature<
-        'name,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_property_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
+        node: &Node, /*PropertyDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        question_or_exclamation_token: Option<Gc<Node /*QuestionToken | ExclamationToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> /*PropertyDeclaration*/ {
+        unimplemented!()
+    }
+
+    pub(crate) fn create_method_signature<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
         question_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: Option<TParameters>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: Option<impl Into<NodeArrayOrVec>>,
         type_: Option<Gc<Node>>,
     ) -> MethodSignature {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::MethodSignature,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
             name,
             type_parameters,
@@ -375,23 +406,30 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_method_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub(crate) fn update_method_signature(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        name: TName,
+        node: &Node, /*MethodSignature*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node /*PropertyName*/>,
         question_token: Option<Gc<Node /*QuestionToken*/>>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_: Option<Gc<Node>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_method_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> MethodDeclaration {
@@ -419,7 +457,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if question_token_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Async)
+        {
             if asterisk_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsES2018);
             } else {
@@ -429,6 +469,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsGenerator);
         }
         node
+    }
+
+    pub fn update_method_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*MethodDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        name: Gc<Node /*PropertyName*/>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Option<Gc<Node /*Block*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_class_static_block_declaration<
@@ -447,7 +504,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             decorators,
             modifiers,
             Option::<Gc<Node>>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
         );
         let mut node = ClassStaticBlockDeclaration::new(node, body.clone());
         node.add_transform_flags(
@@ -456,16 +513,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_constructor_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_constructor_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        parameters: TParameters,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> ConstructorDeclaration {
         let node = self.create_base_function_like_declaration(
@@ -474,7 +527,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             decorators,
             modifiers,
             Option::<Gc<Node>>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(parameters),
             None,
             body,
@@ -484,19 +537,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_get_accessor_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_get_accessor_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
-        parameters: TParameters,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> GetAccessorDeclaration {
@@ -506,7 +553,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             decorators,
             modifiers,
             Some(name),
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(parameters),
             type_,
             body,
@@ -514,19 +561,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         GetAccessorDeclaration::new(node)
     }
 
-    pub fn create_set_accessor_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_get_accessor_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
-        parameters: TParameters,
+        node: &Node, /*GetAccessorDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node /*PropertyName*/>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Option<Gc<Node /*Block*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_set_accessor_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        parameters: impl Into<NodeArrayOrVec>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> SetAccessorDeclaration {
         let node = self.create_base_function_like_declaration(
@@ -535,7 +590,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             decorators,
             modifiers,
             Some(name),
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(parameters),
             None,
             body,
@@ -543,21 +598,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         SetAccessorDeclaration::new(node)
     }
 
-    pub fn create_call_signature<
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_set_accessor_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        node: &Node, /*SetAccessorDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node /*PropertyName*/>,
+        parameters: impl Into<NodeArrayOrVec>,
+        body: Option<Gc<Node /*Block*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_call_signature(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> CallSignatureDeclaration {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::CallSignature,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Option::<Gc<Node>>::None,
             type_parameters,
             Some(parameters),
@@ -568,21 +633,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_construct_signature<
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_call_signature(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        node: &Node, /*CallSignatureDeclaration*/
+        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_construct_signature(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> ConstructSignatureDeclaration {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::ConstructSignature,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Option::<Gc<Node>>::None,
             type_parameters,
             Some(parameters),
@@ -593,16 +666,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_index_signature<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_construct_signature(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        parameters: TParameters,
+        node: &Node, /*ConstructSignatureDeclaration*/
+        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_index_signature(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> IndexSignatureDeclaration {
         let node = self.create_base_signature_declaration(
@@ -611,13 +691,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             decorators,
             modifiers,
             Option::<Gc<Node>>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(parameters),
             type_,
         );
         let mut node = IndexSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_index_signature(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*IndexSignatureDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_template_literal_type_span(
@@ -661,15 +753,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_reference_node<
-        'type_name,
-        TTypeName: Into<StrOrRcNode<'type_name>>,
-        TTypeArguments: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_type_reference_node<'type_name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_name: TTypeName,
-        type_arguments: Option<TTypeArguments>,
+        type_name: impl Into<StrOrRcNode<'type_name>>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> TypeReferenceNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeReference);
         let mut node = TypeReferenceNode::new(
@@ -686,26 +774,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn update_type_reference_node<TTypeArguments: Into<MaybeChangedNodeArray>>(
+    pub fn update_type_reference_node(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*TypeReferenceNode*/
         type_name: Gc<Node /*EntityName*/>,
-        type_arguments: TTypeArguments, /*<TypeNode>*/
+        type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
     ) -> Gc<Node> {
-        let type_arguments = type_arguments.into();
+        let type_arguments = type_arguments.map(Into::into);
         let node_as_type_reference_node = node.as_type_reference_node();
         let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
         if !Gc::ptr_eq(&node_as_type_reference_node.type_name, &type_name)
-            || has_option_node_array_changed(node_type_arguments.as_ref(), &type_arguments)
+            || has_option_node_array_changed(
+                node_type_arguments.as_deref(),
+                type_arguments.as_ref(),
+            )
         {
             self.update(
-                self.create_type_reference_node(
-                    base_factory,
-                    type_name,
-                    type_arguments.into_update_value(node_type_arguments.as_ref()),
-                )
-                .into(),
+                self.create_type_reference_node(base_factory, type_name, type_arguments)
+                    .into(),
                 node,
             )
         } else {
@@ -713,21 +800,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_function_type_node<
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_function_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> FunctionTypeNode {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::FunctionType,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Option::<Gc<Node>>::None,
             type_parameters,
             Some(parameters),
@@ -738,22 +822,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_constructor_type_node<
-        TModifiers: Into<NodeArrayOrVec>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_function_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<TModifiers>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        node: &Node, /*FunctionTypeNode*/
+        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_constructor_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> ConstructorTypeNode {
         let node = self.create_base_signature_declaration(
             base_factory,
             SyntaxKind::ConstructorType,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
             Option::<Gc<Node>>::None,
             type_parameters,
@@ -763,6 +854,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ConstructorTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_constructor_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ConstructorTypeNode*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_type_query_node(
@@ -915,5 +1018,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_conditional_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ConditionalTypeNode*/
+        check_type: Gc<Node /*TypeNode*/>,
+        extends_type: Gc<Node /*TypeNode*/>,
+        true_type: Gc<Node /*TypeNode*/>,
+        false_type: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 }

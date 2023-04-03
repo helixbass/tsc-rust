@@ -12,8 +12,8 @@ use crate::{
     get_comment_range, get_emit_flags, get_shebang, is_arrow_function, is_block,
     is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
     is_unparsed_source, range_is_on_single_line, single_or_undefined, some, with_synthetic_factory,
-    BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags,
-    EmitHint, HasInitializerInterface, HasStatementsInterface, HasTypeInterface,
+    AsDoubleDeref, BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_,
+    EmitFlags, EmitHint, HasInitializerInterface, HasStatementsInterface, HasTypeInterface,
     HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
     Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
     SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
@@ -64,7 +64,7 @@ impl Printer {
     ) {
         if is_source_file(source_file_or_bundle) {
             self.emit_prologue_directives(
-                source_file_or_bundle.as_source_file().statements(),
+                &source_file_or_bundle.as_source_file().statements(),
                 Some(source_file_or_bundle),
                 &mut None,
                 None,
@@ -79,8 +79,9 @@ impl Printer {
                 );
             }
             for source_file in &source_file_or_bundle_as_bundle.source_files {
+                let source_file = source_file.as_ref().unwrap();
                 self.emit_prologue_directives(
-                    source_file.as_source_file().statements(),
+                    &source_file.as_source_file().statements(),
                     Some(&**source_file),
                     &mut seen_prologue_directives,
                     Some(true),
@@ -98,11 +99,11 @@ impl Printer {
         let mut prologues: Option<Vec<SourceFilePrologueInfo>> = None;
         let bundle_as_bundle = bundle.as_bundle();
         for index in 0..bundle_as_bundle.source_files.len() {
-            let source_file = &bundle_as_bundle.source_files[index];
+            let source_file = bundle_as_bundle.source_files[index].as_ref().unwrap();
             let mut directives: Option<Vec<SourceFilePrologueDirective>> = None;
             let mut end = 0;
             let source_file_as_source_file = source_file.as_source_file();
-            for statement in source_file_as_source_file.statements() {
+            for statement in &source_file_as_source_file.statements() {
                 if !is_prologue_directive(statement) {
                     break;
                 }
@@ -181,7 +182,7 @@ impl Printer {
                 }
             }
             for source_file in &source_file_or_bundle_as_bundle.source_files {
-                if self.emit_shebang_if_needed(source_file) {
+                if self.emit_shebang_if_needed(source_file.as_ref().unwrap()) {
                     return true;
                 }
             }
@@ -384,23 +385,23 @@ impl Printer {
                     let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
                     parent_node_as_arrow_function.maybe_type().is_none() &&
                         !some(
-                            parent_node.maybe_decorators().as_deref(),
+                            parent_node.maybe_decorators().as_double_deref(),
                             Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parent_node.maybe_modifiers().as_deref(),
+                            parent_node.maybe_modifiers().as_double_deref(),
                             Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parent_node_as_arrow_function.maybe_type_parameters().as_deref(),
+                            parent_node_as_arrow_function.maybe_type_parameters().as_double_deref(),
                             Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parameter.maybe_decorators().as_deref(),
+                            parameter.maybe_decorators().as_double_deref(),
                             Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parameter.maybe_modifiers().as_deref(),
+                            parameter.maybe_modifiers().as_double_deref(),
                             Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         parameter_as_parameter_declaration.dot_dot_dot_token.is_none() &&
@@ -469,9 +470,9 @@ impl Printer {
         }
     }
 
-    pub(super) fn emit_list<TNode: Borrow<Node>>(
+    pub(super) fn emit_list(
         &self,
-        parent_node: Option<TNode>,
+        parent_node: Option<impl Borrow<Node>>,
         children: Option<&NodeArray>,
         format: ListFormat,
         parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
@@ -714,7 +715,7 @@ impl Printer {
 
             let closing_line_terminator_count = self.get_closing_line_terminator_count(
                 parent_node.as_deref(),
-                children.into(),
+                children.rc_wrapper().into(),
                 format,
             );
             if closing_line_terminator_count != 0 {

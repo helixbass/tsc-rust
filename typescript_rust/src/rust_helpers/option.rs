@@ -52,3 +52,17 @@ impl<TItem> NonEmpty for Option<Vec<TItem>> {
         self.non_empty().is_some()
     }
 }
+
+pub trait GetOrInsertDefault {
+    type Unwrapped;
+
+    fn get_or_insert_default(&mut self) -> &mut Self::Unwrapped;
+}
+
+impl<TValue: Default> GetOrInsertDefault for Option<TValue> {
+    type Unwrapped = TValue;
+
+    fn get_or_insert_default(&mut self) -> &mut TValue {
+        self.get_or_insert_with(|| Default::default())
+    }
+}

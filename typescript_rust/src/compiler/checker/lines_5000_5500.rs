@@ -194,7 +194,7 @@ impl NodeBuilder {
                         name_type_node,
                         question_token,
                         template_type_node,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                     )
                     .into()
             })
@@ -452,7 +452,7 @@ impl NodeBuilder {
                                 Option<fn(&Node) -> bool>,
                                 Option<usize>,
                                 Option<usize>,
-                            ) -> NodeArray,
+                            ) -> Gc<NodeArray>,
                         >::None,
                         Option::<fn(&Node) -> VisitResult>::None,
                         Option::<
@@ -503,7 +503,7 @@ impl NodeBuilder {
                             factory_
                                 .create_type_literal_node(
                                     synthetic_factory_,
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                 )
                                 .into()
                         })
@@ -717,7 +717,7 @@ impl NodeBuilder {
                                                         &type_target_labeled_element_declarations[i]
                                                     )
                                                 ),
-                                                Option::<NodeArray>::None,
+                                                Option::<Gc<NodeArray>>::None,
                                                 None,
                                             ).into(),
                                             if flags.intersects(ElementFlags::Optional) {
@@ -982,7 +982,7 @@ impl NodeBuilder {
                             root,
                             root_as_import_type_node.argument.clone(),
                             qualifier,
-                            type_arguments.map(ToOwned::to_owned),
+                            type_arguments.map(NodeArray::rc_wrapper),
                             Some(root_as_import_type_node.is_type_of()),
                         )
                         .into()
@@ -1070,7 +1070,7 @@ impl NodeBuilder {
                     factory_
                         .create_property_signature(
                             synthetic_factory_,
-                            Option::<NodeArray>::None,
+                            Option::<Gc<NodeArray>>::None,
                             "...",
                             None,
                             None,
@@ -1147,7 +1147,7 @@ impl NodeBuilder {
                         factory_
                             .create_property_signature(
                                 synthetic_factory_,
-                                Option::<NodeArray>::None,
+                                Option::<Gc<NodeArray>>::None,
                                 &*format!("... {} more ...", properties.len() - 1),
                                 None,
                                 None,
@@ -1185,10 +1185,10 @@ impl NodeBuilder {
                             Into::<Gc<Node>>::into(factory_.create_identifier(
                                 synthetic_factory_,
                                 "...",
-                                Option::<NodeArray>::None,
+                                Option::<Gc<NodeArray>>::None,
                                 None,
                             )),
-                            Option::<NodeArray>::None,
+                            Option::<Gc<NodeArray>>::None,
                         )
                         .into()
                 })

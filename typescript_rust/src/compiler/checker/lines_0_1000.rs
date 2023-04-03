@@ -1805,7 +1805,7 @@ impl TypeChecker {
         symbol: &Symbol,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+    ) -> Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/> {
         self.node_builder().symbol_to_type_parameter_declarations(
             symbol,
             enclosing_declaration,

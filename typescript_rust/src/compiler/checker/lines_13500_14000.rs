@@ -9,13 +9,14 @@ use std::rc::Rc;
 
 use super::get_node_id;
 use crate::{
-    count_where, create_symbol_table, find, is_assertion_expression, is_const_type_reference,
-    is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, maybe_map, some,
-    symbol_name, BaseInterfaceType, CheckFlags, ElementFlags, GenericableTypeInterface,
+    __String, count_where, create_symbol_table, find, is_assertion_expression,
+    is_const_type_reference, is_this_identifier, is_type_alias_declaration, is_type_operator_node,
+    length, map, maybe_map, some, symbol_name, AsDoubleDeref, BaseInterfaceType, CheckFlags,
+    DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    NodeInterface, Number, ObjectFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    TupleType, TypeFlags, TypeInterface, TypeReferenceInterface, __String, map, DiagnosticMessage,
-    Diagnostics, Node, Symbol, SymbolFlags, Type, TypeChecker,
+    Node, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, TupleType, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceInterface,
 };
 
 impl TypeChecker {
@@ -771,7 +772,7 @@ impl TypeChecker {
                         || some(
                             node.as_type_reference_node()
                                 .maybe_type_arguments()
-                                .as_deref(),
+                                .as_double_deref(),
                             Some(|type_argument: &Gc<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),
@@ -832,7 +833,7 @@ impl TypeChecker {
                     )
             }
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => some(
-                Some(node.as_union_or_intersection_type_node().types()),
+                Some(&node.as_union_or_intersection_type_node().types()),
                 Some(|type_: &Gc<Node>| self.may_resolve_type_alias(type_)),
             ),
             SyntaxKind::IndexedAccessType => {

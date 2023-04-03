@@ -2,30 +2,30 @@
 
 use gc::Gc;
 use std::borrow::Borrow;
-use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, FileReference,
-    HasStatementsInterface, InputFiles, LanguageVariant, NamedDeclarationInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
-    PropertyAssignment, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
-    SpreadAssignment, StrOrRcNode, StringOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags,
-    Type, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
+    every, is_outer_expression, is_statement_or_block, single_or_undefined, BaseNodeFactory,
+    BaseUnparsedNode, Bundle, Debug_, EnumMember, FileReference, HasStatementsInterface,
+    InputFiles, LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind,
+    ScriptTarget, ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StrOrRcNode,
+    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn create_property_assignment<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_property_assignment<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: TName, /*PropertyName*/
+        name: impl Into<StrOrRcNode<'name> /*PropertyName*/>,
         initializer: Gc<Node /*Expression*/>,
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::PropertyAssignment,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
         );
         let mut node = PropertyAssignment::new(
@@ -49,8 +49,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::ShorthandPropertyAssignment,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
         );
         let mut node = ShorthandPropertyAssignment::new(
@@ -89,10 +89,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_enum_member<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_enum_member<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: TName, /*Identifier*/
+        name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> EnumMember {
         let node = self.create_base_node(base_factory, SyntaxKind::EnumMember);
@@ -110,6 +110,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsTypeScript,
         );
         node
+    }
+
+    pub fn update_enum_member(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*EnumMember*/
+        name: Gc<Node>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_source_file<TStatements: Into<NodeArrayOrVec>>(
@@ -134,17 +144,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.set_flags(node.flags() | flags);
         node.add_transform_flags(
-            propagate_children_flags(Some(node.statements()))
+            propagate_children_flags(Some(&node.statements()))
                 | propagate_child_flags(Some(node.end_of_file_token())),
         );
         node
     }
 
-    pub fn update_source_file<TStatements: Into<NodeArrayOrVec>>(
+    pub fn update_source_file(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*SourceFile*/
-        statements: TStatements,
+        statements: impl Into<NodeArrayOrVec>,
         is_declaration_file: Option<bool>,
         referenced_files: Option<Vec<FileReference>>,
         type_reference_directives: Option<Vec<FileReference>>,
@@ -187,7 +197,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_bundle(
         &self,
         base_factory: &TBaseNodeFactory,
-        source_files: Vec<Gc<Node /*<SourceFile>*/>>,
+        source_files: Vec<Option<Gc<Node /*<SourceFile>*/>>>,
         prepends: Option<Vec<Gc<Node /*<UnparsedSource | InputFiles>*/>>>,
     ) -> Bundle {
         let prepends = prepends.unwrap_or_else(|| vec![]);
@@ -301,9 +311,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         unimplemented!()
     }
 
-    pub fn restore_outer_expressions<TOuterExpression: Borrow<Node>>(
+    pub fn restore_outer_expressions(
         &self,
-        outer_expression: Option<TOuterExpression /*Expression*/>,
+        outer_expression: Option<impl Borrow<Node> /*Expression*/>,
         inner_expression: &Node, /*Expression*/
         kinds: Option<OuterExpressionKinds>,
     ) -> Gc<Node /*Expression*/> {
@@ -318,12 +328,48 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         inner_expression.node_wrapper()
     }
 
-    pub fn get_declaration_name<TNode: Borrow<Node>>(
+    pub fn inline_expressions(
         &self,
-        node: Option<TNode /*Declaration*/>,
+        base_factory: &TBaseNodeFactory,
+        expressions: &[Gc<Node /*Expression*/>],
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn get_declaration_name(
+        &self,
+        node: Option<impl Borrow<Node> /*Declaration*/>,
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
         unimplemented!()
+    }
+
+    pub fn copy_prologue(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        source: &[Gc<Node /*Statement*/>],
+        target: &mut Vec<Gc<Node /*Statement*/>>,
+        ensure_use_strict: Option<bool>,
+        visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
+    ) -> usize {
+        unimplemented!()
+    }
+
+    pub fn lift_to_block(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        nodes: &[Gc<Node>],
+    ) -> Gc<Node /*Statement*/> {
+        Debug_.assert(
+            every(nodes, |node: &Gc<Node>, _| is_statement_or_block(node)),
+            Some("Cannot lift nodes to a Block."),
+        );
+        single_or_undefined(Some(nodes))
+            .cloned()
+            .unwrap_or_else(|| {
+                self.create_block(base_factory, nodes.to_owned(), None)
+                    .into()
+            })
     }
 }

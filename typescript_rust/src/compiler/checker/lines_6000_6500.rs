@@ -25,7 +25,7 @@ use crate::{
     maybe_get_source_file_of_node, maybe_map, node_is_synthesized, null_transformation_context,
     set_emit_flags, set_original_node, set_text_range, some, starts_with,
     unescape_leading_underscores, visit_each_child, visit_node, visit_nodes,
-    with_synthetic_factory_and_factory, CharacterCodes, Debug_, EmitFlags,
+    with_synthetic_factory_and_factory, AsDoubleDeref, CharacterCodes, Debug_, EmitFlags,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InternalSymbolName,
     LiteralType, NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
     NodeInterface, Number, ObjectFlags, ReadonlyTextRange, Signature,
@@ -174,14 +174,20 @@ impl NodeBuilder {
             }
         }
 
-        let identifier = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-            set_emit_flags(
-                factory_
-                    .create_identifier(synthetic_factory_, &symbol_name, type_parameter_nodes, None)
-                    .into(),
-                EmitFlags::NoAsciiEscaping,
-            )
-        });
+        let identifier: Gc<Node> =
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                set_emit_flags(
+                    factory_
+                        .create_identifier(
+                            synthetic_factory_,
+                            &symbol_name,
+                            type_parameter_nodes,
+                            None,
+                        )
+                        .into(),
+                    EmitFlags::NoAsciiEscaping,
+                )
+            });
         identifier.set_symbol(symbol.clone());
 
         if index > stopper {
@@ -266,7 +272,7 @@ impl NodeBuilder {
                     .create_identifier(
                         synthetic_factory_,
                         "(Missing type parameter)",
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         None,
                     )
                     .into()
@@ -366,7 +372,7 @@ impl NodeBuilder {
             context.set_flags(context.flags() ^ NodeBuilderFlags::InInitialEntityName);
         }
 
-        let identifier = set_emit_flags(
+        let identifier: Gc<Node> = set_emit_flags(
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_identifier(synthetic_factory_, &symbol_name, type_parameter_nodes, None)
@@ -456,14 +462,12 @@ impl NodeBuilder {
         if index == 0 || can_use_property_access {
             let identifier = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 set_emit_flags(
-                    factory_
-                        .create_identifier(
-                            synthetic_factory_,
-                            &symbol_name,
-                            type_parameter_nodes,
-                            None,
-                        )
-                        .into(),
+                    Gc::<Node>::from(factory_.create_identifier(
+                        synthetic_factory_,
+                        &symbol_name,
+                        type_parameter_nodes,
+                        None,
+                    )),
                     EmitFlags::NoAsciiEscaping,
                 )
             });
@@ -713,7 +717,12 @@ impl NodeBuilder {
         ) {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
-                    .create_identifier(synthetic_factory_, &name, Option::<NodeArray>::None, None)
+                    .create_identifier(
+                        synthetic_factory_,
+                        &name,
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                    )
                     .into()
             })
         } else if string_named != Some(true)
@@ -813,7 +822,7 @@ impl NodeBuilder {
                 existing
                     .as_type_reference_node()
                     .maybe_type_arguments()
-                    .as_deref(),
+                    .as_double_deref(),
             ) >= self.type_checker.get_min_type_argument_count(
                 type_
                     .as_type_reference_interface()
@@ -1266,7 +1275,7 @@ impl NodeBuilder {
 
                                     factory.create_property_signature(
                                         synthetic_factory,
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         name,
                                         if t_as_jsdoc_property_like_tag.is_bracketed ||
                                             matches!(
@@ -1334,13 +1343,13 @@ impl NodeBuilder {
                         Some(vec![factory
                                 .create_index_signature(
                                     synthetic_factory,
-                                    Option::<NodeArray>::None,
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                     vec![factory
                                         .create_parameter_declaration(
                                             synthetic_factory,
-                                            Option::<NodeArray>::None,
-                                            Option::<NodeArray>::None,
+                                            Option::<Gc<NodeArray>>::None,
+                                            Option::<Gc<NodeArray>>::None,
                                             None,
                                             Some("x"),
                                             None,
@@ -1402,13 +1411,13 @@ impl NodeBuilder {
                             synthetic_factory,
                             node_as_jsdoc_function_type.maybe_modifiers().clone(),
                             visit_nodes(
-                                node_as_jsdoc_function_type.maybe_type_parameters().as_ref(),
+                                node_as_jsdoc_function_type.maybe_type_parameters().as_deref(),
                                 Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                 Option::<fn(&Node) -> bool>::None,
                                 None, None,
                             ),
                             map_defined(
-                                Some(node_as_jsdoc_function_type.parameters()),
+                                Some(&node_as_jsdoc_function_type.parameters()),
                                 |p: &Gc<Node>, i| -> Option<Gc<Node>> {
                                     let p_as_parameter_declaration = p.as_parameter_declaration();
                                     if matches!(
@@ -1421,8 +1430,8 @@ impl NodeBuilder {
                                         Some(with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                                             factory.create_parameter_declaration(
                                                 synthetic_factory,
-                                                Option::<NodeArray>::None,
-                                                Option::<NodeArray>::None,
+                                                Option::<Gc<NodeArray>>::None,
+                                                Option::<Gc<NodeArray>>::None,
                                                 self.get_effective_dot_dot_dot_for_parameter(p),
                                                 self.get_name_for_jsdoc_function_parameter(p, i),
                                                 p_as_parameter_declaration.question_token.clone(),
@@ -1463,7 +1472,9 @@ impl NodeBuilder {
                             factory.create_function_type_node(
                                 synthetic_factory,
                                 visit_nodes(
-                                    node_as_jsdoc_function_type.maybe_type_parameters().as_ref(),
+                                    node_as_jsdoc_function_type
+                                        .maybe_type_parameters()
+                                        .as_deref(),
                                     Some(|node: &Node| {
                                         self.visit_existing_node_tree_symbols(
                                             context,
@@ -1478,7 +1489,7 @@ impl NodeBuilder {
                                     None,
                                 ),
                                 map(
-                                    node_as_jsdoc_function_type.parameters(),
+                                    &node_as_jsdoc_function_type.parameters(),
                                     |p: &Gc<Node>, i| -> Gc<Node> {
                                         let p_as_parameter_declaration =
                                             p.as_parameter_declaration();
@@ -1487,8 +1498,8 @@ impl NodeBuilder {
                                                 factory
                                                 .create_parameter_declaration(
                                                     synthetic_factory,
-                                                    Option::<NodeArray>::None,
-                                                    Option::<NodeArray>::None,
+                                                    Option::<Gc<NodeArray>>::None,
+                                                    Option::<Gc<NodeArray>>::None,
                                                     self.get_effective_dot_dot_dot_for_parameter(p),
                                                     self.get_name_for_jsdoc_function_parameter(
                                                         p, i,
@@ -1584,7 +1595,7 @@ impl NodeBuilder {
                     node_symbol.as_ref(),
                     Some(node_symbol) if !node_as_import_type_node.is_type_of() &&
                         !node_symbol.flags().intersects(SymbolFlags::Type) ||
-                        !(length(node_as_import_type_node.maybe_type_arguments().as_deref()) >=
+                        !(length(node_as_import_type_node.maybe_type_arguments().as_double_deref()) >=
                             self.type_checker.get_min_type_argument_count(
                                 self.type_checker.get_local_type_parameters_of_class_or_interface_or_type_alias(
                                     node_symbol
@@ -1658,7 +1669,7 @@ impl NodeBuilder {
                         Option<fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> NodeArray,
+                    ) -> Gc<NodeArray>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<

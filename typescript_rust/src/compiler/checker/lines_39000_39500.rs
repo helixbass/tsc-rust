@@ -19,7 +19,7 @@ use crate::{
     InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags,
     NodeFlags, NodeInterface, Number, ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, __String,
-    escape_leading_underscores,
+    escape_leading_underscores, AsDoubleDeref,
 };
 
 impl TypeChecker {
@@ -31,7 +31,7 @@ impl TypeChecker {
             return;
         }
         let constructor = self.find_constructor_declaration(node);
-        for member in node.as_class_like_declaration().members() {
+        for member in &node.as_class_like_declaration().members() {
             if get_effective_modifier_flags(member).intersects(ModifierFlags::Ambient) {
                 continue;
             }
@@ -166,7 +166,7 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_interface_declaration
                 .maybe_type_parameters()
-                .as_deref(),
+                .as_double_deref(),
         );
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
@@ -254,7 +254,7 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_type_alias_declaration
                 .maybe_type_parameters()
-                .as_deref(),
+                .as_double_deref(),
         );
         if node_as_type_alias_declaration.type_.kind() == SyntaxKind::IntrinsicKeyword {
             if !intrinsic_type_kinds.contains_key(
@@ -265,7 +265,7 @@ impl TypeChecker {
             ) || length(
                 node_as_type_alias_declaration
                     .maybe_type_parameters()
-                    .as_deref(),
+                    .as_double_deref(),
             ) != 1
             {
                 self.error(
@@ -931,7 +931,7 @@ impl TypeChecker {
             SyntaxKind::BindingElement | SyntaxKind::VariableDeclaration => {
                 let name = node.as_named_declaration().maybe_name();
                 if is_binding_pattern(name.as_deref()) {
-                    for el in name.as_ref().unwrap().as_has_elements().elements() {
+                    for el in &name.as_ref().unwrap().as_has_elements().elements() {
                         self.check_module_augmentation_element(el, is_global_augmentation);
                     }
                 }

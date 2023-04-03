@@ -24,11 +24,12 @@ use crate::{
     BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
     DetachedCommentInfo, DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint,
     EmitHost, EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter,
-    EmitTransformers, ExportedModulesFromDeclarationEmit, Extension, JsxEmit, ListFormat, Node,
-    NodeArray, NodeId, NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine,
-    PrintHandlers, Printer, PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost,
-    SourceMapEmitResult, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
-    TransformNodesTransformationResult, TransformationResult, TransformerFactory,
+    EmitTransformers, ExportedModulesFromDeclarationEmit, Extension, JsxEmit, ListFormat,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
+    NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer,
+    PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,
+    SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange, TransformNodesTransformationResult,
+    TransformationResult, TransformerFactory,
 };
 
 lazy_static! {
@@ -87,7 +88,11 @@ pub fn for_each_emitted_file_returns<TReturn>(
             let bundle: Gc<Node> =
                 with_synthetic_factory_and_factory(|synthetic_factory, factory_| {
                     factory_
-                        .create_bundle(synthetic_factory, source_files, Some(prepends))
+                        .create_bundle(
+                            synthetic_factory,
+                            source_files.into_iter().map(Option::Some).collect(),
+                            Some(prepends),
+                        )
                         .into()
                 });
             let result = action(
@@ -262,7 +267,7 @@ pub(crate) fn get_output_paths_for(
             && compare_paths(
                 &source_file_as_source_file.file_name(),
                 &own_output_file_path,
-                Some(EmitHost::get_current_directory(host)),
+                Some(ScriptReferenceHost::get_current_directory(host)),
                 Some(!EmitHost::use_case_sensitive_file_names(host)),
             ) == Comparison::EqualTo;
         let js_file_path =
@@ -514,25 +519,26 @@ fn emit_source_file_or_bundle(
         {
             build_info_directory = Some(get_directory_path(&get_normalized_absolute_path(
                 build_info_path,
-                Some(&EmitHost::get_current_directory(&**host)),
+                Some(&ScriptReferenceHost::get_current_directory(&**host)),
             )));
             *bundle_build_info = Some(Gc::new(GcCell::new(BundleBuildInfo {
                 common_source_directory: relative_to_build_info(
                     build_info_directory.as_ref().unwrap(),
                     &**host,
-                    &EmitHost::get_current_directory(&**host),
+                    &ScriptReferenceHost::get_current_directory(&**host),
                 ),
                 source_files: source_file_or_bundle
                     .as_bundle()
                     .source_files
                     .iter()
-                    .map(|file: &Gc<Node>| {
+                    .map(|file: &Option<Gc<Node>>| {
+                        let file = file.as_ref().unwrap();
                         relative_to_build_info(
                             build_info_directory.as_ref().unwrap(),
                             &**host,
                             &get_normalized_absolute_path(
                                 &file.as_source_file().file_name(),
-                                Some(&EmitHost::get_current_directory(&**host)),
+                                Some(&ScriptReferenceHost::get_current_directory(&**host)),
                             ),
                         )
                     })
@@ -867,7 +873,13 @@ fn emit_declaration_file_or_bundle(
     let source_files = if is_source_file(source_file_or_bundle) {
         vec![source_file_or_bundle.node_wrapper()]
     } else {
-        source_file_or_bundle.as_bundle().source_files.clone()
+        source_file_or_bundle
+            .as_bundle()
+            .source_files
+            .iter()
+            .cloned()
+            .map(Option::unwrap)
+            .collect()
     };
     let files_for_emit = if force_dts_emit == Some(true) {
         source_files
@@ -882,7 +894,7 @@ fn emit_declaration_file_or_bundle(
                 factory_
                     .create_bundle(
                         synthetic_factory_,
-                        files_for_emit.clone(),
+                        files_for_emit.iter().cloned().map(Option::Some).collect(),
                         if !is_source_file(source_file_or_bundle) {
                             Some(source_file_or_bundle.as_bundle().prepends.clone())
                         } else {
@@ -1086,7 +1098,13 @@ fn print_source_file_or_bundle(
         None
     };
     let source_files = if let Some(bundle) = bundle.as_ref() {
-        bundle.as_bundle().source_files.clone()
+        bundle
+            .as_bundle()
+            .source_files
+            .iter()
+            .cloned()
+            .map(Option::unwrap)
+            .collect()
     } else {
         vec![source_file.clone().unwrap()]
     };
@@ -1214,7 +1232,7 @@ fn get_source_map_directory(
     source_file: Option<&Node /*SourceFile*/>,
 ) -> String {
     if map_options.source_root.as_ref().is_non_empty() {
-        return host.get_common_source_directory();
+        return ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(host);
     }
     if let Some(map_options_map_root) = map_options.map_root.as_ref().non_empty() {
         let mut source_map_dir = normalize_slashes(map_options_map_root);
@@ -1227,7 +1245,7 @@ fn get_source_map_directory(
         }
         if get_root_length(&source_map_dir) == 0 {
             source_map_dir = combine_paths(
-                &host.get_common_source_directory(),
+                &ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(host),
                 &[Some(&source_map_dir)],
             );
         }
@@ -1269,13 +1287,13 @@ fn get_source_mapping_url(
         }
         if get_root_length(&source_map_dir) == 0 {
             source_map_dir = combine_paths(
-                &host.get_common_source_directory(),
+                &ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(host),
                 &[Some(&source_map_dir)],
             );
             return encode_uri(&get_relative_path_to_directory_or_url(
                 &get_directory_path(&normalize_path(file_path)),
                 &combine_paths(&source_map_dir, &[Some(&source_map_file)]),
-                &EmitHost::get_current_directory(host),
+                &ScriptReferenceHost::get_current_directory(host),
                 |file_name| host.get_canonical_file_name(file_name),
                 true,
             ));
@@ -1671,6 +1689,10 @@ impl Printer {
 
     pub(super) fn source_map_generator(&self) -> Gc<Box<dyn SourceMapGenerator>> {
         self.source_map_generator.borrow().clone().unwrap()
+    }
+
+    pub(super) fn source_map_source(&self) -> Gc<SourceMapSource> {
+        self.source_map_source.borrow().clone().unwrap()
     }
 
     pub(super) fn set_source_map_source_(&self, source_map_source: Option<Gc<SourceMapSource>>) {

@@ -4,16 +4,15 @@ use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
-use std::rc::Rc;
 
 use super::{anon, get_symbol_id, intrinsic_type_kinds};
 use crate::{
     append, concatenate, declaration_name_to_string, get_check_flags, get_containing_function,
     get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, get_object_flags,
-    index_of_gc, index_of_rc, is_entity_name_expression, is_expression_with_type_arguments,
-    is_identifier, is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature,
-    is_jsdoc_template_tag, is_statement, is_type_alias, length, map, maybe_concatenate,
-    skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType,
+    index_of_gc, is_entity_name_expression, is_expression_with_type_arguments, is_identifier,
+    is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag,
+    is_statement, is_type_alias, length, map, maybe_concatenate, skip_parentheses,
+    walk_up_parenthesized_types_and_get_parent_and_child, AsDoubleDeref, BaseObjectType,
     CheckFlags, Diagnostics, HasTypeArgumentsInterface, InterfaceTypeInterface, Node, NodeFlags,
     NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, SubstitutionType, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
@@ -150,11 +149,8 @@ impl TypeChecker {
                             let node_type = self.get_type_from_type_node_(
                                 check_mapped_type.type_.as_ref().unwrap(),
                             );
-                            if inferences.is_none() {
-                                inferences = Some(vec![]);
-                            }
                             append(
-                                inferences.as_mut().unwrap(),
+                                inferences.get_or_insert_with(|| vec![]),
                                 Some(
                                     self.instantiate_type(
                                         &node_type,
@@ -531,8 +527,7 @@ impl TypeChecker {
             let num_type_arguments = length(
                 node.as_has_type_arguments()
                     .maybe_type_arguments()
-                    .as_ref()
-                    .map(|type_arguments| &**type_arguments),
+                    .as_double_deref(),
             );
             let min_type_argument_count = self.get_min_type_argument_count(Some(type_parameters));
             let is_js = is_in_js_file(Some(node));
@@ -584,8 +579,7 @@ impl TypeChecker {
                         length(
                             node.as_has_type_arguments()
                                 .maybe_type_arguments()
-                                .as_ref()
-                                .map(|node_array| &**node_array),
+                                .as_double_deref(),
                         ) != type_parameters.len(),
                     ),
                 )
@@ -702,8 +696,7 @@ impl TypeChecker {
             let num_type_arguments = length(
                 node.as_has_type_arguments()
                     .maybe_type_arguments()
-                    .as_ref()
-                    .map(|type_arguments| &**type_arguments),
+                    .as_double_deref(),
             );
             let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
             if num_type_arguments < min_type_argument_count

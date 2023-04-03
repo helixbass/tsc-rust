@@ -13,11 +13,11 @@ use crate::{
     contains_gc, contains_rc, every, for_each_child_bool, get_effective_return_type_node,
     get_object_flags, has_context_sensitive_parameters, is_function_declaration,
     is_function_expression_or_arrow_function, is_in_js_file, is_jsx_opening_element,
-    is_object_literal_method, is_part_of_type_node, map, some, Debug_, DiagnosticMessage,
-    Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    is_object_literal_method, is_part_of_type_node, map, some, AsDoubleDeref, Debug_,
+    DiagnosticMessage, Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType,
+    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -105,13 +105,13 @@ impl TypeChecker {
                     || some(
                         node_as_signature_declaration
                             .maybe_type_parameters()
-                            .as_deref(),
+                            .as_double_deref(),
                         Some(|type_parameter: &Gc<Node>| {
                             self.contains_reference(tp, type_parameter)
                         }),
                     )
                     || some(
-                        Some(node_as_signature_declaration.parameters()),
+                        Some(&node_as_signature_declaration.parameters()),
                         Some(|parameter: &Gc<Node>| self.contains_reference(tp, parameter)),
                     )
                     || matches!(

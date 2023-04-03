@@ -1634,7 +1634,7 @@ pub fn is_effective_strict_mode_source_file(
     if get_strict_option_value(compiler_options, "alwaysStrict") {
         return true;
     }
-    if starts_with_use_strict(node_as_source_file.statements()) {
+    if starts_with_use_strict(&node_as_source_file.statements()) {
         return true;
     }
     if is_external_module(node) || compiler_options.isolated_modules.unwrap_or(false) {
@@ -1762,7 +1762,7 @@ pub fn for_each_enclosing_block_scope_container<TCallback: FnMut(&Node)>(
     }
 }
 
-pub fn declaration_name_to_string<TName: Borrow<Node>>(name: Option<TName>) -> Cow<'static, str> {
+pub fn declaration_name_to_string(name: Option<impl Borrow<Node>>) -> Cow<'static, str> {
     match name {
         None => "(Missing)".into(),
         Some(name) => {

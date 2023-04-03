@@ -71,7 +71,7 @@ impl TypeChecker {
         }
         Some(format!(
             "{}",
-            index_of_gc(parent.as_has_elements().elements(), &node.node_wrapper())
+            index_of_gc(&parent.as_has_elements().elements(), &node.node_wrapper())
         ))
     }
 
@@ -421,7 +421,7 @@ impl TypeChecker {
                     if is_function_type_node(&type_tag) {
                         let signature = self.get_signature_from_declaration_(&type_tag);
                         let pos: usize = index_of_gc(
-                            func.as_function_like_declaration().parameters(),
+                            &func.as_function_like_declaration().parameters(),
                             &declaration.node_wrapper(),
                         )
                         .try_into()
@@ -491,7 +491,7 @@ impl TypeChecker {
                     .map(|type_| self.add_optionality(&type_, Some(true), Some(is_optional)));
             } else {
                 let static_blocks = filter(
-                    declaration.parent().as_class_like_declaration().members(),
+                    &declaration.parent().as_class_like_declaration().members(),
                     |member: &Gc<Node>| is_class_static_block_declaration(member),
                 );
                 let type_ = if !static_blocks.is_empty() {
@@ -622,14 +622,14 @@ impl TypeChecker {
                                         .create_identifier(
                                             synthetic_factory_,
                                             "module",
-                                            Option::<NodeArray>::None,
+                                            Option::<Gc<NodeArray>>::None,
                                             None,
                                         )
                                         .into(),
                                     Into::<Gc<Node>>::into(factory_.create_identifier(
                                         synthetic_factory_,
                                         "exports",
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                     )),
                                 )
@@ -649,7 +649,7 @@ impl TypeChecker {
                                 .create_identifier(
                                     synthetic_factory_,
                                     "exports",
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                     None,
                                 )
                                 .into(),
@@ -1197,14 +1197,12 @@ impl TypeChecker {
                                             &Diagnostics::Duplicate_identifier_0,
                                             Some(vec![unescaped_name.to_owned()]),
                                         ),
-                                        vec![Gc::new(
-                                            create_diagnostic_for_node(
-                                                &exported_member_name,
-                                                &Diagnostics::_0_was_also_declared_here,
-                                                Some(vec![unescaped_name.to_owned()]),
-                                            )
-                                            .into(),
-                                        )],
+                                        vec![create_diagnostic_for_node(
+                                            &exported_member_name,
+                                            &Diagnostics::_0_was_also_declared_here,
+                                            Some(vec![unescaped_name.to_owned()]),
+                                        )
+                                        .into()],
                                     );
                                     add_related_info(
                                         &self.error(
@@ -1212,14 +1210,12 @@ impl TypeChecker {
                                             &Diagnostics::Duplicate_identifier_0,
                                             Some(vec![unescaped_name.to_owned()]),
                                         ),
-                                        vec![Gc::new(
-                                            create_diagnostic_for_node(
-                                                &s_value_declaration,
-                                                &Diagnostics::_0_was_also_declared_here,
-                                                Some(vec![unescaped_name.to_owned()]),
-                                            )
-                                            .into(),
-                                        )],
+                                        vec![create_diagnostic_for_node(
+                                            &s_value_declaration,
+                                            &Diagnostics::_0_was_also_declared_here,
+                                            Some(vec![unescaped_name.to_owned()]),
+                                        )
+                                        .into()],
                                     );
                                 }
                             }

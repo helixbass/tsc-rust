@@ -13,7 +13,9 @@ lazy_static = "1.4.0"
 regex = "1.5.4"
 clap = { version = "4.0.29", features = ["derive"] }
 tokio = { version = "1.23.0", features = ["full"] }
-gc = { git = "https://github.com/helixbass/rust-gc", rev = "32dfa44", features = ["derive", "serde"] }
+# gc = { git = "https://github.com/manishearth/rust-gc", rev = "6c5f754", features = ["derive", "serde"] }
+# gc = { path = "../../rust-gc/gc", features = ["derive", "serde", "unstable-config"] }
+gc = { git = "https://github.com/helixbass/rust-gc", rev = "3a7c3cc", features = ["derive", "serde"] }
 
 [dev-dependencies]
 

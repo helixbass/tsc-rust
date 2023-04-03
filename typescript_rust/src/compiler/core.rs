@@ -59,12 +59,9 @@ pub fn maybe_for_each<
     }
 }
 
-pub fn maybe_for_each_bool<
-    TCollection: IntoIterator,
-    TCallback: FnMut(TCollection::Item, usize) -> bool,
->(
+pub fn maybe_for_each_bool<TCollection: IntoIterator>(
     array: Option<TCollection>,
-    callback: TCallback,
+    callback: impl FnMut(TCollection::Item, usize) -> bool,
 ) -> bool {
     match array {
         Some(array) => for_each_bool(array, callback),
@@ -134,9 +131,9 @@ pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .map(|(_, value)| value)
 }
 
-pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn find_index<TItem>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
     start_index: Option<usize>,
 ) -> Option<usize> {
     array
@@ -146,9 +143,9 @@ pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .position(|(index, value)| predicate(value, index))
 }
 
-pub fn find_last_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn find_last_index<TItem>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
     start_index: Option<usize>,
 ) -> Option<usize> {
     if array.is_empty() {
@@ -167,9 +164,9 @@ pub fn find_last_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     None
 }
 
-pub fn find_last_index_returns_isize<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn find_last_index_returns_isize<TItem>(
     array: &[TItem],
-    predicate: TCallback,
+    predicate: impl FnMut(&TItem, usize) -> bool,
     start_index: Option<usize>,
 ) -> isize {
     match find_last_index(array, predicate, start_index) {
@@ -197,10 +194,10 @@ pub fn contains_gc<TItem: Trace + Finalize>(
     })
 }
 
-pub fn contains_comparer<TItem, TEqualityComparer: Fn(&TItem, &TItem) -> bool>(
+pub fn contains_comparer<TItem>(
     array: Option<&[TItem]>,
     value: &TItem,
-    equality_comparer: TEqualityComparer,
+    equality_comparer: impl Fn(&TItem, &TItem) -> bool,
 ) -> bool {
     array.map_or(false, |array| {
         array.iter().any(|item| equality_comparer(item, value))
@@ -242,9 +239,9 @@ pub fn count_where<TItem, TPredicate: FnMut(&TItem, usize) -> bool>(
     count
 }
 
-pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+pub fn filter<TItem: Clone>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem) -> bool,
 ) -> Vec<TItem> {
     array
         .into_iter()
@@ -289,13 +286,9 @@ pub fn clear<TItem>(array: &mut Vec<TItem>) {
     array.clear();
 }
 
-pub fn map<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> TReturn,
->(
+pub fn map<TCollection: IntoIterator, TReturn>(
     array: TCollection,
-    mut f: TCallback,
+    mut f: impl FnMut(TCollection::Item, usize) -> TReturn,
 ) -> Vec<TReturn> {
     let mut result = vec![];
     for (i, item) in array.into_iter().enumerate() {
@@ -304,13 +297,9 @@ pub fn map<
     result
 }
 
-pub fn maybe_map<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> TReturn,
->(
+pub fn maybe_map<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
-    f: TCallback,
+    f: impl FnMut(TCollection::Item, usize) -> TReturn,
 ) -> Option<Vec<TReturn>> {
     array.map(|array| map(array, f))
 }
@@ -347,13 +336,9 @@ pub fn flatten<TItem: Clone>(array: &[Vec<TItem>]) -> Vec<TItem> {
     result
 }
 
-pub fn flat_map<
-    TCollection: IntoIterator,
-    TReturn: Clone,
-    TCallback: FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
->(
+pub fn flat_map<TCollection: IntoIterator, TReturn: Clone>(
     array: Option<TCollection>,
-    mut mapfn: TCallback,
+    mut mapfn: impl FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
 ) -> Vec<TReturn> {
     let mut result: Option<Vec<_>> = None;
     if let Some(array) = array {
@@ -379,13 +364,9 @@ pub fn flat_map_to_mutable<
     flat_map(array, mapfn)
 }
 
-pub fn map_defined<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn map_defined<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
-    mut map_fn: TCallback,
+    mut map_fn: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Vec<TReturn> {
     let mut result = vec![];
     if let Some(array) = array {
@@ -424,10 +405,7 @@ pub fn try_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) 
     false
 }
 
-pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
-    array: Option<&[TItem]>,
-    predicate: Option<TPredicate>,
-) -> bool {
+pub fn some<TItem>(array: Option<&[TItem]>, predicate: Option<impl FnMut(&TItem) -> bool>) -> bool {
     array.map_or(false, |array| {
         predicate.map_or(!array.is_empty(), |predicate| array.iter().any(predicate))
     })

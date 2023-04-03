@@ -3,8 +3,8 @@
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 use local_macros::enum_unwrapped;
+use std::ptr;
 use std::rc::Rc;
-use std::{cell::RefCell, ptr};
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
@@ -87,7 +87,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
         &self,
         base_factory: &TBaseNodeFactory,
         elements: NodeArrayOrVec, /*<Expression>*/
-    ) -> NodeArray /*<Expression>*/;
+    ) -> Gc<NodeArray> /*<Expression>*/;
     fn parenthesize_expression_for_disallowed_comma(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -122,12 +122,12 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
         &self,
         base_factory: &TBaseNodeFactory,
         members: NodeArrayOrVec, /*<TypeNode>*/
-    ) -> NodeArray /*<TypeNode>*/;
+    ) -> Gc<NodeArray> /*<TypeNode>*/;
     fn parenthesize_type_arguments(
         &self,
         base_factory: &TBaseNodeFactory,
         type_parameters: Option<NodeArrayOrVec /*<TypeNode>*/>,
-    ) -> Option<NodeArray /*<TypeNode>*/>;
+    ) -> Option<Gc<NodeArray> /*<TypeNode>*/>;
 }
 
 pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
@@ -233,14 +233,35 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
     fn is_substitution_enabled(&self, node: &Node) -> bool;
 
     fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
+    fn override_on_substitute_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        )
+            -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    );
 
     fn enable_emit_notification(&self, kind: SyntaxKind);
 
     fn is_emit_notification_enabled(&self, node: &Node) -> bool;
 
     fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node));
+    fn override_on_emit_node(
+        &self,
+        overrider: &mut dyn FnMut(
+            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    );
 
     fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>);
+}
+
+pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node));
+}
+
+pub trait TransformationContextOnSubstituteNodeOverrider: Trace + Finalize {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
 }
 
 pub trait TransformationResult {
@@ -293,11 +314,11 @@ impl VisitResultInterface for VisitResult {
     }
 
     fn into_single_node(self) -> Gc<Node> {
-        self.unwrap().as_single_node().clone()
+        self.unwrap().as_single_node()
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Clone, Trace, Finalize)]
 pub enum SingleNodeOrVecNode {
     SingleNode(Gc<Node>),
     VecNode(Vec<Gc<Node>>),
@@ -312,12 +333,16 @@ impl SingleNodeOrVecNode {
     // fn as_vec_node(self) -> Vec<Gc<Node>> {
     //     enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
     // }
-    fn as_single_node(&self) -> &Gc<Node> {
-        enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode])
+    pub fn as_single_node(&self) -> Gc<Node> {
+        enum_unwrapped!(self, [SingleNodeOrVecNode, SingleNode]).clone()
     }
 
-    fn as_vec_node(&self) -> &Vec<Gc<Node>> {
+    pub fn as_vec_node(&self) -> &Vec<Gc<Node>> {
         enum_unwrapped!(self, [SingleNodeOrVecNode, VecNode])
+    }
+
+    pub fn iter(&self) -> SingleNodeOrVecNodeIter {
+        SingleNodeOrVecNodeIter::new(self)
     }
 }
 
@@ -330,5 +355,52 @@ impl From<Gc<Node>> for SingleNodeOrVecNode {
 impl From<Vec<Gc<Node>>> for SingleNodeOrVecNode {
     fn from(value: Vec<Gc<Node>>) -> Self {
         Self::VecNode(value)
+    }
+}
+
+pub struct SingleNodeOrVecNodeIter<'single_node_or_vec_node> {
+    single_node_or_vec_node: &'single_node_or_vec_node SingleNodeOrVecNode,
+    current_index: usize,
+}
+
+impl<'single_node_or_vec_node> SingleNodeOrVecNodeIter<'single_node_or_vec_node> {
+    pub fn new(single_node_or_vec_node: &'single_node_or_vec_node SingleNodeOrVecNode) -> Self {
+        Self {
+            single_node_or_vec_node,
+            current_index: 0,
+        }
+    }
+}
+
+impl<'single_node_or_vec_node> Iterator for SingleNodeOrVecNodeIter<'single_node_or_vec_node> {
+    type Item = &'single_node_or_vec_node Gc<Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.single_node_or_vec_node {
+            SingleNodeOrVecNode::SingleNode(single_node_or_vec_node) => {
+                if self.current_index > 0 {
+                    return None;
+                }
+                self.current_index += 1;
+                Some(single_node_or_vec_node)
+            }
+            SingleNodeOrVecNode::VecNode(single_node_or_vec_node) => {
+                if self.current_index >= single_node_or_vec_node.len() {
+                    return None;
+                }
+                let ret = &single_node_or_vec_node[self.current_index];
+                self.current_index += 1;
+                Some(ret)
+            }
+        }
+    }
+}
+
+impl<'single_node_or_vec_node> IntoIterator for &'single_node_or_vec_node SingleNodeOrVecNode {
+    type Item = &'single_node_or_vec_node Gc<Node>;
+    type IntoIter = SingleNodeOrVecNodeIter<'single_node_or_vec_node>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

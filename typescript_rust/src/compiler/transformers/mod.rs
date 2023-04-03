@@ -1,6 +1,6 @@
 mod class_fields;
 pub use class_fields::*;
-mod declarations;
+pub mod declarations;
 pub use declarations::*;
 mod esnext;
 pub use esnext::*;
@@ -28,5 +28,4 @@ mod module;
 pub use module::*;
 mod ts;
 pub use ts::*;
-mod utilities;
-pub use utilities::*;
+pub mod utilities;

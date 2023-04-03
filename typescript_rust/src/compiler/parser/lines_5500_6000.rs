@@ -7,14 +7,14 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     add_related_info, create_detached_diagnostic, is_async_modifier, last_or_undefined, some,
-    ArrayLiteralExpression, Block, CaseClause, Debug_, DiagnosticMessage,
+    ArrayLiteralExpression, AsDoubleDeref, Block, CaseClause, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, DoStatement, FunctionExpression,
     IfStatement, Node, NodeArray, NodeFlags, NodeInterface, ObjectLiteralExpression,
     ParenthesizedExpression, ReturnStatement, SyntaxKind, WhileStatement, WithStatement,
 };
 
 impl ParserType {
-    pub(super) fn parse_argument_list(&self) -> NodeArray /*<Expression>*/ {
+    pub(super) fn parse_argument_list(&self) -> Gc<NodeArray> /*<Expression>*/ {
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
         let result = self.parse_delimited_list(
             ParsingContext::ArgumentExpressions,
@@ -25,7 +25,9 @@ impl ParserType {
         result
     }
 
-    pub(super) fn parse_type_arguments_in_expression(&self) -> Option<NodeArray /*<TypeNode>*/> {
+    pub(super) fn parse_type_arguments_in_expression(
+        &self,
+    ) -> Option<Gc<NodeArray> /*<TypeNode>*/> {
         if self.context_flags().intersects(NodeFlags::JavaScriptFile) {
             return None;
         }
@@ -346,7 +348,7 @@ impl ParserType {
             SignatureFlags::None
         };
         let is_async = if some(
-            modifiers.as_deref(),
+            modifiers.as_double_deref(),
             Some(|modifier: &Gc<Node>| is_async_modifier(modifier)),
         ) {
             SignatureFlags::Await
@@ -419,7 +421,7 @@ impl ParserType {
 
         let expression_pos = self.get_node_pos();
         let mut expression: Gc<Node /*MemberExpression*/> = self.parse_primary_expression();
-        let mut type_arguments: Option<NodeArray>;
+        let mut type_arguments: Option<Gc<NodeArray>>;
         loop {
             expression = self.parse_member_expression_rest(expression_pos, expression, false);
             type_arguments = self.try_parse(|| self.parse_type_arguments_in_expression());
@@ -436,7 +438,7 @@ impl ParserType {
             break;
         }
 
-        let mut arguments_array: Option<NodeArray> = None;
+        let mut arguments_array: Option<Gc<NodeArray>> = None;
         if self.token() == SyntaxKind::OpenParenToken {
             arguments_array = Some(self.parse_argument_list());
         } else if type_arguments.is_some() {

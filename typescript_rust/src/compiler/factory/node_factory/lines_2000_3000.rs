@@ -14,7 +14,7 @@ use crate::{
     is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_logical_or_coalescing_assignment_operator, is_object_literal_expression,
     is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
-    modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction,
+    modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction, AsDoubleDeref,
     AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
     BindingElement, CallExpression, ClassExpression, ConditionalExpression, Debug_,
     DeleteExpression, ElementAccessExpression, FunctionExpression,
@@ -87,7 +87,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ImportTypeNode*/
         argument: Gc<Node /*TypeNode*/>,
         qualifier: Option<Gc<Node /*EntityName*/>>,
-        type_arguments: Option<Vec<Gc<Node /*TypeNode*/>>>,
+        type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
         is_type_of: Option<bool>,
     ) -> Gc<Node> {
         let node_as_import_type_node = node.as_import_type_node();
@@ -182,10 +182,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_object_binding_pattern<TElements: Into<NodeArrayOrVec>>(
+    pub fn update_literal_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements, /*<BindingElement>*/
+        node: &Node, /*LiteralTypeNode*/
+        literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_object_binding_pattern(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ObjectBindingPattern {
         let node = self.create_base_node(base_factory, SyntaxKind::ObjectBindingPattern);
         let mut node =
@@ -206,10 +215,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_array_binding_pattern<TElements: Into<NodeArrayOrVec>>(
+    pub fn update_object_binding_pattern(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements, /*<BindingElement>*/
+        node: &Node, /*ObjectBindingPattern*/
+        elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_array_binding_pattern(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ArrayBindingPattern {
         let node = self.create_base_node(base_factory, SyntaxKind::ArrayBindingPattern);
         let mut node = ArrayBindingPattern::new(node, self.create_node_array(Some(elements), None));
@@ -221,24 +239,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_binding_element<
-        'property_name,
-        'name,
-        TPropertyName: Into<StrOrRcNode<'property_name>>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn update_array_binding_pattern(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ArrayBindingPattern*/
+        elements: impl Into<NodeArrayOrVec /*<ArrayBindingElement>*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_binding_element<'property_name, 'name>(
         &self,
         base_factory: &TBaseNodeFactory,
         dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
-        property_name: Option<TPropertyName /*PropertyName*/>,
-        name: TName, /*BindingName*/
+        property_name: Option<impl Into<StrOrRcNode<'property_name> /*PropertyName*/>>,
+        name: impl Into<StrOrRcNode<'name>>, /*BindingName*/
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> BindingElement {
         let node = self.create_base_binding_like_declaration(
             base_factory,
             SyntaxKind::BindingElement,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
@@ -265,6 +287,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsRestOrSpread);
         }
         node
+    }
+
+    pub fn update_binding_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*BindingElement*/
+        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        property_name: Option<Gc<Node /*PropertyName*/>>,
+        name: Gc<Node /*BindingName*/>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub(crate) fn create_base_expression(
@@ -314,10 +348,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_object_literal_expression<TProperties: Into<NodeArrayOrVec>>(
+    pub fn create_object_literal_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        properties: Option<TProperties>, /*ObjectLiteralElementLike*/
+        properties: Option<impl Into<NodeArrayOrVec> /*ObjectLiteralElementLike*/>,
         multi_line: Option<bool>,
     ) -> ObjectLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ObjectLiteralExpression);
@@ -330,14 +364,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_property_access_expression<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_property_access_expression<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
-        name: TName,
+        name: impl Into<StrOrRcNode<'name>>,
     ) -> PropertyAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PropertyAccessExpression);
-        let mut node = PropertyAccessExpression::new(
+        let node = PropertyAccessExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(base_factory, &expression),
@@ -440,15 +474,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_call_expression<
-        TTypeArguments: Into<NodeArrayOrVec>,
-        TArgumentsArray: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_call_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
-        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
-        arguments_array: Option<TArgumentsArray /*<Expression>*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
+        arguments_array: Option<impl Into<NodeArrayOrVec /*<Expression>*/>>,
     ) -> CallExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
         let mut node = CallExpression::new(
@@ -465,7 +496,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(Some(&node.arguments)),
         );
         if node.maybe_type_arguments().is_some() {
@@ -562,7 +593,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(node.question_dot_token.clone())
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_children_flags(Some(&node.arguments))
                 | TransformFlags::ContainsES2020,
         );
@@ -662,8 +693,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
-                | propagate_children_flags(node.arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
+                | propagate_children_flags(node.arguments.as_deref())
                 | TransformFlags::ContainsES2020,
         );
         if node.maybe_type_arguments().is_some() {
@@ -672,11 +703,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_tagged_template_expression<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn create_tagged_template_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         tag: Gc<Node /*Expression*/>,
-        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
         template: Gc<Node /*TemplateLiteral*/>,
     ) -> TaggedTemplateExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TaggedTemplateExpression);
@@ -690,7 +721,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | propagate_child_flags(Some(&*node.template))
                 | TransformFlags::ContainsES2015,
         );
@@ -755,7 +786,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = self.create_base_function_like_declaration(
             base_factory,
             SyntaxKind::FunctionExpression,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
             name,
             type_parameters,
@@ -769,7 +800,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Async)
+        {
             if node.maybe_asterisk_token().is_some() {
                 node.add_transform_flags(TransformFlags::ContainsES2018);
             } else {
@@ -781,16 +814,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_arrow_function<
-        TModifiers: Into<NodeArrayOrVec>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_function_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<TModifiers>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        node: &Node, /*FunctionExpression*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        name: Option<Gc<Node /*Identifier*/>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Gc<Node /*Block*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_arrow_function(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node>>,
         equals_greater_than_token: Option<Gc<Node /*EqualsGreaterThanToken*/>>,
         body: Gc<Node /*ConciseBody*/>,
@@ -798,7 +842,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = self.create_base_function_like_declaration(
             base_factory,
             SyntaxKind::ArrowFunction,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
             Option::<Gc<Node>>::None,
             type_parameters,
@@ -820,12 +864,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.equals_greater_than_token))
                 | TransformFlags::ContainsES2015,
         );
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Async)
+        {
             node.add_transform_flags(
                 TransformFlags::ContainsES2017 | TransformFlags::ContainsLexicalThis,
             );
         }
         node
+    }
+
+    pub fn update_arrow_function(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ArrowFunction*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        equals_greater_than_token: Gc<Node /*EqualsGreaterThanToken*/>,
+        body: Gc<Node /*ConciseBody*/>,
+    ) -> Gc<Node /*ArrowFunction*/> {
+        unimplemented!()
     }
 
     pub fn create_delete_expression(

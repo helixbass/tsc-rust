@@ -956,7 +956,7 @@ pub struct TypeReferenceDirectiveResolutionCache {
     pub package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct ModeAwareCache<TValue: Trace + Finalize + 'static> {
     underlying: GcCell<HashMap<String, TValue>>,
     #[unsafe_ignore_trace]

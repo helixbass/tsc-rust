@@ -2493,7 +2493,7 @@ thread_local! {
         .into(),
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
-            name: "all".to_string(),
+            name: "newLine".to_string(),
             type_: CommandLineOptionType::Map(HashMap::from_iter(IntoIterator::into_iter([
                 ("crlf", CommandLineOptionMapTypeValue::NewLineKind(NewLineKind::CarriageReturnLineFeed)),
                 ("lf", CommandLineOptionMapTypeValue::NewLineKind(NewLineKind::LineFeed)),

@@ -224,7 +224,7 @@ pub(super) fn get_module_instance_state_for_alias_target(
         if is_block(&p_present) || is_module_block(&p_present) || is_source_file(&p_present) {
             let statements = p_present.as_has_statements().statements();
             let mut found: Option<ModuleInstanceState> = None;
-            for statement in statements {
+            for statement in &statements {
                 if node_has_name(statement, &name) {
                     if statement.maybe_parent().is_none() {
                         set_parent(statement, Some(p_present.clone()));

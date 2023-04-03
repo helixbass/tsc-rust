@@ -5,7 +5,6 @@ use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::io;
 use std::mem;
-use std::rc::Rc;
 
 use super::is_static;
 use crate::{
@@ -20,10 +19,10 @@ use crate::{
     path_is_relative, remove_file_extension, str_to_source_text_as_chars, string_contains, to_path,
     AllAccessorDeclarations, CharacterCodes, CompilerOptions, Debug_, DiagnosticCollection,
     Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
-    FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind, NamedDeclarationInterface,
-    Node, NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface,
-    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
-    WriteFileCallback,
+    FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
+    NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface, SourceFileMayBeEmittedHost,
+    Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind, WriteFileCallback,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -783,13 +782,10 @@ pub trait ResolveModuleNameResolutionHost {
     fn get_current_directory(&self) -> String;
 }
 
-pub fn get_resolved_external_module_name<
-    THost: ResolveModuleNameResolutionHost,
-    TReferenceFile: Borrow<Node>,
->(
-    host: &THost,
+pub fn get_resolved_external_module_name(
+    host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     file: &Node, /*SourceFile*/
-    reference_file: Option<TReferenceFile /*SourceFile*/>,
+    reference_file: Option<impl Borrow<Node /*SourceFile*/>>,
 ) -> String {
     let file_as_source_file = file.as_source_file();
     file_as_source_file
@@ -811,8 +807,8 @@ pub fn get_resolved_external_module_name<
         )
 }
 
-pub(super) fn get_canonical_absolute_path<THost: ResolveModuleNameResolutionHost>(
-    host: &THost,
+pub(super) fn get_canonical_absolute_path(
+    host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     path: &str,
 ) -> String {
     host.get_canonical_file_name(&get_normalized_absolute_path(
@@ -821,9 +817,9 @@ pub(super) fn get_canonical_absolute_path<THost: ResolveModuleNameResolutionHost
     ))
 }
 
-pub fn get_external_module_name_from_declaration<THost: ResolveModuleNameResolutionHost>(
-    host: &THost,
-    resolver: &dyn EmitResolver,
+pub fn get_external_module_name_from_declaration(
+    host: &(impl ResolveModuleNameResolutionHost + ?Sized),
+    resolver: &(impl EmitResolver + ?Sized),
     declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
 ) -> Option<String> {
     let file = resolver.get_external_module_file_from_declaration(declaration);
@@ -855,8 +851,8 @@ pub fn get_external_module_name_from_declaration<THost: ResolveModuleNameResolut
     ))
 }
 
-pub fn get_external_module_name_from_path<THost: ResolveModuleNameResolutionHost>(
-    host: &THost,
+pub fn get_external_module_name_from_path(
+    host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     file_name: &str,
     reference_path: Option<&str>,
 ) -> String {
@@ -910,7 +906,9 @@ pub fn get_declaration_emit_output_file_path(file_name: &str, host: &dyn EmitHos
         file_name,
         &ScriptReferenceHost::get_compiler_options(host),
         &ScriptReferenceHost::get_current_directory(host),
-        &host.get_common_source_directory(),
+        &ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(
+            host,
+        ),
         |f| host.get_canonical_file_name(f),
     )
 }
@@ -1056,8 +1054,10 @@ pub fn get_source_file_path_in_new_dir(
     get_source_file_path_in_new_dir_worker(
         file_name,
         new_dir_path,
-        &EmitHost::get_current_directory(host),
-        &host.get_common_source_directory(),
+        &ScriptReferenceHost::get_current_directory(host),
+        &ModuleSpecifierResolutionHostAndGetCommonSourceDirectory::get_common_source_directory(
+            host,
+        ),
         |f| host.get_canonical_file_name(f),
     )
 }
@@ -1154,11 +1154,11 @@ pub fn get_line_of_local_position_from_line_map(line_map: &[usize], pos: usize) 
 pub fn get_first_constructor_with_body(
     node: &Node, /*ClassLikeDeclaration*/
 ) -> Option<Gc<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
-    find(node.as_class_like_declaration().members(), |member, _| {
+    find(&node.as_class_like_declaration().members(), |member, _| {
         is_constructor_declaration(member)
             && node_is_present(member.as_constructor_declaration().maybe_body())
     })
-    .map(Clone::clone)
+    .cloned()
 }
 
 pub fn get_set_accessor_value_parameter(

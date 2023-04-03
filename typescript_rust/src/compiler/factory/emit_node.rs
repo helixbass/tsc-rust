@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::{
     get_parse_tree_node, get_source_file_of_node, is_parse_tree_node,
     maybe_get_source_file_of_node, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, Node,
-    NodeInterface, ReadonlyTextRange, SnippetElement, StringOrNumber, SyntaxKind,
+    NodeInterface, ReadonlyTextRange, SnippetElement, SourceMapRange, StringOrNumber, SyntaxKind,
     SynthesizedComment,
 };
 
@@ -76,8 +76,8 @@ pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>)
     }
 }
 
-pub fn set_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
-    get_or_create_emit_node(&node).borrow_mut().flags = Some(emit_flags);
+pub fn set_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
+    get_or_create_emit_node(node.borrow()).borrow_mut().flags = Some(emit_flags);
     node
 }
 
@@ -85,6 +85,11 @@ pub fn add_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
     let emit_node = get_or_create_emit_node(&node);
     let mut emit_node = emit_node.borrow_mut();
     emit_node.flags = Some(emit_node.flags.unwrap_or(EmitFlags::None) | emit_flags);
+    node
+}
+
+pub fn set_source_map_range(node: Gc<Node>, range: Option<Gc<SourceMapRange>>) -> Gc<Node> {
+    get_or_create_emit_node(&node).borrow_mut().source_map_range = range;
     node
 }
 
@@ -108,10 +113,18 @@ pub fn get_comment_range(node: &Node) -> BaseTextRange {
         .unwrap_or_else(|| BaseTextRange::new(node.pos(), node.end()))
 }
 
-pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, range: &TRange)
+pub fn set_comment_range(node: &Node, range: &impl ReadonlyTextRange /*TextRange*/)
 /*-> Gc<Node>*/
 {
     // unimplemented!()
+}
+
+pub fn set_comment_range_rc(
+    node: Gc<Node>,
+    range: &impl ReadonlyTextRange, /*TextRange*/
+) -> Gc<Node> {
+    set_comment_range(&node, range);
+    node
 }
 
 pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
@@ -143,6 +156,14 @@ pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<Synthesized
 pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
+}
+
+pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Gc<Node> {
+    unimplemented!()
+}
+
+pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
+    unimplemented!()
 }
 
 pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {

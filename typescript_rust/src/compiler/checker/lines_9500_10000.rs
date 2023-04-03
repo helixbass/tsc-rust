@@ -16,7 +16,7 @@ use crate::{
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
     is_source_file, is_type_alias, length, maybe_append_if_unique_gc, maybe_append_if_unique_rc,
     maybe_first_defined, maybe_map, maybe_same_map, resolving_empty_array, same_map, some,
-    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
+    AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface,
     ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
@@ -821,16 +821,10 @@ impl TypeChecker {
                     {
                         add_related_info(
                             &err,
-                            vec![Gc::new(
-                                create_diagnostic_for_node(
-                                    &base_constructor_type_symbol_declarations[0],
-                                    &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1,
-                                    Some(vec![
+                            vec![create_diagnostic_for_node(&base_constructor_type_symbol_declarations[0], &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1, Some(vec![
                                         self.symbol_to_string_(&base_constructor_type.symbol(), Option::<&Node>::None, None, None, None),
                                         self.type_to_string_(&ctor_return, Option::<&Node>::None, None, None)
-                                    ])
-                                ).into()
-                            )]
+                                    ])).into()]
                         );
                     }
                 }
@@ -1020,7 +1014,7 @@ impl TypeChecker {
                 base_type_node
                     .as_expression_with_type_arguments()
                     .maybe_type_arguments()
-                    .as_deref(),
+                    .as_double_deref(),
                 &base_type_node,
             );
             if constructors.is_empty() {

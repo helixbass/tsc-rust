@@ -1,6 +1,6 @@
 use super::{visit_node, visit_nodes};
 use crate::{
-    for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
+    for_each, maybe_for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasQuestionTokenInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
@@ -32,12 +32,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.question_token.clone());
@@ -52,15 +52,15 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.dot_dot_dot_token.clone());
-            visit_node(&mut cb_node, Some(node.name()));
+            visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.question_token.clone());
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_initializer())
@@ -69,12 +69,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
@@ -86,12 +86,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
@@ -102,12 +102,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
@@ -117,12 +117,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.exclamation_token.clone());
@@ -133,12 +133,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.dot_dot_dot_token.clone());
             visit_node(&mut cb_node, node.property_name.clone());
@@ -149,107 +149,107 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::ConstructorTypeNode(node) => {
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::CallSignatureDeclaration(node) => {
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::ConstructSignatureDeclaration(node) => {
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::IndexSignatureDeclaration(node) => {
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::MethodDeclaration(node) => {
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
@@ -258,9 +258,9 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_body())
         }
@@ -268,32 +268,32 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.name()));
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::ConstructorDeclaration(node) => {
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, node.maybe_name());
@@ -302,9 +302,9 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_body())
         }
@@ -312,12 +312,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
@@ -326,9 +326,9 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_body())
         }
@@ -336,12 +336,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
@@ -350,9 +350,9 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_body())
         }
@@ -360,12 +360,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, node.maybe_name());
@@ -374,9 +374,9 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_body())
         }
@@ -384,12 +384,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, node.maybe_name());
@@ -398,9 +398,9 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_body())
         }
@@ -408,12 +408,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, node.maybe_name());
@@ -422,9 +422,9 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, Some(&*node.equals_greater_than_token));
             visit_node(&mut cb_node, node.maybe_body())
@@ -433,12 +433,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(&*node.body));
         }
@@ -447,7 +447,7 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_arguments().as_ref(),
+                node.maybe_type_arguments().as_deref(),
             )
         }
         Node::TypePredicateNode(node) => {
@@ -484,7 +484,7 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_arguments().as_ref(),
+                node.maybe_type_arguments().as_deref(),
             )
         }
         Node::ParenthesizedTypeNode(node) => visit_node(&mut cb_node, Some(&*node.type_)),
@@ -499,7 +499,7 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.name_type.clone());
             visit_node(&mut cb_node, node.question_token.clone());
             visit_node(&mut cb_node, node.type_.clone());
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.members.as_ref())
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.members.as_deref())
         }
         Node::LiteralTypeNode(node) => visit_node(&mut cb_node, Some(&*node.literal)),
         Node::NamedTupleMember(node) => {
@@ -536,7 +536,7 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_arguments().as_ref(),
+                node.maybe_type_arguments().as_deref(),
             );
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.arguments));
         }
@@ -545,9 +545,9 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_arguments().as_ref(),
+                node.maybe_type_arguments().as_deref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.arguments.as_ref());
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.arguments.as_deref());
         }
         Node::TaggedTemplateExpression(node) => {
             visit_node(&mut cb_node, Some(&*node.tag));
@@ -555,7 +555,7 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_arguments().as_ref(),
+                node.maybe_type_arguments().as_deref(),
             );
             visit_node(&mut cb_node, Some(&*node.template));
         }
@@ -616,19 +616,19 @@ pub fn for_each_child(
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.statements));
         }
         Node::SourceFile(node) => {
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.statements()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.statements()));
             visit_node(&mut cb_node, Some(node.end_of_file_token()));
         }
         Node::VariableStatement(node) => {
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.declaration_list.clone()))
         }
@@ -716,23 +716,23 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_name());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_heritage_clauses(),
+                node.maybe_heritage_clauses().as_deref(),
             );
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.members()))
         }
@@ -740,23 +740,23 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_name());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_heritage_clauses(),
+                node.maybe_heritage_clauses().as_deref(),
             );
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.members()))
         }
@@ -764,23 +764,23 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.name()));
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_heritage_clauses(),
+                node.maybe_heritage_clauses().as_deref(),
             );
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.members))
         }
@@ -788,18 +788,18 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.name()));
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_parameters().as_ref(),
+                node.maybe_type_parameters().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.type_.clone()))
         }
@@ -807,12 +807,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(node.name()));
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.members))
@@ -825,12 +825,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.body.clone());
@@ -839,12 +839,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, Some(&*node.module_reference));
@@ -853,12 +853,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.import_clause.clone());
             visit_node(&mut cb_node, Some(&*node.module_specifier));
@@ -894,12 +894,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, node.export_clause.clone());
             visit_node(&mut cb_node, node.module_specifier.clone());
@@ -917,12 +917,12 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_modifiers().as_ref(),
+                node.maybe_modifiers().as_deref(),
             );
             visit_node(&mut cb_node, Some(&*node.expression));
         }
@@ -953,7 +953,7 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_arguments().as_ref(),
+                node.maybe_type_arguments().as_deref(),
             )
         }
         Node::ExternalModuleReference(node) => {
@@ -963,7 +963,7 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_decorators().as_ref(),
+                node.maybe_decorators().as_deref(),
             );
         }
         Node::CommaListExpression(node) => {
@@ -984,7 +984,7 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_arguments().as_ref(),
+                node.maybe_type_arguments().as_deref(),
             );
             visit_node(&mut cb_node, Some(&*node.attributes));
         }
@@ -993,7 +993,7 @@ pub fn for_each_child(
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.maybe_type_arguments().as_ref(),
+                node.maybe_type_arguments().as_deref(),
             );
             visit_node(&mut cb_node, Some(&*node.attributes));
         }
@@ -1027,14 +1027,14 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.type_.clone());
         }
         Node::JSDocFunctionType(node) => {
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(node.parameters()));
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.parameters()));
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::JSDoc(node) => {
             if let Some(StringOrNodeArray::NodeArray(comment)) = node.comment.as_ref() {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.tags.as_ref());
+            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.tags.as_deref());
         }
         Node::JSDocSeeTag(node) => {
             visit_node(&mut cb_node, Some(node.tag_name()));
@@ -1146,6 +1146,15 @@ pub fn for_each_child(
         }
         Node::JSDocLinkCode(node) => {
             visit_node(&mut cb_node, node.name.clone());
+        }
+        Node::JSDocLinkPlain(node) => {
+            visit_node(&mut cb_node, node.name.clone());
+        }
+        Node::JSDocTypeLiteral(node) => {
+            maybe_for_each(node.js_doc_property_tags.as_deref(), |node, _| {
+                cb_node(node);
+                Option::<()>::None
+            });
         }
         Node::PartiallyEmittedExpression(node) => {
             visit_node(&mut cb_node, Some(&*node.expression));

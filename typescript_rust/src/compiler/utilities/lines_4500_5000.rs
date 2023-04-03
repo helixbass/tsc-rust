@@ -5,7 +5,6 @@ use std::borrow::Borrow;
 use std::cmp;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{
     get_indent_size, get_indent_string, get_line_of_local_position_from_line_map,
@@ -22,8 +21,8 @@ use crate::{
     is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression, is_parameter,
     is_pinned_comment, is_property_access_entity_name_expression, is_white_space_single_line, last,
     maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, synthetic_factory,
-    text_char_at_index, text_substring, trim_string, CharacterCodes, CommentRange, EmitTextWriter,
-    Extension, ModifierFlags, ModifiersArray, Node, NodeArray, NodeFlags, NodeInterface,
+    text_char_at_index, text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange,
+    EmitTextWriter, ModifierFlags, ModifiersArray, Node, NodeFlags, NodeInterface,
     ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
@@ -522,7 +521,7 @@ pub fn get_effective_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
 }
 
 fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
-    let mut flags = modifiers_to_flags(node.maybe_modifiers().as_deref());
+    let mut flags = modifiers_to_flags(node.maybe_modifiers().as_double_deref());
     if node.flags().intersects(NodeFlags::NestedNamespace)
         || node.kind() == SyntaxKind::Identifier
             && matches!(

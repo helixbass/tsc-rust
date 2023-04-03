@@ -144,9 +144,10 @@ pub fn get_ts_config_object_literal_expression<TTsConfigSourceFile: Borrow<Node>
     let ts_config_source_file = ts_config_source_file.borrow();
     let ts_config_source_file_as_source_file = ts_config_source_file.as_source_file();
     if !ts_config_source_file_as_source_file.statements().is_empty() {
-        let expression = &ts_config_source_file_as_source_file.statements()[0]
+        let ref expression = &ts_config_source_file_as_source_file.statements()[0]
             .as_expression_statement()
-            .expression;
+            .expression
+            .clone();
         return try_cast(expression, |expression| {
             is_object_literal_expression(expression)
         })
@@ -534,11 +535,11 @@ pub fn child_is_decorated<TParent: Borrow<Node> + Clone>(
 ) -> bool {
     match node.kind() {
         SyntaxKind::ClassDeclaration => some(
-            Some(node.as_class_declaration().members()),
+            Some(&node.as_class_declaration().members()),
             Some(|m: &Gc<Node>| node_or_child_is_decorated(m, Some(node), parent.clone())), // TODO: figure out how to not clone parent every time
         ),
         SyntaxKind::MethodDeclaration | SyntaxKind::SetAccessor | SyntaxKind::Constructor => some(
-            Some(node.as_function_like_declaration().parameters()),
+            Some(&node.as_function_like_declaration().parameters()),
             Some(|p: &Gc<Node>| node_is_decorated(p, Some(node), parent.clone())),
         ),
         _ => false,

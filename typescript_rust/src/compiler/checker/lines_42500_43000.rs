@@ -257,7 +257,7 @@ impl TypeChecker {
                 .and_then(|node_body| find_use_strict_prologue(&node_body.as_block().statements));
             if let Some(use_strict_directive) = use_strict_directive.as_ref() {
                 let non_simple_parameters =
-                    self.get_non_simple_parameters(node_as_function_like_declaration.parameters());
+                    self.get_non_simple_parameters(&node_as_function_like_declaration.parameters());
                 if length(Some(&*non_simple_parameters)) > 0 {
                     for_each(
                         &non_simple_parameters,
@@ -324,10 +324,10 @@ impl TypeChecker {
             || self.check_grammar_type_parameter_list(
                 node_as_signature_declaration
                     .maybe_type_parameters()
-                    .as_ref(),
+                    .as_deref(),
                 &file,
             )
-            || self.check_grammar_parameter_list(node_as_signature_declaration.parameters())
+            || self.check_grammar_parameter_list(&node_as_signature_declaration.parameters())
             || self.check_grammar_arrow_function(node, &file)
             || is_function_like_declaration(node)
                 && self.check_grammar_for_use_strict_simple_parameter_list(node)
@@ -342,7 +342,7 @@ impl TypeChecker {
             || self.check_grammar_type_parameter_list(
                 node.as_has_type_parameters()
                     .maybe_type_parameters()
-                    .as_ref(),
+                    .as_deref(),
                 &file,
             )
     }
@@ -407,9 +407,9 @@ impl TypeChecker {
         node: &Node, /*SignatureDeclaration*/
     ) -> bool {
         let node_as_signature_declaration = node.as_signature_declaration();
-        let parameter = node_as_signature_declaration.parameters().get(0);
+        let parameter = node_as_signature_declaration.parameters().get(0).cloned();
         if node_as_signature_declaration.parameters().len() != 1 {
-            if let Some(parameter) = parameter {
+            if let Some(parameter) = parameter.as_ref() {
                 return self.grammar_error_on_node(
                     &parameter.as_parameter_declaration().name(),
                     &Diagnostics::An_index_signature_must_have_exactly_one_parameter,
@@ -424,10 +424,10 @@ impl TypeChecker {
             }
         }
         self.check_grammar_for_disallowed_trailing_comma(
-            Some(node_as_signature_declaration.parameters()),
+            Some(&node_as_signature_declaration.parameters()),
             Some(&Diagnostics::An_index_signature_cannot_have_a_trailing_comma),
         );
-        let parameter = parameter.unwrap();
+        let ref parameter = parameter.unwrap();
         let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
         if let Some(parameter_dot_dot_dot_token) = parameter_as_parameter_declaration
             .dot_dot_dot_token
@@ -628,7 +628,7 @@ impl TypeChecker {
             node,
             node.as_expression_with_type_arguments()
                 .maybe_type_arguments()
-                .as_ref(),
+                .as_deref(),
         )
     }
 
@@ -643,7 +643,7 @@ impl TypeChecker {
             if let Some(node_heritage_clauses) =
                 node.as_class_like_declaration().maybe_heritage_clauses()
             {
-                for heritage_clause in node_heritage_clauses {
+                for heritage_clause in &node_heritage_clauses {
                     let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
                     if heritage_clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
                         if seen_extends_clause {
@@ -704,7 +704,7 @@ impl TypeChecker {
         if let Some(node_heritage_clauses) =
             node.as_interface_declaration().maybe_heritage_clauses()
         {
-            for heritage_clause in node_heritage_clauses {
+            for heritage_clause in &node_heritage_clauses {
                 let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
                 if heritage_clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
                     if seen_extends_clause {

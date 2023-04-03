@@ -321,7 +321,7 @@ impl TypeChecker {
                 node,
                 node_as_tagged_template_expression
                     .maybe_type_arguments()
-                    .as_ref(),
+                    .as_deref(),
             );
         }
         if self.language_version < ScriptTarget::ES2015 {

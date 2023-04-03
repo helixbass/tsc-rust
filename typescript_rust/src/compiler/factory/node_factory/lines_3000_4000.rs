@@ -1,22 +1,21 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_external_module_reference, modifiers_to_flags, AsExpression, BaseNodeFactory, Block,
-    BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement,
-    DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
-    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    is_external_module_reference, modifiers_to_flags, AsDoubleDeref, AsExpression, BaseNodeFactory,
+    Block, BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_,
+    DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
+    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, HasTypeArgumentsInterface, IfStatement, ImportClause,
     ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement,
     MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
     OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StrOrRcNode,
-    StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags,
-    TryStatement, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
-    VariableStatement, WhileStatement, WithStatement,
+    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -25,11 +24,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         OmittedExpression::new(node)
     }
 
-    pub fn create_expression_with_type_arguments<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn create_expression_with_type_arguments(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node>, /*Expression*/
-        type_arguments: Option<TTypeArguments>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> ExpressionWithTypeArguments {
         let node = self.create_base_node(base_factory, SyntaxKind::ExpressionWithTypeArguments);
         let mut node = ExpressionWithTypeArguments::new(
@@ -43,10 +42,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.maybe_type_arguments().as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_deref())
                 | TransformFlags::ContainsES2015,
         );
         node
+    }
+
+    pub fn update_expression_with_type_arguments(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,          /*ExpressionWithTypeArguments*/
+        expression: Gc<Node>, /*Expression*/
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_as_expression(
@@ -149,10 +158,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_block<TStatements: Into<NodeArrayOrVec>>(
+    pub fn create_block(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: TStatements, /*Statement*/
+        statements: impl Into<NodeArrayOrVec>, /*Statement*/
         multi_line: Option<bool>,
     ) -> Block {
         let node = self.create_base_node(base_factory, SyntaxKind::Block);
@@ -165,19 +174,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_variable_statement<
-        TModifiers: Into<NodeArrayOrVec>,
-        TDeclarationList: Into<RcNodeOrNodeArrayOrVec>,
-    >(
+    pub fn update_block(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<TModifiers>,
-        declaration_list: TDeclarationList,
+        node: &Node,                           /*Block*/
+        statements: impl Into<NodeArrayOrVec>, /*Statement*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_variable_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        declaration_list: impl Into<RcNodeOrNodeArrayOrVec>,
     ) -> VariableStatement {
         let node = self.create_base_declaration(
             base_factory,
             SyntaxKind::VariableStatement,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
             modifiers,
         );
         let mut node = VariableStatement::new(
@@ -193,11 +208,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list)));
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Ambient)
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
+    }
+
+    pub fn update_variable_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*VariableStatement*/
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        declaration_list: Gc<Node /*VariableDeclarationList*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_empty_statement(&self, base_factory: &TBaseNodeFactory) -> EmptyStatement {
@@ -305,6 +331,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_for_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ForStatement*/
+        initializer: Option<Gc<Node /*ForInitializer*/>>,
+        condition: Option<Gc<Node /*Expression*/>>,
+        incrementor: Option<Gc<Node /*Expression*/>>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_for_in_statement(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -325,6 +363,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.statement)),
         );
         node
+    }
+
+    pub fn update_for_in_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ForInStatement*/
+        initializer: Gc<Node /*ForInitializer*/>,
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_for_of_statement(
@@ -356,6 +405,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsES2018);
         }
         node
+    }
+
+    pub fn update_for_of_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ForOfStatement*/
+        await_modifier: Option<Gc<Node /*AwaitKeyword*/>>,
+        initializer: Gc<Node /*ForInitializer*/>,
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_continue_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(
@@ -492,10 +553,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         DebuggerStatement::new(node)
     }
 
-    pub fn create_variable_declaration<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_variable_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: Option<TName /*BindingName*/>,
+        name: Option<impl Into<StrOrRcNode<'name> /*BindingName*/>>,
         exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
@@ -503,8 +564,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_variable_like_declaration(
             base_factory,
             SyntaxKind::VariableDeclaration,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             name,
             type_,
             initializer.map(|initializer| {
@@ -521,10 +582,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_variable_declaration_list<TDeclarations: Into<NodeArrayOrVec>>(
+    pub fn update_variable_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        declarations: TDeclarations,
+        node: &Node, /*VariableDeclaration*/
+        name: Option<Gc<Node /*BindingName*/>>,
+        exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_variable_declaration_list(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        declarations: impl Into<NodeArrayOrVec>,
         flags: Option<NodeFlags>,
     ) -> VariableDeclarationList {
         let flags = flags.unwrap_or(NodeFlags::None);
@@ -542,6 +615,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             );
         }
         node
+    }
+
+    pub fn update_variable_declaration_list(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*VariableDeclarationList*/
+        declarations: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_function_declaration<
@@ -577,7 +659,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.asterisk_token = asterisk_token;
         let mut node = FunctionDeclaration::new(node);
         if node.maybe_body().is_none()
-            || modifiers_to_flags(node.maybe_modifiers().as_deref())
+            || modifiers_to_flags(node.maybe_modifiers().as_double_deref())
                 .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
@@ -586,7 +668,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 propagate_child_flags(node.maybe_asterisk_token())
                     | TransformFlags::ContainsHoistedDeclarationOrCompletion,
             );
-            if modifiers_to_flags(node.maybe_modifiers().as_deref())
+            if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
                 .intersects(ModifierFlags::Async)
             {
                 match node.maybe_asterisk_token() {
@@ -604,23 +686,40 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_class_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        THeritageClauses: Into<NodeArrayOrVec>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_function_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName /*string | Identifier*/>,
-        type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
-        heritage_clauses: Option<THeritageClauses /*<HeritageClause>*/>,
-        members: TMembers, /*<ClassElement>*/
+        node: &Node, /*FunctionDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        name: Option<Gc<Node /*Identifier*/>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Option<Gc<Node /*Block*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_class_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<
+            impl Into<StrOrRcNode<'name>>,
+            /*string | Identifier*/
+        >,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        heritage_clauses: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<HeritageClause>*/
+        >,
+        members: impl Into<NodeArrayOrVec>, /*<ClassElement>*/
     ) -> ClassDeclaration {
         let node = self.create_base_class_like_declaration(
             base_factory,
@@ -633,7 +732,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             members,
         );
         let mut node = ClassDeclaration::new(node);
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
@@ -648,23 +748,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_interface_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        THeritageClauses: Into<NodeArrayOrVec>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_class_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
-        type_parameters: Option<TTypeParameters>,
-        heritage_clauses: Option<THeritageClauses>,
-        members: TMembers,
+        node: &Node, /*ClassDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<Gc<Node>>,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        heritage_clauses: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<HeritageClause>*/
+        >,
+        members: impl Into<NodeArrayOrVec>, /*<ClassElement>*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_interface_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        heritage_clauses: Option<impl Into<NodeArrayOrVec>>,
+        members: impl Into<NodeArrayOrVec>,
     ) -> InterfaceDeclaration {
         let node = self.create_base_interface_or_class_like_declaration(
             base_factory,
@@ -680,19 +792,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_alias_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_interface_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
-        type_parameters: Option<TTypeParameters>,
+        node: &Node, /*InterfaceDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        heritage_clauses: Option<impl Into<NodeArrayOrVec>>,
+        members: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_type_alias_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
         type_: Gc<Node /*TypeNode*/>,
     ) -> TypeAliasDeclaration {
         let node = self.create_base_generic_named_declaration(
@@ -708,19 +828,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_enum_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_type_alias_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: TName,
-        members: Option<TMembers>,
+        node: &Node, /*TypeAliasDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_enum_declaration<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: impl Into<StrOrRcNode<'name>>,
+        members: Option<impl Into<NodeArrayOrVec>>,
     ) -> EnumDeclaration {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -739,14 +866,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_module_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_enum_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        node: &Node, /*EnumDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node>,
+        members: Option<impl Into<NodeArrayOrVec>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_module_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Gc<Node /*ModuleName*/>,
         body: Option<Gc<Node /*ModuleBody*/>>,
         flags: Option<NodeFlags>,
@@ -766,7 +902,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                         | NodeFlags::GlobalAugmentation)),
         );
         let mut node = ModuleDeclaration::new(node, name, body);
-        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
+            .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
@@ -782,15 +919,36 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_module_block<TStatements: Into<NodeArrayOrVec>>(
+    pub fn update_module_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: Option<TStatements>,
+        node: &Node, /*ModuleDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Gc<Node /*ModuleName*/>,
+        body: Option<Gc<Node /*ModuleBody*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_module_block(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        statements: Option<impl Into<NodeArrayOrVec>>,
     ) -> ModuleBlock {
         let node = self.create_base_node(base_factory, SyntaxKind::ModuleBlock);
         let mut node = ModuleBlock::new(node, self.create_node_array(statements, None));
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
+    }
+
+    pub fn update_module_block(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ModuleBlock*/
+        statements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_case_block<TClauses: Into<NodeArrayOrVec>>(
@@ -812,8 +970,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::NamespaceExportDeclaration,
-            Option::<NodeArray>::None,
-            Option::<NodeArray>::None,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
             Some(name),
         );
         let mut node = NamespaceExportDeclaration::new(node);
@@ -821,18 +979,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_import_equals_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub fn create_import_equals_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
-        name: TName,
+        name: impl Into<StrOrRcNode<'name>>,
         module_reference: Gc<Node /*ModuleReference*/>,
     ) -> ImportEqualsDeclaration {
         let node = self.create_base_named_declaration(
@@ -853,14 +1006,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_import_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn update_import_equals_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        node: &Node, /*ImportEqualsDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        is_type_only: bool,
+        name: Gc<Node /*Identifier*/>,
+        module_reference: Gc<Node /*ModuleReference*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_import_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         import_clause: Option<Gc<Node /*ImportClause*/>>,
         module_specifier: Gc<Node /*Expression*/>,
         assert_clause: Option<Gc<Node /*AssertClause*/>>,
@@ -877,6 +1040,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.module_specifier)),
         );
         node
+    }
+
+    pub fn update_import_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ImportDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        import_clause: Option<Gc<Node /*ImportClause*/>>,
+        module_specifier: Gc<Node /*Expression*/>,
+        assert_clause: Option<Gc<Node /*AssertClause*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_import_clause(
@@ -899,5 +1075,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_import_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ImportClause*/
+        is_type_only: bool,
+        name: Option<Gc<Node /*Identifier*/>>,
+        named_bindings: Option<Gc<Node /*NamedImportBindings*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 }

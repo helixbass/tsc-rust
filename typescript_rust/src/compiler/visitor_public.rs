@@ -2,8 +2,9 @@ use gc::Gc;
 use std::borrow::Borrow;
 
 use crate::{
-    single_or_undefined, Debug_, Node, NodeArray, NodeInterface, SingleNodeOrVecNode, SyntaxKind,
-    TransformationContext, VisitResult, VisitResultInterface,
+    is_block, is_statement, single_or_undefined, with_synthetic_factory, Debug_, Node, NodeArray,
+    NodeInterface, NonEmpty, SingleNodeOrVecNode, SyntaxKind, TransformationContext, VisitResult,
+    VisitResultInterface,
 };
 
 pub fn visit_node(
@@ -36,14 +37,97 @@ pub fn visit_node(
     visited_node
 }
 
-pub fn visit_nodes<TVisitor: FnMut(&Node) -> VisitResult, TTest: Fn(&Node) -> bool>(
+pub fn visit_nodes(
     nodes: Option<&NodeArray>,
-    visitor: Option<TVisitor>,
-    test: Option<TTest>,
+    visitor: Option<impl FnMut(&Node) -> VisitResult>,
+    test: Option<impl Fn(&Node) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
-) -> Option<NodeArray> {
+) -> Option<Gc<NodeArray>> {
     unimplemented!()
+}
+
+pub fn visit_parameter_list<
+    TContext: TransformationContext + ?Sized,
+    TNodesVisitorVisitor: FnMut(&Node) -> VisitResult,
+    TNodesVisitorTest: Fn(&Node) -> bool,
+>(
+    nodes: Option<&NodeArray>,
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &TContext,
+    nodes_visitor: Option<
+        impl FnMut(
+            Option<&NodeArray>,
+            Option<TNodesVisitorVisitor>,
+            Option<TNodesVisitorTest>,
+            Option<usize>,
+            Option<usize>,
+        ) -> Gc<NodeArray>,
+    >,
+) -> Option<Gc<NodeArray>> {
+    unimplemented!()
+}
+
+pub fn visit_function_body<
+    TContext: TransformationContext + ?Sized,
+    TNodeVisitorNode: Borrow<Node>,
+    TNodeVisitorVisitor: FnMut(&Node) -> VisitResult,
+    TNodeVisitorTest: Fn(&Node) -> bool,
+    TNodeVisitorLift: Fn(&[Gc<Node>]) -> Gc<Node>,
+>(
+    node: Option<&Node /*ConciseBody*/>,
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &TContext,
+    node_visitor: Option<
+        impl FnMut(
+            Option<TNodeVisitorNode>,
+            Option<TNodeVisitorVisitor>,
+            Option<TNodeVisitorTest>,
+            Option<TNodeVisitorLift>,
+        ) -> Option<Gc<Node>>,
+    >,
+) -> Option<Gc<Node /*ConciseBody*/>> {
+    unimplemented!()
+}
+
+pub fn visit_iteration_body<TContext: TransformationContext + ?Sized>(
+    body: &Node, /*Statement*/
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &TContext,
+) -> Gc<Node /*Statement*/> {
+    context.start_block_scope();
+    let updated = visit_node(
+        Some(body),
+        Some(visitor),
+        Some(is_statement),
+        Some(|nodes: &[Gc<Node>]| {
+            with_synthetic_factory(|synthetic_factory_| {
+                context.factory().lift_to_block(synthetic_factory_, nodes)
+            })
+        }),
+    )
+    .unwrap();
+    let declarations = context.end_block_scope();
+    if let Some(mut declarations) = declarations.non_empty()
+    /*some(declarations)*/
+    {
+        if is_block(&updated) {
+            declarations.extend(updated.as_block().statements.iter().cloned());
+            return with_synthetic_factory(|synthetic_factory_| {
+                context
+                    .factory()
+                    .update_block(synthetic_factory_, &updated, declarations)
+            });
+        }
+        declarations.push(updated);
+        return with_synthetic_factory(|synthetic_factory_| {
+            context
+                .factory()
+                .create_block(synthetic_factory_, declarations, None)
+                .into()
+        });
+    }
+    updated
 }
 
 pub fn visit_each_child<
@@ -65,7 +149,7 @@ pub fn visit_each_child<
             Option<TNodesVisitorTest>,
             Option<usize>,
             Option<usize>,
-        ) -> NodeArray,
+        ) -> Gc<NodeArray>,
     >,
     token_visitor: Option<impl FnMut(&Node) -> VisitResult>,
     node_visitor: Option<

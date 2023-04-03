@@ -105,7 +105,7 @@ impl TypeChecker {
         node: &Node, /*ClassLikeDeclaration*/
     ) -> Option<Gc<Node /*ConstructorDeclaration*/>> {
         let members = node.as_class_like_declaration().members();
-        for member in members {
+        for member in &members {
             if member.kind() == SyntaxKind::Constructor
                 && node_is_present(member.as_constructor_declaration().maybe_body())
             {

@@ -49,6 +49,7 @@ impl Printer {
         }
         let mut bundled_helpers: HashMap<String, bool> = HashMap::new();
         for source_file in &bundle.as_bundle().source_files {
+            let source_file = source_file.as_ref().unwrap();
             let should_skip = get_external_helpers_module_name(source_file).is_some();
             let helpers = self.get_sorted_emit_helpers(source_file);
             if helpers.is_none() {
@@ -92,7 +93,9 @@ impl Printer {
                 if i < num_prepends {
                     bundle.as_bundle().prepends[i].clone()
                 } else {
-                    bundle.as_bundle().source_files[i - num_prepends].clone()
+                    bundle.as_bundle().source_files[i - num_prepends]
+                        .clone()
+                        .unwrap()
                 }
             } else {
                 node.node_wrapper()
@@ -290,7 +293,7 @@ impl Printer {
         }
         self.emit_list(
             Some(node),
-            node.as_identifier().maybe_type_arguments().as_ref(),
+            node.as_identifier().maybe_type_arguments().as_deref(),
             ListFormat::TypeParameters,
             None,
             None,

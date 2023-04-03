@@ -107,6 +107,18 @@ thread_local! {
     );
 }
 
+pub fn with_parse_base_node_factory_and_factory<
+    TReturn,
+    TCallback: FnOnce(&ParseBaseNodeFactory, &Gc<NodeFactory<ParseBaseNodeFactory>>) -> TReturn,
+>(
+    callback: TCallback,
+) -> TReturn {
+    parse_base_node_factory.with(|parse_base_node_factory_| {
+        parse_node_factory
+            .with(|parse_node_factory_| callback(parse_base_node_factory_, parse_node_factory_))
+    })
+}
+
 pub(super) fn visit_node<TNodeRef: Borrow<Node>, TNodeCallback: FnMut(&Node)>(
     cb_node: &mut TNodeCallback,
     node: Option<TNodeRef>,

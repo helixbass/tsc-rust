@@ -104,19 +104,19 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.add_transform_flags(flags)
                     }
 
-                    fn maybe_decorators(&self) -> ::gc::GcCellRef<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_decorators(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
                         self.#first_field_name.maybe_decorators()
                     }
 
-                    fn set_decorators(&self, decorators: ::std::option::Option<crate::NodeArray>) {
+                    fn set_decorators(&self, decorators: ::std::option::Option<::gc::Gc<crate::NodeArray>>) {
                         self.#first_field_name.set_decorators(decorators)
                     }
 
-                    fn maybe_modifiers(&self) -> ::gc::GcCellRef<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_modifiers(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
                         self.#first_field_name.maybe_modifiers()
                     }
 
-                    fn set_modifiers(&self, modifiers: ::std::option::Option<crate::NodeArray>) {
+                    fn set_modifiers(&self, modifiers: ::std::option::Option<::gc::Gc<crate::NodeArray>>) {
                         self.#first_field_name.set_modifiers(modifiers)
                     }
 
@@ -130,6 +130,10 @@ fn get_ast_struct_interface_impl(
 
                     fn set_id(&self, id: crate::NodeId) {
                         self.#first_field_name.set_id(id)
+                    }
+
+                    fn set_id_override(&self, id_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeIdOverride>>) {
+                        self.#first_field_name.set_id_override(id_override)
                     }
 
                     fn maybe_parent(&self) -> ::std::option::Option<::gc::Gc<crate::Node>> {
@@ -162,6 +166,10 @@ fn get_ast_struct_interface_impl(
 
                     fn set_symbol(&self, symbol: ::gc::Gc<crate::Symbol>) {
                         self.#first_field_name.set_symbol(symbol);
+                    }
+
+                    fn set_symbol_override(&self, symbol_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeSymbolOverride>>) {
+                        self.#first_field_name.set_symbol_override(symbol_override)
                     }
 
                     fn maybe_locals(&self) -> ::std::option::Option<::gc::Gc<::gc::GcCell<crate::SymbolTable>>> {
@@ -236,7 +244,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_js_doc()
                     }
 
-                    fn set_js_doc(&self, js_doc: ::std::vec::Vec<::gc::Gc<crate::Node>>) {
+                    fn set_js_doc(&self, js_doc: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
                         self.#first_field_name.set_js_doc(js_doc)
                     }
 
@@ -299,11 +307,11 @@ fn get_ast_struct_interface_impl(
         "HasTypeParametersInterface" => {
             quote! {
                 impl crate::HasTypeParametersInterface for #ast_type_name {
-                    fn maybe_type_parameters(&self) -> ::gc::GcCellRef<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
                         self.#first_field_name.maybe_type_parameters()
                     }
 
-                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::NodeArray>>> {
                         self.#first_field_name.maybe_type_parameters_mut()
                     }
                 }
@@ -395,7 +403,7 @@ fn get_ast_struct_interface_impl(
         "SignatureDeclarationInterface" => {
             quote! {
                 impl crate::SignatureDeclarationInterface for #ast_type_name {
-                    fn parameters(&self) -> &crate::NodeArray {
+                    fn parameters(&self) -> ::gc::Gc<crate::NodeArray> {
                         self.#first_field_name.parameters()
                     }
                 }
@@ -450,7 +458,7 @@ fn get_ast_struct_interface_impl(
         "InterfaceOrClassLikeDeclarationInterface" => {
             quote! {
                 impl crate::InterfaceOrClassLikeDeclarationInterface for #ast_type_name {
-                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<&crate::NodeArray> {
+                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
                         self.#first_field_name.maybe_heritage_clauses()
                     }
                 }
@@ -459,7 +467,7 @@ fn get_ast_struct_interface_impl(
         "ClassLikeDeclarationInterface" => {
             quote! {
                 impl crate::ClassLikeDeclarationInterface for #ast_type_name {
-                    fn members(&self) -> &crate::NodeArray {
+                    fn members(&self) -> ::gc::Gc<crate::NodeArray> {
                         self.#first_field_name.members()
                     }
                 }
@@ -556,25 +564,25 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_decorators(&self) -> ::gc::GcCellRef<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_decorators(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_decorators()),*
                         }
                     }
 
-                    fn set_decorators(&self, decorators: ::std::option::Option<crate::NodeArray>) {
+                    fn set_decorators(&self, decorators: ::std::option::Option<::gc::Gc<crate::NodeArray>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_decorators(decorators)),*
                         }
                     }
 
-                    fn maybe_modifiers(&self) -> ::gc::GcCellRef<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_modifiers(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_modifiers()),*
                         }
                     }
 
-                    fn set_modifiers(&self, modifiers: ::std::option::Option<crate::NodeArray>) {
+                    fn set_modifiers(&self, modifiers: ::std::option::Option<::gc::Gc<crate::NodeArray>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_modifiers(modifiers)),*
                         }
@@ -595,6 +603,12 @@ fn get_ast_enum_interface_impl(
                     fn set_id(&self, id: crate::NodeId) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_id(id)),*
+                        }
+                    }
+
+                    fn set_id_override(&self, id_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeIdOverride>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_id_override(id_override)),*
                         }
                     }
 
@@ -643,6 +657,12 @@ fn get_ast_enum_interface_impl(
                     fn set_symbol(&self, symbol: ::gc::Gc<crate::Symbol>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
+                        }
+                    }
+
+                    fn set_symbol_override(&self, symbol_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeSymbolOverride>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_symbol_override(symbol_override)),*
                         }
                     }
 
@@ -754,7 +774,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_js_doc(&self, js_doc: ::std::vec::Vec<::gc::Gc<crate::Node>>) {
+                    fn set_js_doc(&self, js_doc: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc(js_doc)),*
                         }
@@ -882,13 +902,13 @@ fn get_ast_enum_interface_impl(
         "HasTypeParametersInterface" => {
             quote! {
                 impl crate::HasTypeParametersInterface for #ast_type_name {
-                    fn maybe_type_parameters(&self) -> ::gc::GcCellRef<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters()),*
                         }
                     }
 
-                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::NodeArray>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters_mut()),*
                         }
@@ -921,7 +941,7 @@ fn get_ast_enum_interface_impl(
         "SignatureDeclarationInterface" => {
             quote! {
                 impl crate::SignatureDeclarationInterface for #ast_type_name {
-                    fn parameters(&self) -> &crate::NodeArray {
+                    fn parameters(&self) -> ::gc::Gc<crate::NodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.parameters()),*
                         }
@@ -1013,7 +1033,7 @@ fn get_ast_enum_interface_impl(
         "InterfaceOrClassLikeDeclarationInterface" => {
             quote! {
                 impl crate::InterfaceOrClassLikeDeclarationInterface for #ast_type_name {
-                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<&crate::NodeArray> {
+                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_heritage_clauses()),*
                         }
@@ -1024,7 +1044,7 @@ fn get_ast_enum_interface_impl(
         "ClassLikeDeclarationInterface" => {
             quote! {
                 impl crate::ClassLikeDeclarationInterface for #ast_type_name {
-                    fn members(&self) -> &crate::NodeArray {
+                    fn members(&self) -> ::gc::Gc<crate::NodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.members()),*
                         }

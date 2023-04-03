@@ -23,7 +23,7 @@ use crate::{
     unescape_leading_underscores, visit_each_child, with_factory,
     with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags, IndexInfo,
     InternalSymbolName, ModifierFlags, ModuleResolutionKind, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef, StrOrRcNode,
+    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArray, StrOrRcNode,
     StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
     SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
     UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
@@ -48,10 +48,10 @@ impl NodeBuilder {
                 .cloned()
                 .unwrap();
             let comment_text = get_text_of_jsdoc_comment(d.as_jsdoc_tag().maybe_comment().map(
-                |d_comment| -> StrOrNodeArrayRef {
+                |d_comment| -> StrOrNodeArray {
                     match d_comment {
                         StringOrNodeArray::String(d_comment) => (&**d_comment).into(),
-                        StringOrNodeArray::NodeArray(d_comment) => d_comment.into(),
+                        StringOrNodeArray::NodeArray(d_comment) => d_comment.clone().into(),
                     }
                 },
             ));
@@ -95,7 +95,7 @@ impl NodeBuilder {
                                     .create_type_reference_node(
                                         synthetic_factory_,
                                         "...",
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                     )
                                     .into()
                             },
@@ -109,7 +109,7 @@ impl NodeBuilder {
                                     .create_type_reference_node(
                                         synthetic_factory_,
                                         &*format!("... {} more ...", types.len() - 2),
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                     )
                                     .into()
                             }),
@@ -138,7 +138,7 @@ impl NodeBuilder {
                                     .create_type_reference_node(
                                         synthetic_factory_,
                                         &*format!("... {} more ...", types.len() - i),
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                     )
                                     .into()
                             },
@@ -220,8 +220,8 @@ impl NodeBuilder {
                 factory_
                     .create_parameter_declaration(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
                         None,
                         Some(&*name),
                         None,
@@ -243,7 +243,7 @@ impl NodeBuilder {
             factory_
                 .create_index_signature(
                     synthetic_factory_,
-                    Option::<NodeArray>::None,
+                    Option::<Gc<NodeArray>>::None,
                     if index_info.is_readonly {
                         Some(vec![factory_
                             .create_token(synthetic_factory_, SyntaxKind::ReadonlyKeyword)
@@ -379,7 +379,7 @@ impl NodeBuilder {
             } else {
                 None
             };
-            let parameter_name = if matches!(
+            let parameter_name: Gc<Node> = if matches!(
                 type_predicate.kind,
                 TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
             ) {
@@ -389,7 +389,7 @@ impl NodeBuilder {
                             .create_identifier(
                                 synthetic_factory_,
                                 type_predicate.parameter_name.as_ref().unwrap(),
-                                Option::<NodeArray>::None,
+                                Option::<Gc<NodeArray>>::None,
                                 None,
                             )
                             .into()
@@ -498,7 +498,7 @@ impl NodeBuilder {
                 SyntaxKind::MethodDeclaration => factory_
                     .create_method_declaration(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         modifiers,
                         None,
                         options
@@ -509,7 +509,7 @@ impl NodeBuilder {
                                     .create_identifier(
                                         synthetic_factory_,
                                         "",
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                     )
                                     .into()
@@ -524,7 +524,7 @@ impl NodeBuilder {
                 SyntaxKind::Constructor => factory_
                     .create_constructor_declaration(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         modifiers,
                         parameters,
                         None,
@@ -533,7 +533,7 @@ impl NodeBuilder {
                 SyntaxKind::GetAccessor => factory_
                     .create_get_accessor_declaration(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         modifiers,
                         options
                             .as_ref()
@@ -543,7 +543,7 @@ impl NodeBuilder {
                                     .create_identifier(
                                         synthetic_factory_,
                                         "",
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                     )
                                     .into()
@@ -556,7 +556,7 @@ impl NodeBuilder {
                 SyntaxKind::SetAccessor => factory_
                     .create_set_accessor_declaration(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         modifiers,
                         options
                             .as_ref()
@@ -566,7 +566,7 @@ impl NodeBuilder {
                                     .create_identifier(
                                         synthetic_factory_,
                                         "",
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                     )
                                     .into()
@@ -578,7 +578,7 @@ impl NodeBuilder {
                 SyntaxKind::IndexSignature => factory_
                     .create_index_signature(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         modifiers,
                         parameters,
                         return_type_node,
@@ -599,10 +599,10 @@ impl NodeBuilder {
                                     Into::<Gc<Node>>::into(factory_.create_identifier(
                                         synthetic_factory_,
                                         "",
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                     )),
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                 )
                                 .into()
                         })),
@@ -621,10 +621,10 @@ impl NodeBuilder {
                                     Into::<Gc<Node>>::into(factory_.create_identifier(
                                         synthetic_factory_,
                                         "",
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         None,
                                     )),
-                                    Option::<NodeArray>::None,
+                                    Option::<Gc<NodeArray>>::None,
                                 )
                                 .into()
                         })),
@@ -633,7 +633,7 @@ impl NodeBuilder {
                 SyntaxKind::FunctionDeclaration => factory_
                     .create_function_declaration(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         modifiers,
                         None,
                         Some(
@@ -648,7 +648,7 @@ impl NodeBuilder {
                                         .create_identifier(
                                             synthetic_factory_,
                                             "",
-                                            Option::<NodeArray>::None,
+                                            Option::<Gc<NodeArray>>::None,
                                             None,
                                         )
                                         .into()
@@ -677,7 +677,7 @@ impl NodeBuilder {
                                         .create_identifier(
                                             synthetic_factory_,
                                             "",
-                                            Option::<NodeArray>::None,
+                                            Option::<Gc<NodeArray>>::None,
                                             None,
                                         )
                                         .into()
@@ -898,7 +898,7 @@ impl NodeBuilder {
                 factory_
                     .create_parameter_declaration(
                         synthetic_factory_,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         modifiers,
                         dot_dot_dot_token,
                         Some(name),
@@ -951,7 +951,7 @@ impl NodeBuilder {
                     Option<fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> NodeArray,
+                ) -> Gc<NodeArray>,
             >::None,
             Some(|node: &Node| {
                 Some(
@@ -1231,8 +1231,8 @@ impl NodeBuilder {
         &self,
         symbol: &Symbol,
         context: &NodeBuilderContext,
-    ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
-        let mut type_parameter_nodes: Option<NodeArray /*TypeParameterDeclaration*/> = None;
+    ) -> Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/> {
+        let mut type_parameter_nodes: Option<Gc<NodeArray> /*TypeParameterDeclaration*/> = None;
         let target_symbol = self.type_checker.get_target_symbol(symbol);
         if target_symbol
             .flags()
@@ -1314,7 +1314,7 @@ impl NodeBuilder {
             } else {
                 type_parameter_nodes = self
                     .type_parameters_to_type_parameter_declarations(symbol, context)
-                    .map(|node_array| node_array.into_vec());
+                    .map(|node_array| node_array.to_vec());
             }
         }
         type_parameter_nodes
@@ -1460,7 +1460,7 @@ impl NodeBuilder {
                     .create_identifier(
                         synthetic_factory_,
                         &unescape_leading_underscores(symbol.escaped_name()),
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
                         None,
                     )
                     .into()

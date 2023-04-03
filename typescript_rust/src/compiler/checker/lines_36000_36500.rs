@@ -331,7 +331,7 @@ impl TypeChecker {
         node: &Node, /*ClassDeclaration | ClassExpression*/
         add_diagnostic: &mut TAddDiagnostic,
     ) {
-        for member in node.as_class_like_declaration().members() {
+        for member in &node.as_class_like_declaration().members() {
             match member.kind() {
                 SyntaxKind::MethodDeclaration
                 | SyntaxKind::PropertyDeclaration
@@ -371,7 +371,7 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::Constructor => {
-                    for parameter in member.as_constructor_declaration().parameters() {
+                    for parameter in &member.as_constructor_declaration().parameters() {
                         if match parameter.symbol().maybe_is_referenced() {
                             None => true,
                             Some(parameter_symbol_is_referenced) => {
@@ -942,13 +942,13 @@ impl TypeChecker {
         let node_as_has_statements = node.as_has_statements();
         if is_function_or_module_block(node) {
             let save_flow_analysis_disabled = self.flow_analysis_disabled();
-            for_each(node_as_has_statements.statements(), |statement, _| {
+            for_each(&node_as_has_statements.statements(), |statement, _| {
                 self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
             self.set_flow_analysis_disabled(save_flow_analysis_disabled);
         } else {
-            for_each(node_as_has_statements.statements(), |statement, _| {
+            for_each(&node_as_has_statements.statements(), |statement, _| {
                 self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
@@ -974,7 +974,7 @@ impl TypeChecker {
         }
 
         for_each(
-            node.as_signature_declaration().parameters(),
+            &node.as_signature_declaration().parameters(),
             |p: &Gc<Node>, _| -> Option<()> {
                 if matches!(
                     p.as_parameter_declaration().maybe_name().as_ref(),

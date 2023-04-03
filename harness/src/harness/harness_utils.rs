@@ -106,7 +106,7 @@ fn assert_invariants_worker(
             Some(|array: &NodeArray| {
                 child_nodes_and_arrays
                     .borrow_mut()
-                    .push(array.clone().into());
+                    .push(array.rc_wrapper().into());
             }),
         );
 
@@ -128,7 +128,7 @@ fn assert_invariants_worker(
 #[derive(Trace, Finalize)]
 enum RcNodeOrNodeArray {
     RcNode(Gc<Node>),
-    NodeArray(NodeArray),
+    NodeArray(Gc<NodeArray>),
 }
 
 impl From<Gc<Node>> for RcNodeOrNodeArray {
@@ -137,8 +137,8 @@ impl From<Gc<Node>> for RcNodeOrNodeArray {
     }
 }
 
-impl From<NodeArray> for RcNodeOrNodeArray {
-    fn from(value: NodeArray) -> Self {
+impl From<Gc<NodeArray>> for RcNodeOrNodeArray {
+    fn from(value: Gc<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }

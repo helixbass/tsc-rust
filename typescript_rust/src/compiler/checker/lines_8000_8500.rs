@@ -62,7 +62,7 @@ impl TypeChecker {
                             Into::<Gc<Node>>::into(factory_.create_identifier(
                                 synthetic_factory_,
                                 type_predicate.parameter_name.as_ref().unwrap(),
-                                Option::<NodeArray>::None,
+                                Option::<Gc<NodeArray>>::None,
                                 None,
                             ))
                         } else {

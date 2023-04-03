@@ -831,7 +831,7 @@ impl TypeChecker {
         if node_as_parameter_declaration.maybe_initializer().is_some() {
             let signature = self.get_signature_from_declaration_(&node.parent());
             let parameter_index = index_of_gc(
-                node.parent().as_signature_declaration().parameters(),
+                &node.parent().as_signature_declaration().parameters(),
                 &node.node_wrapper(),
             );
             Debug_.assert(parameter_index >= 0, None);
@@ -850,7 +850,7 @@ impl TypeChecker {
             return node_as_parameter_declaration.maybe_type().is_none()
                 && node_as_parameter_declaration.dot_dot_dot_token.is_none()
                 && index_of_gc(
-                    node.parent().as_signature_declaration().parameters(),
+                    &node.parent().as_signature_declaration().parameters(),
                     &node.node_wrapper(),
                 ) >= iife
                     .as_call_expression()

@@ -5,7 +5,6 @@ use gc::Gc;
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
-use std::rc::Rc;
 
 use super::ParserType;
 use crate::{
@@ -22,8 +21,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<Gc<NodeArray>>,
+        modifiers: Option<Gc<NodeArray>>,
     ) -> Gc<Node /*ExportAssignment*/> {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);
@@ -49,7 +48,7 @@ impl ParserType {
     pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
         let source_file_as_source_file = source_file.as_source_file();
         source_file_as_source_file.set_external_module_indicator(
-            for_each(source_file_as_source_file.statements(), |statement, _| {
+            for_each(&source_file_as_source_file.statements(), |statement, _| {
                 self.is_an_external_module_indicator_node(statement)
             })
             .or_else(|| self.get_import_meta_if_necessary(source_file)),

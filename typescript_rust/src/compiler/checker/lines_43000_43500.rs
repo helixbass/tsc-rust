@@ -32,7 +32,9 @@ impl TypeChecker {
         self.check_grammar_jsx_name(&node_as_jsx_opening_like_element.tag_name());
         self.check_grammar_type_arguments(
             node,
-            node.as_has_type_arguments().maybe_type_arguments().as_ref(),
+            node.as_has_type_arguments()
+                .maybe_type_arguments()
+                .as_deref(),
         );
         let mut seen: HashMap<__String, bool> = HashMap::new();
 
@@ -743,7 +745,7 @@ impl TypeChecker {
                 );
             }
             self.check_grammar_for_disallowed_trailing_comma(
-                Some(elements),
+                Some(&elements),
                 Some(
                     &Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
                 ),

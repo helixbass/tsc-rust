@@ -369,7 +369,7 @@ dependencies = [
 [[package]]
 name = "gc"
 version = "0.4.1"
-source = "git+https://github.com/helixbass/rust-gc?rev=32dfa44#32dfa441f4fb2c1b610a4e05e6045e85e1bd5cb7"
+source = "git+https://github.com/helixbass/rust-gc?rev=3a7c3cc#3a7c3ccb02093dc17534bc0c1edc902d392e3273"
 dependencies = [
  "gc_derive",
  "serde",
@@ -378,7 +378,7 @@ dependencies = [
 [[package]]
 name = "gc_derive"
 version = "0.4.1"
-source = "git+https://github.com/helixbass/rust-gc?rev=32dfa44#32dfa441f4fb2c1b610a4e05e6045e85e1bd5cb7"
+source = "git+https://github.com/helixbass/rust-gc?rev=3a7c3cc#3a7c3ccb02093dc17534bc0c1edc902d392e3273"
 dependencies = [
  "proc-macro2",
  "quote",

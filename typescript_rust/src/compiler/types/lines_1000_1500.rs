@@ -20,6 +20,7 @@ mod _NodeArrayDeriveTraceScope {
 
     #[derive(Clone, Debug, Trace, Finalize)]
     pub struct NodeArray {
+        _rc_wrapper: GcCell<Option<Gc<NodeArray>>>,
         _nodes: Vec<Gc<Node>>,
         #[unsafe_ignore_trace]
         pos: Cell<isize>,
@@ -27,8 +28,9 @@ mod _NodeArrayDeriveTraceScope {
         end: Cell<isize>,
         pub has_trailing_comma: bool,
         #[unsafe_ignore_trace]
-        pub(crate) transform_flags: Option<TransformFlags>,
-        pub is_missing_list: bool,
+        transform_flags: Cell<Option<TransformFlags>>,
+        #[unsafe_ignore_trace]
+        is_missing_list: Cell<bool>,
     }
 
     impl NodeArray {
@@ -38,15 +40,22 @@ mod _NodeArrayDeriveTraceScope {
             end: isize,
             has_trailing_comma: bool,
             transform_flags: Option<TransformFlags>,
-        ) -> Self {
-            NodeArray {
+        ) -> Gc<Self> {
+            let ret = Gc::new(NodeArray {
                 _nodes: nodes,
+                _rc_wrapper: Default::default(),
                 pos: Cell::new(pos),
                 end: Cell::new(end),
                 has_trailing_comma,
-                transform_flags,
-                is_missing_list: false,
-            }
+                transform_flags: Cell::new(transform_flags),
+                is_missing_list: Cell::new(false),
+            });
+            *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
+            ret
+        }
+
+        pub fn rc_wrapper(&self) -> Gc<Self> {
+            self._rc_wrapper.borrow().clone().unwrap()
         }
 
         pub fn iter(&self) -> NodeArrayIter {
@@ -61,8 +70,20 @@ mod _NodeArrayDeriveTraceScope {
             self._nodes.clone()
         }
 
-        pub fn into_vec(self) -> Vec<Gc<Node>> {
-            self._nodes
+        pub fn maybe_transform_flags(&self) -> Option<TransformFlags> {
+            self.transform_flags.get()
+        }
+
+        pub fn set_transform_flags(&self, transform_flags: Option<TransformFlags>) {
+            self.transform_flags.set(transform_flags);
+        }
+
+        pub fn is_missing_list(&self) -> bool {
+            self.is_missing_list.get()
+        }
+
+        pub fn set_is_missing_list(&self, is_missing_list: bool) {
+            self.is_missing_list.set(is_missing_list);
         }
     }
 
@@ -135,12 +156,12 @@ pub use _NodeArrayDeriveTraceScope::NodeArray;
 
 #[derive(Clone, Debug)]
 pub enum NodeArrayOrVec {
-    NodeArray(NodeArray),
+    NodeArray(Gc<NodeArray>),
     Vec(Vec<Gc<Node>>),
 }
 
-impl From<NodeArray> for NodeArrayOrVec {
-    fn from(node_array: NodeArray) -> Self {
+impl From<Gc<NodeArray>> for NodeArrayOrVec {
+    fn from(node_array: Gc<NodeArray>) -> Self {
         NodeArrayOrVec::NodeArray(node_array)
     }
 }
@@ -165,7 +186,7 @@ impl Deref for NodeArrayOrVec {
 #[derive(Clone, Debug)]
 pub enum RcNodeOrNodeArrayOrVec {
     RcNode(Gc<Node>),
-    NodeArray(NodeArray),
+    NodeArray(Gc<NodeArray>),
     Vec(Vec<Gc<Node>>),
 }
 
@@ -175,8 +196,8 @@ impl From<Gc<Node>> for RcNodeOrNodeArrayOrVec {
     }
 }
 
-impl From<NodeArray> for RcNodeOrNodeArrayOrVec {
-    fn from(value: NodeArray) -> Self {
+impl From<Gc<NodeArray>> for RcNodeOrNodeArrayOrVec {
+    fn from(value: Gc<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }
@@ -188,6 +209,7 @@ impl From<Vec<Gc<Node>>> for RcNodeOrNodeArrayOrVec {
 }
 
 bitflags! {
+    #[derive(Default)]
     pub struct GeneratedIdentifierFlags: u32 {
         const None = 0;
         const Auto = 1;
@@ -217,7 +239,7 @@ pub struct Identifier {
     generated_import_reference: GcCell<Option<Gc<Node /*ImportSpecifier*/>>>,
     #[unsafe_ignore_trace]
     is_in_jsdoc_namespace: Cell<Option<bool>>,
-    type_arguments: GcCell<Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>>,
+    type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode | TypeParameterDeclaration>*/>>,
     #[unsafe_ignore_trace]
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
@@ -253,7 +275,7 @@ impl Identifier {
         self.is_in_jsdoc_namespace.set(is_in_jsdoc_namespace);
     }
 
-    pub fn maybe_type_arguments_mut(&self) -> GcCellRefMut<Option<NodeArray>> {
+    pub fn maybe_type_arguments_mut(&self) -> GcCellRefMut<Option<Gc<NodeArray>>> {
         self.type_arguments.borrow_mut()
     }
 }
@@ -280,12 +302,12 @@ impl HasJSDocDotPosInterface for Identifier {
 }
 
 impl HasTypeArgumentsInterface for Identifier {
-    fn maybe_type_arguments(&self) -> GcCellRef<Option<NodeArray>> {
-        self.type_arguments.borrow()
+    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+        self.type_arguments.borrow().clone()
     }
 }
 
-pub type ModifiersArray = NodeArray; /*<Modifier>*/
+pub type ModifiersArray = Gc<NodeArray>; /*<Modifier>*/
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
@@ -555,7 +577,7 @@ pub enum SignatureDeclarationBase {
 pub trait SignatureDeclarationInterface:
     NamedDeclarationInterface + HasTypeInterface + HasTypeParametersInterface
 {
-    fn parameters(&self) -> &NodeArray /*<ParameterDeclaration>*/;
+    fn parameters(&self) -> Gc<NodeArray> /*<ParameterDeclaration>*/;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -565,7 +587,7 @@ pub trait SignatureDeclarationInterface:
 )]
 pub struct BaseSignatureDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
-    parameters: NodeArray, /*<ParameterDeclaration>*/
+    parameters: Gc<NodeArray>, /*<ParameterDeclaration>*/
     type_: Option<Gc<Node /*TypeNode*/>>,
     // TODO
     // /* @internal */ typeArguments?: NodeArray<TypeNode>;
@@ -574,7 +596,7 @@ pub struct BaseSignatureDeclaration {
 impl BaseSignatureDeclaration {
     pub fn new(
         generic_named_declaration: BaseGenericNamedDeclaration,
-        parameters: NodeArray,
+        parameters: Gc<NodeArray>,
         type_: Option<Gc<Node>>,
     ) -> Self {
         Self {
@@ -596,8 +618,8 @@ impl HasTypeInterface for BaseSignatureDeclaration {
 }
 
 impl SignatureDeclarationInterface for BaseSignatureDeclaration {
-    fn parameters(&self) -> &NodeArray {
-        &self.parameters
+    fn parameters(&self) -> Gc<NodeArray> {
+        self.parameters.clone()
     }
 }
 

@@ -39,7 +39,7 @@ impl TransformES2016 {
                     Option<fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> NodeArray,
+                ) -> Gc<NodeArray>,
             >::None,
             Option::<fn(&Node) -> VisitResult>::None,
             Option::<
@@ -74,7 +74,7 @@ impl TransformES2016 {
                         Option<fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> NodeArray,
+                    ) -> Gc<NodeArray>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<
@@ -110,7 +110,7 @@ impl TransformES2016 {
                         Option<fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> NodeArray,
+                    ) -> Gc<NodeArray>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<

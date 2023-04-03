@@ -12,17 +12,26 @@ use crate::{
     add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
     maybe_append_if_unique_gc, maybe_append_if_unique_rc, parse_base_node_factory,
     parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BuildInfo, Debug_, EmitFlags, EmitNode, InputFiles, LanguageVariant, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget,
-    SourceMapRange, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind,
-    TransformFlags,
+    BuildInfo, Debug_, EmitFlags, EmitNode, InputFiles, LanguageVariant, ModifierFlags, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner,
+    ScriptTarget, SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode,
+    StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub(super) fn as_node_array<TArray: Into<NodeArrayOrVec>>(
+    pub fn update_modifiers(
         &self,
-        array: Option<TArray>,
-    ) -> Option<NodeArray> {
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*HasModifiers*/
+        modifiers: impl Into<VecNodeOrModifierFlags>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn as_node_array(
+        &self,
+        array: Option<impl Into<NodeArrayOrVec>>,
+    ) -> Option<Gc<NodeArray>> {
         array.map(|array| self.create_node_array(Some(array), None))
     }
 
@@ -33,7 +42,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> Option<Gc<Node>> {
         name.map(|name| match name.into() {
             StrOrRcNode::Str(name) => self
-                .create_identifier(base_factory, name, Option::<NodeArray>::None, None)
+                .create_identifier(base_factory, name, Option::<Gc<NodeArray>>::None, None)
                 .into(),
             StrOrRcNode::RcNode(name) => name,
         })
@@ -79,6 +88,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else {
             statement
         }
+    }
+}
+
+pub enum VecNodeOrModifierFlags {
+    VecNode(Vec<Gc<Node>>),
+    ModifierFlags(ModifierFlags),
+}
+
+impl From<Vec<Gc<Node>>> for VecNodeOrModifierFlags {
+    fn from(value: Vec<Gc<Node>>) -> Self {
+        Self::VecNode(value)
+    }
+}
+
+impl From<ModifierFlags> for VecNodeOrModifierFlags {
+    fn from(value: ModifierFlags) -> Self {
+        Self::ModifierFlags(value)
     }
 }
 
@@ -248,16 +274,16 @@ pub(super) fn propagate_child_flags<TNode: Borrow<Node>>(child: Option<TNode>) -
 
 pub(super) fn propagate_children_flags(children: Option<&NodeArray>) -> TransformFlags {
     children.map_or(TransformFlags::None, |children| {
-        children.transform_flags.unwrap()
+        children.maybe_transform_flags().unwrap()
     })
 }
 
-pub(super) fn aggregate_children_flags(children: &mut NodeArray) {
+pub(super) fn aggregate_children_flags(children: &NodeArray) {
     let mut subtree_flags = TransformFlags::None;
     for child in children.iter() {
         subtree_flags |= propagate_child_flags(Some(&**child));
     }
-    children.transform_flags = Some(subtree_flags);
+    children.set_transform_flags(Some(subtree_flags));
 }
 
 pub(crate) fn get_transform_flags_subtree_exclusions(kind: SyntaxKind) -> TransformFlags {
@@ -404,6 +430,10 @@ thread_local! {
         create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
 }
 
+pub fn get_factory() -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
+    factory.with(|factory_| factory_.clone())
+}
+
 pub enum PseudoBigIntOrString {
     PseudoBigInt(PseudoBigInt),
     String(String),
@@ -419,6 +449,14 @@ impl From<String> for PseudoBigIntOrString {
     fn from(string: String) -> Self {
         PseudoBigIntOrString::String(string)
     }
+}
+
+pub fn create_unparsed_source_file(
+    text_or_input_files: impl Into<StringOrRcNode>,
+    map_path_or_type: Option<&str>,
+    map_text_or_strip_internal: Option<impl Into<StringOrBool>>,
+) -> Gc<Node /*UnparsedSource*/> {
+    unimplemented!()
 }
 
 pub fn create_input_files(

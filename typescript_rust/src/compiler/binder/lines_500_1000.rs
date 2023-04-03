@@ -414,11 +414,11 @@ impl BinderType {
             | SyntaxKind::JSDocEnumTag => self.bind_jsdoc_type_alias(node),
             SyntaxKind::SourceFile => {
                 let node_as_source_file = node.as_source_file();
-                self.bind_each_functions_first(Some(node_as_source_file.statements()));
+                self.bind_each_functions_first(Some(&node_as_source_file.statements()));
                 self.bind(Some(node_as_source_file.end_of_file_token()));
             }
             SyntaxKind::Block | SyntaxKind::ModuleBlock => {
-                self.bind_each_functions_first(Some(node.as_has_statements().statements()));
+                self.bind_each_functions_first(Some(&node.as_has_statements().statements()));
             }
             SyntaxKind::BindingElement => self.bind_binding_element_flow(node),
             SyntaxKind::ObjectLiteralExpression

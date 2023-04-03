@@ -452,7 +452,7 @@ impl TypeChecker {
                                 factory_
                                     .create_property_signature(
                                         synthetic_factory_,
-                                        Option::<NodeArray>::None,
+                                        Option::<Gc<NodeArray>>::None,
                                         unescape_leading_underscores(jsx_children_property_name),
                                         None,
                                         None,
@@ -549,7 +549,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Vec<Gc<Type>> {
         let mut children_types: Vec<Gc<Type>> = vec![];
-        for child in node.as_has_children().children() {
+        for child in &node.as_has_children().children() {
             if child.kind() == SyntaxKind::JsxText {
                 if !child.as_jsx_text().contains_only_trivia_white_spaces {
                     children_types.push(self.string_type());

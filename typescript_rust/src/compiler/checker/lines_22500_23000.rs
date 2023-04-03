@@ -576,7 +576,7 @@ impl TypeChecker {
         reference: &Node,
     ) -> bool {
         if let Some(expression_arguments) = expression.as_has_arguments().maybe_arguments() {
-            for argument in expression_arguments {
+            for argument in &expression_arguments {
                 if self.is_or_contains_matching_reference(reference, argument) {
                     return true;
                 }

@@ -519,14 +519,11 @@ impl Printer {
         }
     }
 
-    pub(super) fn emit_body_with_detached_comments<
-        TDetachedRange: ReadonlyTextRange,
-        TEmitCallback: FnMut(&Node),
-    >(
+    pub(super) fn emit_body_with_detached_comments(
         &self,
         node: &Node,
-        detached_range: &TDetachedRange,
-        mut emit_callback: TEmitCallback,
+        detached_range: &impl ReadonlyTextRange,
+        mut emit_callback: impl FnMut(&Node),
     ) {
         self.enter_comment();
         let pos = detached_range.pos();

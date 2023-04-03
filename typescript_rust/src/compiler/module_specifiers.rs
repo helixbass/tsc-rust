@@ -238,6 +238,16 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
     }
 }
 
+pub fn get_module_specifier(
+    compiler_options: &CompilerOptions,
+    importing_source_file: &Node, /*SourceFile*/
+    importing_source_file_name: &Path,
+    to_file_name: &str,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+) -> String {
+    unimplemented!()
+}
+
 fn try_get_module_specifiers_from_cache_worker(
     module_symbol: &Symbol,
     importing_source_file: &Node, /*SourceFile*/

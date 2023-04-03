@@ -495,7 +495,7 @@ impl Program {
         parent: &Node,
     ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
         if matches!(
-            parent.maybe_decorators().as_ref(),
+            parent.maybe_decorators().as_deref(),
             Some(parent_decorators) if ptr::eq(parent_decorators, nodes)
         ) && self.options.experimental_decorators != Some(true)
         {
@@ -520,7 +520,7 @@ impl Program {
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::ArrowFunction => {
                 if matches!(
-                    parent.as_has_type_parameters().maybe_type_parameters().as_ref(),
+                    parent.as_has_type_parameters().maybe_type_parameters().as_deref(),
                     Some(parent_type_parameters) if ptr::eq(nodes, parent_type_parameters)
                 ) {
                     diagnostics.borrow_mut().push(
@@ -536,7 +536,7 @@ impl Program {
 
                 if let Some(parent_modifiers) = parent
                     .maybe_modifiers()
-                    .as_ref()
+                    .as_deref()
                     .filter(|parent_modifiers| ptr::eq(nodes, *parent_modifiers))
                 {
                     self.get_js_syntactic_diagnostics_for_file_check_modifiers(
@@ -551,7 +551,7 @@ impl Program {
             SyntaxKind::VariableStatement => {
                 if let Some(parent_modifiers) = parent
                     .maybe_modifiers()
-                    .as_ref()
+                    .as_deref()
                     .filter(|parent_modifiers| ptr::eq(nodes, *parent_modifiers))
                 {
                     self.get_js_syntactic_diagnostics_for_file_check_modifiers(
@@ -565,7 +565,7 @@ impl Program {
             }
             SyntaxKind::PropertyDeclaration => {
                 if matches!(
-                    parent.maybe_modifiers().as_ref(),
+                    parent.maybe_modifiers().as_deref(),
                     Some(parent_modifiers) if ptr::eq(nodes, parent_modifiers)
                 ) {
                     for modifier in nodes {
@@ -585,7 +585,7 @@ impl Program {
             }
             SyntaxKind::Parameter => {
                 if matches!(
-                    parent.maybe_modifiers().as_ref(),
+                    parent.maybe_modifiers().as_deref(),
                     Some(parent_modifiers) if ptr::eq(nodes, parent_modifiers)
                 ) {
                     diagnostics.borrow_mut().push(
@@ -606,7 +606,7 @@ impl Program {
             | SyntaxKind::JsxOpeningElement
             | SyntaxKind::TaggedTemplateExpression => {
                 if matches!(
-                    parent.as_has_type_arguments().maybe_type_arguments().as_ref(),
+                    parent.as_has_type_arguments().maybe_type_arguments().as_deref(),
                     Some(parent_type_arguments) if ptr::eq(nodes, parent_type_arguments)
                 ) {
                     diagnostics.borrow_mut().push(
@@ -788,8 +788,8 @@ impl Program {
                 factory
                     .create_import_declaration(
                         synthetic_factory,
-                        Option::<NodeArray>::None,
-                        Option::<NodeArray>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
                         None,
                         external_helpers_module_reference.clone(),
                         None,
@@ -842,7 +842,7 @@ impl Program {
             }
         }
 
-        for node in file_as_source_file.statements() {
+        for node in &file_as_source_file.statements() {
             self.collect_module_references(
                 &mut imports,
                 file,

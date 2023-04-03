@@ -354,7 +354,7 @@ impl TypeChecker {
         obj: &Node, /*ObjectLiteralExpression | JsxAttributes*/
     ) -> bool {
         let list = obj.as_has_properties().properties();
-        list.iter().any(|property| {
+        let ret = list.iter().any(|property| {
             let name_type = property.as_named_declaration().maybe_name().map(|name| self.get_literal_type_from_property_name(&name));
             let name = name_type.as_ref().filter(|name_type| self.is_type_usable_as_property_name(name_type)).map(|name_type| self.get_property_name_from_type(name_type));
             let expected = name.and_then(|name| self.get_type_of_property_of_type_(contextual_type, &name));
@@ -362,7 +362,8 @@ impl TypeChecker {
                 expected,
                 Some(expected) if self.is_literal_type(&expected) && !self.is_type_assignable_to(&self.get_type_of_node(property), &expected)
             )
-        })
+        });
+        ret
     }
 
     pub(super) fn get_all_possible_properties_of_types(
@@ -716,13 +717,7 @@ impl TypeChecker {
                                 add_related_info(
                                     &diagnostic,
                                     vec![
-                                        Gc::new(
-                                            create_diagnostic_for_node(
-                                                &current_node,
-                                                &Diagnostics::Circularity_originates_in_type_at_this_location,
-                                                None,
-                                            ).into()
-                                        )
+                                        create_diagnostic_for_node(&current_node, &Diagnostics::Circularity_originates_in_type_at_this_location, None).into()
                                     ]
                                 );
                             }

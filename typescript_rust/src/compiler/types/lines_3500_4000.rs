@@ -101,7 +101,7 @@ pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
     text[start..end].chars().count()
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct AmdDependency {
     pub path: String,
     pub name: Option<String>,
@@ -120,26 +120,26 @@ pub trait SourceFileLike {
     ) -> Option<usize>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct RedirectInfo {
     pub redirect_target: Gc<Node /*SourceFile*/>,
-    pub undirected: Gc<Node /*SourceFile*/>,
+    pub unredirected: Gc<Node /*SourceFile*/>,
 }
 
 pub trait HasStatementsInterface {
-    fn statements(&self) -> &NodeArray;
+    fn statements(&self) -> Gc<NodeArray>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SourceFile {
     _node: BaseNode,
     contents: Box<SourceFileContents>,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct SourceFileContents {
-    statements: NodeArray,
+    statements: Gc<NodeArray>,
     end_of_file_token: Gc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
     #[unsafe_ignore_trace]
@@ -246,7 +246,7 @@ pub struct SourceFileContents {
 impl SourceFile {
     pub fn new(
         base_node: BaseNode,
-        statements: NodeArray,
+        statements: Gc<NodeArray>,
         end_of_file_token: Gc<Node>,
         file_name: String,
         text: String,
@@ -368,7 +368,11 @@ impl SourceFile {
         *self.contents.original_file_name.borrow_mut() = original_file_name;
     }
 
-    pub fn maybe_redirect_info(&self) -> GcCellRefMut<Option<RedirectInfo>> {
+    pub fn maybe_redirect_info(&self) -> GcCellRef<Option<RedirectInfo>> {
+        self.contents.redirect_info.borrow()
+    }
+
+    pub fn maybe_redirect_info_mut(&self) -> GcCellRefMut<Option<RedirectInfo>> {
         self.contents.redirect_info.borrow_mut()
     }
 
@@ -809,8 +813,8 @@ impl PragmaContext for SourceFile {
 }
 
 impl HasStatementsInterface for SourceFile {
-    fn statements(&self) -> &NodeArray {
-        &self.contents.statements
+    fn statements(&self) -> Gc<NodeArray> {
+        self.contents.statements.clone()
     }
 }
 
@@ -833,7 +837,7 @@ pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Gc<Symbol>>;
 pub struct Bundle {
     _node: BaseNode,
     pub prepends: Vec<Gc<Node /*InputFiles | UnparsedSource*/>>,
-    pub source_files: Vec<Gc<Node /*SourceFile*/>>,
+    pub source_files: Vec<Option<Gc<Node /*SourceFile*/>>>,
     #[unsafe_ignore_trace]
     pub(crate) synthetic_file_references: Option<Vec<FileReference>>,
     #[unsafe_ignore_trace]
@@ -844,7 +848,11 @@ pub struct Bundle {
 }
 
 impl Bundle {
-    pub fn new(base_node: BaseNode, prepends: Vec<Gc<Node>>, source_files: Vec<Gc<Node>>) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        prepends: Vec<Gc<Node>>,
+        source_files: Vec<Option<Gc<Node>>>,
+    ) -> Self {
         Self {
             _node: base_node,
             prepends,

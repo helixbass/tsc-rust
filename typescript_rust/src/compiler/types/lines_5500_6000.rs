@@ -1793,11 +1793,23 @@ impl From<DiagnosticWithLocation> for Diagnostic {
     }
 }
 
+impl From<DiagnosticWithLocation> for Gc<Diagnostic> {
+    fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
+        Gc::new(diagnostic_with_location.into())
+    }
+}
+
 impl From<DiagnosticWithLocation> for DiagnosticRelatedInformation {
     fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
         DiagnosticRelatedInformation::Diagnostic(Diagnostic::DiagnosticWithLocation(
             diagnostic_with_location,
         ))
+    }
+}
+
+impl From<DiagnosticWithLocation> for Gc<DiagnosticRelatedInformation> {
+    fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
+        Gc::new(diagnostic_with_location.into())
     }
 }
 
