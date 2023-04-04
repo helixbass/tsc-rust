@@ -7,22 +7,24 @@ use std::rc::Rc;
 use crate::{
     append, combine_paths, comparison_to_ordering, contains_ignored_path,
     create_get_canonical_file_name, directory_separator_str, ensure_path_is_non_module_name,
-    ensure_trailing_directory_separator, every, file_extension_is_one_of, first_defined, for_each,
-    for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
+    ensure_trailing_directory_separator, every, file_extension_is_one_of, first_defined, flatten,
+    for_each, for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
     get_implied_node_format_for_file, get_module_name_string_literal_at,
     get_normalized_absolute_path, get_package_json_types_version_paths,
     get_package_name_from_types_package_name, get_paths_base_path,
-    get_relative_path_from_directory, get_source_file_of_module, has_js_file_extension,
-    has_ts_file_extension, host_get_canonical_file_name, is_external_module_augmentation,
-    is_non_global_ambient_module, maybe_for_each, node_modules_path_part,
-    path_contains_node_modules, path_is_bare_specifier, path_is_relative, remove_file_extension,
-    remove_suffix, resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes,
-    Comparison, CompilerOptions, Debug_, Extension, FileIncludeKind, FileIncludeReason, ModuleKind,
-    ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path,
-    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences, __String,
-    get_text_of_identifier_or_literal, is_ambient_module, is_external_module_name_relative,
-    is_module_block, is_module_declaration, is_source_file, map_defined, LiteralLikeNodeInterface,
+    get_relative_path_from_directory, get_source_file_of_module, get_supported_extensions,
+    get_text_of_identifier_or_literal, has_js_file_extension, has_ts_file_extension,
+    host_get_canonical_file_name, is_ambient_module, is_external_module_augmentation,
+    is_external_module_name_relative, is_module_block, is_module_declaration,
+    is_non_global_ambient_module, is_source_file, map_defined, maybe_for_each,
+    node_modules_path_part, path_contains_node_modules, path_is_bare_specifier, path_is_relative,
+    remove_file_extension, remove_suffix, resolve_path, some, starts_with, starts_with_directory,
+    to_path, CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_,
+    Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason, LiteralLikeNodeInterface,
+    ModuleKind, ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags,
+    NodeInterface, NonEmpty, Path, ScriptKind, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    UserPreferences,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -47,7 +49,7 @@ struct Preferences {
 }
 
 fn get_preferences(
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     user_preferences: &UserPreferences,
     compiler_options: Gc<CompilerOptions>,
     importing_source_file: &Node, /*SourceFile*/
@@ -76,7 +78,7 @@ fn get_ending(
     import_module_specifier_ending: Option<&str>,
     importing_source_file: &Node, /*SourceFile*/
     compiler_options: Gc<CompilerOptions>,
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
 ) -> Ending {
     match import_module_specifier_ending {
         Some("minimal") => Ending::Minimal,
@@ -105,7 +107,7 @@ fn get_ending(
 fn is_format_requiring_extensions(
     compiler_options: Gc<CompilerOptions>,
     importing_source_file_name: &Path,
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
 ) -> bool {
     if !matches!(
         get_emit_module_resolution_kind(&compiler_options),
@@ -121,23 +123,30 @@ fn is_format_requiring_extensions(
     ) != Some(ModuleKind::CommonJS)
 }
 
-fn get_module_resolution_host<'host>(
-    host: &'host dyn ModuleSpecifierResolutionHost,
-) -> ModuleResolutionHostFromModuleSpecifierResolutionHost<'host> {
+fn get_module_resolution_host<'host, THost: ModuleSpecifierResolutionHost + ?Sized>(
+    host: &'host THost,
+) -> ModuleResolutionHostFromModuleSpecifierResolutionHost<'host, THost> {
     ModuleResolutionHostFromModuleSpecifierResolutionHost::new(host)
 }
 
-struct ModuleResolutionHostFromModuleSpecifierResolutionHost<'host> {
-    pub host: &'host dyn ModuleSpecifierResolutionHost,
+struct ModuleResolutionHostFromModuleSpecifierResolutionHost<
+    'host,
+    THost: ModuleSpecifierResolutionHost + ?Sized,
+> {
+    pub host: &'host THost,
 }
 
-impl<'host> ModuleResolutionHostFromModuleSpecifierResolutionHost<'host> {
-    pub fn new(host: &'host dyn ModuleSpecifierResolutionHost) -> Self {
+impl<'host, THost: ModuleSpecifierResolutionHost + ?Sized>
+    ModuleResolutionHostFromModuleSpecifierResolutionHost<'host, THost>
+{
+    pub fn new(host: &'host THost) -> Self {
         Self { host }
     }
 }
 
-impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionHost<'_> {
+impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
+    for ModuleResolutionHostFromModuleSpecifierResolutionHost<'_, THost>
+{
     fn file_exists(&self, file_name: &str) -> bool {
         self.host.file_exists(file_name)
     }
@@ -239,13 +248,50 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
 }
 
 pub fn get_module_specifier(
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     importing_source_file: &Node, /*SourceFile*/
     importing_source_file_name: &Path,
     to_file_name: &str,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
 ) -> String {
-    unimplemented!()
+    get_module_specifier_worker(
+        &compiler_options,
+        importing_source_file_name,
+        to_file_name,
+        host,
+        get_preferences(
+            host,
+            &Default::default(),
+            compiler_options.clone(),
+            importing_source_file,
+        ),
+        &Default::default(),
+    )
+}
+
+fn get_module_specifier_worker(
+    compiler_options: &CompilerOptions,
+    importing_source_file_name: &Path,
+    to_file_name: &str,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+    preferences: Preferences,
+    user_preferences: &UserPreferences,
+) -> String {
+    let info = get_info(importing_source_file_name, host);
+    let module_paths = get_all_module_paths(
+        importing_source_file_name,
+        to_file_name,
+        host,
+        user_preferences,
+        None,
+    );
+    first_defined(&module_paths, |module_path: &ModulePath, _| {
+        try_get_module_name_as_node_module(module_path, &info, host, compiler_options, None)
+    })
+    .non_empty()
+    .unwrap_or_else(|| {
+        get_local_module_specifier(to_file_name, &info, compiler_options, host, preferences)
+    })
 }
 
 fn try_get_module_specifiers_from_cache_worker(
@@ -482,7 +528,10 @@ struct Info {
     pub source_directory: Path,
 }
 
-fn get_info(importing_source_file_name: &Path, host: &dyn ModuleSpecifierResolutionHost) -> Info {
+fn get_info(
+    importing_source_file_name: &Path,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+) -> Info {
     let get_canonical_file_name =
         create_get_canonical_file_name(host.use_case_sensitive_file_names().unwrap_or(true));
     let source_directory: Path = get_directory_path(importing_source_file_name).into();
@@ -497,7 +546,7 @@ fn get_local_module_specifier(
     module_file_name: &str,
     info: &Info,
     compiler_options: &CompilerOptions,
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     preferences: Preferences,
 ) -> String {
     let ending = preferences.ending;
@@ -646,7 +695,7 @@ fn compare_paths_by_redirect_and_number_of_directory_separators(
 pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Option<TReturn>>(
     importing_file_name: &str,
     imported_file_name: &str,
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     prefer_sym_links: bool,
     mut cb: TCallback,
 ) -> Option<TReturn> {
@@ -782,10 +831,44 @@ pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Opt
     })
 }
 
+fn get_all_module_paths(
+    importing_file_path: &Path,
+    imported_file_name: &str,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+    preferences: &UserPreferences,
+    imported_file_path: Option<Path>,
+) -> Vec<ModulePath> {
+    let imported_file_path = imported_file_path.unwrap_or_else(|| {
+        to_path(
+            imported_file_name,
+            Some(&host.get_current_directory()),
+            host_get_canonical_file_name(|| host.use_case_sensitive_file_names()),
+        )
+    });
+    let cache = host.get_module_specifier_cache();
+    if let Some(cache) = cache.as_ref() {
+        let cached = cache.get(importing_file_path, &imported_file_path, preferences);
+        // TODO: should this be rc-wrapped at the Vec<ModulePath> and/or ModulePath level?
+        if let Some(cached_module_paths) = cached.and_then(|cached| cached.module_paths.clone()) {
+            return cached_module_paths;
+        }
+    }
+    let module_paths = get_all_module_paths_worker(importing_file_path, imported_file_name, host);
+    if let Some(cache) = cache.as_ref() {
+        cache.set_module_paths(
+            importing_file_path,
+            &imported_file_path,
+            preferences,
+            &module_paths,
+        );
+    }
+    module_paths
+}
+
 fn get_all_module_paths_worker(
     importing_file_name: &Path,
     imported_file_name: &str,
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
 ) -> Vec<ModulePath> {
     let get_canonical_file_name =
         host_get_canonical_file_name(|| host.use_case_sensitive_file_names());
@@ -1026,7 +1109,7 @@ fn try_get_module_name_from_root_dirs(
 fn try_get_module_name_as_node_module(
     module_path: &ModulePath,
     info: &Info,
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     options: &CompilerOptions,
     package_name_only: Option<bool>,
 ) -> Option<String> {
@@ -1123,14 +1206,14 @@ fn try_get_module_name_as_node_module(
     {
         None
     } else {
-        Some(package_name)
+        Some(package_name.into_owned())
     }
 }
 
 fn get_extensionless_file_name(
     get_canonical_file_name: fn(&str) -> String,
     parts: &NodeModulePathParts,
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     path: &str,
 ) -> String {
     let full_module_path_without_extension = remove_file_extension(path);
@@ -1152,15 +1235,42 @@ fn get_extensionless_file_name(
 }
 
 fn try_get_any_file_from_path(
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     path: &str,
 ) -> Option<String> {
-    unimplemented!()
+    // if (!host.fileExists) return;
+    let extensions = flatten(&get_supported_extensions(
+        Some(
+            &CompilerOptionsBuilder::default()
+                .allow_js(Some(true))
+                .build()
+                .unwrap(),
+        ),
+        Some(&[
+            FileExtensionInfo {
+                extension: "node".to_owned(),
+                is_mixed_content: false,
+                script_kind: None,
+            },
+            FileExtensionInfo {
+                extension: "json".to_owned(),
+                is_mixed_content: false,
+                script_kind: Some(ScriptKind::JSON),
+            },
+        ]),
+    ));
+    for e in extensions {
+        let full_path = format!("{path}{}", e.to_str());
+        if host.file_exists(&full_path) {
+            return Some(full_path);
+        }
+    }
+    None
 }
 
 fn try_directory_with_package_json(
     path: &String,
-    host: &dyn ModuleSpecifierResolutionHost,
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     options: &CompilerOptions,
     get_canonical_file_name: fn(&str) -> String,
     package_root_index: isize,

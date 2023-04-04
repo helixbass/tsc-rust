@@ -862,8 +862,8 @@ impl Printer {
                 && matches!(
                     self.maybe_current_source_file().as_ref(),
                     Some(current_source_file) if !positions_are_on_same_line(
-                        start_pos.try_into().unwrap(),
-                        pos.try_into().unwrap(),
+                        start_pos,
+                        pos,
                         current_source_file,
                     )
                 );

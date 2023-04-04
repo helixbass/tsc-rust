@@ -578,6 +578,12 @@ impl DoStatement {
     }
 }
 
+impl HasStatementInterface for DoStatement {
+    fn statement(&self) -> Gc<Node> {
+        self.statement.clone()
+    }
+}
+
 impl HasExpressionInterface for DoStatement {
     fn expression(&self) -> Gc<Node> {
         self.expression.clone()
@@ -605,6 +611,12 @@ impl WhileStatement {
 impl HasExpressionInterface for WhileStatement {
     fn expression(&self) -> Gc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasStatementInterface for WhileStatement {
+    fn statement(&self) -> Gc<Node> {
+        self.statement.clone()
     }
 }
 
@@ -653,6 +665,12 @@ impl HasInitializerInterface for ForStatement {
 impl HasConditionInterface for ForStatement {
     fn maybe_condition(&self) -> Option<Gc<Node>> {
         self.condition.clone()
+    }
+}
+
+impl HasStatementInterface for ForStatement {
+    fn statement(&self) -> Gc<Node> {
+        self.statement.clone()
     }
 }
 
@@ -855,6 +873,12 @@ impl HasExpressionInterface for WithStatement {
     }
 }
 
+impl HasStatementInterface for WithStatement {
+    fn statement(&self) -> Gc<Node> {
+        self.statement.clone()
+    }
+}
+
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SwitchStatement {
@@ -998,6 +1022,12 @@ impl LabeledStatement {
             label,
             statement,
         }
+    }
+}
+
+impl HasStatementInterface for LabeledStatement {
+    fn statement(&self) -> Gc<Node> {
+        self.statement.clone()
     }
 }
 

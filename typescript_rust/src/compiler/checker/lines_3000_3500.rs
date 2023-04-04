@@ -464,13 +464,13 @@ impl TypeChecker {
         Some(symbol)
     }
 
-    pub(super) fn resolve_entity_name<TLocation: Borrow<Node>>(
+    pub(super) fn resolve_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
         dont_resolve_alias: Option<bool>,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
     ) -> Option<Gc<Symbol>> {
         let ignore_errors_unwrapped = ignore_errors.unwrap_or(false);
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);

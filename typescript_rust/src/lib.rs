@@ -73,7 +73,7 @@ pub use compiler::emitter::{
 use compiler::emitter::{
     emit_files, get_build_info, get_common_source_directory, get_common_source_directory_of_config,
     get_output_declaration_file_name, get_output_paths_for, get_output_paths_for_bundle,
-    is_build_info_file, EmitBinaryExpression,
+    is_build_info_file, not_implemented_resolver, EmitBinaryExpression,
 };
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
@@ -94,10 +94,11 @@ use compiler::factory::emit_node::{
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
     create_input_files, create_node_factory, create_unparsed_source_file, factory, get_factory,
-    has_option_node_array_changed, set_original_node, synthetic_factory, with_factory,
-    with_synthetic_factory, with_synthetic_factory_and_factory, BaseNodeFactorySynthetic,
-    NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
-    StringOrRcNode, SyntaxKindOrRcNode,
+    has_node_array_changed, has_option_node_array_changed, has_option_str_or_node_changed,
+    set_original_node, synthetic_factory, with_factory, with_synthetic_factory,
+    with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, NodeFactoryFlags,
+    ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
+    SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,
@@ -229,9 +230,9 @@ pub use compiler::program::{
     create_compiler_host_worker, create_program, find_config_file, flatten_diagnostic_message_text,
     format_diagnostic, format_diagnostics, format_diagnostics_with_color_and_context,
     format_location, get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
-    get_pre_emit_diagnostics, get_resolution_diagnostic, ActualResolveModuleNamesWorker,
-    ActualResolveTypeReferenceDirectiveNamesWorker, EmitHostWriteFileCallback, FilesByNameValue,
-    FormatDiagnosticsHost, ToPath,
+    get_pre_emit_diagnostics, get_resolution_diagnostic, resolve_tripleslash_reference,
+    ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
+    EmitHostWriteFileCallback, FilesByNameValue, FormatDiagnosticsHost, ToPath,
 };
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position,
@@ -258,8 +259,9 @@ pub use compiler::sys::{
 use compiler::sys::{ignored_paths, missing_file_modified_time};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
 pub use compiler::transformer::{
-    get_transformers, no_emit_notification, no_emit_substitution, null_transformation_context,
-    transform_nodes, TransformNodesTransformationResult, WrapCustomTransformerFactoryHandleDefault,
+    get_transformers, no_emit_notification, no_emit_substitution, no_transformers,
+    null_transformation_context, transform_nodes, TransformNodesTransformationResult,
+    WrapCustomTransformerFactoryHandleDefault,
 };
 pub use compiler::transformers::declarations::diagnostics::{
     can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,
@@ -330,7 +332,7 @@ pub use compiler::types::{
     GenericNamedDeclarationInterface, GenericTypeInterface, GenericableTypeInterface,
     GetAccessorDeclaration, HasAntecedentInterface, HasArgumentsInterface,
     HasAssertClauseInterface, HasChildrenInterface, HasConditionInterface,
-    HasDotDotDotTokenInterface, HasElementsInterface, HasExpressionInterface,
+    HasDotDotDotTokenInterface, HasElementsInterface, HasExpressionInterface, HasFileNameInterface,
     HasInitializerInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
     HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
     HasOldFileOfCurrentEmitInterface, HasPropertiesInterface, HasPropertyNameInterface,
@@ -500,8 +502,9 @@ pub use compiler::utilities::{
     get_type_parameter_from_js_doc, get_use_define_for_class_fields, has_abstract_modifier,
     has_ambient_modifier, has_context_sensitive_parameters, has_dynamic_name,
     has_effective_modifier, has_effective_modifiers, has_effective_readonly_modifier,
-    has_js_file_extension, has_json_module_emit_enabled, has_override_modifier, has_question_token,
-    has_rest_parameter, has_static_modifier, has_syntactic_modifier, has_ts_file_extension,
+    has_js_file_extension, has_json_module_emit_enabled, has_override_modifier,
+    has_possible_external_module_reference, has_question_token, has_rest_parameter,
+    has_static_modifier, has_syntactic_modifier, has_ts_file_extension,
     has_zero_or_one_asterisk_character, host_get_canonical_file_name, index_of_node,
     insert_statements_after_standard_prologue, introduces_arguments_exotic_object,
     is_access_expression, is_aliasable_expression, is_ambient_module, is_any_import_or_re_export,

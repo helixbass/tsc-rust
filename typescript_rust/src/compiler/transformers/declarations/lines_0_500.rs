@@ -553,7 +553,7 @@ impl TransformDeclarations {
         let result = self.resolver.get_declaration_statements_for_source_file(
             source_file,
             declaration_emit_node_builder_flags(),
-            &**self.symbol_tracker(),
+            self.symbol_tracker(),
             bundled,
         );
         self.set_get_symbol_accessibility_diagnostic(old_diag);
@@ -960,7 +960,7 @@ impl TransformDeclarations {
 
             if !decl_file_name.is_empty() {
                 let specifier = module_specifiers::get_module_specifier(
-                    &self.options,
+                    self.options.clone(),
                     &self.current_source_file(),
                     &to_path(
                         output_file_path,
@@ -1195,7 +1195,7 @@ impl TransformDeclarations {
         if self.should_print_with_initializer(node) {
             return Some(self.resolver.create_literal_const_value(
                 &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
-                &**self.symbol_tracker(),
+                self.symbol_tracker(),
             ));
         }
         None

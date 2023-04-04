@@ -69,13 +69,9 @@ pub fn maybe_for_each_bool<TCollection: IntoIterator>(
     }
 }
 
-pub fn first_defined<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn first_defined<TCollection: IntoIterator, TReturn>(
     array: TCollection,
-    callback: TCallback,
+    callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     for_each(array, callback)
 }

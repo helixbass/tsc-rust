@@ -94,7 +94,7 @@ impl TransformDeclarations {
                     node,
                     &self.enclosing_declaration(),
                     declaration_emit_node_builder_flags(),
-                    &**self.symbol_tracker(),
+                    self.symbol_tracker(),
                     None,
                 ),
             ));
@@ -110,7 +110,7 @@ impl TransformDeclarations {
                         node,
                         &self.enclosing_declaration(),
                         declaration_emit_node_builder_flags(),
-                        &**self.symbol_tracker(),
+                        self.symbol_tracker(),
                         Some(should_use_resolver_type),
                     ),
                 ));
@@ -123,7 +123,7 @@ impl TransformDeclarations {
                             node,
                             &self.enclosing_declaration(),
                             declaration_emit_node_builder_flags(),
-                            &**self.symbol_tracker(),
+                            self.symbol_tracker(),
                             None,
                         )
                         .or_else(|| {
@@ -131,7 +131,7 @@ impl TransformDeclarations {
                                 &node.as_has_initializer().maybe_initializer().unwrap(),
                                 &self.enclosing_declaration(),
                                 declaration_emit_node_builder_flags(),
-                                &**self.symbol_tracker(),
+                                self.symbol_tracker(),
                             )
                         }),
                 ),
@@ -143,7 +143,7 @@ impl TransformDeclarations {
                 node,
                 &self.enclosing_declaration(),
                 declaration_emit_node_builder_flags(),
-                &**self.symbol_tracker(),
+                self.symbol_tracker(),
             ),
         ))
     }

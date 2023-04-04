@@ -306,10 +306,7 @@ impl VisitResultInterface for VisitResult {
     fn ptr_eq_node(&self, node: &Node) -> bool {
         matches!(
             self,
-            Some(SingleNodeOrVecNode::SingleNode(single_node)) if ptr::eq(
-                &**single_node,
-                node,
-            )
+            Some(single_node_or_vec_node) if single_node_or_vec_node.ptr_eq_node(node)
         )
     }
 
@@ -343,6 +340,16 @@ impl SingleNodeOrVecNode {
 
     pub fn iter(&self) -> SingleNodeOrVecNodeIter {
         SingleNodeOrVecNodeIter::new(self)
+    }
+
+    pub fn ptr_eq_node(&self, node: &Node) -> bool {
+        matches!(
+            self,
+            SingleNodeOrVecNode::SingleNode(single_node) if ptr::eq(
+                &**single_node,
+                node,
+            )
+        )
     }
 }
 

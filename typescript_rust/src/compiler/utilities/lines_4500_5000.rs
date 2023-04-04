@@ -326,10 +326,11 @@ pub fn write_comment_range(
 
                 let current_writer_indent_spacing = writer.get_indent() * get_indent_size();
 
-                let spaces_to_emit = current_writer_indent_spacing
-                    - first_comment_line_indent.unwrap()
-                    + calculate_indent(text, pos, next_line_start);
+                let spaces_to_emit = isize::try_from(current_writer_indent_spacing).unwrap()
+                    - isize::try_from(first_comment_line_indent.unwrap()).unwrap()
+                    + isize::try_from(calculate_indent(text, pos, next_line_start)).unwrap();
                 if spaces_to_emit > 0 {
+                    let spaces_to_emit: usize = spaces_to_emit.try_into().unwrap();
                     let mut number_of_single_spaces_to_emit = spaces_to_emit % get_indent_size();
                     let indent_size_space_string = get_indent_string(
                         (spaces_to_emit - number_of_single_spaces_to_emit) / get_indent_size(),

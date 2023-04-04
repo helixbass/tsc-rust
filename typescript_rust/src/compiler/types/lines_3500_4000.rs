@@ -818,6 +818,12 @@ impl HasStatementsInterface for SourceFile {
     }
 }
 
+impl HasFileNameInterface for SourceFile {
+    fn file_name(&self) -> String {
+        self.file_name().clone()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CommentDirective {
     pub range: BaseTextRange,
@@ -1275,6 +1281,16 @@ impl SourceFileLike for UnparsedSource {
     }
 }
 
+pub trait HasFileNameInterface {
+    fn file_name(&self) -> String;
+}
+
+impl HasFileNameInterface for UnparsedSource {
+    fn file_name(&self) -> String {
+        self.file_name.clone()
+    }
+}
+
 pub trait UnparsedSectionInterface {
     fn maybe_data(&self) -> Option<&str>;
 }
@@ -1616,9 +1632,8 @@ pub struct Program {
     pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
-    #[unsafe_ignore_trace]
     pub(crate) resolved_type_reference_directives:
-        RefCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>,
+        Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>,
     #[unsafe_ignore_trace]
     pub(crate) file_processing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
 

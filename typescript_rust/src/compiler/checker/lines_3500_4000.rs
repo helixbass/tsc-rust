@@ -588,9 +588,9 @@ impl TypeChecker {
         Some(symbols)
     }
 
-    pub(super) fn get_merged_symbol<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_merged_symbol(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
     ) -> Option<Gc<Symbol>> {
         let symbol = symbol?;
         let symbol = symbol.borrow();

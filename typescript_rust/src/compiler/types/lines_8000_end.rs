@@ -813,6 +813,13 @@ pub trait ModuleSpecifierCache {
         module_paths: &[ModulePath],
         module_specifiers: &[String],
     );
+    fn set_module_paths(
+        &self,
+        from_file_name: &Path,
+        to_file_name: &Path,
+        preferences: &UserPreferences,
+        module_paths: &[ModulePath],
+    );
 }
 
 pub trait SymbolTracker: Trace + Finalize {

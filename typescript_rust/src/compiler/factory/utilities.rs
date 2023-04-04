@@ -10,14 +10,25 @@ use crate::{
     is_object_literal_element_like, is_parenthesized_expression, is_prologue_directive,
     is_source_file, is_spread_element, is_string_literal, push_or_replace, AssertionLevel,
     BaseNodeFactory, Debug_, EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeFactory, NodeInterface, OuterExpressionKinds, SyntaxKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds,
+    SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
     base_factory: &TBaseNodeFactory,
     factory: &NodeFactory<TBaseNodeFactory>,
 ) -> Gc<Node> {
-    unimplemented!()
+    factory
+        .create_export_declaration(
+            base_factory,
+            Option::<Gc<NodeArray>>::None,
+            Option::<Gc<NodeArray>>::None,
+            false,
+            Some(factory.create_named_exports(base_factory, vec![]).into()),
+            None,
+            None,
+        )
+        .into()
 }
 
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
@@ -211,7 +222,33 @@ pub(crate) fn get_jsdoc_type_alias_name(
 }
 
 pub fn can_have_modifiers(node: &Node) -> bool {
-    unimplemented!()
+    let kind = node.kind();
+    matches!(
+        kind,
+        SyntaxKind::Parameter
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::Constructor
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::VariableStatement
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::ExportDeclaration
+    )
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

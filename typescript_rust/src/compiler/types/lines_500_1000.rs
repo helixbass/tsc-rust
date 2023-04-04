@@ -6,10 +6,10 @@ use std::{cell::Cell, fmt};
 
 use crate::{
     CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
-    HasChildrenInterface, HasDotDotDotTokenInterface, HasLeftAndRightInterface,
-    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
-    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
-    JsxOpeningLikeElementInterface, SourceFileLike, SyntheticExpression,
+    HasChildrenInterface, HasDotDotDotTokenInterface, HasFileNameInterface,
+    HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
+    HasOldFileOfCurrentEmitInterface, HasTagNameInterface, HasTextsInterface, InferenceContext,
+    JSDocHeritageTagInterface, JsxOpeningLikeElementInterface, SourceFileLike, SyntheticExpression,
     UnparsedSyntheticReference,
 };
 
@@ -845,6 +845,11 @@ impl Node {
         match self {
             Node::ForInStatement(node) => node,
             Node::ForOfStatement(node) => node,
+            Node::ForStatement(node) => node,
+            Node::DoStatement(node) => node,
+            Node::WhileStatement(node) => node,
+            Node::LabeledStatement(node) => node,
+            Node::WithStatement(node) => node,
             _ => panic!("Expected has statement"),
         }
     }
@@ -1023,6 +1028,14 @@ impl Node {
             Node::SourceFile(node) => node,
             Node::UnparsedSource(node) => node,
             _ => panic!("Expected source file like"),
+        }
+    }
+
+    pub fn as_has_file_name(&self) -> &dyn HasFileNameInterface {
+        match self {
+            Node::SourceFile(node) => node,
+            Node::UnparsedSource(node) => node,
+            _ => panic!("Expected has file name"),
         }
     }
 

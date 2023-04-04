@@ -4,18 +4,21 @@ use gc::Gc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
+    are_option_gcs_equal, has_node_array_changed, has_option_node_array_changed,
     is_external_module_reference, modifiers_to_flags, AsDoubleDeref, AsExpression, BaseNodeFactory,
-    Block, BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_,
-    DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
-    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
-    FunctionLikeDeclarationInterface, HasTypeArgumentsInterface, IfStatement, ImportClause,
-    ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement,
-    MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node,
+    Block, BreakStatement, CaseBlock, ClassDeclaration, ClassLikeDeclarationInterface,
+    ContinueStatement, Debug_, DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration,
+    ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
+    FunctionDeclaration, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    HasMembersInterface, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration,
+    InterfaceOrClassLikeDeclarationInterface, LabeledStatement, MetaProperty, ModifierFlags,
+    ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamespaceExportDeclaration, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
-    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StrOrRcNode,
-    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
-    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
-    WhileStatement, WithStatement,
+    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement,
+    SignatureDeclarationInterface, StrOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan,
+    ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -55,7 +58,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Gc<Node>, /*Expression*/
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
+        let type_arguments = type_arguments.map(Into::into);
+        if !Gc::ptr_eq(
+            &node_as_expression_with_type_arguments.expression,
+            &expression,
+        ) || has_option_node_array_changed(
+            node_as_expression_with_type_arguments
+                .maybe_type_arguments()
+                .as_deref(),
+            type_arguments.as_ref(),
+        ) {
+            self.update(
+                self.create_expression_with_type_arguments(
+                    base_factory,
+                    expression,
+                    type_arguments,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_as_expression(
@@ -180,7 +205,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node,                           /*Block*/
         statements: impl Into<NodeArrayOrVec>, /*Statement*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_block = node.as_block();
+        let statements = statements.into();
+        if has_node_array_changed(&node_as_block.statements, &statements) {
+            self.update(
+                self.create_block(base_factory, statements, node_as_block.multi_line)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_variable_statement(
@@ -223,7 +258,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         declaration_list: Gc<Node /*VariableDeclarationList*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_variable_statement = node.as_variable_statement();
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(
+                &node_as_variable_statement.declaration_list,
+                &declaration_list,
+            )
+        {
+            self.update(
+                self.create_variable_statement(base_factory, modifiers, declaration_list)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_empty_statement(&self, base_factory: &TBaseNodeFactory) -> EmptyStatement {
@@ -340,7 +390,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         incrementor: Option<Gc<Node /*Expression*/>>,
         statement: Gc<Node /*Statement*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_for_statement = node.as_for_statement();
+        if !are_option_gcs_equal(
+            node_as_for_statement.initializer.as_ref(),
+            initializer.as_ref(),
+        ) || !are_option_gcs_equal(node_as_for_statement.condition.as_ref(), condition.as_ref())
+            || !are_option_gcs_equal(
+                node_as_for_statement.incrementor.as_ref(),
+                incrementor.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_for_statement.statement, &statement)
+        {
+            self.update(
+                self.create_for_statement(
+                    base_factory,
+                    initializer,
+                    condition,
+                    incrementor,
+                    statement,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_for_in_statement(
@@ -373,7 +447,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_for_in_statement = node.as_for_in_statement();
+        if !Gc::ptr_eq(&node_as_for_in_statement.initializer, &initializer)
+            || !Gc::ptr_eq(&node_as_for_in_statement.expression, &expression)
+            || !Gc::ptr_eq(&node_as_for_in_statement.statement, &statement)
+        {
+            self.update(
+                self.create_for_in_statement(base_factory, initializer, expression, statement)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_for_of_statement(
@@ -416,7 +502,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_for_of_statement = node.as_for_of_statement();
+        if !are_option_gcs_equal(
+            node_as_for_of_statement.await_modifier.as_ref(),
+            await_modifier.as_ref(),
+        ) || !Gc::ptr_eq(&node_as_for_of_statement.initializer, &initializer)
+            || !Gc::ptr_eq(&node_as_for_of_statement.expression, &expression)
+            || !Gc::ptr_eq(&node_as_for_of_statement.statement, &statement)
+        {
+            self.update(
+                self.create_for_of_statement(
+                    base_factory,
+                    await_modifier,
+                    initializer,
+                    expression,
+                    statement,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_continue_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(
@@ -591,7 +698,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_variable_declaration = node.as_variable_declaration();
+        if !are_option_gcs_equal(
+            node_as_variable_declaration.maybe_name().as_ref(),
+            name.as_ref(),
+        ) || !are_option_gcs_equal(
+            node_as_variable_declaration.maybe_type().as_ref(),
+            type_.as_ref(),
+        ) || !are_option_gcs_equal(
+            node_as_variable_declaration.exclamation_token.as_ref(),
+            exclamation_token.as_ref(),
+        ) || !are_option_gcs_equal(
+            node_as_variable_declaration.maybe_initializer().as_ref(),
+            initializer.as_ref(),
+        ) {
+            self.update(
+                self.create_variable_declaration(
+                    base_factory,
+                    name,
+                    exclamation_token,
+                    type_,
+                    initializer,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_variable_declaration_list(
@@ -623,25 +757,41 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*VariableDeclarationList*/
         declarations: impl Into<NodeArrayOrVec>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_variable_declaration_list = node.as_variable_declaration_list();
+        let declarations = declarations.into();
+        if has_node_array_changed(
+            &node_as_variable_declaration_list.declarations,
+            &declarations,
+        ) {
+            self.update(
+                self.create_variable_declaration_list(
+                    base_factory,
+                    declarations,
+                    Some(node.flags()),
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
-    pub fn create_function_declaration<
-        'name,
-        TModifiers: Into<NodeArrayOrVec>,
-        TDecorators: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_function_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
-        name: Option<TName /*Identifier*/>,
-        type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
-        parameters: TParameters, /*<ParameterDeclaration>*/
+        name: Option<
+            impl Into<StrOrRcNode<'name>>,
+            /*Identifier*/
+        >,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        parameters: impl Into<NodeArrayOrVec>, /*<ParameterDeclaration>*/
         type_: Option<Gc<Node /*TypeNode*/>>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> FunctionDeclaration {
@@ -699,7 +849,55 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Option<Gc<Node /*TypeNode*/>>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_function_declaration = node.as_function_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let type_parameters = type_parameters.map(Into::into);
+        let parameters = parameters.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !are_option_gcs_equal(
+                node_as_function_declaration.maybe_asterisk_token().as_ref(),
+                asterisk_token.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_function_declaration.maybe_name().as_ref(),
+                name.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_function_declaration
+                    .maybe_type_parameters()
+                    .as_deref(),
+                type_parameters.as_ref(),
+            )
+            || has_node_array_changed(&node_as_function_declaration.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_function_declaration.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_function_declaration.maybe_body().as_ref(),
+                body.as_ref(),
+            )
+        {
+            self.update_base_function_like_declaration(
+                self.create_function_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    asterisk_token,
+                    name,
+                    type_parameters,
+                    parameters,
+                    type_,
+                    body,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_class_declaration<'name>(
@@ -765,7 +963,46 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         >,
         members: impl Into<NodeArrayOrVec>, /*<ClassElement>*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_class_declaration = node.as_class_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let type_parameters = type_parameters.map(Into::into);
+        let heritage_clauses = heritage_clauses.map(Into::into);
+        let members = members.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !are_option_gcs_equal(
+                node_as_class_declaration.maybe_name().as_ref(),
+                name.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_class_declaration.maybe_type_parameters().as_deref(),
+                type_parameters.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_class_declaration
+                    .maybe_heritage_clauses()
+                    .as_deref(),
+                heritage_clauses.as_ref(),
+            )
+            || has_node_array_changed(&node_as_class_declaration.members(), &members)
+        {
+            self.update(
+                self.create_class_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    name,
+                    type_parameters,
+                    heritage_clauses,
+                    members,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_interface_declaration<'name>(
@@ -803,7 +1040,45 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         heritage_clauses: Option<impl Into<NodeArrayOrVec>>,
         members: impl Into<NodeArrayOrVec>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_interface_declaration = node.as_interface_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let type_parameters = type_parameters.map(Into::into);
+        let heritage_clauses = heritage_clauses.map(Into::into);
+        let members = members.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_interface_declaration.name(), &name)
+            || has_option_node_array_changed(
+                node_as_interface_declaration
+                    .maybe_type_parameters()
+                    .as_deref(),
+                type_parameters.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_interface_declaration
+                    .maybe_heritage_clauses()
+                    .as_deref(),
+                heritage_clauses.as_ref(),
+            )
+            || has_node_array_changed(&node_as_interface_declaration.members(), &members)
+        {
+            self.update(
+                self.create_interface_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    name,
+                    type_parameters,
+                    heritage_clauses,
+                    members,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_type_alias_declaration<'name>(
@@ -838,7 +1113,39 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
         type_: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_type_alias_declaration = node.as_type_alias_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let type_parameters = type_parameters.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_type_alias_declaration.name(), &name)
+            || has_option_node_array_changed(
+                node_as_type_alias_declaration
+                    .maybe_type_parameters()
+                    .as_deref(),
+                type_parameters.as_ref(),
+            )
+            || !Gc::ptr_eq(
+                &node_as_type_alias_declaration.maybe_type().unwrap(),
+                &type_,
+            )
+        {
+            self.update(
+                self.create_type_alias_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    name,
+                    type_parameters,
+                    type_,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_enum_declaration<'name>(
@@ -875,7 +1182,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Gc<Node>,
         members: Option<impl Into<NodeArrayOrVec>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_enum_declaration = node.as_enum_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let members = members.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_enum_declaration.name(), &name)
+            || match members.as_ref() {
+                None => true,
+                Some(members) => has_node_array_changed(&node_as_enum_declaration.members, members),
+            }
+        {
+            self.update(
+                self.create_enum_declaration(base_factory, decorators, modifiers, name, members)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_module_declaration(
@@ -928,7 +1254,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Gc<Node /*ModuleName*/>,
         body: Option<Gc<Node /*ModuleBody*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_module_declaration = node.as_module_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_module_declaration.name, &name)
+            || !are_option_gcs_equal(node_as_module_declaration.body.as_ref(), body.as_ref())
+        {
+            self.update(
+                self.create_module_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    name,
+                    body,
+                    Some(node.flags()),
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_module_block(
@@ -948,13 +1296,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ModuleBlock*/
         statements: impl Into<NodeArrayOrVec>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_module_block = node.as_module_block();
+        let statements = statements.into();
+        if has_node_array_changed(&node_as_module_block.statements, &statements) {
+            self.update(
+                self.create_module_block(base_factory, Some(statements))
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
-    pub fn create_case_block<TClauses: Into<NodeArrayOrVec>>(
+    pub fn create_case_block(
         &self,
         base_factory: &TBaseNodeFactory,
-        clauses: TClauses, /*<CaseOrDefaultClause>*/
+        clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
     ) -> CaseBlock {
         let node = self.create_base_node(base_factory, SyntaxKind::CaseBlock);
         let mut node = CaseBlock::new(node, self.create_node_array(Some(clauses), None));
@@ -962,10 +1320,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_namespace_export_declaration<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn create_namespace_export_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: TName,
+        name: impl Into<StrOrRcNode<'name>>,
     ) -> NamespaceExportDeclaration {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -1016,7 +1374,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Gc<Node /*Identifier*/>,
         module_reference: Gc<Node /*ModuleReference*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || node_as_import_equals_declaration.is_type_only != is_type_only
+            || !Gc::ptr_eq(
+                &node_as_import_equals_declaration.module_reference,
+                &module_reference,
+            )
+        {
+            self.update(
+                self.create_import_equals_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    is_type_only,
+                    name,
+                    module_reference,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_import_declaration(
@@ -1052,7 +1435,39 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         module_specifier: Gc<Node /*Expression*/>,
         assert_clause: Option<Gc<Node /*AssertClause*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_import_declaration = node.as_import_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !are_option_gcs_equal(
+                node_as_import_declaration.import_clause.as_ref(),
+                import_clause.as_ref(),
+            )
+            || !Gc::ptr_eq(
+                &node_as_import_declaration.module_specifier,
+                &module_specifier,
+            )
+            || !are_option_gcs_equal(
+                node_as_import_declaration.assert_clause.as_ref(),
+                assert_clause.as_ref(),
+            )
+        {
+            self.update(
+                self.create_import_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    import_clause,
+                    module_specifier,
+                    assert_clause,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_import_clause(
@@ -1085,6 +1500,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Option<Gc<Node /*Identifier*/>>,
         named_bindings: Option<Gc<Node /*NamedImportBindings*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_import_clause = node.as_import_clause();
+        if node_as_import_clause.is_type_only != is_type_only
+            || !are_option_gcs_equal(node_as_import_clause.name.as_ref(), name.as_ref())
+            || !are_option_gcs_equal(
+                node_as_import_clause.named_bindings.as_ref(),
+                named_bindings.as_ref(),
+            )
+        {
+            self.update(
+                self.create_import_clause(base_factory, is_type_only, name, named_bindings)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 }

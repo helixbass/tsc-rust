@@ -294,7 +294,11 @@ impl EmitTextWriter for TextWriter {
     }
 
     fn get_text_pos_with_write_line(&self) -> Option<usize> {
-        unimplemented!()
+        if self.line_start() {
+            Some(self.output_as_chars().len())
+        } else {
+            Some(self.output_as_chars().len() + self.new_line.len())
+        }
     }
 
     fn is_non_escaping_write_supported(&self) -> bool {
@@ -768,8 +772,8 @@ pub fn host_uses_case_sensitive_file_names<TGetUseCaseSensitiveFileNames: Fn() -
     get_use_case_sensitive_file_names().unwrap_or(false)
 }
 
-pub fn host_get_canonical_file_name<TGetUseCaseSensitiveFileNames: Fn() -> Option<bool>>(
-    get_use_case_sensitive_file_names: TGetUseCaseSensitiveFileNames,
+pub fn host_get_canonical_file_name(
+    get_use_case_sensitive_file_names: impl Fn() -> Option<bool>,
 ) -> fn(&str) -> String {
     create_get_canonical_file_name(host_uses_case_sensitive_file_names(
         get_use_case_sensitive_file_names,
@@ -1144,11 +1148,11 @@ pub fn write_file_ensuring_directories<
 
 pub fn get_line_of_local_position(source_file: &Node /*SourceFile*/, pos: usize) -> usize {
     let line_starts = get_line_starts(source_file.as_source_file());
-    compute_line_of_position(&line_starts, pos, None)
+    compute_line_of_position(&line_starts, pos.try_into().unwrap(), None)
 }
 
 pub fn get_line_of_local_position_from_line_map(line_map: &[usize], pos: usize) -> usize {
-    compute_line_of_position(line_map, pos, None)
+    compute_line_of_position(line_map, pos.try_into().unwrap(), None)
 }
 
 pub fn get_first_constructor_with_body(

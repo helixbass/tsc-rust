@@ -2,31 +2,33 @@
 
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{
     get_cooked_text, propagate_child_flags, propagate_children_flags,
     propagate_identifier_name_flags, CookedText,
 };
 use crate::{
-    get_elements_of_binding_or_assignment_pattern, get_target_of_binding_or_assignment_element,
-    has_invalid_escape, is_array_literal_expression, is_assignment_pattern, is_call_chain,
-    is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
+    are_option_gcs_equal, get_elements_of_binding_or_assignment_pattern,
+    get_target_of_binding_or_assignment_element, has_invalid_escape, has_node_array_changed,
+    has_option_node_array_changed, is_array_literal_expression, is_assignment_pattern,
+    is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_logical_or_coalescing_assignment_operator, is_object_literal_expression,
     is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
     modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction, AsDoubleDeref,
     AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
-    BindingElement, CallExpression, ClassExpression, ConditionalExpression, Debug_,
-    DeleteExpression, ElementAccessExpression, FunctionExpression,
-    FunctionLikeDeclarationInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
-    ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode,
-    ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
-    ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
-    SpreadElement, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind,
-    SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion,
-    TypeOfExpression, TypeOperatorNode, VoidExpression, YieldExpression,
+    BindingElement, CallExpression, ClassExpression, ClassLikeDeclarationInterface,
+    ConditionalExpression, Debug_, DeleteExpression, ElementAccessExpression, FunctionExpression,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, ImportTypeNode, IndexedAccessTypeNode,
+    InferTypeNode, InterfaceOrClassLikeDeclarationInterface, LiteralTypeNode, MappedTypeNode,
+    ModifierFlags, NamedDeclarationInterface, NewExpression, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, ObjectBindingPattern, ObjectLiteralExpression,
+    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
+    PropertyAccessExpression, SignatureDeclarationInterface, SpreadElement, StrOrRcNode,
+    StringOrNumberOrBoolOrRcNode, SyntaxKind, SyntaxKindOrRcNode, TaggedTemplateExpression,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
+    TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode, VoidExpression,
+    YieldExpression,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -92,7 +94,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> Gc<Node> {
         let node_as_import_type_node = node.as_import_type_node();
         let is_type_of = is_type_of.unwrap_or_else(|| node_as_import_type_node.is_type_of());
-        unimplemented!()
+        let type_arguments = type_arguments.map(Into::into);
+        if !Gc::ptr_eq(&node_as_import_type_node.argument, &argument)
+            || !are_option_gcs_equal(
+                node_as_import_type_node.qualifier.as_ref(),
+                qualifier.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_import_type_node.maybe_type_arguments().as_deref(),
+                type_arguments.as_ref(),
+            )
+            || node_as_import_type_node.is_type_of() != is_type_of
+        {
+            self.update(
+                self.create_import_type_node(
+                    base_factory,
+                    argument,
+                    qualifier,
+                    type_arguments,
+                    Some(is_type_of),
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_parenthesized_type(
@@ -188,7 +215,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*LiteralTypeNode*/
         literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_literal_type_node = node.as_literal_type_node();
+        if !Gc::ptr_eq(&node_as_literal_type_node.literal, &literal) {
+            self.update(
+                self.create_literal_type_node(base_factory, literal).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_object_binding_pattern(
@@ -221,7 +256,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ObjectBindingPattern*/
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_object_binding_pattern = node.as_object_binding_pattern();
+        let elements = elements.into();
+        if has_node_array_changed(&node_as_object_binding_pattern.elements, &elements) {
+            self.update(
+                self.create_object_binding_pattern(base_factory, elements)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_array_binding_pattern(
@@ -245,7 +290,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ArrayBindingPattern*/
         elements: impl Into<NodeArrayOrVec /*<ArrayBindingElement>*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_array_binding_pattern = node.as_array_binding_pattern();
+        let elements = elements.into();
+        if has_node_array_changed(&node_as_array_binding_pattern.elements, &elements) {
+            self.update(
+                self.create_array_binding_pattern(base_factory, elements)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_binding_element<'property_name, 'name>(
@@ -298,7 +353,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Gc<Node /*BindingName*/>,
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_binding_element = node.as_binding_element();
+        if !are_option_gcs_equal(
+            node_as_binding_element.property_name.as_ref(),
+            property_name.as_ref(),
+        ) || !are_option_gcs_equal(
+            node_as_binding_element.dot_dot_dot_token.as_ref(),
+            dot_dot_dot_token.as_ref(),
+        ) || !Gc::ptr_eq(&node_as_binding_element.name(), &name)
+            || !are_option_gcs_equal(
+                node_as_binding_element.maybe_initializer().as_ref(),
+                initializer.as_ref(),
+            )
+        {
+            self.update(
+                self.create_binding_element(
+                    base_factory,
+                    dot_dot_dot_token,
+                    property_name,
+                    name,
+                    initializer,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub(crate) fn create_base_expression(
@@ -826,7 +907,48 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Option<Gc<Node /*TypeNode*/>>,
         body: Gc<Node /*Block*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_function_expression = node.as_function_expression();
+        let modifiers = modifiers.map(Into::into);
+        let type_parameters = type_parameters.map(Into::into);
+        let parameters = parameters.into();
+        if !are_option_gcs_equal(
+            node_as_function_expression.maybe_name().as_ref(),
+            name.as_ref(),
+        ) || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !are_option_gcs_equal(
+                node_as_function_expression.maybe_asterisk_token().as_ref(),
+                asterisk_token.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_function_expression
+                    .maybe_type_parameters()
+                    .as_deref(),
+                type_parameters.as_ref(),
+            )
+            || has_node_array_changed(&node_as_function_expression.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_function_expression.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_function_expression.maybe_body().unwrap(), &body)
+        {
+            self.update_base_function_like_declaration(
+                self.create_function_expression(
+                    base_factory,
+                    modifiers,
+                    asterisk_token,
+                    name,
+                    type_parameters,
+                    parameters,
+                    type_,
+                    body,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_arrow_function(
@@ -885,7 +1007,39 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         equals_greater_than_token: Gc<Node /*EqualsGreaterThanToken*/>,
         body: Gc<Node /*ConciseBody*/>,
     ) -> Gc<Node /*ArrowFunction*/> {
-        unimplemented!()
+        let node_as_arrow_function = node.as_arrow_function();
+        let modifiers = modifiers.map(Into::into);
+        let type_parameters = type_parameters.map(Into::into);
+        let parameters = parameters.into();
+        if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || has_option_node_array_changed(
+                node_as_arrow_function.maybe_type_parameters().as_deref(),
+                type_parameters.as_ref(),
+            )
+            || has_node_array_changed(&node_as_arrow_function.parameters(), &parameters)
+            || !are_option_gcs_equal(node_as_arrow_function.maybe_type().as_ref(), type_.as_ref())
+            || !Gc::ptr_eq(
+                &node_as_arrow_function.equals_greater_than_token,
+                &equals_greater_than_token,
+            )
+            || !Gc::ptr_eq(&node_as_arrow_function.maybe_body().unwrap(), &body)
+        {
+            self.update_base_function_like_declaration(
+                self.create_arrow_function(
+                    base_factory,
+                    modifiers,
+                    type_parameters,
+                    parameters,
+                    type_,
+                    Some(equals_greater_than_token),
+                    body,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_delete_expression(
@@ -1336,23 +1490,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_class_expression<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        THeritageClauses: Into<NodeArrayOrVec>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_class_expression<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName /*string | Identifier*/>,
-        type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
-        heritage_clauses: Option<THeritageClauses /*<HeritageClause>*/>,
-        members: TMembers, /*<ClassElement>*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<
+            impl Into<StrOrRcNode<'name>>,
+            /*string | Identifier*/
+        >,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        heritage_clauses: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<HeritageClause>*/
+        >,
+        members: impl Into<NodeArrayOrVec>,
+        /*<ClassElement>*/
     ) -> ClassExpression {
         let node = self.create_base_class_like_declaration(
             base_factory,
@@ -1367,5 +1523,63 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ClassExpression::new(node);
         node.add_transform_flags(TransformFlags::ContainsES2015);
         node
+    }
+
+    pub fn update_class_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ClassExpression*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<Gc<Node>>,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        heritage_clauses: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<HeritageClause>*/
+        >,
+        members: impl Into<NodeArrayOrVec>,
+        /*<ClassElement>*/
+    ) -> Gc<Node> {
+        let node_as_class_expression = node.as_class_expression();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let type_parameters = type_parameters.map(Into::into);
+        let heritage_clauses = heritage_clauses.map(Into::into);
+        let members = members.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !are_option_gcs_equal(
+                node_as_class_expression.maybe_name().as_ref(),
+                name.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_class_expression.maybe_type_parameters().as_deref(),
+                type_parameters.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_class_expression.maybe_heritage_clauses().as_deref(),
+                heritage_clauses.as_ref(),
+            )
+            || has_node_array_changed(&node_as_class_expression.members(), &members)
+        {
+            self.update(
+                self.create_class_expression(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    name,
+                    type_parameters,
+                    heritage_clauses,
+                    members,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 }

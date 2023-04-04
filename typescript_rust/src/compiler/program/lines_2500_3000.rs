@@ -63,17 +63,15 @@ impl Program {
         referencing_file: &Node, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
     ) -> Option<Gc<Node /*SourceFile*/>> {
-        unimplemented!()
-    }
-
-    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Gc<Node>> {
-        if child.pos() <= position
-            && (position < child.end()
-                || position == child.end() && child.kind() == SyntaxKind::EndOfFileToken)
-        {
-            return Some(child.node_wrapper());
-        }
-        None
+        self.get_source_file_from_reference_worker(
+            &resolve_tripleslash_reference(
+                &ref_.file_name,
+                &referencing_file.as_has_file_name().file_name(),
+            ),
+            |file_name| self.get_source_file(file_name),
+            Option::<fn(&'static DiagnosticMessage, Option<Vec<String>>)>::None,
+            None,
+        )
     }
 
     pub(super) fn get_source_file_from_reference_worker(
@@ -832,8 +830,7 @@ impl Program {
         resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
         reason: &FileIncludeReason,
     ) {
-        let previous_resolution = self
-            .resolved_type_reference_directives()
+        let previous_resolution = (*self.resolved_type_reference_directives().borrow())
             .get(type_reference_directive)
             .cloned()
             .flatten();
@@ -925,7 +922,7 @@ impl Program {
         }
 
         if save_resolution {
-            self.resolved_type_reference_directives().insert(
+            self.resolved_type_reference_directives_mut().insert(
                 type_reference_directive.to_owned(),
                 resolved_type_reference_directive,
             );

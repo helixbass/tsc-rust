@@ -169,10 +169,10 @@ impl DebugType {
         self.fail(Some(message));
     }
 
-    pub fn assert_node<TNode: Borrow<Node>, TTest: FnOnce(&Node) -> bool>(
+    pub fn assert_node(
         &self,
-        node: Option<TNode>,
-        test: Option<TTest>,
+        node: Option<impl Borrow<Node>>,
+        test: Option<impl FnOnce(&Node) -> bool>,
         message: Option<&str>,
     ) {
         if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertNode) {

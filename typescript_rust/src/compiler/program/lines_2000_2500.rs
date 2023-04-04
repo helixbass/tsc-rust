@@ -995,6 +995,16 @@ impl Program {
             }
         }
     }
+
+    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Gc<Node>> {
+        if child.pos() <= position
+            && (position < child.end()
+                || position == child.end() && child.kind() == SyntaxKind::EndOfFileToken)
+        {
+            return Some(child.node_wrapper());
+        }
+        None
+    }
 }
 
 pub struct DiagnosticsWithPrecedingDirectives {

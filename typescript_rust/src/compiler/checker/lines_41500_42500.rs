@@ -266,10 +266,10 @@ impl TypeChecker {
                 .is_empty()
     }
 
-    pub(super) fn get_type_reference_serialization_kind<TLocation: Borrow<Node>>(
+    pub(super) fn get_type_reference_serialization_kind(
         &self,
         type_name_in: &Node, /*EntityName*/
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
     ) -> TypeReferenceSerializationKind {
         let type_name = get_parse_tree_node(Some(type_name_in), Some(is_entity_name));
         if type_name.is_none() {
@@ -719,7 +719,7 @@ impl TypeChecker {
     }
 
     pub(super) fn create_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
-        Gc::new(Box::new(EmitResolverCreateResolver::new()))
+        Gc::new(Box::new(EmitResolverCreateResolver::new(self.rc_wrapper())))
     }
 
     pub(super) fn get_external_module_file_from_declaration(
