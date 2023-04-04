@@ -294,7 +294,11 @@ impl EmitTextWriter for TextWriter {
     }
 
     fn get_text_pos_with_write_line(&self) -> Option<usize> {
-        unimplemented!()
+        if self.line_start() {
+            Some(self.output_as_chars().len())
+        } else {
+            Some(self.output_as_chars().len() + self.new_line.len())
+        }
     }
 
     fn is_non_escaping_write_supported(&self) -> bool {
@@ -768,8 +772,8 @@ pub fn host_uses_case_sensitive_file_names<TGetUseCaseSensitiveFileNames: Fn() -
     get_use_case_sensitive_file_names().unwrap_or(false)
 }
 
-pub fn host_get_canonical_file_name<TGetUseCaseSensitiveFileNames: Fn() -> Option<bool>>(
-    get_use_case_sensitive_file_names: TGetUseCaseSensitiveFileNames,
+pub fn host_get_canonical_file_name(
+    get_use_case_sensitive_file_names: impl Fn() -> Option<bool>,
 ) -> fn(&str) -> String {
     create_get_canonical_file_name(host_uses_case_sensitive_file_names(
         get_use_case_sensitive_file_names,

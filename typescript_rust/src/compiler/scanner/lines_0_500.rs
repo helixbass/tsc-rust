@@ -870,7 +870,7 @@ pub(crate) fn get_lines_between_positions(
     source_file: &impl SourceFileLike,
     pos1: isize,
     pos2: isize,
-) -> usize {
+) -> isize {
     if pos1 == pos2 {
         return 0;
     }
@@ -881,9 +881,9 @@ pub(crate) fn get_lines_between_positions(
     let lower_line = compute_line_of_position(&line_starts, lower, None);
     let upper_line = compute_line_of_position(&line_starts, upper, Some(lower_line));
     if is_negative {
-        (lower_line - upper_line).try_into().unwrap()
+        isize::try_from(lower_line).unwrap() - isize::try_from(upper_line).unwrap()
     } else {
-        (upper_line - lower_line).try_into().unwrap()
+        isize::try_from(upper_line).unwrap() - isize::try_from(lower_line).unwrap()
     }
 }
 

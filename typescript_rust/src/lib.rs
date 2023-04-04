@@ -73,7 +73,7 @@ pub use compiler::emitter::{
 use compiler::emitter::{
     emit_files, get_build_info, get_common_source_directory, get_common_source_directory_of_config,
     get_output_declaration_file_name, get_output_paths_for, get_output_paths_for_bundle,
-    is_build_info_file, EmitBinaryExpression,
+    is_build_info_file, not_implemented_resolver, EmitBinaryExpression,
 };
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
@@ -259,8 +259,9 @@ pub use compiler::sys::{
 use compiler::sys::{ignored_paths, missing_file_modified_time};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
 pub use compiler::transformer::{
-    get_transformers, no_emit_notification, no_emit_substitution, null_transformation_context,
-    transform_nodes, TransformNodesTransformationResult, WrapCustomTransformerFactoryHandleDefault,
+    get_transformers, no_emit_notification, no_emit_substitution, no_transformers,
+    null_transformation_context, transform_nodes, TransformNodesTransformationResult,
+    WrapCustomTransformerFactoryHandleDefault,
 };
 pub use compiler::transformers::declarations::diagnostics::{
     can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,
@@ -331,7 +332,7 @@ pub use compiler::types::{
     GenericNamedDeclarationInterface, GenericTypeInterface, GenericableTypeInterface,
     GetAccessorDeclaration, HasAntecedentInterface, HasArgumentsInterface,
     HasAssertClauseInterface, HasChildrenInterface, HasConditionInterface,
-    HasDotDotDotTokenInterface, HasElementsInterface, HasExpressionInterface,
+    HasDotDotDotTokenInterface, HasElementsInterface, HasExpressionInterface, HasFileNameInterface,
     HasInitializerInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
     HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
     HasOldFileOfCurrentEmitInterface, HasPropertiesInterface, HasPropertyNameInterface,

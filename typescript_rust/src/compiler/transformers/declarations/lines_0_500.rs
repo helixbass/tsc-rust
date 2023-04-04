@@ -960,7 +960,7 @@ impl TransformDeclarations {
 
             if !decl_file_name.is_empty() {
                 let specifier = module_specifiers::get_module_specifier(
-                    &self.options,
+                    self.options.clone(),
                     &self.current_source_file(),
                     &to_path(
                         output_file_path,

@@ -10,18 +10,18 @@ use crate::{
     compare_values, concatenate, contains, contains_path, create_type_checker, emit_files,
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
     get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
-    get_transformers, is_source_file_js, is_trace_enabled, libs, map_defined,
-    node_modules_path_part, out_file, package_id_to_string, remove_prefix, remove_suffix,
-    skip_type_checking, source_file_may_be_emitted, string_contains, to_path as to_path_helper,
-    trace, CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
-    CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension,
-    FileIncludeReason, FileReference, ModuleSpecifierResolutionHost,
-    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, Path, Program,
-    ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap, ResolveModuleNameResolutionHost,
-    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ScriptReferenceHost, SourceFileLike, SourceFileMayBeEmittedHost,
-    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, TypeChecker,
-    TypeCheckerHost, WriteFileCallback,
+    get_transformers, is_source_file_js, is_trace_enabled, libs, map_defined, no_transformers,
+    node_modules_path_part, not_implemented_resolver, out_file, package_id_to_string,
+    remove_prefix, remove_suffix, skip_type_checking, source_file_may_be_emitted, string_contains,
+    to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison, CompilerHost,
+    CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult,
+    Extension, FileIncludeReason, FileReference, ModuleSpecifierResolutionHost,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NonEmpty, Path,
+    Program, ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap,
+    ResolveModuleNameResolutionHost, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
+    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
+    StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback,
 };
 
 impl Program {
@@ -649,7 +649,23 @@ impl Program {
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> EmitResult {
-        unimplemented!()
+        Debug_.assert(out_file(&self.options).non_empty().is_none(), None);
+        // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
+        // performance.mark("beforeEmit");
+        let emit_result = emit_files(
+            not_implemented_resolver(),
+            self.get_emit_host(write_file_callback),
+            None,
+            no_transformers(),
+            Some(false),
+            Some(true),
+            None,
+        );
+
+        // performance.mark("afterEmit");
+        // performance.measure("Emit", "beforeEmit", "afterEmit");
+        // tracing?.pop();
+        emit_result
     }
 
     pub fn get_resolved_project_references(

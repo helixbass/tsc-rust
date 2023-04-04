@@ -818,6 +818,12 @@ impl HasStatementsInterface for SourceFile {
     }
 }
 
+impl HasFileNameInterface for SourceFile {
+    fn file_name(&self) -> String {
+        self.file_name().clone()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CommentDirective {
     pub range: BaseTextRange,
@@ -1272,6 +1278,16 @@ impl SourceFileLike for UnparsedSource {
         allow_edits: Option<bool>,
     ) -> Option<usize> {
         unimplemented!()
+    }
+}
+
+pub trait HasFileNameInterface {
+    fn file_name(&self) -> String;
+}
+
+impl HasFileNameInterface for UnparsedSource {
+    fn file_name(&self) -> String {
+        self.file_name.clone()
     }
 }
 

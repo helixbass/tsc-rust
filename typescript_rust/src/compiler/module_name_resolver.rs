@@ -1,10 +1,10 @@
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
+use std::{borrow::Cow, cell::RefCell};
 
 use crate::{
     combine_paths, compare_paths, contains, contains_path, create_get_canonical_file_name,
@@ -17,7 +17,7 @@ use crate::{
     is_external_module_name_relative, is_rooted_disk_path, last_index_of, match_pattern_or_exact,
     matched_text, maybe_for_each, normalize_path, normalize_path_and_parts, normalize_slashes,
     options_have_module_resolution_changes, package_id_to_string, path_is_relative, pattern_text,
-    read_json, remove_file_extension, sort, starts_with, string_contains, to_path,
+    read_json, remove_file_extension, remove_prefix, sort, starts_with, string_contains, to_path,
     try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
     version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
     Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
@@ -4004,8 +4004,26 @@ pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
     package_name.to_owned()
 }
 
-pub(crate) fn get_package_name_from_types_package_name(mangled_name: &str) -> String {
-    unimplemented!()
+pub(crate) fn get_package_name_from_types_package_name<'arg>(
+    mangled_name: &'arg str,
+) -> Cow<'arg, str> {
+    let without_at_type_prefix = remove_prefix(mangled_name, "@types");
+    if without_at_type_prefix != mangled_name {
+        return unmangle_scoped_package_name(without_at_type_prefix);
+    }
+    mangled_name.into()
+}
+
+pub(crate) fn unmangle_scoped_package_name<'arg>(types_package_name: &'arg str) -> Cow<'arg, str> {
+    if string_contains(types_package_name, mangled_scoped_package_separator) {
+        format!(
+            "@{}",
+            types_package_name.replace(mangled_scoped_package_separator, directory_separator_str)
+        )
+        .into()
+    } else {
+        types_package_name.into()
+    }
 }
 
 fn try_find_non_relative_module_name_in_cache(

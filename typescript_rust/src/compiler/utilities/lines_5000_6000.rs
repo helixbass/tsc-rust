@@ -7,7 +7,6 @@ use std::cell::RefCell;
 use std::convert::TryInto;
 use std::io;
 use std::ptr;
-use std::rc::Rc;
 
 use super::supported_ts_extensions_for_extract_extension;
 use crate::{
@@ -250,33 +249,43 @@ pub fn get_new_line_character<TGetNewLine: Fn() -> String>(
     }
 }
 
-pub fn range_is_on_single_line<TRange: ReadonlyTextRange>(
-    range: &TRange,
+pub fn range_is_on_single_line(
+    range: &impl ReadonlyTextRange,
     source_file: &Node, /*SourceFile*/
 ) -> bool {
-    unimplemented!()
+    range_start_is_on_same_line_as_range_end(range, range, source_file)
 }
 
-pub fn range_start_positions_are_on_same_line<
-    TRange1: ReadonlyTextRange,
-    TRange2: ReadonlyTextRange,
->(
-    range1: &TRange1,
-    range2: &TRange2,
+pub fn range_start_positions_are_on_same_line(
+    range1: &impl ReadonlyTextRange,
+    range2: &impl ReadonlyTextRange,
     source_file: &Node, /*SourceFile*/
 ) -> bool {
-    unimplemented!()
+    positions_are_on_same_line(
+        get_start_position_of_range(range1, source_file, false),
+        get_start_position_of_range(range2, source_file, false),
+        source_file,
+    )
 }
 
-pub fn range_end_positions_are_on_same_line<
-    TRange1: ReadonlyTextRange,
-    TRange2: ReadonlyTextRange,
->(
-    range1: &TRange1,
-    range2: &TRange2,
+pub fn range_end_positions_are_on_same_line(
+    range1: &impl ReadonlyTextRange,
+    range2: &impl ReadonlyTextRange,
     source_file: &Node, /*SourceFile*/
 ) -> bool {
-    unimplemented!()
+    positions_are_on_same_line(range1.end(), range2.end(), source_file)
+}
+
+pub fn range_start_is_on_same_line_as_range_end(
+    range1: &impl ReadonlyTextRange,
+    range2: &impl ReadonlyTextRange,
+    source_file: &Node, /*SourceFile*/
+) -> bool {
+    positions_are_on_same_line(
+        get_start_position_of_range(range1, source_file, false),
+        range2.end(),
+        source_file,
+    )
 }
 
 pub fn range_end_is_on_same_line_as_range_start(
