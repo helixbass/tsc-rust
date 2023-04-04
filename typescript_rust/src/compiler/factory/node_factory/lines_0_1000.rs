@@ -828,22 +828,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_base_function_like_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub(crate) fn update_base_signature_declaration(
+        &self,
+        updated: Gc<Node>,
+        original: &Node,
+    ) -> Gc<Node> {
+        // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet (looks
+        // like this logic is duplicated on updateBaseFunctionLikeDeclaration())
+        // if let Some(original_type_arguments) = original_as_function_like_declaration.maybe_type_arguments().clone() {
+        // }
+        self.update(updated, original)
+    }
+
+    pub(crate) fn create_base_function_like_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: Option<TParameters>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: Option<impl Into<NodeArrayOrVec>>,
         type_: Option<Gc<Node>>,
         body: Option<Gc<Node>>,
     ) -> BaseFunctionLikeDeclaration {
@@ -867,6 +872,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
+    }
+
+    pub(crate) fn update_base_function_like_declaration(
+        &self,
+        updated: Gc<Node>,
+        original: &Node,
+    ) -> Gc<Node> {
+        let updated_as_function_like_declaration = updated.as_function_like_declaration();
+        let original_as_function_like_declaration = original.as_function_like_declaration();
+        if let Some(original_exclamation_token) = original_as_function_like_declaration
+            .maybe_exclamation_token()
+            .clone()
+        {
+            *updated_as_function_like_declaration.maybe_exclamation_token() =
+                Some(original_exclamation_token);
+        }
+        // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet
+        // if let Some(original_type_arguments) = original_as_function_like_declaration.maybe_type_arguments().clone() {
+        // }
+        self.update_base_signature_declaration(updated, original)
     }
 
     pub(crate) fn create_base_interface_or_class_like_declaration<

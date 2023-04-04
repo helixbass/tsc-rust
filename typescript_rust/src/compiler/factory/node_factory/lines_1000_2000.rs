@@ -4,20 +4,21 @@ use gc::Gc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
-    are_option_gcs_equal, has_option_node_array_changed, has_option_str_or_node_changed,
-    has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
-    is_this_identifier, modifiers_to_flags, ArrayTypeNode, AsDoubleDeref, BaseNode,
-    BaseNodeFactory, CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
-    ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
-    ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
-    GetAccessorDeclaration, HasInitializerInterface, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, IndexSignatureDeclaration, IntersectionTypeNode,
+    are_option_gcs_equal, has_node_array_changed, has_option_node_array_changed,
+    has_option_str_or_node_changed, has_static_modifier, is_computed_property_name,
+    is_exclamation_token, is_question_token, is_this_identifier, modifiers_to_flags, ArrayTypeNode,
+    AsDoubleDeref, BaseNode, BaseNodeFactory, CallSignatureDeclaration,
+    ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalTypeNode,
+    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
+    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
+    HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, IndexSignatureDeclaration, IntersectionTypeNode,
     MethodDeclaration, MethodSignature, ModifierFlags, NamedDeclarationInterface, NamedTupleMember,
     Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OptionalTypeNode,
     ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName, RestTypeNode,
-    SetAccessorDeclaration, StrOrRcNode, SyntaxKind, TemplateLiteralTypeSpan, TransformFlags,
-    TupleTypeNode, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
-    TypeReferenceNode, UnionTypeNode,
+    SetAccessorDeclaration, SignatureDeclarationInterface, StrOrRcNode, SyntaxKind,
+    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -126,11 +127,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         result
     }
 
-    pub fn create_qualified_name<'right, TRight: Into<StrOrRcNode<'right>>>(
+    pub fn create_qualified_name<'right>(
         &self,
         base_factory: &TBaseNodeFactory,
         left: Gc<Node /*EntityName*/>,
-        right: TRight,
+        right: impl Into<StrOrRcNode<'right>>,
     ) -> QualifiedName {
         let node = self.create_base_node(base_factory, SyntaxKind::QualifiedName);
         let mut node =
@@ -148,7 +149,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         left: Gc<Node /*EntityName*/>,
         right: Gc<Node /*Identifier*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_qualified_name = node.as_qualified_name();
+        if !Gc::ptr_eq(&node_as_qualified_name.left, &left)
+            || !Gc::ptr_eq(&node_as_qualified_name.right, &right)
+        {
+            self.update(
+                self.create_qualified_name(base_factory, left, right).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_computed_property_name(
@@ -197,7 +208,30 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         constraint: Option<Gc<Node /*TypeNode*/>>,
         default_type: Option<Gc<Node /*TypeNode*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
+        if !Gc::ptr_eq(&node_as_type_parameter_declaration.name(), &name)
+            || !are_option_gcs_equal(
+                node_as_type_parameter_declaration.constraint.as_ref(),
+                constraint.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_type_parameter_declaration.default.as_ref(),
+                default_type.as_ref(),
+            )
+        {
+            self.update(
+                self.create_type_parameter_declaration(
+                    base_factory,
+                    name,
+                    constraint,
+                    default_type,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_parameter_declaration<'name>(
@@ -353,7 +387,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         question_token: Option<Gc<Node>>,
         type_: Option<Gc<Node>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_property_signature = node.as_property_signature();
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_property_signature.name(), &name)
+            || !are_option_gcs_equal(
+                node_as_property_signature.question_token.as_ref(),
+                question_token.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_property_signature.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+        {
+            self.update(
+                self.create_property_signature(
+                    base_factory,
+                    modifiers,
+                    name,
+                    question_token,
+                    type_,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_property_declaration<'name>(
@@ -511,7 +571,40 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Gc<Node>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_method_signature = node.as_method_signature();
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_method_signature.name(), &name)
+            || !are_option_gcs_equal(
+                node_as_method_signature.maybe_question_token().as_ref(),
+                question_token.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_method_signature.maybe_type_parameters().as_ref(),
+                type_parameters.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_method_signature.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_method_signature.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+        {
+            self.update_base_signature_declaration(
+                self.create_method_signature(
+                    base_factory,
+                    modifiers,
+                    Some(name),
+                    question_token,
+                    type_parameters,
+                    Some(parameters),
+                    type_,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_method_declaration<'name>(
@@ -579,7 +672,57 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Option<Gc<Node /*TypeNode*/>>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_method_declaration = node.as_method_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let type_parameters = type_parameters.map(Into::into);
+        let parameters = parameters.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !are_option_gcs_equal(
+                node_as_method_declaration.maybe_asterisk_token().as_ref(),
+                asterisk_token.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_method_declaration.name(), &name)
+            || !are_option_gcs_equal(
+                node_as_method_declaration.maybe_question_token().as_ref(),
+                question_token.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_method_declaration
+                    .maybe_type_parameters()
+                    .as_deref(),
+                type_parameters.as_ref(),
+            )
+            || has_node_array_changed(&node_as_method_declaration.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_method_declaration.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_method_declaration.maybe_body().as_ref(),
+                body.as_ref(),
+            )
+        {
+            self.update_base_function_like_declaration(
+                self.create_method_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    asterisk_token,
+                    name,
+                    question_token,
+                    type_parameters,
+                    parameters,
+                    type_,
+                    body,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_class_static_block_declaration<
@@ -640,7 +783,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameters: impl Into<NodeArrayOrVec>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_constructor_declaration = node.as_constructor_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let parameters = parameters.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || has_node_array_changed(&node_as_constructor_declaration.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_constructor_declaration.maybe_body().as_ref(),
+                body.as_ref(),
+            )
+        {
+            self.update_base_function_like_declaration(
+                self.create_constructor_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    parameters,
+                    body,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_get_accessor_declaration<'name>(
@@ -678,7 +846,39 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Option<Gc<Node /*TypeNode*/>>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let parameters = parameters.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_get_accessor_declaration.name(), &name)
+            || has_node_array_changed(&node_as_get_accessor_declaration.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_get_accessor_declaration.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_get_accessor_declaration.maybe_body().as_ref(),
+                body.as_ref(),
+            )
+        {
+            self.update_base_function_like_declaration(
+                self.create_get_accessor_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    name,
+                    parameters,
+                    type_,
+                    body,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_set_accessor_declaration<'name>(
@@ -714,7 +914,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameters: impl Into<NodeArrayOrVec>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let parameters = parameters.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_set_accessor_declaration.name(), &name)
+            || has_node_array_changed(&node_as_set_accessor_declaration.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_set_accessor_declaration.maybe_body().as_ref(),
+                body.as_ref(),
+            )
+        {
+            self.update_base_function_like_declaration(
+                self.create_set_accessor_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    name,
+                    parameters,
+                    body,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_call_signature(
@@ -747,7 +974,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_call_signature_declaration = node.as_call_signature_declaration();
+        if !are_option_gcs_equal(
+            node_as_call_signature_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+            type_parameters.as_ref(),
+        ) || !Gc::ptr_eq(
+            &node_as_call_signature_declaration.parameters(),
+            &parameters,
+        ) || !are_option_gcs_equal(
+            node_as_call_signature_declaration.maybe_type().as_ref(),
+            type_.as_ref(),
+        ) {
+            self.update_base_signature_declaration(
+                self.create_call_signature(base_factory, type_parameters, parameters, type_)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_construct_signature(
@@ -780,7 +1027,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_construct_signature_declaration = node.as_construct_signature_declaration();
+        if !are_option_gcs_equal(
+            node_as_construct_signature_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+            type_parameters.as_ref(),
+        ) || !Gc::ptr_eq(
+            &node_as_construct_signature_declaration.parameters(),
+            &parameters,
+        ) || !are_option_gcs_equal(
+            node_as_construct_signature_declaration
+                .maybe_type()
+                .as_ref(),
+            type_.as_ref(),
+        ) {
+            self.update_base_signature_declaration(
+                self.create_construct_signature(base_factory, type_parameters, parameters, type_)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_index_signature(
@@ -815,7 +1084,37 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameters: impl Into<NodeArrayOrVec>,
         type_: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_index_signature_declaration = node.as_index_signature_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let parameters = parameters.into();
+        if !has_node_array_changed(
+            &node_as_index_signature_declaration.parameters(),
+            &parameters,
+        ) || !Gc::ptr_eq(
+            &node_as_index_signature_declaration.maybe_type().unwrap(),
+            &type_,
+        ) || !has_option_node_array_changed(
+            node.maybe_decorators().as_deref(),
+            decorators.as_ref(),
+        ) || !has_option_node_array_changed(
+            node.maybe_modifiers().as_deref(),
+            modifiers.as_ref(),
+        ) {
+            self.update_base_signature_declaration(
+                self.create_index_signature(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    parameters,
+                    Some(type_),
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_template_literal_type_span(
@@ -936,7 +1235,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_function_type_node = node.as_function_type_node();
+        if !are_option_gcs_equal(
+            node_as_function_type_node.maybe_type_parameters().as_ref(),
+            type_parameters.as_ref(),
+        ) || !Gc::ptr_eq(&node_as_function_type_node.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_function_type_node.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+        {
+            self.update_base_signature_declaration(
+                self.create_function_type_node(base_factory, type_parameters, parameters, type_)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_constructor_type_node(
@@ -971,7 +1287,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_constructor_type_node = node.as_constructor_type_node();
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !are_option_gcs_equal(
+                node_as_constructor_type_node
+                    .maybe_type_parameters()
+                    .as_ref(),
+                type_parameters.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_constructor_type_node.parameters(), &parameters)
+            || !are_option_gcs_equal(
+                node_as_constructor_type_node.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+        {
+            self.update_base_signature_declaration(
+                self.create_constructor_type_node(
+                    base_factory,
+                    modifiers,
+                    type_parameters,
+                    parameters,
+                    type_,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_type_query_node(
@@ -1135,6 +1479,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         true_type: Gc<Node /*TypeNode*/>,
         false_type: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_conditional_type_node = node.as_conditional_type_node();
+        if !Gc::ptr_eq(&node_as_conditional_type_node.check_type, &check_type)
+            || !Gc::ptr_eq(&node_as_conditional_type_node.extends_type, &extends_type)
+            || !Gc::ptr_eq(&node_as_conditional_type_node.true_type, &true_type)
+            || !Gc::ptr_eq(&node_as_conditional_type_node.false_type, &false_type)
+        {
+            self.update(
+                self.create_conditional_type_node(
+                    base_factory,
+                    check_type,
+                    extends_type,
+                    true_type,
+                    false_type,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 }

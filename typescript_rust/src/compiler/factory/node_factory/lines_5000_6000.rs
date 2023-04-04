@@ -5,13 +5,13 @@ use std::borrow::Borrow;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    every, is_outer_expression, is_statement_or_block, single_or_undefined, BaseNodeFactory,
-    BaseUnparsedNode, Bundle, Debug_, EnumMember, FileReference, HasStatementsInterface,
-    InputFiles, LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind,
-    ScriptTarget, ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StrOrRcNode,
-    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike, VisitResult,
+    are_option_gcs_equal, every, is_outer_expression, is_statement_or_block, single_or_undefined,
+    BaseNodeFactory, BaseUnparsedNode, Bundle, Debug_, EnumMember, FileReference,
+    HasStatementsInterface, InputFiles, LanguageVariant, NamedDeclarationInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
+    PropertyAssignment, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
+    SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags, Type,
+    UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -119,13 +119,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Gc<Node>,
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_enum_member = node.as_enum_member();
+        if !Gc::ptr_eq(&node_as_enum_member.name, &name)
+            || !are_option_gcs_equal(
+                node_as_enum_member.initializer.as_ref(),
+                initializer.as_ref(),
+            )
+        {
+            self.update(
+                self.create_enum_member(base_factory, name, initializer)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
-    pub fn create_source_file<TStatements: Into<NodeArrayOrVec>>(
+    pub fn create_source_file(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: TStatements,
+        statements: impl Into<NodeArrayOrVec>,
         end_of_file_token: Gc<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
     ) -> SourceFile {

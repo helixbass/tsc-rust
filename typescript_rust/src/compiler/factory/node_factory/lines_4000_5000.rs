@@ -1,9 +1,9 @@
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
-    escape_leading_underscores, get_jsdoc_type_alias_name, is_variable_declaration, AssertClause,
+    are_option_gcs_equal, escape_leading_underscores, get_jsdoc_type_alias_name,
+    has_node_array_changed, has_option_node_array_changed, is_variable_declaration, AssertClause,
     AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory,
     CaseClause, CatchClause, Debug_, DefaultClause, ExportAssignment, ExportDeclaration,
     ExportSpecifier, ExternalModuleReference, HasTypeArgumentsInterface, HeritageClause,
@@ -15,7 +15,7 @@ use crate::{
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StrOrRcNode, StringOrNodeArray,
-    StringOrRcNode, SyntaxKind, TransformFlags,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -93,7 +93,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*NamedImports*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_named_imports = node.as_named_imports();
+        let elements = elements.into();
+        if has_node_array_changed(&node_as_named_imports.elements, &elements) {
+            self.update(
+                self.create_named_imports(base_factory, elements).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_import_specifier(
@@ -160,7 +169,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_export_assignment = node.as_export_assignment();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_export_assignment.expression, &expression)
+        {
+            self.update(
+                self.create_export_assignment(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    node_as_export_assignment.is_export_equals,
+                    expression,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_export_declaration(
@@ -207,7 +236,41 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         module_specifier: Option<Gc<Node /*Expression*/>>,
         assert_clause: Option<Gc<Node /*AssertClause*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_export_declaration = node.as_export_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || node_as_export_declaration.is_type_only != is_type_only
+            || !are_option_gcs_equal(
+                node_as_export_declaration.export_clause.as_ref(),
+                export_clause.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_export_declaration.module_specifier.as_ref(),
+                module_specifier.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_export_declaration.assert_clause.as_ref(),
+                assert_clause.as_ref(),
+            )
+        {
+            self.update(
+                self.create_export_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    is_type_only,
+                    export_clause,
+                    module_specifier,
+                    assert_clause,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_named_exports(
@@ -285,7 +348,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ExternalModuleReference*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_external_module_reference = node.as_external_module_reference();
+        if !Gc::ptr_eq(&node_as_external_module_reference.expression, &expression) {
+            self.update(
+                self.create_external_module_reference(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub(crate) fn create_jsdoc_primary_type_worker(
@@ -996,7 +1068,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node,                      /*HeritageClause*/
         types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_heritage_clause = node.as_heritage_clause();
+        let types = types.into();
+        if has_node_array_changed(&node_as_heritage_clause.types, &types) {
+            self.update(
+                self.create_heritage_clause(base_factory, node_as_heritage_clause.token, types)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_catch_clause<
