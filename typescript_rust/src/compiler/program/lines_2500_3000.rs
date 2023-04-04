@@ -832,8 +832,7 @@ impl Program {
         resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
         reason: &FileIncludeReason,
     ) {
-        let previous_resolution = self
-            .resolved_type_reference_directives()
+        let previous_resolution = (*self.resolved_type_reference_directives().borrow())
             .get(type_reference_directive)
             .cloned()
             .flatten();
@@ -925,7 +924,7 @@ impl Program {
         }
 
         if save_resolution {
-            self.resolved_type_reference_directives().insert(
+            self.resolved_type_reference_directives_mut().insert(
                 type_reference_directive.to_owned(),
                 resolved_type_reference_directive,
             );

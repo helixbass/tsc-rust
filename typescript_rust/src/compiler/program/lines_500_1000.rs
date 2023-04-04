@@ -1266,9 +1266,21 @@ impl Program {
         self.file_processing_diagnostics.borrow_mut()
     }
 
+    pub(super) fn resolved_type_reference_directives_rc(
+        &self,
+    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>> {
+        self.resolved_type_reference_directives.clone()
+    }
+
     pub(super) fn resolved_type_reference_directives(
         &self,
-    ) -> RefMut<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>> {
+    ) -> GcCellRef<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>> {
+        (*self.resolved_type_reference_directives).borrow()
+    }
+
+    pub(super) fn resolved_type_reference_directives_mut(
+        &self,
+    ) -> GcCellRefMut<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>> {
         self.resolved_type_reference_directives.borrow_mut()
     }
 
@@ -1754,6 +1766,12 @@ impl TypeCheckerHost for Program {
 
     fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
         self.get_source_file_(file_name)
+    }
+
+    fn get_resolved_type_reference_directives(
+        &self,
+    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>> {
+        self.resolved_type_reference_directives_rc()
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {

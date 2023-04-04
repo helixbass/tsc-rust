@@ -4,19 +4,20 @@ use gc::Gc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
-    has_option_node_array_changed, has_static_modifier, is_computed_property_name,
-    is_exclamation_token, is_question_token, is_this_identifier, modifiers_to_flags, ArrayTypeNode,
-    AsDoubleDeref, BaseNode, BaseNodeFactory, CallSignatureDeclaration,
-    ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalTypeNode,
-    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
-    HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
-    IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
-    ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration,
-    PropertySignature, QualifiedName, RestTypeNode, SetAccessorDeclaration, StrOrRcNode,
-    SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
+    are_option_gcs_equal, has_option_node_array_changed, has_static_modifier,
+    is_computed_property_name, is_exclamation_token, is_question_token, is_this_identifier,
+    modifiers_to_flags, ArrayTypeNode, AsDoubleDeref, BaseNode, BaseNodeFactory,
+    CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
+    ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
+    ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
+    GetAccessorDeclaration, HasInitializerInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, IndexSignatureDeclaration, IntersectionTypeNode,
+    MethodDeclaration, MethodSignature, ModifierFlags, NamedDeclarationInterface, NamedTupleMember,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OptionalTypeNode,
+    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName, RestTypeNode,
+    SetAccessorDeclaration, StrOrRcNode, SyntaxKind, TemplateLiteralTypeSpan, TransformFlags,
+    TupleTypeNode, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
+    TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -378,7 +379,59 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> /*PropertyDeclaration*/ {
-        unimplemented!()
+        let node_as_property_declaration = node.as_property_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let name = name.into();
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !matches!(
+                &name,
+                StrOrRcNode::RcNode(name) if Gc::ptr_eq(
+                    &node_as_property_declaration.name(),
+                    name,
+                )
+            )
+            || !are_option_gcs_equal(
+                node_as_property_declaration.maybe_question_token().as_ref(),
+                question_or_exclamation_token
+                    .as_ref()
+                    .filter(|question_or_exclamation_token| {
+                        is_question_token(question_or_exclamation_token)
+                    }),
+            )
+            || !are_option_gcs_equal(
+                node_as_property_declaration.exclamation_token.as_ref(),
+                question_or_exclamation_token
+                    .as_ref()
+                    .filter(|question_or_exclamation_token| {
+                        is_exclamation_token(question_or_exclamation_token)
+                    }),
+            )
+            || !are_option_gcs_equal(
+                node_as_property_declaration.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_property_declaration.maybe_initializer().as_ref(),
+                initializer.as_ref(),
+            )
+        {
+            self.update(
+                self.create_property_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    name,
+                    question_or_exclamation_token,
+                    type_,
+                    initializer,
+                ),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub(crate) fn create_method_signature<'name>(

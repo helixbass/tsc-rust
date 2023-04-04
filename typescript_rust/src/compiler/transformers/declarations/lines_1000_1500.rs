@@ -7,15 +7,15 @@ use super::{
 };
 use crate::{
     can_have_modifiers, can_produce_diagnostics, create_empty_exports,
-    create_get_symbol_accessibility_diagnostic_for_node, create_symbol_table, filter, flat_map,
+    create_get_symbol_accessibility_diagnostic_for_node, create_symbol_table, flat_map,
     get_effective_base_type_node, get_effective_modifier_flags, get_first_constructor_with_body,
     get_original_node_id, has_dynamic_name, has_effective_modifier, has_syntactic_modifier,
     is_binding_pattern, is_declaration, is_entity_name_expression, is_external_module_augmentation,
     is_function_like, is_global_scope_augmentation, is_import_equals_declaration,
     is_omitted_expression, is_private_identifier, is_property_access_expression, is_source_file,
     is_string_a_non_contextual_keyword, is_type_node, is_type_parameter_declaration, map,
-    map_defined, maybe_concatenate, maybe_get_original_node_id, maybe_map, parse_node_factory,
-    set_original_node, set_parent, some, unescape_leading_underscores, visit_node, visit_nodes,
+    map_defined, maybe_concatenate, maybe_get_original_node_id, maybe_map, set_original_node,
+    set_parent, some, unescape_leading_underscores, visit_node, visit_nodes,
     with_parse_base_node_factory_and_factory, with_synthetic_factory, AsDoubleDeref,
     ClassLikeDeclarationInterface, Debug_, Diagnostics, GeneratedIdentifierFlags,
     GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
@@ -138,7 +138,7 @@ impl TransformDeclarations {
                                     &input_as_export_assignment.expression,
                                     input,
                                     declaration_emit_node_builder_flags(),
-                                    &**self.symbol_tracker(),
+                                    self.symbol_tracker(),
                                 ),
                                 None,
                             )
@@ -433,7 +433,7 @@ impl TransformDeclarations {
                                 p_value_declaration,
                                 &fakespace,
                                 declaration_emit_node_builder_flags(),
-                                &**self.symbol_tracker(),
+                                self.symbol_tracker(),
                                 None,
                             );
                             self.set_get_symbol_accessibility_diagnostic(old_diag.clone());
@@ -894,7 +894,7 @@ impl TransformDeclarations {
                                         .expression,
                                     input,
                                     declaration_emit_node_builder_flags(),
-                                    &**self.symbol_tracker(),
+                                    self.symbol_tracker(),
                                 ),
                                 None,
                             )

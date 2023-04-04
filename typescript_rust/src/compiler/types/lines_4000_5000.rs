@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
@@ -18,8 +18,8 @@ use super::{
 use crate::{
     CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
     IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
-    PatternAmbientModule, ReverseMappedSymbol, StringOrNumber, TypeId, TypeSystemEntity,
-    TypeSystemPropertyName, VarianceFlags,
+    PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
+    TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags,
 };
 use local_macros::{enum_unwrapped, symbol_type};
 
@@ -129,6 +129,9 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 
     fn get_source_files(&self) -> GcCellRef<Vec<Gc<Node /*SourceFile*/>>>;
     fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>>;
+    fn get_resolved_type_reference_directives(
+        &self,
+    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 
@@ -712,7 +715,7 @@ pub trait EmitResolver: Trace + Finalize {
         declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_return_type_of_signature_declaration(
@@ -720,19 +723,19 @@ pub trait EmitResolver: Trace + Finalize {
         signature_declaration: &Node, /*SignatureDeclaration*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_type_of_expression(
         &self,
         expr: &Node, /*Expression*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_literal_const_value(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> Gc<Node /*Expression*/>;
     fn is_symbol_accessible(
         &self,
@@ -804,7 +807,7 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node, /*SourceFile*/
         flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
     ) -> Option<Vec<Gc<Node /*Statement*/>>>;
     fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool;

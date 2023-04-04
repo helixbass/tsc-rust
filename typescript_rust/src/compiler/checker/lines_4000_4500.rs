@@ -1014,13 +1014,10 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn is_symbol_accessible<
-        TSymbol: Borrow<Symbol>,
-        TEnclosingDeclaration: Borrow<Node>,
-    >(
+    pub(super) fn is_symbol_accessible(
         &self,
-        symbol: Option<TSymbol>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        symbol: Option<impl Borrow<Symbol>>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
     ) -> SymbolAccessibilityResult {

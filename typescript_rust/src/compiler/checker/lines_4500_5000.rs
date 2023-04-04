@@ -660,10 +660,10 @@ impl NodeBuilder {
         })
     }
 
-    pub fn symbol_table_to_declaration_statements<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_table_to_declaration_statements(
         &self,
         symbol_table: &SymbolTable,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         bundled: Option<bool>,
