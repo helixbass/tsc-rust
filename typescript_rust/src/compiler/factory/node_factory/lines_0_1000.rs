@@ -1321,6 +1321,29 @@ pub fn has_option_node_array_changed(
     }
 }
 
+pub fn has_node_array_changed(existing: &Gc<NodeArray>, maybe_changed: &NodeArrayOrVec) -> bool {
+    !matches!(
+        maybe_changed,
+        NodeArrayOrVec::NodeArray(maybe_changed) if Gc::ptr_eq(
+            existing,
+            maybe_changed
+        )
+    )
+}
+
+pub fn has_option_str_or_node_changed(
+    existing: Option<&Gc<Node>>,
+    maybe_changed: Option<&StrOrRcNode<'_>>,
+) -> bool {
+    match (existing, maybe_changed) {
+        (None, None) => false,
+        (Some(existing), Some(StrOrRcNode::RcNode(maybe_changed))) => {
+            !Gc::ptr_eq(existing, maybe_changed)
+        }
+        _ => true,
+    }
+}
+
 #[derive(Clone)]
 pub enum StringOrRcNode {
     String(String),

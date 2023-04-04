@@ -1336,23 +1336,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_class_expression<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        THeritageClauses: Into<NodeArrayOrVec>,
-        TMembers: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_class_expression<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName /*string | Identifier*/>,
-        type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
-        heritage_clauses: Option<THeritageClauses /*<HeritageClause>*/>,
-        members: TMembers, /*<ClassElement>*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<
+            impl Into<StrOrRcNode<'name>>,
+            /*string | Identifier*/
+        >,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        heritage_clauses: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<HeritageClause>*/
+        >,
+        members: impl Into<NodeArrayOrVec>,
+        /*<ClassElement>*/
     ) -> ClassExpression {
         let node = self.create_base_class_like_declaration(
             base_factory,
@@ -1367,5 +1369,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ClassExpression::new(node);
         node.add_transform_flags(TransformFlags::ContainsES2015);
         node
+    }
+
+    pub fn update_class_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ClassExpression*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<Gc<Node>>,
+        type_parameters: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeParameterDeclaration>*/
+        >,
+        heritage_clauses: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<HeritageClause>*/
+        >,
+        members: impl Into<NodeArrayOrVec>,
+        /*<ClassElement>*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 }

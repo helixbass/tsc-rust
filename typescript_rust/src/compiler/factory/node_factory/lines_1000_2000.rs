@@ -4,10 +4,10 @@ use gc::Gc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
-    are_option_gcs_equal, has_option_node_array_changed, has_static_modifier,
-    is_computed_property_name, is_exclamation_token, is_question_token, is_this_identifier,
-    modifiers_to_flags, ArrayTypeNode, AsDoubleDeref, BaseNode, BaseNodeFactory,
-    CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
+    are_option_gcs_equal, has_option_node_array_changed, has_option_str_or_node_changed,
+    has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
+    is_this_identifier, modifiers_to_flags, ArrayTypeNode, AsDoubleDeref, BaseNode,
+    BaseNodeFactory, CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
     ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
     ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
     GetAccessorDeclaration, HasInitializerInterface, HasQuestionTokenInterface,
@@ -261,7 +261,48 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_parameter_declaration = node.as_parameter_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        let name = name.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || has_option_str_or_node_changed(
+                node_as_parameter_declaration.maybe_name().as_ref(),
+                name.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_parameter_declaration
+                    .maybe_question_token()
+                    .as_ref(),
+                question_token.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_parameter_declaration.maybe_type().as_ref(),
+                type_.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_parameter_declaration.maybe_initializer().as_ref(),
+                initializer.as_ref(),
+            )
+        {
+            self.update(
+                self.create_parameter_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    dot_dot_dot_token,
+                    name,
+                    question_token,
+                    type_,
+                    initializer,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_decorator(
@@ -588,6 +629,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ConstructorDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsES2015);
         node
+    }
+
+    pub fn update_constructor_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ConstructorDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
+        body: Option<Gc<Node /*Block*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_get_accessor_declaration<'name>(

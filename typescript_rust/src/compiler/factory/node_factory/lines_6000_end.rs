@@ -2,20 +2,29 @@
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::{fmt, ptr};
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
-    add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
-    maybe_append_if_unique_gc, maybe_append_if_unique_rc, parse_base_node_factory,
-    parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BuildInfo, Debug_, EmitFlags, EmitNode, InputFiles, LanguageVariant, ModifierFlags, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner,
-    ScriptTarget, SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode,
-    StringOrRcNode, SyntaxKind, TransformFlags,
+    add_range, create_base_node_factory, create_scanner, is_arrow_function, is_class_declaration,
+    is_class_expression, is_constructor_declaration, is_enum_declaration, is_export_assignment,
+    is_export_declaration, is_function_declaration, is_function_expression,
+    is_get_accessor_declaration, is_import_declaration, is_import_equals_declaration,
+    is_index_signature_declaration, is_interface_declaration, is_method_declaration,
+    is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
+    is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
+    is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
+    parse_base_node_factory, parse_node_factory, set_text_range, BaseNode, BaseNodeFactory,
+    BaseNodeFactoryConcrete, BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
+    HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface, InputFiles,
+    InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SignatureDeclarationInterface,
+    SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -25,7 +34,280 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*HasModifiers*/
         modifiers: impl Into<VecNodeOrModifierFlags>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let modifiers = modifiers.into();
+        let modifiers = match modifiers {
+            VecNodeOrModifierFlags::VecNode(modifiers) => modifiers,
+            VecNodeOrModifierFlags::ModifierFlags(modifiers) => {
+                self.create_modifiers_from_modifier_flags(base_factory, modifiers)
+            }
+        };
+        if is_parameter(node) {
+            let node_as_parameter_declaration = node.as_parameter_declaration();
+            self.update_parameter_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_parameter_declaration.dot_dot_dot_token.clone(),
+                node_as_parameter_declaration.maybe_name(),
+                node_as_parameter_declaration.maybe_question_token(),
+                node_as_parameter_declaration.maybe_type(),
+                node_as_parameter_declaration.maybe_initializer(),
+            )
+        } else if is_property_signature(node) {
+            let node_as_property_signature = node.as_property_signature();
+            self.update_property_signature(
+                base_factory,
+                node,
+                Some(modifiers),
+                node_as_property_signature.name(),
+                node_as_property_signature.maybe_question_token(),
+                node_as_property_signature.maybe_type(),
+            )
+        } else if is_property_declaration(node) {
+            let node_as_property_declaration = node.as_property_declaration();
+            self.update_property_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_property_declaration.name(),
+                node_as_property_declaration
+                    .maybe_question_token()
+                    .or_else(|| node_as_property_declaration.exclamation_token.clone()),
+                node_as_property_declaration.maybe_type(),
+                node_as_property_declaration.maybe_initializer(),
+            )
+        } else if is_method_signature(node) {
+            let node_as_method_signature = node.as_method_signature();
+            self.update_method_signature(
+                base_factory,
+                node,
+                Some(modifiers),
+                node_as_method_signature.name(),
+                node_as_method_signature.maybe_question_token(),
+                node_as_method_signature.maybe_type_parameters(),
+                node_as_method_signature.parameters(),
+                node_as_method_signature.maybe_type(),
+            )
+        } else if is_method_declaration(node) {
+            let node_as_method_declaration = node.as_method_declaration();
+            self.update_method_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_method_declaration.maybe_asterisk_token(),
+                node_as_method_declaration.name(),
+                node_as_method_declaration.maybe_question_token(),
+                node_as_method_declaration.maybe_type_parameters(),
+                node_as_method_declaration.parameters(),
+                node_as_method_declaration.maybe_type(),
+                node_as_method_declaration.maybe_body(),
+            )
+        } else if is_constructor_declaration(node) {
+            let node_as_constructor_declaration = node.as_constructor_declaration();
+            self.update_constructor_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_constructor_declaration.parameters(),
+                node_as_constructor_declaration.maybe_body(),
+            )
+        } else if is_get_accessor_declaration(node) {
+            let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
+            self.update_get_accessor_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_get_accessor_declaration.name(),
+                node_as_get_accessor_declaration.parameters(),
+                node_as_get_accessor_declaration.maybe_type(),
+                node_as_get_accessor_declaration.maybe_body(),
+            )
+        } else if is_set_accessor_declaration(node) {
+            let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
+            self.update_set_accessor_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_set_accessor_declaration.name(),
+                node_as_set_accessor_declaration.parameters(),
+                node_as_set_accessor_declaration.maybe_body(),
+            )
+        } else if is_index_signature_declaration(node) {
+            let node_as_index_signature_declaration = node.as_index_signature_declaration();
+            self.update_index_signature(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_index_signature_declaration.parameters(),
+                node_as_index_signature_declaration.maybe_type().unwrap(),
+            )
+        } else if is_function_expression(node) {
+            let node_as_function_expression = node.as_function_expression();
+            self.update_function_expression(
+                base_factory,
+                node,
+                Some(modifiers),
+                node_as_function_expression.maybe_asterisk_token(),
+                node_as_function_expression.maybe_name(),
+                node_as_function_expression.maybe_type_parameters(),
+                node_as_function_expression.parameters(),
+                node_as_function_expression.maybe_type(),
+                node_as_function_expression.maybe_body().unwrap(),
+            )
+        } else if is_arrow_function(node) {
+            let node_as_arrow_function = node.as_arrow_function();
+            self.update_arrow_function(
+                base_factory,
+                node,
+                Some(modifiers),
+                node_as_arrow_function.maybe_type_parameters(),
+                node_as_arrow_function.parameters(),
+                node_as_arrow_function.maybe_type(),
+                node_as_arrow_function.equals_greater_than_token.clone(),
+                node_as_arrow_function.maybe_body().unwrap(),
+            )
+        } else if is_class_expression(node) {
+            let node_as_class_expression = node.as_class_expression();
+            self.update_class_expression(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_class_expression.maybe_name(),
+                node_as_class_expression.maybe_type_parameters(),
+                node_as_class_expression.maybe_heritage_clauses(),
+                node_as_class_expression.members(),
+            )
+        } else if is_variable_statement(node) {
+            let node_as_variable_statement = node.as_variable_statement();
+            self.update_variable_statement(
+                base_factory,
+                node,
+                Some(modifiers),
+                node_as_variable_statement.declaration_list.clone(),
+            )
+        } else if is_function_declaration(node) {
+            let node_as_function_declaration = node.as_function_declaration();
+            self.update_function_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_function_declaration.maybe_asterisk_token(),
+                node_as_function_declaration.maybe_name(),
+                node_as_function_declaration.maybe_type_parameters(),
+                node_as_function_declaration.parameters(),
+                node_as_function_declaration.maybe_type(),
+                node_as_function_declaration.maybe_body(),
+            )
+        } else if is_class_declaration(node) {
+            let node_as_class_declaration = node.as_class_declaration();
+            self.update_class_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_class_declaration.maybe_name(),
+                node_as_class_declaration.maybe_type_parameters(),
+                node_as_class_declaration.maybe_heritage_clauses(),
+                node_as_class_declaration.members(),
+            )
+        } else if is_interface_declaration(node) {
+            let node_as_interface_declaration = node.as_interface_declaration();
+            self.update_interface_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_interface_declaration.name(),
+                node_as_interface_declaration.maybe_type_parameters(),
+                node_as_interface_declaration.maybe_heritage_clauses(),
+                node_as_interface_declaration.members(),
+            )
+        } else if is_type_alias_declaration(node) {
+            let node_as_type_alias_declaration = node.as_type_alias_declaration();
+            self.update_type_alias_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_type_alias_declaration.name(),
+                node_as_type_alias_declaration.maybe_type_parameters(),
+                node_as_type_alias_declaration.maybe_type().unwrap(),
+            )
+        } else if is_enum_declaration(node) {
+            let node_as_enum_declaration = node.as_enum_declaration();
+            self.update_enum_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_enum_declaration.name(),
+                Some(node_as_enum_declaration.members.clone()),
+            )
+        } else if is_module_declaration(node) {
+            let node_as_module_declaration = node.as_module_declaration();
+            self.update_module_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_module_declaration.name(),
+                node_as_module_declaration.body.clone(),
+            )
+        } else if is_import_equals_declaration(node) {
+            let node_as_import_equals_declaration = node.as_import_equals_declaration();
+            self.update_import_equals_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_import_equals_declaration.is_type_only,
+                node_as_import_equals_declaration.name(),
+                node_as_import_equals_declaration.module_reference.clone(),
+            )
+        } else if is_import_declaration(node) {
+            let node_as_import_declaration = node.as_import_declaration();
+            self.update_import_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_import_declaration.import_clause.clone(),
+                node_as_import_declaration.module_specifier.clone(),
+                node_as_import_declaration.assert_clause.clone(),
+            )
+        } else if is_export_assignment(node) {
+            let node_as_export_assignment = node.as_export_assignment();
+            self.update_export_assignment(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_export_assignment.expression.clone(),
+            )
+        } else if is_export_declaration(node) {
+            let node_as_export_declaration = node.as_export_declaration();
+            self.update_export_declaration(
+                base_factory,
+                node,
+                node.maybe_decorators(),
+                Some(modifiers),
+                node_as_export_declaration.is_type_only,
+                node_as_export_declaration.export_clause.clone(),
+                node_as_export_declaration.module_specifier.clone(),
+                node_as_export_declaration.assert_clause.clone(),
+            )
+        } else {
+            Debug_.assert_never(node, None)
+        }
     }
 
     pub(super) fn as_node_array(

@@ -369,7 +369,6 @@ pub mod fakes {
         _dyn_wrapper: GcCell<Option<Gc<Box<dyn typescript_rust::CompilerHost>>>>,
         pub sys: Gc<System>,
         pub default_lib_location: String,
-        #[unsafe_ignore_trace]
         outputs: GcCell<Vec<Gc<documents::TextDocument>>>,
         _outputs_map: GcCell<collections::SortedMap<String, usize>>,
         #[unsafe_ignore_trace]

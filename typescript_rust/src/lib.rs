@@ -94,10 +94,11 @@ use compiler::factory::emit_node::{
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
     create_input_files, create_node_factory, create_unparsed_source_file, factory, get_factory,
-    has_option_node_array_changed, set_original_node, synthetic_factory, with_factory,
-    with_synthetic_factory, with_synthetic_factory_and_factory, BaseNodeFactorySynthetic,
-    NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
-    StringOrRcNode, SyntaxKindOrRcNode,
+    has_node_array_changed, has_option_node_array_changed, has_option_str_or_node_changed,
+    set_original_node, synthetic_factory, with_factory, with_synthetic_factory,
+    with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, NodeFactoryFlags,
+    ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
+    SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,
