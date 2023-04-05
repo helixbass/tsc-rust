@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, Trace};
+use serde::Serialize;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -13,9 +14,9 @@ use std::rc::Rc;
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
     BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason,
-    ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path,
-    ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SymlinkCache,
-    SyntaxKind, TempFlags, TextRange,
+    LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules,
+    Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource,
+    SymlinkCache, SyntaxKind, TempFlags, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -698,7 +699,7 @@ pub trait RelativeToBuildInfo: Trace + Finalize {
     fn call(&self, file_name: &str) -> String;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct RawSourceMap {
     pub version: u32, /*3*/
     pub file: String,
@@ -712,14 +713,25 @@ pub struct RawSourceMap {
 pub trait SourceMapGenerator: Trace + Finalize {
     fn get_sources(&self) -> Vec<String>;
     fn add_source(&self, file_name: &str) -> usize;
+    fn set_source_content(&self, source_index: usize, content: Option<String>);
+    fn add_name(&self, name: &str) -> usize;
     fn add_mapping(
         &self,
         generated_line: usize,
         generated_character: usize,
-        source_index: isize,
+        source_index: usize,
         source_line: usize,
         source_character: usize,
         name_index: Option<usize>,
+    );
+    fn append_source_map(
+        &self,
+        generated_line: usize,
+        generated_character: usize,
+        source_map: &RawSourceMap,
+        source_map_path: &str,
+        start: Option<LineAndCharacter>,
+        end: Option<LineAndCharacter>,
     );
     fn to_json(&self) -> RawSourceMap;
     fn to_string(&self) -> String;

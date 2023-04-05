@@ -1113,9 +1113,9 @@ fn print_source_file_or_bundle(
     if should_emit_source_maps(map_options, source_file_or_bundle) {
         source_map_generator = Some(create_source_map_generator(
             host.clone(),
-            &get_base_file_name(&normalize_slashes(js_file_path), None, None),
-            &get_source_root(map_options),
-            &get_source_map_directory(&**host, map_options, js_file_path, source_file.as_deref()),
+            get_base_file_name(&normalize_slashes(js_file_path), None, None),
+            get_source_root(map_options),
+            get_source_map_directory(&**host, map_options, js_file_path, source_file.as_deref()),
             &map_options.into(),
         ));
     }

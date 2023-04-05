@@ -368,7 +368,7 @@ impl Printer {
         self.source_map_generator().add_mapping(
             self.writer().get_line(),
             self.writer().get_column(),
-            self.source_map_source_index(),
+            self.source_map_source_index().try_into().unwrap(),
             source_line,
             source_character,
             None,

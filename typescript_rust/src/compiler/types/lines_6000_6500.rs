@@ -1847,7 +1847,7 @@ pub enum NewLineKind {
     LineFeed = 1,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct LineAndCharacter {
     pub line: usize,
     pub character: usize,
