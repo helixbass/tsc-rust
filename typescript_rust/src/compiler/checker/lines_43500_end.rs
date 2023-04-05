@@ -1480,7 +1480,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                     .type_checker
                     .node_builder()
                     .symbol_table_to_declaration_statements(
-                        &(**node_locals).borrow(),
+                        node_locals.clone(),
                         Some(node),
                         Some(flags),
                         Some(tracker.clone()),
@@ -1495,7 +1495,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                 .type_checker
                 .node_builder()
                 .symbol_table_to_declaration_statements(
-                    &(**sym_exports).borrow(),
+                    sym_exports.clone(),
                     Some(node),
                     Some(flags),
                     Some(tracker.clone()),

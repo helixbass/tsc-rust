@@ -119,7 +119,13 @@ pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) 
 }
 
 pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Gc<Node>> {
-    unimplemented!()
+    let parse_node = get_original_node(
+        Some(node),
+        Some(|node: Option<Gc<Node>>| is_source_file(node.as_ref().unwrap())),
+    )?;
+    let emit_node = parse_node.maybe_emit_node()?;
+    let ret = (*emit_node).borrow().external_helpers_module_name.clone();
+    ret
 }
 
 pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool {

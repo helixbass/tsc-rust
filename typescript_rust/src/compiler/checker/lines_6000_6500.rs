@@ -750,9 +750,9 @@ impl NodeBuilder {
 
     pub(super) fn clone_node_builder_context(
         &self,
-        context: Gc<GcCell<NodeBuilderContext>>,
-    ) -> NodeBuilderContext {
-        let mut initial = (*context).borrow().clone();
+        context: Gc<NodeBuilderContext>,
+    ) -> Gc<NodeBuilderContext> {
+        let mut initial = Gc::new((*context).clone());
         {
             let mut initial_type_parameter_names = initial.type_parameter_names.borrow_mut();
             if initial_type_parameter_names.is_some() {
@@ -781,8 +781,8 @@ impl NodeBuilder {
             }
         }
         let initial_tracker =
-            wrap_symbol_tracker_to_report_for_context(context.clone(), initial.tracker.clone());
-        initial.tracker = Gc::new(Box::new(initial_tracker));
+            wrap_symbol_tracker_to_report_for_context(context.clone(), initial.tracker());
+        initial.set_tracker(Gc::new(Box::new(initial_tracker)));
         initial
     }
 
@@ -1013,7 +1013,7 @@ impl NodeBuilder {
             {
                 introduces_error = true;
             } else {
-                context.tracker.track_symbol(
+                context.tracker().track_symbol(
                     sym,
                     context.maybe_enclosing_declaration(),
                     SymbolFlags::All,

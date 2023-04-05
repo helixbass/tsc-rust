@@ -84,7 +84,7 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
                 {
                     context.encountered_error.set(true);
-                    context.tracker.report_cyclic_structure_error();
+                    context.tracker().report_cyclic_structure_error();
                 }
                 return self.create_elided_information_placeholder(context);
             }
@@ -1136,9 +1136,11 @@ impl NodeBuilder {
                     .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 /*&& context.tracker.reportPrivateInBaseOfClassExpression*/
                 {
-                    context.tracker.report_private_in_base_of_class_expression(
-                        &unescape_leading_underscores(property_symbol.escaped_name()),
-                    );
+                    context
+                        .tracker()
+                        .report_private_in_base_of_class_expression(&unescape_leading_underscores(
+                            property_symbol.escaped_name(),
+                        ));
                 }
             }
             if self.check_truncation_length(context) && i + 2 < properties.len() - 1 {
@@ -1240,7 +1242,7 @@ impl NodeBuilder {
         };
         let save_enclosing_declaration = context.maybe_enclosing_declaration();
         context.set_enclosing_declaration(None);
-        if context.tracker.is_track_symbol_supported()
+        if context.tracker().is_track_symbol_supported()
             && get_check_flags(property_symbol).intersects(CheckFlags::Late)
             && self
                 .type_checker
@@ -1278,10 +1280,10 @@ impl NodeBuilder {
                     }
                 }
             } else if context
-                .tracker
+                .tracker()
                 .is_report_non_serializable_property_supported()
             {
-                context.tracker.report_non_serializable_property(
+                context.tracker().report_non_serializable_property(
                     &self.type_checker.symbol_to_string_(
                         property_symbol,
                         Option::<&Node>::None,
