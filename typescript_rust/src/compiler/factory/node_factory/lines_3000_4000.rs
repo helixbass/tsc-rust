@@ -99,6 +99,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_as_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,          /*AsExpression*/
+        expression: Gc<Node>, /*Expression*/
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_non_null_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -114,6 +124,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
         );
         node
+    }
+
+    pub fn update_non_null_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,          /*NonNullExpression*/
+        expression: Gc<Node>, /*Expression*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_non_null_chain(
@@ -132,6 +151,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
         );
         node
+    }
+
+    pub fn update_non_null_chain(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,          /*NonNullChain*/
+        expression: Gc<Node>, /*Expression*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_meta_property(
@@ -157,6 +185,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_meta_property(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,    /*MetaProperty*/
+        name: Gc<Node>, /*Identifier*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_template_span(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -171,6 +208,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsES2015,
         );
         node
+    }
+
+    pub fn update_template_span(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TemplateSpan*/
+        expression: Gc<Node /*Expression*/>,
+        literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_semicolon_class_element(
@@ -296,6 +343,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_expression_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ExpressionStatement*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_if_statement(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -318,6 +374,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_if_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*IfStatement*/
+        expression: Gc<Node /*Expression*/>,
+        then_statement: Gc<Node /*Statement*/>,
+        else_statement: Option<Gc<Node /*Statement*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_do_statement(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -337,6 +404,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_do_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*DoStatement*/
+        statement: Gc<Node /*Statement*/>,
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_while_statement(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -354,6 +431,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.statement)),
         );
         node
+    }
+
+    pub fn update_while_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*WhileStatement*/
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_for_statement(

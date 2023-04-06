@@ -278,6 +278,10 @@ pub fn is_question_or_plus_or_minus_token(node: &Node) -> bool {
     is_question_token(node) || is_plus_token(node) || is_minus_token(node)
 }
 
+pub fn is_binary_operator_token(node: &Node) -> bool {
+    unimplemented!()
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum BinaryExpressionState {
     Enter,

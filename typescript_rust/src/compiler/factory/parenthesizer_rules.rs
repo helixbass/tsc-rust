@@ -8,7 +8,7 @@ use crate::{
     get_leftmost_expression, get_operator_associativity, get_operator_precedence,
     is_binary_expression, is_block, is_call_expression, is_comma_sequence,
     is_function_or_constructor_type_node, is_left_hand_side_expression, is_literal_kind,
-    is_unary_expression, maybe_same_map, same_map, set_text_range,
+    is_unary_expression, maybe_same_map, same_map, set_text_range, set_text_range_rc_node,
     skip_partially_emitted_expressions, some, AsDoubleDeref, Associativity, BaseNodeFactory,
     Comparison, HasTypeArgumentsInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
     NodeInterface, OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
@@ -476,17 +476,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
                 let updated = self.factory.update_call_expression(
                     base_node_factory,
                     &emitted_expression,
-                    set_text_range(
-                        &*Into::<Gc<Node>>::into(self.factory.create_parenthesized_expression(
-                            base_node_factory,
-                            callee.node_wrapper(),
-                        )),
+                    set_text_range_rc_node(
+                        self.factory
+                            .create_parenthesized_expression(
+                                base_node_factory,
+                                callee.node_wrapper(),
+                            )
+                            .into(),
                         Some(&**callee),
                     ),
-                    emitted_expression_as_call_expression
-                        .maybe_type_arguments()
-                        .as_double_deref(),
-                    &emitted_expression_as_call_expression.arguments,
+                    emitted_expression_as_call_expression.maybe_type_arguments(),
+                    emitted_expression_as_call_expression.arguments.clone(),
                 );
                 return self.factory.restore_outer_expressions(
                     Some(expression),
