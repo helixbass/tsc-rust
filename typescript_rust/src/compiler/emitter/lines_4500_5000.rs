@@ -41,11 +41,11 @@ impl Printer {
         self.writer().decrease_indent();
     }
 
-    pub(super) fn write_token<TWriter: FnMut(&str)>(
+    pub(super) fn write_token(
         &self,
         token: SyntaxKind,
         pos: isize,
-        writer: TWriter,
+        writer: impl FnMut(&str),
         context_node: Option<&Node>,
     ) -> Option<isize> {
         if !self.source_maps_disabled() {
@@ -54,9 +54,7 @@ impl Printer {
                 token,
                 writer,
                 pos,
-                |token, writer, pos| {
-                    self.write_token_text(token, writer, Some(pos));
-                },
+                |token, writer, pos| self.write_token_text(token, writer, Some(pos)).unwrap(),
             ))
         } else {
             self.write_token_text(token, writer, Some(pos))

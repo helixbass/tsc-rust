@@ -88,6 +88,12 @@ pub fn add_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
     node
 }
 
+pub fn get_source_map_range(node: &Node) -> Gc<SourceMapRange> {
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().source_map_range.clone())
+        .unwrap_or_else(|| node.into())
+}
+
 pub fn set_source_map_range(node: Gc<Node>, range: Option<Gc<SourceMapRange>>) -> Gc<Node> {
     get_or_create_emit_node(&node).borrow_mut().source_map_range = range;
     node

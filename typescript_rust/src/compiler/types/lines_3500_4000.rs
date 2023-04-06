@@ -23,7 +23,7 @@ use crate::{
     ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type,
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
-    __String,
+    __String, get_line_and_character_of_position, LineAndCharacter,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1239,6 +1239,10 @@ impl UnparsedSource {
             old_file_of_current_emit: None,
             parsed_source_map: RefCell::new(None),
         }
+    }
+
+    pub fn get_line_and_character_of_position(&self, pos: usize) -> LineAndCharacter {
+        get_line_and_character_of_position(self, pos)
     }
 }
 

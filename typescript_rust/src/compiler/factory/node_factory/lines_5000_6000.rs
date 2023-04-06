@@ -237,7 +237,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             vec![],
             vec![],
         )
-        // node.getLineAndCharacterOfPosition = pos => getLineAndCharacterOfPosition(node, pos);
     }
 
     fn create_base_unparsed_node(

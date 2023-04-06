@@ -1961,6 +1961,14 @@ impl Printer {
         self.source_map_generator.borrow().clone().unwrap()
     }
 
+    pub(super) fn maybe_source_map_generator(&self) -> Option<Gc<Box<dyn SourceMapGenerator>>> {
+        self.source_map_generator.borrow().clone()
+    }
+
+    pub(super) fn maybe_source_map_source(&self) -> Option<Gc<SourceMapSource>> {
+        self.source_map_source.borrow().clone()
+    }
+
     pub(super) fn source_map_source(&self) -> Gc<SourceMapSource> {
         self.source_map_source.borrow().clone().unwrap()
     }

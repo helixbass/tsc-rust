@@ -85,8 +85,9 @@ pub use compiler::factory::emit_helpers::{
 pub use compiler::factory::emit_node::{
     add_emit_flags, add_emit_helper, add_emit_helpers, add_synthetic_leading_comment,
     dispose_emit_nodes, get_comment_range, get_constant_value, get_emit_helpers,
-    get_synthetic_leading_comments, get_synthetic_trailing_comments, set_comment_range,
-    set_comment_range_rc, set_emit_flags, set_source_map_range, set_synthetic_leading_comments,
+    get_source_map_range, get_synthetic_leading_comments, get_synthetic_trailing_comments,
+    set_comment_range, set_comment_range_rc, set_emit_flags, set_source_map_range,
+    set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,

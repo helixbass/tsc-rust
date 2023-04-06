@@ -523,11 +523,11 @@ pub struct SourceMapRange {
     pos: Cell<isize>,
     #[unsafe_ignore_trace]
     end: Cell<isize>,
-    source: Option<SourceMapSource>,
+    pub source: Option<Gc<SourceMapSource>>,
 }
 
 impl SourceMapRange {
-    pub fn new(pos: isize, end: isize, source: Option<SourceMapSource>) -> Self {
+    pub fn new(pos: isize, end: isize, source: Option<Gc<SourceMapSource>>) -> Self {
         Self {
             pos: Cell::new(pos),
             end: Cell::new(end),
@@ -577,6 +577,13 @@ impl SourceMapSource {
         match self {
             Self::SourceFile(value) => value.as_source_file().file_name().clone(),
             Self::SourceMapSourceConcrete(value) => value.file_name.clone(),
+        }
+    }
+
+    pub fn skip_trivia(&self) -> Option<Gc<Box<dyn SkipTrivia>>> {
+        match self {
+            Self::SourceFile(_) => None,
+            Self::SourceMapSourceConcrete(value) => value.skip_trivia.clone(),
         }
     }
 }
@@ -670,7 +677,7 @@ impl SourceMapSourceConcrete {
 }
 
 pub trait SkipTrivia: Trace + Finalize {
-    fn call(&self, something: usize) -> usize;
+    fn call(&self, pos: isize) -> isize;
 }
 
 impl fmt::Debug for SourceMapSourceConcrete {
