@@ -35,19 +35,19 @@ impl TransformES2016 {
             Option::<
                 fn(
                     Option<&NodeArray>,
-                    Option<fn(&Node) -> VisitResult>,
-                    Option<fn(&Node) -> bool>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> Gc<NodeArray>,
+                ) -> Option<Gc<NodeArray>>,
             >::None,
             Option::<fn(&Node) -> VisitResult>::None,
             Option::<
                 fn(
                     Option<&Node>,
-                    Option<fn(&Node) -> VisitResult>,
-                    Option<fn(&Node) -> bool>,
-                    Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
                 ) -> Option<Gc<Node>>,
             >::None,
         )
@@ -70,19 +70,19 @@ impl TransformES2016 {
                 Option::<
                     fn(
                         Option<&NodeArray>,
-                        Option<fn(&Node) -> VisitResult>,
-                        Option<fn(&Node) -> bool>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> Gc<NodeArray>,
+                    ) -> Option<Gc<NodeArray>>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<
                     fn(
                         Option<&Node>,
-                        Option<fn(&Node) -> VisitResult>,
-                        Option<fn(&Node) -> bool>,
-                        Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
                     ) -> Option<Gc<Node>>,
                 >::None,
             )
@@ -106,19 +106,19 @@ impl TransformES2016 {
                 Option::<
                     fn(
                         Option<&NodeArray>,
-                        Option<fn(&Node) -> VisitResult>,
-                        Option<fn(&Node) -> bool>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> Gc<NodeArray>,
+                    ) -> Option<Gc<NodeArray>>,
                 >::None,
                 Option::<fn(&Node) -> VisitResult>::None,
                 Option::<
                     fn(
                         Option<&Node>,
-                        Option<fn(&Node) -> VisitResult>,
-                        Option<fn(&Node) -> bool>,
-                        Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
                     ) -> Option<Gc<Node>>,
                 >::None,
             )

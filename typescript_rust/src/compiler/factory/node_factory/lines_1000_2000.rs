@@ -181,6 +181,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_computed_property_name(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ComputedPropertyName*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_type_parameter_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -356,6 +365,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsTypeScriptClassSyntax,
         );
         node
+    }
+
+    pub fn update_decorator(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*Decorator*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_property_signature<'name>(
@@ -725,14 +743,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_class_static_block_declaration<
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_class_static_block_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         body: Gc<Node /*Block*/>,
     ) -> ClassStaticBlockDeclaration {
         let node = self.create_base_generic_named_declaration(
@@ -748,6 +763,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*body)) | TransformFlags::ContainsClassFields,
         );
         node
+    }
+
+    pub fn update_class_static_block_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ClassStaticBlockDeclaration*/
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        body: Gc<Node /*Block*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_constructor_declaration(
@@ -1129,6 +1155,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_template_literal_type_span(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TemplateLiteralTypeSpan*/
+        type_: Gc<Node /*TypeNode*/>,
+        literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_keyword_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1137,14 +1173,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         self.create_token(base_factory, kind)
     }
 
-    pub fn create_type_predicate_node<
-        'parameter_name,
-        TParameterName: Into<StrOrRcNode<'parameter_name>>,
-    >(
+    pub fn create_type_predicate_node<'parameter_name>(
         &self,
         base_factory: &TBaseNodeFactory,
         asserts_modifier: Option<Gc<Node /*AssertsKeyword*/>>,
-        parameter_name: TParameterName,
+        parameter_name: impl Into<StrOrRcNode<'parameter_name>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> TypePredicateNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypePredicate);
@@ -1156,6 +1189,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_type_predicate_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TypePredicateNode*/
+        asserts_modifier: Option<Gc<Node /*AssertsKeyword*/>>,
+        parameter_name: Gc<Node>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_type_reference_node<'type_name>(
@@ -1329,15 +1373,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_literal_node<TMembers: Into<NodeArrayOrVec>>(
+    pub fn update_type_query_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        members: Option<TMembers>,
+        node: &Node, /*TypeQueryNode*/
+        expr_name: Gc<Node /*EntityName*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_type_literal_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        members: Option<impl Into<NodeArrayOrVec>>,
     ) -> TypeLiteralNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeLiteral);
         let mut node = TypeLiteralNode::new(node, self.create_node_array(members, None));
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_type_literal_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TypeLiteralNode*/
+        members: Gc<NodeArray>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_array_type_node(
@@ -1355,15 +1417,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_tuple_type_node<TElements: Into<NodeArrayOrVec>>(
+    pub fn update_array_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: Option<TElements>,
+        node: &Node, /*ArrayTypeNode*/
+        element_type: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_tuple_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: Option<impl Into<NodeArrayOrVec>>,
     ) -> TupleTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TupleType);
         let mut node = TupleTypeNode::new(node, self.create_node_array(elements, None));
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_tuple_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TupleTypeNode*/
+        elements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_named_tuple_member(
@@ -1378,6 +1458,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = NamedTupleMember::new(node, dot_dot_dot_token, name, question_token, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_named_tuple_member(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamedTupleMember*/
+        dot_dot_dot_token: Option<Gc<Node /*DotDotDotToken*/>>,
+        name: Gc<Node /*Identifier*/>,
+        question_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_optional_type_node(
@@ -1395,6 +1487,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_optional_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*OptionalTypeNode*/
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_rest_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1404,6 +1505,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = RestTypeNode::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_rest_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*RestTypeNode*/
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_union_or_intersection_type_node<TTypes: Into<NodeArrayOrVec>>(
@@ -1428,24 +1538,42 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_union_type_node<TElements: Into<NodeArrayOrVec>>(
+    pub fn create_union_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        types: TElements, /*<TypeNode>*/
+        types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
     ) -> Node {
         self.create_union_or_intersection_type_node(base_factory, SyntaxKind::UnionType, types)
     }
 
-    pub fn create_intersection_type_node<TElements: Into<NodeArrayOrVec>>(
+    pub fn update_union_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        types: TElements, /*<TypeNode>*/
+        node: &Node, /*UnionTypeNode*/
+        types: Gc<NodeArray /*<TypeNode>*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_intersection_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
     ) -> Node {
         self.create_union_or_intersection_type_node(
             base_factory,
             SyntaxKind::IntersectionType,
             types,
         )
+    }
+
+    pub fn update_intersection_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*IntersectionTypeNode*/
+        types: Gc<NodeArray /*<TypeNode>*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_conditional_type_node(

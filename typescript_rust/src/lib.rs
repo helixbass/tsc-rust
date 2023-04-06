@@ -170,8 +170,11 @@ pub use compiler::factory::utilities::{
     find_use_strict_prologue, get_elements_of_binding_or_assignment_pattern,
     get_external_helpers_module_name, get_jsdoc_type_assertion_type,
     get_target_of_binding_or_assignment_element, has_recorded_external_helpers, is_comma_sequence,
-    is_jsdoc_type_assertion, is_local_name, is_outer_expression, skip_outer_expressions,
-    starts_with_use_strict, BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
+    is_identifier_or_this_type_node, is_jsdoc_type_assertion, is_local_name, is_outer_expression,
+    is_question_or_exclamation_token, is_question_or_plus_or_minus_token,
+    is_readonly_keyword_or_plus_or_minus_token, is_type_node_or_type_parameter_declaration,
+    skip_outer_expressions, starts_with_use_strict, BinaryExpressionStateMachine,
+    BinaryExpressionTrampoline, LeftOrRight,
 };
 pub use compiler::factory::utilities_public::{
     set_text_range, set_text_range_node_array, set_text_range_rc_node,
@@ -331,7 +334,7 @@ pub use compiler::types::{
     FreshableIntrinsicType, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationBase,
     FunctionLikeDeclarationInterface, FunctionTypeNode, GeneratedIdentifierFlags,
     GenericNamedDeclarationInterface, GenericTypeInterface, GenericableTypeInterface,
-    GetAccessorDeclaration, HasAntecedentInterface, HasArgumentsInterface,
+    GetAccessorDeclaration, GetProgramBuildInfo, HasAntecedentInterface, HasArgumentsInterface,
     HasAssertClauseInterface, HasChildrenInterface, HasConditionInterface,
     HasDotDotDotTokenInterface, HasElementsInterface, HasExpressionInterface, HasFileNameInterface,
     HasInitializerInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,

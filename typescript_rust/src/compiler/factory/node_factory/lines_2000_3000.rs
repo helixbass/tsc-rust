@@ -43,11 +43,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_template_literal_type<TTemplateSpans: Into<NodeArrayOrVec>>(
+    pub fn update_infer_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*InferTypeNode*/
+        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_template_literal_type(
         &self,
         base_factory: &TBaseNodeFactory,
         head: Gc<Node /*TemplateHead*/>,
-        template_spans: TTemplateSpans, /*<TemplateLiteralTypeSpan>*/
+        template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
     ) -> TemplateLiteralTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TemplateLiteralType);
         let mut node = TemplateLiteralTypeNode::new(
@@ -57,6 +66,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_template_literal_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TemplateLiteralTypeSpan*/
+        head: Gc<Node /*TemplateHead*/>,
+        template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_import_type_node<TTypeArguments: Into<NodeArrayOrVec>>(
@@ -133,6 +152,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_parenthesized_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ParenthesizedTypeNode*/
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_this_type_node(&self, base_factory: &TBaseNodeFactory) -> ThisTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::ThisType);
         let mut node = ThisTypeNode::new(node);
@@ -157,6 +185,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_type_operator_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TypeOperatorNode*/
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_indexed_access_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -174,7 +211,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_mapped_type_node<TMembers: Into<NodeArrayOrVec>>(
+    pub fn update_indexed_access_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*IndexedAccessTypeNode*/
+        object_type: Gc<Node /*TypeNode*/>,
+        index_type: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_mapped_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
         readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
@@ -182,7 +229,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name_type: Option<Gc<Node /*TypeNode*/>>,
         question_token: Option<Gc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
-        members: Option<TMembers /*<TypeElement>*/>,
+        members: Option<impl Into<NodeArrayOrVec> /*<TypeElement>*/>,
     ) -> MappedTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::MappedType);
         let mut node = MappedTypeNode::new(
@@ -196,6 +243,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_mapped_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*MappedTypeNode*/
+        readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
+        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
+        name_type: Option<Gc<Node /*TypeNode*/>>,
+        question_token: Option<Gc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        members: Option<Gc<NodeArray /*<TypeElement>*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_literal_type_node(
@@ -391,10 +452,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_array_literal_expression<TElements: Into<NodeArrayOrVec>>(
+    pub fn create_array_literal_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: Option<TElements>, /*Expression*/
+        elements: Option<impl Into<NodeArrayOrVec>>, /*Expression*/
         multi_line: Option<bool>,
     ) -> ArrayLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ArrayLiteralExpression);
@@ -429,6 +490,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_array_literal_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,                         /*ArrayLiteralExpression*/
+        elements: impl Into<NodeArrayOrVec>, /*Expression*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_object_literal_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -443,6 +513,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(propagate_children_flags(Some(&node.properties)));
         node
+    }
+
+    pub fn update_object_literal_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,                           /*ObjectLiteralExpression*/
+        properties: impl Into<NodeArrayOrVec>, /*ObjectLiteralElementLike*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_property_access_expression<'name>(

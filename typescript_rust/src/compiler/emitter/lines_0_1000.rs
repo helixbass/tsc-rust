@@ -1305,7 +1305,7 @@ fn get_source_mapping_url(
 }
 
 pub(crate) fn get_build_info_text(build_info: &BuildInfo) -> String {
-    unimplemented!()
+    serde_json::to_string(build_info).unwrap()
 }
 
 pub(crate) fn get_build_info(build_info_text: &str) -> Gc<BuildInfo> {

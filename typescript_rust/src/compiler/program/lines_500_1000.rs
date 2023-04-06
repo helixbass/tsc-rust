@@ -26,14 +26,14 @@ use crate::{
     walk_up_parenthesized_expressions, AsDoubleDeref, AutomaticTypeDirectiveFile, CompilerHost,
     CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection, Extension,
     FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
-    FilePreprocessingDiagnosticsKind, LibFile, ModuleKind, ModuleResolutionCache,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId, PackageJsonInfoCache,
-    ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange, RedirectTargetsMap,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    RootFile, ScriptReferenceHost, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    FilePreprocessingDiagnosticsKind, GetProgramBuildInfo, LibFile, ModuleKind,
+    ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId,
+    PackageJsonInfoCache, ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange,
+    RedirectTargetsMap, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
+    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
+    TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
 };
 use local_macros::enum_unwrapped;
 
@@ -737,6 +737,7 @@ impl Program {
                 directory_exists_rc: Default::default(),
                 should_create_new_source_file: Default::default(),
                 structure_is_reused: Default::default(),
+                get_program_build_info: Default::default(),
             }));
         let downcasted: Gc<Box<Self>> =
             unsafe { mem::transmute(dyn_type_checker_host_debuggable_wrapper.clone()) };
@@ -1494,6 +1495,12 @@ impl Program {
 
     pub(super) fn set_structure_is_reused(&self, structure_is_reused: StructureIsReused) {
         self.structure_is_reused.set(Some(structure_is_reused));
+    }
+
+    pub(super) fn maybe_get_program_build_info_rc(
+        &self,
+    ) -> Option<Gc<Box<dyn GetProgramBuildInfo>>> {
+        self.get_program_build_info.borrow().clone()
     }
 }
 

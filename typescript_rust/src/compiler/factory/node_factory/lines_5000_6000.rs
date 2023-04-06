@@ -5,13 +5,13 @@ use std::borrow::Borrow;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    are_option_gcs_equal, every, is_outer_expression, is_statement_or_block, single_or_undefined,
-    BaseNodeFactory, BaseUnparsedNode, Bundle, Debug_, EnumMember, FileReference,
-    HasStatementsInterface, InputFiles, LanguageVariant, NamedDeclarationInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
-    PropertyAssignment, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
-    SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags, Type,
-    UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
+    are_option_gcs_equal, every, is_outer_expression, is_statement_or_block, set_original_node,
+    single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle, Debug_, EnumMember,
+    FileReference, HasStatementsInterface, InputFiles, LanguageVariant, NamedDeclarationInterface,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
+    PropertyAssignment, ReadonlyTextRange, ScriptKind, ScriptTarget, ShorthandPropertyAssignment,
+    SourceFile, SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags,
+    Type, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -305,9 +305,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Gc<Node> {
-        // unimplemented!()
-        // TODO: this is definitely not right
-        node.node_wrapper()
+        // if (node === undefined) {
+        //     return node;
+        //  }
+
+        let clone = node.clone().wrap();
+        clone.set_pos(-1);
+        clone.set_end(-1);
+
+        clone.set_flags(clone.flags() | (node.flags() & !NodeFlags::Synthesized));
+        clone.set_transform_flags(node.transform_flags());
+        set_original_node(clone.clone(), Some(node.node_wrapper()));
+
+        clone
     }
 
     pub fn create_global_method_call(

@@ -21,12 +21,13 @@ use crate::{
     node_is_synthesized, null_transformation_context, out_file, path_is_relative,
     set_comment_range, set_emit_flags, set_synthetic_leading_comments, some, symbol_name,
     unescape_leading_underscores, visit_each_child, with_factory,
-    with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags, IndexInfo,
-    InternalSymbolName, ModifierFlags, ModuleResolutionKind, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArray, StrOrRcNode,
-    StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
-    SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
-    UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
+    with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags,
+    HasInitializerInterface, IndexInfo, InternalSymbolName, ModifierFlags, ModuleResolutionKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    Signature, SignatureFlags, StrOrNodeArray, StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
+    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
+    VisitResult,
 };
 
 impl NodeBuilder {
@@ -925,6 +926,10 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         node: &Node,
     ) -> Gc<Node> {
+        println!(
+            "elide_initializer_and_set_emit_flags node kind: {:?}",
+            node.kind()
+        );
         if context.tracker().is_track_symbol_supported()
             && is_computed_property_name(node)
             && self.type_checker.is_late_bindable_name(node)
@@ -947,11 +952,11 @@ impl NodeBuilder {
             Option::<
                 fn(
                     Option<&NodeArray>,
-                    Option<fn(&Node) -> VisitResult>,
-                    Option<fn(&Node) -> bool>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> Gc<NodeArray>,
+                ) -> Option<Gc<NodeArray>>,
             >::None,
             Some(|node: &Node| {
                 Some(
@@ -962,17 +967,25 @@ impl NodeBuilder {
             Option::<
                 fn(
                     Option<&Node>,
-                    Option<fn(&Node) -> VisitResult>,
-                    Option<fn(&Node) -> bool>,
-                    Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
                 ) -> Option<Gc<Node>>,
             >::None,
         )
-        .into_iter()
-        .next()
         .unwrap();
         if is_binding_element(&visited) {
-            unimplemented!()
+            let visited_as_binding_element = visited.as_binding_element();
+            visited = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_.update_binding_element(
+                    synthetic_factory_,
+                    &visited,
+                    visited_as_binding_element.dot_dot_dot_token.clone(),
+                    visited_as_binding_element.property_name.clone(),
+                    visited_as_binding_element.name(),
+                    visited_as_binding_element.maybe_initializer(),
+                )
+            });
         }
         if !node_is_synthesized(&*visited) {
             visited = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {

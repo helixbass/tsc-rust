@@ -1184,6 +1184,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
     let item_as_proc_macro2_token_stream = proc_macro2::TokenStream::from(item);
 
     quote! {
+        #[derive(Clone)]
         #item_as_proc_macro2_token_stream
 
         #node_interface_and_readonly_text_range_implementation

@@ -1698,15 +1698,6 @@ impl Node {
     }
 }
 
-impl Clone for Node {
-    fn clone(&self) -> Self {
-        match self {
-            Self::SourceFile(node) => Self::SourceFile(node.clone()),
-            _ => unimplemented!(),
-        }
-    }
-}
-
 #[derive(Debug, Finalize, Trace)]
 pub struct BaseNode {
     _node_wrapper: GcCell<Option<Gc<Node>>>,

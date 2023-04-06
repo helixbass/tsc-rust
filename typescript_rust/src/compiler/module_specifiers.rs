@@ -12,19 +12,19 @@ use crate::{
     get_implied_node_format_for_file, get_module_name_string_literal_at,
     get_normalized_absolute_path, get_package_json_types_version_paths,
     get_package_name_from_types_package_name, get_paths_base_path,
-    get_relative_path_from_directory, get_source_file_of_module, get_supported_extensions,
-    get_text_of_identifier_or_literal, has_js_file_extension, has_ts_file_extension,
-    host_get_canonical_file_name, is_ambient_module, is_external_module_augmentation,
-    is_external_module_name_relative, is_module_block, is_module_declaration,
-    is_non_global_ambient_module, is_source_file, map_defined, maybe_for_each,
-    node_modules_path_part, path_contains_node_modules, path_is_bare_specifier, path_is_relative,
-    remove_file_extension, remove_suffix, resolve_path, some, starts_with, starts_with_directory,
-    to_path, CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_,
-    Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason, LiteralLikeNodeInterface,
-    ModuleKind, ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags,
-    NodeInterface, NonEmpty, Path, ScriptKind, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
-    UserPreferences,
+    get_relative_path_from_directory, get_relative_path_to_directory_or_url,
+    get_source_file_of_module, get_supported_extensions, get_text_of_identifier_or_literal,
+    has_js_file_extension, has_ts_file_extension, host_get_canonical_file_name, is_ambient_module,
+    is_external_module_augmentation, is_external_module_name_relative, is_module_block,
+    is_module_declaration, is_non_global_ambient_module, is_rooted_disk_path, is_source_file,
+    map_defined, maybe_for_each, node_modules_path_part, path_contains_node_modules,
+    path_is_bare_specifier, path_is_relative, remove_file_extension, remove_suffix, resolve_path,
+    some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison, CompilerOptions,
+    CompilerOptionsBuilder, Debug_, Extension, FileExtensionInfo, FileIncludeKind,
+    FileIncludeReason, LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
+    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, Path, ScriptKind,
+    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -1548,7 +1548,18 @@ fn get_relative_path_if_in_directory(
     directory_path: &str,
     get_canonical_file_name: fn(&str) -> String,
 ) -> Option<String> {
-    unimplemented!()
+    let relative_path = get_relative_path_to_directory_or_url(
+        directory_path,
+        path,
+        directory_path,
+        get_canonical_file_name,
+        false,
+    );
+    if is_rooted_disk_path(&relative_path) {
+        None
+    } else {
+        Some(relative_path)
+    }
 }
 
 fn is_path_relative_to_parent(path: &str) -> bool {

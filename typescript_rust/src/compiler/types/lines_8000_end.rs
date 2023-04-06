@@ -104,16 +104,25 @@ pub struct DetachedCommentInfo {
     pub detached_comment_end_pos: isize,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum BundleFileSectionKind {
+    #[serde(rename = "prologue")]
     Prologue,
+    #[serde(rename = "emitHelpers")]
     EmitHelpers,
+    #[serde(rename = "no-default-lib")]
     NoDefaultLib,
+    #[serde(rename = "reference")]
     Reference,
+    #[serde(rename = "type")]
     Type,
+    #[serde(rename = "lib")]
     Lib,
+    #[serde(rename = "prepend")]
     Prepend,
+    #[serde(rename = "text")]
     Text,
+    #[serde(rename = "internal")]
     Internal,
 }
 
@@ -133,7 +142,7 @@ impl BundleFileSectionKind {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize, Trace, Finalize)]
 pub struct BundleFileSectionBase {
     #[unsafe_ignore_trace]
     pos: Cell<isize>,
@@ -188,8 +197,9 @@ impl BundleFileSectionInterface for BundleFileSectionBase {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize, Trace, Finalize)]
 pub struct BundleFilePrologue {
+    #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
 }
 
@@ -227,8 +237,9 @@ impl BundleFileSectionInterface for BundleFilePrologue {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize, Trace, Finalize)]
 pub struct BundleFileEmitHelpers {
+    #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
 }
 
@@ -266,8 +277,9 @@ impl BundleFileSectionInterface for BundleFileEmitHelpers {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize, Trace, Finalize)]
 pub struct BundleFileHasNoDefaultLib {
+    #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
 }
 
@@ -299,8 +311,9 @@ impl BundleFileSectionInterface for BundleFileHasNoDefaultLib {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize, Trace, Finalize)]
 pub struct BundleFileReference {
+    #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
 }
 
@@ -338,8 +351,9 @@ impl BundleFileSectionInterface for BundleFileReference {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize, Trace, Finalize)]
 pub struct BundleFilePrepend {
+    #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
     pub texts: Vec<Gc<BundleFileSection /*BundleFileTextLike*/>>,
 }
@@ -378,8 +392,9 @@ impl BundleFileSectionInterface for BundleFilePrepend {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize, Trace, Finalize)]
 pub struct BundleFileTextLike {
+    #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
 }
 
@@ -411,7 +426,8 @@ impl BundleFileSectionInterface for BundleFileTextLike {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[serde(untagged)]
 pub enum BundleFileSection {
     BundleFilePrologue(BundleFilePrologue),
     BundleFileEmitHelpers(BundleFileEmitHelpers),
@@ -565,40 +581,40 @@ impl BundleFileSectionInterface for BundleFileSection {
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Serialize, Trace, Finalize)]
 pub struct SourceFilePrologueDirectiveExpression {
     pub pos: isize,
     pub end: isize,
     pub text: String,
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Serialize, Trace, Finalize)]
 pub struct SourceFilePrologueDirective {
     pub pos: isize,
     pub end: isize,
     pub expression: SourceFilePrologueDirectiveExpression,
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Serialize, Trace, Finalize)]
 pub struct SourceFilePrologueInfo {
     pub file: usize,
     pub text: String,
     pub directives: Vec<SourceFilePrologueDirective>,
 }
 
-#[derive(Default, Trace, Finalize)]
+#[derive(Default, Serialize, Trace, Finalize)]
 pub struct SourceFileInfo {
     pub helpers: Option<Vec<String>>,
     pub prologues: Option<Vec<SourceFilePrologueInfo>>,
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Serialize, Trace, Finalize)]
 pub struct BundleFileInfo {
     pub sections: Vec<Gc<BundleFileSection>>,
     pub sources: Option<SourceFileInfo>,
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Serialize, Trace, Finalize)]
 pub struct BundleBuildInfo {
     pub js: Option<Gc<GcCell<BundleFileInfo>>>,
     pub dts: Option<BundleFileInfo>,
@@ -606,7 +622,7 @@ pub struct BundleBuildInfo {
     pub source_files: Vec<String>,
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Serialize, Trace, Finalize)]
 pub struct BuildInfo {
     pub bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
     pub program: Option<Gc<ProgramBuildInfo>>,
