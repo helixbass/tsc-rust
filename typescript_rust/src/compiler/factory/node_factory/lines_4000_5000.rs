@@ -31,6 +31,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_assert_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,             /*AssertClause*/
+        elements: Gc<NodeArray>, /*<AssertEntry>*/
+        multi_line: Option<bool>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_assert_entry(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -41,6 +51,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = AssertEntry::new(node, name, value);
         node.add_transform_flags(TransformFlags::ContainsESNext);
         node
+    }
+
+    pub fn update_assert_entry(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*AssertEntry*/
+        name: Gc<Node /*AssertionKey*/>,
+        value: Gc<Node /*StringLiteral*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_namespace_import(
@@ -57,6 +77,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_namespace_import(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamespaceImport*/
+        name: Gc<Node /*Identifier*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_namespace_export(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -71,6 +100,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_namespace_export(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamespaceExport*/
+        name: Gc<Node /*Identifier*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_named_imports(
@@ -122,6 +160,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_import_specifier(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ImportSpecifier*/
+        is_type_only: bool,
+        property_name: Option<Gc<Node /*Identifier*/>>,
+        name: Gc<Node /*Identifier*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_export_assignment(
@@ -287,6 +336,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_named_exports(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamedExports*/
+        elements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_export_specifier<'property_name, 'name>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -313,6 +371,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_export_specifier(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ExportSpecifier*/
+        is_type_only: bool,
+        property_name: Option<Gc<Node> /*Identifier*/>,
+        name: Gc<Node>,
+        /*Identifier*/
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_missing_declaration(

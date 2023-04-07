@@ -613,10 +613,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_continue_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(
+    pub fn create_continue_statement<'label>(
         &self,
         base_factory: &TBaseNodeFactory,
-        label: Option<TLabel>,
+        label: Option<impl Into<StrOrRcNode<'label>>>,
     ) -> ContinueStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ContinueStatement);
         let mut node = ContinueStatement::new(node, self.as_name(base_factory, label));
@@ -627,10 +627,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_break_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(
+    pub fn update_continue_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        label: Option<TLabel>,
+        node: &Node, /*ContinueStatement*/
+        label: Option<Gc<Node /*Identifier*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_break_statement<'label>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        label: Option<impl Into<StrOrRcNode<'label>>>,
     ) -> BreakStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::BreakStatement);
         let mut node = BreakStatement::new(node, self.as_name(base_factory, label));
@@ -639,6 +648,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
         );
         node
+    }
+
+    pub fn update_break_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*BreakStatement*/
+        label: Option<Gc<Node /*Identifier*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_return_statement(
@@ -654,6 +672,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
         );
         node
+    }
+
+    pub fn update_return_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ReturnStatement*/
+        expression: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_with_statement(
@@ -673,6 +700,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.statement)),
         );
         node
+    }
+
+    pub fn update_with_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*WithStatement*/
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_switch_statement(
@@ -695,10 +732,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_labeled_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(
+    pub fn update_switch_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        label: TLabel,
+        node: &Node, /*SwitchStatement*/
+        expression: Gc<Node /*Expression*/>,
+        case_block: Gc<Node /*CaseBlock*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_labeled_statement<'label>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        label: impl Into<StrOrRcNode<'label>>,
         statement: Gc<Node /*Statement*/>,
     ) -> LabeledStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::LabeledStatement);
@@ -714,6 +761,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_labeled_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*LabeledStatement*/
+        label: Gc<Node /*Identifier*/>,
+        statement: Gc<Node /*Statement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_throw_statement(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -723,6 +780,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ThrowStatement::new(node, expression);
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
+    }
+
+    pub fn update_throw_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ThrowStatement*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_try_statement(
@@ -740,6 +806,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(node.finally_block.clone()),
         );
         node
+    }
+
+    pub fn update_try_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TryStatement*/
+        try_block: Gc<Node /*Block*/>,
+        catch_clause: Option<Gc<Node /*CatchClause*/>>,
+        finally_block: Option<Gc<Node /*Block*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_debugger_statement(&self, base_factory: &TBaseNodeFactory) -> DebuggerStatement {
@@ -1407,6 +1484,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_case_block(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,                        /*CaseBlock*/
+        clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_namespace_export_declaration<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1422,6 +1508,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = NamespaceExportDeclaration::new(node);
         node.set_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_namespace_export_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamespaceExportDeclaration*/
+        name: Gc<Node /*Identifier*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_import_equals_declaration<'name>(

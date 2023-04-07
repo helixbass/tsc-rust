@@ -2,23 +2,29 @@ use gc::Gc;
 use std::borrow::Borrow;
 
 use crate::{
-    is_array_binding_element, is_asserts_keyword, is_asterisk_token, is_binary_operator_token,
-    is_binding_element, is_binding_name, is_block, is_class_element, is_colon_token, is_decorator,
-    is_dot_dot_dot_token, is_entity_name, is_equals_greater_than_token, is_expression,
-    is_heritage_clause, is_identifier, is_identifier_or_this_type_node, is_member_name,
-    is_modifier, is_object_literal_element_like, is_parameter_declaration, is_property_name,
-    is_question_dot_token, is_question_or_exclamation_token, is_question_or_plus_or_minus_token,
-    is_question_token, is_readonly_keyword_or_plus_or_minus_token, is_statement, is_template_head,
+    is_array_binding_element, is_assert_clause, is_assert_entry, is_assertion_key,
+    is_asserts_keyword, is_asterisk_token, is_await_keyword, is_binary_operator_token,
+    is_binding_element, is_binding_name, is_block, is_case_block, is_case_or_default_clause,
+    is_catch_clause, is_class_element, is_colon_token, is_decorator, is_dot_dot_dot_token,
+    is_entity_name, is_enum_member, is_equals_greater_than_token, is_exclamation_token,
+    is_export_specifier, is_expression, is_for_initializer, is_heritage_clause, is_identifier,
+    is_identifier_or_this_type_node, is_import_clause, is_import_specifier, is_member_name,
+    is_modifier, is_module_body, is_module_name, is_module_reference, is_named_export_bindings,
+    is_named_import_bindings, is_object_literal_element_like, is_parameter_declaration,
+    is_property_name, is_question_dot_token, is_question_or_exclamation_token,
+    is_question_or_plus_or_minus_token, is_question_token,
+    is_readonly_keyword_or_plus_or_minus_token, is_statement, is_string_literal, is_template_head,
     is_template_literal, is_template_literal_type_span, is_template_middle_or_template_tail,
     is_template_span, is_token, is_type_element, is_type_node,
     is_type_node_or_type_parameter_declaration, is_type_parameter_declaration,
-    is_variable_declaration_list, set_text_range_pos_end, single_or_undefined, with_factory,
-    with_synthetic_factory, ClassLikeDeclarationInterface, Debug_,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, NonEmpty, ReadonlyTextRange, SignatureDeclarationInterface,
-    SingleNodeOrVecNode, SyntaxKind, TransformationContext, VisitResult, VisitResultInterface,
+    is_variable_declaration, is_variable_declaration_list, set_text_range_pos_end,
+    single_or_undefined, with_factory, with_synthetic_factory, ClassLikeDeclarationInterface,
+    Debug_, FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
+    HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, NonEmpty,
+    ReadonlyTextRange, SignatureDeclarationInterface, SingleNodeOrVecNode, SyntaxKind,
+    TransformationContext, VisitResult, VisitResultInterface,
 };
 
 pub fn visit_node(
@@ -2639,6 +2645,1027 @@ pub fn visit_each_child(
                         |node: &Node| visitor(node),
                         context,
                     ),
+                )
+            }))
+        }
+        SyntaxKind::ForStatement => {
+            let node_as_for_statement = node.as_for_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_for_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        node_as_for_statement.initializer.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_for_initializer),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_for_statement.condition.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_for_statement.incrementor.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    ),
+                    visit_iteration_body(
+                        &node_as_for_statement.statement,
+                        |node: &Node| visitor(node),
+                        context,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::ForInStatement => {
+            let node_as_for_in_statement = node.as_for_in_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_for_in_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_for_in_statement.initializer),
+                        Some(&mut visitor),
+                        Some(&is_for_initializer),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        Some(&node_as_for_in_statement.expression),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    )
+                    .unwrap(),
+                    visit_iteration_body(
+                        &node_as_for_in_statement.statement,
+                        |node: &Node| visitor(node),
+                        context,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::ForOfStatement => {
+            let node_as_for_of_statement = node.as_for_of_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_for_of_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        node_as_for_of_statement.await_modifier.as_deref(),
+                        Some(&mut |node: &Node| {
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
+                            } else {
+                                None
+                            }
+                        }),
+                        Some(&is_await_keyword),
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_for_of_statement.initializer),
+                        Some(&mut visitor),
+                        Some(&is_for_initializer),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        Some(&node_as_for_of_statement.expression),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    )
+                    .unwrap(),
+                    visit_iteration_body(
+                        &node_as_for_of_statement.statement,
+                        |node: &Node| visitor(node),
+                        context,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::ContinueStatement => {
+            let node_as_continue_statement = node.as_continue_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_continue_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        node_as_continue_statement.label.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::BreakStatement => {
+            let node_as_break_statement = node.as_break_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_break_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        node_as_break_statement.label.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::ReturnStatement => {
+            let node_as_return_statement = node.as_return_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_return_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        node_as_return_statement.expression.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::WithStatement => {
+            let node_as_with_statement = node.as_with_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_with_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_with_statement.expression),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        Some(&node_as_with_statement.statement),
+                        Some(&mut visitor),
+                        Some(&is_statement),
+                        Some(&|nodes: &[Gc<Node>]| {
+                            factory.lift_to_block(synthetic_factory_, nodes)
+                        }),
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::SwitchStatement => {
+            let node_as_switch_statement = node.as_switch_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_switch_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_switch_statement.expression),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        Some(&node_as_switch_statement.case_block),
+                        Some(&mut visitor),
+                        Some(&is_case_block),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::LabeledStatement => {
+            let node_as_labeled_statement = node.as_labeled_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_labeled_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_labeled_statement.label),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        Some(&node_as_labeled_statement.statement),
+                        Some(&mut visitor),
+                        Some(&is_statement),
+                        Some(&|nodes: &[Gc<Node>]| {
+                            factory.lift_to_block(synthetic_factory_, nodes)
+                        }),
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ThrowStatement => {
+            let node_as_throw_statement = node.as_throw_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_throw_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_throw_statement.expression),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::TryStatement => {
+            let node_as_try_statement = node.as_try_statement();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_try_statement(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_try_statement.try_block),
+                        Some(&mut visitor),
+                        Some(&is_block),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        node_as_try_statement.catch_clause.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_catch_clause),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_try_statement.finally_block.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_block),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::VariableDeclaration => {
+            let node_as_variable_declaration = node.as_variable_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_variable_declaration(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        node_as_variable_declaration.maybe_name().as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_binding_name),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_variable_declaration.exclamation_token.as_deref(),
+                        Some(&mut |node: &Node| {
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
+                            } else {
+                                None
+                            }
+                        }),
+                        Some(&is_exclamation_token),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_variable_declaration.maybe_type().as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_type_node),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_variable_declaration.maybe_initializer().as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::VariableDeclarationList => {
+            let node_as_variable_declaration_list = node.as_variable_declaration_list();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_variable_declaration_list(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        Some(&node_as_variable_declaration_list.declarations),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_variable_declaration),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::FunctionDeclaration => {
+            let node_as_function_declaration = node.as_function_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_function_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_function_declaration.maybe_asterisk_token().as_deref(),
+                        Some(&mut |node: &Node| {
+                            if let Some(token_visitor) = token_visitor.as_ref() {
+                                token_visitor(node)
+                            } else {
+                                None
+                            }
+                        }),
+                        Some(&is_asterisk_token),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_function_declaration.maybe_name().as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    ),
+                    nodes_visitor(
+                        node_as_function_declaration.maybe_type_parameters().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_type_parameter_declaration),
+                        None,
+                        None,
+                    ),
+                    visit_parameter_list(
+                        Some(&node_as_function_declaration.parameters()),
+                        |node: &Node| visitor(node),
+                        context,
+                        Some(
+                            |nodes: Option<&NodeArray>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             test: Option<&dyn Fn(&Node) -> bool>,
+                             start: Option<usize>,
+                             count: Option<usize>| {
+                                nodes_visitor(nodes, visitor, test, start, count)
+                            },
+                        ),
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        node_as_function_declaration.maybe_type().as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_type_node),
+                        None,
+                    ),
+                    visit_function_body(
+                        node_as_function_declaration.maybe_body().as_deref(),
+                        |node: &Node| visitor(node),
+                        context,
+                        Some(
+                            |node: Option<&Node>,
+                             visitor: Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                             lift: Option<&dyn Fn(&Node) -> bool>,
+                             test: Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>| {
+                                node_visitor(node, visitor, lift, test)
+                            },
+                        ),
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::ClassDeclaration => {
+            let node_as_class_declaration = node.as_class_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_class_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_class_declaration.maybe_name().as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    ),
+                    nodes_visitor(
+                        node_as_class_declaration.maybe_type_parameters().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_type_parameter_declaration),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node_as_class_declaration
+                            .maybe_heritage_clauses()
+                            .as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_heritage_clause),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        Some(&node_as_class_declaration.members()),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_class_element),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::InterfaceDeclaration => {
+            let node_as_interface_declaration = node.as_interface_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_interface_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_interface_declaration.name()),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                    nodes_visitor(
+                        node_as_interface_declaration
+                            .maybe_type_parameters()
+                            .as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_type_parameter_declaration),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node_as_interface_declaration
+                            .maybe_heritage_clauses()
+                            .as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_heritage_clause),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        Some(&node_as_interface_declaration.members()),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_type_element),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::TypeAliasDeclaration => {
+            let node_as_type_alias_declaration = node.as_type_alias_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_type_alias_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_type_alias_declaration.name()),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                    nodes_visitor(
+                        node_as_type_alias_declaration
+                            .maybe_type_parameters()
+                            .as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_type_parameter_declaration),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_type_alias_declaration.maybe_type().unwrap()),
+                        Some(&mut visitor),
+                        Some(&is_type_node),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::EnumDeclaration => {
+            let node_as_enum_declaration = node.as_enum_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_enum_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_enum_declaration.name()),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                    nodes_visitor(
+                        Some(&node_as_enum_declaration.members),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_enum_member),
+                        None,
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::ModuleDeclaration => {
+            let node_as_module_declaration = node.as_module_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_module_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_module_declaration.name()),
+                        Some(&mut visitor),
+                        Some(&is_module_name),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        node_as_module_declaration.body.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_module_body),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::ModuleBlock => {
+            let node_as_module_block = node.as_module_block();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_module_block(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        Some(&node_as_module_block.statements),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_statement),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::CaseBlock => {
+            let node_as_case_block = node.as_case_block();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_case_block(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        Some(&node_as_case_block.clauses),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_case_or_default_clause),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::NamespaceExportDeclaration => {
+            let node_as_namespace_export_declaration = node.as_namespace_export_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_namespace_export_declaration(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_namespace_export_declaration.name()),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ImportEqualsDeclaration => {
+            let node_as_import_equals_declaration = node.as_import_equals_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_import_equals_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_as_import_equals_declaration.is_type_only,
+                    node_visitor(
+                        Some(&node_as_import_equals_declaration.name()),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        Some(&node_as_import_equals_declaration.module_reference),
+                        Some(&mut visitor),
+                        Some(&is_module_reference),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ImportDeclaration => {
+            let node_as_import_declaration = node.as_import_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_import_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_import_declaration.import_clause.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_import_clause),
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_import_declaration.module_specifier),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        node_as_import_declaration.assert_clause.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_assert_clause),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::AssertClause => {
+            let node_as_assert_clause = node.as_assert_clause();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_assert_clause(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        Some(&node_as_assert_clause.elements),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_assert_entry),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                    node_as_assert_clause.multi_line,
+                )
+            }))
+        }
+        SyntaxKind::AssertEntry => {
+            let node_as_assert_entry = node.as_assert_entry();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_assert_entry(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_assert_entry.name),
+                        Some(&mut visitor),
+                        Some(&is_assertion_key),
+                        None,
+                    )
+                    .unwrap(),
+                    node_visitor(
+                        Some(&node_as_assert_entry.value),
+                        Some(&mut visitor),
+                        Some(&is_string_literal),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ImportClause => {
+            let node_as_import_clause = node.as_import_clause();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_import_clause(
+                    synthetic_factory_,
+                    node,
+                    node_as_import_clause.is_type_only,
+                    node_visitor(
+                        node_as_import_clause.name.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_import_clause.named_bindings.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_named_import_bindings),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::NamespaceImport => {
+            let node_as_namespace_import = node.as_namespace_import();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_namespace_import(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_namespace_import.name),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::NamespaceExport => {
+            let node_as_namespace_export = node.as_namespace_export();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_namespace_export(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_namespace_export.name),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::NamedImports => {
+            let node_as_named_imports = node.as_named_imports();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_named_imports(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        Some(&node_as_named_imports.elements),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_import_specifier),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ImportSpecifier => {
+            let node_as_import_specifier = node.as_import_specifier();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_import_specifier(
+                    synthetic_factory_,
+                    node,
+                    node_as_import_specifier.is_type_only,
+                    node_visitor(
+                        node_as_import_specifier.property_name.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_import_specifier.name),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ExportAssignment => {
+            let node_as_export_assignment = node.as_export_assignment();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_export_assignment(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_export_assignment.expression),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ExportDeclaration => {
+            let node_as_export_declaration = node.as_export_declaration();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_export_declaration(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        node.maybe_decorators().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_decorator),
+                        None,
+                        None,
+                    ),
+                    nodes_visitor(
+                        node.maybe_modifiers().as_deref(),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_modifier),
+                        None,
+                        None,
+                    ),
+                    node_as_export_declaration.is_type_only,
+                    node_visitor(
+                        node_as_export_declaration.export_clause.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_named_export_bindings),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_export_declaration.module_specifier.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    ),
+                    node_visitor(
+                        node_as_export_declaration.assert_clause.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_assert_clause),
+                        None,
+                    ),
+                )
+            }))
+        }
+        SyntaxKind::NamedExports => {
+            let node_as_named_exports = node.as_named_exports();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_named_exports(
+                    synthetic_factory_,
+                    node,
+                    nodes_visitor(
+                        Some(&node_as_named_exports.elements),
+                        Some(&mut |node: &Node| visitor(node)),
+                        Some(&is_export_specifier),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ExportSpecifier => {
+            let node_as_export_specifier = node.as_export_specifier();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_export_specifier(
+                    synthetic_factory_,
+                    node,
+                    node_as_export_specifier.is_type_only,
+                    node_visitor(
+                        node_as_export_specifier.property_name.as_deref(),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    ),
+                    node_visitor(
+                        Some(&node_as_export_specifier.name),
+                        Some(&mut visitor),
+                        Some(&is_identifier),
+                        None,
+                    )
+                    .unwrap(),
+                )
+            }))
+        }
+        SyntaxKind::ExternalModuleReference => {
+            let node_as_external_module_reference = node.as_external_module_reference();
+            Some(with_synthetic_factory(|synthetic_factory_| {
+                factory.update_external_module_reference(
+                    synthetic_factory_,
+                    node,
+                    node_visitor(
+                        Some(&node_as_external_module_reference.expression),
+                        Some(&mut visitor),
+                        Some(&is_expression),
+                        None,
+                    )
+                    .unwrap(),
                 )
             }))
         }
