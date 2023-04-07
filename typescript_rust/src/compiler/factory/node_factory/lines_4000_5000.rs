@@ -875,11 +875,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         JSDoc::new(node, comment.map(Into::into), self.as_node_array(tags))
     }
 
-    pub fn create_jsx_element<TChildren: Into<NodeArrayOrVec>>(
+    pub fn create_jsx_element(
         &self,
         base_factory: &TBaseNodeFactory,
         opening_element: Gc<Node /*JsxOpeningElement*/>,
-        children: TChildren,
+        children: impl Into<NodeArrayOrVec>,
         closing_element: Gc<Node /*JsxClosingElement*/>,
     ) -> JsxElement {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxElement);
@@ -898,11 +898,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_jsx_self_closing_element<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxElement*/
+        opening_element: Gc<Node /*JsxOpeningElement*/>,
+        children: impl Into<NodeArrayOrVec>,
+        closing_element: Gc<Node /*JsxClosingElement*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_jsx_self_closing_element(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Gc<Node /*JsxTagNameExpression*/>,
-        type_arguments: Option<TTypeArguments>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Gc<Node /*JsxAttributes*/>,
     ) -> JsxSelfClosingElement {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxSelfClosingElement);
@@ -924,11 +935,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_jsx_opening_element<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_self_closing_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxSelfClosingElement*/
+        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
+        attributes: Gc<Node /*JsxAttributes*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_jsx_opening_element(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Gc<Node /*JsxTagNameExpression*/>,
-        type_arguments: Option<TTypeArguments>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Gc<Node /*JsxAttributes*/>,
     ) -> JsxOpeningElement {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxOpeningElement);
@@ -950,6 +972,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_jsx_opening_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxOpeningElement*/
+        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
+        attributes: Gc<Node /*JsxAttributes*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_jsx_closing_element(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -963,11 +996,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_jsx_fragment<TChildren: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_closing_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxClosingElement*/
+        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_jsx_fragment(
         &self,
         base_factory: &TBaseNodeFactory,
         opening_fragment: Gc<Node /*JsxOpeningFragment*/>,
-        children: TChildren,
+        children: impl Into<NodeArrayOrVec>,
         closing_fragment: Gc<Node /*JsxClosingFragment*/>,
     ) -> JsxFragment {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxFragment);
@@ -986,6 +1028,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_jsx_fragment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxFragment*/
+        opening_fragment: Gc<Node /*JsxOpeningFragment*/>,
+        children: impl Into<NodeArrayOrVec>,
+        closing_fragment: Gc<Node /*JsxClosingFragment*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_jsx_text(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1000,6 +1053,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsJsx);
         node
+    }
+
+    pub fn update_jsx_text(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxText*/
+        text: String,
+        contains_only_trivia_white_spaces: Option<bool>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_jsx_opening_fragment(
@@ -1038,10 +1101,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_jsx_attributes<TProperties: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_attribute(
         &self,
         base_factory: &TBaseNodeFactory,
-        properties: TProperties,
+        node: &Node, /*JsxAttribute*/
+        name: Gc<Node /*Identifier*/>,
+        initializer: Option<Gc<Node /*StringLiteral | JsxExpression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_jsx_attributes(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        properties: impl Into<NodeArrayOrVec>,
     ) -> JsxAttributes {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxAttributes);
         let mut node = JsxAttributes::new(node, self.create_node_array(Some(properties), None));
@@ -1049,6 +1122,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_children_flags(Some(&node.properties)) | TransformFlags::ContainsJsx,
         );
         node
+    }
+
+    pub fn update_jsx_attributes(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxAttributes*/
+        properties: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_jsx_spread_attribute(
@@ -1062,6 +1144,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsJsx,
         );
         node
+    }
+
+    pub fn update_jsx_spread_attribute(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxSpreadAttribute*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_jsx_expression(
@@ -1080,11 +1171,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_case_clause<TStatements: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxExpression*/
+        expression: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_case_clause(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
-        statements: TStatements,
+        statements: impl Into<NodeArrayOrVec>,
     ) -> CaseClause {
         let node = self.create_base_node(base_factory, SyntaxKind::CaseClause);
         let mut node = CaseClause::new(
@@ -1100,15 +1200,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_default_clause<TStatements: Into<NodeArrayOrVec>>(
+    pub fn update_case_clause(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: TStatements,
+        node: &Node, /*CaseClause*/
+        expression: Gc<Node /*Expression*/>,
+        statements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_default_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        statements: impl Into<NodeArrayOrVec>,
     ) -> DefaultClause {
         let node = self.create_base_node(base_factory, SyntaxKind::DefaultClause);
         let mut node = DefaultClause::new(node, self.create_node_array(Some(statements), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
+    }
+
+    pub fn update_default_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*DefaultClause*/
+        statements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_heritage_clause(
@@ -1151,14 +1270,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_catch_clause<
-        'variable_declaration,
-        TVariableDeclaration: Into<StrOrRcNode<'variable_declaration>>,
-    >(
+    pub fn create_catch_clause<'variable_declaration>(
         &self,
         base_factory: &TBaseNodeFactory,
         variable_declaration: Option<
-            TVariableDeclaration, /*BindingName | VariableDeclaration*/
+            impl Into<StrOrRcNode<'variable_declaration>>,
+            /*BindingName | VariableDeclaration*/
         >,
         block: Gc<Node /*Block*/>,
     ) -> CatchClause {
@@ -1201,5 +1318,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsES2019);
         }
         node
+    }
+
+    pub fn update_catch_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*CatchClause*/
+        variable_declaration: Option<Gc<Node> /*VariableDeclaration*/>,
+        block: Gc<Node /*Block*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 }

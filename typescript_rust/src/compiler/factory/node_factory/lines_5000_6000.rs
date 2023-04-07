@@ -40,10 +40,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_shorthand_property_assignment<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn update_property_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: TName, /*Identifier*/
+        node: &Node,    /*PropertyAssignment*/
+        name: Gc<Node>, /*PropertyName*/
+        initializer: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_shorthand_property_assignment<'name>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
         object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
@@ -70,6 +80,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_shorthand_property_assignment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,    /*ShorthandPropertyAssignment*/
+        name: Gc<Node>, /*Identifier*/
+        object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_spread_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -87,6 +107,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsObjectRestOrSpread,
         );
         node
+    }
+
+    pub fn update_spread_assignment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*SpreadAssignment*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_enum_member<'name>(
@@ -302,6 +331,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::SyntheticExpression);
         let node = SyntheticExpression::new(node, is_spread, type_, tuple_name_source);
         node
+    }
+
+    pub fn update_partially_emitted_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*PartiallyEmittedExpression*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn update_comma_list_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*CommaListExpression*/
+        elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Gc<Node> {
