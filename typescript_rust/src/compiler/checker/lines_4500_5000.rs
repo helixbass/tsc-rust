@@ -442,20 +442,6 @@ impl TypeChecker {
         let source_file = enclosing_declaration.and_then(|enclosing_declaration| {
             maybe_get_source_file_of_node(Some(enclosing_declaration))
         });
-        use crate::NamedDeclarationInterface;
-        use crate::ReadonlyTextRange;
-        use crate::SignatureDeclarationInterface;
-        if type_node.kind() == SyntaxKind::FunctionType {
-            println!(
-                "type_node pos: {:?}, type_node end: {:?}, type_node parameters[0].pos: {:?}, type_node parameters[0].name.pos: {:?}, type_node parameters[0].name.elements[0].pos: {:?}, type_node parameters[0].name.elements[0].kind: {:?}",
-                type_node.pos(),
-                type_node.end(),
-                type_node.as_function_type_node().parameters()[0].pos(),
-                type_node.as_function_type_node().parameters()[0].as_parameter_declaration().name().pos(),
-                type_node.as_function_type_node().parameters()[0].as_parameter_declaration().name().as_object_binding_pattern().elements[0].pos(),
-                type_node.as_function_type_node().parameters()[0].as_parameter_declaration().name().as_object_binding_pattern().elements[0].kind(),
-            );
-        }
         printer.write_node(
             EmitHint::Unspecified,
             &type_node,

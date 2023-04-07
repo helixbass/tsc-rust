@@ -926,10 +926,6 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         node: &Node,
     ) -> Gc<Node> {
-        println!(
-            "elide_initializer_and_set_emit_flags node kind: {:?}",
-            node.kind()
-        );
         if context.tracker().is_track_symbol_supported()
             && is_computed_property_name(node)
             && self.type_checker.is_late_bindable_name(node)
