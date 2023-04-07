@@ -1,18 +1,19 @@
 use bitflags::bitflags;
 use gc::Gc;
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
+use std::{collections::HashMap, ptr};
 
 use super::{brackets, PipelinePhase};
 use crate::{
     emit_detached_comments, file_extension_is, for_each_leading_comment_range,
-    for_each_trailing_comment_range, get_line_and_character_of_position,
-    is_recognized_triple_slash_comment, last, position_is_synthesized, try_parse_raw_source_map,
-    write_comment_range, EmitHint, EmitTextWriter, Extension, LineAndCharacter, ListFormat, Node,
-    Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike, SourceMapSource, SourceTextAsChars,
-    SyntaxKind,
+    for_each_trailing_comment_range, get_emit_flags, get_line_and_character_of_position,
+    get_source_map_range, is_in_json_file, is_recognized_triple_slash_comment, is_unparsed_source,
+    last, position_is_synthesized, skip_trivia, try_parse_raw_source_map, write_comment_range,
+    Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension, LineAndCharacter, ListFormat, Node,
+    NodeInterface, Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike, SourceMapSource,
+    SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -332,25 +333,149 @@ impl Printer {
     }
 
     pub(super) fn emit_source_maps_before_node(&self, node: &Node) {
-        unimplemented!()
+        let emit_flags = get_emit_flags(node);
+        let source_map_range = get_source_map_range(node);
+
+        if is_unparsed_source(node) {
+            Debug_.assert_is_defined(
+                &node.maybe_parent(),
+                Some("UnparsedNodes must have parent pointers"),
+            );
+            let ref node_parent = node.parent();
+            let parsed = self.get_parsed_source_map(node_parent);
+            if let (Some(parsed), Some(source_map_generator)) =
+                (parsed, self.maybe_source_map_generator())
+            {
+                let node_parent_as_unparsed_source = node_parent.as_unparsed_source();
+                source_map_generator.append_source_map(
+                    self.writer().get_line(),
+                    self.writer().get_column(),
+                    &parsed,
+                    node_parent_as_unparsed_source
+                        .source_map_path
+                        .as_ref()
+                        .unwrap(),
+                    Some(
+                        node_parent_as_unparsed_source
+                            .get_line_and_character_of_position(node.pos().try_into().unwrap()),
+                    ),
+                    Some(
+                        node_parent_as_unparsed_source
+                            .get_line_and_character_of_position(node.end().try_into().unwrap()),
+                    ),
+                );
+            }
+        } else {
+            let source = source_map_range
+                .source
+                .clone()
+                .unwrap_or_else(|| self.source_map_source());
+            if node.kind() != SyntaxKind::NotEmittedStatement
+                && !emit_flags.intersects(EmitFlags::NoLeadingSourceMap)
+                && source_map_range.pos() >= 0
+            {
+                self.emit_source_pos(
+                    source_map_range
+                        .source
+                        .clone()
+                        .unwrap_or_else(|| self.source_map_source()),
+                    self.skip_source_trivia(&source, source_map_range.pos()),
+                );
+            }
+            if emit_flags.intersects(EmitFlags::NoNestedSourceMaps) {
+                self.set_source_maps_disabled(true);
+            }
+        }
     }
 
     pub(super) fn emit_source_maps_after_node(&self, node: &Node) {
-        unimplemented!()
+        let emit_flags = get_emit_flags(node);
+        let source_map_range = get_source_map_range(node);
+
+        if !is_unparsed_source(node) {
+            if emit_flags.intersects(EmitFlags::NoNestedSourceMaps) {
+                self.set_source_maps_disabled(false);
+            }
+            if node.kind() != SyntaxKind::NotEmittedStatement
+                && !emit_flags.intersects(EmitFlags::NoTrailingSourceMap)
+                && source_map_range.end() >= 0
+            {
+                self.emit_source_pos(
+                    source_map_range
+                        .source
+                        .clone()
+                        .unwrap_or_else(|| self.source_map_source()),
+                    source_map_range.end(),
+                );
+            }
+        }
     }
 
-    pub(super) fn emit_token_with_source_map<
-        TWriter: FnMut(&str),
-        TEmitCallback: FnMut(SyntaxKind, TWriter, isize),
-    >(
+    pub(super) fn skip_source_trivia(&self, source: &SourceMapSource, pos: isize) -> isize {
+        if let Some(source_skip_trivia) = source.skip_trivia() {
+            source_skip_trivia.call(pos)
+        } else {
+            skip_trivia(&source.text_as_chars(), pos, None, None, None)
+        }
+    }
+
+    pub(super) fn emit_token_with_source_map<TWriter: FnMut(&str)>(
         &self,
         node: Option<&Node>,
         token: SyntaxKind,
         writer: TWriter,
-        token_pos: isize,
-        emit_callback: TEmitCallback,
+        mut token_pos: isize,
+        mut emit_callback: impl FnMut(SyntaxKind, TWriter, isize) -> isize,
     ) -> isize {
-        unimplemented!()
+        if self.source_maps_disabled()
+            || matches!(
+                node,
+                Some(node) if is_in_json_file(Some(node))
+            )
+        {
+            return emit_callback(token, writer, token_pos);
+        }
+
+        let emit_node = node.and_then(|node| node.maybe_emit_node());
+        let emit_flags = emit_node
+            .as_ref()
+            .and_then(|emit_node| (**emit_node).borrow().flags)
+            .unwrap_or(EmitFlags::None);
+        let range = emit_node.as_ref().and_then(|emit_node| {
+            (**emit_node)
+                .borrow()
+                .token_source_map_ranges
+                .as_ref()
+                .and_then(|emit_node_token_source_map_ranges| {
+                    emit_node_token_source_map_ranges
+                        .get(&token)
+                        .cloned()
+                        .flatten()
+                })
+        });
+        let source = range
+            .as_ref()
+            .and_then(|range| range.source.clone())
+            .unwrap_or_else(|| self.source_map_source());
+
+        token_pos = self.skip_source_trivia(
+            &source,
+            range.as_ref().map_or(token_pos, |range| range.pos()),
+        );
+        if !emit_flags.intersects(EmitFlags::NoTokenLeadingSourceMaps) && token_pos >= 0 {
+            self.emit_source_pos(source.clone(), token_pos);
+        }
+
+        token_pos = emit_callback(token, writer, token_pos);
+
+        if let Some(range) = range {
+            token_pos = range.end();
+        }
+        if !emit_flags.intersects(EmitFlags::NoTokenTrailingSourceMaps) && token_pos >= 0 {
+            self.emit_source_pos(source, token_pos);
+        }
+
+        token_pos
     }
 
     pub(super) fn emit_pos(&self, pos: isize) {
@@ -368,11 +493,32 @@ impl Printer {
         self.source_map_generator().add_mapping(
             self.writer().get_line(),
             self.writer().get_column(),
-            self.source_map_source_index(),
+            self.source_map_source_index().try_into().unwrap(),
             source_line,
             source_character,
             None,
         );
+    }
+
+    pub(super) fn emit_source_pos(&self, source: Gc<SourceMapSource>, pos: isize) {
+        if !matches!(
+            self.maybe_source_map_source(),
+            Some(source_map_source) if Gc::ptr_eq(
+                &source,
+                &source_map_source
+            )
+        ) {
+            let saved_source_map_source = self.maybe_source_map_source();
+            let saved_source_map_source_index = self.source_map_source_index();
+            self.set_source_map_source(source);
+            self.reset_source_map_source(
+                saved_source_map_source.unwrap(),
+                saved_source_map_source_index,
+            );
+            self.emit_pos(pos);
+        } else {
+            self.emit_pos(pos);
+        }
     }
 
     pub(super) fn set_source_map_source(&self, source: Gc<SourceMapSource>) {
@@ -411,6 +557,11 @@ impl Printer {
 
         self.set_most_recently_added_source_map_source(Some(source));
         self.set_most_recently_added_source_map_source_index(self.source_map_source_index());
+    }
+
+    pub(super) fn reset_source_map_source(&self, source: Gc<SourceMapSource>, source_index: isize) {
+        self.set_source_map_source_(Some(source));
+        self.set_source_map_source_index(source_index);
     }
 
     pub(super) fn is_json_source_map_source(&self, source_file: &SourceMapSource) -> bool {

@@ -21,12 +21,13 @@ use crate::{
     node_is_synthesized, null_transformation_context, out_file, path_is_relative,
     set_comment_range, set_emit_flags, set_synthetic_leading_comments, some, symbol_name,
     unescape_leading_underscores, visit_each_child, with_factory,
-    with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags, IndexInfo,
-    InternalSymbolName, ModifierFlags, ModuleResolutionKind, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArray, StrOrRcNode,
-    StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
-    SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
-    UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
+    with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags,
+    HasInitializerInterface, IndexInfo, InternalSymbolName, ModifierFlags, ModuleResolutionKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    Signature, SignatureFlags, StrOrNodeArray, StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
+    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
+    VisitResult,
 };
 
 impl NodeBuilder {
@@ -925,7 +926,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         node: &Node,
     ) -> Gc<Node> {
-        if context.tracker.is_track_symbol_supported()
+        if context.tracker().is_track_symbol_supported()
             && is_computed_property_name(node)
             && self.type_checker.is_late_bindable_name(node)
         {
@@ -947,11 +948,11 @@ impl NodeBuilder {
             Option::<
                 fn(
                     Option<&NodeArray>,
-                    Option<fn(&Node) -> VisitResult>,
-                    Option<fn(&Node) -> bool>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> Gc<NodeArray>,
+                ) -> Option<Gc<NodeArray>>,
             >::None,
             Some(|node: &Node| {
                 Some(
@@ -962,17 +963,25 @@ impl NodeBuilder {
             Option::<
                 fn(
                     Option<&Node>,
-                    Option<fn(&Node) -> VisitResult>,
-                    Option<fn(&Node) -> bool>,
-                    Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
                 ) -> Option<Gc<Node>>,
             >::None,
         )
-        .into_iter()
-        .next()
         .unwrap();
         if is_binding_element(&visited) {
-            unimplemented!()
+            let visited_as_binding_element = visited.as_binding_element();
+            visited = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_.update_binding_element(
+                    synthetic_factory_,
+                    &visited,
+                    visited_as_binding_element.dot_dot_dot_token.clone(),
+                    visited_as_binding_element.property_name.clone(),
+                    visited_as_binding_element.name(),
+                    visited_as_binding_element.maybe_initializer(),
+                )
+            });
         }
         if !node_is_synthesized(&*visited) {
             visited = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
@@ -988,7 +997,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         context: &NodeBuilderContext,
     ) {
-        if !context.tracker.is_track_symbol_supported() {
+        if !context.tracker().is_track_symbol_supported() {
             return;
         }
         let first_identifier = get_first_identifier(access_expression);
@@ -1002,7 +1011,7 @@ impl NodeBuilder {
             None,
         );
         if let Some(name) = name.as_ref() {
-            context.tracker.track_symbol(
+            context.tracker().track_symbol(
                 name,
                 enclosing_declaration
                     .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper()),
@@ -1018,7 +1027,7 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         yield_module_symbol: Option<bool>,
     ) -> Vec<Gc<Symbol>> {
-        context.tracker.track_symbol(
+        context.tracker().track_symbol(
             symbol,
             context.maybe_enclosing_declaration(),
             // TODO: it looks like this is a place where the Typescript version "lied", I don't
@@ -1356,7 +1365,7 @@ impl NodeBuilder {
         }
         if file.is_none() {
             if context
-                .tracker
+                .tracker()
                 .is_track_referenced_ambient_module_supported()
             {
                 let ambient_decls = maybe_filter(
@@ -1366,7 +1375,7 @@ impl NodeBuilder {
                 if length(ambient_decls.as_deref()) > 0 {
                     for decl in ambient_decls.as_ref().unwrap() {
                         context
-                            .tracker
+                            .tracker()
                             .track_referenced_ambient_module(decl, symbol);
                     }
                 }
@@ -1376,7 +1385,7 @@ impl NodeBuilder {
             }
         }
         if context.maybe_enclosing_declaration().is_none()
-            || !context.tracker.is_module_resolver_host_supported()
+            || !context.tracker().is_module_resolver_host_supported()
         {
             if ambient_module_symbol_regex.is_match(symbol.escaped_name()) {
                 return symbol.escaped_name()[1..symbol.escaped_name().len() - 1].to_owned();
@@ -1409,7 +1418,8 @@ impl NodeBuilder {
                 out_file(&self.type_checker.compiler_options),
                 Some(out_file) if !out_file.is_empty()
             );
-            let module_resolver_host = context.tracker.module_resolver_host().unwrap();
+            let context_tracker = context.tracker();
+            let module_resolver_host = context_tracker.module_resolver_host().unwrap();
             let specifier_compiler_options = if is_bundle {
                 Gc::new(CompilerOptions {
                     base_url: Some(module_resolver_host.get_common_source_directory()),
@@ -1530,7 +1540,7 @@ impl NodeBuilder {
             {
                 context.encountered_error.set(true);
                 context
-                    .tracker
+                    .tracker()
                     .report_likely_unsafe_import_required_error(&specifier);
             }
             let lit: Gc<Node> =
@@ -1550,7 +1560,7 @@ impl NodeBuilder {
                         .into()
                 });
             context
-                .tracker
+                .tracker()
                 .track_external_module_symbol_of_import_type_node(&chain[0]);
             context.increment_approximate_length_by(specifier.len() + 10);
             if match non_root_parts.as_ref() {

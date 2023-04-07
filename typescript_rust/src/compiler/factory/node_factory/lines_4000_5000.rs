@@ -13,9 +13,9 @@ use crate::{
     JSDocText, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
     JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
-    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StrOrRcNode, StringOrNodeArray,
-    SyntaxKind, TransformFlags,
+    LiteralLikeNodeInterface, MissingDeclaration, NamedExports, NamedImports, NamespaceExport,
+    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StrOrRcNode,
+    StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -31,6 +31,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_assert_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,             /*AssertClause*/
+        elements: Gc<NodeArray>, /*<AssertEntry>*/
+        multi_line: Option<bool>,
+    ) -> Gc<Node> {
+        let node_as_assert_clause = node.as_assert_clause();
+        if !Gc::ptr_eq(&node_as_assert_clause.elements, &elements)
+            || node_as_assert_clause.multi_line != multi_line
+        {
+            self.update(
+                self.create_assert_clause(base_factory, elements, multi_line)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_assert_entry(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -41,6 +62,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = AssertEntry::new(node, name, value);
         node.add_transform_flags(TransformFlags::ContainsESNext);
         node
+    }
+
+    pub fn update_assert_entry(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*AssertEntry*/
+        name: Gc<Node /*AssertionKey*/>,
+        value: Gc<Node /*StringLiteral*/>,
+    ) -> Gc<Node> {
+        let node_as_assert_entry = node.as_assert_entry();
+        if !Gc::ptr_eq(&node_as_assert_entry.name, &name)
+            || !Gc::ptr_eq(&node_as_assert_entry.value, &value)
+        {
+            self.update(
+                self.create_assert_entry(base_factory, name, value).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_namespace_import(
@@ -57,6 +98,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_namespace_import(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamespaceImport*/
+        name: Gc<Node /*Identifier*/>,
+    ) -> Gc<Node> {
+        let node_as_namespace_import = node.as_namespace_import();
+        if !Gc::ptr_eq(&node_as_namespace_import.name, &name) {
+            self.update(
+                self.create_namespace_import(base_factory, name).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_namespace_export(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -71,6 +129,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_namespace_export(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamespaceExport*/
+        name: Gc<Node /*Identifier*/>,
+    ) -> Gc<Node> {
+        let node_as_namespace_export = node.as_namespace_export();
+        if !Gc::ptr_eq(&node_as_namespace_export.name, &name) {
+            self.update(
+                self.create_namespace_export(base_factory, name).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_named_imports(
@@ -122,6 +197,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_import_specifier(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ImportSpecifier*/
+        is_type_only: bool,
+        property_name: Option<Gc<Node /*Identifier*/>>,
+        name: Gc<Node /*Identifier*/>,
+    ) -> Gc<Node> {
+        let node_as_import_specifier = node.as_import_specifier();
+        if node_as_import_specifier.is_type_only != is_type_only
+            || !are_option_gcs_equal(
+                node_as_import_specifier.property_name.as_ref(),
+                property_name.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_import_specifier.name, &name)
+        {
+            self.update(
+                self.create_import_specifier(base_factory, is_type_only, property_name, name)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_export_assignment(
@@ -287,6 +388,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_named_exports(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NamedExports*/
+        elements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        let node_as_named_exports = node.as_named_exports();
+        let elements = elements.into();
+        if has_node_array_changed(&node_as_named_exports.elements, &elements) {
+            self.update(
+                self.create_named_exports(base_factory, elements).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_export_specifier<'property_name, 'name>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -313,6 +432,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn update_export_specifier(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ExportSpecifier*/
+        is_type_only: bool,
+        property_name: Option<Gc<Node> /*Identifier*/>,
+        name: Gc<Node>,
+        /*Identifier*/
+    ) -> Gc<Node> {
+        let node_as_export_specifier = node.as_export_specifier();
+        if node_as_export_specifier.is_type_only != is_type_only
+            || !are_option_gcs_equal(
+                node_as_export_specifier.property_name.as_ref(),
+                property_name.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_export_specifier.name, &name)
+        {
+            self.update(
+                self.create_export_specifier(base_factory, is_type_only, property_name, name)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_missing_declaration(
@@ -805,11 +951,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         JSDoc::new(node, comment.map(Into::into), self.as_node_array(tags))
     }
 
-    pub fn create_jsx_element<TChildren: Into<NodeArrayOrVec>>(
+    pub fn create_jsx_element(
         &self,
         base_factory: &TBaseNodeFactory,
         opening_element: Gc<Node /*JsxOpeningElement*/>,
-        children: TChildren,
+        children: impl Into<NodeArrayOrVec>,
         closing_element: Gc<Node /*JsxClosingElement*/>,
     ) -> JsxElement {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxElement);
@@ -828,11 +974,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_jsx_self_closing_element<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxElement*/
+        opening_element: Gc<Node /*JsxOpeningElement*/>,
+        children: impl Into<NodeArrayOrVec>,
+        closing_element: Gc<Node /*JsxClosingElement*/>,
+    ) -> Gc<Node> {
+        let node_as_jsx_element = node.as_jsx_element();
+        let children = children.into();
+        if !Gc::ptr_eq(&node_as_jsx_element.opening_element, &opening_element)
+            || has_node_array_changed(&node_as_jsx_element.children, &children)
+            || !Gc::ptr_eq(&node_as_jsx_element.closing_element, &closing_element)
+        {
+            self.update(
+                self.create_jsx_element(base_factory, opening_element, children, closing_element)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_jsx_self_closing_element(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Gc<Node /*JsxTagNameExpression*/>,
-        type_arguments: Option<TTypeArguments>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Gc<Node /*JsxAttributes*/>,
     ) -> JsxSelfClosingElement {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxSelfClosingElement);
@@ -854,11 +1024,45 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_jsx_opening_element<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_self_closing_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxSelfClosingElement*/
+        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
+        attributes: Gc<Node /*JsxAttributes*/>,
+    ) -> Gc<Node> {
+        let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
+        let type_arguments = type_arguments.map(Into::into);
+        if !Gc::ptr_eq(&node_as_jsx_self_closing_element.tag_name, &tag_name)
+            || has_option_node_array_changed(
+                node_as_jsx_self_closing_element
+                    .maybe_type_arguments()
+                    .as_deref(),
+                type_arguments.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_jsx_self_closing_element.attributes, &attributes)
+        {
+            self.update(
+                self.create_jsx_self_closing_element(
+                    base_factory,
+                    tag_name,
+                    type_arguments,
+                    attributes,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_jsx_opening_element(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Gc<Node /*JsxTagNameExpression*/>,
-        type_arguments: Option<TTypeArguments>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
         attributes: Gc<Node /*JsxAttributes*/>,
     ) -> JsxOpeningElement {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxOpeningElement);
@@ -880,6 +1084,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_jsx_opening_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxOpeningElement*/
+        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec>>,
+        attributes: Gc<Node /*JsxAttributes*/>,
+    ) -> Gc<Node> {
+        let node_as_jsx_opening_element = node.as_jsx_opening_element();
+        let type_arguments = type_arguments.map(Into::into);
+        if !Gc::ptr_eq(&node_as_jsx_opening_element.tag_name, &tag_name)
+            || has_option_node_array_changed(
+                node_as_jsx_opening_element
+                    .maybe_type_arguments()
+                    .as_deref(),
+                type_arguments.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_jsx_opening_element.attributes, &attributes)
+        {
+            self.update(
+                self.create_jsx_opening_element(base_factory, tag_name, type_arguments, attributes)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_jsx_closing_element(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -893,11 +1126,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_jsx_fragment<TChildren: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_closing_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxClosingElement*/
+        tag_name: Gc<Node /*JsxTagNameExpression*/>,
+    ) -> Gc<Node> {
+        let node_as_jsx_closing_element = node.as_jsx_closing_element();
+        if !Gc::ptr_eq(&node_as_jsx_closing_element.tag_name, &tag_name) {
+            self.update(
+                self.create_jsx_closing_element(base_factory, tag_name)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_jsx_fragment(
         &self,
         base_factory: &TBaseNodeFactory,
         opening_fragment: Gc<Node /*JsxOpeningFragment*/>,
-        children: TChildren,
+        children: impl Into<NodeArrayOrVec>,
         closing_fragment: Gc<Node /*JsxClosingFragment*/>,
     ) -> JsxFragment {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxFragment);
@@ -916,6 +1167,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_jsx_fragment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxFragment*/
+        opening_fragment: Gc<Node /*JsxOpeningFragment*/>,
+        children: impl Into<NodeArrayOrVec>,
+        closing_fragment: Gc<Node /*JsxClosingFragment*/>,
+    ) -> Gc<Node> {
+        let node_as_jsx_fragment = node.as_jsx_fragment();
+        let children = children.into();
+        if !Gc::ptr_eq(&node_as_jsx_fragment.opening_fragment, &opening_fragment)
+            || has_node_array_changed(&node_as_jsx_fragment.children, &children)
+            || !Gc::ptr_eq(&node_as_jsx_fragment.closing_fragment, &closing_fragment)
+        {
+            self.update(
+                self.create_jsx_fragment(
+                    base_factory,
+                    opening_fragment,
+                    children,
+                    closing_fragment,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_jsx_text(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -930,6 +1210,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsJsx);
         node
+    }
+
+    pub fn update_jsx_text(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxText*/
+        text: String,
+        contains_only_trivia_white_spaces: Option<bool>,
+    ) -> Gc<Node> {
+        let node_as_jsx_text = node.as_jsx_text();
+        if &*node_as_jsx_text.text() != &text
+            || Some(node_as_jsx_text.contains_only_trivia_white_spaces)
+                != contains_only_trivia_white_spaces
+        {
+            self.update(
+                self.create_jsx_text(base_factory, text, contains_only_trivia_white_spaces)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_jsx_opening_fragment(
@@ -968,10 +1270,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_jsx_attributes<TProperties: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_attribute(
         &self,
         base_factory: &TBaseNodeFactory,
-        properties: TProperties,
+        node: &Node, /*JsxAttribute*/
+        name: Gc<Node /*Identifier*/>,
+        initializer: Option<Gc<Node /*StringLiteral | JsxExpression*/>>,
+    ) -> Gc<Node> {
+        let node_as_jsx_attribute = node.as_jsx_attribute();
+        if !Gc::ptr_eq(&node_as_jsx_attribute.name, &name)
+            || !are_option_gcs_equal(
+                node_as_jsx_attribute.initializer.as_ref(),
+                initializer.as_ref(),
+            )
+        {
+            self.update(
+                self.create_jsx_attribute(base_factory, name, initializer)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_jsx_attributes(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        properties: impl Into<NodeArrayOrVec>,
     ) -> JsxAttributes {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxAttributes);
         let mut node = JsxAttributes::new(node, self.create_node_array(Some(properties), None));
@@ -979,6 +1305,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_children_flags(Some(&node.properties)) | TransformFlags::ContainsJsx,
         );
         node
+    }
+
+    pub fn update_jsx_attributes(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxAttributes*/
+        properties: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        let node_as_jsx_attributes = node.as_jsx_attributes();
+        let properties = properties.into();
+        if has_node_array_changed(&node_as_jsx_attributes.properties, &properties) {
+            self.update(
+                self.create_jsx_attributes(base_factory, properties).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_jsx_spread_attribute(
@@ -992,6 +1336,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsJsx,
         );
         node
+    }
+
+    pub fn update_jsx_spread_attribute(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxSpreadAttribute*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_jsx_spread_attribute = node.as_jsx_spread_attribute();
+        if !Gc::ptr_eq(&node_as_jsx_spread_attribute.expression, &expression) {
+            self.update(
+                self.create_jsx_spread_attribute(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_jsx_expression(
@@ -1010,11 +1372,36 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_case_clause<TStatements: Into<NodeArrayOrVec>>(
+    pub fn update_jsx_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JsxExpression*/
+        expression: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        let node_as_jsx_expression = node.as_jsx_expression();
+        if !are_option_gcs_equal(
+            node_as_jsx_expression.expression.as_ref(),
+            expression.as_ref(),
+        ) {
+            self.update(
+                self.create_jsx_expression(
+                    base_factory,
+                    node_as_jsx_expression.dot_dot_dot_token.clone(),
+                    expression,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_case_clause(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
-        statements: TStatements,
+        statements: impl Into<NodeArrayOrVec>,
     ) -> CaseClause {
         let node = self.create_base_node(base_factory, SyntaxKind::CaseClause);
         let mut node = CaseClause::new(
@@ -1030,15 +1417,55 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_default_clause<TStatements: Into<NodeArrayOrVec>>(
+    pub fn update_case_clause(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: TStatements,
+        node: &Node, /*CaseClause*/
+        expression: Gc<Node /*Expression*/>,
+        statements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        let node_as_case_clause = node.as_case_clause();
+        let statements = statements.into();
+        if !Gc::ptr_eq(&node_as_case_clause.expression, &expression)
+            || has_node_array_changed(&node_as_case_clause.statements, &statements)
+        {
+            self.update(
+                self.create_case_clause(base_factory, expression, statements)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_default_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        statements: impl Into<NodeArrayOrVec>,
     ) -> DefaultClause {
         let node = self.create_base_node(base_factory, SyntaxKind::DefaultClause);
         let mut node = DefaultClause::new(node, self.create_node_array(Some(statements), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
+    }
+
+    pub fn update_default_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*DefaultClause*/
+        statements: impl Into<NodeArrayOrVec>,
+    ) -> Gc<Node> {
+        let node_as_default_clause = node.as_default_clause();
+        let statements = statements.into();
+        if has_node_array_changed(&node_as_default_clause.statements, &statements) {
+            self.update(
+                self.create_default_clause(base_factory, statements).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_heritage_clause(
@@ -1081,14 +1508,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_catch_clause<
-        'variable_declaration,
-        TVariableDeclaration: Into<StrOrRcNode<'variable_declaration>>,
-    >(
+    pub fn create_catch_clause<'variable_declaration>(
         &self,
         base_factory: &TBaseNodeFactory,
         variable_declaration: Option<
-            TVariableDeclaration, /*BindingName | VariableDeclaration*/
+            impl Into<StrOrRcNode<'variable_declaration>>,
+            /*BindingName | VariableDeclaration*/
         >,
         block: Gc<Node /*Block*/>,
     ) -> CatchClause {
@@ -1131,5 +1556,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsES2019);
         }
         node
+    }
+
+    pub fn update_catch_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*CatchClause*/
+        variable_declaration: Option<Gc<Node> /*VariableDeclaration*/>,
+        block: Gc<Node /*Block*/>,
+    ) -> Gc<Node> {
+        let node_as_catch_clause = node.as_catch_clause();
+        if !are_option_gcs_equal(
+            node_as_catch_clause.variable_declaration.as_ref(),
+            variable_declaration.as_ref(),
+        ) || !Gc::ptr_eq(&node_as_catch_clause.block, &block)
+        {
+            self.update(
+                self.create_catch_clause(base_factory, variable_declaration, block)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 }

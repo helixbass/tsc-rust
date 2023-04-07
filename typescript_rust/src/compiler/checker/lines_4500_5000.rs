@@ -2,7 +2,7 @@
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::mem;
@@ -536,7 +536,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeBuilder {
     pub type_checker: Gc<TypeChecker>,
 }
@@ -662,27 +662,23 @@ impl NodeBuilder {
 
     pub fn symbol_table_to_declaration_statements(
         &self,
-        symbol_table: &SymbolTable,
+        symbol_table: Gc<GcCell<SymbolTable>>,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
         bundled: Option<bool>,
     ) -> Option<Vec<Gc<Node /*Statement*/>>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
-            self.symbol_table_to_declaration_statements_(symbol_table, context, bundled)
+            Some(self.symbol_table_to_declaration_statements_(symbol_table, context, bundled))
         })
     }
 
-    pub(super) fn with_context<
-        TReturn,
-        TEnclosingDeclaration: Borrow<Node>,
-        TCallback: FnOnce(&NodeBuilderContext) -> Option<TReturn>,
-    >(
+    pub(super) fn with_context<TReturn>(
         &self,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-        cb: TCallback,
+        cb: impl FnOnce(&NodeBuilderContext) -> Option<TReturn>,
     ) -> Option<TReturn> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -701,13 +697,13 @@ impl NodeBuilder {
                 DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.host.clone(), flags)
                     .as_dyn_symbol_tracker()
             });
-        let context = Gc::new(GcCell::new(NodeBuilderContext::new(
+        let context = NodeBuilderContext::new(
             enclosing_declaration,
             flags.unwrap_or(NodeBuilderFlags::None),
             tracker.clone(),
-        )));
+        );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
-        context.borrow_mut().tracker = Gc::new(Box::new(context_tracker));
+        context.set_tracker(Gc::new(Box::new(context_tracker)));
         let context = (*context).borrow();
         let resulting_node = cb(&context);
         if context.truncating.get() == Some(true)
@@ -716,7 +712,7 @@ impl NodeBuilder {
                 .get()
                 .intersects(NodeBuilderFlags::NoTruncation)
         {
-            context.tracker.report_truncation_error();
+            context.tracker().report_truncation_error();
         }
         if context.encountered_error.get() {
             None
@@ -1119,7 +1115,7 @@ impl NodeBuilder {
                     ));
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
-                context.tracker.report_inaccessible_unique_symbol_error();
+                context.tracker().report_inaccessible_unique_symbol_error();
                 // }
             }
             context.increment_approximate_length_by(13);
@@ -1231,7 +1227,7 @@ impl NodeBuilder {
                     context.encountered_error.set(true);
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
-                context.tracker.report_inaccessible_unique_symbol_error();
+                context.tracker().report_inaccessible_unique_symbol_error();
                 // }
             }
             context.increment_approximate_length_by(4);
@@ -1721,7 +1717,7 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
 }
 
 pub(super) fn wrap_symbol_tracker_to_report_for_context(
-    context: Gc<GcCell<NodeBuilderContext>>,
+    context: Gc<NodeBuilderContext>,
     tracker: Gc<Box<dyn SymbolTracker>>,
 ) -> NodeBuilderContextWrappedSymbolTracker {
     NodeBuilderContextWrappedSymbolTracker { tracker, context }
@@ -1730,7 +1726,7 @@ pub(super) fn wrap_symbol_tracker_to_report_for_context(
 #[derive(Trace, Finalize)]
 pub(super) struct NodeBuilderContextWrappedSymbolTracker {
     tracker: Gc<Box<dyn SymbolTracker>>,
-    context: Gc<GcCell<NodeBuilderContext>>,
+    context: Gc<NodeBuilderContext>,
 }
 
 impl NodeBuilderContextWrappedSymbolTracker {
@@ -1890,10 +1886,11 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
 #[derive(Clone, Trace, Finalize)]
 pub struct NodeBuilderContext {
-    enclosing_declaration: Gc<GcCell<Option<Gc<Node>>>>,
+    pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilderContext>>>,
+    pub(super) enclosing_declaration: Gc<GcCell<Option<Gc<Node>>>>,
     #[unsafe_ignore_trace]
     pub flags: Cell<NodeBuilderFlags>,
-    pub tracker: Gc<Box<dyn SymbolTracker>>,
+    pub(super) tracker: GcCell<Gc<Box<dyn SymbolTracker>>>,
 
     #[unsafe_ignore_trace]
     pub encountered_error: Cell<bool>,
@@ -1927,11 +1924,12 @@ impl NodeBuilderContext {
         enclosing_declaration: Option<Gc<Node>>,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Self {
-        Self {
+    ) -> Gc<Self> {
+        let ret = Gc::new(Self {
+            _rc_wrapper: Default::default(),
             enclosing_declaration: Gc::new(GcCell::new(enclosing_declaration)),
             flags: Cell::new(flags),
-            tracker,
+            tracker: GcCell::new(tracker),
             encountered_error: Default::default(),
             reported_diagnostic: Default::default(),
             visited_types: Default::default(),
@@ -1946,11 +1944,21 @@ impl NodeBuilderContext {
             used_symbol_names: Default::default(),
             remapped_symbol_names: Default::default(),
             reverse_mapped_stack: Default::default(),
-        }
+        });
+        *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
+        ret
+    }
+
+    pub fn rc_wrapper(&self) -> Gc<Self> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     pub fn maybe_enclosing_declaration(&self) -> Option<Gc<Node>> {
         (*self.enclosing_declaration).borrow().clone()
+    }
+
+    pub fn enclosing_declaration(&self) -> Gc<Node> {
+        (*self.enclosing_declaration).borrow().clone().unwrap()
     }
 
     pub fn set_enclosing_declaration(&self, enclosing_declaration: Option<Gc<Node>>) {
@@ -1965,8 +1973,20 @@ impl NodeBuilderContext {
         self.flags.set(flags);
     }
 
+    pub fn tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self.tracker.borrow().clone()
+    }
+
+    pub fn set_tracker(&self, tracker: Gc<Box<dyn SymbolTracker>>) {
+        *self.tracker.borrow_mut() = tracker;
+    }
+
     pub fn increment_approximate_length_by(&self, amount: usize) {
         self.approximate_length
             .set(self.approximate_length.get() + amount);
+    }
+
+    pub fn maybe_used_symbol_names(&self) -> Ref<Option<HashSet<String>>> {
+        (*self.used_symbol_names).borrow()
     }
 }

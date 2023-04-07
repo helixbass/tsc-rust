@@ -23,7 +23,7 @@ use crate::{
     ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type,
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
-    __String,
+    __String, get_line_and_character_of_position, LineAndCharacter, ProgramBuildInfo,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -130,7 +130,7 @@ pub trait HasStatementsInterface {
     fn statements(&self) -> Gc<NodeArray>;
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct SourceFile {
     _node: BaseNode,
@@ -877,7 +877,7 @@ pub struct InputFiles {
     _node: BaseNode,
     fallback_javascript_text: String,
     fallback_declaration_text: String,
-    initialized_state: InputFilesInitializedState,
+    initialized_state: Gc<InputFilesInitializedState>,
     pub javascript_path: Option<String>,
     pub javascript_map_path: Option<String>,
     pub declaration_path: Option<String>,
@@ -917,16 +917,17 @@ impl InputFiles {
     ) {
         let javascript_map_text_or_declaration_path =
             Debug_.check_defined(javascript_map_text_or_declaration_path, None);
-        self.initialized_state = InputFilesInitializedState::InitializedWithReadFileCallback(
-            InputFilesInitializedWithReadFileCallback::new(
-                read_file_callback,
-                declaration_text_or_javascript_path.clone(),
-                javascript_map_path.clone(),
-                javascript_map_text_or_declaration_path.clone(),
-                declaration_map_path.clone(),
-                declaration_map_text_or_build_info_path.clone(),
-            ),
-        );
+        self.initialized_state =
+            Gc::new(InputFilesInitializedState::InitializedWithReadFileCallback(
+                InputFilesInitializedWithReadFileCallback::new(
+                    read_file_callback,
+                    declaration_text_or_javascript_path.clone(),
+                    javascript_map_path.clone(),
+                    javascript_map_text_or_declaration_path.clone(),
+                    declaration_map_path.clone(),
+                    declaration_map_text_or_build_info_path.clone(),
+                ),
+            ));
         self.javascript_path = Some(declaration_text_or_javascript_path);
         self.javascript_map_path = javascript_map_path;
         self.declaration_path = Some(javascript_map_text_or_declaration_path);
@@ -948,7 +949,7 @@ impl InputFiles {
         build_info: Option<Gc<BuildInfo>>,
         old_file_of_current_emit: Option<bool>,
     ) {
-        self.initialized_state = InputFilesInitializedState::InitializedWithString(
+        self.initialized_state = Gc::new(InputFilesInitializedState::InitializedWithString(
             InputFilesInitializedWithString::new(
                 javascript_text_or_read_file_text,
                 javascript_map_text_or_declaration_path,
@@ -956,7 +957,7 @@ impl InputFiles {
                 declaration_map_text_or_build_info_path,
                 build_info,
             ),
-        );
+        ));
         self.javascript_map_path = javascript_map_path;
         self.declaration_map_path = declaration_map_path;
         self.javascript_path = javascript_path;
@@ -966,7 +967,7 @@ impl InputFiles {
     }
 
     pub fn javascript_text(&self) -> String {
-        match &self.initialized_state {
+        match &*self.initialized_state {
             InputFilesInitializedState::Uninitialized => self.fallback_javascript_text.clone(),
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -980,7 +981,7 @@ impl InputFiles {
     }
 
     pub fn javascript_map_text(&self) -> Option<String> {
-        match &self.initialized_state {
+        match &*self.initialized_state {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -996,7 +997,7 @@ impl InputFiles {
     }
 
     pub fn declaration_text(&self) -> String {
-        match &self.initialized_state {
+        match &*self.initialized_state {
             InputFilesInitializedState::Uninitialized => self.fallback_declaration_text.clone(),
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -1010,7 +1011,7 @@ impl InputFiles {
     }
 
     pub fn declaration_map_text(&self) -> Option<String> {
-        match &self.initialized_state {
+        match &*self.initialized_state {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -1026,7 +1027,7 @@ impl InputFiles {
     }
 
     pub fn build_info(&self) -> Option<Gc<BuildInfo>> {
-        match &self.initialized_state {
+        match &*self.initialized_state {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -1239,6 +1240,10 @@ impl UnparsedSource {
             old_file_of_current_emit: None,
             parsed_source_map: RefCell::new(None),
         }
+    }
+
+    pub fn get_line_and_character_of_position(&self, pos: usize) -> LineAndCharacter {
+        get_line_and_character_of_position(self, pos)
     }
 }
 
@@ -1710,10 +1715,16 @@ pub struct Program {
     pub(crate) should_create_new_source_file: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub(crate) structure_is_reused: Cell<Option<StructureIsReused>>,
+
+    pub(crate) get_program_build_info: GcCell<Option<Gc<Box<dyn GetProgramBuildInfo>>>>,
 }
 
 impl fmt::Debug for Program {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Program").finish()
     }
+}
+
+pub trait GetProgramBuildInfo: Trace + Finalize {
+    fn call(&self) -> Option<Gc<ProgramBuildInfo>>;
 }

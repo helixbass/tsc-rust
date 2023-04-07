@@ -926,9 +926,9 @@ impl EmitHost for ProgramEmitHost {
     }
 
     fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>> {
-        // TODO: this looks like it's implemented as a dynamically-set property on Program in
-        // createBuilderProgram()
-        unimplemented!()
+        self.program
+            .maybe_get_program_build_info_rc()
+            .and_then(|get_program_build_info| get_program_build_info.call())
     }
 
     fn get_source_file_from_reference(

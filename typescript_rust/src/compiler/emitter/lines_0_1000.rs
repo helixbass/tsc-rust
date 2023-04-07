@@ -1113,9 +1113,9 @@ fn print_source_file_or_bundle(
     if should_emit_source_maps(map_options, source_file_or_bundle) {
         source_map_generator = Some(create_source_map_generator(
             host.clone(),
-            &get_base_file_name(&normalize_slashes(js_file_path), None, None),
-            &get_source_root(map_options),
-            &get_source_map_directory(&**host, map_options, js_file_path, source_file.as_deref()),
+            get_base_file_name(&normalize_slashes(js_file_path), None, None),
+            get_source_root(map_options),
+            get_source_map_directory(&**host, map_options, js_file_path, source_file.as_deref()),
             &map_options.into(),
         ));
     }
@@ -1305,7 +1305,7 @@ fn get_source_mapping_url(
 }
 
 pub(crate) fn get_build_info_text(build_info: &BuildInfo) -> String {
-    unimplemented!()
+    serde_json::to_string(build_info).unwrap()
 }
 
 pub(crate) fn get_build_info(build_info_text: &str) -> Gc<BuildInfo> {
@@ -1959,6 +1959,14 @@ impl Printer {
 
     pub(super) fn source_map_generator(&self) -> Gc<Box<dyn SourceMapGenerator>> {
         self.source_map_generator.borrow().clone().unwrap()
+    }
+
+    pub(super) fn maybe_source_map_generator(&self) -> Option<Gc<Box<dyn SourceMapGenerator>>> {
+        self.source_map_generator.borrow().clone()
+    }
+
+    pub(super) fn maybe_source_map_source(&self) -> Option<Gc<SourceMapSource>> {
+        self.source_map_source.borrow().clone()
     }
 
     pub(super) fn source_map_source(&self) -> Gc<SourceMapSource> {

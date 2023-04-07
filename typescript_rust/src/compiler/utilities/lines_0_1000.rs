@@ -480,15 +480,9 @@ pub fn for_each_ancestor<
     }
 }
 
-pub fn for_each_entry<
-    TKey,
-    TValue,
-    TMap: IntoIterator<Item = (TKey, TValue)>,
-    TReturn,
-    TCallback: FnMut(TValue, TKey) -> Option<TReturn>,
->(
-    map: TMap, /*ReadonlyESMap*/
-    mut callback: TCallback,
+pub fn for_each_entry<TKey, TValue, TReturn>(
+    map: impl IntoIterator<Item = (TKey, TValue)>, /*ReadonlyESMap*/
+    mut callback: impl FnMut(TValue, TKey) -> Option<TReturn>,
 ) -> Option<TReturn> {
     for (key, value) in map {
         let result = callback(value, key);

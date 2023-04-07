@@ -11,13 +11,14 @@ use crate::{
     are_option_gcs_equal, get_elements_of_binding_or_assignment_pattern,
     get_target_of_binding_or_assignment_element, has_invalid_escape, has_node_array_changed,
     has_option_node_array_changed, is_array_literal_expression, is_assignment_pattern,
-    is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
-    is_logical_or_coalescing_assignment_operator, is_object_literal_expression,
-    is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
-    modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction, AsDoubleDeref,
-    AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
-    BindingElement, CallExpression, ClassExpression, ClassLikeDeclarationInterface,
-    ConditionalExpression, Debug_, DeleteExpression, ElementAccessExpression, FunctionExpression,
+    is_call_chain, is_element_access_chain, is_generated_identifier, is_identifier,
+    is_import_keyword, is_local_name, is_logical_or_coalescing_assignment_operator,
+    is_object_literal_expression, is_omitted_expression, is_property_access_chain,
+    is_super_keyword, is_super_property, last_or_undefined, modifiers_to_flags,
+    ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction, AsDoubleDeref, AwaitExpression,
+    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, BindingElement,
+    CallExpression, ClassExpression, ClassLikeDeclarationInterface, ConditionalExpression, Debug_,
+    DeleteExpression, ElementAccessExpression, FunctionExpression,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeArgumentsInterface,
     HasTypeInterface, HasTypeParametersInterface, ImportTypeNode, IndexedAccessTypeNode,
     InferTypeNode, InterfaceOrClassLikeDeclarationInterface, LiteralTypeNode, MappedTypeNode,
@@ -43,11 +44,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_template_literal_type<TTemplateSpans: Into<NodeArrayOrVec>>(
+    pub fn update_infer_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*InferTypeNode*/
+        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
+    ) -> Gc<Node> {
+        let node_as_infer_type_node = node.as_infer_type_node();
+        if !Gc::ptr_eq(&node_as_infer_type_node.type_parameter, &type_parameter) {
+            self.update(
+                self.create_infer_type_node(base_factory, type_parameter)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_template_literal_type(
         &self,
         base_factory: &TBaseNodeFactory,
         head: Gc<Node /*TemplateHead*/>,
-        template_spans: TTemplateSpans, /*<TemplateLiteralTypeSpan>*/
+        template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
     ) -> TemplateLiteralTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TemplateLiteralType);
         let mut node = TemplateLiteralTypeNode::new(
@@ -57,6 +76,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_template_literal_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TemplateLiteralTypeSpan*/
+        head: Gc<Node /*TemplateHead*/>,
+        template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
+    ) -> Gc<Node> {
+        let node_as_template_literal_type_node = node.as_template_literal_type_node();
+        let template_spans = template_spans.into();
+        if !Gc::ptr_eq(&node_as_template_literal_type_node.head, &head)
+            || has_node_array_changed(
+                &node_as_template_literal_type_node.template_spans,
+                &template_spans,
+            )
+        {
+            self.update(
+                self.create_template_literal_type(base_factory, head, template_spans)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_import_type_node<TTypeArguments: Into<NodeArrayOrVec>>(
@@ -133,6 +177,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_parenthesized_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ParenthesizedTypeNode*/
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        let node_as_parenthesized_type_node = node.as_parenthesized_type_node();
+        if !Gc::ptr_eq(&node_as_parenthesized_type_node.type_, &type_) {
+            self.update(
+                self.create_parenthesized_type(base_factory, type_).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_this_type_node(&self, base_factory: &TBaseNodeFactory) -> ThisTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::ThisType);
         let mut node = ThisTypeNode::new(node);
@@ -157,6 +218,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_type_operator_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TypeOperatorNode*/
+        type_: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        let node_as_type_operator_node = node.as_type_operator_node();
+        if !Gc::ptr_eq(&node_as_type_operator_node.type_, &type_) {
+            self.update(
+                self.create_type_operator_node(
+                    base_factory,
+                    node_as_type_operator_node.operator,
+                    type_,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_indexed_access_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -174,7 +257,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_mapped_type_node<TMembers: Into<NodeArrayOrVec>>(
+    pub fn update_indexed_access_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*IndexedAccessTypeNode*/
+        object_type: Gc<Node /*TypeNode*/>,
+        index_type: Gc<Node /*TypeNode*/>,
+    ) -> Gc<Node> {
+        let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
+        if !Gc::ptr_eq(&node_as_indexed_access_type_node.object_type, &object_type)
+            || !Gc::ptr_eq(&node_as_indexed_access_type_node.index_type, &index_type)
+        {
+            self.update(
+                self.create_indexed_access_type_node(base_factory, object_type, index_type)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_mapped_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
         readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
@@ -182,7 +286,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name_type: Option<Gc<Node /*TypeNode*/>>,
         question_token: Option<Gc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
-        members: Option<TMembers /*<TypeElement>*/>,
+        members: Option<impl Into<NodeArrayOrVec> /*<TypeElement>*/>,
     ) -> MappedTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::MappedType);
         let mut node = MappedTypeNode::new(
@@ -196,6 +300,51 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_mapped_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*MappedTypeNode*/
+        readonly_token: Option<Gc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
+        type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
+        name_type: Option<Gc<Node /*TypeNode*/>>,
+        question_token: Option<Gc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        members: Option<Gc<NodeArray /*<TypeElement>*/>>,
+    ) -> Gc<Node> {
+        let node_as_mapped_type_node = node.as_mapped_type_node();
+        if !are_option_gcs_equal(
+            node_as_mapped_type_node.readonly_token.as_ref(),
+            readonly_token.as_ref(),
+        ) || !Gc::ptr_eq(&node_as_mapped_type_node.type_parameter, &type_parameter)
+            || !are_option_gcs_equal(
+                node_as_mapped_type_node.name_type.as_ref(),
+                name_type.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_mapped_type_node.question_token.as_ref(),
+                question_token.as_ref(),
+            )
+            || !are_option_gcs_equal(node_as_mapped_type_node.type_.as_ref(), type_.as_ref())
+            || !are_option_gcs_equal(node_as_mapped_type_node.members.as_ref(), members.as_ref())
+        {
+            self.update(
+                self.create_mapped_type_node(
+                    base_factory,
+                    readonly_token,
+                    type_parameter,
+                    name_type,
+                    question_token,
+                    type_,
+                    members,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_literal_type_node(
@@ -391,10 +540,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_array_literal_expression<TElements: Into<NodeArrayOrVec>>(
+    pub fn create_array_literal_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: Option<TElements>, /*Expression*/
+        elements: Option<impl Into<NodeArrayOrVec>>, /*Expression*/
         multi_line: Option<bool>,
     ) -> ArrayLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ArrayLiteralExpression);
@@ -429,6 +578,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_array_literal_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,                         /*ArrayLiteralExpression*/
+        elements: impl Into<NodeArrayOrVec>, /*Expression*/
+    ) -> Gc<Node> {
+        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let elements = elements.into();
+        if has_node_array_changed(&node_as_array_literal_expression.elements, &elements) {
+            self.update(
+                self.create_array_literal_expression(
+                    base_factory,
+                    Some(elements),
+                    node_as_array_literal_expression.multi_line,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_object_literal_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -443,6 +615,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(propagate_children_flags(Some(&node.properties)));
         node
+    }
+
+    pub fn update_object_literal_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,                           /*ObjectLiteralExpression*/
+        properties: impl Into<NodeArrayOrVec>, /*ObjectLiteralElementLike*/
+    ) -> Gc<Node> {
+        let node_as_object_literal_expression = node.as_object_literal_expression();
+        let properties = properties.into();
+        if has_node_array_changed(&node_as_object_literal_expression.properties, &properties) {
+            self.update(
+                self.create_object_literal_expression(
+                    base_factory,
+                    Some(properties),
+                    node_as_object_literal_expression.multi_line,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_property_access_expression<'name>(
@@ -475,12 +670,44 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_property_access_chain<'name, TName: Into<StrOrRcNode<'name>>>(
+    pub fn update_property_access_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*PropertyAccessExpression*/
+        expression: Gc<Node /*Expression*/>,
+        name: Gc<Node /*Identifier | PrivateIdentifier*/>,
+    ) -> Gc<Node> {
+        let node_as_property_access_expression = node.as_property_access_expression();
+        if is_property_access_chain(node) {
+            return self.update_property_access_chain(
+                base_factory,
+                node,
+                expression,
+                node_as_property_access_expression
+                    .question_dot_token
+                    .clone(),
+                name,
+            );
+        }
+        if !Gc::ptr_eq(&node_as_property_access_expression.expression, &expression)
+            || !Gc::ptr_eq(&node_as_property_access_expression.name, &name)
+        {
+            self.update(
+                self.create_property_access_expression(base_factory, expression, name)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_property_access_chain<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-        name: TName,
+        name: impl Into<StrOrRcNode<'name>>,
     ) -> PropertyAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PropertyAccessExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
@@ -504,11 +731,48 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_element_access_expression<TIndex: Into<StringOrNumberOrBoolOrRcNode>>(
+    pub fn update_property_access_chain(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*PropertyAccessChain*/
+        expression: Gc<Node /*Expression*/>,
+        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        name: Gc<Node /*Identifier | PrivateIdentifier*/>,
+    ) -> Gc<Node> {
+        let node_as_property_access_expression = node.as_property_access_expression();
+        Debug_.assert(
+            node.flags().intersects(NodeFlags::OptionalChain),
+            Some("Cannot update a PropertyAccessExpression using updatePropertyAccessChain. Use updatePropertyAccess instead.")
+        );
+        if !Gc::ptr_eq(&node_as_property_access_expression.expression, &expression)
+            || !are_option_gcs_equal(
+                node_as_property_access_expression
+                    .question_dot_token
+                    .as_ref(),
+                question_dot_token.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_property_access_expression.expression, &expression)
+        {
+            self.update(
+                self.create_property_access_chain(
+                    base_factory,
+                    expression,
+                    question_dot_token,
+                    name,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_element_access_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
-        index: TIndex,
+        index: impl Into<StringOrNumberOrBoolOrRcNode>,
     ) -> ElementAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ElementAccessExpression);
         let mut node = ElementAccessExpression::new(
@@ -530,12 +794,49 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_element_access_chain<TIndex: Into<StringOrNumberOrBoolOrRcNode>>(
+    pub fn update_element_access_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ElementAccessExpression*/
+        expression: Gc<Node /*Expression*/>,
+        argument_expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_element_access_expression = node.as_element_access_expression();
+        if is_element_access_chain(node) {
+            return self.update_element_access_chain(
+                base_factory,
+                node,
+                expression,
+                node_as_element_access_expression.question_dot_token.clone(),
+                argument_expression,
+            );
+        }
+        if !Gc::ptr_eq(&node_as_element_access_expression.expression, &expression)
+            || !Gc::ptr_eq(
+                &node_as_element_access_expression.argument_expression,
+                &argument_expression,
+            )
+        {
+            self.update(
+                self.create_element_access_expression(
+                    base_factory,
+                    expression,
+                    argument_expression,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_element_access_chain(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-        index: TIndex,
+        index: impl Into<StringOrNumberOrBoolOrRcNode>,
     ) -> ElementAccessExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ElementAccessExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
@@ -553,6 +854,46 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsES2020,
         );
         node
+    }
+
+    pub fn update_element_access_chain(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ElementAccessChain*/
+        expression: Gc<Node /*Expression*/>,
+        question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+        argument_expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_element_access_expression = node.as_element_access_expression();
+        Debug_.assert(
+            node.flags().intersects(NodeFlags::OptionalChain),
+            Some("Cannot update a ElementAccessExpression using updateElementAccessChain. Use updateElementAccess instead.")
+        );
+        if !Gc::ptr_eq(&node_as_element_access_expression.expression, &expression)
+            || !are_option_gcs_equal(
+                node_as_element_access_expression
+                    .question_dot_token
+                    .as_ref(),
+                question_dot_token.as_ref(),
+            )
+            || !Gc::ptr_eq(
+                &node_as_element_access_expression.argument_expression,
+                &argument_expression,
+            )
+        {
+            self.update(
+                self.create_element_access_chain(
+                    base_factory,
+                    expression,
+                    question_dot_token,
+                    argument_expression,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_call_expression(
@@ -594,10 +935,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn update_call_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        node: &Node,       /*CallExpression*/
-        expression: &Node, /*Expression*/
-        type_arguments: Option<&[Gc<Node /*TypeNode*/>]>,
-        arguments_array: &[Gc<Node /*expression*/>],
+        node: &Node, /*CallExpression*/
+        expression: Gc<Node /*Expression*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec /*<TypeNode>*/>>,
+        arguments_array: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> Gc<Node /*CallExpression*/> {
         let node_as_call_expression = node.as_call_expression();
         if is_call_chain(node) {
@@ -610,33 +951,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 arguments_array,
             );
         }
-        if !ptr::eq(&*node_as_call_expression.expression, expression)
-            || !match (
-                node_as_call_expression.maybe_type_arguments().as_ref(),
-                type_arguments,
-            ) {
-                (Some(node_type_arguments), Some(type_arguments)) => {
-                    node_type_arguments.len() == type_arguments.len()
-                        && node_type_arguments.iter().enumerate().all(
-                            |(index, node_type_argument)| {
-                                Gc::ptr_eq(node_type_argument, &type_arguments[index])
-                            },
-                        )
-                }
-                (None, None) => true,
-                _ => false,
-            }
-            || !(node_as_call_expression.arguments.len() == arguments_array.len()
-                && node_as_call_expression.arguments.iter().enumerate().all(
-                    |(index, node_argument)| Gc::ptr_eq(node_argument, &arguments_array[index]),
-                ))
+        let type_arguments = type_arguments.map(Into::into);
+        let arguments_array = arguments_array.into();
+        if !Gc::ptr_eq(&node_as_call_expression.expression, &expression)
+            || has_option_node_array_changed(
+                node_as_call_expression.maybe_type_arguments().as_deref(),
+                type_arguments.as_ref(),
+            )
+            || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
         {
             self.update(
                 self.create_call_expression(
                     base_factory,
-                    expression.node_wrapper(),
-                    type_arguments.map(|type_arguments| type_arguments.to_vec()),
-                    Some(arguments_array.to_vec()),
+                    expression,
+                    type_arguments,
+                    Some(arguments_array),
                 )
                 .into(),
                 node,
@@ -646,16 +975,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_call_chain<
-        TTypeArguments: Into<NodeArrayOrVec>,
-        TArgumentsArray: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_call_chain(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
-        arguments_array: Option<TArgumentsArray /*<Expression>*/>,
+        type_arguments: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeNode>*/
+        >,
+        arguments_array: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<Expression>*/
+        >,
     ) -> CallExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
@@ -690,55 +1022,41 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn update_call_chain(
         &self,
         base_factory: &TBaseNodeFactory,
-        node: &Node,       /*CallExpression*/
-        expression: &Node, /*Expression*/
+        node: &Node, /*CallChain*/
+        expression: Gc<Node /*Expression*/>,
         question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
-        type_arguments: Option<&[Gc<Node /*TypeNode*/>]>,
-        arguments_array: &[Gc<Node /*expression*/>],
+        type_arguments: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeNode>*/
+        >,
+        arguments_array: impl Into<NodeArrayOrVec>,
+        /*<Expression>*/
     ) -> Gc<Node /*CallExpression*/> {
+        let node_as_call_expression = node.as_call_expression();
+        let type_arguments = type_arguments.map(Into::into);
+        let arguments_array = arguments_array.into();
         Debug_.assert(
             node.flags().intersects(NodeFlags::OptionalChain),
-            Some("Cannot update a CallExpression using updateCallChain. Use updateCall instead"),
+            Some("Cannot update a CallExpression using updateCallChain. Use updateCall instead."),
         );
-        let node_as_call_expression = node.as_call_expression();
-        if !ptr::eq(&*node_as_call_expression.expression, expression)
-            || !match (
+        if !Gc::ptr_eq(&node_as_call_expression.expression, &expression)
+            || !are_option_gcs_equal(
                 node_as_call_expression.question_dot_token.as_ref(),
                 question_dot_token.as_ref(),
-            ) {
-                (Some(node_question_dot_token), Some(question_dot_token)) => {
-                    Gc::ptr_eq(node_question_dot_token, question_dot_token)
-                }
-                (None, None) => true,
-                _ => false,
-            }
-            || !match (
-                node_as_call_expression.maybe_type_arguments().as_ref(),
-                type_arguments,
-            ) {
-                (Some(node_type_arguments), Some(type_arguments)) => {
-                    node_type_arguments.len() == type_arguments.len()
-                        && node_type_arguments.iter().enumerate().all(
-                            |(index, node_type_argument)| {
-                                Gc::ptr_eq(node_type_argument, &type_arguments[index])
-                            },
-                        )
-                }
-                (None, None) => true,
-                _ => false,
-            }
-            || !(node_as_call_expression.arguments.len() == arguments_array.len()
-                && node_as_call_expression.arguments.iter().enumerate().all(
-                    |(index, node_argument)| Gc::ptr_eq(node_argument, &arguments_array[index]),
-                ))
+            )
+            || has_option_node_array_changed(
+                node_as_call_expression.maybe_type_arguments().as_deref(),
+                type_arguments.as_ref(),
+            )
+            || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
         {
             self.update(
                 self.create_call_chain(
                     base_factory,
-                    expression.node_wrapper(),
+                    expression,
                     question_dot_token,
-                    type_arguments.map(|type_arguments| type_arguments.to_vec()),
-                    Some(arguments_array.to_vec()),
+                    type_arguments,
+                    Some(arguments_array),
                 )
                 .into(),
                 node,
@@ -748,15 +1066,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_new_expression<
-        TTypeArguments: Into<NodeArrayOrVec>,
-        TArgumentsArray: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_new_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
-        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
-        arguments_array: Option<TArgumentsArray /*<Expression>*/>,
+        type_arguments: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeNode>*/
+        >,
+        arguments_array: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<Expression>*/
+        >,
     ) -> NewExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::NewExpression);
         let mut node = NewExpression::new(
@@ -782,6 +1103,48 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
+    }
+
+    pub fn update_new_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*NewExpression*/
+        expression: Gc<Node /*Expression*/>,
+        type_arguments: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<TypeNode>*/
+        >,
+        arguments_array: Option<
+            impl Into<NodeArrayOrVec>,
+            /*<Expression>*/
+        >,
+    ) -> Gc<Node> {
+        let node_as_new_expression = node.as_new_expression();
+        let type_arguments = type_arguments.map(Into::into);
+        let arguments_array = arguments_array.map(Into::into);
+        if !Gc::ptr_eq(&node_as_new_expression.expression, &expression)
+            || has_option_node_array_changed(
+                node_as_new_expression.maybe_type_arguments().as_deref(),
+                type_arguments.as_ref(),
+            )
+            || has_option_node_array_changed(
+                node_as_new_expression.arguments.as_deref(),
+                arguments_array.as_ref(),
+            )
+        {
+            self.update(
+                self.create_new_expression(
+                    base_factory,
+                    expression,
+                    type_arguments,
+                    arguments_array,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_tagged_template_expression(
@@ -815,6 +1178,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_tagged_template_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TaggedTemplateExpression*/
+        tag: Gc<Node /*Expression*/>,
+        type_arguments: Option<impl Into<NodeArrayOrVec> /*<TypeNode>*/>,
+        template: Gc<Node /*TemplateLiteral*/>,
+    ) -> Gc<Node> {
+        let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        let type_arguments = type_arguments.map(Into::into);
+        if !Gc::ptr_eq(&node_as_tagged_template_expression.tag, &tag)
+            || has_option_node_array_changed(
+                node_as_tagged_template_expression
+                    .maybe_type_arguments()
+                    .as_deref(),
+                type_arguments.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_tagged_template_expression.template, &template)
+        {
+            self.update(
+                self.create_tagged_template_expression(base_factory, tag, type_arguments, template)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_type_assertion(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -836,6 +1228,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_type_assertion(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TypeAssertion*/
+        type_: Gc<Node /*TypeNode*/>,
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_type_assertion = node.as_type_assertion();
+        if !Gc::ptr_eq(&node_as_type_assertion.type_, &type_)
+            || !Gc::ptr_eq(&node_as_type_assertion.expression, &expression)
+        {
+            self.update(
+                self.create_type_assertion(base_factory, type_, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_parenthesized_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -845,6 +1258,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ParenthesizedExpression::new(node, expression);
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
+    }
+
+    pub fn update_parenthesized_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ParenthesizedExpression*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_parenthesized_expression = node.as_parenthesized_expression();
+        if !Gc::ptr_eq(&node_as_parenthesized_expression.expression, &expression) {
+            self.update(
+                self.create_parenthesized_expression(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_function_expression<
@@ -1057,6 +1488,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_delete_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*DeleteExpression*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_delete_expression = node.as_delete_expression();
+        if !Gc::ptr_eq(&node_as_delete_expression.expression, &expression) {
+            self.update(
+                self.create_delete_expression(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_type_of_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1072,6 +1521,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_type_of_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TypeOfExpression*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_type_of_expression = node.as_type_of_expression();
+        if !Gc::ptr_eq(&node_as_type_of_expression.expression, &expression) {
+            self.update(
+                self.create_type_of_expression(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_void_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1085,6 +1552,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
+    }
+
+    pub fn update_void_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*VoidExpression*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_void_expression = node.as_void_expression();
+        if !Gc::ptr_eq(&node_as_void_expression.expression, &expression) {
+            self.update(
+                self.create_void_expression(base_factory, expression).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_await_expression(
@@ -1105,6 +1589,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsAwait,
         );
         node
+    }
+
+    pub fn update_await_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*AwaitExpression*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_await_expression = node.as_await_expression();
+        if !Gc::ptr_eq(&node_as_await_expression.expression, &expression) {
+            self.update(
+                self.create_await_expression(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_prefix_unary_expression(
@@ -1133,6 +1635,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_prefix_unary_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*PrefixUnaryExpression*/
+        operand: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+        if !Gc::ptr_eq(&node_as_prefix_unary_expression.operand, &operand) {
+            self.update(
+                self.create_prefix_unary_expression(
+                    base_factory,
+                    node_as_prefix_unary_expression.operator,
+                    operand,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_postfix_unary_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1156,11 +1680,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_binary_expression<TOperator: Into<SyntaxKindOrRcNode>>(
+    pub fn update_postfix_unary_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*PostfixUnaryExpression*/
+        operand: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
+        if !Gc::ptr_eq(&node_as_postfix_unary_expression.operand, &operand) {
+            self.update(
+                self.create_postfix_unary_expression(
+                    base_factory,
+                    operand,
+                    node_as_postfix_unary_expression.operator,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_binary_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         left: Gc<Node /*Expression*/>,
-        operator: TOperator,
+        operator: impl Into<SyntaxKindOrRcNode>,
         right: Gc<Node /*Expression*/>,
     ) -> BinaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
@@ -1208,6 +1754,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsES2021);
         }
         node
+    }
+
+    pub fn update_binary_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*BinaryExpression*/
+        left: Gc<Node /*Expression*/>,
+        operator: Gc<Node /*BinaryOperatorToken*/>,
+        right: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_binary_expression = node.as_binary_expression();
+        if !Gc::ptr_eq(&node_as_binary_expression.left, &left)
+            || !Gc::ptr_eq(&node_as_binary_expression.operator_token, &operator)
+            || !Gc::ptr_eq(&node_as_binary_expression.right, &right)
+        {
+            self.update(
+                self.create_binary_expression(base_factory, left, operator, right)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     fn propagate_assignment_pattern_flags(
@@ -1285,11 +1854,48 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_template_expression<TTemplateSpans: Into<NodeArrayOrVec>>(
+    pub fn update_conditional_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ConditionalExpression*/
+        condition: Gc<Node /*Expression*/>,
+        question_token: Gc<Node /*QuestionToken*/>,
+        when_true: Gc<Node /*Expression*/>,
+        colon_token: Gc<Node /*ColonToken*/>,
+        when_false: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_conditional_expression = node.as_conditional_expression();
+        if !Gc::ptr_eq(&node_as_conditional_expression.condition, &condition)
+            || !Gc::ptr_eq(
+                &node_as_conditional_expression.question_token,
+                &question_token,
+            )
+            || !Gc::ptr_eq(&node_as_conditional_expression.when_true, &when_true)
+            || !Gc::ptr_eq(&node_as_conditional_expression.colon_token, &colon_token)
+            || !Gc::ptr_eq(&node_as_conditional_expression.when_false, &when_false)
+        {
+            self.update(
+                self.create_conditional_expression(
+                    base_factory,
+                    condition,
+                    Some(question_token),
+                    when_true,
+                    Some(colon_token),
+                    when_false,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_template_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         head: Gc<Node /*TemplateHead*/>,
-        template_spans: TTemplateSpans, /*<TemplateSpan>*/
+        template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
     ) -> TemplateExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TemplateExpression);
         let mut node = TemplateExpression::new(
@@ -1303,6 +1909,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsES2015,
         );
         node
+    }
+
+    pub fn update_template_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TemplateExpression*/
+        head: Gc<Node /*TemplateHead*/>,
+        template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
+    ) -> Gc<Node> {
+        let node_as_template_expression = node.as_template_expression();
+        let template_spans = template_spans.into();
+        if !Gc::ptr_eq(&node_as_template_expression.head, &head)
+            || has_node_array_changed(&node_as_template_expression.template_spans, &template_spans)
+        {
+            self.update(
+                self.create_template_expression(base_factory, head, template_spans)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     fn create_template_literal_like_node_checked(
@@ -1471,6 +2099,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_yield_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*Gc<Node>*/
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
+        expression: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        let node_as_yield_expression = node.as_yield_expression();
+        if !are_option_gcs_equal(
+            node_as_yield_expression.expression.as_ref(),
+            expression.as_ref(),
+        ) || !are_option_gcs_equal(
+            node_as_yield_expression.asterisk_token.as_ref(),
+            asterisk_token.as_ref(),
+        ) {
+            self.update(
+                self.create_yield_expression(base_factory, asterisk_token, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_spread_element(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1488,6 +2141,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsRestOrSpread,
         );
         node
+    }
+
+    pub fn update_spread_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*SpreadElement*/
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node> {
+        let node_as_spread_element = node.as_spread_element();
+        if !Gc::ptr_eq(&node_as_spread_element.expression, &expression) {
+            self.update(
+                self.create_spread_element(base_factory, expression).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_class_expression<'name>(

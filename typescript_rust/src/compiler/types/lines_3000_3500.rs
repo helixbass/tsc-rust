@@ -850,7 +850,7 @@ mod _StringOrNodeArrayDeriveTraceScope {
     use super::*;
     use local_macros::Trace;
 
-    #[derive(Debug, Trace, Finalize)]
+    #[derive(Clone, Debug, Trace, Finalize)]
     pub enum StringOrNodeArray {
         String(String),
         NodeArray(Gc<NodeArray>),

@@ -1236,7 +1236,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         flags: Option<GeneratedIdentifierFlags>,
     ) -> Gc<Node /*Identifier*/> {
         let flags = flags.unwrap_or_default();
-        unimplemented!()
+        Debug_.assert(
+            !flags.intersects(GeneratedIdentifierFlags::KindMask),
+            Some("Argument out of range: flags"),
+        );
+        Debug_.assert(
+            (flags & (GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel)) != GeneratedIdentifierFlags::FileLevel,
+            Some("GeneratedIdentifierFlags.FileLevel cannot be set without also setting GeneratedIdentifierFlags.Optimistic")
+        );
+        self.create_base_generated_identifier(
+            base_factory,
+            text,
+            GeneratedIdentifierFlags::Unique | flags,
+        )
+        .into()
     }
 
     pub fn get_generated_name_for_node(

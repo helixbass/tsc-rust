@@ -85,8 +85,9 @@ pub use compiler::factory::emit_helpers::{
 pub use compiler::factory::emit_node::{
     add_emit_flags, add_emit_helper, add_emit_helpers, add_synthetic_leading_comment,
     dispose_emit_nodes, get_comment_range, get_constant_value, get_emit_helpers,
-    get_synthetic_leading_comments, get_synthetic_trailing_comments, set_comment_range,
-    set_comment_range_rc, set_emit_flags, set_source_map_range, set_synthetic_leading_comments,
+    get_source_map_range, get_synthetic_leading_comments, get_synthetic_trailing_comments,
+    set_comment_range, set_comment_range_rc, set_emit_flags, set_source_map_range,
+    set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,
@@ -168,9 +169,13 @@ pub use compiler::factory::utilities::{
     can_have_modifiers, create_binary_expression_trampoline, create_empty_exports,
     find_use_strict_prologue, get_elements_of_binding_or_assignment_pattern,
     get_external_helpers_module_name, get_jsdoc_type_assertion_type,
-    get_target_of_binding_or_assignment_element, has_recorded_external_helpers, is_comma_sequence,
-    is_jsdoc_type_assertion, is_local_name, is_outer_expression, skip_outer_expressions,
-    starts_with_use_strict, BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
+    get_target_of_binding_or_assignment_element, has_recorded_external_helpers,
+    is_binary_operator_token, is_comma_sequence, is_identifier_or_this_type_node,
+    is_jsdoc_type_assertion, is_local_name, is_module_name, is_outer_expression,
+    is_question_or_exclamation_token, is_question_or_plus_or_minus_token,
+    is_readonly_keyword_or_plus_or_minus_token, is_type_node_or_type_parameter_declaration,
+    skip_outer_expressions, starts_with_use_strict, BinaryExpressionStateMachine,
+    BinaryExpressionTrampoline, LeftOrRight,
 };
 pub use compiler::factory::utilities_public::{
     set_text_range, set_text_range_node_array, set_text_range_rc_node,
@@ -330,7 +335,7 @@ pub use compiler::types::{
     FreshableIntrinsicType, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationBase,
     FunctionLikeDeclarationInterface, FunctionTypeNode, GeneratedIdentifierFlags,
     GenericNamedDeclarationInterface, GenericTypeInterface, GenericableTypeInterface,
-    GetAccessorDeclaration, HasAntecedentInterface, HasArgumentsInterface,
+    GetAccessorDeclaration, GetProgramBuildInfo, HasAntecedentInterface, HasArgumentsInterface,
     HasAssertClauseInterface, HasChildrenInterface, HasConditionInterface,
     HasDotDotDotTokenInterface, HasElementsInterface, HasExpressionInterface, HasFileNameInterface,
     HasInitializerInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,

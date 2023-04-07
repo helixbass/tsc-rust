@@ -94,7 +94,7 @@ pub fn is_in_js_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     })
 }
 
-pub fn is_in_json_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn is_in_json_file(node: Option<impl Borrow<Node>>) -> bool {
     node.map_or(false, |node| {
         node.borrow().flags().intersects(NodeFlags::JsonFile)
     })

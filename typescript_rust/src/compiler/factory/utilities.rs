@@ -6,12 +6,13 @@ use std::rc::Rc;
 
 use crate::{
     first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag, get_original_node,
-    is_assignment_expression, is_declaration_binding_element, is_identifier, is_in_js_file,
-    is_object_literal_element_like, is_parenthesized_expression, is_prologue_directive,
-    is_source_file, is_spread_element, is_string_literal, push_or_replace, AssertionLevel,
-    BaseNodeFactory, Debug_, EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds,
-    SyntaxKind,
+    is_assignment_expression, is_declaration_binding_element, is_exclamation_token, is_identifier,
+    is_in_js_file, is_minus_token, is_object_literal_element_like, is_parenthesized_expression,
+    is_plus_token, is_prologue_directive, is_question_token, is_readonly_keyword, is_source_file,
+    is_spread_element, is_string_literal, is_this_type_node, is_type_node,
+    is_type_parameter_declaration, push_or_replace, AssertionLevel, BaseNodeFactory, Debug_,
+    EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
+    NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -119,7 +120,13 @@ pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) 
 }
 
 pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Gc<Node>> {
-    unimplemented!()
+    let parse_node = get_original_node(
+        Some(node),
+        Some(|node: Option<Gc<Node>>| is_source_file(node.as_ref().unwrap())),
+    )?;
+    let emit_node = parse_node.maybe_emit_node()?;
+    let ret = (*emit_node).borrow().external_helpers_module_name.clone();
+    ret
 }
 
 pub fn has_recorded_external_helpers(source_file: &Node /*SourceFile*/) -> bool {
@@ -249,6 +256,34 @@ pub fn can_have_modifiers(node: &Node) -> bool {
             | SyntaxKind::ExportAssignment
             | SyntaxKind::ExportDeclaration
     )
+}
+
+pub fn is_type_node_or_type_parameter_declaration(node: &Node) -> bool {
+    is_type_node(node) || is_type_parameter_declaration(node)
+}
+
+pub fn is_question_or_exclamation_token(node: &Node) -> bool {
+    is_question_token(node) || is_exclamation_token(node)
+}
+
+pub fn is_identifier_or_this_type_node(node: &Node) -> bool {
+    is_identifier(node) || is_this_type_node(node)
+}
+
+pub fn is_readonly_keyword_or_plus_or_minus_token(node: &Node) -> bool {
+    is_readonly_keyword(node) || is_plus_token(node) || is_minus_token(node)
+}
+
+pub fn is_question_or_plus_or_minus_token(node: &Node) -> bool {
+    is_question_token(node) || is_plus_token(node) || is_minus_token(node)
+}
+
+pub fn is_module_name(node: &Node) -> bool {
+    is_identifier(node) || is_string_literal(node)
+}
+
+pub fn is_binary_operator_token(node: &Node) -> bool {
+    unimplemented!()
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
