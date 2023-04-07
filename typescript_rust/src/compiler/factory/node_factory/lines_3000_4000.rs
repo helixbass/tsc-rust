@@ -5,13 +5,14 @@ use gc::Gc;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     are_option_gcs_equal, has_node_array_changed, has_option_node_array_changed,
-    is_external_module_reference, modifiers_to_flags, AsDoubleDeref, AsExpression, BaseNodeFactory,
-    Block, BreakStatement, CaseBlock, ClassDeclaration, ClassLikeDeclarationInterface,
-    ContinueStatement, Debug_, DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration,
-    ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
-    FunctionDeclaration, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasMembersInterface, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
-    IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration,
+    is_external_module_reference, is_non_null_chain, modifiers_to_flags, AsDoubleDeref,
+    AsExpression, BaseNodeFactory, Block, BreakStatement, CaseBlock, ClassDeclaration,
+    ClassLikeDeclarationInterface, ContinueStatement, Debug_, DebuggerStatement, DoStatement,
+    EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
+    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, IfStatement,
+    ImportClause, ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration,
     InterfaceOrClassLikeDeclarationInterface, LabeledStatement, MetaProperty, ModifierFlags,
     ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamespaceExportDeclaration, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
@@ -106,7 +107,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Gc<Node>, /*Expression*/
         type_: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_as_expression = node.as_as_expression();
+        if !Gc::ptr_eq(&node_as_as_expression.expression, &expression)
+            || !Gc::ptr_eq(&node_as_as_expression.type_, &type_)
+        {
+            self.update(
+                self.create_as_expression(base_factory, expression, type_)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_non_null_expression(
@@ -132,7 +144,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node,          /*NonNullExpression*/
         expression: Gc<Node>, /*Expression*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_non_null_expression = node.as_non_null_expression();
+        if is_non_null_chain(node) {
+            return self.update_non_null_chain(base_factory, node, expression);
+        }
+        if !Gc::ptr_eq(&node_as_non_null_expression.expression, &expression) {
+            self.update(
+                self.create_non_null_expression(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_non_null_chain(
@@ -159,7 +183,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node,          /*NonNullChain*/
         expression: Gc<Node>, /*Expression*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_non_null_expression = node.as_non_null_expression();
+        Debug_.assert(
+            node.flags().intersects(NodeFlags::OptionalChain),
+            Some("Cannot update a NonNullExpression using updateNonNullChain. Use updateNonNullExpression instead.")
+        );
+        if !Gc::ptr_eq(&node_as_non_null_expression.expression, &expression) {
+            self.update(
+                self.create_non_null_chain(base_factory, expression).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_meta_property(
@@ -191,7 +227,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node,    /*MetaProperty*/
         name: Gc<Node>, /*Identifier*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_meta_property = node.as_meta_property();
+        if !Gc::ptr_eq(&node_as_meta_property.name, &name) {
+            self.update(
+                self.create_meta_property(base_factory, node_as_meta_property.keyword_token, name)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_template_span(
@@ -217,7 +262,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Gc<Node /*Expression*/>,
         literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_template_span = node.as_template_span();
+        if !Gc::ptr_eq(&node_as_template_span.expression, &expression)
+            || !Gc::ptr_eq(&node_as_template_span.literal, &literal)
+        {
+            self.update(
+                self.create_template_span(base_factory, expression, literal)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_semicolon_class_element(
@@ -349,7 +405,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ExpressionStatement*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_expression_statement = node.as_expression_statement();
+        if !Gc::ptr_eq(&node_as_expression_statement.expression, &expression) {
+            self.update(
+                self.create_expression_statement(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_if_statement(
@@ -382,7 +447,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         then_statement: Gc<Node /*Statement*/>,
         else_statement: Option<Gc<Node /*Statement*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_if_statement = node.as_if_statement();
+        if !Gc::ptr_eq(&node_as_if_statement.expression, &expression)
+            || !Gc::ptr_eq(&node_as_if_statement.then_statement, &then_statement)
+            || !are_option_gcs_equal(
+                node_as_if_statement.else_statement.as_ref(),
+                else_statement.as_ref(),
+            )
+        {
+            self.update(
+                self.create_if_statement(base_factory, expression, then_statement, else_statement)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_do_statement(
@@ -411,7 +491,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         statement: Gc<Node /*Statement*/>,
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_do_statement = node.as_do_statement();
+        if !Gc::ptr_eq(&node_as_do_statement.statement, &statement)
+            || !Gc::ptr_eq(&node_as_do_statement.expression, &expression)
+        {
+            self.update(
+                self.create_do_statement(base_factory, statement, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_while_statement(
@@ -440,7 +531,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_while_statement = node.as_while_statement();
+        if !Gc::ptr_eq(&node_as_while_statement.expression, &expression)
+            || !Gc::ptr_eq(&node_as_while_statement.statement, &statement)
+        {
+            self.update(
+                self.create_while_statement(base_factory, expression, statement)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_for_statement(
@@ -633,7 +735,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ContinueStatement*/
         label: Option<Gc<Node /*Identifier*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_continue_statement = node.as_continue_statement();
+        if !are_option_gcs_equal(node_as_continue_statement.label.as_ref(), label.as_ref()) {
+            self.update(
+                self.create_continue_statement(base_factory, label).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_break_statement<'label>(
@@ -656,7 +766,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*BreakStatement*/
         label: Option<Gc<Node /*Identifier*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_break_statement = node.as_break_statement();
+        if !are_option_gcs_equal(node_as_break_statement.label.as_ref(), label.as_ref()) {
+            self.update(
+                self.create_break_statement(base_factory, label).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_return_statement(
@@ -680,7 +798,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ReturnStatement*/
         expression: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_return_statement = node.as_return_statement();
+        if !are_option_gcs_equal(
+            node_as_return_statement.expression.as_ref(),
+            expression.as_ref(),
+        ) {
+            self.update(
+                self.create_return_statement(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_with_statement(
@@ -709,7 +839,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_with_statement = node.as_with_statement();
+        if !Gc::ptr_eq(&node_as_with_statement.expression, &expression)
+            || !Gc::ptr_eq(&node_as_with_statement.statement, &statement)
+        {
+            self.update(
+                self.create_with_statement(base_factory, expression, statement)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_switch_statement(
@@ -739,7 +880,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Gc<Node /*Expression*/>,
         case_block: Gc<Node /*CaseBlock*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_switch_statement = node.as_switch_statement();
+        if !Gc::ptr_eq(&node_as_switch_statement.expression, &expression)
+            || !Gc::ptr_eq(&node_as_switch_statement.case_block, &case_block)
+        {
+            self.update(
+                self.create_switch_statement(base_factory, expression, case_block)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_labeled_statement<'label>(
@@ -768,7 +920,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         label: Gc<Node /*Identifier*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_labeled_statement = node.as_labeled_statement();
+        if !Gc::ptr_eq(&node_as_labeled_statement.label, &label)
+            || !Gc::ptr_eq(&node_as_labeled_statement.statement, &statement)
+        {
+            self.update(
+                self.create_labeled_statement(base_factory, label, statement)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_throw_statement(
@@ -788,7 +951,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ThrowStatement*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_throw_statement = node.as_throw_statement();
+        if !Gc::ptr_eq(&node_as_throw_statement.expression, &expression) {
+            self.update(
+                self.create_throw_statement(base_factory, expression).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_try_statement(
@@ -816,7 +987,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         catch_clause: Option<Gc<Node /*CatchClause*/>>,
         finally_block: Option<Gc<Node /*Block*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_try_statement = node.as_try_statement();
+        if !Gc::ptr_eq(&node_as_try_statement.try_block, &try_block)
+            || !are_option_gcs_equal(
+                node_as_try_statement.catch_clause.as_ref(),
+                catch_clause.as_ref(),
+            )
+            || !are_option_gcs_equal(
+                node_as_try_statement.finally_block.as_ref(),
+                finally_block.as_ref(),
+            )
+        {
+            self.update(
+                self.create_try_statement(base_factory, try_block, catch_clause, finally_block)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_debugger_statement(&self, base_factory: &TBaseNodeFactory) -> DebuggerStatement {

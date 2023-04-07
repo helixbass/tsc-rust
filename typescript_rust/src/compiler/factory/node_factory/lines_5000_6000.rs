@@ -5,13 +5,15 @@ use std::borrow::Borrow;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    are_option_gcs_equal, every, is_outer_expression, is_statement_or_block, set_original_node,
-    single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle, Debug_, EnumMember,
-    FileReference, HasStatementsInterface, InputFiles, LanguageVariant, NamedDeclarationInterface,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
-    PropertyAssignment, ReadonlyTextRange, ScriptKind, ScriptTarget, ShorthandPropertyAssignment,
-    SourceFile, SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags,
-    Type, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
+    are_option_gcs_equal, every, has_node_array_changed, is_outer_expression,
+    is_statement_or_block, set_original_node, single_or_undefined, BaseNodeFactory,
+    BaseUnparsedNode, Bundle, CommaListExpression, Debug_, EnumMember, FileReference,
+    HasInitializerInterface, HasStatementsInterface, InputFiles, LanguageVariant,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, OuterExpressionKinds, PartiallyEmittedExpression, PropertyAssignment,
+    ReadonlyTextRange, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
+    SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags, Type,
+    UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -40,6 +42,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub(super) fn finish_update_property_assignment(
+        &self,
+        mut updated: PropertyAssignment,
+        original: &Node, /*PropertyAssignment*/
+    ) -> Gc<Node> {
+        if let Some(original_decorators) = original.maybe_decorators() {
+            updated.set_decorators(Some(original_decorators));
+        }
+        if let Some(original_modifiers) = original.maybe_modifiers() {
+            updated.set_modifiers(Some(original_modifiers));
+        }
+        let original_as_property_assignment = original.as_property_assignment();
+        if let Some(original_question_token) =
+            original_as_property_assignment.question_token.as_ref()
+        {
+            updated.question_token = Some(original_question_token.clone());
+        }
+        if let Some(original_exclamation_token) =
+            original_as_property_assignment.exclamation_token.as_ref()
+        {
+            updated.exclamation_token = Some(original_exclamation_token.clone());
+        }
+        self.update(updated.into(), original)
+    }
+
     pub fn update_property_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -47,7 +74,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Gc<Node>, /*PropertyName*/
         initializer: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_property_assignment = node.as_property_assignment();
+        if !Gc::ptr_eq(&node_as_property_assignment.name(), &name)
+            || !Gc::ptr_eq(
+                &node_as_property_assignment.maybe_initializer().unwrap(),
+                &initializer,
+            )
+        {
+            self.finish_update_property_assignment(
+                self.create_property_assignment(base_factory, name, initializer),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_shorthand_property_assignment<'name>(
@@ -80,6 +120,39 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub(super) fn finish_update_shorthand_property_assignment(
+        &self,
+        mut updated: ShorthandPropertyAssignment,
+        original: &Node, /*ShorthandPropertyAssignment*/
+    ) -> Gc<Node> {
+        if let Some(original_decorators) = original.maybe_decorators() {
+            updated.set_decorators(Some(original_decorators));
+        }
+        if let Some(original_modifiers) = original.maybe_modifiers() {
+            updated.set_modifiers(Some(original_modifiers));
+        }
+        let original_as_shorthand_property_assignment = original.as_shorthand_property_assignment();
+        if let Some(original_equals_token) = original_as_shorthand_property_assignment
+            .equals_token
+            .as_ref()
+        {
+            updated.equals_token = Some(original_equals_token.clone());
+        }
+        if let Some(original_question_token) = original_as_shorthand_property_assignment
+            .question_token
+            .as_ref()
+        {
+            updated.question_token = Some(original_question_token.clone());
+        }
+        if let Some(original_exclamation_token) = original_as_shorthand_property_assignment
+            .exclamation_token
+            .as_ref()
+        {
+            updated.exclamation_token = Some(original_exclamation_token.clone());
+        }
+        self.update(updated.into(), original)
+    }
+
     pub fn update_shorthand_property_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -87,7 +160,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Gc<Node>, /*Identifier*/
         object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
+        if !Gc::ptr_eq(&node_as_shorthand_property_assignment.name(), &name)
+            || !are_option_gcs_equal(
+                node_as_shorthand_property_assignment
+                    .object_assignment_initializer
+                    .as_ref(),
+                object_assignment_initializer.as_ref(),
+            )
+        {
+            self.finish_update_shorthand_property_assignment(
+                self.create_shorthand_property_assignment(
+                    base_factory,
+                    name,
+                    object_assignment_initializer,
+                ),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_spread_assignment(
@@ -115,7 +207,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*SpreadAssignment*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_spread_assignment = node.as_spread_assignment();
+        if !Gc::ptr_eq(&node_as_spread_assignment.expression, &expression) {
+            self.update(
+                self.create_spread_assignment(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_enum_member<'name>(
@@ -333,12 +434,45 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn create_partially_emitted_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Gc<Node /*Expression*/>,
+        original: Option<Gc<Node>>,
+    ) -> PartiallyEmittedExpression {
+        unimplemented!()
+    }
+
     pub fn update_partially_emitted_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*PartiallyEmittedExpression*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
+        let node_as_partially_emitted_expression = node.as_partially_emitted_expression();
+        if !Gc::ptr_eq(
+            &node_as_partially_emitted_expression.expression,
+            &expression,
+        ) {
+            self.update(
+                self.create_partially_emitted_expression(
+                    base_factory,
+                    expression,
+                    node_as_partially_emitted_expression.maybe_original(),
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_comma_list_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
+    ) -> CommaListExpression {
         unimplemented!()
     }
 
@@ -348,7 +482,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*CommaListExpression*/
         elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_comma_list_expression = node.as_comma_list_expression();
+        let elements = elements.into();
+        if has_node_array_changed(&node_as_comma_list_expression.elements, &elements) {
+            self.update(
+                self.create_comma_list_expression(base_factory, elements)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Gc<Node> {

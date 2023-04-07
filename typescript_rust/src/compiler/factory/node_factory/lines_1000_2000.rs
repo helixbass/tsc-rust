@@ -187,7 +187,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ComputedPropertyName*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_computed_property_name = node.as_computed_property_name();
+        if !Gc::ptr_eq(&node_as_computed_property_name.expression, &expression) {
+            self.update(
+                self.create_computed_property_name(base_factory, expression)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_type_parameter_declaration<'name>(
@@ -373,7 +382,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*Decorator*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_decorator = node.as_decorator();
+        if !Gc::ptr_eq(&node_as_decorator.expression, &expression) {
+            self.update(self.create_decorator(base_factory, expression).into(), node)
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_property_signature<'name>(
@@ -773,7 +787,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         body: Gc<Node /*Block*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_class_static_block_declaration = node.as_class_static_block_declaration();
+        let decorators = decorators.map(Into::into);
+        let modifiers = modifiers.map(Into::into);
+        if has_option_node_array_changed(node.maybe_decorators().as_deref(), decorators.as_ref())
+            || has_option_node_array_changed(node.maybe_modifiers().as_deref(), modifiers.as_ref())
+            || !Gc::ptr_eq(&node_as_class_static_block_declaration.body, &body)
+        {
+            self.update(
+                self.create_class_static_block_declaration(
+                    base_factory,
+                    decorators,
+                    modifiers,
+                    body,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_constructor_declaration(
@@ -1162,7 +1195,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Gc<Node /*TypeNode*/>,
         literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_template_literal_type_span = node.as_template_literal_type_span();
+        if !Gc::ptr_eq(&node_as_template_literal_type_span.type_, &type_)
+            || !Gc::ptr_eq(&node_as_template_literal_type_span.literal, &literal)
+        {
+            self.update(
+                self.create_template_literal_type_span(base_factory, type_, literal)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_keyword_type_node(
@@ -1199,7 +1243,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         parameter_name: Gc<Node>,
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_type_predicate_node = node.as_type_predicate_node();
+        if !are_option_gcs_equal(
+            node_as_type_predicate_node.asserts_modifier.as_ref(),
+            asserts_modifier.as_ref(),
+        ) || !Gc::ptr_eq(&node_as_type_predicate_node.parameter_name, &parameter_name)
+            || !are_option_gcs_equal(node_as_type_predicate_node.type_.as_ref(), type_.as_ref())
+        {
+            self.update(
+                self.create_type_predicate_node(
+                    base_factory,
+                    asserts_modifier,
+                    parameter_name,
+                    type_,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_type_reference_node<'type_name>(
@@ -1379,7 +1442,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*TypeQueryNode*/
         expr_name: Gc<Node /*EntityName*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_type_query_node = node.as_type_query_node();
+        if !Gc::ptr_eq(&node_as_type_query_node.expr_name, &expr_name) {
+            self.update(
+                self.create_type_query_node(base_factory, expr_name).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_type_literal_node(
@@ -1399,7 +1470,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*TypeLiteralNode*/
         members: Gc<NodeArray>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_type_literal_node = node.as_type_literal_node();
+        if !Gc::ptr_eq(&node_as_type_literal_node.members, &members) {
+            self.update(
+                self.create_type_literal_node(base_factory, Some(members))
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_array_type_node(
@@ -1423,7 +1503,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*ArrayTypeNode*/
         element_type: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_array_type_node = node.as_array_type_node();
+        if !Gc::ptr_eq(&node_as_array_type_node.element_type, &element_type) {
+            self.update(
+                self.create_array_type_node(base_factory, element_type)
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_tuple_type_node(
@@ -1443,7 +1532,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*TupleTypeNode*/
         elements: impl Into<NodeArrayOrVec>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_tuple_type_node = node.as_tuple_type_node();
+        let elements = elements.into();
+        if has_node_array_changed(&node_as_tuple_type_node.elements, &elements) {
+            self.update(
+                self.create_tuple_type_node(base_factory, Some(elements))
+                    .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_named_tuple_member(
@@ -1469,7 +1568,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         question_token: Option<Gc<Node /*QuestionToken*/>>,
         type_: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_named_tuple_member = node.as_named_tuple_member();
+        if !are_option_gcs_equal(
+            node_as_named_tuple_member.dot_dot_dot_token.as_ref(),
+            dot_dot_dot_token.as_ref(),
+        ) || !Gc::ptr_eq(&node_as_named_tuple_member.name, &name)
+            || !are_option_gcs_equal(
+                node_as_named_tuple_member.question_token.as_ref(),
+                question_token.as_ref(),
+            )
+            || !Gc::ptr_eq(&node_as_named_tuple_member.type_, &type_)
+        {
+            self.update(
+                self.create_named_tuple_member(
+                    base_factory,
+                    dot_dot_dot_token,
+                    name,
+                    question_token,
+                    type_,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_optional_type_node(
@@ -1493,7 +1616,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*OptionalTypeNode*/
         type_: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_optional_type_node = node.as_optional_type_node();
+        if !Gc::ptr_eq(&node_as_optional_type_node.type_, &type_) {
+            self.update(
+                self.create_optional_type_node(base_factory, type_).into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_rest_type_node(
@@ -1513,14 +1644,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*RestTypeNode*/
         type_: Gc<Node /*TypeNode*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_rest_type_node = node.as_rest_type_node();
+        if !Gc::ptr_eq(&node_as_rest_type_node.type_, &type_) {
+            self.update(self.create_rest_type_node(base_factory, type_).into(), node)
+        } else {
+            node.node_wrapper()
+        }
     }
 
-    pub fn create_union_or_intersection_type_node<TTypes: Into<NodeArrayOrVec>>(
+    pub fn create_union_or_intersection_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind, /*SyntaxKind.UnionType | SyntaxKind.IntersectionType*/
-        types: TTypes,    /*<TypeNode>*/
+        types: impl Into<NodeArrayOrVec>, /*<TypeNode>*/
     ) -> Node {
         let node = self.create_base_node(base_factory, kind);
         let types = self
@@ -1538,6 +1674,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_union_or_intersection_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*UnionOrIntersectionTypeNode*/
+        types: Gc<NodeArray /*<TypeNode>*/>,
+    ) -> Gc<Node> {
+        let node_as_union_or_intersection_type = node.as_union_or_intersection_type_node();
+        if !Gc::ptr_eq(&node_as_union_or_intersection_type.types(), &types) {
+            self.update(
+                self.create_union_or_intersection_type_node(base_factory, node.kind(), types)
+                    .wrap(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_union_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1552,7 +1706,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*UnionTypeNode*/
         types: Gc<NodeArray /*<TypeNode>*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.update_union_or_intersection_type_node(base_factory, node, types)
     }
 
     pub fn create_intersection_type_node(
@@ -1573,7 +1727,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: &Node, /*IntersectionTypeNode*/
         types: Gc<NodeArray /*<TypeNode>*/>,
     ) -> Gc<Node> {
-        unimplemented!()
+        self.update_union_or_intersection_type_node(base_factory, node, types)
     }
 
     pub fn create_conditional_type_node(
