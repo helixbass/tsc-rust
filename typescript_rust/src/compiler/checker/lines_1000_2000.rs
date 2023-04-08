@@ -301,9 +301,9 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn error<TLocation: Borrow<Node>>(
+    pub(super) fn error(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {

@@ -7,9 +7,9 @@ use crate::{
     add_emit_flags, append, compute_line_and_character_of_position, concatenate,
     create_comment_directives_map, create_diagnostic_for_node,
     create_diagnostic_for_node_in_source_file, create_diagnostic_for_range, create_file_diagnostic,
-    external_helpers_module_name_text, for_each_child_recursively, get_external_module_name,
-    get_jsx_implicit_import_base, get_jsx_runtime_import, get_line_starts,
-    get_text_of_identifier_or_literal, has_syntactic_modifier, is_ambient_module,
+    external_helpers_module_name_text, for_each_child_recursively, get_declaration_diagnostics,
+    get_external_module_name, get_jsx_implicit_import_base, get_jsx_runtime_import,
+    get_line_starts, get_text_of_identifier_or_literal, has_syntactic_modifier, is_ambient_module,
     is_any_import_or_re_export, is_check_js_enabled_for_file, is_external_module,
     is_external_module_name_relative, is_import_call, is_literal_import_type_node,
     is_module_declaration, is_require_call, is_source_file_js, is_string_literal,
@@ -24,6 +24,8 @@ use crate::{
     SyntaxKind,
 };
 
+use super::DiagnosticCache;
+
 impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file(
         &self,
@@ -31,9 +33,15 @@ impl Program {
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         self.get_and_cache_diagnostics(
-            source_file,
+            Some(source_file),
             cancellation_token,
-            Program::get_bind_and_check_diagnostics_for_file_no_cache,
+            &mut self.cached_bind_and_check_diagnostics_for_file_mut(),
+            |source_file, cancellation_token| {
+                self.get_bind_and_check_diagnostics_for_file_no_cache(
+                    source_file.unwrap(),
+                    cancellation_token,
+                )
+            },
         )
     }
 
@@ -695,18 +703,85 @@ impl Program {
         create_diagnostic_for_node_in_source_file(source_file, node, message, args)
     }
 
+    pub(super) fn get_declaration_diagnostics_worker(
+        &self,
+        source_file: Option<&Node>, /*SourceFile*/
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
+        self.get_and_cache_diagnostics(
+            source_file,
+            cancellation_token,
+            &mut self.cached_declaration_diagnostics_for_file_mut(),
+            |source_file, cancellation_token| {
+                self.get_declaration_diagnostics_for_file_no_cache(source_file, cancellation_token)
+            },
+        )
+    }
+
+    pub(super) fn get_declaration_diagnostics_for_file_no_cache(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
+        self.run_with_cancellation_token(|| {
+            let resolver = self
+                .get_diagnostics_producing_type_checker()
+                .get_emit_resolver(source_file, cancellation_token);
+            get_declaration_diagnostics(
+                // TODO: should this be eg Some(NoOpWriteFileCallback::new()) instead?
+                self.get_emit_host(None),
+                resolver,
+                source_file,
+            )
+            .unwrap_or_default()
+        })
+    }
+
     pub(super) fn get_and_cache_diagnostics(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-        get_diagnostics: fn(
-            &Program,
-            &Node, /*SourceFile*/
+        cache: &mut DiagnosticCache,
+        mut get_diagnostics: impl FnMut(
+            Option<&Node>, /*SourceFile*/
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> Vec<Gc<Diagnostic>>,
     ) -> Vec<Gc<Diagnostic>> {
-        let result = get_diagnostics(self, source_file, cancellation_token);
+        let cached_result = if let Some(source_file) = source_file {
+            cache.per_file.as_ref().and_then(|cache_per_file| {
+                cache_per_file
+                    .get(&*source_file.as_source_file().path())
+                    .cloned()
+            })
+        } else {
+            cache.all_diagnostics.clone()
+        };
+
+        if let Some(cached_result) = cached_result {
+            return cached_result;
+        }
+        let result = get_diagnostics(source_file, cancellation_token);
+        if let Some(source_file) = source_file {
+            cache
+                .per_file
+                .get_or_insert_with(|| Default::default())
+                .insert(source_file.as_source_file().path().clone(), result.clone());
+        } else {
+            cache.all_diagnostics = Some(result.clone());
+        }
         result
+    }
+
+    pub fn get_declaration_diagnostics_for_file(
+        &self,
+        source_file: &Node, /*SourceFile*/
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
+        if source_file.as_source_file().is_declaration_file() {
+            vec![]
+        } else {
+            self.get_declaration_diagnostics_worker(Some(source_file), cancellation_token)
+        }
     }
 
     pub fn get_options_diagnostics(
@@ -957,7 +1032,7 @@ impl Program {
                 is_java_script_file,
                 file,
                 // TODO: I think this needs to use "char count" rather than "byte count" somehow?
-                match_.start().try_into().unwrap(),
+                match_.end().try_into().unwrap(),
             );
             if is_java_script_file && is_require_call(node, true) {
                 set_parent_recursive(Some(&**node), false);

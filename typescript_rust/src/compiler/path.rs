@@ -610,7 +610,7 @@ pub fn compare_paths_case_insensitive(a: &str, b: &str) -> Comparison {
     compare_paths_worker(a, b, compare_strings_case_insensitive)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum StringOrBool {
     String(String),
     Bool(bool),
@@ -836,9 +836,9 @@ pub fn get_relative_path_to_directory_or_url(
     get_path_from_path_components(&path_components)
 }
 
-pub fn for_each_ancestor_directory<TReturn, TCallback: FnMut(&Path) -> Option<TReturn>>(
+pub fn for_each_ancestor_directory<TReturn>(
     directory: &Path,
-    mut callback: TCallback,
+    mut callback: impl FnMut(&Path) -> Option<TReturn>,
 ) -> Option<TReturn> {
     let mut directory = (*directory).clone();
     loop {
@@ -856,9 +856,9 @@ pub fn for_each_ancestor_directory<TReturn, TCallback: FnMut(&Path) -> Option<TR
     }
 }
 
-pub fn for_each_ancestor_directory_str<TReturn, TCallback: FnMut(&str) -> Option<TReturn>>(
+pub fn for_each_ancestor_directory_str<TReturn>(
     directory: &str,
-    mut callback: TCallback,
+    mut callback: impl FnMut(&str) -> Option<TReturn>,
 ) -> Option<TReturn> {
     let mut directory = directory.to_owned();
     loop {
@@ -874,6 +874,23 @@ pub fn for_each_ancestor_directory_str<TReturn, TCallback: FnMut(&str) -> Option
 
         directory = parent_path;
     }
+}
+
+pub fn for_each_ancestor_directory_str_bool(
+    directory: &str,
+    mut callback: impl FnMut(&str) -> bool,
+) -> bool {
+    for_each_ancestor_directory_str(
+        directory,
+        |value: &str| {
+            if callback(value) {
+                Some(())
+            } else {
+                None
+            }
+        },
+    )
+    .is_some()
 }
 
 pub fn is_node_modules_directory(dir_path: &Path) -> bool {

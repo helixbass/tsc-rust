@@ -859,9 +859,9 @@ pub trait GetSourceFile: Trace + Finalize {
     ) -> Option<Gc<Node>>;
 }
 
-pub fn get_pre_emit_diagnostics<TSourceFile: Borrow<Node>>(
+pub fn get_pre_emit_diagnostics(
     program: &ProgramOrBuilderProgram,
-    source_file: Option<TSourceFile>,
+    source_file: Option<impl Borrow<Node>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
 ) -> Vec<Gc<Diagnostic>> {
     let program = match program {

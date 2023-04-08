@@ -269,9 +269,13 @@ impl ParserType {
                     SignatureFlags::None,
                     Some(&Diagnostics::or_expected),
                 );
-                let mut node = self
-                    .factory
-                    .create_constructor_declaration(self, decorators, modifiers, parameters, body);
+                let mut node = self.factory.create_constructor_declaration(
+                    self,
+                    decorators,
+                    modifiers,
+                    Some(parameters),
+                    body,
+                );
                 *node.maybe_type_parameters_mut() = type_parameters;
                 node.set_type(type_);
                 return Some(self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc));

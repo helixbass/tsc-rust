@@ -1369,9 +1369,13 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
             .or_else(|| self.transform_declarations.maybe_error_fallback_node())
         {
             self.transform_declarations.context.add_diagnostic(
-                create_diagnostic_for_node(error_name_node_or_error_fallback_node, &Diagnostics::Property_0_of_exported_class_expression_may_not_be_private_or_protected, Some(vec![
-                            property_name.to_owned()
-                        ])).into()
+                create_diagnostic_for_node(
+                    error_name_node_or_error_fallback_node,
+                    &Diagnostics::Property_0_of_exported_class_expression_may_not_be_private_or_protected,
+                    Some(vec![
+                        property_name.to_owned()
+                    ])
+                ).into()
             );
         }
     }

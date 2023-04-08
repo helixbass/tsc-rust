@@ -12,10 +12,11 @@ use crate::{
     get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
     get_transformers, is_source_file_js, is_trace_enabled, libs, map_defined, no_transformers,
     node_modules_path_part, not_implemented_resolver, out_file, package_id_to_string,
-    remove_prefix, remove_suffix, skip_type_checking, source_file_may_be_emitted, string_contains,
-    to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult,
-    Extension, FileIncludeReason, FileReference, ModuleSpecifierResolutionHost,
+    remove_prefix, remove_suffix, skip_type_checking, sort_and_deduplicate_diagnostics,
+    source_file_may_be_emitted, string_contains, to_path as to_path_helper, trace,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
+    Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
+    FileReference, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NonEmpty, Path,
     Program, ProgramBuildInfo, ReadFileCallback, RedirectTargetsMap,
     ResolveModuleNameResolutionHost, ResolvedModuleFull, ResolvedProjectReference,
@@ -235,7 +236,10 @@ impl Program {
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(
-            Program::get_syntactic_diagnostics_for_file,
+            source_file,
+            |source_file, cancellation_token| {
+                self.get_syntactic_diagnostics_for_file(source_file, cancellation_token)
+            },
             cancellation_token,
         )
     }
@@ -246,7 +250,10 @@ impl Program {
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         self.get_diagnostics_helper(
-            Program::get_semantic_diagnostics_for_file,
+            source_file,
+            |source_file, cancellation_token| {
+                self.get_semantic_diagnostics_for_file(source_file, cancellation_token)
+            },
             cancellation_token,
         )
     }
@@ -728,17 +735,29 @@ impl Program {
 
     pub(super) fn get_diagnostics_helper(
         &self,
-        get_diagnostics: fn(
-            &Program,
+        source_file: Option<&Node /*SourceFile*/>,
+        mut get_diagnostics: impl FnMut(
             &Node, /*SourceFile*/
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> Vec<Gc<Diagnostic>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
-        self.get_source_files()
-            .iter()
-            .flat_map(|source_file| get_diagnostics(self, source_file, cancellation_token.clone()))
-            .collect()
+        if let Some(source_file) = source_file {
+            return get_diagnostics(source_file, cancellation_token);
+        }
+        sort_and_deduplicate_diagnostics(
+            &self
+                .get_source_files()
+                .iter()
+                .flat_map(|source_file| {
+                    // if (cancellationToken) {
+                    //     cancellationToken.throwIfCancellationRequested();
+                    // }
+                    get_diagnostics(source_file, cancellation_token.clone())
+                })
+                .collect::<Vec<_>>(),
+        )
+        .into()
     }
 
     pub(super) fn get_program_diagnostics(
@@ -778,13 +797,23 @@ impl Program {
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
-        // unimplemented!()
-        vec![]
+        let ref options = self.get_compiler_options();
+        if source_file.is_none() || out_file(options).is_non_empty() {
+            self.get_declaration_diagnostics_worker(source_file, cancellation_token)
+        } else {
+            self.get_diagnostics_helper(
+                source_file,
+                |source_file, cancellation_token| {
+                    self.get_declaration_diagnostics_for_file(source_file, cancellation_token)
+                },
+                cancellation_token,
+            )
+        }
     }
 
-    pub(super) fn run_with_cancellation_token<TReturn, TClosure: FnOnce() -> TReturn>(
+    pub(super) fn run_with_cancellation_token<TReturn>(
         &self,
-        func: TClosure,
+        func: impl FnOnce() -> TReturn,
     ) -> TReturn {
         func()
     }
@@ -1031,6 +1060,10 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
 
     fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
         self.program.get_file_include_reasons()
+    }
+
+    fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
+        false
     }
 }
 

@@ -338,7 +338,9 @@ impl TypeChecker {
                 true
             } else {
                 self.contains_arguments_reference_traverse(
-                    declaration.as_function_like_declaration().maybe_body(),
+                    declaration
+                        .maybe_as_function_like_declaration()
+                        .and_then(|declaration| declaration.maybe_body()),
                 )
             };
             links.borrow_mut().contains_arguments_reference = Some(contains_arguments_reference);

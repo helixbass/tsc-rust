@@ -1659,10 +1659,10 @@ pub fn resolve_module_name(
                 result = Some(node12_module_name_resolver(
                     module_name,
                     containing_file,
-                    &compiler_options,
+                    compiler_options.clone(),
                     host,
-                    cache.as_deref(),
-                    redirected_reference.as_deref(),
+                    cache.clone(),
+                    redirected_reference.clone(),
                     resolution_mode,
                 ));
             }
@@ -2049,13 +2049,24 @@ bitflags! {
 fn node12_module_name_resolver(
     module_name: &str,
     containing_file: &str,
-    compiler_options: &CompilerOptions,
+    compiler_options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    cache: Option<Gc<ModuleResolutionCache>>,
+    redirected_reference: Option<Gc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) -> Gc<ResolvedModuleWithFailedLookupLocations> {
-    unimplemented!()
+    node_next_module_name_resolver_worker(
+        NodeResolutionFeatures::Imports
+            | NodeResolutionFeatures::SelfName
+            | NodeResolutionFeatures::Exports,
+        module_name,
+        containing_file,
+        compiler_options,
+        host,
+        cache,
+        redirected_reference,
+        resolution_mode,
+    )
 }
 
 fn node_next_module_name_resolver(

@@ -527,7 +527,7 @@ impl NodeBuilder {
                         synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         modifiers,
-                        parameters,
+                        Some(parameters),
                         None,
                     )
                     .into(),

@@ -556,7 +556,7 @@ impl TypeChecker {
         self.get_non_missing_type_of_symbol(&symbol)
     }
 
-    pub(super) fn get_control_flow_container(&self, node: &Node) -> Gc<Node> {
+    pub(super) fn maybe_get_control_flow_container(&self, node: &Node) -> Option<Gc<Node>> {
         find_ancestor(node.maybe_parent(), |node: &Node| {
             is_function_like(Some(node))
                 && get_immediately_invoked_function_expression(node).is_none()
@@ -567,7 +567,10 @@ impl TypeChecker {
                         | SyntaxKind::PropertyDeclaration
                 )
         })
-        .unwrap()
+    }
+
+    pub(super) fn get_control_flow_container(&self, node: &Node) -> Gc<Node> {
+        self.maybe_get_control_flow_container(node).unwrap()
     }
 
     pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> bool {
@@ -1030,9 +1033,12 @@ impl TypeChecker {
         type_ = self.get_narrowable_type_for_reference(&type_, node, check_mode);
 
         let is_parameter = get_root_declaration(&declaration).kind() == SyntaxKind::Parameter;
-        let declaration_container = self.get_control_flow_container(&declaration);
+        let declaration_container = self.maybe_get_control_flow_container(&declaration);
         let mut flow_container = self.get_control_flow_container(node);
-        let is_outer_variable = !Gc::ptr_eq(&flow_container, &declaration_container);
+        let is_outer_variable = !matches!(
+            declaration_container.as_ref(),
+            Some(declaration_container) if Gc::ptr_eq(&flow_container, declaration_container)
+        );
         let is_spread_destructuring_assignment_target = matches!(
             node.maybe_parent().as_ref(),
             Some(node_parent) if matches!(
@@ -1041,11 +1047,13 @@ impl TypeChecker {
             )
         );
         let is_module_exports = symbol.flags().intersects(SymbolFlags::ModuleExports);
-        while !Gc::ptr_eq(&flow_container, &declaration_container)
-            && (matches!(
-                flow_container.kind(),
-                SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
-            ) || is_object_literal_or_class_expression_method_or_accessor(&flow_container))
+        while !matches!(
+            declaration_container.as_ref(),
+            Some(declaration_container) if Gc::ptr_eq(&flow_container, declaration_container)
+        ) && (matches!(
+            flow_container.kind(),
+            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+        ) || is_object_literal_or_class_expression_method_or_accessor(&flow_container))
             && (self.is_const_variable(&local_or_export_symbol)
                 && !Gc::ptr_eq(&type_, &self.auto_array_type())
                 || is_parameter && !self.is_symbol_assigned(&local_or_export_symbol))

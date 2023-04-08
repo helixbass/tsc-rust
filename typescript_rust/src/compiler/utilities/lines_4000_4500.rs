@@ -184,7 +184,11 @@ impl TextWriter {
             self.set_line_pos(
                 self.output_as_chars().len() - s_as_chars.len() + last(&line_starts_of_s),
             );
-            self.set_line_start((self.line_pos() - self.output_as_chars().len()) == 0);
+            self.set_line_start(
+                (isize::try_from(self.line_pos()).unwrap()
+                    - isize::try_from(self.output_as_chars().len()).unwrap())
+                    == 0,
+            );
         } else {
             self.set_line_start(false);
         }

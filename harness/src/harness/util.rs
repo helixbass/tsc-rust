@@ -74,5 +74,9 @@ pub fn remove_byte_order_mark(text: String) -> String {
 }
 
 pub fn add_utf8_byte_order_mark(text: String) -> String {
-    unimplemented!()
+    if get_byte_order_mark_length(&text) == 0 {
+        format!("\u{00ef}\u{00BB}\u{00BF}{text}")
+    } else {
+        text
+    }
 }

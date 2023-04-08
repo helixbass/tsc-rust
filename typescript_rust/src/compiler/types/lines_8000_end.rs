@@ -799,6 +799,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn get_global_typings_cache_location(&self) -> Option<String> {
         None
     }
+    fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool;
     fn get_nearest_ancestor_directory_with_package_json(
         &self,
         file_name: &str,

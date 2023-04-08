@@ -67,10 +67,10 @@ impl Printer {
         self.on_after_emit_token(Some(node));
     }
 
-    pub(super) fn write_token_text<TWriter: FnMut(&str)>(
+    pub(super) fn write_token_text(
         &self,
         token: SyntaxKind,
-        mut writer: TWriter,
+        mut writer: impl FnMut(&str),
         pos: Option<isize>,
     ) -> Option<isize> {
         let token_string = token_to_string(token).unwrap();

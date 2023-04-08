@@ -555,8 +555,8 @@ pub fn get_full_width(node: &Node) -> isize {
     node.end() - node.pos()
 }
 
-pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
-    source_file: Option<TSourceFile>, /*SourceFile*/
+pub fn get_resolved_module(
+    source_file: Option<impl Borrow<Node>>, /*SourceFile*/
     module_name_text: &str,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) -> Option<Gc<ResolvedModuleFull>> {

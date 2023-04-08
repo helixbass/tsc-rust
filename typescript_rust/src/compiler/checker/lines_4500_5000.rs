@@ -1714,6 +1714,10 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
     fn is_read_file_supported(&self) -> bool {
         self.host.is_read_file_supported()
     }
+
+    fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
+        false
+    }
 }
 
 pub(super) fn wrap_symbol_tracker_to_report_for_context(
