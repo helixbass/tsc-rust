@@ -16,8 +16,8 @@ use crate::{
     get_property_name_for_property_name_node, get_sys, has_syntactic_modifier,
     is_assignment_operator, is_bindable_static_access_expression, is_class_like,
     is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
-    is_property_access_expression, is_property_name, is_qualified_name,
-    parse_config_file_text_to_json, position_is_synthesized, skip_trivia,
+    is_namespace_export_declaration, is_property_access_expression, is_property_name,
+    is_qualified_name, parse_config_file_text_to_json, position_is_synthesized, skip_trivia,
     unescape_leading_underscores, walk_up_parenthesized_expressions, BaseDiagnostic,
     BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, BundleFileSection,
     CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
@@ -566,8 +566,17 @@ pub fn type_has_call_or_construct_signatures(type_: &Type, checker: &TypeChecker
             .is_empty()
 }
 
-pub fn is_umd_export_symbol<TSymbol: Borrow<Symbol>>(symbol: Option<TSymbol>) -> bool {
-    unimplemented!()
+pub fn is_umd_export_symbol(symbol: Option<impl Borrow<Symbol>>) -> bool {
+    matches!(
+        symbol,
+        Some(symbol) if matches!(
+            symbol.borrow().maybe_declarations().as_ref(),
+            Some(symbol_declarations) if matches!(
+                symbol_declarations.get(0),
+                Some(symbol_declarations_0) if is_namespace_export_declaration(symbol_declarations_0)
+            )
+        )
+    )
 }
 
 pub fn is_type_node_kind(kind: SyntaxKind) -> bool {
