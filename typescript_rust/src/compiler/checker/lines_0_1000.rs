@@ -1410,7 +1410,7 @@ impl TypeChecker {
             if packages_map.is_none() {
                 *packages_map = Some(HashMap::new());
             }
-            let mut map = packages_map.as_mut().unwrap();
+            let map = packages_map.as_mut().unwrap();
             self.host.get_source_files().iter().for_each(|sf| {
                 let sf_as_source_file = sf.as_source_file();
                 let sf_resolved_modules = sf_as_source_file.maybe_resolved_modules();

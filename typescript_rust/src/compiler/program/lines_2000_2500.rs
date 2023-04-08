@@ -1032,7 +1032,7 @@ impl Program {
                 is_java_script_file,
                 file,
                 // TODO: I think this needs to use "char count" rather than "byte count" somehow?
-                match_.start().try_into().unwrap(),
+                match_.end().try_into().unwrap(),
             );
             if is_java_script_file && is_require_call(node, true) {
                 set_parent_recursive(Some(&**node), false);
