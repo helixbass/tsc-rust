@@ -449,13 +449,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_accessible_symbol_chain<
-        TSymbol: Borrow<Symbol>,
-        TEnclosingDeclaration: Borrow<Node>,
-    >(
+    pub(super) fn get_accessible_symbol_chain(
         &self,
-        symbol: Option<TSymbol>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        symbol: Option<impl Borrow<Symbol>>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: Option<
@@ -467,7 +464,7 @@ impl TypeChecker {
             visited_symbol_tables_map.unwrap_or(&mut visited_symbol_tables_map_default);
         let symbol = symbol?;
         let symbol = symbol.borrow();
-        if !self.is_property_or_method_declaration_symbol(symbol) {
+        if self.is_property_or_method_declaration_symbol(symbol) {
             return None;
         }
         let links = self.get_symbol_links(symbol);
@@ -572,35 +569,46 @@ impl TypeChecker {
                 .is_some()
     }
 
-    pub(super) fn is_accessible<TResolvedAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn is_accessible(
         &self,
         symbol: &Symbol,
         meaning: SymbolFlags,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
-        symbol_from_symbol_table: &Symbol,
-        resolved_alias_symbol: Option<TResolvedAliasSymbol>,
+        symbol_from_symbol_table: Option<impl Borrow<Symbol>>,
+        resolved_alias_symbol: Option<impl Borrow<Symbol>>,
         ignore_qualification: Option<bool>,
     ) -> bool {
+        let symbol_from_symbol_table = symbol_from_symbol_table
+            .map(|symbol_from_symbol_table| symbol_from_symbol_table.borrow().symbol_wrapper());
         let resolved_alias_symbol = resolved_alias_symbol
             .map(|resolved_alias_symbol| resolved_alias_symbol.borrow().symbol_wrapper());
-        (ptr::eq(
-            symbol,
+        (matches!(
             resolved_alias_symbol
                 .as_deref()
-                .unwrap_or(symbol_from_symbol_table),
-        ) || Gc::ptr_eq(
-            &self.get_merged_symbol(Some(symbol)).unwrap(),
-            &self
-                .get_merged_symbol(Some(
+                .or_else(|| symbol_from_symbol_table.as_deref()),
+            Some(value) if ptr::eq(
+                symbol,
+                value
+            )
+        ) || matches!(
+            self
+                .get_merged_symbol(
                     resolved_alias_symbol
                         .as_deref()
-                        .unwrap_or(symbol_from_symbol_table),
-                ))
-                .unwrap(),
+                        .or_else(|| symbol_from_symbol_table.as_deref()),
+                ).as_ref(),
+            Some(value) if Gc::ptr_eq(
+                &self.get_merged_symbol(Some(symbol)).unwrap(),
+                value,
+            )
         )) && !some(
-            symbol_from_symbol_table.maybe_declarations().as_deref(),
+            symbol_from_symbol_table
+                .as_ref()
+                .unwrap()
+                .maybe_declarations()
+                .as_deref(),
             Some(|declaration: &Gc<Node>| {
                 self.has_non_global_augmentation_external_module_symbol(declaration)
             }),
@@ -609,9 +617,7 @@ impl TypeChecker {
                 enclosing_declaration,
                 use_only_external_aliasing,
                 visited_symbol_tables_map,
-                &self
-                    .get_merged_symbol(Some(symbol_from_symbol_table))
-                    .unwrap(),
+                &self.get_merged_symbol(symbol_from_symbol_table).unwrap(),
                 meaning,
             ))
     }
@@ -634,11 +640,7 @@ impl TypeChecker {
             enclosing_declaration,
             use_only_external_aliasing,
             visited_symbol_tables_map,
-            &(*symbols)
-                .borrow()
-                .get(symbol.escaped_name())
-                .unwrap()
-                .clone(),
+            (*symbols).borrow().get(symbol.escaped_name()).cloned(),
             Option::<&Symbol>::None,
             ignore_qualification,
         ) {
@@ -705,9 +707,7 @@ impl TypeChecker {
                             enclosing_declaration,
                             use_only_external_aliasing,
                             visited_symbol_tables_map,
-                            &self
-                                .get_merged_symbol(Some(&*symbol_from_symbol_table_export_symbol))
-                                .unwrap(),
+                            self.get_merged_symbol(Some(&*symbol_from_symbol_table_export_symbol)),
                             Option::<&Symbol>::None,
                             ignore_qualification,
                         ) {
@@ -756,7 +756,7 @@ impl TypeChecker {
             enclosing_declaration,
             use_only_external_aliasing,
             visited_symbol_tables_map,
-            symbol_from_symbol_table,
+            Some(symbol_from_symbol_table),
             Some(resolved_import_symbol),
             ignore_qualification,
         ) {
@@ -853,14 +853,16 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_type_symbol_accessible<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn is_type_symbol_accessible(
         &self,
         type_symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
     ) -> bool {
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let access = self.is_symbol_accessible_worker(
             Some(type_symbol),
-            enclosing_declaration,
+            enclosing_declaration.as_deref(),
             SymbolFlags::Type,
             false,
             true,
@@ -899,10 +901,10 @@ impl TypeChecker {
         access.accessibility == SymbolAccessibility::Accessible
     }
 
-    pub(super) fn is_any_symbol_accessible<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn is_any_symbol_accessible(
         &self,
         symbols: Option<&[Gc<Symbol>]>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         initial_symbol: &Symbol,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
@@ -1030,13 +1032,10 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_symbol_accessible_worker<
-        TSymbol: Borrow<Symbol>,
-        TEnclosingDeclaration: Borrow<Node>,
-    >(
+    pub(super) fn is_symbol_accessible_worker(
         &self,
-        symbol: Option<TSymbol>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        symbol: Option<impl Borrow<Symbol>>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
         allow_modules: bool,
