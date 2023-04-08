@@ -512,11 +512,9 @@ impl TypeChecker {
     ) -> Gc<GcCell<SymbolTable>> {
         let mut visited_symbols: Vec<Gc<Symbol>> = vec![];
 
-        let module_symbol = self
-            .resolve_external_module_symbol(Some(module_symbol), None)
-            .unwrap();
+        let module_symbol = self.resolve_external_module_symbol(Some(module_symbol), None);
 
-        self.visit_get_exports_of_module_worker(&mut visited_symbols, Some(module_symbol))
+        self.visit_get_exports_of_module_worker(&mut visited_symbols, module_symbol)
             .map_or_else(
                 || self.empty_symbols(),
                 |symbol_table| Gc::new(GcCell::new(symbol_table)),
