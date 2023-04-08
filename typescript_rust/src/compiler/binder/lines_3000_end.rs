@@ -661,16 +661,16 @@ impl BinderType {
             return;
         }
         let node_name = match node.kind() {
-            SyntaxKind::JSDocParameterTag => node.as_jsdoc_property_like_tag().name.clone(),
-            _ => node.as_named_declaration().name(),
+            SyntaxKind::JSDocParameterTag => Some(node.as_jsdoc_property_like_tag().name.clone()),
+            _ => node.as_named_declaration().maybe_name(),
         };
         if matches!(self.maybe_in_strict_mode(), Some(true))
             && !node.flags().intersects(NodeFlags::Ambient)
         {
-            self.check_strict_mode_eval_or_arguments(node, Some(&*node_name));
+            self.check_strict_mode_eval_or_arguments(node, node_name.as_deref());
         }
 
-        if is_binding_pattern(Some(node_name)) {
+        if is_binding_pattern(node_name.as_deref()) {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::FunctionScopedVariable,
