@@ -2,7 +2,7 @@
 
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::borrow::Cow;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -120,7 +120,11 @@ impl CheckTypeRelatedTo {
         *self.error_node.borrow_mut() = error_node;
     }
 
-    pub(super) fn maybe_error_info(&self) -> RefMut<Option<Rc<DiagnosticMessageChain>>> {
+    pub(super) fn maybe_error_info(&self) -> Ref<Option<Rc<DiagnosticMessageChain>>> {
+        self.error_info.borrow()
+    }
+
+    pub(super) fn maybe_error_info_mut(&self) -> RefMut<Option<Rc<DiagnosticMessageChain>>> {
         self.error_info.borrow_mut()
     }
 
@@ -256,14 +260,11 @@ impl CheckTypeRelatedTo {
                 if let Some(chain) = chain {
                     concatenate_diagnostic_message_chains(
                         &mut chain.borrow_mut(),
-                        self.maybe_error_info()
-                            .as_deref()
-                            .map(Clone::clone)
-                            .unwrap(),
+                        self.maybe_error_info().as_deref().cloned().unwrap(),
                     );
                     // TODO: is this ever a problem? Not sure why I made containing_message_chain return an Rc<RefCell<DiagnosticMessageChain>> (vs just DiagnosticMessageChain)
                     // but seems like .clone()'ing here means that that original Rc'd DiagnosticMessageChain now no longer is "sharing this mutation"
-                    *self.maybe_error_info() = Some(Rc::new((*chain).borrow().clone()));
+                    *self.maybe_error_info_mut() = Some(Rc::new((*chain).borrow().clone()));
                 }
             }
 
@@ -306,10 +307,7 @@ impl CheckTypeRelatedTo {
             let diag: Gc<Diagnostic> = Gc::new(
                 create_diagnostic_for_node_from_message_chain(
                     self.maybe_error_node().as_ref().unwrap(),
-                    self.maybe_error_info()
-                        .as_deref()
-                        .map(Clone::clone)
-                        .unwrap(),
+                    self.maybe_error_info().as_deref().cloned().unwrap(),
                     related_information,
                 )
                 .into(),
@@ -357,7 +355,7 @@ impl CheckTypeRelatedTo {
             override_next_error_info,
             related_info,
         } = saved;
-        *self.maybe_error_info() = error_info;
+        *self.maybe_error_info_mut() = error_info;
         *self.maybe_last_skipped_info() = last_skipped_info;
         *self.incompatible_stack() = incompatible_stack;
         self.set_override_next_error_info(override_next_error_info);
@@ -491,13 +489,9 @@ impl CheckTypeRelatedTo {
             return;
         }
         let error_info = {
-            chain_diagnostic_messages(
-                self.maybe_error_info().as_deref().map(Clone::clone),
-                &message,
-                args,
-            )
+            chain_diagnostic_messages(self.maybe_error_info().as_deref().cloned(), &message, args)
         };
-        *self.maybe_error_info() = Some(Rc::new(error_info));
+        *self.maybe_error_info_mut() = Some(Rc::new(error_info));
     }
 
     pub(super) fn associate_related_info(&self, info: DiagnosticRelatedInformation) {
@@ -574,7 +568,7 @@ impl CheckTypeRelatedTo {
                     ])
                 );
             } else {
-                *self.maybe_error_info() = None;
+                *self.maybe_error_info_mut() = None;
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1),
                     Some(vec![
@@ -1229,11 +1223,11 @@ impl CheckTypeRelatedTo {
                 let error_info = self
                     .type_checker
                     .elaborate_never_intersection(
-                        self.maybe_error_info().as_deref().map(Clone::clone),
+                        self.maybe_error_info().as_deref().cloned(),
                         original_target,
                     )
                     .map(Rc::new);
-                *self.maybe_error_info() = error_info;
+                *self.maybe_error_info_mut() = error_info;
             }
             if head_message.is_none() && maybe_suppress {
                 *self.maybe_last_skipped_info() = Some((source, target));

@@ -1132,7 +1132,7 @@ impl CheckTypeRelatedTo {
                         if report_errors {
                             if let Some(original_error_info) = original_error_info.clone() {
                                 if let Some(error_info) = self.maybe_error_info().clone() {
-                                    *self.maybe_error_info() = Some(
+                                    *self.maybe_error_info_mut() = Some(
                                         if self.count_message_chain_breadth(Some(&*vec![
                                             &*original_error_info,
                                         ])) <= self
@@ -1775,7 +1775,7 @@ impl CheckTypeRelatedTo {
                     let error_info = original_error_info
                         .or_else(|| self.maybe_error_info().clone())
                         .or_else(|| save_error_info.error_info.clone());
-                    *self.maybe_error_info() = error_info;
+                    *self.maybe_error_info_mut() = error_info;
                 } else if result != Ternary::False {
                     return result;
                 }

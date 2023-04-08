@@ -219,7 +219,7 @@ impl Program {
     }
 
     pub fn use_case_sensitive_file_names(&self) -> bool {
-        unimplemented!()
+        CompilerHost::use_case_sensitive_file_names(&**self.host())
     }
 
     pub fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
