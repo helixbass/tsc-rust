@@ -814,7 +814,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        parameters: impl Into<NodeArrayOrVec>,
+        parameters: Option<impl Into<NodeArrayOrVec>>,
         body: Option<Gc<Node /*Block*/>>,
     ) -> ConstructorDeclaration {
         let node = self.create_base_function_like_declaration(
@@ -824,7 +824,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             modifiers,
             Option::<Gc<Node>>::None,
             Option::<Gc<NodeArray>>::None,
-            Some(parameters),
+            parameters,
             None,
             body,
         );
@@ -859,7 +859,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     base_factory,
                     decorators,
                     modifiers,
-                    parameters,
+                    Some(parameters),
                     body,
                 )
                 .into(),

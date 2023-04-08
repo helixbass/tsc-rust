@@ -475,6 +475,12 @@ impl Scanner {
             CharacterCodes::close_brace => {
                 return self.set_token(SyntaxKind::CloseBraceToken);
             }
+            CharacterCodes::open_bracket => {
+                return self.set_token(SyntaxKind::OpenBracketToken);
+            }
+            CharacterCodes::close_bracket => {
+                return self.set_token(SyntaxKind::CloseBracketToken);
+            }
             CharacterCodes::less_than => {
                 return self.set_token(SyntaxKind::LessThanToken);
             }

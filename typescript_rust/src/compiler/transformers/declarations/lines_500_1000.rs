@@ -940,8 +940,7 @@ impl TransformDeclarations {
                                     input,
                                     Some(&input_as_constructor_declaration.parameters()),
                                     Some(ModifierFlags::None),
-                                )
-                                .unwrap(),
+                                ),
                                 None,
                             )
                             .into()

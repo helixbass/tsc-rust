@@ -1061,6 +1061,10 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
     fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
         self.program.get_file_include_reasons()
     }
+
+    fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
+        false
+    }
 }
 
 impl SourceFileMayBeEmittedHost for ProgramEmitHost {

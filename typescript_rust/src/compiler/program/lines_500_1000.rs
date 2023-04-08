@@ -1772,6 +1772,10 @@ impl ModuleSpecifierResolutionHost for Program {
     fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
         self.file_reasons_rc()
     }
+
+    fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
+        false
+    }
 }
 
 impl TypeCheckerHost for Program {

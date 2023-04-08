@@ -6,9 +6,10 @@ use std::rc::Rc;
 
 use crate::{
     append, combine_paths, comparison_to_ordering, contains_ignored_path,
-    create_get_canonical_file_name, directory_separator_str, ensure_path_is_non_module_name,
-    ensure_trailing_directory_separator, every, file_extension_is_one_of, first_defined, flatten,
-    for_each, for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
+    create_get_canonical_file_name, directory_separator_str, ends_with,
+    ensure_path_is_non_module_name, ensure_trailing_directory_separator, every,
+    file_extension_is_one_of, first_defined, flatten, for_each, for_each_ancestor_directory,
+    for_each_ancestor_directory_str_bool, get_directory_path, get_emit_module_resolution_kind,
     get_implied_node_format_for_file, get_module_name_string_literal_at,
     get_normalized_absolute_path, get_package_json_types_version_paths,
     get_package_name_from_types_package_name, get_paths_base_path,
@@ -17,14 +18,15 @@ use crate::{
     has_js_file_extension, has_ts_file_extension, host_get_canonical_file_name, is_ambient_module,
     is_external_module_augmentation, is_external_module_name_relative, is_module_block,
     is_module_declaration, is_non_global_ambient_module, is_rooted_disk_path, is_source_file,
-    map_defined, maybe_for_each, node_modules_path_part, path_contains_node_modules,
-    path_is_bare_specifier, path_is_relative, remove_file_extension, remove_suffix, resolve_path,
-    some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison, CompilerOptions,
+    map_defined, maybe_for_each, node_modules_path_part, normalize_path,
+    path_contains_node_modules, path_is_bare_specifier, path_is_relative, remove_file_extension,
+    remove_suffix, remove_trailing_directory_separator, resolve_path, some, starts_with,
+    starts_with_directory, to_path, CharacterCodes, Comparison, CompilerOptions,
     CompilerOptionsBuilder, Debug_, Extension, FileExtensionInfo, FileIncludeKind,
     FileIncludeReason, LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
     ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, Path, ScriptKind,
-    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
+    StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -634,7 +636,40 @@ fn get_local_module_specifier(
     }
 
     if relative_preference == RelativePreference::ExternalNonRelative {
-        unimplemented!()
+        let project_directory = if let Some(compiler_options_config_file_path) =
+            compiler_options.config_file_path.as_ref().non_empty()
+        {
+            to_path(
+                &get_directory_path(compiler_options_config_file_path),
+                Some(&host.get_current_directory()),
+                |file_name: &str| (info.get_canonical_file_name)(file_name),
+            )
+            .to_string()
+        } else {
+            (info.get_canonical_file_name)(&host.get_current_directory())
+        };
+        let module_path = to_path(
+            module_file_name,
+            Some(&project_directory),
+            get_canonical_file_name,
+        );
+        let source_is_internal = starts_with(source_directory, &project_directory);
+        let target_is_internal = starts_with(&module_path, &project_directory);
+        if source_is_internal && !target_is_internal || !source_is_internal && target_is_internal {
+            return non_relative;
+        }
+
+        let nearest_target_package_json = get_nearest_ancestor_directory_with_package_json(
+            host,
+            &get_directory_path(&module_path),
+        );
+        let nearest_source_package_json =
+            get_nearest_ancestor_directory_with_package_json(host, source_directory);
+        if nearest_source_package_json != nearest_target_package_json {
+            return non_relative;
+        }
+
+        return relative_path;
     }
 
     if relative_preference != RelativePreference::Shortest {
@@ -690,6 +725,23 @@ fn compare_paths_by_redirect_and_number_of_directory_separators(
     b: &ModulePath,
 ) -> Comparison {
     unimplemented!()
+}
+
+fn get_nearest_ancestor_directory_with_package_json(
+    host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+    file_name: &str,
+) -> Option<StringOrBool> {
+    if host.is_get_nearest_ancestor_directory_with_package_json_supported() {
+        return host
+            .get_nearest_ancestor_directory_with_package_json(file_name, None)
+            .map(Into::into);
+    }
+    Some(
+        for_each_ancestor_directory_str_bool(file_name, |directory: &str| {
+            host.file_exists(&combine_paths(directory, &[Some("package.json")]))
+        })
+        .into(),
+    )
 }
 
 pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Option<TReturn>>(
@@ -1057,7 +1109,31 @@ fn try_get_module_name_from_paths(
     relative_to_base_url: &str,
     paths: &HashMap<String, Vec<String>>,
 ) -> Option<String> {
-    unimplemented!()
+    for (key, pattern_texts) in paths {
+        for pattern_text in pattern_texts {
+            let normalized = normalize_path(pattern_text);
+            let pattern = remove_file_extension(&normalized);
+            let index_of_star = pattern.find("*");
+            if let Some(index_of_star) = index_of_star {
+                let prefix = &pattern[0..index_of_star];
+                let suffix = &pattern[index_of_star + 1..];
+                if relative_to_base_url.len() >= prefix.len() + suffix.len()
+                    && starts_with(relative_to_base_url, prefix)
+                    && ends_with(relative_to_base_url, suffix)
+                    || suffix.is_empty()
+                        && relative_to_base_url == &*remove_trailing_directory_separator(prefix)
+                {
+                    let matched_star = &relative_to_base_url[prefix.len()
+                        ..prefix.len() + relative_to_base_url.len() - suffix.len() - prefix.len()];
+                    return Some(key.replace("*", matched_star));
+                }
+            } else if pattern == relative_to_base_url || pattern == relative_to_base_url_with_index
+            {
+                return Some(key.clone());
+            }
+        }
+    }
+    None
 }
 
 fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Gc<Node> {
