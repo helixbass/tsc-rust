@@ -491,19 +491,22 @@ impl TypeChecker {
         node: &Node, /*JSDocTypedefTag | JSDocCallbackTag*/
     ) {
         let node_as_jsdoc_type_like_tag = node.as_jsdoc_type_like_tag();
-        let node_as_named_declaration = node.as_named_declaration();
+        let node_as_named_declaration = node.maybe_as_named_declaration();
+        let node_name = node_as_named_declaration
+            .as_ref()
+            .and_then(|node_as_named_declaration| node_as_named_declaration.maybe_name());
         if node_as_jsdoc_type_like_tag
             .maybe_type_expression()
             .is_none()
         {
             self.error(
-                node_as_named_declaration.maybe_name(),
+                node_name.as_deref(),
                 &Diagnostics::JSDoc_typedef_tag_should_either_have_a_type_annotation_or_be_followed_by_property_or_member_tags,
                 None,
             );
         }
 
-        if let Some(node_name) = node_as_named_declaration.maybe_name().as_ref() {
+        if let Some(node_name) = node_name.as_ref() {
             self.check_type_name_is_reserved(node_name, &Diagnostics::Type_alias_name_cannot_be_0);
         }
         self.check_source_element(node_as_jsdoc_type_like_tag.maybe_type_expression());
