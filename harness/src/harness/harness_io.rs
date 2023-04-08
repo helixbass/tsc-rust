@@ -277,7 +277,7 @@ pub mod Compiler {
         CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
         CompilerOptionsValue, Diagnostic, DiagnosticInterface,
         DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost, NewLineKind,
-        StringOrDiagnosticMessage, TextSpan,
+        Number, StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
@@ -768,7 +768,15 @@ pub mod Compiler {
             // })
             // .into(),
             CommandLineOptionType::String => Some(value.to_owned()).into(),
-            CommandLineOptionType::Number => unimplemented!(),
+            CommandLineOptionType::Number => {
+                // TODO: this worked for one test case but how would we know if this should be a
+                // Number vs usize?
+                let numver_value = usize::from_str_radix(value, 10);
+                if numver_value.is_err() {
+                    panic!("Value must be a number, got {:?}", value);
+                }
+                Some(numver_value.unwrap()).into()
+            }
             CommandLineOptionType::Object => unimplemented!(),
             CommandLineOptionType::List => {
                 CompilerOptionsValue::VecString(parse_list_type_option(option, Some(value), errors))
