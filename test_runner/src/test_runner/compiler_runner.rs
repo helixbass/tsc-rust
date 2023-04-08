@@ -243,7 +243,7 @@ impl CompilerTest {
             keys.sort();
             for key in &keys {
                 if !configured_name_.is_empty() {
-                    configured_name_.push_str(", ");
+                    configured_name_.push_str(",");
                 }
                 configured_name_.push_str(&format!(
                     "{}={}",
