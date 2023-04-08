@@ -153,7 +153,8 @@ fn get_encoded_root_length(path: &str) -> isize {
         let authority_end = path
             .iter()
             .skip(authority_start)
-            .position(|ch| *ch == directory_separator);
+            .position(|ch| *ch == directory_separator)
+            .map(|position| position + authority_start);
         if let Some(authority_end) = authority_end {
             let scheme: String = path[0..scheme_end].iter().collect();
             let authority: String = path[authority_start..authority_end].iter().collect();
@@ -177,7 +178,7 @@ fn get_encoded_root_length(path: &str) -> isize {
                     }
                 }
             }
-            return (!(authority_end + 1)).try_into().unwrap();
+            return !isize::try_from(authority_end + 1).unwrap();
         }
         return !isize::try_from(path.len()).unwrap();
     }

@@ -6,7 +6,6 @@ use std::cmp;
 use std::collections::HashMap;
 use std::ops::BitOrAssign;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     HasTypeArgumentsInterface, ReadonlyTextRange, StringOrNodeArray, TextSpan, __String,
