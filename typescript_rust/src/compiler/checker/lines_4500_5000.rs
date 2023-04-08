@@ -231,10 +231,10 @@ impl TypeChecker {
             })
     }
 
-    pub(super) fn symbol_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn symbol_to_string_(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -272,8 +272,10 @@ impl TypeChecker {
             )
             .unwrap();
             let entity: Gc<Node> = entity.into();
-            let mut printer = if matches!(enclosing_declaration.as_ref(), Some(enclosing_declaration) if enclosing_declaration.kind() == SyntaxKind::SourceFile)
-            {
+            let printer = if matches!(
+                enclosing_declaration.as_ref(),
+                Some(enclosing_declaration) if enclosing_declaration.kind() == SyntaxKind::SourceFile
+            ) {
                 create_printer(
                     PrinterOptionsBuilder::default()
                         .remove_comments(Some(true))
@@ -605,11 +607,11 @@ impl NodeBuilder {
         })
     }
 
-    pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_expression(
         &self,
         symbol: &Symbol,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> Option<Gc<Node>> {

@@ -8,12 +8,12 @@ use crate::{
     append, combine_paths, comparison_to_ordering, contains_ignored_path,
     create_get_canonical_file_name, directory_separator_str, ends_with,
     ensure_path_is_non_module_name, ensure_trailing_directory_separator, every,
-    file_extension_is_one_of, first_defined, flatten, for_each, for_each_ancestor_directory,
-    for_each_ancestor_directory_str_bool, get_directory_path, get_emit_module_resolution_kind,
-    get_implied_node_format_for_file, get_module_name_string_literal_at,
-    get_normalized_absolute_path, get_package_json_types_version_paths,
-    get_package_name_from_types_package_name, get_paths_base_path,
-    get_relative_path_from_directory, get_relative_path_to_directory_or_url,
+    extension_from_path, file_extension_is_one_of, first_defined, flatten, for_each,
+    for_each_ancestor_directory, for_each_ancestor_directory_str_bool, get_directory_path,
+    get_emit_module_resolution_kind, get_implied_node_format_for_file,
+    get_module_name_string_literal_at, get_normalized_absolute_path,
+    get_package_json_types_version_paths, get_package_name_from_types_package_name,
+    get_paths_base_path, get_relative_path_from_directory, get_relative_path_to_directory_or_url,
     get_source_file_of_module, get_supported_extensions, get_text_of_identifier_or_literal,
     has_js_file_extension, has_ts_file_extension, host_get_canonical_file_name, is_ambient_module,
     is_external_module_augmentation, is_external_module_name_relative, is_module_block,
@@ -21,12 +21,13 @@ use crate::{
     map_defined, maybe_for_each, node_modules_path_part, normalize_path,
     path_contains_node_modules, path_is_bare_specifier, path_is_relative, remove_file_extension,
     remove_suffix, remove_trailing_directory_separator, resolve_path, some, starts_with,
-    starts_with_directory, to_path, CharacterCodes, Comparison, CompilerOptions,
-    CompilerOptionsBuilder, Debug_, Extension, FileExtensionInfo, FileIncludeKind,
-    FileIncludeReason, LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
-    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, Path, ScriptKind,
-    StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
+    starts_with_directory, to_path, try_get_extension_from_path, CharacterCodes, Comparison,
+    CompilerOptions, CompilerOptionsBuilder, Debug_, Extension, FileExtensionInfo, FileIncludeKind,
+    FileIncludeReason, JsxEmit, LiteralLikeNodeInterface, ModuleKind, ModulePath,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty,
+    Path, ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    UserPreferences,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -1612,11 +1613,29 @@ fn remove_extension_and_index_post_fix(
 }
 
 fn get_js_extension_for_file(file_name: &str, options: &CompilerOptions) -> Extension {
-    unimplemented!()
+    try_get_js_extension_for_file(file_name, options).unwrap_or_else(|| {
+        Debug_.fail(Some(&format!(
+            "Extension {} is unsupported:: FileName:: {}",
+            extension_from_path(file_name).to_str(),
+            file_name
+        )))
+    })
 }
 
 fn try_get_js_extension_for_file(file_name: &str, options: &CompilerOptions) -> Option<Extension> {
-    unimplemented!()
+    let ext = try_get_extension_from_path(file_name)?;
+    match ext {
+        Extension::Ts | Extension::Dts => Some(Extension::Js),
+        Extension::Tsx => Some(if options.jsx == Some(JsxEmit::Preserve) {
+            Extension::Jsx
+        } else {
+            Extension::Js
+        }),
+        Extension::Js | Extension::Jsx | Extension::Json => Some(ext),
+        Extension::Dmts | Extension::Mts | Extension::Mjs => Some(Extension::Mjs),
+        Extension::Dcts | Extension::Cts | Extension::Cjs => Some(Extension::Cjs),
+        _ => None,
+    }
 }
 
 fn get_relative_path_if_in_directory(
