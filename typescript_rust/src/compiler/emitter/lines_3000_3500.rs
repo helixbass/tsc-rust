@@ -113,7 +113,7 @@ impl Printer {
 
     pub(super) fn emit_debugger_statement(&self, node: &Node /*DebuggerStatement*/) {
         self.write_token(
-            SyntaxKind::DebuggerStatement,
+            SyntaxKind::DebuggerKeyword,
             node.pos(),
             |text: &str| self.write_keyword(text),
             None,

@@ -1261,6 +1261,18 @@ impl Program {
         self.file_reasons.clone()
     }
 
+    pub(super) fn cached_bind_and_check_diagnostics_for_file_mut(
+        &self,
+    ) -> GcCellRefMut<DiagnosticCache> {
+        self.cached_bind_and_check_diagnostics_for_file.borrow_mut()
+    }
+
+    pub(super) fn cached_declaration_diagnostics_for_file_mut(
+        &self,
+    ) -> GcCellRefMut<DiagnosticCache> {
+        self.cached_declaration_diagnostics_for_file.borrow_mut()
+    }
+
     pub(super) fn maybe_file_processing_diagnostics(
         &self,
     ) -> RefMut<Option<Vec<FilePreprocessingDiagnostics>>> {

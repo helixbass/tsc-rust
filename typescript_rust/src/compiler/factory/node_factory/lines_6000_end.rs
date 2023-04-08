@@ -817,12 +817,18 @@ pub fn set_original_node(node: Gc<Node>, original: Option<Gc<Node>>) -> Gc<Node>
     if let Some(original) = original {
         let emit_node = original.maybe_emit_node();
         if let Some(emit_node) = emit_node.as_ref() {
-            node.maybe_emit_node_mut()
-                .get_or_insert_with(|| Gc::new(GcCell::new(Default::default())));
-            merge_emit_node(
-                &(**emit_node).borrow(),
-                &mut (*node.maybe_emit_node().unwrap()).borrow_mut(),
-            );
+            let node_emit_node = node
+                .maybe_emit_node_mut()
+                .get_or_insert_with(|| Gc::new(GcCell::new(Default::default())))
+                .clone();
+            // looks like node and original can share the same Gc<GcCell<EmitNode>> (eg from
+            // clone_node(), which I believe is correctly mimicking the Typescript version in
+            // cloning that field by reference) so we'd have a GcCell borrow error if we try
+            // and immutably + mutably borrow them "separately". So assume that we can skip
+            // merge_emit_node() if they're the same already?
+            if !Gc::ptr_eq(&node_emit_node, emit_node) {
+                merge_emit_node(&(**emit_node).borrow(), &mut node_emit_node.borrow_mut());
+            }
             // node.set_emit_node(node_emit_node);
         }
     }

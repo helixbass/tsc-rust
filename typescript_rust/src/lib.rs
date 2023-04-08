@@ -273,6 +273,7 @@ pub use compiler::transformers::declarations::diagnostics::{
     GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
     SymbolAccessibilityDiagnostic,
 };
+pub use compiler::transformers::declarations::get_declaration_diagnostics;
 pub use compiler::transformers::utilities::{
     chain_bundle, get_original_node_id, maybe_get_original_node_id,
 };

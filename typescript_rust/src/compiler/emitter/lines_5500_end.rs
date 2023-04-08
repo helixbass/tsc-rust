@@ -550,9 +550,11 @@ impl Printer {
                 .unwrap(),
         );
         if self.printer_options.inline_sources == Some(true) {
-            // self.source_map_generator()
-            //     .set_source_content()
-            unimplemented!()
+            self.source_map_generator().set_source_content(
+                // TODO: should this just be a usize?
+                self.source_map_source_index().try_into().unwrap(),
+                Some(source.text().clone()),
+            );
         }
 
         self.set_most_recently_added_source_map_source(Some(source));

@@ -827,10 +827,10 @@ struct EmitFilesAndReportErrorsReturn {
     diagnostics: SortedArray<Gc<Diagnostic>>,
 }
 
-fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
+fn emit_files_and_report_errors(
     program: Gc<Box<Program>>,
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
-    write: Option<TWrite>,
+    write: Option<impl FnMut(&str)>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
