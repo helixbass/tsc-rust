@@ -533,19 +533,29 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn create_node_builder(&self) -> NodeBuilder {
+    pub(super) fn create_node_builder(&self) -> Gc<NodeBuilder> {
         NodeBuilder::new(self.rc_wrapper())
     }
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeBuilder {
+    pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilder>>>,
     pub type_checker: Gc<TypeChecker>,
 }
 
 impl NodeBuilder {
-    pub fn new(type_checker: Gc<TypeChecker>) -> Self {
-        Self { type_checker }
+    pub fn new(type_checker: Gc<TypeChecker>) -> Gc<Self> {
+        let ret = Gc::new(Self {
+            type_checker,
+            _rc_wrapper: Default::default(),
+        });
+        *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
+        ret
+    }
+
+    pub fn rc_wrapper(&self) -> Gc<Self> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     pub fn type_to_type_node<TEnclosingDeclaration: Borrow<Node>>(
@@ -1985,6 +1995,14 @@ impl NodeBuilderContext {
 
     pub fn set_tracker(&self, tracker: Gc<Box<dyn SymbolTracker>>) {
         *self.tracker.borrow_mut() = tracker;
+    }
+
+    pub fn reported_diagnostic(&self) -> bool {
+        self.reported_diagnostic.get()
+    }
+
+    pub fn set_reported_diagnostic(&self, reported_diagnostic: bool) {
+        self.reported_diagnostic.set(reported_diagnostic);
     }
 
     pub fn increment_approximate_length_by(&self, amount: usize) {

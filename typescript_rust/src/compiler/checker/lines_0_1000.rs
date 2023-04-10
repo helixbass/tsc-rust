@@ -1328,7 +1328,7 @@ pub fn create_type_checker(
     let rc_wrapped = Gc::new(type_checker);
     rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
 
-    *rc_wrapped.node_builder.borrow_mut() = Some(Gc::new(rc_wrapped.create_node_builder()));
+    *rc_wrapped.node_builder.borrow_mut() = Some(rc_wrapped.create_node_builder());
 
     rc_wrapped.initialize_type_checker();
 

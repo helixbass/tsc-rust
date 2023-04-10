@@ -5,18 +5,19 @@ use std::{
     borrow::Borrow,
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
+    ptr,
     rc::Rc,
 };
 
 use super::{wrap_symbol_tracker_to_report_for_context, NodeBuilderContext};
 use crate::{
-    cast, create_empty_exports, create_symbol_table, every, filter, find_index, flat_map,
-    for_each_entry, get_effective_modifier_flags, get_name_of_declaration, group, has_scope_marker,
-    has_syntactic_modifier, id_text, indices_of, is_class_declaration, is_enum_declaration,
-    is_export_assignment, is_export_declaration, is_external_module_augmentation,
-    is_external_module_indicator, is_external_or_common_js_module, is_function_declaration,
-    is_global_scope_augmentation, is_identifier, is_interface_declaration, is_module_block,
-    is_module_declaration, is_named_exports, is_source_file, is_string_literal,
+    cast, create_empty_exports, create_symbol_table, every, filter, find_ancestor, find_index,
+    flat_map, for_each_entry, get_effective_modifier_flags, get_name_of_declaration, get_symbol_id,
+    group, has_scope_marker, has_syntactic_modifier, id_text, indices_of, is_class_declaration,
+    is_enum_declaration, is_export_assignment, is_export_declaration,
+    is_external_module_augmentation, is_external_module_indicator, is_external_or_common_js_module,
+    is_function_declaration, is_global_scope_augmentation, is_identifier, is_interface_declaration,
+    is_module_block, is_module_declaration, is_named_exports, is_source_file, is_string_literal,
     is_variable_statement, length, map, map_defined, needs_scope_marker, node_has_name,
     ordered_remove_item_at, unescape_leading_underscores, using_single_line_string_writer,
     with_synthetic_factory_and_factory, EmitTextWriter, InternalSymbolName,
@@ -61,6 +62,8 @@ impl NodeBuilder {
 #[derive(Trace, Finalize)]
 pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) type_checker: Gc<TypeChecker>,
+    pub(super) context: GcCell<Gc<NodeBuilderContext>>,
+    pub(super) node_builder: Gc<NodeBuilder>,
     pub(super) enclosing_declaration: Gc<Node>,
     pub(super) results: GcCell<Vec<Gc<Node>>>,
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
@@ -91,6 +94,8 @@ impl SymbolTableToDeclarationStatements {
         let context = Gc::new(context);
         let ret = Gc::new(Self {
             type_checker: type_checker.clone(),
+            context: GcCell::new(context.clone()),
+            node_builder: node_builder.rc_wrapper(),
             enclosing_declaration: context.enclosing_declaration(),
             results: Default::default(),
             visited_symbols: Default::default(),
@@ -112,12 +117,28 @@ impl SymbolTableToDeclarationStatements {
         ret
     }
 
+    pub fn context(&self) -> Gc<NodeBuilderContext> {
+        self.context.borrow().clone()
+    }
+
+    pub fn set_context(&self, context: Gc<NodeBuilderContext>) {
+        *self.context.borrow_mut() = context;
+    }
+
     pub fn results(&self) -> GcCellRef<Vec<Gc<Node>>> {
         self.results.borrow()
     }
 
     pub fn set_results(&self, results: Vec<Gc<Node>>) {
         *self.results.borrow_mut() = results;
+    }
+
+    pub fn visited_symbols(&self) -> GcCellRef<HashSet<SymbolId>> {
+        self.visited_symbols.borrow()
+    }
+
+    pub fn visited_symbols_mut(&self) -> GcCellRefMut<HashSet<SymbolId>> {
+        self.visited_symbols.borrow_mut()
     }
 
     pub fn deferred_privates_stack(&self) -> GcCellRef<Vec<HashMap<SymbolId, Gc<Symbol>>>> {
@@ -643,6 +664,45 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub(super) fn serialize_symbol(
+        &self,
+        symbol: &Symbol,
+        is_private: bool,
+        property_as_alias: bool,
+    ) {
+        let ref visited_sym = self.type_checker.get_merged_symbol(Some(symbol)).unwrap();
+        if self.visited_symbols().contains(&get_symbol_id(visited_sym)) {
+            return;
+        }
+        self.visited_symbols_mut()
+            .insert(get_symbol_id(visited_sym));
+        let skip_membership_check = !is_private;
+        if skip_membership_check
+            || length(symbol.maybe_declarations().as_deref()) > 0
+                && symbol
+                    .maybe_declarations()
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .any(|d| {
+                        find_ancestor(Some(&**d), |n: &Node| {
+                            ptr::eq(n, &*self.enclosing_declaration)
+                        })
+                        .is_some()
+                    })
+        {
+            let old_context = self.context();
+            self.set_context(self.node_builder.clone_node_builder_context(self.context()));
+            let result = self.serialize_symbol_worker(symbol, is_private, property_as_alias);
+            if self.context().reported_diagnostic() {
+                self.oldcontext
+                    .set_reported_diagnostic(self.context().reported_diagnostic());
+            }
+            self.set_context(old_context);
+            return /*result*/;
+        }
+    }
+
+    pub(super) fn serialize_symbol_worker(
         &self,
         symbol: &Symbol,
         is_private: bool,
