@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::{
     borrow::Borrow,
     cell::{Cell, RefCell},
@@ -10,12 +10,17 @@ use std::{
 
 use super::{wrap_symbol_tracker_to_report_for_context, NodeBuilderContext};
 use crate::{
-    create_symbol_table, filter, flat_map, for_each_entry, get_effective_modifier_flags,
-    get_name_of_declaration, has_syntactic_modifier, id_text, is_export_assignment,
-    is_export_declaration, is_identifier, is_module_block, is_module_declaration,
-    is_variable_statement, map, node_has_name, unescape_leading_underscores,
-    using_single_line_string_writer, with_synthetic_factory_and_factory, EmitTextWriter,
-    InternalSymbolName, ModifierFlags, Node, NodeArray, NodeBuilder, NodeInterface, Symbol,
+    cast, create_empty_exports, create_symbol_table, every, filter, find_index, flat_map,
+    for_each_entry, get_effective_modifier_flags, get_name_of_declaration, group, has_scope_marker,
+    has_syntactic_modifier, id_text, indices_of, is_class_declaration, is_enum_declaration,
+    is_export_assignment, is_export_declaration, is_external_module_augmentation,
+    is_external_module_indicator, is_external_or_common_js_module, is_function_declaration,
+    is_global_scope_augmentation, is_identifier, is_interface_declaration, is_module_block,
+    is_module_declaration, is_named_exports, is_source_file, is_string_literal,
+    is_variable_statement, length, map, map_defined, needs_scope_marker, node_has_name,
+    ordered_remove_item_at, unescape_leading_underscores, using_single_line_string_writer,
+    with_synthetic_factory_and_factory, EmitTextWriter, InternalSymbolName,
+    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeBuilder, NodeInterface, Symbol,
     SymbolAccessibility, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SyntaxKind, TypeChecker, TypeFormatFlags, TypePredicate,
 };
@@ -55,6 +60,7 @@ impl NodeBuilder {
 
 #[derive(Trace, Finalize)]
 pub(super) struct SymbolTableToDeclarationStatements {
+    pub(super) type_checker: Gc<TypeChecker>,
     pub(super) enclosing_declaration: Gc<Node>,
     pub(super) results: GcCell<Vec<Gc<Node>>>,
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
@@ -84,6 +90,7 @@ impl SymbolTableToDeclarationStatements {
         context.remapped_symbol_names = Rc::new(RefCell::new(Some(Default::default())));
         let context = Gc::new(context);
         let ret = Gc::new(Self {
+            type_checker: type_checker.clone(),
             enclosing_declaration: context.enclosing_declaration(),
             results: Default::default(),
             visited_symbols: Default::default(),
@@ -111,6 +118,14 @@ impl SymbolTableToDeclarationStatements {
 
     pub fn set_results(&self, results: Vec<Gc<Node>>) {
         *self.results.borrow_mut() = results;
+    }
+
+    pub fn deferred_privates_stack(&self) -> GcCellRef<Vec<HashMap<SymbolId, Gc<Symbol>>>> {
+        self.deferred_privates_stack.borrow()
+    }
+
+    pub fn deferred_privates_stack_mut(&self) -> GcCellRefMut<Vec<HashMap<SymbolId, Gc<Symbol>>>> {
+        self.deferred_privates_stack.borrow_mut()
     }
 
     pub fn symbol_table(&self) -> Gc<GcCell<SymbolTable>> {
@@ -300,11 +315,306 @@ impl SymbolTableToDeclarationStatements {
         statements
     }
 
+    pub(super) fn merge_export_declarations(
+        &self,
+        statements: &[Gc<Node /*Statement*/>],
+    ) -> Vec<Gc<Node>> {
+        let exports = filter(statements, |d: &Gc<Node>| {
+            is_export_declaration(d) && {
+                let d_as_export_declaration = d.as_export_declaration();
+                d_as_export_declaration.module_specifier.is_none()
+                    && matches!(
+                        d_as_export_declaration.export_clause.as_ref(),
+                        Some(d_export_clause) if is_named_exports(d_export_clause)
+                    )
+            }
+        });
+        let mut statements = statements.to_owned();
+        if length(Some(&exports)) > 1 {
+            let non_exports = filter(&statements, |d: &Gc<Node>| {
+                !is_export_declaration(d) || {
+                    let d_as_export_declaration = d.as_export_declaration();
+                    d_as_export_declaration.module_specifier.is_some()
+                        || d_as_export_declaration.export_clause.is_none()
+                }
+            });
+            statements = {
+                let mut statements = non_exports;
+                statements.push(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        factory_
+                            .create_export_declaration(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                false,
+                                Some(
+                                    factory_
+                                        .create_named_exports(
+                                            synthetic_factory_,
+                                            flat_map(Some(&exports), |e: &Gc<Node>, _| {
+                                                cast(
+                                                    e.as_export_declaration()
+                                                        .export_clause
+                                                        .as_ref(),
+                                                    |export_clause: &&Gc<Node>| {
+                                                        is_named_exports(export_clause)
+                                                    },
+                                                )
+                                                .as_named_exports()
+                                                .elements
+                                                .to_vec()
+                                            }),
+                                        )
+                                        .into(),
+                                ),
+                                None,
+                                None,
+                            )
+                            .into()
+                    },
+                ));
+                statements
+            };
+        }
+
+        let reexports = filter(&statements, |d: &Gc<Node>| {
+            is_export_declaration(d) && {
+                let d_as_export_declaration = d.as_export_declaration();
+                d_as_export_declaration.module_specifier.is_some()
+                    && matches!(
+                        d_as_export_declaration.export_clause.as_ref(),
+                        Some(d_export_clause) if is_named_exports(d_export_clause)
+                    )
+            }
+        });
+        if length(Some(&reexports)) > 1 {
+            let groups: Vec<Vec<Gc<Node>>> = group(
+                &reexports,
+                |decl: &Gc<Node>| {
+                    let decl_as_export_declaration = decl.as_export_declaration();
+                    if is_string_literal(
+                        decl_as_export_declaration
+                            .module_specifier
+                            .as_ref()
+                            .unwrap(),
+                    ) {
+                        format!(
+                            ">{:?}",
+                            &*decl_as_export_declaration
+                                .module_specifier
+                                .as_ref()
+                                .unwrap()
+                                .as_string_literal()
+                                .text()
+                        )
+                    } else {
+                        ">".to_owned()
+                    }
+                },
+                |values: Vec<Gc<Node>>| values,
+            );
+            if groups.len() != reexports.len() {
+                for group in groups {
+                    if group.len() > 1 {
+                        statements = {
+                            let mut statements = filter(&statements, |s: &Gc<Node>| {
+                                group
+                                    .iter()
+                                    .position(|item: &Gc<Node>| Gc::ptr_eq(item, s))
+                                    .is_none()
+                            });
+                            statements.push(with_synthetic_factory_and_factory(
+                                |synthetic_factory_, factory_| {
+                                    factory_
+                                        .create_export_declaration(
+                                            synthetic_factory_,
+                                            Option::<Gc<NodeArray>>::None,
+                                            Option::<Gc<NodeArray>>::None,
+                                            false,
+                                            Some(
+                                                factory_
+                                                    .create_named_exports(
+                                                        synthetic_factory_,
+                                                        flat_map(
+                                                            Some(&group),
+                                                            |e: &Gc<Node>, _| {
+                                                                cast(
+                                                                    e.as_export_declaration()
+                                                                        .export_clause
+                                                                        .as_ref(),
+                                                                    |export_clause: &&Gc<Node>| {
+                                                                        is_named_exports(
+                                                                            export_clause,
+                                                                        )
+                                                                    },
+                                                                )
+                                                                .as_named_exports()
+                                                                .elements
+                                                                .to_vec()
+                                                            },
+                                                        ),
+                                                    )
+                                                    .into(),
+                                            ),
+                                            group[0]
+                                                .as_export_declaration()
+                                                .module_specifier
+                                                .clone(),
+                                            None,
+                                        )
+                                        .into()
+                                },
+                            ));
+                            statements
+                        }
+                    }
+                }
+            }
+        }
+        statements
+    }
+
+    pub(super) fn inline_export_modifiers(
+        &self,
+        mut statements: Vec<Gc<Node /*Statement*/>>,
+    ) -> Vec<Gc<Node>> {
+        let index = find_index(
+            &statements,
+            |d: &Gc<Node>, _| {
+                is_export_declaration(d) && {
+                    let d_as_export_declaration = d.as_export_declaration();
+                    d_as_export_declaration.module_specifier.is_none()
+                        && d_as_export_declaration.assert_clause.is_none()
+                        && matches!(
+                            d_as_export_declaration.export_clause.as_ref(),
+                            Some(d_export_clause) if is_named_exports(d_export_clause)
+                        )
+                }
+            },
+            None,
+        );
+        if let Some(index) = index {
+            let export_decl = statements[index].clone();
+            let export_decl_as_export_declaration = export_decl.as_export_declaration();
+            let replacements = map_defined(
+                Some(
+                    &export_decl_as_export_declaration
+                        .export_clause
+                        .as_ref()
+                        .unwrap()
+                        .as_named_exports()
+                        .elements,
+                ),
+                |e: &Gc<Node>, _| {
+                    let e_as_export_specifier = e.as_export_specifier();
+                    if e_as_export_specifier.property_name.is_none() {
+                        let indices = indices_of(&statements);
+                        let associated_indices = filter(&indices, |&i: &usize| {
+                            node_has_name(&statements[i], &e_as_export_specifier.name)
+                        });
+                        if length(Some(&associated_indices)) > 0
+                            && every(&associated_indices, |&i: &usize, _| {
+                                self.can_have_export_modifier(&statements[i])
+                            })
+                        {
+                            for index in associated_indices {
+                                statements[index] = self.add_export_modifier(&statements[index]);
+                            }
+                            return None;
+                        }
+                    }
+                    Some(e.clone())
+                },
+            );
+            if replacements.is_empty() {
+                ordered_remove_item_at(&mut statements, index);
+            } else {
+                statements[index] =
+                    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        factory_.update_export_declaration(
+                            synthetic_factory_,
+                            &export_decl,
+                            export_decl.maybe_decorators(),
+                            export_decl.maybe_modifiers(),
+                            export_decl_as_export_declaration.is_type_only,
+                            Some(
+                                factory_.update_named_exports(
+                                    synthetic_factory_,
+                                    export_decl_as_export_declaration
+                                        .export_clause
+                                        .as_ref()
+                                        .unwrap(),
+                                    replacements,
+                                ),
+                            ),
+                            export_decl_as_export_declaration.module_specifier.clone(),
+                            export_decl_as_export_declaration.assert_clause.clone(),
+                        )
+                    });
+            }
+        }
+        statements
+    }
+
     pub(super) fn merge_redundant_statements(
         &self,
         statements: &[Gc<Node /*Statement*/>],
     ) -> Vec<Gc<Node>> {
-        unimplemented!()
+        let statements = self.flatten_export_assigned_namespace(statements);
+        let statements = self.merge_export_declarations(&statements);
+        let mut statements = self.inline_export_modifiers(statements);
+        if
+        /*enclosingDeclaration &&*/
+        (is_source_file(&self.enclosing_declaration)
+            && is_external_or_common_js_module(&self.enclosing_declaration)
+            || is_module_declaration(&self.enclosing_declaration))
+            && (!statements
+                .iter()
+                .any(|statement| is_external_module_indicator(statement))
+                || !has_scope_marker(&statements)
+                    && statements
+                        .iter()
+                        .any(|statement| needs_scope_marker(statement)))
+        {
+            statements.push(with_synthetic_factory_and_factory(
+                |synthetic_factory_, factory_| create_empty_exports(synthetic_factory_, factory_),
+            ));
+        }
+        statements
+    }
+
+    pub(super) fn can_have_export_modifier(&self, node: &Node /*Statement*/) -> bool {
+        is_enum_declaration(node)
+            || is_variable_statement(node)
+            || is_function_declaration(node)
+            || is_class_declaration(node)
+            || is_module_declaration(node)
+                && !is_external_module_augmentation(node)
+                && !is_global_scope_augmentation(node)
+            || is_interface_declaration(node)
+            || self.type_checker.is_type_declaration(node)
+    }
+
+    pub(super) fn add_export_modifier(
+        &self,
+        node: &Node, /*Extract<HasModifiers, Statement>*/
+    ) -> Gc<Node> {
+        let flags =
+            (get_effective_modifier_flags(node) | ModifierFlags::Export) & !ModifierFlags::Ambient;
+        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+            factory_.update_modifiers(synthetic_factory_, node, flags)
+        })
+    }
+
+    pub(super) fn remove_export_modifier(
+        &self,
+        node: &Node, /*Extract<HasModifiers, Statement>*/
+    ) -> Gc<Node> {
+        let flags = get_effective_modifier_flags(node) & !ModifierFlags::Export;
+        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+            factory_.update_modifiers(synthetic_factory_, node, flags)
+        })
     }
 
     pub(super) fn visit_symbol_table(
@@ -312,6 +622,31 @@ impl SymbolTableToDeclarationStatements {
         symbol_table: Gc<GcCell<SymbolTable>>,
         suppress_new_private_context: Option<bool>,
         property_as_alias: Option<bool>,
+    ) {
+        if suppress_new_private_context != Some(true) {
+            self.deferred_privates_stack_mut().push(Default::default());
+        }
+        (*symbol_table).borrow().values().for_each(|symbol| {
+            self.serialize_symbol(symbol, false, property_as_alias == Some(true));
+        });
+        if suppress_new_private_context != Some(true) {
+            {
+                let deferred_privates_stack = self.deferred_privates_stack();
+                deferred_privates_stack[deferred_privates_stack.len() - 1]
+                    .values()
+                    .for_each(|symbol| {
+                        self.serialize_symbol(symbol, true, property_as_alias == Some(true));
+                    });
+            }
+            self.deferred_privates_stack_mut().pop();
+        }
+    }
+
+    pub(super) fn serialize_symbol(
+        &self,
+        symbol: &Symbol,
+        is_private: bool,
+        property_as_alias: bool,
     ) {
         unimplemented!()
     }
