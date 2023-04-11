@@ -965,11 +965,11 @@ impl NodeBuilder {
         self.type_to_type_node_helper(Some(type_), context).unwrap()
     }
 
-    pub(super) fn track_existing_entity_name<TIncludePrivateSymbol: Fn(&Symbol)>(
+    pub(super) fn track_existing_entity_name(
         &self,
         node: &Node, /*EntityNameOrEntityNameExpression*/
         context: &NodeBuilderContext,
-        include_private_symbol: Option<&TIncludePrivateSymbol>,
+        include_private_symbol: Option<&impl Fn(&Symbol)>,
     ) -> TrackExistingEntityNameReturn {
         let mut introduces_error = false;
         let ref leftmost = get_first_identifier(node);

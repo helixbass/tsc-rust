@@ -9,7 +9,10 @@ use std::{
     rc::Rc,
 };
 
-use super::{wrap_symbol_tracker_to_report_for_context, NodeBuilderContext};
+use super::{
+    wrap_symbol_tracker_to_report_for_context, MakeSerializePropertySymbol,
+    MakeSerializePropertySymbolCreateProperty, NodeBuilderContext,
+};
 use crate::{
     cast, create_empty_exports, create_symbol_table, every, filter, find_ancestor, find_index,
     flat_map, for_each_entry, get_effective_modifier_flags, get_name_of_declaration, get_symbol_id,
@@ -22,12 +25,11 @@ use crate::{
     is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
     needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_rc_node,
-    unescape_leading_underscores, using_single_line_string_writer,
-    with_synthetic_factory_and_factory, EmitTextWriter, InternalSymbolName,
-    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
-    NodeFlags, NodeInterface, Symbol, SymbolAccessibility, SymbolFlags, SymbolId, SymbolInterface,
-    SymbolTable, SymbolTracker, SyntaxKind, TypeChecker, TypeFormatFlags, TypeInterface,
-    TypePredicate,
+    unescape_leading_underscores, with_synthetic_factory_and_factory, InternalSymbolName,
+    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
+    NodeBuilderFlags, NodeFlags, NodeInterface, StrOrRcNode, Symbol, SymbolAccessibility,
+    SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker,
+    TypeInterface,
 };
 
 impl NodeBuilder {
@@ -69,6 +71,7 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) type_checker: Gc<TypeChecker>,
     pub(super) context: GcCell<Gc<NodeBuilderContext>>,
     pub(super) node_builder: Gc<NodeBuilder>,
+    pub(super) serialize_property_symbol_for_class: MakeSerializePropertySymbol,
     pub(super) enclosing_declaration: Gc<Node>,
     pub(super) results: GcCell<Vec<Gc<Node>>>,
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
@@ -102,6 +105,11 @@ impl SymbolTableToDeclarationStatements {
             type_checker: type_checker.clone(),
             context: GcCell::new(context.clone()),
             node_builder: node_builder.rc_wrapper(),
+            serialize_property_symbol_for_class: MakeSerializePropertySymbol::new(
+                MakeSerializePropertySymbolCreatePropertyDeclaration::new(),
+                SyntaxKind::MethodDeclaration,
+                true,
+            ),
             enclosing_declaration: context.enclosing_declaration(),
             results: Default::default(),
             visited_symbols: Default::default(),
@@ -1308,32 +1316,37 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
     }
 }
 
-impl TypeChecker {
-    pub fn type_predicate_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+#[derive(Trace, Finalize)]
+pub(super) struct MakeSerializePropertySymbolCreatePropertyDeclaration;
+
+impl MakeSerializePropertySymbolCreatePropertyDeclaration {
+    pub fn new() -> Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        Gc::new(Box::new(Self))
+    }
+}
+
+impl MakeSerializePropertySymbolCreateProperty
+    for MakeSerializePropertySymbolCreatePropertyDeclaration
+{
+    fn call(
         &self,
-        type_predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
-        flags: Option<TypeFormatFlags>,
-        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
-        let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
-        if let Some(writer) = writer {
-            self.type_predicate_to_string_worker(
-                type_predicate,
-                enclosing_declaration,
-                flags,
-                writer.clone(),
-            );
-            writer.get_text()
-        } else {
-            using_single_line_string_writer(|writer| {
-                self.type_predicate_to_string_worker(
-                    type_predicate,
-                    enclosing_declaration,
-                    flags,
-                    writer,
-                )
-            })
-        }
+        decorators: Option<NodeArrayOrVec /*Decorator*/>,
+        modifiers: Option<NodeArrayOrVec /*Modifier*/>,
+        name: StrOrRcNode<'_>, /*PropertyName*/
+        question_or_exclamation_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+            factory_.create_property_declaration(
+                synthetic_factory_,
+                decorators,
+                modifiers,
+                name,
+                question_or_exclamation_token,
+                type_,
+                initializer,
+            )
+        })
     }
 }

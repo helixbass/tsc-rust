@@ -19,16 +19,45 @@ use crate::{
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
     parse_node_factory, push_if_unique_gc, set_parent, set_text_range, starts_with, symbol_name,
-    synthetic_factory, try_add_to_set, walk_up_parenthesized_types, CharacterCodes, CheckFlags,
-    EmitHint, EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol,
-    SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
-    TypeSystemEntity, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    synthetic_factory, try_add_to_set, using_single_line_string_writer,
+    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
+    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
+    pub fn type_predicate_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_predicate: &TypePredicate,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
+    ) -> String {
+        let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
+        if let Some(writer) = writer {
+            self.type_predicate_to_string_worker(
+                type_predicate,
+                enclosing_declaration,
+                flags,
+                writer.clone(),
+            );
+            writer.get_text()
+        } else {
+            using_single_line_string_writer(|writer| {
+                self.type_predicate_to_string_worker(
+                    type_predicate,
+                    enclosing_declaration,
+                    flags,
+                    writer,
+                )
+            })
+        }
+    }
+
     pub(super) fn type_predicate_to_string_worker<TEnclosingDeclaration: Borrow<Node>>(
         &self,
         type_predicate: &TypePredicate,

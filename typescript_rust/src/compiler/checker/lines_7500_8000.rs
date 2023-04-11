@@ -1,8 +1,10 @@
 use std::borrow::Borrow;
 
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 
-use crate::{Node, SignatureKind, Symbol, SymbolFlags, SyntaxKind, Type};
+use crate::{
+    Node, NodeArrayOrVec, SignatureKind, StrOrRcNode, Symbol, SymbolFlags, SyntaxKind, Type,
+};
 
 use super::SymbolTableToDeclarationStatements;
 
@@ -17,6 +19,15 @@ impl SymbolTableToDeclarationStatements {
         host_symbol: &Symbol,
     ) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn make_serialize_property_symbol(
+        &self,
+        create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
+        method_kind: SyntaxKind,
+        use_accessors: bool,
+    ) -> MakeSerializePropertySymbol {
+        MakeSerializePropertySymbol::new(create_property, method_kind, use_accessors)
     }
 
     pub(super) fn serialize_property_symbol_for_interface(
@@ -45,11 +56,24 @@ impl SymbolTableToDeclarationStatements {
         unimplemented!()
     }
 
+    pub(super) fn serialize_base_type(
+        &self,
+        t: &Type,
+        static_type: &Type,
+        root_name: &str,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub(super) fn try_serialize_as_type_reference(
         &self,
         t: &Type,
         flags: SymbolFlags,
     ) -> Option<Gc<Node>> {
+        unimplemented!()
+    }
+
+    pub(super) fn serialize_implemented_type(&self, t: &Type) -> Option<Gc<Node>> {
         unimplemented!()
     }
 
@@ -64,4 +88,46 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn get_internal_symbol_name(&self, symbol: &Symbol, local_name: &str) -> String {
         unimplemented!()
     }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct MakeSerializePropertySymbol {
+    create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
+    method_kind: SyntaxKind,
+    use_accessors: bool,
+}
+
+impl MakeSerializePropertySymbol {
+    pub(super) fn new(
+        create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
+        method_kind: SyntaxKind,
+        use_accessors: bool,
+    ) -> Self {
+        Self {
+            create_property,
+            method_kind,
+            use_accessors,
+        }
+    }
+
+    pub(super) fn call(
+        &self,
+        p: &Symbol,
+        is_static: bool,
+        base_type: Option<&Type>,
+    ) -> Vec<Gc<Node>> {
+        unimplemented!()
+    }
+}
+
+pub(super) trait MakeSerializePropertySymbolCreateProperty: Trace + Finalize {
+    fn call(
+        &self,
+        decorators: Option<NodeArrayOrVec /*Decorator*/>,
+        modifiers: Option<NodeArrayOrVec /*Modifier*/>,
+        name: StrOrRcNode<'_>, /*PropertyName*/
+        question_or_exclamation_token: Option<Gc<Node /*QuestionToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node>;
 }

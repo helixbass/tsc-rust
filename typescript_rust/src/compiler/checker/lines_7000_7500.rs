@@ -5,24 +5,30 @@ use itertools::Itertools;
 
 use crate::{
     are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table, filter,
-    find_ancestor, flat_map, get_assignment_declaration_kind, get_effective_modifier_flags,
-    get_source_file_of_node, get_symbol_id, get_text_of_jsdoc_comment, has_syntactic_modifier,
-    is_ambient_module, is_binary_expression, is_class_declaration, is_enum_declaration,
-    is_enum_member, is_export_assignment, is_export_declaration, is_external_module_reference,
-    is_external_or_common_js_module, is_function_declaration, is_global_scope_augmentation,
-    is_identifier, is_import_equals_declaration, is_interface_declaration, is_jsdoc_type_alias,
-    is_jsdoc_type_expression, is_json_source_file, is_module_declaration, is_namespace_export,
-    is_parameter_declaration, is_source_file, is_variable_declaration, is_variable_statement,
-    length, map, map_defined, maybe_get_source_file_of_node, maybe_map, parse_node_factory,
-    set_parent, set_synthetic_leading_comments_rc, set_text_range_rc_node, some,
-    unescape_leading_underscores, with_parse_base_node_factory_and_factory,
-    with_synthetic_factory_and_factory, AssignmentDeclarationKind, Debug_, InternalSymbolName,
-    MapOrDefault, ModifierFlags, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
-    Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    SynthesizedComment, ThenAnd, Type,
+    find_ancestor, flat_map, get_assignment_declaration_kind, get_effective_implements_type_nodes,
+    get_effective_modifier_flags, get_source_file_of_node, get_symbol_id,
+    get_text_of_jsdoc_comment, has_syntactic_modifier, id_text, is_ambient_module,
+    is_binary_expression, is_class_declaration, is_class_expression, is_class_like,
+    is_entity_name_expression, is_enum_declaration, is_enum_member, is_export_assignment,
+    is_export_declaration, is_external_module_reference, is_external_or_common_js_module,
+    is_function_declaration, is_global_scope_augmentation, is_identifier,
+    is_import_equals_declaration, is_in_js_file, is_interface_declaration, is_jsdoc_type_alias,
+    is_jsdoc_type_expression, is_json_source_file, is_module_declaration, is_named_declaration,
+    is_namespace_export, is_parameter_declaration, is_private_identifier, is_source_file,
+    is_static, is_variable_declaration, is_variable_statement, length, map, map_defined,
+    maybe_get_source_file_of_node, maybe_map, set_parent, set_synthetic_leading_comments_rc,
+    set_text_range_rc_node, some, unescape_leading_underscores,
+    with_parse_base_node_factory_and_factory, with_synthetic_factory_and_factory, AsDoubleDeref,
+    AssignmentDeclarationKind, Debug_, HasTypeArgumentsInterface, InternalSymbolName, MapOrDefault,
+    ModifierFlags, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, Signature,
+    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    SynthesizedComment, ThenAnd, Type, TypeInterface,
 };
 
-use super::{SignatureToSignatureDeclarationOptions, SymbolTableToDeclarationStatements};
+use super::{
+    SignatureToSignatureDeclarationOptions, SymbolTableToDeclarationStatements,
+    TrackExistingEntityNameReturn,
+};
 
 impl SymbolTableToDeclarationStatements {
     pub(super) fn include_private_symbol(&self, symbol: &Symbol) {
@@ -818,7 +824,98 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub(super) fn is_namespace_member(&self, p: &Symbol) -> bool {
-        unimplemented!()
+        p.flags()
+            .intersects(SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Alias)
+            || !(p.flags().intersects(SymbolFlags::Prototype)
+                || p.escaped_name() == "prototype"
+                || matches!(
+                    p.maybe_value_declaration().as_ref(),
+                    Some(p_value_declaration) if is_static(p_value_declaration) && is_class_like(&p_value_declaration.parent())
+                ))
+    }
+
+    pub(super) fn sanitize_jsdoc_implements(
+        &self,
+        clauses: &[Gc<Node /*ExpressionWithTypeArguments*/>],
+    ) -> Option<Vec<Gc<Node /*ExpressionWithTypeArguments*/>>> {
+        let result = map_defined(Some(clauses), |e: &Gc<Node>, _| {
+            let e_as_expression_with_type_arguments = e.as_expression_with_type_arguments();
+            let old_enclosing = self.context().maybe_enclosing_declaration();
+            self.context().set_enclosing_declaration(Some(e.clone()));
+            let mut expr = e_as_expression_with_type_arguments.expression.clone();
+            if is_entity_name_expression(&expr) {
+                if is_identifier(&expr) && id_text(&expr) == "" {
+                    return self.sanitize_jsdoc_implements_cleanup(old_enclosing, None);
+                }
+                let TrackExistingEntityNameReturn {
+                    introduces_error,
+                    node,
+                } = self.node_builder.track_existing_entity_name(
+                    &expr,
+                    &self.context(),
+                    Some(&|symbol: &Symbol| {
+                        self.include_private_symbol(symbol);
+                    }),
+                );
+                expr = node;
+                if introduces_error {
+                    return self.sanitize_jsdoc_implements_cleanup(old_enclosing, None);
+                }
+            }
+            self.sanitize_jsdoc_implements_cleanup(
+                old_enclosing,
+                Some(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        factory_
+                            .create_expression_with_type_arguments(
+                                synthetic_factory_,
+                                expr,
+                                maybe_map(
+                                    e_as_expression_with_type_arguments
+                                        .maybe_type_arguments()
+                                        .as_deref(),
+                                    |a: &Gc<Node>, _| {
+                                        self.node_builder
+                                            .serialize_existing_type_node(
+                                                &self.context(),
+                                                a,
+                                                Some(&|symbol: &Symbol| {
+                                                    self.include_private_symbol(symbol);
+                                                }),
+                                                self.bundled,
+                                            )
+                                            .unwrap_or_else(|| {
+                                                self.node_builder
+                                                    .type_to_type_node_helper(
+                                                        Some(
+                                                            self.type_checker
+                                                                .get_type_from_type_node_(a),
+                                                        ),
+                                                        &self.context(),
+                                                    )
+                                                    .unwrap()
+                                            })
+                                    },
+                                ),
+                            )
+                            .into()
+                    },
+                )),
+            )
+        });
+        if result.len() == clauses.len() {
+            return Some(result);
+        }
+        None
+    }
+
+    pub(super) fn sanitize_jsdoc_implements_cleanup(
+        &self,
+        old_enclosing: Option<Gc<Node>>,
+        result: Option<Gc<Node>>,
+    ) -> Option<Gc<Node>> {
+        self.context().set_enclosing_declaration(old_enclosing);
+        result
     }
 
     pub(super) fn serialize_as_class(
@@ -827,7 +924,226 @@ impl SymbolTableToDeclarationStatements {
         local_name: &str,
         modifier_flags: ModifierFlags,
     ) {
-        unimplemented!()
+        let original_decl = symbol
+            .maybe_declarations()
+            .as_ref()
+            .and_then(|symbol_declarations| {
+                symbol_declarations
+                    .iter()
+                    .find(|declaration| is_class_like(declaration))
+                    .cloned()
+            });
+        let old_enclosing = self.context().maybe_enclosing_declaration();
+        self.context()
+            .set_enclosing_declaration(original_decl.clone().or_else(|| old_enclosing.clone()));
+        let local_params = self
+            .type_checker
+            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+        let type_param_decls = maybe_map(local_params.as_ref(), |p: &Gc<Type>, _| {
+            self.node_builder
+                .type_parameter_to_declaration_(p, &self.context(), None)
+        });
+        let ref class_type = self
+            .type_checker
+            .get_declared_type_of_class_or_interface(symbol);
+        let base_types = self.type_checker.get_base_types(class_type);
+        let original_implements = original_decl
+            .as_ref()
+            .and_then(|original_decl| get_effective_implements_type_nodes(original_decl));
+        let implements_expressions = original_implements
+            .as_ref()
+            .and_then(|original_implements| self.sanitize_jsdoc_implements(original_implements))
+            .unwrap_or_else(|| {
+                map_defined(
+                    Some(&self.type_checker.get_implements_types(class_type)),
+                    |type_: &Gc<Type>, _| self.serialize_implemented_type(type_),
+                )
+            });
+        let ref static_type = self.type_checker.get_type_of_symbol(symbol);
+        let is_class = matches!(
+            static_type.maybe_symbol().and_then(|static_type_symbol| static_type_symbol.maybe_value_declaration()).as_ref(),
+            Some(static_type_symbol_value_declaration) if is_class_like(static_type_symbol_value_declaration)
+        );
+        let ref static_base_type = if is_class {
+            self.type_checker
+                .get_base_constructor_type_of_class(static_type)
+        } else {
+            self.type_checker.any_type()
+        };
+        let heritage_clauses: Vec<Gc<Node>> = {
+            let mut heritage_clauses = vec![];
+            if !base_types.is_empty() {
+                heritage_clauses.push(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        factory_
+                            .create_heritage_clause(
+                                synthetic_factory_,
+                                SyntaxKind::ExtendsKeyword,
+                                map(&base_types, |b: &Gc<Type>, _| {
+                                    self.serialize_base_type(b, static_base_type, local_name)
+                                }),
+                            )
+                            .into()
+                    },
+                ));
+            }
+            if !implements_expressions.is_empty() {
+                heritage_clauses.push(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        factory_
+                            .create_heritage_clause(
+                                synthetic_factory_,
+                                SyntaxKind::ImplementsKeyword,
+                                implements_expressions,
+                            )
+                            .into()
+                    },
+                ));
+            }
+            heritage_clauses
+        };
+        let symbol_props = self.type_checker.get_non_interhited_properties(
+            class_type,
+            &base_types,
+            &self.type_checker.get_properties_of_type(class_type),
+        );
+        let public_symbol_props = filter(&symbol_props, |s: &Gc<Symbol>| {
+            let value_decl = s.maybe_value_declaration();
+            matches!(
+                value_decl.as_ref(),
+                Some(value_decl) if !(
+                    is_named_declaration(value_decl) &&
+                    is_private_identifier(&value_decl.as_named_declaration().name())
+                )
+            )
+        });
+        let has_private_identifier = symbol_props.iter().any(|s| {
+            let value_decl = s.maybe_value_declaration();
+            matches!(
+                value_decl.as_ref(),
+                Some(value_decl) if is_named_declaration(value_decl) &&
+                    is_private_identifier(&value_decl.as_named_declaration().name())
+            )
+        });
+        let private_properties: Vec<Gc<Node>> = if has_private_identifier {
+            vec![with_synthetic_factory_and_factory(
+                |synthetic_factory_, factory_| {
+                    factory_.create_property_declaration(
+                        synthetic_factory_,
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Gc::<Node>::from(
+                            factory_.create_private_identifier(synthetic_factory_, "#private"),
+                        ),
+                        None,
+                        None,
+                        None,
+                    )
+                },
+            )]
+        } else {
+            vec![]
+        };
+        let public_properties = flat_map(Some(&public_symbol_props), |p: &Gc<Symbol>, _| {
+            self.serialize_property_symbol_for_class.call(
+                p,
+                false,
+                base_types.get(0).as_double_deref(),
+            )
+        });
+        let static_members = flat_map(
+            Some(&filter(
+                &self.type_checker.get_properties_of_type(static_type),
+                |p: &Gc<Symbol>| {
+                    !p.flags().intersects(SymbolFlags::Prototype)
+                        && p.escaped_name() != "prototype"
+                        && !self.is_namespace_member(p)
+                },
+            )),
+            |p: &Gc<Symbol>, _| {
+                self.serialize_property_symbol_for_class
+                    .call(p, true, Some(&**static_base_type))
+            },
+        );
+        let is_non_constructable_class_like_in_js_file = !is_class
+            && matches!(
+                symbol.maybe_value_declaration().as_ref(),
+                Some(symbol_value_declaration) if is_in_js_file(Some(&**symbol_value_declaration))
+            )
+            && !some(
+                Some(
+                    &self
+                        .type_checker
+                        .get_signatures_of_type(static_type, SignatureKind::Construct),
+                ),
+                Option::<fn(&Gc<Signature>) -> bool>::None,
+            );
+        let constructors = if is_non_constructable_class_like_in_js_file {
+            vec![with_synthetic_factory_and_factory(
+                |synthetic_factory_, factory_| {
+                    factory_
+                        .create_constructor_declaration(
+                            synthetic_factory_,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(factory_.create_modifiers_from_modifier_flags(
+                                synthetic_factory_,
+                                ModifierFlags::Private,
+                            )),
+                            Some(vec![]),
+                            None,
+                        )
+                        .into()
+                },
+            )]
+        } else {
+            self.serialize_signatures(
+                SignatureKind::Construct,
+                static_type,
+                Some(&**static_base_type),
+                SyntaxKind::Constructor,
+            )
+        };
+        let index_signatures =
+            self.serialize_index_signatures(class_type, base_types.get(0).as_double_deref());
+        self.context().set_enclosing_declaration(old_enclosing);
+        self.add_result(
+            &set_text_range_rc_node(
+                with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                    factory_
+                        .create_class_declaration(
+                            synthetic_factory_,
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(local_name),
+                            type_param_decls,
+                            Some(heritage_clauses),
+                            Itertools::concat(
+                                [
+                                    index_signatures,
+                                    static_members,
+                                    constructors,
+                                    public_properties,
+                                    private_properties,
+                                ]
+                                .into_iter(),
+                            ),
+                        )
+                        .into()
+                }),
+                symbol
+                    .maybe_declarations()
+                    .as_ref()
+                    .and_then(|symbol_declarations| {
+                        symbol_declarations
+                            .iter()
+                            .filter(|d| is_class_declaration(d) || is_class_expression(d))
+                            .cloned()
+                            .next()
+                    })
+                    .as_deref(),
+            ),
+            modifier_flags,
+        );
     }
 
     pub(super) fn serialize_as_alias(
