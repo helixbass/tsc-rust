@@ -37,21 +37,21 @@ pub use compiler::command_line_parser::{
 };
 pub use compiler::core::{
     add_range, append, append_if_unique_gc, append_if_unique_rc, array_of, array_to_map,
-    arrays_equal, binary_search, binary_search_copy_key, cartesian_product, cast, cast_present,
-    clear, clone, compare_strings_case_insensitive, compare_strings_case_sensitive,
-    compare_strings_case_sensitive_maybe, compare_values, comparison_to_ordering, concatenate,
-    contains, contains_comparer, contains_gc, contains_rc, count_where,
-    create_get_canonical_file_name, create_multi_map, create_underscore_escaped_multi_map,
-    deduplicate_gc, deduplicate_rc, ends_with, equate_strings_case_insensitive,
-    equate_strings_case_sensitive, equate_values, every, filter, filter_iter, filter_mutate,
-    filter_owning, find, find_best_pattern_match, find_index, find_last, find_last_index,
-    find_last_index_returns_isize, first, first_defined, first_or_undefined, flat_map,
-    flat_map_to_mutable, flatten, for_each, for_each_bool, get_or_update, get_or_update_indexmap,
-    get_ranges_where, get_spelling_suggestion, get_string_comparer, group, identity_str_to_cow,
-    identity_str_to_owned, index_of_any_char_code, indices_of, insert_sorted, last,
-    last_or_undefined, length, map, map_defined, matched_text, maybe_add_range,
-    maybe_append_if_unique_gc, maybe_append_if_unique_rc, maybe_concatenate, maybe_every,
-    maybe_filter, maybe_first_defined, maybe_for_each, maybe_for_each_bool, maybe_map,
+    array_to_multi_map, arrays_equal, binary_search, binary_search_copy_key, cartesian_product,
+    cast, cast_present, clear, clone, compare_strings_case_insensitive,
+    compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values,
+    comparison_to_ordering, concatenate, contains, contains_comparer, contains_gc, contains_rc,
+    count_where, create_get_canonical_file_name, create_multi_map,
+    create_underscore_escaped_multi_map, deduplicate_gc, deduplicate_rc, ends_with,
+    equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
+    filter_iter, filter_mutate, filter_owning, find, find_best_pattern_match, find_index,
+    find_last, find_last_index, find_last_index_returns_isize, first, first_defined,
+    first_or_undefined, flat_map, flat_map_to_mutable, flatten, for_each, for_each_bool,
+    get_or_update, get_or_update_indexmap, get_ranges_where, get_spelling_suggestion,
+    get_string_comparer, group, identity_str_to_cow, identity_str_to_owned, index_of_any_char_code,
+    indices_of, insert_sorted, last, last_or_undefined, length, map, map_defined, matched_text,
+    maybe_add_range, maybe_append_if_unique_gc, maybe_append_if_unique_rc, maybe_concatenate,
+    maybe_every, maybe_filter, maybe_first_defined, maybe_for_each, maybe_for_each_bool, maybe_map,
     maybe_same_map, not_implemented, ordered_remove_item_at, pad_left, pad_right, pattern_text,
     push_if_unique_gc, push_if_unique_rc, range_equals_gc, range_equals_rc, reduce_left,
     reduce_left_no_initial_value, reduce_left_no_initial_value_optional, relative_complement,
@@ -88,7 +88,7 @@ pub use compiler::factory::emit_node::{
     dispose_emit_nodes, get_comment_range, get_constant_value, get_emit_helpers,
     get_source_map_range, get_synthetic_leading_comments, get_synthetic_trailing_comments,
     set_comment_range, set_comment_range_rc, set_emit_flags, set_source_map_range,
-    set_synthetic_leading_comments,
+    set_synthetic_leading_comments, set_synthetic_leading_comments_rc,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,
@@ -684,7 +684,7 @@ pub use rust_helpers::debugging::{
 pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
-pub use rust_helpers::option::{GetOrInsertDefault, NonEmpty};
+pub use rust_helpers::option::{GetOrInsertDefault, MapOrDefault, NonEmpty, ThenAnd};
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
     fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join, process_cwd,

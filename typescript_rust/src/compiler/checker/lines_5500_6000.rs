@@ -259,12 +259,12 @@ impl NodeBuilder {
         })
     }
 
-    pub(super) fn signature_to_signature_declaration_helper<TPrivateSymbolVisitor: Fn(&Symbol)>(
+    pub(super) fn signature_to_signature_declaration_helper(
         &self,
         signature: Gc<Signature>,
         kind: SyntaxKind,
         context: &NodeBuilderContext,
-        options: Option<SignatureToSignatureDeclarationOptions<TPrivateSymbolVisitor>>,
+        options: Option<SignatureToSignatureDeclarationOptions<impl Fn(&Symbol)>>,
     ) -> Gc<Node /*SignatureDeclaration*/> {
         let suppress_any = context
             .flags()

@@ -144,6 +144,14 @@ pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<Synth
     unimplemented!()
 }
 
+pub fn set_synthetic_leading_comments_rc(
+    node: Gc<Node>,
+    comments: Option<Vec<Rc<SynthesizedComment>>>,
+) -> Gc<Node> {
+    set_synthetic_leading_comments(&node, comments);
+    node
+}
+
 pub fn add_synthetic_leading_comment(
     node: &Node,
     kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/

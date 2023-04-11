@@ -1087,9 +1087,9 @@ impl<'a> From<&'a StringOrNodeArray> for StrOrNodeArray<'a> {
     }
 }
 
-pub fn get_text_of_jsdoc_comment<'a, TComment: Into<StrOrNodeArray<'a>>>(
-    comment: Option<TComment>,
-) -> Option<Cow<'a, str>> {
+pub fn get_text_of_jsdoc_comment<'str>(
+    comment: Option<impl Into<StrOrNodeArray<'str>>>,
+) -> Option<Cow<'str, str>> {
     match comment {
         Some(comment) => match comment.into() {
             StrOrNodeArray::Str(comment) => Some(comment.into()),

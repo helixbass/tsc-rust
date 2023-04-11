@@ -66,3 +66,33 @@ impl<TValue: Default> GetOrInsertDefault for Option<TValue> {
         self.get_or_insert_with(|| Default::default())
     }
 }
+
+pub trait MapOrDefault {
+    type Unwrapped;
+
+    fn map_or_default<TMapped: Default>(
+        self,
+        mapper: impl FnOnce(Self::Unwrapped) -> TMapped,
+    ) -> TMapped;
+}
+
+impl<TValue> MapOrDefault for Option<TValue> {
+    type Unwrapped = TValue;
+
+    fn map_or_default<TMapped: Default>(
+        self,
+        mapper: impl FnOnce(Self::Unwrapped) -> TMapped,
+    ) -> TMapped {
+        self.map(mapper).unwrap_or_default()
+    }
+}
+
+pub trait ThenAnd {
+    fn then_and<TMapped>(self, mapper: impl FnOnce() -> Option<TMapped>) -> Option<TMapped>;
+}
+
+impl ThenAnd for bool {
+    fn then_and<TMapped>(self, mapper: impl FnOnce() -> Option<TMapped>) -> Option<TMapped> {
+        self.then(mapper).flatten()
+    }
+}

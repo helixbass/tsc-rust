@@ -748,9 +748,9 @@ impl NodeBuilder {
         context.truncating.get().unwrap()
     }
 
-    pub(super) fn type_to_type_node_helper<TType: Borrow<Type>>(
+    pub(super) fn type_to_type_node_helper(
         &self,
-        type_: Option<TType>,
+        type_: Option<impl Borrow<Type>>,
         context: &NodeBuilderContext,
     ) -> Option<Gc<Node>> {
         if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token()
@@ -1900,7 +1900,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Trace, Finalize)]
 pub struct NodeBuilderContext {
     pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilderContext>>>,
     pub(super) enclosing_declaration: Gc<GcCell<Option<Gc<Node>>>>,
@@ -1969,6 +1969,10 @@ impl NodeBuilderContext {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
+    pub(super) fn set_rc_wrapper(&self, rc_wrapper: Option<Gc<Self>>) {
+        *self._rc_wrapper.borrow_mut() = rc_wrapper;
+    }
+
     pub fn maybe_enclosing_declaration(&self) -> Option<Gc<Node>> {
         (*self.enclosing_declaration).borrow().clone()
     }
@@ -2020,5 +2024,32 @@ impl NodeBuilderContext {
 
     pub fn maybe_used_symbol_names(&self) -> Ref<Option<HashSet<String>>> {
         (*self.used_symbol_names).borrow()
+    }
+}
+
+impl Clone for NodeBuilderContext {
+    fn clone(&self) -> Self {
+        Self {
+            _rc_wrapper: Default::default(),
+            enclosing_declaration: self.enclosing_declaration.clone(),
+            flags: self.flags.clone(),
+            tracker: self.tracker.clone(),
+            encountered_error: self.encountered_error.clone(),
+            reported_diagnostic: self.reported_diagnostic.clone(),
+            visited_types: self.visited_types.clone(),
+            symbol_depth: self.symbol_depth.clone(),
+            infer_type_parameters: self.infer_type_parameters.clone(),
+            approximate_length: self.approximate_length.clone(),
+            truncating: self.truncating.clone(),
+            type_parameter_symbol_list: self.type_parameter_symbol_list.clone(),
+            type_parameter_names: self.type_parameter_names.clone(),
+            type_parameter_names_by_text: self.type_parameter_names_by_text.clone(),
+            type_parameter_names_by_text_next_name_count: self
+                .type_parameter_names_by_text_next_name_count
+                .clone(),
+            used_symbol_names: self.used_symbol_names.clone(),
+            remapped_symbol_names: self.remapped_symbol_names.clone(),
+            reverse_mapped_stack: self.reverse_mapped_stack.clone(),
+        }
     }
 }

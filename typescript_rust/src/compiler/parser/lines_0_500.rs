@@ -107,11 +107,8 @@ thread_local! {
     );
 }
 
-pub fn with_parse_base_node_factory_and_factory<
-    TReturn,
-    TCallback: FnOnce(&ParseBaseNodeFactory, &Gc<NodeFactory<ParseBaseNodeFactory>>) -> TReturn,
->(
-    callback: TCallback,
+pub fn with_parse_base_node_factory_and_factory<TReturn>(
+    callback: impl FnOnce(&ParseBaseNodeFactory, &Gc<NodeFactory<ParseBaseNodeFactory>>) -> TReturn,
 ) -> TReturn {
     parse_base_node_factory.with(|parse_base_node_factory_| {
         parse_node_factory

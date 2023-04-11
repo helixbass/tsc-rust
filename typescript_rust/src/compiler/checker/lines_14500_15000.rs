@@ -154,10 +154,10 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_intersection_type<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn get_intersection_type(
         &self,
         types: &[Gc<Type>],
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
         let mut type_membership_map: IndexMap<TypeId, Gc<Type>> = IndexMap::new();

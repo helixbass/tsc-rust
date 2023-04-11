@@ -135,6 +135,10 @@ impl SymbolTableToDeclarationStatements {
         self.results.borrow()
     }
 
+    pub fn results_mut(&self) -> GcCellRefMut<Vec<Gc<Node>>> {
+        self.results.borrow_mut()
+    }
+
     pub fn set_results(&self, results: Vec<Gc<Node>>) {
         *self.results.borrow_mut() = results;
     }
@@ -161,6 +165,14 @@ impl SymbolTableToDeclarationStatements {
 
     pub fn set_symbol_table(&self, symbol_table: Gc<GcCell<SymbolTable>>) {
         *self.symbol_table.borrow_mut() = symbol_table;
+    }
+
+    pub fn adding_declare(&self) -> bool {
+        self.adding_declare.get()
+    }
+
+    pub fn set_adding_declare(&self, adding_declare: bool) {
+        self.adding_declare.set(adding_declare);
     }
 
     pub fn call(&self) -> Vec<Gc<Node>> {

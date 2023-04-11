@@ -1047,11 +1047,11 @@ impl NodeBuilder {
         }
     }
 
-    pub(super) fn serialize_existing_type_node<TIncludePrivateSymbol: Fn(&Symbol)>(
+    pub(super) fn serialize_existing_type_node(
         &self,
         context: &NodeBuilderContext,
         existing: &Node, /*TypeNode*/
-        include_private_symbol: Option<&TIncludePrivateSymbol>,
+        include_private_symbol: Option<&impl Fn(&Symbol)>,
         bundled: Option<bool>,
     ) -> Option<Gc<Node>> {
         if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token() {
