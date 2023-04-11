@@ -13,17 +13,21 @@ use super::{wrap_symbol_tracker_to_report_for_context, NodeBuilderContext};
 use crate::{
     cast, create_empty_exports, create_symbol_table, every, filter, find_ancestor, find_index,
     flat_map, for_each_entry, get_effective_modifier_flags, get_name_of_declaration, get_symbol_id,
-    group, has_scope_marker, has_syntactic_modifier, id_text, indices_of, is_class_declaration,
-    is_enum_declaration, is_export_assignment, is_export_declaration,
-    is_external_module_augmentation, is_external_module_indicator, is_external_or_common_js_module,
-    is_function_declaration, is_global_scope_augmentation, is_identifier, is_interface_declaration,
-    is_module_block, is_module_declaration, is_named_exports, is_source_file, is_string_literal,
-    is_variable_statement, length, map, map_defined, needs_scope_marker, node_has_name,
-    ordered_remove_item_at, unescape_leading_underscores, using_single_line_string_writer,
+    group, has_scope_marker, has_syntactic_modifier, id_text, indices_of, is_binary_expression,
+    is_class_declaration, is_class_expression, is_enum_declaration, is_export_assignment,
+    is_export_declaration, is_external_module_augmentation, is_external_module_indicator,
+    is_external_or_common_js_module, is_function_declaration, is_global_scope_augmentation,
+    is_identifier, is_interface_declaration, is_module_block, is_module_declaration,
+    is_named_exports, is_property_access_expression, is_source_file,
+    is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
+    is_variable_declaration_list, is_variable_statement, length, map, map_defined,
+    needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_rc_node,
+    unescape_leading_underscores, using_single_line_string_writer,
     with_synthetic_factory_and_factory, EmitTextWriter, InternalSymbolName,
-    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeBuilder, NodeInterface, Symbol,
-    SymbolAccessibility, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SyntaxKind, TypeChecker, TypeFormatFlags, TypePredicate,
+    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
+    NodeFlags, NodeInterface, Symbol, SymbolAccessibility, SymbolFlags, SymbolId, SymbolInterface,
+    SymbolTable, SymbolTracker, SyntaxKind, TypeChecker, TypeFormatFlags, TypeInterface,
+    TypePredicate,
 };
 
 impl NodeBuilder {
@@ -61,6 +65,7 @@ impl NodeBuilder {
 
 #[derive(Trace, Finalize)]
 pub(super) struct SymbolTableToDeclarationStatements {
+    pub(super) bundled: Option<bool>,
     pub(super) type_checker: Gc<TypeChecker>,
     pub(super) context: GcCell<Gc<NodeBuilderContext>>,
     pub(super) node_builder: Gc<NodeBuilder>,
@@ -93,6 +98,7 @@ impl SymbolTableToDeclarationStatements {
         context.remapped_symbol_names = Rc::new(RefCell::new(Some(Default::default())));
         let context = Gc::new(context);
         let ret = Gc::new(Self {
+            bundled,
             type_checker: type_checker.clone(),
             context: GcCell::new(context.clone()),
             node_builder: node_builder.rc_wrapper(),
@@ -705,10 +711,418 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn serialize_symbol_worker(
         &self,
         symbol: &Symbol,
-        is_private: bool,
+        mut is_private: bool,
         property_as_alias: bool,
     ) {
-        unimplemented!()
+        let symbol_name = unescape_leading_underscores(symbol.escaped_name());
+        let is_default = symbol.escaped_name() == InternalSymbolName::Default;
+        if is_private
+            && self
+                .context()
+                .flags()
+                .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
+            && is_string_a_non_contextual_keyword(symbol_name)
+            && !is_default
+        {
+            self.context().set_encountered_error(true);
+            return;
+        }
+        let mut needs_post_export_default = is_default
+            && (symbol
+                .flags()
+                .intersects(SymbolFlags::ExportDoesNotSupportDefaultModifier)
+                || symbol.flags().intersects(SymbolFlags::Function)
+                    && length(Some(&self.type_checker.get_properties_of_type(
+                        &self.type_checker.get_type_of_symbol(symbol),
+                    ))) > 0)
+            && !symbol.flags().intersects(SymbolFlags::Alias);
+        let mut needs_export_declaration = !needs_post_export_default
+            && !is_private
+            && is_string_a_non_contextual_keyword(symbol_name)
+            && !is_default;
+        if needs_post_export_default || needs_export_declaration {
+            is_private = true;
+        }
+        let modifier_flags = (if !is_private {
+            ModifierFlags::Export
+        } else {
+            ModifierFlags::None
+        }) | (if is_default && !needs_post_export_default {
+            ModifierFlags::Default
+        } else {
+            ModifierFlags::None
+        });
+        let is_const_merged_with_ns = symbol.flags().intersects(SymbolFlags::Module)
+            && symbol.flags().intersects(
+                SymbolFlags::BlockScopedVariable
+                    | SymbolFlags::FunctionScopedVariable
+                    | SymbolFlags::Property,
+            )
+            && symbol.escaped_name() != InternalSymbolName::ExportEquals;
+        let is_const_merged_with_ns_printable_as_signature_merge = is_const_merged_with_ns
+            && self.is_type_representable_as_function_namespace_merge(
+                &self.type_checker.get_type_of_symbol(symbol),
+                symbol,
+            );
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::Function | SymbolFlags::Method)
+            || is_const_merged_with_ns_printable_as_signature_merge
+        {
+            self.serialize_as_function_namespace_merge(
+                &self.type_checker.get_type_of_symbol(symbol),
+                symbol,
+                &self.get_internal_symbol_name(symbol, symbol_name),
+                modifier_flags,
+            );
+        }
+        if symbol.flags().intersects(SymbolFlags::TypeAlias) {
+            self.serialize_type_alias(symbol, symbol_name, modifier_flags);
+        }
+        if symbol.flags().intersects(
+            SymbolFlags::BlockScopedVariable
+                | SymbolFlags::FunctionScopedVariable
+                | SymbolFlags::Property,
+        ) && symbol.escaped_name() != InternalSymbolName::ExportEquals
+            && !symbol.flags().intersects(SymbolFlags::Prototype)
+            && !symbol.flags().intersects(SymbolFlags::Class)
+            && !is_const_merged_with_ns_printable_as_signature_merge
+        {
+            if property_as_alias {
+                let created_export = self.serialize_maybe_alias_assignment(symbol);
+                if created_export {
+                    needs_export_declaration = false;
+                    needs_post_export_default = false;
+                }
+            } else {
+                let ref type_ = self.type_checker.get_type_of_symbol(symbol);
+                let local_name = self.get_internal_symbol_name(symbol, symbol_name);
+                if !symbol.flags().intersects(SymbolFlags::Function)
+                    && self.is_type_representable_as_function_namespace_merge(type_, symbol)
+                {
+                    self.serialize_as_function_namespace_merge(
+                        type_,
+                        symbol,
+                        &local_name,
+                        modifier_flags,
+                    );
+                } else {
+                    let flags = if !symbol.flags().intersects(SymbolFlags::BlockScopedVariable) {
+                        None
+                    } else if self.type_checker.is_const_variable(symbol) {
+                        Some(NodeFlags::Const)
+                    } else {
+                        Some(NodeFlags::Let)
+                    };
+                    let name = if needs_post_export_default
+                        || !symbol.flags().intersects(SymbolFlags::Property)
+                    {
+                        local_name.clone()
+                    } else {
+                        self.get_unused_name(&local_name, Some(symbol))
+                    };
+                    let mut text_range =
+                        symbol
+                            .maybe_declarations()
+                            .as_ref()
+                            .and_then(|symbol_declarations| {
+                                symbol_declarations
+                                    .iter()
+                                    .find(|d| is_variable_declaration(d))
+                                    .cloned()
+                            });
+                    if let Some(text_range_present) = text_range.as_ref().filter(|text_range| {
+                        is_variable_declaration_list(&text_range.parent())
+                            && text_range
+                                .parent()
+                                .as_variable_declaration_list()
+                                .declarations
+                                .len()
+                                == 1
+                    }) {
+                        text_range = text_range_present.parent().maybe_parent();
+                    }
+                    let property_access_require =
+                        symbol
+                            .maybe_declarations()
+                            .as_ref()
+                            .and_then(|symbol_declarations| {
+                                symbol_declarations
+                                    .iter()
+                                    .find(|declaration| is_property_access_expression(declaration))
+                                    .cloned()
+                            });
+                    if let Some(property_access_require) = property_access_require.as_ref().filter(|property_access_require| {
+                        let property_access_require_parent = property_access_require.parent();
+                        is_binary_expression(&property_access_require_parent) && is_identifier(&property_access_require_parent.as_binary_expression().right) &&
+                            matches!(
+                                type_.maybe_symbol().and_then(|type_symbol| type_symbol.maybe_value_declaration()),
+                                Some(type_symbol_value_declaration) if is_source_file(&type_symbol_value_declaration)
+                            )
+                    }) {
+                        let property_access_require_parent_right = property_access_require.parent().as_binary_expression().right.clone();
+                        let alias = if local_name == property_access_require_parent_right.as_identifier().escaped_text {
+                            None
+                        } else {
+                            Some(property_access_require_parent_right)
+                        };
+                        self.add_result(
+                            &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                                Gc::<Node>::from(
+                                    factory_.create_export_declaration(
+                                        synthetic_factory_,
+                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Gc<NodeArray>>::None,
+                                        false,
+                                        Some(factory_.create_named_exports(
+                                            synthetic_factory_,
+                                            vec![
+                                                factory_.create_export_specifier(
+                                                    synthetic_factory_,
+                                                    false,
+                                                    alias,
+                                                    &*local_name,
+                                                ).into()
+                                            ]
+                                        ).into()),
+                                        None, None,
+                                    )
+                                )
+                            }),
+                            ModifierFlags::None
+                        );
+                        self.context().tracker().track_symbol(
+                            &type_.symbol(),
+                            self.context().maybe_enclosing_declaration(),
+                            SymbolFlags::Value,
+                        );
+                    } else {
+                        let statement = set_text_range_rc_node(
+                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                                factory_.create_variable_statement(
+                                    synthetic_factory_,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Gc::<Node>::from(
+                                        factory_.create_variable_declaration_list(
+                                            synthetic_factory_,
+                                            vec![
+                                                factory_.create_variable_declaration(
+                                                    synthetic_factory_,
+                                                    Some(&*name),
+                                                    None,
+                                                    Some(self.node_builder.serialize_type_for_declaration(
+                                                        &self.context(),
+                                                        type_,
+                                                        symbol,
+                                                        Some(&*self.enclosing_declaration),
+                                                        Some(&|symbol: &Symbol| self.include_private_symbol(symbol)),
+                                                        self.bundled,
+                                                    )),
+                                                    None,
+                                                ).into()
+                                            ],
+                                            flags,
+                                        )
+                                    )
+                                ).into()
+                            }),
+                            text_range.as_deref(),
+                        );
+                        self.add_result(
+                            &statement,
+                            if name != local_name {
+                                modifier_flags & !ModifierFlags::Export
+                            } else {
+                                modifier_flags
+                            }
+                        );
+                        if name != local_name && !is_private {
+                            self.add_result(
+                                &Gc::<Node>::from(
+                                    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                                        factory_.create_export_declaration(
+                                            synthetic_factory_,
+                                            Option::<Gc<NodeArray>>::None,
+                                            Option::<Gc<NodeArray>>::None,
+                                            false,
+                                            Some(factory_.create_named_exports(
+                                                synthetic_factory_,
+                                                vec![
+                                                    factory_.create_export_specifier(
+                                                        synthetic_factory_,
+                                                        false,
+                                                        Some(&*name),
+                                                        &*local_name,
+                                                    ).into()
+                                                ]
+                                            ).into()),
+                                            None, None,
+                                        )
+                                    })
+                                ),
+                                ModifierFlags::None,
+                            );
+                            needs_export_declaration = false;
+                            needs_post_export_default = false;
+                        }
+                    }
+                }
+            }
+        }
+        if symbol.flags().intersects(SymbolFlags::Enum) {
+            self.serialize_enum(symbol, symbol_name, modifier_flags);
+        }
+        if symbol.flags().intersects(SymbolFlags::Class) {
+            if symbol.flags().intersects(SymbolFlags::Property)
+                && matches!(
+                    symbol.maybe_value_declaration().as_ref(),
+                    Some(symbol_value_declaration) if is_binary_expression(&symbol_value_declaration.parent()) &&
+                        is_class_expression(&symbol_value_declaration.parent().as_binary_expression().right)
+                )
+            {
+                self.serialize_as_alias(
+                    symbol,
+                    &self.get_internal_symbol_name(symbol, symbol_name),
+                    modifier_flags,
+                );
+            } else {
+                self.serialize_as_class(
+                    symbol,
+                    &self.get_internal_symbol_name(symbol, symbol_name),
+                    modifier_flags,
+                );
+            }
+        }
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::ValueModule | SymbolFlags::NamespaceModule)
+            && (!is_const_merged_with_ns || self.is_type_only_namespace(symbol))
+            || is_const_merged_with_ns_printable_as_signature_merge
+        {
+            self.serialize_module(symbol, symbol_name, modifier_flags);
+        }
+        if symbol.flags().intersects(SymbolFlags::Interface)
+            && !symbol.flags().intersects(SymbolFlags::Class)
+        {
+            self.serialize_interface(symbol, symbol_name, modifier_flags);
+        }
+        if symbol.flags().intersects(SymbolFlags::Alias) {
+            self.serialize_as_alias(
+                symbol,
+                &self.get_internal_symbol_name(symbol, symbol_name),
+                modifier_flags,
+            );
+        }
+        if symbol.flags().intersects(SymbolFlags::Property)
+            && symbol.escaped_name() == InternalSymbolName::ExportEquals
+        {
+            self.serialize_maybe_alias_assignment(symbol);
+        }
+        if symbol.flags().intersects(SymbolFlags::ExportStar) {
+            if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
+                for node in symbol_declarations {
+                    let resolved_module = self.type_checker.resolve_external_module_name_(
+                        node,
+                        node.as_export_declaration()
+                            .module_specifier
+                            .as_ref()
+                            .unwrap(),
+                        None,
+                    );
+                    if resolved_module.is_none() {
+                        continue;
+                    }
+                    let ref resolved_module = resolved_module.unwrap();
+                    self.add_result(
+                        &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                            Gc::<Node>::from(
+                                factory_.create_export_declaration(
+                                    synthetic_factory_,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    false,
+                                    None,
+                                    Some(
+                                        factory_
+                                            .create_string_literal(
+                                                synthetic_factory_,
+                                                self.node_builder.get_specifier_for_module_symbol(
+                                                    resolved_module,
+                                                    &self.context(),
+                                                ),
+                                                None,
+                                                None,
+                                            )
+                                            .into(),
+                                    ),
+                                    None,
+                                ),
+                            )
+                        }),
+                        ModifierFlags::None,
+                    );
+                }
+            }
+        }
+        if needs_post_export_default {
+            self.add_result(
+                &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                    Gc::<Node>::from(
+                        factory_.create_export_assignment(
+                            synthetic_factory_,
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(false),
+                            factory_
+                                .create_identifier(
+                                    synthetic_factory_,
+                                    &self.get_internal_symbol_name(symbol, symbol_name),
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                )
+                                .into(),
+                        ),
+                    )
+                }),
+                ModifierFlags::None,
+            );
+        } else if needs_export_declaration {
+            self.add_result(
+                &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                    Gc::<Node>::from(
+                        factory_.create_export_declaration(
+                            synthetic_factory_,
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            Some(
+                                factory_
+                                    .create_named_exports(
+                                        synthetic_factory_,
+                                        vec![factory_
+                                            .create_export_specifier(
+                                                synthetic_factory_,
+                                                false,
+                                                Some(
+                                                    &*self.get_internal_symbol_name(
+                                                        symbol,
+                                                        symbol_name,
+                                                    ),
+                                                ),
+                                                symbol_name,
+                                            )
+                                            .into()],
+                                    )
+                                    .into(),
+                            ),
+                            None,
+                            None,
+                        ),
+                    )
+                }),
+                ModifierFlags::None,
+            );
+        }
     }
 }
 

@@ -1997,6 +1997,14 @@ impl NodeBuilderContext {
         *self.tracker.borrow_mut() = tracker;
     }
 
+    pub fn encountered_error(&self) -> bool {
+        self.encountered_error.get()
+    }
+
+    pub fn set_encountered_error(&self, encountered_error: bool) {
+        self.encountered_error.set(encountered_error);
+    }
+
     pub fn reported_diagnostic(&self) -> bool {
         self.reported_diagnostic.get()
     }

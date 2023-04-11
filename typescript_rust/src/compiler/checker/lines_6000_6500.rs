@@ -832,16 +832,13 @@ impl NodeBuilder {
             )
     }
 
-    pub(super) fn serialize_type_for_declaration<
-        TEnclosingDeclaration: Borrow<Node>,
-        TIncludePrivateSymbol: Fn(&Symbol),
-    >(
+    pub(super) fn serialize_type_for_declaration(
         &self,
         context: &NodeBuilderContext,
         type_: &Type,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
-        include_private_symbol: Option<&TIncludePrivateSymbol>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
+        include_private_symbol: Option<&impl Fn(&Symbol)>,
         bundled: Option<bool>,
     ) -> Gc<Node> {
         if !self.type_checker.is_error_type(type_) {
