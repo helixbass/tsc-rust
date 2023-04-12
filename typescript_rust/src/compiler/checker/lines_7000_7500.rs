@@ -5,17 +5,19 @@ use itertools::Itertools;
 
 use crate::{
     are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table, filter,
-    find_ancestor, flat_map, get_assignment_declaration_kind, get_effective_implements_type_nodes,
-    get_effective_modifier_flags, get_source_file_of_node, get_symbol_id,
-    get_text_of_jsdoc_comment, has_syntactic_modifier, id_text, is_ambient_module,
-    is_binary_expression, is_class_declaration, is_class_expression, is_class_like,
-    is_entity_name_expression, is_enum_declaration, is_enum_member, is_export_assignment,
-    is_export_declaration, is_external_module_reference, is_external_or_common_js_module,
-    is_function_declaration, is_global_scope_augmentation, is_identifier,
-    is_import_equals_declaration, is_in_js_file, is_interface_declaration, is_jsdoc_type_alias,
-    is_jsdoc_type_expression, is_json_source_file, is_module_declaration, is_named_declaration,
-    is_namespace_export, is_parameter_declaration, is_private_identifier, is_source_file,
-    is_static, is_variable_declaration, is_variable_statement, length, map, map_defined,
+    find_ancestor, first_defined, flat_map, get_assignment_declaration_kind,
+    get_effective_implements_type_nodes, get_effective_modifier_flags, get_es_module_interop,
+    get_name_of_declaration, get_source_file_of_node, get_symbol_id, get_text_of_jsdoc_comment,
+    has_syntactic_modifier, id_text, is_ambient_module, is_binary_expression, is_class_declaration,
+    is_class_expression, is_class_like, is_entity_name_expression, is_enum_declaration,
+    is_enum_member, is_export_assignment, is_export_declaration, is_export_specifier,
+    is_external_module_reference, is_external_or_common_js_module, is_function_declaration,
+    is_global_scope_augmentation, is_identifier, is_import_equals_declaration, is_import_specifier,
+    is_in_js_file, is_interface_declaration, is_jsdoc_type_alias, is_jsdoc_type_expression,
+    is_json_source_file, is_module_declaration, is_named_declaration, is_namespace_export,
+    is_parameter_declaration, is_private_identifier, is_property_access_expression,
+    is_shorthand_ambient_module_symbol, is_source_file, is_static, is_variable_declaration,
+    is_variable_statement, length, map, map_defined, maybe_first_defined,
     maybe_get_source_file_of_node, maybe_map, set_parent, set_synthetic_leading_comments_rc,
     set_text_range_rc_node, some, unescape_leading_underscores,
     with_parse_base_node_factory_and_factory, with_synthetic_factory_and_factory, AsDoubleDeref,
@@ -1146,12 +1148,85 @@ impl SymbolTableToDeclarationStatements {
         );
     }
 
+    pub(super) fn get_some_target_name_from_declarations(
+        &self,
+        declarations: Option<&[Gc<Node /*Declaration*/>]>,
+    ) -> Option<String> {
+        maybe_first_defined(declarations, |d: &Gc<Node>, _| {
+            if is_import_specifier(d) || is_export_specifier(d) {
+                return Some(
+                    id_text(
+                        &d.as_has_property_name()
+                            .maybe_property_name()
+                            .unwrap_or_else(|| d.as_named_declaration().name()),
+                    )
+                    .to_owned(),
+                );
+            }
+            if is_binary_expression(d) || is_export_assignment(d) {
+                let expression = if is_export_assignment(d) {
+                    &d.as_export_assignment().expression
+                } else {
+                    &d.as_binary_expression().right
+                };
+                if is_property_access_expression(expression) {
+                    return Some(
+                        id_text(&expression.as_property_access_expression().name).to_owned(),
+                    );
+                }
+            }
+            if self.type_checker.is_alias_symbol_declaration(d) {
+                let name = get_name_of_declaration(Some(&**d));
+                if let Some(name) = name.as_ref().filter(|name| is_identifier(name)) {
+                    return Some(id_text(name).to_owned());
+                }
+            }
+            None
+        })
+    }
+
     pub(super) fn serialize_as_alias(
         &self,
         symbol: &Symbol,
         local_name: &str,
         modifier_flags: ModifierFlags,
     ) {
-        unimplemented!()
+        let node = self.type_checker.get_declaration_of_alias_symbol(symbol);
+        if node.is_none() {
+            return Debug_.fail(None);
+        }
+        let ref node = node.unwrap();
+        let target = self.type_checker.get_merged_symbol(
+            self.type_checker
+                .get_target_of_alias_declaration(node, Some(true)),
+        );
+        if target.is_none() {
+            return;
+        }
+        let ref target = target.unwrap();
+        let mut verbatim_target_name = is_shorthand_ambient_module_symbol(target)
+            .then_and(|| {
+                self.get_some_target_name_from_declarations(symbol.maybe_declarations().as_deref())
+            })
+            .unwrap_or_else(|| unescape_leading_underscores(target.escaped_name()).to_owned());
+        if verbatim_target_name == InternalSymbolName::ExportEquals
+            && (get_es_module_interop(&self.type_checker.compiler_options) == Some(true)
+                || self
+                    .type_checker
+                    .compiler_options
+                    .allow_synthetic_default_imports
+                    == Some(true))
+        {
+            verbatim_target_name = InternalSymbolName::Default.to_owned();
+        }
+        let target_name = self.get_internal_symbol_name(target, &verbatim_target_name);
+        self.include_private_symbol(target);
+        match node.kind() {
+            SyntaxKind::BindingElement => {}
+            _ => Debug_.fail_bad_syntax_kind(
+                node,
+                Some("Unhandled alias declaration kind in symbol serializer!"),
+            ),
+        }
     }
 }

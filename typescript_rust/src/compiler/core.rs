@@ -76,13 +76,9 @@ pub fn first_defined<TCollection: IntoIterator, TReturn>(
     for_each(array, callback)
 }
 
-pub fn maybe_first_defined<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn maybe_first_defined<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
-    callback: TCallback,
+    callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     maybe_for_each(array, callback)
 }
