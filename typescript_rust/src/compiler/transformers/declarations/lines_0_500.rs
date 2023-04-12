@@ -1230,6 +1230,8 @@ impl GetSymbolAccessibilityDiagnosticInterface for ThrowDiagnostic {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TransformDeclarationsSymbolTracker {
+    #[unsafe_ignore_trace]
+    is_track_symbol_disabled: Cell<bool>,
     pub(super) transform_declarations: Gc<Box<TransformDeclarations>>,
     pub(super) host: Gc<Box<dyn EmitHost>>,
 }
@@ -1240,6 +1242,7 @@ impl TransformDeclarationsSymbolTracker {
         host: Gc<Box<dyn EmitHost>>,
     ) -> Self {
         Self {
+            is_track_symbol_disabled: Default::default(),
             transform_declarations,
             host,
         }
@@ -1277,6 +1280,9 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
+        if self.is_track_symbol_disabled.get() {
+            return Some(false);
+        }
         if symbol.flags().intersects(SymbolFlags::TypeParameter) {
             return Some(false);
         }
@@ -1304,6 +1310,14 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
 
     fn is_track_symbol_supported(&self) -> bool {
         true
+    }
+
+    fn disable_track_symbol(&self) {
+        self.is_track_symbol_disabled.set(true);
+    }
+
+    fn reenable_track_symbol(&self) {
+        self.is_track_symbol_disabled.set(false);
     }
 
     fn report_inaccessible_this_error(&self) {

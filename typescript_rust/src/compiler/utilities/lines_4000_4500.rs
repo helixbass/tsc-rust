@@ -386,6 +386,14 @@ impl SymbolTracker for TextWriter {
         self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
     }
 
+    fn disable_track_symbol(&self) {
+        self._dyn_symbol_tracker_wrapper.disable_track_symbol();
+    }
+
+    fn reenable_track_symbol(&self) {
+        self._dyn_symbol_tracker_wrapper.reenable_track_symbol();
+    }
+
     // TODO: are these correct?
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
@@ -449,6 +457,10 @@ impl SymbolTracker for TextWriterSymbolTracker {
     fn is_track_symbol_supported(&self) -> bool {
         true
     }
+
+    fn disable_track_symbol(&self) {}
+
+    fn reenable_track_symbol(&self) {}
 
     // TODO: are these correct?
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
@@ -714,6 +726,14 @@ impl SymbolTracker for TrailingSemicolonDeferringWriter {
         self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
     }
 
+    fn disable_track_symbol(&self) {
+        self._dyn_symbol_tracker_wrapper.disable_track_symbol();
+    }
+
+    fn reenable_track_symbol(&self) {
+        self._dyn_symbol_tracker_wrapper.reenable_track_symbol();
+    }
+
     fn is_module_resolver_host_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
             .is_module_resolver_host_supported()
@@ -760,6 +780,10 @@ impl SymbolTracker for TrailingSemicolonDeferringWriterSymbolTracker {
     fn is_track_symbol_supported(&self) -> bool {
         false
     }
+
+    fn disable_track_symbol(&self) {}
+
+    fn reenable_track_symbol(&self) {}
 
     fn is_module_resolver_host_supported(&self) -> bool {
         false

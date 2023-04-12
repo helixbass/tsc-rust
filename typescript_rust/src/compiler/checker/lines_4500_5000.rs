@@ -1612,6 +1612,10 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
         true
     }
 
+    fn disable_track_symbol(&self) {}
+
+    fn reenable_track_symbol(&self) {}
+
     fn module_resolver_host(
         &self,
     ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
@@ -1736,16 +1740,29 @@ pub(super) fn wrap_symbol_tracker_to_report_for_context(
     context: Gc<NodeBuilderContext>,
     tracker: Gc<Box<dyn SymbolTracker>>,
 ) -> NodeBuilderContextWrappedSymbolTracker {
-    NodeBuilderContextWrappedSymbolTracker { tracker, context }
+    NodeBuilderContextWrappedSymbolTracker::new(tracker, context)
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct NodeBuilderContextWrappedSymbolTracker {
+    #[unsafe_ignore_trace]
+    is_track_symbol_disabled: Cell<bool>,
     tracker: Gc<Box<dyn SymbolTracker>>,
     context: Gc<NodeBuilderContext>,
 }
 
 impl NodeBuilderContextWrappedSymbolTracker {
+    pub(super) fn new(
+        tracker: Gc<Box<dyn SymbolTracker>>,
+        context: Gc<NodeBuilderContext>,
+    ) -> Self {
+        Self {
+            is_track_symbol_disabled: Default::default(),
+            tracker,
+            context,
+        }
+    }
+
     fn mark_context_reported_diagnostic(&self) {
         (*self.context).borrow().reported_diagnostic.set(true);
     }
@@ -1855,6 +1872,9 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
+        if self.is_track_symbol_disabled.get() {
+            return Some(false);
+        }
         let result = self
             .tracker
             .track_symbol(symbol, enclosing_declaration, meaning);
@@ -1866,6 +1886,14 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
     fn is_track_symbol_supported(&self) -> bool {
         self.tracker.is_track_symbol_supported()
+    }
+
+    fn disable_track_symbol(&self) {
+        self.is_track_symbol_disabled.set(true);
+    }
+
+    fn reenable_track_symbol(&self) {
+        self.is_track_symbol_disabled.set(false);
     }
 
     fn report_truncation_error(&self) {

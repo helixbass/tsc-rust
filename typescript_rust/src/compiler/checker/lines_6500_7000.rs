@@ -1148,6 +1148,8 @@ impl SymbolTableToDeclarationStatements {
 
 #[derive(Trace, Finalize)]
 struct SymbolTableToDeclarationStatementsSymbolTracker {
+    #[unsafe_ignore_trace]
+    is_track_symbol_disabled: Cell<bool>,
     oldcontext_tracker: Gc<Box<dyn SymbolTracker>>,
     type_checker: Gc<TypeChecker>,
     node_builder: NodeBuilder,
@@ -1164,6 +1166,7 @@ impl SymbolTableToDeclarationStatementsSymbolTracker {
         symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
     ) -> Gc<Box<dyn SymbolTracker>> {
         Gc::new(Box::new(Self {
+            is_track_symbol_disabled: Default::default(),
             oldcontext_tracker,
             type_checker,
             node_builder,
@@ -1184,6 +1187,9 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         decl: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
+        if self.is_track_symbol_disabled.get() {
+            return Some(false);
+        }
         let accessible_result =
             self.type_checker
                 .is_symbol_accessible(Some(sym), decl.as_deref(), meaning, false);
@@ -1204,6 +1210,14 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
             return self.oldcontext_tracker.track_symbol(sym, decl, meaning);
         }
         Some(false)
+    }
+
+    fn disable_track_symbol(&self) {
+        self.is_track_symbol_disabled.set(true);
+    }
+
+    fn reenable_track_symbol(&self) {
+        self.is_track_symbol_disabled.set(false);
     }
 
     fn is_report_inaccessible_this_error_supported(&self) -> bool {

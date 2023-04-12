@@ -1,3 +1,9 @@
+use std::borrow::Borrow;
+
+use gc::Gc;
+
+use crate::{Node, NodeInterface};
+
 pub trait NonEmpty {
     fn non_empty(self) -> Self;
     fn is_non_empty(self) -> bool;
@@ -94,5 +100,15 @@ pub trait ThenAnd {
 impl ThenAnd for bool {
     fn then_and<TMapped>(self, mapper: impl FnOnce() -> Option<TMapped>) -> Option<TMapped> {
         self.then(mapper).flatten()
+    }
+}
+
+pub trait NodeWrappered {
+    fn node_wrappered(self) -> Option<Gc<Node>>;
+}
+
+impl<TValue: Borrow<Node>> NodeWrappered for Option<TValue> {
+    fn node_wrappered(self) -> Option<Gc<Node>> {
+        self.map(|node| node.borrow().node_wrapper())
     }
 }
