@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use gc::Gc;
 
-use crate::{Node, NodeInterface, Type, TypeInterface};
+use crate::{Node, NodeInterface, Symbol, SymbolInterface, Type, TypeInterface};
 
 pub trait NonEmpty {
     fn non_empty(self) -> Self;
@@ -113,6 +113,16 @@ impl<TValue: Borrow<Node>> NodeWrappered for Option<TValue> {
     }
 }
 
+pub trait SymbolWrappered {
+    fn symbol_wrappered(self) -> Option<Gc<Symbol>>;
+}
+
+impl<TValue: Borrow<Symbol>> SymbolWrappered for Option<TValue> {
+    fn symbol_wrappered(self) -> Option<Gc<Symbol>> {
+        self.map(|symbol| symbol.borrow().symbol_wrapper())
+    }
+}
+
 pub trait TypeWrappered {
     fn type_wrappered(self) -> Option<Gc<Type>>;
 }
@@ -120,5 +130,19 @@ pub trait TypeWrappered {
 impl<TValue: Borrow<Type>> TypeWrappered for Option<TValue> {
     fn type_wrappered(self) -> Option<Gc<Type>> {
         self.map(|type_| type_.borrow().type_wrapper())
+    }
+}
+
+pub trait Matches {
+    type Unwrapped;
+
+    fn matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool;
+}
+
+impl<TValue> Matches for Option<TValue> {
+    type Unwrapped = TValue;
+
+    fn matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool {
+        self.map(predicate) == Some(true)
     }
 }

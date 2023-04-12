@@ -2,7 +2,7 @@
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::mem;
@@ -19,15 +19,16 @@ use crate::{
     is_identifier_text, is_import_type_node, is_in_js_file, is_late_visibility_painted_statement,
     is_module_with_string_literal_name, is_type_reference_node, is_variable_declaration,
     is_variable_statement, map, maybe_filter, maybe_get_source_file_of_node,
-    no_truncation_maximum_truncation_length, pseudo_big_int_to_string, set_emit_flags, symbol_name,
-    synthetic_factory, using_single_line_string_writer, Debug_, EmitFlags, EmitHint,
-    EmitTextWriter, FileIncludeReason, IndexInfo, KeywordTypeNode, ModifierFlags,
-    ModuleSpecifierResolutionHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    MultiMap, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path,
-    PrinterOptionsBuilder, RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol,
-    SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker,
-    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    no_truncation_maximum_truncation_length, pseudo_big_int_to_string, ref_mut_unwrapped,
+    ref_unwrapped, set_emit_flags, symbol_name, synthetic_factory, using_single_line_string_writer,
+    Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, IndexInfo, KeywordTypeNode,
+    ModifierFlags, ModuleSpecifierResolutionHost,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
+    NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder,
+    RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
+    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -2052,6 +2053,18 @@ impl NodeBuilderContext {
 
     pub fn maybe_used_symbol_names(&self) -> Ref<Option<HashSet<String>>> {
         (*self.used_symbol_names).borrow()
+    }
+
+    pub fn maybe_used_symbol_names_mut(&self) -> RefMut<Option<HashSet<String>>> {
+        (*self.used_symbol_names).borrow_mut()
+    }
+
+    pub fn remapped_symbol_names(&self) -> Ref<HashMap<SymbolId, String>> {
+        ref_unwrapped(&*self.remapped_symbol_names)
+    }
+
+    pub fn remapped_symbol_names_mut(&self) -> RefMut<HashMap<SymbolId, String>> {
+        ref_mut_unwrapped(&*self.remapped_symbol_names)
     }
 }
 

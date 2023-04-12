@@ -1,20 +1,24 @@
 use std::borrow::Borrow;
 
 use gc::{Finalize, Gc, Trace};
+use regex::Regex;
 
 use crate::{
     are_option_gcs_equal, get_declaration_modifier_flags_from_symbol,
     get_export_assignment_expression, get_object_flags,
     get_property_assignment_alias_like_expression, get_selected_effective_modifier_flags,
-    get_source_file_of_node, id_text, is_accessor, is_binary_expression, is_class_expression,
-    is_entity_name_expression, is_export_assignment, is_function_like_declaration, is_get_accessor,
-    is_identifier_text, is_property_access_expression, is_property_declaration,
-    is_property_signature, is_prototype_property_assignment, is_set_accessor,
-    is_variable_declaration, length, maybe_get_source_file_of_node, set_text_range_rc_node, some,
-    symbol_name, unescape_leading_underscores, with_synthetic_factory_and_factory, Debug_, Empty,
-    InternalSymbolName, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeFlags,
-    NodeInterface, NodeWrappered, ObjectFlags, SignatureKind, StrOrRcNode, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Ternary, ThenAnd, Type, TypeChecker, TypeInterface, TypeWrappered,
+    get_source_file_of_node, get_symbol_id, id_text, is_accessor, is_binary_expression,
+    is_class_expression, is_entity_name_expression, is_export_assignment,
+    is_function_like_declaration, is_get_accessor, is_identifier_text,
+    is_property_access_expression, is_property_declaration, is_property_signature,
+    is_prototype_property_assignment, is_set_accessor, is_single_or_double_quote,
+    is_string_a_non_contextual_keyword, is_variable_declaration, length,
+    maybe_get_source_file_of_node, set_text_range_rc_node, some, strip_quotes, symbol_name,
+    unescape_leading_underscores, with_synthetic_factory_and_factory, Debug_, Empty,
+    InternalSymbolName, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
+    NodeBuilderFlags, NodeFlags, NodeInterface, NodeWrappered, ObjectFlags, SignatureKind,
+    StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolWrappered, SyntaxKind, Ternary,
+    ThenAnd, Type, TypeChecker, TypeInterface, TypeWrappered,
 };
 
 use super::{
@@ -633,11 +637,104 @@ impl SymbolTableToDeclarationStatements {
         input: &str,
         symbol: Option<impl Borrow<Symbol>>,
     ) -> String {
-        unimplemented!()
+        let symbol = symbol.symbol_wrappered();
+        let id = symbol.as_ref().map(|symbol| get_symbol_id(symbol));
+        if let Some(id) = id {
+            if self.context().remapped_symbol_names().contains_key(&id) {
+                return self
+                    .context()
+                    .remapped_symbol_names()
+                    .get(&id)
+                    .unwrap()
+                    .clone();
+            }
+        }
+        let mut input = input.to_owned();
+        if let Some(symbol) = symbol.as_ref() {
+            input = self.get_name_candidate_worker(symbol, &input);
+        }
+        let mut i = 0;
+        let original = input.clone();
+        while self
+            .context()
+            .maybe_used_symbol_names()
+            .as_ref()
+            .matches(|context_used_symbol_names| context_used_symbol_names.contains(&input))
+        {
+            i += 1;
+            input = format!("{original}_{i}");
+        }
+        if let Some(context_used_symbol_names) =
+            self.context().maybe_used_symbol_names_mut().as_mut()
+        {
+            context_used_symbol_names.insert(input.clone());
+        }
+        if let Some(id) = id {
+            self.context()
+                .remapped_symbol_names_mut()
+                .insert(id, input.clone());
+        }
+        input
+    }
+
+    pub(super) fn get_name_candidate_worker(&self, symbol: &Symbol, local_name: &str) -> String {
+        let mut local_name = local_name.to_owned();
+        if matches!(
+            &*local_name,
+            InternalSymbolName::Default | InternalSymbolName::Class | InternalSymbolName::Function
+        ) {
+            let flags = self.context().flags();
+            self.context()
+                .set_flags(self.context().flags() | NodeBuilderFlags::InInitialEntityName);
+            let name_candidate = self
+                .type_checker
+                .get_name_of_symbol_as_written(symbol, Some(&self.context()));
+            self.context().set_flags(flags);
+            local_name = if !name_candidate.is_empty()
+                && is_single_or_double_quote(name_candidate.chars().next().unwrap())
+            {
+                strip_quotes(&name_candidate).into_owned()
+            } else {
+                name_candidate.into_owned()
+            };
+        }
+        if local_name == InternalSymbolName::Default {
+            local_name = "_default".to_owned();
+        } else if local_name == InternalSymbolName::ExportEquals {
+            local_name = "_exports".to_owned();
+        }
+        local_name =
+            if is_identifier_text(&local_name, Some(self.type_checker.language_version), None)
+                && !is_string_a_non_contextual_keyword(&local_name)
+            {
+                local_name
+            } else {
+                format!("_{}", {
+                    lazy_static! {
+                        static ref non_alphanumeric_regex: Regex =
+                            Regex::new("[^a-zA-Z0-9]").unwrap();
+                    }
+                    non_alphanumeric_regex.replace_all(&local_name, "_")
+                })
+            };
+        local_name
     }
 
     pub(super) fn get_internal_symbol_name(&self, symbol: &Symbol, local_name: &str) -> String {
-        unimplemented!()
+        let id = get_symbol_id(symbol);
+        if self.context().remapped_symbol_names().contains_key(&id) {
+            return self
+                .context()
+                .remapped_symbol_names()
+                .get(&id)
+                .unwrap()
+                .clone();
+        }
+        let local_name = self.get_name_candidate_worker(symbol, local_name);
+        self.context()
+            .remapped_symbol_names_mut()
+            .insert(id, local_name.clone());
+        local_name
     }
 }
 

@@ -572,8 +572,8 @@ pub use compiler::utilities::{
     set_node_flags, set_parent, set_parent_recursive, set_resolved_module,
     set_resolved_type_reference_directive, set_text_range_pos, set_text_range_pos_end,
     set_text_range_pos_width, set_value_declaration, should_preserve_const_enums, skip_parentheses,
-    skip_type_checking, slice_after, source_file_may_be_emitted, supported_js_extensions_flat,
-    supported_ts_extensions_flat, try_extract_ts_extension,
+    skip_type_checking, slice_after, source_file_may_be_emitted, strip_quotes,
+    supported_js_extensions_flat, supported_ts_extensions_flat, try_extract_ts_extension,
     try_get_class_implementing_or_extending_expression_with_type_arguments,
     try_get_extension_from_path, try_get_import_from_module_specifier,
     try_get_property_access_or_identifier_to_string, try_parse_pattern, try_parse_patterns,
@@ -686,7 +686,8 @@ pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::iterator::Empty;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::{
-    GetOrInsertDefault, MapOrDefault, NodeWrappered, NonEmpty, ThenAnd, TypeWrappered,
+    GetOrInsertDefault, MapOrDefault, Matches, NodeWrappered, NonEmpty, SymbolWrappered, ThenAnd,
+    TypeWrappered,
 };
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
