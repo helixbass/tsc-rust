@@ -683,6 +683,7 @@ pub use rust_helpers::debugging::{
 };
 pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::io::io_error_from_name;
+pub use rust_helpers::iterator::Empty;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::{
     GetOrInsertDefault, MapOrDefault, NodeWrappered, NonEmpty, ThenAnd,

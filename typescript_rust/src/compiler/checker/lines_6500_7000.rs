@@ -15,14 +15,14 @@ use super::{
 };
 use crate::{
     cast, create_empty_exports, create_symbol_table, every, filter, find_ancestor, find_index,
-    flat_map, for_each_entry, get_effective_modifier_flags, get_name_of_declaration, get_symbol_id,
-    group, has_scope_marker, has_syntactic_modifier, id_text, indices_of, is_binary_expression,
-    is_class_declaration, is_class_expression, is_enum_declaration, is_export_assignment,
-    is_export_declaration, is_external_module_augmentation, is_external_module_indicator,
-    is_external_or_common_js_module, is_function_declaration, is_global_scope_augmentation,
-    is_identifier, is_interface_declaration, is_module_block, is_module_declaration,
-    is_named_exports, is_property_access_expression, is_source_file,
-    is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
+    flat_map, for_each_entry, gc_cell_ref_unwrapped, get_effective_modifier_flags,
+    get_name_of_declaration, get_symbol_id, group, has_scope_marker, has_syntactic_modifier,
+    id_text, indices_of, is_binary_expression, is_class_declaration, is_class_expression,
+    is_enum_declaration, is_export_assignment, is_export_declaration,
+    is_external_module_augmentation, is_external_module_indicator, is_external_or_common_js_module,
+    is_function_declaration, is_global_scope_augmentation, is_identifier, is_interface_declaration,
+    is_module_block, is_module_declaration, is_named_exports, is_property_access_expression,
+    is_source_file, is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
     needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_rc_node,
     unescape_leading_underscores, with_synthetic_factory_and_factory, InternalSymbolName,
@@ -67,11 +67,12 @@ impl NodeBuilder {
 
 #[derive(Trace, Finalize)]
 pub(super) struct SymbolTableToDeclarationStatements {
+    pub(super) _rc_wrapper: GcCell<Option<Gc<Self>>>,
     pub(super) bundled: Option<bool>,
     pub(super) type_checker: Gc<TypeChecker>,
     pub(super) context: GcCell<Gc<NodeBuilderContext>>,
     pub(super) node_builder: Gc<NodeBuilder>,
-    pub(super) serialize_property_symbol_for_class: MakeSerializePropertySymbol,
+    pub(super) serialize_property_symbol_for_class: GcCell<Option<MakeSerializePropertySymbol>>,
     pub(super) enclosing_declaration: Gc<Node>,
     pub(super) results: GcCell<Vec<Gc<Node>>>,
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
@@ -101,15 +102,12 @@ impl SymbolTableToDeclarationStatements {
         context.remapped_symbol_names = Rc::new(RefCell::new(Some(Default::default())));
         let context = Gc::new(context);
         let ret = Gc::new(Self {
+            _rc_wrapper: Default::default(),
             bundled,
             type_checker: type_checker.clone(),
             context: GcCell::new(context.clone()),
             node_builder: node_builder.rc_wrapper(),
-            serialize_property_symbol_for_class: MakeSerializePropertySymbol::new(
-                MakeSerializePropertySymbolCreatePropertyDeclaration::new(),
-                SyntaxKind::MethodDeclaration,
-                true,
-            ),
+            serialize_property_symbol_for_class: Default::default(),
             enclosing_declaration: context.enclosing_declaration(),
             results: Default::default(),
             visited_symbols: Default::default(),
@@ -118,6 +116,13 @@ impl SymbolTableToDeclarationStatements {
             symbol_table: GcCell::new(symbol_table),
             adding_declare: Cell::new(bundled != Some(true)),
         });
+        *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
+        *ret.serialize_property_symbol_for_class.borrow_mut() =
+            Some(ret.make_serialize_property_symbol(
+                MakeSerializePropertySymbolCreatePropertyDeclaration::new(),
+                SyntaxKind::MethodDeclaration,
+                true,
+            ));
         context.set_tracker(SymbolTableToDeclarationStatementsSymbolTracker::new(
             oldcontext.tracker(),
             type_checker,
@@ -131,12 +136,20 @@ impl SymbolTableToDeclarationStatements {
         ret
     }
 
+    pub fn rc_wrapper(&self) -> Gc<Self> {
+        self._rc_wrapper.borrow().clone().unwrap()
+    }
+
     pub fn context(&self) -> Gc<NodeBuilderContext> {
         self.context.borrow().clone()
     }
 
     pub fn set_context(&self, context: Gc<NodeBuilderContext>) {
         *self.context.borrow_mut() = context;
+    }
+
+    pub fn serialize_property_symbol_for_class(&self) -> GcCellRef<MakeSerializePropertySymbol> {
+        gc_cell_ref_unwrapped(&self.serialize_property_symbol_for_class)
     }
 
     pub fn results(&self) -> GcCellRef<Vec<Gc<Node>>> {

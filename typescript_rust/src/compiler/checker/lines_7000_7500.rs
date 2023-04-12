@@ -1047,7 +1047,7 @@ impl SymbolTableToDeclarationStatements {
             vec![]
         };
         let public_properties = flat_map(Some(&public_symbol_props), |p: &Gc<Symbol>, _| {
-            self.serialize_property_symbol_for_class.call(
+            self.serialize_property_symbol_for_class().call(
                 p,
                 false,
                 base_types.get(0).as_double_deref(),
@@ -1063,7 +1063,7 @@ impl SymbolTableToDeclarationStatements {
                 },
             )),
             |p: &Gc<Symbol>, _| {
-                self.serialize_property_symbol_for_class
+                self.serialize_property_symbol_for_class()
                     .call(p, true, Some(&**static_base_type))
             },
         );

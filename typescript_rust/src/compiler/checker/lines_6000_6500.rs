@@ -786,10 +786,10 @@ impl NodeBuilder {
         initial
     }
 
-    pub(super) fn get_declaration_with_type_annotation<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn get_declaration_with_type_annotation(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
     ) -> Option<Gc<Node>> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
