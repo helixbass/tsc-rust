@@ -466,7 +466,32 @@ impl SymbolTableToDeclarationStatements {
         input: &Type,
         base_type: Option<impl Borrow<Type>>,
     ) -> Vec<Gc<Node>> {
-        unimplemented!()
+        let mut results: Vec<Gc<Node /*IndexSignatureDeclaration*/>> = Default::default();
+        let base_type = base_type.type_wrappered();
+        for info in &self.type_checker.get_index_infos_of_type(input) {
+            if let Some(base_type) = base_type.as_ref() {
+                let base_info = self
+                    .type_checker
+                    .get_index_info_of_type_(base_type, &info.key_type);
+                if let Some(base_info) = base_info.as_ref() {
+                    if self
+                        .type_checker
+                        .is_type_identical_to(&info.type_, &base_info.type_)
+                    {
+                        continue;
+                    }
+                }
+            }
+            results.push(
+                self.node_builder
+                    .index_info_to_index_signature_declaration_helper(
+                        info,
+                        &self.context(),
+                        Option::<&Node>::None,
+                    ),
+            );
+        }
+        results
     }
 
     pub(super) fn serialize_base_type(
@@ -475,7 +500,53 @@ impl SymbolTableToDeclarationStatements {
         static_type: &Type,
         root_name: &str,
     ) -> Gc<Node> {
-        unimplemented!()
+        let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Value);
+        if let Some(ref_) = ref_ {
+            return ref_;
+        }
+        let temp_name = self.get_unused_name(&format!("{root_name}_base"), Option::<&Symbol>::None);
+        let statement: Gc<Node> =
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_variable_statement(
+                        synthetic_factory_,
+                        Option::<Gc<NodeArray>>::None,
+                        Gc::<Node>::from(factory_.create_variable_declaration_list(
+                            synthetic_factory_,
+                            vec![
+                            factory_.create_variable_declaration(
+                                synthetic_factory_,
+                                Some(&*temp_name),
+                                None,
+                                self.node_builder.type_to_type_node_helper(
+                                    Some(static_type),
+                                    &self.context(),
+                                ),
+                                None,
+                            ).into()
+                        ],
+                            Some(NodeFlags::Const),
+                        )),
+                    )
+                    .into()
+            });
+        self.add_result(&statement, ModifierFlags::None);
+        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+            factory_
+                .create_expression_with_type_arguments(
+                    synthetic_factory_,
+                    factory_
+                        .create_identifier(
+                            synthetic_factory_,
+                            &temp_name,
+                            Option::<Gc<NodeArray>>::None,
+                            None,
+                        )
+                        .into(),
+                    Option::<Gc<NodeArray>>::None,
+                )
+                .into()
+        })
     }
 
     pub(super) fn try_serialize_as_type_reference(
@@ -483,11 +554,78 @@ impl SymbolTableToDeclarationStatements {
         t: &Type,
         flags: SymbolFlags,
     ) -> Option<Gc<Node>> {
-        unimplemented!()
+        let mut type_args: Option<Vec<Gc<Node /*TypeNode*/>>> = Default::default();
+        let mut reference: Option<Gc<Node /*Expression*/>> = Default::default();
+
+        if let Some(t_target) = t
+            .maybe_as_type_reference_interface()
+            .map(|t| t.target())
+            .filter(|t_target| {
+                self.type_checker.is_symbol_accessible_by_flags(
+                    &t_target.symbol(),
+                    Some(&*self.enclosing_declaration),
+                    flags,
+                )
+            })
+        {
+            type_args = Some(
+                self.type_checker
+                    .get_type_arguments(t)
+                    .iter()
+                    .map(|t| {
+                        self.node_builder
+                            .type_to_type_node_helper(Some(&**t), &self.context())
+                            .unwrap()
+                    })
+                    .collect(),
+            );
+            reference = Some(self.node_builder.symbol_to_expression_(
+                &t_target.symbol(),
+                &self.context(),
+                Some(SymbolFlags::Type),
+            ));
+        } else if let Some(t_symbol) = t.maybe_symbol().as_ref().filter(|t_symbol| {
+            self.type_checker.is_symbol_accessible_by_flags(
+                t_symbol,
+                Some(&*self.enclosing_declaration),
+                flags,
+            )
+        }) {
+            reference = Some(self.node_builder.symbol_to_expression_(
+                &t.symbol(),
+                &self.context(),
+                Some(SymbolFlags::Type),
+            ));
+        }
+        reference.map(|reference| {
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_expression_with_type_arguments(synthetic_factory_, reference, type_args)
+                    .into()
+            })
+        })
     }
 
     pub(super) fn serialize_implemented_type(&self, t: &Type) -> Option<Gc<Node>> {
-        unimplemented!()
+        let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Type);
+        if ref_.is_some() {
+            return ref_;
+        }
+        t.maybe_symbol().as_ref().map(|t_symbol| {
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_expression_with_type_arguments(
+                        synthetic_factory_,
+                        self.node_builder.symbol_to_expression_(
+                            t_symbol,
+                            &self.context(),
+                            Some(SymbolFlags::Type),
+                        ),
+                        Option::<Gc<NodeArray>>::None,
+                    )
+                    .into()
+            })
+        })
     }
 
     pub(super) fn get_unused_name(

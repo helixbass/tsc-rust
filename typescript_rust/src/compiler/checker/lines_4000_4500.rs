@@ -892,10 +892,10 @@ impl TypeChecker {
         access.accessibility == SymbolAccessibility::Accessible
     }
 
-    pub(super) fn is_symbol_accessible_by_flags<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn is_symbol_accessible_by_flags(
         &self,
         type_symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: SymbolFlags,
     ) -> bool {
         let access = self.is_symbol_accessible_worker(
