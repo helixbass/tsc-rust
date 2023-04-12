@@ -5,16 +5,16 @@ use gc::{Finalize, Gc, Trace};
 use crate::{
     are_option_gcs_equal, get_declaration_modifier_flags_from_symbol,
     get_export_assignment_expression, get_object_flags,
-    get_property_assignment_alias_like_expression, get_source_file_of_node, id_text, is_accessor,
-    is_binary_expression, is_class_expression, is_entity_name_expression, is_export_assignment,
-    is_function_like_declaration, is_get_accessor, is_identifier_text,
-    is_property_access_expression, is_property_declaration, is_property_signature,
-    is_prototype_property_assignment, is_set_accessor, is_variable_declaration, length,
-    maybe_get_source_file_of_node, set_text_range_rc_node, some, symbol_name,
-    unescape_leading_underscores, with_synthetic_factory_and_factory, Debug_, Empty,
+    get_property_assignment_alias_like_expression, get_selected_effective_modifier_flags,
+    get_source_file_of_node, id_text, is_accessor, is_binary_expression, is_class_expression,
+    is_entity_name_expression, is_export_assignment, is_function_like_declaration, is_get_accessor,
+    is_identifier_text, is_property_access_expression, is_property_declaration,
+    is_property_signature, is_prototype_property_assignment, is_set_accessor,
+    is_variable_declaration, length, maybe_get_source_file_of_node, set_text_range_rc_node, some,
+    symbol_name, unescape_leading_underscores, with_synthetic_factory_and_factory, Debug_, Empty,
     InternalSymbolName, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder, NodeFlags,
     NodeInterface, NodeWrappered, ObjectFlags, SignatureKind, StrOrRcNode, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, ThenAnd, Type, TypeChecker, TypeInterface,
+    SymbolInterface, SyntaxKind, Ternary, ThenAnd, Type, TypeChecker, TypeInterface, TypeWrappered,
 };
 
 use super::{
@@ -370,7 +370,11 @@ impl SymbolTableToDeclarationStatements {
         p: &Symbol,
         base_type: Option<impl Borrow<Type>>,
     ) -> Vec<Gc<Node>> {
-        unimplemented!()
+        self.serialize_property_symbol_for_interface_worker().call(
+            p,
+            false,
+            base_type.type_wrappered().as_deref(),
+        )
     }
 
     pub(super) fn serialize_signatures(
@@ -380,7 +384,81 @@ impl SymbolTableToDeclarationStatements {
         base_type: Option<impl Borrow<Type>>,
         output_kind: SyntaxKind,
     ) -> Vec<Gc<Node>> {
-        unimplemented!()
+        let signatures = self.type_checker.get_signatures_of_type(input, kind);
+        if kind == SignatureKind::Construct {
+            if base_type.is_none() && signatures.iter().all(|s| s.parameters().is_empty()) {
+                return vec![];
+            }
+            if let Some(base_type) = base_type {
+                let base_type = base_type.borrow();
+                let base_sigs = self
+                    .type_checker
+                    .get_signatures_of_type(base_type, SignatureKind::Construct);
+                if base_sigs.is_empty() && signatures.iter().all(|s| s.parameters().is_empty()) {
+                    return vec![];
+                }
+                if base_sigs.len() == signatures.len() {
+                    let mut failed = false;
+                    for i in 0..base_sigs.len() {
+                        if self.type_checker.compare_signatures_identical(
+                            signatures[i].clone(),
+                            base_sigs[i].clone(),
+                            false,
+                            false,
+                            true,
+                            |a: &Type, b: &Type| self.type_checker.compare_types_identical(a, b),
+                        ) == Ternary::False
+                        {
+                            failed = true;
+                            break;
+                        }
+                    }
+                    if !failed {
+                        return vec![];
+                    }
+                }
+            }
+            let mut private_protected = ModifierFlags::None;
+            for s in &signatures {
+                if let Some(s_declaration) = s.declaration.as_ref() {
+                    private_protected |= get_selected_effective_modifier_flags(
+                        s_declaration,
+                        ModifierFlags::Private | ModifierFlags::Protected,
+                    );
+                }
+            }
+            if private_protected != ModifierFlags::None {
+                return vec![set_text_range_rc_node(
+                    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        factory_
+                            .create_constructor_declaration(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(factory_.create_modifiers_from_modifier_flags(
+                                    synthetic_factory_,
+                                    private_protected,
+                                )),
+                                Some(vec![]),
+                                None,
+                            )
+                            .into()
+                    }),
+                    signatures[0].declaration.as_deref(),
+                )];
+            }
+        }
+
+        let mut results: Vec<Gc<Node>> = Default::default();
+        for sig in &signatures {
+            let decl = self.node_builder.signature_to_signature_declaration_helper(
+                sig.clone(),
+                output_kind,
+                &self.context(),
+                Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
+            );
+            results.push(set_text_range_rc_node(decl, sig.declaration.as_deref()));
+        }
+        results
     }
 
     pub(super) fn serialize_index_signatures(

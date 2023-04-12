@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use gc::Gc;
 
-use crate::{Node, NodeInterface};
+use crate::{Node, NodeInterface, Type, TypeInterface};
 
 pub trait NonEmpty {
     fn non_empty(self) -> Self;
@@ -110,5 +110,15 @@ pub trait NodeWrappered {
 impl<TValue: Borrow<Node>> NodeWrappered for Option<TValue> {
     fn node_wrappered(self) -> Option<Gc<Node>> {
         self.map(|node| node.borrow().node_wrapper())
+    }
+}
+
+pub trait TypeWrappered {
+    fn type_wrappered(self) -> Option<Gc<Type>>;
+}
+
+impl<TValue: Borrow<Type>> TypeWrappered for Option<TValue> {
+    fn type_wrappered(self) -> Option<Gc<Type>> {
+        self.map(|type_| type_.borrow().type_wrapper())
     }
 }

@@ -686,7 +686,7 @@ pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::iterator::Empty;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::{
-    GetOrInsertDefault, MapOrDefault, NodeWrappered, NonEmpty, ThenAnd,
+    GetOrInsertDefault, MapOrDefault, NodeWrappered, NonEmpty, ThenAnd, TypeWrappered,
 };
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,

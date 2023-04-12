@@ -73,6 +73,8 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) context: GcCell<Gc<NodeBuilderContext>>,
     pub(super) node_builder: Gc<NodeBuilder>,
     pub(super) serialize_property_symbol_for_class: GcCell<Option<MakeSerializePropertySymbol>>,
+    pub(super) serialize_property_symbol_for_interface_worker:
+        GcCell<Option<MakeSerializePropertySymbol>>,
     pub(super) enclosing_declaration: Gc<Node>,
     pub(super) results: GcCell<Vec<Gc<Node>>>,
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
@@ -108,6 +110,7 @@ impl SymbolTableToDeclarationStatements {
             context: GcCell::new(context.clone()),
             node_builder: node_builder.rc_wrapper(),
             serialize_property_symbol_for_class: Default::default(),
+            serialize_property_symbol_for_interface_worker: Default::default(),
             enclosing_declaration: context.enclosing_declaration(),
             results: Default::default(),
             visited_symbols: Default::default(),
@@ -123,6 +126,12 @@ impl SymbolTableToDeclarationStatements {
                 SyntaxKind::MethodDeclaration,
                 true,
             ));
+        *ret.serialize_property_symbol_for_interface_worker
+            .borrow_mut() = Some(ret.make_serialize_property_symbol(
+            MakeSerializePropertySymbolCreatePropertySignature::new(),
+            SyntaxKind::MethodSignature,
+            false,
+        ));
         context.set_tracker(SymbolTableToDeclarationStatementsSymbolTracker::new(
             oldcontext.tracker(),
             type_checker,
@@ -150,6 +159,12 @@ impl SymbolTableToDeclarationStatements {
 
     pub fn serialize_property_symbol_for_class(&self) -> GcCellRef<MakeSerializePropertySymbol> {
         gc_cell_ref_unwrapped(&self.serialize_property_symbol_for_class)
+    }
+
+    pub fn serialize_property_symbol_for_interface_worker(
+        &self,
+    ) -> GcCellRef<MakeSerializePropertySymbol> {
+        gc_cell_ref_unwrapped(&self.serialize_property_symbol_for_interface_worker)
     }
 
     pub fn results(&self) -> GcCellRef<Vec<Gc<Node>>> {
@@ -1374,6 +1389,35 @@ impl MakeSerializePropertySymbolCreateProperty
                 type_,
                 initializer,
             )
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct MakeSerializePropertySymbolCreatePropertySignature;
+
+impl MakeSerializePropertySymbolCreatePropertySignature {
+    pub fn new() -> Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        Gc::new(Box::new(Self))
+    }
+}
+
+impl MakeSerializePropertySymbolCreateProperty
+    for MakeSerializePropertySymbolCreatePropertySignature
+{
+    fn call(
+        &self,
+        _decorators: Option<NodeArrayOrVec /*Decorator*/>,
+        mods: Option<NodeArrayOrVec /*Modifier*/>,
+        name: StrOrRcNode<'_>, /*PropertyName*/
+        question: Option<Gc<Node /*QuestionToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        _initializer: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+            factory_
+                .create_property_signature(synthetic_factory_, mods, name, question, type_)
+                .into()
         })
     }
 }
