@@ -120,8 +120,8 @@ impl CheckTypeRelatedTo {
         *self.error_node.borrow_mut() = error_node;
     }
 
-    pub(super) fn maybe_error_info(&self) -> Ref<Option<Rc<DiagnosticMessageChain>>> {
-        self.error_info.borrow()
+    pub(super) fn maybe_error_info(&self) -> Option<Rc<DiagnosticMessageChain>> {
+        self.error_info.borrow().clone()
     }
 
     pub(super) fn maybe_error_info_mut(&self) -> RefMut<Option<Rc<DiagnosticMessageChain>>> {
@@ -364,7 +364,7 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn capture_error_calculation_state(&self) -> ErrorCalculationState {
         ErrorCalculationState {
-            error_info: self.maybe_error_info().clone(),
+            error_info: self.maybe_error_info(),
             last_skipped_info: self.maybe_last_skipped_info().clone(),
             incompatible_stack: self.incompatible_stack().clone(),
             override_next_error_info: self.override_next_error_info(),
@@ -1176,7 +1176,7 @@ impl CheckTypeRelatedTo {
             if source.flags().intersects(TypeFlags::Object)
                 && target.flags().intersects(TypeFlags::Object)
             {
-                let current_error = self.maybe_error_info().clone();
+                let current_error = self.maybe_error_info();
                 self.try_elaborate_array_like_errors(&source, &target, report_errors);
                 if !match (self.maybe_error_info().as_ref(), current_error.as_ref()) {
                     (None, None) => true,

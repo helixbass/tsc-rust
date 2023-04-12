@@ -235,7 +235,10 @@ impl SymbolTableToDeclarationStatements {
         }
 
         self.visit_symbol_table(self.symbol_table(), None, None);
-        self.merge_redundant_statements(&self.results())
+        self.merge_redundant_statements(&{
+            let value = self.results().clone();
+            value
+        })
     }
 
     pub(super) fn is_identifier_and_not_undefined(&self, node: Option<impl Borrow<Node>>) -> bool {
@@ -705,14 +708,18 @@ impl SymbolTableToDeclarationStatements {
             self.serialize_symbol(symbol, false, property_as_alias == Some(true));
         });
         if suppress_new_private_context != Some(true) {
-            {
+            let deferred_privates_stack_last_values = {
                 let deferred_privates_stack = self.deferred_privates_stack();
                 deferred_privates_stack[deferred_privates_stack.len() - 1]
                     .values()
-                    .for_each(|symbol| {
-                        self.serialize_symbol(symbol, true, property_as_alias == Some(true));
-                    });
-            }
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            deferred_privates_stack_last_values
+                .iter()
+                .for_each(|symbol| {
+                    self.serialize_symbol(symbol, true, property_as_alias == Some(true));
+                });
             self.deferred_privates_stack_mut().pop();
         }
     }

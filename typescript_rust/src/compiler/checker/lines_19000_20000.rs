@@ -89,7 +89,7 @@ impl CheckTypeRelatedTo {
             {
                 return Some(Ternary::False);
             }
-            *original_error_info = self.maybe_error_info().clone();
+            *original_error_info = self.maybe_error_info();
             self.reset_error_info(save_error_info.clone());
         }
         None
