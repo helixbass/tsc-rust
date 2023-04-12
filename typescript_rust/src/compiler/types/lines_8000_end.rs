@@ -861,6 +861,8 @@ pub trait SymbolTracker: Trace + Finalize {
         None
     }
     fn is_track_symbol_supported(&self) -> bool;
+    fn disable_track_symbol(&self);
+    fn reenable_track_symbol(&self);
     fn report_inaccessible_this_error(&self) {}
     fn is_report_inaccessible_this_error_supported(&self) -> bool;
     fn report_private_in_base_of_class_expression(&self, property_name: &str) {}

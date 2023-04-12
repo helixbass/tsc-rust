@@ -1150,9 +1150,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !has_node_array_changed(
             &node_as_index_signature_declaration.parameters(),
             &parameters,
-        ) || !Gc::ptr_eq(
-            &node_as_index_signature_declaration.maybe_type().unwrap(),
-            &type_,
+        ) || !matches!(
+            node_as_index_signature_declaration.maybe_type().as_ref(),
+            Some(node_type) if Gc::ptr_eq(
+                &type_,
+                node_type
+            )
         ) || !has_option_node_array_changed(
             node.maybe_decorators().as_deref(),
             decorators.as_ref(),

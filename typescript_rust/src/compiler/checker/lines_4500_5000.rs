@@ -2,7 +2,7 @@
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::mem;
@@ -19,15 +19,16 @@ use crate::{
     is_identifier_text, is_import_type_node, is_in_js_file, is_late_visibility_painted_statement,
     is_module_with_string_literal_name, is_type_reference_node, is_variable_declaration,
     is_variable_statement, map, maybe_filter, maybe_get_source_file_of_node,
-    no_truncation_maximum_truncation_length, pseudo_big_int_to_string, set_emit_flags, symbol_name,
-    synthetic_factory, using_single_line_string_writer, Debug_, EmitFlags, EmitHint,
-    EmitTextWriter, FileIncludeReason, IndexInfo, KeywordTypeNode, ModifierFlags,
-    ModuleSpecifierResolutionHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    MultiMap, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path,
-    PrinterOptionsBuilder, RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol,
-    SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker,
-    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    no_truncation_maximum_truncation_length, pseudo_big_int_to_string, ref_mut_unwrapped,
+    ref_unwrapped, set_emit_flags, symbol_name, synthetic_factory, using_single_line_string_writer,
+    Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, IndexInfo, KeywordTypeNode,
+    ModifierFlags, ModuleSpecifierResolutionHost,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
+    NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder,
+    RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
+    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -231,10 +232,10 @@ impl TypeChecker {
             })
     }
 
-    pub(super) fn symbol_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn symbol_to_string_(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -272,8 +273,10 @@ impl TypeChecker {
             )
             .unwrap();
             let entity: Gc<Node> = entity.into();
-            let mut printer = if matches!(enclosing_declaration.as_ref(), Some(enclosing_declaration) if enclosing_declaration.kind() == SyntaxKind::SourceFile)
-            {
+            let printer = if matches!(
+                enclosing_declaration.as_ref(),
+                Some(enclosing_declaration) if enclosing_declaration.kind() == SyntaxKind::SourceFile
+            ) {
                 create_printer(
                     PrinterOptionsBuilder::default()
                         .remove_comments(Some(true))
@@ -531,19 +534,29 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn create_node_builder(&self) -> NodeBuilder {
+    pub(super) fn create_node_builder(&self) -> Gc<NodeBuilder> {
         NodeBuilder::new(self.rc_wrapper())
     }
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeBuilder {
+    pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilder>>>,
     pub type_checker: Gc<TypeChecker>,
 }
 
 impl NodeBuilder {
-    pub fn new(type_checker: Gc<TypeChecker>) -> Self {
-        Self { type_checker }
+    pub fn new(type_checker: Gc<TypeChecker>) -> Gc<Self> {
+        let ret = Gc::new(Self {
+            type_checker,
+            _rc_wrapper: Default::default(),
+        });
+        *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
+        ret
+    }
+
+    pub fn rc_wrapper(&self) -> Gc<Self> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     pub fn type_to_type_node<TEnclosingDeclaration: Borrow<Node>>(
@@ -605,11 +618,11 @@ impl NodeBuilder {
         })
     }
 
-    pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_expression(
         &self,
         symbol: &Symbol,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
     ) -> Option<Gc<Node>> {
@@ -736,9 +749,9 @@ impl NodeBuilder {
         context.truncating.get().unwrap()
     }
 
-    pub(super) fn type_to_type_node_helper<TType: Borrow<Type>>(
+    pub(super) fn type_to_type_node_helper(
         &self,
-        type_: Option<TType>,
+        type_: Option<impl Borrow<Type>>,
         context: &NodeBuilderContext,
     ) -> Option<Gc<Node>> {
         if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token()
@@ -1600,6 +1613,10 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
         true
     }
 
+    fn disable_track_symbol(&self) {}
+
+    fn reenable_track_symbol(&self) {}
+
     fn module_resolver_host(
         &self,
     ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
@@ -1724,16 +1741,29 @@ pub(super) fn wrap_symbol_tracker_to_report_for_context(
     context: Gc<NodeBuilderContext>,
     tracker: Gc<Box<dyn SymbolTracker>>,
 ) -> NodeBuilderContextWrappedSymbolTracker {
-    NodeBuilderContextWrappedSymbolTracker { tracker, context }
+    NodeBuilderContextWrappedSymbolTracker::new(tracker, context)
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct NodeBuilderContextWrappedSymbolTracker {
+    #[unsafe_ignore_trace]
+    is_track_symbol_disabled: Cell<bool>,
     tracker: Gc<Box<dyn SymbolTracker>>,
     context: Gc<NodeBuilderContext>,
 }
 
 impl NodeBuilderContextWrappedSymbolTracker {
+    pub(super) fn new(
+        tracker: Gc<Box<dyn SymbolTracker>>,
+        context: Gc<NodeBuilderContext>,
+    ) -> Self {
+        Self {
+            is_track_symbol_disabled: Default::default(),
+            tracker,
+            context,
+        }
+    }
+
     fn mark_context_reported_diagnostic(&self) {
         (*self.context).borrow().reported_diagnostic.set(true);
     }
@@ -1843,6 +1873,9 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
+        if self.is_track_symbol_disabled.get() {
+            return Some(false);
+        }
         let result = self
             .tracker
             .track_symbol(symbol, enclosing_declaration, meaning);
@@ -1854,6 +1887,14 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
 
     fn is_track_symbol_supported(&self) -> bool {
         self.tracker.is_track_symbol_supported()
+    }
+
+    fn disable_track_symbol(&self) {
+        self.is_track_symbol_disabled.set(true);
+    }
+
+    fn reenable_track_symbol(&self) {
+        self.is_track_symbol_disabled.set(false);
     }
 
     fn report_truncation_error(&self) {
@@ -1888,7 +1929,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Trace, Finalize)]
 pub struct NodeBuilderContext {
     pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilderContext>>>,
     pub(super) enclosing_declaration: Gc<GcCell<Option<Gc<Node>>>>,
@@ -1957,6 +1998,10 @@ impl NodeBuilderContext {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
+    pub(super) fn set_rc_wrapper(&self, rc_wrapper: Option<Gc<Self>>) {
+        *self._rc_wrapper.borrow_mut() = rc_wrapper;
+    }
+
     pub fn maybe_enclosing_declaration(&self) -> Option<Gc<Node>> {
         (*self.enclosing_declaration).borrow().clone()
     }
@@ -1985,6 +2030,22 @@ impl NodeBuilderContext {
         *self.tracker.borrow_mut() = tracker;
     }
 
+    pub fn encountered_error(&self) -> bool {
+        self.encountered_error.get()
+    }
+
+    pub fn set_encountered_error(&self, encountered_error: bool) {
+        self.encountered_error.set(encountered_error);
+    }
+
+    pub fn reported_diagnostic(&self) -> bool {
+        self.reported_diagnostic.get()
+    }
+
+    pub fn set_reported_diagnostic(&self, reported_diagnostic: bool) {
+        self.reported_diagnostic.set(reported_diagnostic);
+    }
+
     pub fn increment_approximate_length_by(&self, amount: usize) {
         self.approximate_length
             .set(self.approximate_length.get() + amount);
@@ -1992,5 +2053,44 @@ impl NodeBuilderContext {
 
     pub fn maybe_used_symbol_names(&self) -> Ref<Option<HashSet<String>>> {
         (*self.used_symbol_names).borrow()
+    }
+
+    pub fn maybe_used_symbol_names_mut(&self) -> RefMut<Option<HashSet<String>>> {
+        (*self.used_symbol_names).borrow_mut()
+    }
+
+    pub fn remapped_symbol_names(&self) -> Ref<HashMap<SymbolId, String>> {
+        ref_unwrapped(&*self.remapped_symbol_names)
+    }
+
+    pub fn remapped_symbol_names_mut(&self) -> RefMut<HashMap<SymbolId, String>> {
+        ref_mut_unwrapped(&*self.remapped_symbol_names)
+    }
+}
+
+impl Clone for NodeBuilderContext {
+    fn clone(&self) -> Self {
+        Self {
+            _rc_wrapper: Default::default(),
+            enclosing_declaration: self.enclosing_declaration.clone(),
+            flags: self.flags.clone(),
+            tracker: self.tracker.clone(),
+            encountered_error: self.encountered_error.clone(),
+            reported_diagnostic: self.reported_diagnostic.clone(),
+            visited_types: self.visited_types.clone(),
+            symbol_depth: self.symbol_depth.clone(),
+            infer_type_parameters: self.infer_type_parameters.clone(),
+            approximate_length: self.approximate_length.clone(),
+            truncating: self.truncating.clone(),
+            type_parameter_symbol_list: self.type_parameter_symbol_list.clone(),
+            type_parameter_names: self.type_parameter_names.clone(),
+            type_parameter_names_by_text: self.type_parameter_names_by_text.clone(),
+            type_parameter_names_by_text_next_name_count: self
+                .type_parameter_names_by_text_next_name_count
+                .clone(),
+            used_symbol_names: self.used_symbol_names.clone(),
+            remapped_symbol_names: self.remapped_symbol_names.clone(),
+            reverse_mapped_stack: self.reverse_mapped_stack.clone(),
+        }
     }
 }

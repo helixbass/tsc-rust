@@ -76,21 +76,14 @@ pub fn first_defined<TCollection: IntoIterator, TReturn>(
     for_each(array, callback)
 }
 
-pub fn maybe_first_defined<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn maybe_first_defined<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
-    callback: TCallback,
+    callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     maybe_for_each(array, callback)
 }
 
-pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
-    array: &[TItem],
-    mut predicate: TCallback,
-) -> bool {
+pub fn every<TItem>(array: &[TItem], mut predicate: impl FnMut(&TItem, usize) -> bool) -> bool {
     array
         .into_iter()
         .enumerate()
@@ -1164,16 +1157,10 @@ pub fn array_of<TItem, TCallback: FnMut(usize) -> TItem>(
     result
 }
 
-pub fn array_to_map<
-    TItem,
-    TKey: hash::Hash + Eq,
-    TValue,
-    TMakeKey: FnMut(&TItem) -> Option<TKey>,
-    TMakeValue: FnMut(&TItem) -> TValue,
->(
+pub fn array_to_map<TItem, TKey: hash::Hash + Eq, TValue>(
     array: &[TItem],
-    mut make_key: TMakeKey,
-    mut make_value: TMakeValue,
+    mut make_key: impl FnMut(&TItem) -> Option<TKey>,
+    mut make_value: impl FnMut(&TItem) -> TValue,
 ) -> HashMap<TKey, TValue> {
     let mut result = HashMap::new();
     for value in array {
@@ -1185,6 +1172,34 @@ pub fn array_to_map<
     result
 }
 
+pub fn array_to_multi_map<
+    TItem,
+    TKey: hash::Hash + Eq + Trace + Finalize,
+    TValue: Clone + Trace + Finalize,
+>(
+    values: &[TItem],
+    mut make_key: impl FnMut(&TItem) -> TKey,
+    mut make_value: impl FnMut(&TItem) -> TValue,
+) -> MultiMap<TKey, TValue> {
+    let mut result: MultiMap<TKey, TValue> = create_multi_map();
+    for value in values {
+        result.add(make_key(value), make_value(value));
+    }
+    result
+}
+
+pub fn group<TItem: Clone + Trace + Finalize, TKey: hash::Hash + Eq + Trace + Finalize, TResult>(
+    values: &[TItem],
+    get_group_id: impl FnMut(&TItem) -> TKey,
+    mut result_selector: impl FnMut(Vec<TItem>) -> TResult,
+) -> Vec<TResult> {
+    array_to_multi_map(values, get_group_id, |item: &TItem| item.clone())
+        .into_values()
+        .map(|values: Vec<TItem>| result_selector(values))
+        .collect()
+}
+
+// TODO: did I actually use this anywhere? Eg I ended up using Clone for Node
 pub trait Cloneable {
     fn cloned(&self) -> Self;
 }
@@ -1194,6 +1209,8 @@ pub fn clone<TValue: Cloneable>(object: &TValue) -> TValue {
 }
 
 mod _MultiMapDeriveTraceScope {
+    use std::collections::hash_map::{IntoValues, Values};
+
     use super::*;
     use local_macros::Trace;
 
@@ -1232,6 +1249,14 @@ mod _MultiMapDeriveTraceScope {
         pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
             self.0.get(key)
         }
+
+        pub fn values(&self) -> Values<TKey, Vec<TValue>> {
+            self.0.values()
+        }
+
+        pub fn into_values(self) -> IntoValues<TKey, Vec<TValue>> {
+            self.0.into_values()
+        }
     }
 
     impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> IntoIterator
@@ -1269,7 +1294,7 @@ pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Op
     }
 }
 
-pub fn cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: Option<TIn>, test: TTest) -> TIn {
+pub fn cast<TIn>(value: Option<TIn>, test: impl FnOnce(&TIn) -> bool) -> TIn {
     if let Some(value) = value {
         if test(&value) {
             return value;

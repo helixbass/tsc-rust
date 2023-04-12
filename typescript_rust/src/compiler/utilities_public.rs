@@ -6,7 +6,6 @@ use std::cmp;
 use std::collections::HashMap;
 use std::ops::BitOrAssign;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     HasTypeArgumentsInterface, ReadonlyTextRange, StringOrNodeArray, TextSpan, __String,
@@ -438,13 +437,9 @@ impl From<bool> for FindAncestorCallbackReturn {
     }
 }
 
-pub fn find_ancestor<
-    TNode: Borrow<Node>,
-    TCallbackReturn: Into<FindAncestorCallbackReturn>,
-    TCallback: FnMut(&Node) -> TCallbackReturn,
->(
-    node: Option<TNode>,
-    mut callback: TCallback,
+pub fn find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>>(
+    node: Option<impl Borrow<Node>>,
+    mut callback: impl FnMut(&Node) -> TCallbackReturn,
 ) -> Option<Gc<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
     while let Some(rc_node_ref) = node.as_ref() {
@@ -1092,9 +1087,9 @@ impl<'a> From<&'a StringOrNodeArray> for StrOrNodeArray<'a> {
     }
 }
 
-pub fn get_text_of_jsdoc_comment<'a, TComment: Into<StrOrNodeArray<'a>>>(
-    comment: Option<TComment>,
-) -> Option<Cow<'a, str>> {
+pub fn get_text_of_jsdoc_comment<'str>(
+    comment: Option<impl Into<StrOrNodeArray<'str>>>,
+) -> Option<Cow<'str, str>> {
     match comment {
         Some(comment) => match comment.into() {
             StrOrNodeArray::Str(comment) => Some(comment.into()),

@@ -273,6 +273,14 @@ impl SymbolTracker for SingleLineStringWriter {
         self._dyn_symbol_tracker_wrapper.is_track_symbol_supported()
     }
 
+    fn disable_track_symbol(&self) {
+        self._dyn_symbol_tracker_wrapper.disable_track_symbol();
+    }
+
+    fn reenable_track_symbol(&self) {
+        self._dyn_symbol_tracker_wrapper.reenable_track_symbol();
+    }
+
     fn report_inaccessible_this_error(&self) {
         self._dyn_symbol_tracker_wrapper
             .report_inaccessible_this_error()
@@ -350,6 +358,10 @@ impl SymbolTracker for SingleLineStringWriterSymbolTracker {
     fn is_track_symbol_supported(&self) -> bool {
         true
     }
+
+    fn disable_track_symbol(&self) {}
+
+    fn reenable_track_symbol(&self) {}
 
     fn report_inaccessible_this_error(&self) {}
 

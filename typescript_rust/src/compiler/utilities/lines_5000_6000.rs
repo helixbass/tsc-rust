@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use base64::{engine::general_purpose, Engine as _};
 use gc::Gc;
 use regex::{Captures, Regex};
 use std::borrow::{Borrow, Cow};
@@ -189,16 +190,22 @@ pub fn try_extract_ts_extension(file_name: &str) -> Option<Extension> {
     .copied()
 }
 
+pub fn convert_to_base64(input: &str) -> String {
+    general_purpose::STANDARD_NO_PAD.encode(input)
+}
+
 pub fn base64_encode(
     host_base64_encode: Option<impl FnMut(&str) -> Option<String>>,
     input: &str,
 ) -> String {
-    unimplemented!()
+    host_base64_encode
+        .and_then(|mut host_base64_encode| host_base64_encode(input))
+        .unwrap_or_else(|| convert_to_base64(input))
 }
 
-pub fn read_json<THostReadFile: FnMut(&str) -> io::Result<Option<String>>>(
+pub fn read_json(
     path: &str,
-    mut host_read_file: THostReadFile,
+    mut host_read_file: impl FnMut(&str) -> io::Result<Option<String>>,
 ) -> serde_json::Value {
     let json_text = host_read_file(path);
     if json_text.is_err() {
@@ -216,13 +223,10 @@ pub fn read_json<THostReadFile: FnMut(&str) -> io::Result<Option<String>>>(
     result.config.unwrap()
 }
 
-pub fn directory_probably_exists<
-    THostDirectoryExists: FnMut(&str) -> Option<bool>,
-    THostIsDirectoryExistsSupported: FnMut() -> bool,
->(
+pub fn directory_probably_exists(
     directory_name: &str,
-    mut host_directory_exists: THostDirectoryExists,
-    mut host_is_directory_exists_supported: THostIsDirectoryExistsSupported,
+    mut host_directory_exists: impl FnMut(&str) -> Option<bool>,
+    mut host_is_directory_exists_supported: impl FnMut() -> bool,
 ) -> bool {
     !host_is_directory_exists_supported() || host_directory_exists(directory_name).unwrap()
 }

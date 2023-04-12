@@ -7,6 +7,7 @@ pub mod cell;
 pub mod debugging;
 pub mod deref;
 pub mod io;
+pub mod iterator;
 pub mod number;
 pub mod option;
 pub mod sys;

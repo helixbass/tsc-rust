@@ -786,10 +786,10 @@ impl NodeBuilder {
         initial
     }
 
-    pub(super) fn get_declaration_with_type_annotation<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn get_declaration_with_type_annotation(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
     ) -> Option<Gc<Node>> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -832,16 +832,13 @@ impl NodeBuilder {
             )
     }
 
-    pub(super) fn serialize_type_for_declaration<
-        TEnclosingDeclaration: Borrow<Node>,
-        TIncludePrivateSymbol: Fn(&Symbol),
-    >(
+    pub(super) fn serialize_type_for_declaration(
         &self,
         context: &NodeBuilderContext,
         type_: &Type,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
-        include_private_symbol: Option<&TIncludePrivateSymbol>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
+        include_private_symbol: Option<&impl Fn(&Symbol)>,
         bundled: Option<bool>,
     ) -> Gc<Node> {
         if !self.type_checker.is_error_type(type_) {
@@ -968,11 +965,11 @@ impl NodeBuilder {
         self.type_to_type_node_helper(Some(type_), context).unwrap()
     }
 
-    pub(super) fn track_existing_entity_name<TIncludePrivateSymbol: Fn(&Symbol)>(
+    pub(super) fn track_existing_entity_name(
         &self,
         node: &Node, /*EntityNameOrEntityNameExpression*/
         context: &NodeBuilderContext,
-        include_private_symbol: Option<&TIncludePrivateSymbol>,
+        include_private_symbol: Option<&impl Fn(&Symbol)>,
     ) -> TrackExistingEntityNameReturn {
         let mut introduces_error = false;
         let ref leftmost = get_first_identifier(node);
@@ -1050,11 +1047,11 @@ impl NodeBuilder {
         }
     }
 
-    pub(super) fn serialize_existing_type_node<TIncludePrivateSymbol: Fn(&Symbol)>(
+    pub(super) fn serialize_existing_type_node(
         &self,
         context: &NodeBuilderContext,
         existing: &Node, /*TypeNode*/
-        include_private_symbol: Option<&TIncludePrivateSymbol>,
+        include_private_symbol: Option<&impl Fn(&Symbol)>,
         bundled: Option<bool>,
     ) -> Option<Gc<Node>> {
         if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token() {

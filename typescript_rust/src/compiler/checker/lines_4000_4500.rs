@@ -468,11 +468,9 @@ impl TypeChecker {
             return None;
         }
         let links = self.get_symbol_links(symbol);
-        let mut links = links.borrow_mut();
-        if links.accessible_chain_cache.is_none() {
-            links.accessible_chain_cache = Some(HashMap::new());
+        if (*links).borrow().accessible_chain_cache.is_none() {
+            links.borrow_mut().accessible_chain_cache = Some(HashMap::new());
         }
-        let cache = links.accessible_chain_cache.as_mut().unwrap();
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let first_relevant_location = self
@@ -489,8 +487,12 @@ impl TypeChecker {
             },
             meaning.bits()
         );
-        if cache.contains_key(&key) {
-            return cache.get(&key).unwrap().clone();
+        {
+            let mut links = (*links).borrow_mut();
+            let cache = links.accessible_chain_cache.as_mut().unwrap();
+            if cache.contains_key(&key) {
+                return cache.get(&key).unwrap().clone();
+            }
         }
 
         let id = get_symbol_id(symbol);
@@ -514,7 +516,12 @@ impl TypeChecker {
                 )
             },
         );
-        cache.insert(key, result.clone());
+        (*links)
+            .borrow_mut()
+            .accessible_chain_cache
+            .as_mut()
+            .unwrap()
+            .insert(key, result.clone());
         result
     }
 
@@ -885,10 +892,10 @@ impl TypeChecker {
         access.accessibility == SymbolAccessibility::Accessible
     }
 
-    pub(super) fn is_symbol_accessible_by_flags<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn is_symbol_accessible_by_flags(
         &self,
         type_symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: SymbolFlags,
     ) -> bool {
         let access = self.is_symbol_accessible_worker(

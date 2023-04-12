@@ -1,3 +1,9 @@
+use std::borrow::Borrow;
+
+use gc::Gc;
+
+use crate::{Node, NodeInterface, Symbol, SymbolInterface, Type, TypeInterface};
+
 pub trait NonEmpty {
     fn non_empty(self) -> Self;
     fn is_non_empty(self) -> bool;
@@ -64,5 +70,79 @@ impl<TValue: Default> GetOrInsertDefault for Option<TValue> {
 
     fn get_or_insert_default(&mut self) -> &mut TValue {
         self.get_or_insert_with(|| Default::default())
+    }
+}
+
+pub trait MapOrDefault {
+    type Unwrapped;
+
+    fn map_or_default<TMapped: Default>(
+        self,
+        mapper: impl FnOnce(Self::Unwrapped) -> TMapped,
+    ) -> TMapped;
+}
+
+impl<TValue> MapOrDefault for Option<TValue> {
+    type Unwrapped = TValue;
+
+    fn map_or_default<TMapped: Default>(
+        self,
+        mapper: impl FnOnce(Self::Unwrapped) -> TMapped,
+    ) -> TMapped {
+        self.map(mapper).unwrap_or_default()
+    }
+}
+
+pub trait ThenAnd {
+    fn then_and<TMapped>(self, mapper: impl FnOnce() -> Option<TMapped>) -> Option<TMapped>;
+}
+
+impl ThenAnd for bool {
+    fn then_and<TMapped>(self, mapper: impl FnOnce() -> Option<TMapped>) -> Option<TMapped> {
+        self.then(mapper).flatten()
+    }
+}
+
+pub trait NodeWrappered {
+    fn node_wrappered(self) -> Option<Gc<Node>>;
+}
+
+impl<TValue: Borrow<Node>> NodeWrappered for Option<TValue> {
+    fn node_wrappered(self) -> Option<Gc<Node>> {
+        self.map(|node| node.borrow().node_wrapper())
+    }
+}
+
+pub trait SymbolWrappered {
+    fn symbol_wrappered(self) -> Option<Gc<Symbol>>;
+}
+
+impl<TValue: Borrow<Symbol>> SymbolWrappered for Option<TValue> {
+    fn symbol_wrappered(self) -> Option<Gc<Symbol>> {
+        self.map(|symbol| symbol.borrow().symbol_wrapper())
+    }
+}
+
+pub trait TypeWrappered {
+    fn type_wrappered(self) -> Option<Gc<Type>>;
+}
+
+impl<TValue: Borrow<Type>> TypeWrappered for Option<TValue> {
+    fn type_wrappered(self) -> Option<Gc<Type>> {
+        self.map(|type_| type_.borrow().type_wrapper())
+    }
+}
+
+pub trait Matches {
+    type Unwrapped;
+
+    fn matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool;
+}
+
+impl<TValue> Matches for Option<TValue> {
+    type Unwrapped = TValue;
+
+    fn matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool {
+        self.map(predicate) == Some(true)
     }
 }

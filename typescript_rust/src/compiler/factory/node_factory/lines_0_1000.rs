@@ -1259,7 +1259,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         flags: Option<GeneratedIdentifierFlags>,
     ) -> Gc<Node /*Identifier*/> {
         let flags = flags.unwrap_or_default();
-        unimplemented!()
+        Debug_.assert(
+            !flags.intersects(GeneratedIdentifierFlags::KindMask),
+            Some("Argument out of range: flags"),
+        );
+        let node = node.map(|node| node.borrow().node_wrapper());
+        let name: Gc<Node> = self
+            .create_base_generated_identifier(
+                base_factory,
+                if let Some(node) = node.as_ref().filter(|node| is_identifier(node)) {
+                    id_text(node)
+                } else {
+                    ""
+                },
+                GeneratedIdentifierFlags::Node | flags,
+            )
+            .into();
+        name.set_original(node);
+        name
     }
 
     pub fn create_private_identifier(

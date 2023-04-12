@@ -131,9 +131,9 @@ impl TypeChecker {
                 && symbol.flags().intersects(SymbolFlags::Assignment)
     }
 
-    pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol> + Clone>(
+    pub(super) fn resolve_symbol(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol> + Clone>,
         dont_resolve_alias: Option<bool>,
     ) -> Option<Gc<Symbol>> {
         if !matches!(dont_resolve_alias, Some(true))

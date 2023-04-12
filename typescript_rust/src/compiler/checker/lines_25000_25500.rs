@@ -415,7 +415,7 @@ impl TypeChecker {
                         outside_this.as_ref(),
                         Some(outside_this) if !Gc::ptr_eq(
                             outside_this,
-                            &self.global_this_type()
+                            &global_this_type
                         )
                     ) {
                         add_related_info(
@@ -437,11 +437,11 @@ impl TypeChecker {
         type_.unwrap_or_else(|| self.any_type())
     }
 
-    pub(super) fn try_get_this_type_at_<TContainer: Borrow<Node>>(
+    pub(super) fn try_get_this_type_at_(
         &self,
         node: &Node,
         include_global_this: Option<bool>,
-        container: Option<TContainer>,
+        container: Option<impl Borrow<Node>>,
     ) -> Option<Gc<Type>> {
         let include_global_this = include_global_this.unwrap_or(true);
         let container = container.map_or_else(

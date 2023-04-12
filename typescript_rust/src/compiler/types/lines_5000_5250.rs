@@ -394,12 +394,17 @@ impl Type {
         }
     }
 
-    pub fn as_type_reference_interface(&self) -> &dyn TypeReferenceInterface {
+    pub fn maybe_as_type_reference_interface(&self) -> Option<&dyn TypeReferenceInterface> {
         match self {
-            Type::ObjectType(ObjectType::InterfaceType(type_)) => type_,
-            Type::ObjectType(ObjectType::TypeReference(type_)) => type_,
-            _ => panic!("Expected type reference interface type"),
+            Type::ObjectType(ObjectType::InterfaceType(type_)) => Some(type_),
+            Type::ObjectType(ObjectType::TypeReference(type_)) => Some(type_),
+            _ => None,
         }
+    }
+
+    pub fn as_type_reference_interface(&self) -> &dyn TypeReferenceInterface {
+        self.maybe_as_type_reference_interface()
+            .expect("Expected type reference interface type")
     }
 
     pub fn as_base_interface_type(&self) -> &BaseInterfaceType {

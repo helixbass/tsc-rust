@@ -17,14 +17,14 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn compare_signatures_identical<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
+    pub(super) fn compare_signatures_identical(
         &self,
         mut source: Gc<Signature>,
         target: Gc<Signature>,
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
-        mut compare_types: TCompareTypes,
+        mut compare_types: impl FnMut(&Type, &Type) -> Ternary,
     ) -> Ternary {
         if Gc::ptr_eq(&source, &target) {
             return Ternary::True;

@@ -207,11 +207,11 @@ impl NodeBuilder {
                 )
     }
 
-    pub(super) fn index_info_to_index_signature_declaration_helper<TTypeNode: Borrow<Node>>(
+    pub(super) fn index_info_to_index_signature_declaration_helper(
         &self,
         index_info: &IndexInfo,
         context: &NodeBuilderContext,
-        type_node: Option<TTypeNode /*TypeNode*/>,
+        type_node: Option<impl Borrow<Node> /*TypeNode*/>,
     ) -> Gc<Node /*IndexSignatureDeclaration*/> {
         let name = get_name_from_index_info(index_info).unwrap_or_else(|| Cow::Borrowed("x"));
         let indexer_type_node = self.type_to_type_node_helper(Some(&*index_info.key_type), context);
@@ -259,12 +259,12 @@ impl NodeBuilder {
         })
     }
 
-    pub(super) fn signature_to_signature_declaration_helper<TPrivateSymbolVisitor: Fn(&Symbol)>(
+    pub(super) fn signature_to_signature_declaration_helper(
         &self,
         signature: Gc<Signature>,
         kind: SyntaxKind,
         context: &NodeBuilderContext,
-        options: Option<SignatureToSignatureDeclarationOptions<TPrivateSymbolVisitor>>,
+        options: Option<SignatureToSignatureDeclarationOptions<impl Fn(&Symbol)>>,
     ) -> Gc<Node /*SignatureDeclaration*/> {
         let suppress_any = context
             .flags()

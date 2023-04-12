@@ -201,9 +201,13 @@ pub fn is_jsdoc_construct_signature(node: &Node) -> bool {
         return false;
     }
     let param = param.unwrap();
-    let name = try_cast(param.as_parameter_declaration().name(), |name| {
-        is_identifier(name)
-    });
+    let name = try_cast(param.as_parameter_declaration().maybe_name(), |name| {
+        matches!(
+            name.as_ref(),
+            Some(name) if is_identifier(name)
+        )
+    })
+    .flatten();
     if name.is_none() {
         return false;
     }

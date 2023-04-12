@@ -148,21 +148,20 @@ impl TypeChecker {
             self.clone_symbol(exported)
         };
         merged.set_flags(merged.flags() | SymbolFlags::ValueModule);
-        let mut merged_exports = merged.maybe_exports_mut();
-        if merged_exports.is_none() {
-            *merged_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
-        }
-        let mut merged_exports = merged_exports.as_ref().unwrap().borrow_mut();
+        let merged_exports = merged
+            .maybe_exports_mut()
+            .get_or_insert_with(|| Gc::new(GcCell::new(create_symbol_table(None))))
+            .clone();
         for (name, s) in &*(*module_symbol.exports()).borrow() {
             if name == InternalSymbolName::ExportEquals {
                 continue;
             }
-            let value = if merged_exports.contains_key(name) {
-                self.merge_symbol(merged_exports.get(name).unwrap(), s, None)
+            let value = if (*merged_exports).borrow().contains_key(name) {
+                self.merge_symbol((*merged_exports).borrow().get(name).unwrap(), s, None)
             } else {
                 s.symbol_wrapper()
             };
-            merged_exports.insert(name.clone(), value);
+            merged_exports.borrow_mut().insert(name.clone(), value);
         }
         self.get_symbol_links(&merged)
             .borrow_mut()
@@ -513,11 +512,9 @@ impl TypeChecker {
     ) -> Gc<GcCell<SymbolTable>> {
         let mut visited_symbols: Vec<Gc<Symbol>> = vec![];
 
-        let module_symbol = self
-            .resolve_external_module_symbol(Some(module_symbol), None)
-            .unwrap();
+        let module_symbol = self.resolve_external_module_symbol(Some(module_symbol), None);
 
-        self.visit_get_exports_of_module_worker(&mut visited_symbols, Some(module_symbol))
+        self.visit_get_exports_of_module_worker(&mut visited_symbols, module_symbol)
             .map_or_else(
                 || self.empty_symbols(),
                 |symbol_table| Gc::new(GcCell::new(symbol_table)),
