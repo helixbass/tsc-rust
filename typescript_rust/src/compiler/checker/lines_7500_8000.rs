@@ -9,6 +9,15 @@ use crate::{
 use super::SymbolTableToDeclarationStatements;
 
 impl SymbolTableToDeclarationStatements {
+    pub(super) fn serialize_export_specifier(
+        &self,
+        local_name: &str,
+        target_name: &str,
+        specifier: Option<impl Borrow<Node /*Expression*/>>,
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn serialize_maybe_alias_assignment(&self, symbol: &Symbol) -> bool {
         unimplemented!()
     }

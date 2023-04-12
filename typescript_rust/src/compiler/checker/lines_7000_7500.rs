@@ -5,26 +5,26 @@ use itertools::Itertools;
 
 use crate::{
     are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table, filter,
-    find_ancestor, first_defined, flat_map, get_assignment_declaration_kind,
-    get_effective_implements_type_nodes, get_effective_modifier_flags, get_es_module_interop,
-    get_name_of_declaration, get_source_file_of_node, get_symbol_id, get_text_of_jsdoc_comment,
-    has_syntactic_modifier, id_text, is_ambient_module, is_binary_expression, is_class_declaration,
-    is_class_expression, is_class_like, is_entity_name_expression, is_enum_declaration,
-    is_enum_member, is_export_assignment, is_export_declaration, is_export_specifier,
-    is_external_module_reference, is_external_or_common_js_module, is_function_declaration,
-    is_global_scope_augmentation, is_identifier, is_import_equals_declaration, is_import_specifier,
-    is_in_js_file, is_interface_declaration, is_jsdoc_type_alias, is_jsdoc_type_expression,
-    is_json_source_file, is_module_declaration, is_named_declaration, is_namespace_export,
-    is_parameter_declaration, is_private_identifier, is_property_access_expression,
-    is_shorthand_ambient_module_symbol, is_source_file, is_static, is_variable_declaration,
+    find_ancestor, flat_map, get_assignment_declaration_kind, get_effective_implements_type_nodes,
+    get_effective_modifier_flags, get_es_module_interop, get_name_of_declaration,
+    get_source_file_of_node, get_symbol_id, get_text_of_jsdoc_comment, has_syntactic_modifier,
+    id_text, is_ambient_module, is_binary_expression, is_class_declaration, is_class_expression,
+    is_class_like, is_entity_name_expression, is_enum_declaration, is_enum_member,
+    is_export_assignment, is_export_declaration, is_export_specifier, is_external_module_reference,
+    is_external_or_common_js_module, is_function_declaration, is_global_scope_augmentation,
+    is_identifier, is_import_equals_declaration, is_import_specifier, is_in_js_file,
+    is_interface_declaration, is_jsdoc_type_alias, is_jsdoc_type_expression, is_json_source_file,
+    is_module_declaration, is_named_declaration, is_namespace_export, is_parameter_declaration,
+    is_private_identifier, is_property_access_expression, is_shorthand_ambient_module_symbol,
+    is_source_file, is_static, is_string_literal_like, is_variable_declaration,
     is_variable_statement, length, map, map_defined, maybe_first_defined,
     maybe_get_source_file_of_node, maybe_map, set_parent, set_synthetic_leading_comments_rc,
     set_text_range_rc_node, some, unescape_leading_underscores,
     with_parse_base_node_factory_and_factory, with_synthetic_factory_and_factory, AsDoubleDeref,
-    AssignmentDeclarationKind, Debug_, HasTypeArgumentsInterface, InternalSymbolName, MapOrDefault,
-    ModifierFlags, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, Signature,
-    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    SynthesizedComment, ThenAnd, Type, TypeInterface,
+    AssignmentDeclarationKind, Debug_, HasInitializerInterface, HasTypeArgumentsInterface,
+    InternalSymbolName, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeBuilderFlags, NodeFlags, NodeInterface, Signature, SignatureKind, StringOrNumber, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, ThenAnd, Type, TypeInterface,
 };
 
 use super::{
@@ -1193,7 +1193,8 @@ impl SymbolTableToDeclarationStatements {
     ) {
         let node = self.type_checker.get_declaration_of_alias_symbol(symbol);
         if node.is_none() {
-            return Debug_.fail(None);
+            /*return*/
+            Debug_.fail(None);
         }
         let ref node = node.unwrap();
         let target = self.type_checker.get_merged_symbol(
@@ -1222,7 +1223,535 @@ impl SymbolTableToDeclarationStatements {
         let target_name = self.get_internal_symbol_name(target, &verbatim_target_name);
         self.include_private_symbol(target);
         match node.kind() {
-            SyntaxKind::BindingElement => {}
+            SyntaxKind::BindingElement => 'case: {
+                if matches!(
+                    node.maybe_parent().and_then(|node_parent| node_parent.maybe_parent()).as_ref(),
+                    Some(node_parent_parent) if node_parent_parent.kind() == SyntaxKind::VariableDeclaration
+                ) {
+                    let specifier = self.node_builder.get_specifier_for_module_symbol(
+                        target.maybe_parent().as_ref().unwrap_or(target),
+                        &self.context(),
+                    );
+                    let property_name = node.as_binding_element().property_name.as_ref();
+                    self.add_result(
+                        &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                            Gc::<Node>::from(
+                                factory_.create_import_declaration(
+                                    synthetic_factory_,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Some(
+                                        factory_.create_import_clause(
+                                            synthetic_factory_,
+                                            false,
+                                            None,
+                                            Some(factory_.create_named_imports(
+                                                synthetic_factory_,
+                                                vec![
+                                                    factory_.create_import_specifier(
+                                                        synthetic_factory_,
+                                                        false,
+                                                        property_name.filter(|property_name| is_identifier(property_name)).map(|property_name| {
+                                                            factory_.create_identifier(
+                                                                synthetic_factory_,
+                                                                id_text(property_name),
+                                                                Option::<Gc<NodeArray>>::None,
+                                                                None,
+                                                            ).into()
+                                                        }),
+                                                        factory_.create_identifier(
+                                                            synthetic_factory_,
+                                                            local_name,
+                                                            Option::<Gc<NodeArray>>::None,
+                                                            None,
+                                                        ).into()
+                                                    ).into()
+                                                ]
+                                            ).into()),
+                                        ).into(),
+                                    ),
+                                    factory_.create_string_literal(
+                                        synthetic_factory_,
+                                        specifier,
+                                        None, None,
+                                    ).into(),
+                                    None
+                                )
+                            )
+                        }),
+                        ModifierFlags::None
+                    );
+                    break 'case;
+                }
+                Debug_.fail_bad_syntax_kind(
+                    node.maybe_parent()
+                        .and_then(|node_parent| node_parent.maybe_parent())
+                        .as_ref()
+                        .unwrap_or(node),
+                    Some(
+                        "Unhandled binding element grandparent kind in declaration serialization!",
+                    ),
+                )
+            }
+            SyntaxKind::ShorthandPropertyAssignment => {
+                if matches!(
+                    node.maybe_parent().and_then(|node_parent| node_parent.maybe_parent()).as_ref(),
+                    Some(node_parent_parent) if node_parent_parent.kind() == SyntaxKind::BinaryExpression
+                ) {
+                    self.serialize_export_specifier(
+                        unescape_leading_underscores(symbol.escaped_name()),
+                        &target_name,
+                        Option::<&Node>::None,
+                    );
+                }
+            }
+            SyntaxKind::VariableDeclaration => 'case: {
+                let node_as_variable_declaration = node.as_variable_declaration();
+                if is_property_access_expression(
+                    &node_as_variable_declaration.maybe_initializer().unwrap(),
+                ) {
+                    let ref initializer = node_as_variable_declaration.maybe_initializer().unwrap();
+                    let unique_name =
+                        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                            factory_.create_unique_name(synthetic_factory_, local_name, None)
+                        });
+                    let specifier = self.node_builder.get_specifier_for_module_symbol(
+                        target.maybe_parent().as_ref().unwrap_or(target),
+                        &self.context(),
+                    );
+                    self.add_result(
+                        &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                            Gc::<Node>::from(
+                                factory_.create_import_equals_declaration(
+                                    synthetic_factory_,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    false,
+                                    unique_name.clone(),
+                                    factory_
+                                        .create_external_module_reference(
+                                            synthetic_factory_,
+                                            factory_
+                                                .create_string_literal(
+                                                    synthetic_factory_,
+                                                    specifier,
+                                                    None,
+                                                    None,
+                                                )
+                                                .into(),
+                                        )
+                                        .into(),
+                                ),
+                            )
+                        }),
+                        ModifierFlags::None,
+                    );
+                    self.add_result(
+                        &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                            Gc::<Node>::from(
+                                factory_.create_import_equals_declaration(
+                                    synthetic_factory_,
+                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    false,
+                                    Gc::<Node>::from(factory_.create_identifier(
+                                        synthetic_factory_,
+                                        local_name,
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                    )),
+                                    factory_
+                                        .create_qualified_name(
+                                            synthetic_factory_,
+                                            unique_name,
+                                            initializer
+                                                .as_property_access_expression()
+                                                .name
+                                                .clone(),
+                                        )
+                                        .into(),
+                                ),
+                            )
+                        }),
+                        modifier_flags,
+                    );
+                }
+
+                if target.escaped_name() == InternalSymbolName::ExportEquals
+                    && some(
+                        target.maybe_declarations().as_deref(),
+                        Some(|declaration: &Gc<Node>| is_json_source_file(declaration)),
+                    )
+                {
+                    self.serialize_maybe_alias_assignment(symbol);
+                    break 'case;
+                }
+                let is_local_import = !target.flags().intersects(SymbolFlags::ValueModule)
+                    && !is_variable_declaration(node);
+                self.add_result(
+                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        Gc::<Node>::from(factory_.create_import_equals_declaration(
+                            synthetic_factory_,
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            Gc::<Node>::from(factory_.create_identifier(
+                                synthetic_factory_,
+                                local_name,
+                                Option::<Gc<NodeArray>>::None,
+                                None,
+                            )),
+                            if is_local_import {
+                                self.node_builder.symbol_to_name(
+                                    target,
+                                    &self.context(),
+                                    Some(SymbolFlags::All),
+                                    false,
+                                )
+                            } else {
+                                factory_
+                                    .create_external_module_reference(
+                                        synthetic_factory_,
+                                        factory_
+                                            .create_string_literal(
+                                                synthetic_factory_,
+                                                self.node_builder.get_specifier_for_module_symbol(
+                                                    target,
+                                                    &self.context(),
+                                                ),
+                                                None,
+                                                None,
+                                            )
+                                            .into(),
+                                    )
+                                    .into()
+                            },
+                        ))
+                    }),
+                    if is_local_import {
+                        modifier_flags
+                    } else {
+                        ModifierFlags::None
+                    },
+                );
+            }
+            SyntaxKind::ImportEqualsDeclaration => 'case: {
+                if target.escaped_name() == InternalSymbolName::ExportEquals
+                    && some(
+                        target.maybe_declarations().as_deref(),
+                        Some(|declaration: &Gc<Node>| is_json_source_file(declaration)),
+                    )
+                {
+                    self.serialize_maybe_alias_assignment(symbol);
+                    break 'case;
+                }
+                let is_local_import = !target.flags().intersects(SymbolFlags::ValueModule)
+                    && !is_variable_declaration(node);
+                self.add_result(
+                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        Gc::<Node>::from(factory_.create_import_equals_declaration(
+                            synthetic_factory_,
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            Gc::<Node>::from(factory_.create_identifier(
+                                synthetic_factory_,
+                                local_name,
+                                Option::<Gc<NodeArray>>::None,
+                                None,
+                            )),
+                            if is_local_import {
+                                self.node_builder.symbol_to_name(
+                                    target,
+                                    &self.context(),
+                                    Some(SymbolFlags::All),
+                                    false,
+                                )
+                            } else {
+                                factory_
+                                    .create_external_module_reference(
+                                        synthetic_factory_,
+                                        factory_
+                                            .create_string_literal(
+                                                synthetic_factory_,
+                                                self.node_builder.get_specifier_for_module_symbol(
+                                                    target,
+                                                    &self.context(),
+                                                ),
+                                                None,
+                                                None,
+                                            )
+                                            .into(),
+                                    )
+                                    .into()
+                            },
+                        ))
+                    }),
+                    if is_local_import {
+                        modifier_flags
+                    } else {
+                        ModifierFlags::None
+                    },
+                );
+            }
+            SyntaxKind::NamespaceExportDeclaration => {
+                self.add_result(
+                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        Gc::<Node>::from(factory_.create_namespace_export_declaration(
+                            synthetic_factory_,
+                            id_text(&node.as_namespace_export_declaration().name()),
+                        ))
+                    }),
+                    ModifierFlags::None,
+                );
+            }
+            SyntaxKind::ImportClause => {
+                self.add_result(
+                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        Gc::<Node>::from(
+                            factory_.create_import_declaration(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(
+                                    factory_
+                                        .create_import_clause(
+                                            synthetic_factory_,
+                                            false,
+                                            Some(
+                                                factory_
+                                                    .create_identifier(
+                                                        synthetic_factory_,
+                                                        local_name,
+                                                        Option::<Gc<NodeArray>>::None,
+                                                        None,
+                                                    )
+                                                    .into(),
+                                            ),
+                                            None,
+                                        )
+                                        .into(),
+                                ),
+                                factory_
+                                    .create_string_literal(
+                                        synthetic_factory_,
+                                        self.node_builder.get_specifier_for_module_symbol(
+                                            target.maybe_parent().as_ref().unwrap_or(target),
+                                            &self.context(),
+                                        ),
+                                        None,
+                                        None,
+                                    )
+                                    .into(),
+                                None,
+                            ),
+                        )
+                    }),
+                    ModifierFlags::None,
+                );
+            }
+            SyntaxKind::NamespaceImport => {
+                self.add_result(
+                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        Gc::<Node>::from(
+                            factory_.create_import_declaration(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(
+                                    factory_
+                                        .create_import_clause(
+                                            synthetic_factory_,
+                                            false,
+                                            None,
+                                            Some(
+                                                factory_
+                                                    .create_namespace_import(
+                                                        synthetic_factory_,
+                                                        factory_
+                                                            .create_identifier(
+                                                                synthetic_factory_,
+                                                                local_name,
+                                                                Option::<Gc<NodeArray>>::None,
+                                                                None,
+                                                            )
+                                                            .into(),
+                                                    )
+                                                    .into(),
+                                            ),
+                                        )
+                                        .into(),
+                                ),
+                                factory_
+                                    .create_string_literal(
+                                        synthetic_factory_,
+                                        self.node_builder.get_specifier_for_module_symbol(
+                                            target,
+                                            &self.context(),
+                                        ),
+                                        None,
+                                        None,
+                                    )
+                                    .into(),
+                                None,
+                            ),
+                        )
+                    }),
+                    ModifierFlags::None,
+                );
+            }
+            SyntaxKind::NamespaceExport => {
+                self.add_result(
+                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        Gc::<Node>::from(
+                            factory_.create_export_declaration(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                false,
+                                Some(
+                                    factory_
+                                        .create_namespace_export(
+                                            synthetic_factory_,
+                                            factory_
+                                                .create_identifier(
+                                                    synthetic_factory_,
+                                                    local_name,
+                                                    Option::<Gc<NodeArray>>::None,
+                                                    None,
+                                                )
+                                                .into(),
+                                        )
+                                        .into(),
+                                ),
+                                Some(
+                                    factory_
+                                        .create_string_literal(
+                                            synthetic_factory_,
+                                            self.node_builder.get_specifier_for_module_symbol(
+                                                target,
+                                                &self.context(),
+                                            ),
+                                            None,
+                                            None,
+                                        )
+                                        .into(),
+                                ),
+                                None,
+                            ),
+                        )
+                    }),
+                    ModifierFlags::None,
+                );
+            }
+            SyntaxKind::ImportSpecifier => {
+                self.add_result(
+                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                        Gc::<Node>::from(
+                            factory_.create_import_declaration(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(
+                                    factory_
+                                        .create_import_clause(
+                                            synthetic_factory_,
+                                            false,
+                                            None,
+                                            Some(
+                                                factory_
+                                                    .create_named_imports(
+                                                        synthetic_factory_,
+                                                        vec![
+                                                            factory_.create_import_specifier(
+                                                                synthetic_factory_,
+                                                                false,
+                                                                (local_name != verbatim_target_name).then(|| {
+                                                                    factory_.create_identifier(
+                                                                        synthetic_factory_,
+                                                                        &verbatim_target_name,
+                                                                        Option::<Gc<NodeArray>>::None,
+                                                                        None,
+                                                                    ).into()
+                                                                }),
+                                                                factory_.create_identifier(
+                                                                    synthetic_factory_,
+                                                                    local_name,
+                                                                    Option::<Gc<NodeArray>>::None,
+                                                                    None,
+                                                                ).into()
+                                                            ).into()
+                                                        ]
+                                                    )
+                                                    .into(),
+                                            ),
+                                        )
+                                        .into(),
+                                ),
+                                factory_
+                                    .create_string_literal(
+                                        synthetic_factory_,
+                                        self.node_builder.get_specifier_for_module_symbol(
+                                            target.maybe_parent().as_ref().unwrap_or(target),
+                                            &self.context(),
+                                        ),
+                                        None,
+                                        None,
+                                    )
+                                    .into(),
+                                None,
+                            ),
+                        )
+                    }),
+                    ModifierFlags::None,
+                );
+            }
+            SyntaxKind::ExportSpecifier => {
+                let specifier = node
+                    .parent()
+                    .parent()
+                    .as_export_declaration()
+                    .module_specifier
+                    .clone();
+                self.serialize_export_specifier(
+                    unescape_leading_underscores(symbol.escaped_name()),
+                    &specifier
+                        .is_some()
+                        .then_some(verbatim_target_name)
+                        .unwrap_or(target_name),
+                    specifier
+                        .as_ref()
+                        .filter(|specifier| is_string_literal_like(specifier))
+                        .map(|specifier| {
+                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                                Gc::<Node>::from(factory_.create_string_literal(
+                                    synthetic_factory_,
+                                    specifier.as_literal_like_node().text().clone(),
+                                    None,
+                                    None,
+                                ))
+                            })
+                        }),
+                );
+            }
+            SyntaxKind::ExportAssignment => {
+                self.serialize_maybe_alias_assignment(symbol);
+            }
+            SyntaxKind::BinaryExpression
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression => {
+                if symbol.escaped_name() == InternalSymbolName::Default
+                    || symbol.escaped_name() == InternalSymbolName::ExportEquals
+                {
+                    self.serialize_maybe_alias_assignment(symbol);
+                } else {
+                    self.serialize_export_specifier(
+                        local_name,
+                        &target_name,
+                        Option::<&Node>::None,
+                    );
+                }
+            }
             _ => Debug_.fail_bad_syntax_kind(
                 node,
                 Some("Unhandled alias declaration kind in symbol serializer!"),
