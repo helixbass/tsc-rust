@@ -94,6 +94,8 @@ impl TypeChecker {
                 );
             } else if is_variable_declaration(declaration)
                 && is_variable_statement(&declaration.parent().parent())
+                && !has_syntactic_modifier(&declaration.parent().parent(), ModifierFlags::Export)
+                && self.is_declaration_visible(&declaration.parent().parent().parent())
             {
                 return self.add_visible_alias(
                     should_compute_aliases_to_make_visible,

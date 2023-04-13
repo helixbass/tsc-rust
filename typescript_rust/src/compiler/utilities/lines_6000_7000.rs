@@ -1831,6 +1831,20 @@ pub fn has_ts_file_extension(file_name: &str) -> bool {
     )
 }
 
+fn number_of_directory_separators(str_: &str) -> usize {
+    lazy_static! {
+        static ref directory_separator_regex: Regex = Regex::new(r"/").unwrap();
+    }
+    directory_separator_regex.find_iter(str_).count()
+}
+
+pub fn compare_number_of_directory_separators(path1: &str, path2: &str) -> Comparison {
+    compare_values(
+        Some(number_of_directory_separators(path1)),
+        Some(number_of_directory_separators(path2)),
+    )
+}
+
 lazy_static! {
     static ref extensions_to_remove: Vec<Extension> = vec![
         Extension::Dts,

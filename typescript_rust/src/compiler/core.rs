@@ -1455,6 +1455,10 @@ pub fn set_ui_locale(value: Option<String>) {
     })
 }
 
+pub fn compare_booleans(a: bool, b: bool) -> Comparison {
+    compare_values(Some(if a { 1 } else { 0 }), Some(if b { 1 } else { 0 }))
+}
+
 pub fn get_spelling_suggestion<
     'candidates,
     TCandidate,

@@ -5,15 +5,16 @@ use std::io;
 use std::rc::Rc;
 
 use crate::{
-    append, combine_paths, comparison_to_ordering, contains_ignored_path,
-    create_get_canonical_file_name, directory_separator_str, ends_with,
-    ensure_path_is_non_module_name, ensure_trailing_directory_separator, every,
-    extension_from_path, file_extension_is_one_of, first_defined, flatten, for_each,
-    for_each_ancestor_directory, for_each_ancestor_directory_str_bool, get_directory_path,
-    get_emit_module_resolution_kind, get_implied_node_format_for_file,
-    get_module_name_string_literal_at, get_normalized_absolute_path,
-    get_package_json_types_version_paths, get_package_name_from_types_package_name,
-    get_paths_base_path, get_relative_path_from_directory, get_relative_path_to_directory_or_url,
+    append, combine_paths, compare_booleans, compare_number_of_directory_separators,
+    comparison_to_ordering, contains_ignored_path, create_get_canonical_file_name,
+    directory_separator_str, ends_with, ensure_path_is_non_module_name,
+    ensure_trailing_directory_separator, every, extension_from_path, file_extension_is_one_of,
+    first_defined, flatten, for_each, for_each_ancestor_directory,
+    for_each_ancestor_directory_str_bool, get_directory_path, get_emit_module_resolution_kind,
+    get_implied_node_format_for_file, get_module_name_string_literal_at,
+    get_normalized_absolute_path, get_package_json_types_version_paths,
+    get_package_name_from_types_package_name, get_paths_base_path,
+    get_relative_path_from_directory, get_relative_path_to_directory_or_url,
     get_source_file_of_module, get_supported_extensions, get_text_of_identifier_or_literal,
     has_js_file_extension, has_ts_file_extension, host_get_canonical_file_name, is_ambient_module,
     is_external_module_augmentation, is_external_module_name_relative, is_module_block,
@@ -725,7 +726,11 @@ fn compare_paths_by_redirect_and_number_of_directory_separators(
     a: &ModulePath,
     b: &ModulePath,
 ) -> Comparison {
-    unimplemented!()
+    let result = compare_booleans(b.is_redirect, a.is_redirect);
+    if result != Comparison::EqualTo {
+        return result;
+    }
+    compare_number_of_directory_separators(&a.path, &b.path)
 }
 
 fn get_nearest_ancestor_directory_with_package_json(
