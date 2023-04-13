@@ -20,11 +20,11 @@ use crate::{
     read_json, remove_file_extension, remove_prefix, sort, starts_with, string_contains, to_path,
     try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
     version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
-    Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
-    PackageId, Path, PathAndParts, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
-    Version, VersionRange,
+    Diagnostics, Extension, MapLike, Matches, ModuleKind, ModuleResolutionHost,
+    ModuleResolutionKind, PackageId, Path, PathAndParts, ResolvedModuleFull,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    StringOrBool, StringOrPattern, Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -3790,9 +3790,7 @@ fn load_module_from_specific_node_modules_directory(
             if let Some(package_info) = (*package_info).borrow().as_ref().filter(|package_info| {
                 matches!(
                     package_info.package_json_content.as_object(),
-                    Some(package_info_package_json_content) if package_info_package_json_content.get("exports").and_then(|package_info_package_json_content_exports| {
-                        package_info_package_json_content_exports.as_object()
-                    }).is_some()
+                    Some(package_info_package_json_content) if package_info_package_json_content.get("exports").is_some()
                 ) && state.features.intersects(NodeResolutionFeatures::Exports)
             }) {
                 return load_module_from_exports(
