@@ -1722,7 +1722,7 @@ pub struct BaseNode {
     #[unsafe_ignore_trace]
     pub end: Cell<isize>,
     pub symbol: GcCell<Option<Gc<Symbol>>>,
-    pub locals: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    pub locals: Gc<GcCell<Option<Gc<GcCell<SymbolTable>>>>>,
     next_container: GcCell<Option<Gc<Node>>>,
     local_symbol: GcCell<Option<Gc<Symbol>>>,
     emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
@@ -1903,7 +1903,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>> {
-        self.locals.borrow().clone()
+        (*self.locals).borrow().clone()
     }
 
     fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
@@ -1911,7 +1911,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn locals(&self) -> Gc<GcCell<SymbolTable>> {
-        self.locals.borrow().clone().unwrap()
+        (*self.locals).borrow().clone().unwrap()
     }
 
     fn locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>, Gc<GcCell<SymbolTable>>> {

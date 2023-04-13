@@ -234,7 +234,7 @@ impl Program {
         resolved_path: &Path,
         original_file_name: &str,
     ) -> Gc<Node /*SourceFile*/> {
-        let mut redirect: SourceFile = redirect_target.as_source_file().clone();
+        let redirect: SourceFile = redirect_target.as_source_file().clone();
         redirect.set_file_name(file_name.to_owned());
         redirect.set_path(path.clone());
         redirect.set_resolved_path(Some(resolved_path.clone()));
