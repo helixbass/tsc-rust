@@ -427,7 +427,7 @@ impl BinderType {
     }
 
     pub(super) fn maybe_parent(&self) -> Option<Gc<Node>> {
-        self.parent.borrow().as_ref().map(Clone::clone)
+        self.parent.borrow().clone()
     }
 
     pub(super) fn parent(&self) -> Gc<Node> {

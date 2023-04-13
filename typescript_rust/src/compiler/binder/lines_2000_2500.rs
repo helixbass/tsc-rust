@@ -824,7 +824,7 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind<TNode: Borrow<Node>>(&self, node: Option<TNode>) {
+    pub(super) fn bind(&self, node: Option<impl Borrow<Node>>) {
         if node.is_none() {
             return;
         }

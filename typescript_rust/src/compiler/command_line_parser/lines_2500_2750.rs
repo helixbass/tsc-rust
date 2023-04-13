@@ -150,13 +150,13 @@ pub(super) fn directory_of_combined_path(file_name: &str, base_path: &str) -> St
     get_directory_path(&get_normalized_absolute_path(file_name, Some(base_path)))
 }
 
-pub(super) fn parse_json_config_file_content_worker<
-    TSourceFile: Borrow<Node> + Clone,
-    THost: ParseConfigHost,
->(
+pub(super) fn parse_json_config_file_content_worker(
     json: Option<serde_json::Value>,
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
-    host: &THost,
+    source_file: Option<
+        impl Borrow<Node> + Clone,
+        /*TsConfigSourceFile*/
+    >,
+    host: &impl ParseConfigHost,
     base_path: &str,
     existing_options: Option<Gc<CompilerOptions>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
@@ -431,10 +431,10 @@ pub(super) fn get_config_file_specs<TSourceFile: Borrow<Node> + Clone>(
     }
 }
 
-pub(super) fn get_file_names<THost: ParseConfigHost>(
+pub(super) fn get_file_names(
     config_file_specs: &ConfigFileSpecs,
     options: &CompilerOptions,
-    host: &THost,
+    host: &impl ParseConfigHost,
     extra_file_extensions: &[FileExtensionInfo],
     raw: Option<&serde_json::Value>,
     resolution_stack: &[Path],
