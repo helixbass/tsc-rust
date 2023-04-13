@@ -916,7 +916,7 @@ impl TypeChecker {
             && get_effective_return_type_node(node).is_none()
             && matches!(
                 node_as_function_like_declaration.maybe_body(),
-                Some(node_body) if node_body.kind() == SyntaxKind::Block && self.is_context_sensitive(&node_body)
+                Some(node_body) if node_body.kind() != SyntaxKind::Block && self.is_context_sensitive(&node_body)
             )
     }
 

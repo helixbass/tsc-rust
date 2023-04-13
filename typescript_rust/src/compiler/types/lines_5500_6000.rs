@@ -750,6 +750,15 @@ pub enum TypeMapper {
     Merged(TypeMapperCompositeOrMerged),
 }
 
+impl TypeMapper {
+    pub fn as_simple(&self) -> &TypeMapperSimple {
+        match self {
+            Self::Simple(value) => value,
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Finalize, Trace)]
 pub struct TypeMapperSimple {
     pub source: Gc<Type>,
