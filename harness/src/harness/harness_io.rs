@@ -1633,7 +1633,7 @@ pub mod TestCaseParser {
         static ref line_ending_regex: Regex = Regex::new(r"\r?\n|\r").unwrap();
         static ref option_regex: Regex = Regex::new(r"^[/]{2}\s*@(\w+)\s*:\s*([^\r\n]*)").unwrap();
         static ref link_regex: Regex =
-            Regex::new(r"^[/]{2}\s*@link\s*:\s*([^r\n]*)\s*->\s*([^\r\n]*)").unwrap();
+            Regex::new(r"^[/]{2}\s*@link\s*:\s*([^\r\n]*)\s*->\s*([^\r\n]*)").unwrap();
     }
 
     pub fn parse_symlink_from_test(line: &str, symlinks: &mut Option<vfs::FileSet>) -> bool /*Option<vfs::FileSet>*/
@@ -1645,9 +1645,13 @@ pub mod TestCaseParser {
         let link_meta_data = link_meta_data.unwrap();
 
         symlinks.get_or_insert_with(|| vfs::FileSet::new()).insert(
-            link_meta_data.get(2).unwrap().as_str().to_owned(),
+            link_meta_data.get(2).unwrap().as_str().trim().to_owned(),
             Some(
-                vfs::Symlink::new(link_meta_data.get(1).unwrap().as_str().to_owned(), None).into(),
+                vfs::Symlink::new(
+                    link_meta_data.get(1).unwrap().as_str().trim().to_owned(),
+                    None,
+                )
+                .into(),
             ),
         );
         true
