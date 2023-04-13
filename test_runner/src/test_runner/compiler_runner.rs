@@ -335,14 +335,14 @@ impl CompilerTest {
                 lazy_static! {
                     static ref require_regex: Regex = Regex::new(r"require\(").unwrap();
                 }
-                require_regex.is_match(&last_unit.content)
+                require_regex.is_match(last_unit.content.as_ref().unwrap())
             }
             || {
                 lazy_static! {
                     static ref reference_path_regex: Regex =
                         Regex::new(r"reference\spath").unwrap();
                 }
-                reference_path_regex.is_match(&last_unit.content)
+                reference_path_regex.is_match(last_unit.content.as_ref().unwrap())
             }
         {
             to_be_compiled.push(Gc::new(Self::create_harness_test_file(
@@ -489,7 +489,7 @@ impl CompilerTest {
                 || Self::make_unit_name(&last_unit.name, root_dir),
                 ToOwned::to_owned,
             ),
-            content: last_unit.content.clone(),
+            content: last_unit.content.clone().unwrap(),
             file_options: Some(last_unit.file_options.clone()),
         }
     }

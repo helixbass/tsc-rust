@@ -1622,7 +1622,7 @@ pub mod TestCaseParser {
 
     #[derive(Clone)]
     pub struct TestUnitData {
-        pub content: String,
+        pub content: Option<String>,
         pub name: String,
         pub file_options: HashMap<String, String>,
         pub original_file_path: String,
@@ -1714,7 +1714,7 @@ pub mod TestCaseParser {
 
                 if let Some(current_file_name_present) = current_file_name.as_ref() {
                     let new_test_file = TestUnitData {
-                        content: current_file_content.clone().unwrap(),
+                        content: current_file_content.clone(),
                         name: current_file_name_present.clone(),
                         file_options: current_file_options.clone(),
                         original_file_path: file_name.to_owned(),
@@ -1756,7 +1756,7 @@ pub mod TestCaseParser {
         };
 
         let new_test_file2 = TestUnitData {
-            content: current_file_content.unwrap_or_else(|| "".to_owned()),
+            content: Some(current_file_content.unwrap_or_else(|| "".to_owned())),
             name: current_file_name.unwrap(),
             file_options: current_file_options,
             original_file_path: file_name.to_owned(),
@@ -1771,7 +1771,7 @@ pub mod TestCaseParser {
         let mut indexes_to_remove: Vec<usize> = vec![];
         for (i, data) in test_unit_data.iter().enumerate() {
             if get_config_name_from_file_name(&data.name).is_some() {
-                let config_json = parse_json_text(&data.name, data.content.clone());
+                let config_json = parse_json_text(&data.name, data.content.clone().unwrap());
                 // assert!(config_json.as_source_file().end_of_file_token().is_some());
                 let mut base_dir = normalize_path(&get_directory_path(&data.name));
                 if let Some(root_dir) = root_dir.filter(|root_dir| !root_dir.is_empty()) {
@@ -1844,7 +1844,7 @@ pub mod TestCaseParser {
         fn read_file(&self, name: &str) -> io::Result<Option<String>> {
             Ok(for_each(self.test_unit_data, |data: &TestUnitData, _| {
                 if data.name.to_lowercase() == name.to_lowercase() {
-                    Some(data.content.clone())
+                    Some(data.content.clone().unwrap())
                 } else {
                     None
                 }
