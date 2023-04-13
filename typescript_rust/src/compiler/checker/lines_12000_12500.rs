@@ -3,10 +3,8 @@
 use gc::Gc;
 use indexmap::IndexMap;
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{

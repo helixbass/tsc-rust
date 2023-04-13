@@ -18,17 +18,18 @@ use crate::{
     directory_separator, ensure_trailing_directory_separator, every, file_extension_is,
     file_extension_is_one_of, find, find_best_pattern_match, find_index, flat_map, flatten,
     for_each, format_string_from_args, get_directory_path, get_locale_specific_message,
-    get_normalized_path_components, get_string_comparer, get_token_pos_of_node, has_extension,
+    get_normalized_absolute_path, get_normalized_path_components, get_path_components,
+    get_path_from_path_components, get_string_comparer, get_token_pos_of_node, has_extension,
     index_of, index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map,
-    normalize_path, remove_trailing_directory_separator, skip_trivia, some, sort, to_path,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseTextRange, CharacterCodes,
+    normalize_path, remove_trailing_directory_separator, skip_trivia, some, sort, starts_with,
+    to_path, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseTextRange, CharacterCodes,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
-    FileExtensionInfo, GetCanonicalFileName, JsxEmit, LanguageVariant, MapLike, ModuleKind,
-    ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path, Pattern, PluginImport,
-    PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
+    FileExtensionInfo, GetCanonicalFileName, JsxEmit, LanguageVariant, MapLike, Matches,
+    ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path, Pattern,
+    PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
     ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
     WatchOptions,
 };
@@ -1074,13 +1075,45 @@ pub fn create_symlink_cache(
     SymlinkCache::new(cwd, get_canonical_file_name)
 }
 
-fn guess_directory_symlink<TGetCanonicalFileName: Fn(&str) -> String>(
+fn guess_directory_symlink(
     a: &str,
     b: &str,
     cwd: &str,
-    get_canonical_file_name: TGetCanonicalFileName,
+    get_canonical_file_name: impl Fn(&str) -> String,
 ) -> Option<(String, String)> {
-    unimplemented!()
+    let mut a_parts = get_path_components(&get_normalized_absolute_path(a, Some(cwd)), None);
+    let mut b_parts = get_path_components(&get_normalized_absolute_path(b, Some(cwd)), None);
+    let mut is_directory = false;
+    while a_parts.len() >= 2
+        && b_parts.len() >= 2
+        && !is_node_modules_or_scoped_package_directory(
+            Some(&a_parts[a_parts.len() - 2]),
+            |file_name| get_canonical_file_name(file_name),
+        )
+        && !is_node_modules_or_scoped_package_directory(
+            Some(&b_parts[b_parts.len() - 2]),
+            |file_name| get_canonical_file_name(file_name),
+        )
+        && get_canonical_file_name(&a_parts[a_parts.len() - 1])
+            == get_canonical_file_name(&b_parts[b_parts.len() - 1])
+    {
+        a_parts.pop();
+        b_parts.pop();
+        is_directory = true;
+    }
+    is_directory.then(|| {
+        (
+            get_path_from_path_components(&a_parts),
+            get_path_from_path_components(&b_parts),
+        )
+    })
+}
+
+fn is_node_modules_or_scoped_package_directory(
+    s: Option<&str>,
+    get_canonical_file_name: impl Fn(&str) -> String,
+) -> bool {
+    s.matches(|s| get_canonical_file_name(s) == "node_modules" || starts_with(s, "@"))
 }
 
 lazy_static! {
@@ -1795,6 +1828,20 @@ pub fn has_ts_file_extension(file_name: &str) -> bool {
     some(
         Some(&**supported_ts_extensions_flat),
         Some(|extension: &Extension| file_extension_is(file_name, extension.to_str())),
+    )
+}
+
+fn number_of_directory_separators(str_: &str) -> usize {
+    lazy_static! {
+        static ref directory_separator_regex: Regex = Regex::new(r"/").unwrap();
+    }
+    directory_separator_regex.find_iter(str_).count()
+}
+
+pub fn compare_number_of_directory_separators(path1: &str, path2: &str) -> Comparison {
+    compare_values(
+        Some(number_of_directory_separators(path1)),
+        Some(number_of_directory_separators(path2)),
     )
 }
 

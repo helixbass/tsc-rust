@@ -2,9 +2,7 @@
 
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, BinderType};
 use crate::{

@@ -1,5 +1,6 @@
 use fancy_regex::Regex;
 use gc::{Gc, GcCell};
+use indexmap::IndexMap;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -651,22 +652,22 @@ lazy_static! {
         Regex::new(r#"^([^*?]*)/[^/]*[*?]"#).unwrap();
 }
 
-pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(
+pub(crate) fn get_file_names_from_config_specs(
     config_file_specs: &ConfigFileSpecs,
     base_path: &str,
     options: &CompilerOptions,
-    host: &THost,
+    host: &impl ParseConfigHost,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
 ) -> Vec<String> {
     let base_path = normalize_path(base_path);
 
     let key_mapper = create_get_canonical_file_name(host.use_case_sensitive_file_names());
 
-    let mut literal_file_map: HashMap<String, String> = HashMap::new();
+    let mut literal_file_map: IndexMap<String, String> = Default::default();
 
-    let mut wildcard_file_map: HashMap<String, String> = HashMap::new();
+    let mut wildcard_file_map: IndexMap<String, String> = Default::default();
 
-    let mut wild_card_json_file_map: HashMap<String, String> = HashMap::new();
+    let mut wild_card_json_file_map: IndexMap<String, String> = Default::default();
     let validated_files_spec = config_file_specs.validated_files_spec.as_ref();
     let validated_include_specs = config_file_specs.validated_include_specs.as_deref();
     let validated_exclude_specs = config_file_specs.validated_exclude_specs.as_deref();
@@ -1050,8 +1051,8 @@ pub(super) struct GetWildcardDirectoryFromSpecReturn {
 
 pub(super) fn has_file_with_higher_priority_extension(
     file: &str,
-    literal_files: &HashMap<String, String>,
-    wildcard_files: &HashMap<String, String>,
+    literal_files: &IndexMap<String, String>,
+    wildcard_files: &IndexMap<String, String>,
     extensions: &[Vec<Extension>],
     key_mapper: fn(&str) -> String,
 ) -> bool {
@@ -1089,7 +1090,7 @@ pub(super) fn has_file_with_higher_priority_extension(
 
 pub(super) fn remove_wildcard_files_with_lower_priority_extension(
     file: &str,
-    wildcard_files: &mut HashMap<String, String>,
+    wildcard_files: &mut IndexMap<String, String>,
     extensions: &[Vec<Extension>],
     key_mapper: fn(&str) -> String,
 ) {

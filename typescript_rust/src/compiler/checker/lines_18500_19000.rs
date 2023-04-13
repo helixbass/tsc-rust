@@ -1081,7 +1081,7 @@ impl CheckTypeRelatedTo {
                     return result;
                 }
                 if report_errors {
-                    original_error_info = self.maybe_error_info().clone();
+                    original_error_info = self.maybe_error_info();
                 }
             }
             if Rc::ptr_eq(&self.relation, &self.type_checker.assignable_relation)
@@ -1131,7 +1131,7 @@ impl CheckTypeRelatedTo {
                         }
                         if report_errors {
                             if let Some(original_error_info) = original_error_info.clone() {
-                                if let Some(error_info) = self.maybe_error_info().clone() {
+                                if let Some(error_info) = self.maybe_error_info() {
                                     *self.maybe_error_info_mut() = Some(
                                         if self.count_message_chain_breadth(Some(&*vec![
                                             &*original_error_info,
@@ -1274,7 +1274,7 @@ impl CheckTypeRelatedTo {
                             }
                         }
                     }
-                    original_error_info = self.maybe_error_info().clone();
+                    original_error_info = self.maybe_error_info();
                     self.reset_error_info(save_error_info.clone());
                 }
             }
@@ -1773,7 +1773,7 @@ impl CheckTypeRelatedTo {
                 }
                 if variance_check_failed && result != Ternary::False {
                     let error_info = original_error_info
-                        .or_else(|| self.maybe_error_info().clone())
+                        .or_else(|| self.maybe_error_info())
                         .or_else(|| save_error_info.error_info.clone());
                     *self.maybe_error_info_mut() = error_info;
                 } else if result != Ternary::False {

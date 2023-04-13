@@ -287,9 +287,9 @@ impl TypeChecker {
         diagnostic
     }
 
-    pub(super) fn create_error<TLocation: Borrow<Node>>(
+    pub(super) fn create_error(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {

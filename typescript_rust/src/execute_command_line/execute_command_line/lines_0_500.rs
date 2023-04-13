@@ -835,11 +835,9 @@ pub(super) fn print_help(sys: &dyn System, command_line: &ParsedCommandLine) {
     }
 }
 
-pub(super) fn execute_command_line_worker<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
+pub(super) fn execute_command_line_worker(
     sys: Gc<Box<dyn System>>,
-    cb: &mut TCallback,
+    cb: &mut impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     command_line: &mut ParsedCommandLine,
 ) {
     let mut report_diagnostic = create_diagnostic_reporter(sys.clone(), None);
