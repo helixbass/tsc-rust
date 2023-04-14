@@ -33,7 +33,7 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Gc<Node /*TypeN
     let type_ = node
         .maybe_as_has_type()
         .and_then(|has_type| has_type.maybe_type());
-    if type_.is_some() && !is_in_js_file(Some(node)) {
+    if type_.is_some() || !is_in_js_file(Some(node)) {
         return type_;
     }
     if is_jsdoc_property_like_tag(node) {

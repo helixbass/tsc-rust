@@ -4,7 +4,6 @@ use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
 
 use super::signature_has_rest_parameter;
 use crate::{

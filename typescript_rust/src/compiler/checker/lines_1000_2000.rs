@@ -1436,17 +1436,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn resolve_name_<
-        'name_arg,
-        TLocation: Borrow<Node>,
-        TNameArg: Into<ResolveNameNameArg<'name_arg>> + Clone,
-    >(
+    pub(super) fn resolve_name_<'name_arg>(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,
-        name_arg: Option<TNameArg>,
+        name_arg: Option<impl Into<ResolveNameNameArg<'name_arg>> + Clone>,
         is_use: bool,
         exclude_globals: Option<bool>,
     ) -> Option<Gc<Symbol>> {
@@ -1465,22 +1461,20 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn resolve_name_helper<
-        'name_arg,
-        TLocation: Borrow<Node>,
-        TNameArg: Into<ResolveNameNameArg<'name_arg>> + Clone,
-        TLookup: FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Gc<Symbol>>,
-    >(
+    pub(super) fn resolve_name_helper<'name_arg>(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,
-        name_arg: Option<TNameArg>,
+        name_arg: Option<impl Into<ResolveNameNameArg<'name_arg>> + Clone>,
         is_use: bool,
         exclude_globals: bool,
-        mut lookup: TLookup,
+        mut lookup: impl FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Gc<Symbol>>,
     ) -> Option<Gc<Symbol>> {
+        if name == "TextNode" {
+            panic!("resolve_name_helper() TextNode");
+        }
         let mut location: Option<Gc<Node>> = location.map(|node| node.borrow().node_wrapper());
         let original_location = location.clone();
         let mut result: Option<Gc<Symbol>> = None;
