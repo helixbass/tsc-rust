@@ -255,9 +255,10 @@ impl Scanner {
         on_error: Option<ErrorCallback>,
         allow_multiline_jsx_text: Option<bool>,
     ) -> SyntaxKind /*JsxTokenSyntaxKind*/ {
+        let allow_multiline_jsx_text = allow_multiline_jsx_text.unwrap_or(true);
         self.set_pos(self.start_pos());
         self.set_token_pos(self.start_pos());
-        self.set_token(self.scan_jsx_token(on_error, allow_multiline_jsx_text))
+        self.set_token(self.scan_jsx_token(on_error, Some(allow_multiline_jsx_text)))
     }
 
     pub(crate) fn re_scan_less_than_token(&self) -> SyntaxKind {
@@ -290,7 +291,7 @@ impl Scanner {
         on_error: Option<ErrorCallback>,
         allow_multiline_jsx_text: Option<bool>,
     ) -> SyntaxKind /*JsxTokenSyntaxKind*/ {
-        let allow_multiline_jsx_text = allow_multiline_jsx_text.unwrap_or(false);
+        let allow_multiline_jsx_text = allow_multiline_jsx_text.unwrap_or(true);
         self.set_start_pos(self.pos());
         self.set_token_pos(self.pos());
 

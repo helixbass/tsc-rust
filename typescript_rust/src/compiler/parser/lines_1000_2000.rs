@@ -1104,9 +1104,9 @@ impl ParserType {
         array
     }
 
-    pub(super) fn finish_node_ref<TNode: NodeInterface>(
+    pub(super) fn finish_node_ref(
         &self,
-        node: &TNode,
+        node: &impl NodeInterface,
         pos: isize,
         end: Option<isize>,
     ) {
