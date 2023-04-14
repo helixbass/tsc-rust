@@ -166,7 +166,7 @@ impl TypeChecker {
                                         None,
                                     )
                                     .into(),
-                                "create_element",
+                                "createElement",
                             )
                             .into(),
                     )

@@ -592,10 +592,7 @@ impl TypeChecker {
         let symbol = symbol?;
         let symbol = symbol.borrow();
         if let Some(symbol_merge_id) = symbol.maybe_merge_id() {
-            let merged = self
-                .merged_symbols()
-                .get(&symbol_merge_id)
-                .map(Clone::clone);
+            let merged = self.merged_symbols().get(&symbol_merge_id).cloned();
             Some(merged.unwrap_or_else(|| symbol.symbol_wrapper()))
         } else {
             Some(symbol.symbol_wrapper())
