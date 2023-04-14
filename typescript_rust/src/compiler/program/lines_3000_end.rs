@@ -1192,20 +1192,22 @@ impl Program {
         }
     }
 
-    pub fn add_file_preprocessing_file_explaining_diagnostic<TFile: Borrow<Node>>(
+    pub fn add_file_preprocessing_file_explaining_diagnostic(
         &self,
-        file: Option<TFile>,
+        file: Option<impl Borrow<Node>>,
         file_processing_reason: &FileIncludeReason,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        self.maybe_file_processing_diagnostics().get_or_insert_with(|| vec![]).push(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
+        self.maybe_file_processing_diagnostics()
+            .get_or_insert_with(|| vec![])
+            .push(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
             kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
-            file: file.map(|file| file.borrow().as_source_file().path().clone()),
-            file_processing_reason: file_processing_reason.clone(),
-            diagnostic,
-            args,
-        }))
+                file: file.map(|file| file.borrow().as_source_file().path().clone()),
+                file_processing_reason: file_processing_reason.clone(),
+                diagnostic,
+                args,
+            }))
     }
 
     pub fn add_program_diagnostic_explaining_file(

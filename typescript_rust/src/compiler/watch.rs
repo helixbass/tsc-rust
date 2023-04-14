@@ -21,7 +21,7 @@ use crate::{
     DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
     EmitAndSemanticDiagnosticsBuilderProgram, EmitResult, ExitStatus, ExtendedConfigCacheEntry,
     Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason,
-    ForegroundColorEscapeSequences, FormatDiagnosticsHost, ModuleResolutionHost, Node,
+    ForegroundColorEscapeSequences, FormatDiagnosticsHost, Matches, ModuleResolutionHost, Node,
     ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Program, ProgramHost,
     ProjectReference, ReferenceFileLocationOrSyntheticReferenceFileLocation,
     ReportEmitErrorSummary, ResolvedProjectReference, ScriptReferenceHost, SortedArray,
@@ -650,17 +650,12 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
     }
     match reason {
         FileIncludeReason::RootFile(reason) => {
-            if options
-                .config_file
-                .as_ref()
-                .and_then(|config_file| {
-                    config_file
-                        .as_source_file()
-                        .maybe_config_file_specs()
-                        .clone()
-                })
-                .is_some()
-            {
+            if !options.config_file.as_ref().matches(|config_file| {
+                config_file
+                    .as_source_file()
+                    .maybe_config_file_specs()
+                    .is_some()
+            }) {
                 return chain_diagnostic_messages(
                     None,
                     &Diagnostics::Root_file_specified_for_compilation,
@@ -683,7 +678,7 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
             if let Some(matched_by_include) = matched_by_include {
                 chain_diagnostic_messages(
                     None,
-                    &Diagnostics::Part_of_files_list_in_tsconfig_json,
+                    &Diagnostics::Matched_by_include_pattern_0_in_1,
                     Some(vec![
                         matched_by_include,
                         to_file_name(
