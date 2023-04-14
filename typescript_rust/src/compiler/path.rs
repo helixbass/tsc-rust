@@ -586,8 +586,20 @@ fn compare_paths_worker(
     // if (a === undefined) return Comparison.LessThan;
     // if (b === undefined) return Comparison.GreaterThan;
 
-    // TODO: mimic performance optimizations? Looked like that will require translating char
-    // indexes -> byte indexes
+    let a_root = &a[0..get_root_length(a)];
+    let b_root = &b[0..get_root_length(b)];
+    let result = compare_strings_case_insensitive(a_root, b_root);
+    if result != Comparison::EqualTo {
+        return result;
+    }
+
+    let a_rest = &a[a_root.len()..];
+    let b_rest = &b[b_root.len()..];
+    if !relative_path_segment_reg_exp.is_match(a_rest)
+        && !relative_path_segment_reg_exp.is_match(b_rest)
+    {
+        return component_comparer(a_rest, b_rest);
+    }
 
     let a_components = reduce_path_components(&get_path_components(a, None));
     let b_components = reduce_path_components(&get_path_components(b, None));
