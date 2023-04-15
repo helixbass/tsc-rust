@@ -397,10 +397,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_fully_qualified_name<TContainingLocation: Borrow<Node>>(
+    pub(super) fn get_fully_qualified_name(
         &self,
         symbol: &Symbol,
-        containing_location: Option<TContainingLocation>,
+        containing_location: Option<impl Borrow<Node>>,
     ) -> String {
         if let Some(symbol_parent) = symbol.maybe_parent() {
             format!(

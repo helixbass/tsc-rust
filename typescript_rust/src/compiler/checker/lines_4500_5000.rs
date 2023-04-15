@@ -274,7 +274,6 @@ impl TypeChecker {
                 None,
             )
             .unwrap();
-            let entity: Gc<Node> = entity.into();
             let printer = if matches!(
                 enclosing_declaration.as_ref(),
                 Some(enclosing_declaration) if enclosing_declaration.kind() == SyntaxKind::SourceFile

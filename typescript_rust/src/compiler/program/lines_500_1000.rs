@@ -1736,6 +1736,10 @@ impl ScriptReferenceHost for Program {
 }
 
 impl ModuleSpecifierResolutionHost for Program {
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        Some(self.use_case_sensitive_file_names())
+    }
+
     fn file_exists(&self, path: &str) -> bool {
         self.file_exists_rc().file_exists(path)
     }
