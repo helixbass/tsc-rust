@@ -119,6 +119,7 @@ impl PatternAmbientModule {
 }
 
 bitflags! {
+    #[derive(Default)]
     pub struct NodeCheckFlags: u32 {
         const None = 0;
         const TypeChecked = 0x00000001;
