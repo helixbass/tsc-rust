@@ -634,21 +634,22 @@ pub(super) fn make_synthetic(node: BaseNode) -> BaseNode {
 }
 
 thread_local! {
-    pub static synthetic_factory: BaseNodeFactorySynthetic = BaseNodeFactorySynthetic::new();
+    pub static synthetic_factory: Gc<BaseNodeFactorySynthetic> = Gc::new(BaseNodeFactorySynthetic::new());
 }
 
-// pub fn get_synthetic_factory() -> BaseNodeFactorySynthetic {
-//     BaseNodeFactorySynthetic::new()
-// }
+pub fn get_synthetic_factory() -> Gc<BaseNodeFactorySynthetic> {
+    synthetic_factory.with(|synthetic_factory_| synthetic_factory_.clone())
+}
 
-pub fn with_synthetic_factory_and_factory<
-    TReturn,
-    TCallback: FnOnce(&BaseNodeFactorySynthetic, &Gc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
->(
-    callback: TCallback,
+pub fn with_synthetic_factory_and_factory<TReturn>(
+    callback: impl FnOnce(
+        &BaseNodeFactorySynthetic,
+        &Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    ) -> TReturn,
 ) -> TReturn {
-    synthetic_factory
-        .with(|synthetic_factory_| factory.with(|factory_| callback(synthetic_factory_, factory_)))
+    synthetic_factory.with(|synthetic_factory_| {
+        factory.with(|factory_| callback(&**synthetic_factory_, factory_))
+    })
 }
 
 pub fn with_factory<
@@ -660,13 +661,13 @@ pub fn with_factory<
     factory.with(|factory_| callback(factory_))
 }
 
-pub fn with_synthetic_factory<TReturn, TCallback: FnOnce(&BaseNodeFactorySynthetic) -> TReturn>(
-    callback: TCallback,
+pub fn with_synthetic_factory<TReturn>(
+    callback: impl FnOnce(&BaseNodeFactorySynthetic) -> TReturn,
 ) -> TReturn {
-    synthetic_factory.with(|synthetic_factory_| callback(synthetic_factory_))
+    synthetic_factory.with(|synthetic_factory_| callback(&**synthetic_factory_))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct BaseNodeFactorySynthetic {}
 
 impl BaseNodeFactorySynthetic {

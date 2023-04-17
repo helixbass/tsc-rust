@@ -34,9 +34,9 @@ pub fn introduces_arguments_exotic_object(node: &Node) -> bool {
     )
 }
 
-pub fn unwrap_innermost_statement_of_label<TBeforeUnwrapLabelCallback: FnMut(&Node)>(
+pub fn unwrap_innermost_statement_of_label(
     node: &Node, /*LabeledStatement*/
-    mut before_unwrap_label_callback: Option<TBeforeUnwrapLabelCallback>,
+    mut before_unwrap_label_callback: Option<impl FnMut(&Node)>,
 ) -> Gc<Node /*Statement*/> {
     let mut node = node.node_wrapper();
     loop {

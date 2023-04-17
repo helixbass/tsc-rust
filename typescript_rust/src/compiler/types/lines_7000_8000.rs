@@ -190,8 +190,11 @@ bitflags! {
     }
 }
 
-pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
+pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + Finalize>:
+    Trace + Finalize
+{
     fn factory(&self) -> Gc<NodeFactory<TBaseNodeFactory>>;
+    fn base_factory(&self) -> Gc<TBaseNodeFactory>;
 
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
 

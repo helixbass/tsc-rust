@@ -511,6 +511,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         clone
     }
 
+    pub fn create_void_zero(&self, base_factory: &TBaseNodeFactory) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_global_method_call(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -540,6 +544,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             unimplemented!()
         }
         inner_expression.node_wrapper()
+    }
+
+    pub fn restore_enclosing_label(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*Statement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
+    ) -> Gc<Node /*Statement*/> {
+        unimplemented!()
     }
 
     pub fn inline_expressions(

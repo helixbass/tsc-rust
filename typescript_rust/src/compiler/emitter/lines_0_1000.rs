@@ -11,16 +11,16 @@ use crate::{
     ensure_trailing_directory_separator, factory, file_extension_is, file_extension_is_one_of,
     filter, for_each_child, get_are_declaration_maps_enabled, get_base_file_name,
     get_declaration_emit_output_file_path, get_directory_path, get_emit_declarations,
-    get_emit_module_kind_from_module_and_target, get_new_line_character,
+    get_emit_module_kind_from_module_and_target, get_factory, get_new_line_character,
     get_normalized_absolute_path, get_own_emit_output_file_path, get_relative_path_from_directory,
     get_relative_path_to_directory_or_url, get_root_length, get_source_file_path_in_new_dir,
-    get_source_files_to_emit, get_sys, is_bundle, is_export_assignment, is_export_specifier,
-    is_expression, is_identifier, is_incremental_compilation, is_json_source_file,
-    is_option_str_empty, is_source_file, is_source_file_not_json, last_or_undefined, length,
-    no_emit_notification, no_emit_substitution, normalize_path, normalize_slashes, out_file,
-    remove_file_extension, resolve_path, transform_nodes, version, with_factory,
-    with_synthetic_factory_and_factory, write_file, BaseNodeFactorySynthetic, BuildInfo,
-    BundleBuildInfo, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
+    get_source_files_to_emit, get_synthetic_factory, get_sys, is_bundle, is_export_assignment,
+    is_export_specifier, is_expression, is_identifier, is_incremental_compilation,
+    is_json_source_file, is_option_str_empty, is_source_file, is_source_file_not_json,
+    last_or_undefined, length, no_emit_notification, no_emit_substitution, normalize_path,
+    normalize_slashes, out_file, remove_file_extension, resolve_path, transform_nodes, version,
+    with_factory, with_synthetic_factory_and_factory, write_file, BaseNodeFactorySynthetic,
+    BuildInfo, BundleBuildInfo, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
     BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
     DetachedCommentInfo, DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint,
     EmitHost, EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter,
@@ -735,17 +735,16 @@ fn emit_js_file_or_bundle(
         *emit_skipped = true;
         return;
     }
-    let transform = with_factory(|factory_| {
-        transform_nodes(
-            Some(resolver.clone()),
-            Some(host.clone()),
-            factory_.clone(),
-            compiler_options.clone(),
-            &[source_file_or_bundle.node_wrapper()],
-            script_transformers,
-            false,
-        )
-    });
+    let transform = transform_nodes(
+        Some(resolver.clone()),
+        Some(host.clone()),
+        get_factory(),
+        get_synthetic_factory(),
+        compiler_options.clone(),
+        &[source_file_or_bundle.node_wrapper()],
+        script_transformers,
+        false,
+    );
 
     let printer_options = PrinterOptions {
         remove_comments: compiler_options.remove_comments,
@@ -912,17 +911,17 @@ fn emit_declaration_file_or_bundle(
             collect_linked_aliases(&**resolver, file_for_emit);
         });
     }
-    let declaration_transform = with_factory(|factory_| {
-        transform_nodes(
-            Some(resolver.clone()),
-            Some(host.clone()),
-            factory_.clone(),
-            compiler_options.clone(),
-            &input_list_or_bundle,
-            declaration_transformers,
-            false,
-        )
-    });
+    let declaration_transform = transform_nodes(
+        Some(resolver.clone()),
+        Some(host.clone()),
+        get_factory(),
+        get_synthetic_factory(),
+        compiler_options.clone(),
+        &input_list_or_bundle,
+        declaration_transformers,
+        false,
+    );
+
     if length(declaration_transform.diagnostics().as_deref()) > 0 {
         for diagnostic in declaration_transform.diagnostics().unwrap() {
             emitter_diagnostics.add(diagnostic);

@@ -96,11 +96,11 @@ use compiler::factory::emit_node::{
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
     create_input_files, create_node_factory, create_unparsed_source_file, factory, get_factory,
-    has_node_array_changed, has_option_node_array_changed, has_option_str_or_node_changed,
-    set_original_node, synthetic_factory, with_factory, with_synthetic_factory,
-    with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, NodeFactoryFlags,
-    ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
-    SyntaxKindOrRcNode,
+    get_synthetic_factory, has_node_array_changed, has_option_node_array_changed,
+    has_option_str_or_node_changed, set_original_node, synthetic_factory, with_factory,
+    with_synthetic_factory, with_synthetic_factory_and_factory, BaseNodeFactorySynthetic,
+    NodeFactoryFlags, ReadFileCallback, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
+    StringOrRcNode, SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,
@@ -275,6 +275,10 @@ pub use compiler::transformers::declarations::diagnostics::{
     SymbolAccessibilityDiagnostic,
 };
 pub use compiler::transformers::declarations::get_declaration_diagnostics;
+pub use compiler::transformers::destructuring::{flatten_destructuring_assignment, FlattenLevel};
+pub use compiler::transformers::tagged_template::{
+    process_tagged_template_expression, ProcessLevel,
+};
 pub use compiler::transformers::utilities::{
     chain_bundle, get_original_node_id, maybe_get_original_node_id,
 };
@@ -579,12 +583,13 @@ pub use compiler::utilities::{
     try_get_extension_from_path, try_get_import_from_module_specifier,
     try_get_property_access_or_identifier_to_string, try_parse_pattern, try_parse_patterns,
     try_remove_extension, type_has_call_or_construct_signatures, unreachable_code_is_error,
-    unused_label_is_error, using_single_line_string_writer, walk_up_parenthesized_expressions,
-    walk_up_parenthesized_types, walk_up_parenthesized_types_and_get_parent_and_child,
-    write_comment_range, write_file, write_file_ensuring_directories, AssignmentKind,
-    Associativity, ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames,
-    FileMatcherPatterns, FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax,
-    OperatorPrecedence, ResolveModuleNameResolutionHost, StringOrPattern, SymlinkCache,
+    unused_label_is_error, unwrap_innermost_statement_of_label, using_single_line_string_writer,
+    walk_up_parenthesized_expressions, walk_up_parenthesized_types,
+    walk_up_parenthesized_types_and_get_parent_and_child, write_comment_range, write_file,
+    write_file_ensuring_directories, AssignmentKind, Associativity,
+    ClassImplementingOrExtendingExpressionWithTypeArguments, EmitFileNames, FileMatcherPatterns,
+    FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax, OperatorPrecedence,
+    ResolveModuleNameResolutionHost, StringOrPattern, SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,
@@ -679,6 +684,7 @@ pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::cell::{
     gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, ref_mut_unwrapped, ref_unwrapped,
 };
+pub use rust_helpers::combinators::With;
 pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };
@@ -696,6 +702,7 @@ pub use rust_helpers::sys::{
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
 };
 pub use rust_helpers::uri::encode_uri;
+pub use rust_helpers::vec::VecExt;
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,

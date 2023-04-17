@@ -9,8 +9,8 @@ use std::rc::Rc;
 
 use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
-    factory as factory_static, gc_cell_ref_unwrapped, get_emit_flags, get_emit_module_kind,
-    get_emit_script_target, get_jsx_transform_enabled, get_parse_tree_node, is_bundle,
+    gc_cell_ref_unwrapped, get_emit_flags, get_emit_module_kind, get_emit_script_target,
+    get_factory, get_jsx_transform_enabled, get_parse_tree_node, get_synthetic_factory, is_bundle,
     is_source_file, maybe_get_source_file_of_node, maybe_map, not_implemented, set_emit_flags,
     some, synthetic_factory, transform_class_fields, transform_declarations,
     transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
@@ -303,6 +303,7 @@ pub fn transform_nodes(
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Gc<Box<dyn EmitHost>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    base_factory: Gc<BaseNodeFactorySynthetic>,
     options: Gc<CompilerOptions>,
     nodes: &[Gc<Node>],
     transformers: &[TransformerFactory],
@@ -337,6 +338,7 @@ pub fn transform_nodes(
         resolver,
         host,
         factory,
+        base_factory,
     );
     transformation_result.call();
     transformation_result
@@ -388,6 +390,7 @@ pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     created_emit_helper_factory: RefCell<Option<Rc<EmitHelperFactory>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
 impl TransformNodesTransformationResult {
@@ -407,6 +410,7 @@ impl TransformNodesTransformationResult {
         resolver: Option<Gc<Box<dyn EmitResolver>>>,
         host: Option<Gc<Box<dyn EmitHost>>>,
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+        base_factory: Gc<BaseNodeFactorySynthetic>,
     ) -> Gc<Box<Self>> {
         let dyn_transformation_context_wrapper: Gc<Box<dyn TransformationContext>> =
             Gc::new(Box::new(Self {
@@ -452,6 +456,7 @@ impl TransformNodesTransformationResult {
                 host,
                 created_emit_helper_factory: Default::default(),
                 factory,
+                base_factory,
             }));
         let downcasted: Gc<Box<Self>> =
             unsafe { mem::transmute(dyn_transformation_context_wrapper.clone()) };
@@ -720,6 +725,10 @@ impl TransformNodesTransformationResult {
 impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTransformationResult {
     fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
         self.factory.clone()
+    }
+
+    fn base_factory(&self) -> Gc<BaseNodeFactorySynthetic> {
+        self.base_factory.clone()
     }
 
     fn get_compiler_options(&self) -> Gc<CompilerOptions> {
@@ -1317,7 +1326,11 @@ impl TransformationContextNull {
 
 impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContextNull {
     fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
-        factory_static.with(|factory_| factory_.clone())
+        get_factory()
+    }
+
+    fn base_factory(&self) -> Gc<BaseNodeFactorySynthetic> {
+        get_synthetic_factory()
     }
 
     fn get_compiler_options(&self) -> Gc<CompilerOptions> {

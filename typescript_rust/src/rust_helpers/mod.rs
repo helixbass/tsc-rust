@@ -4,6 +4,7 @@ use std::mem;
 use std::rc::Rc;
 
 pub mod cell;
+pub mod combinators;
 pub mod debugging;
 pub mod deref;
 pub mod io;
@@ -12,6 +13,7 @@ pub mod number;
 pub mod option;
 pub mod sys;
 pub mod uri;
+pub mod vec;
 pub mod weak_self;
 
 pub fn is_same_variant<TEnum>(value: &TEnum, other_value: &TEnum) -> bool {

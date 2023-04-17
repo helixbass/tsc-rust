@@ -8,6 +8,34 @@ use crate::{Comparison, EmitHelper, Node, TransformationContext};
 pub struct EmitHelperFactory {}
 
 impl EmitHelperFactory {
+    pub fn create_assign_helper(
+        &self,
+        attributes_segments: &[Gc<Node /*Expression*/>],
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_await_helper(
+        &self,
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_async_delegator_helper(
+        &self,
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_async_values_helper(
+        &self,
+        expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_awaiter_helper(
         &self,
         has_lexical_this: bool,
