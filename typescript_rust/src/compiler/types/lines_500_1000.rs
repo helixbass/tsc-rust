@@ -5,11 +5,12 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::{cell::Cell, fmt};
 
 use crate::{
-    CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
-    HasChildrenInterface, HasDotDotDotTokenInterface, HasFileNameInterface,
-    HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
-    HasOldFileOfCurrentEmitInterface, HasTagNameInterface, HasTextsInterface, InferenceContext,
-    JSDocHeritageTagInterface, JsxOpeningLikeElementInterface, SourceFileLike, SyntheticExpression,
+    set_emit_flags, set_text_range_rc_node, CaseOrDefaultClauseInterface, EmitFlags,
+    HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
+    HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
+    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
+    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
+    JsxOpeningLikeElementInterface, SourceFileLike, SyntheticExpression,
     UnparsedSyntheticReference,
 };
 
@@ -2056,6 +2057,21 @@ impl Clone for BaseNode {
             js_doc_cache: self.js_doc_cache.clone(),
             intersects_change: self.intersects_change.clone(),
         }
+    }
+}
+
+pub trait NodeExt {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
+    fn set_emit_flags(self, emit_flags: EmitFlags) -> Self;
+}
+
+impl NodeExt for Gc<Node> {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self {
+        set_text_range_rc_node(self, location)
+    }
+
+    fn set_emit_flags(self, emit_flags: EmitFlags) -> Self {
+        set_emit_flags(self, emit_flags)
     }
 }
 

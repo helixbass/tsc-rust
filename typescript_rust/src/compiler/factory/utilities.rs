@@ -32,6 +32,15 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
         .into()
 }
 
+pub fn create_for_of_binding_statement<TBaseNodeFactory: 'static + BaseNodeFactory>(
+    base_factory: &TBaseNodeFactory,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    node: &Node,        /*ForInitializer*/
+    bound_value: &Node, /*Expression*/
+) -> Gc<Node /*Statement*/> {
+    unimplemented!()
+}
+
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)
 }

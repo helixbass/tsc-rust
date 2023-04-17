@@ -4,18 +4,22 @@ use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
-    is_expression, is_statement, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, __String, add_emit_helpers, chain_bundle,
-    flatten_destructuring_assignment, get_emit_script_target, is_destructuring_assignment,
-    is_effective_strict_mode_source_file, is_object_literal_element_like,
-    is_property_access_expression, process_tagged_template_expression, set_original_node,
-    set_text_range_node_array, set_text_range_rc_node, unwrap_innermost_statement_of_label,
-    visit_each_child, visit_node, with_synthetic_factory, BaseNodeFactorySynthetic,
-    CompilerOptions, Debug_, EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel,
-    FunctionFlags, HasInitializerInterface, HasStatementsInterface, Matches,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeCheckFlags, NodeFactory,
-    NodeInterface, ProcessLevel, ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
+    is_assignment_pattern, is_expression, is_for_initializer, is_statement,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, __String,
+    add_emit_helpers, add_range, chain_bundle, create_for_of_binding_statement,
+    flatten_destructuring_assignment, flatten_destructuring_binding, get_emit_script_target,
+    has_syntactic_modifier, is_binding_pattern, is_block, is_destructuring_assignment,
+    is_effective_strict_mode_source_file, is_identifier, is_object_literal_element_like,
+    is_property_access_expression, is_variable_declaration_list,
+    process_tagged_template_expression, set_original_node, set_text_range_node_array,
+    set_text_range_rc_node, skip_parentheses, unwrap_innermost_statement_of_label,
+    visit_each_child, visit_iteration_body, visit_node, with_synthetic_factory,
+    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitResolver, FlattenLevel, FunctionFlags, HasInitializerInterface, HasStatementsInterface,
+    Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt,
+    NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeFactory, NodeFlags, NodeInterface, ProcessLevel,
+    ReadonlyTextRangeConcrete, ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
     VecExt, VisitResult, With,
 };
 
@@ -131,7 +135,7 @@ impl TransformES2018 {
             .set(exported_variable_statement);
     }
 
-    fn enclosing_function_flags(&self) -> Option<FunctionFlags> {
+    fn maybe_enclosing_function_flags(&self) -> Option<FunctionFlags> {
         self.enclosing_function_flags.get()
     }
 
@@ -520,12 +524,12 @@ impl TransformES2018 {
         node: &Node, /*AwaitExpression*/
     ) -> Gc<Node /*Expression*/> {
         if self
-            .enclosing_function_flags()
+            .maybe_enclosing_function_flags()
             .matches(|enclosing_function_flags| {
                 enclosing_function_flags.intersects(FunctionFlags::Async)
             })
             && self
-                .enclosing_function_flags()
+                .maybe_enclosing_function_flags()
                 .matches(|enclosing_function_flags| {
                     enclosing_function_flags.intersects(FunctionFlags::Generator)
                 })
@@ -585,12 +589,12 @@ impl TransformES2018 {
     fn visit_yield_expression(&self, node: &Node /*YieldExpression*/) -> VisitResult {
         let node_as_yield_expression = node.as_yield_expression();
         if self
-            .enclosing_function_flags()
+            .maybe_enclosing_function_flags()
             .matches(|enclosing_function_flags| {
                 enclosing_function_flags.intersects(FunctionFlags::Async)
             })
             && self
-                .enclosing_function_flags()
+                .maybe_enclosing_function_flags()
                 .matches(|enclosing_function_flags| {
                     enclosing_function_flags.intersects(FunctionFlags::Generator)
                 })
@@ -688,12 +692,12 @@ impl TransformES2018 {
     fn visit_return_statement(&self, node: &Node /*ReturnStatement*/) -> VisitResult {
         let node_as_return_statement = node.as_return_statement();
         if self
-            .enclosing_function_flags()
+            .maybe_enclosing_function_flags()
             .matches(|enclosing_function_flags| {
                 enclosing_function_flags.intersects(FunctionFlags::Async)
             })
             && self
-                .enclosing_function_flags()
+                .maybe_enclosing_function_flags()
                 .matches(|enclosing_function_flags| {
                     enclosing_function_flags.intersects(FunctionFlags::Generator)
                 })
@@ -755,7 +759,7 @@ impl TransformES2018 {
     fn visit_labeled_statement(&self, node: &Node /*LabeledStatement*/) -> VisitResult {
         let node_as_labeled_statement = node.as_labeled_statement();
         if self
-            .enclosing_function_flags()
+            .maybe_enclosing_function_flags()
             .matches(|enclosing_function_flags| {
                 enclosing_function_flags.intersects(FunctionFlags::Async)
             })
@@ -1197,29 +1201,352 @@ impl TransformES2018 {
         node: &Node, /*CommaListExpression*/
         expression_result_is_unused: bool,
     ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        let node_as_comma_list_expression = node.as_comma_list_expression();
+        if expression_result_is_unused {
+            return visit_each_child(
+                Some(node),
+                |node: &Node| self.visitor_with_unused_expression_result(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+                Option::<fn(&Node) -> VisitResult>::None,
+                Option::<
+                    fn(
+                        Option<&Node>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                    ) -> Option<Gc<Node>>,
+                >::None,
+            )
+            .unwrap();
+        }
+        let mut result: Option<Vec<Gc<Node /*Expression*/>>> = None;
+        for (i, element) in node_as_comma_list_expression.elements.iter().enumerate() {
+            let visited = visit_node(
+                Some(&**element),
+                Some(|node: &Node| {
+                    if i < node_as_comma_list_expression.elements.len() - 1 {
+                        self.visitor_with_unused_expression_result(node)
+                    } else {
+                        self.visitor(node)
+                    }
+                }),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )
+            .unwrap();
+            if result.is_some() || !Gc::ptr_eq(&visited, element) {
+                result
+                    .get_or_insert_with(|| node_as_comma_list_expression.elements[0..i].to_owned())
+                    .push(visited);
+            }
+        }
+        let elements = result.map_or_else(
+            || node_as_comma_list_expression.elements.clone(),
+            |result| {
+                self.factory
+                    .create_node_array(Some(result), None)
+                    .set_text_range(Some(&*node_as_comma_list_expression.elements))
+            },
+        );
+        self.factory
+            .update_comma_list_expression(&self.base_factory, node, elements)
     }
 
     fn visit_catch_clause(&self, node: &Node /*CatchClause*/) -> VisitResult {
-        unimplemented!()
+        let node_as_catch_clause = node.as_catch_clause();
+        if let Some(node_variable_declaration) = node_as_catch_clause
+            .variable_declaration
+            .as_ref()
+            .filter(|node_variable_declaration| {
+                let node_variable_declaration_as_variable_declaration =
+                    node_variable_declaration.as_variable_declaration();
+                is_binding_pattern(node_variable_declaration_as_variable_declaration.maybe_name())
+                    && node_variable_declaration_as_variable_declaration
+                        .name()
+                        .transform_flags()
+                        .intersects(TransformFlags::ContainsObjectRestOrSpread)
+            })
+        {
+            let node_variable_declaration_as_variable_declaration =
+                node_variable_declaration.as_variable_declaration();
+            let name = self.factory.get_generated_name_for_node(
+                &self.base_factory,
+                node_variable_declaration_as_variable_declaration.maybe_name(),
+                None,
+            );
+            let updated_decl = self.factory.update_variable_declaration(
+                &self.base_factory,
+                node_variable_declaration,
+                node_variable_declaration_as_variable_declaration.maybe_name(),
+                None,
+                None,
+                Some(name.clone()),
+            );
+            let visited_bindings = flatten_destructuring_binding(
+                &updated_decl,
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                FlattenLevel::ObjectRest,
+                Option::<&Node>::None,
+                None,
+                None,
+            );
+            let mut block = visit_node(
+                Some(&*node_as_catch_clause.block),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_block),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )
+            .unwrap();
+            if !visited_bindings.is_empty() {
+                block = self.factory.update_block(
+                    &self.base_factory,
+                    &block,
+                    vec![self
+                        .factory
+                        .create_variable_statement(
+                            &self.base_factory,
+                            Option::<Gc<NodeArray>>::None,
+                            visited_bindings,
+                        )
+                        .into()]
+                    .and_extend(block.as_block().statements.iter().cloned()),
+                );
+            }
+            return Some(
+                self.factory
+                    .update_catch_clause(
+                        &self.base_factory,
+                        node,
+                        Some(self.factory.update_variable_declaration(
+                            &self.base_factory,
+                            node_variable_declaration,
+                            Some(name),
+                            None,
+                            None,
+                            None,
+                        )),
+                        block,
+                    )
+                    .into(),
+            );
+        }
+        visit_each_child(
+            Some(node),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+            Option::<
+                fn(
+                    Option<&NodeArray>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<usize>,
+                    Option<usize>,
+                ) -> Option<Gc<NodeArray>>,
+            >::None,
+            Option::<fn(&Node) -> VisitResult>::None,
+            Option::<
+                fn(
+                    Option<&Node>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                ) -> Option<Gc<Node>>,
+            >::None,
+        )
+        .map(Into::into)
     }
 
     fn visit_variable_statement(&self, node: &Node /*VariableStatement*/) -> VisitResult /*<VariableStatement>*/
     {
-        unimplemented!()
+        if has_syntactic_modifier(node, ModifierFlags::Export) {
+            let saved_exported_variable_statement = self.exported_variable_statement();
+            self.set_exported_variable_statement(true);
+            let visited = visit_each_child(
+                Some(node),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+                Option::<fn(&Node) -> VisitResult>::None,
+                Option::<
+                    fn(
+                        Option<&Node>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                    ) -> Option<Gc<Node>>,
+                >::None,
+            )
+            .unwrap();
+            self.set_exported_variable_statement(saved_exported_variable_statement);
+            return Some(visited.into());
+        }
+        visit_each_child(
+            Some(node),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+            Option::<
+                fn(
+                    Option<&NodeArray>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<usize>,
+                    Option<usize>,
+                ) -> Option<Gc<NodeArray>>,
+            >::None,
+            Option::<fn(&Node) -> VisitResult>::None,
+            Option::<
+                fn(
+                    Option<&Node>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                ) -> Option<Gc<Node>>,
+            >::None,
+        )
+        .map(Into::into)
     }
 
     fn visit_variable_declaration(&self, node: &Node /*VariableDeclaration*/) -> VisitResult /*<VariableDeclaration>*/
     {
-        unimplemented!()
+        if self.exported_variable_statement() {
+            let saved_exported_variable_statement = self.exported_variable_statement();
+            self.set_exported_variable_statement(false);
+            let visited = self.visit_variable_declaration_worker(node, true);
+            self.set_exported_variable_statement(saved_exported_variable_statement);
+            return visited;
+        }
+        self.visit_variable_declaration_worker(node, false)
+    }
+
+    fn visit_variable_declaration_worker(
+        &self,
+        node: &Node, /*VariableDeclaration*/
+        exported_variable_statement: bool,
+    ) -> VisitResult /*<VariableDeclaration>*/ {
+        let node_as_variable_declaration = node.as_variable_declaration();
+        if is_binding_pattern(node_as_variable_declaration.maybe_name())
+            && node_as_variable_declaration
+                .name()
+                .transform_flags()
+                .intersects(TransformFlags::ContainsObjectRestOrSpread)
+        {
+            return Some(
+                flatten_destructuring_binding(
+                    node,
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                    FlattenLevel::ObjectRest,
+                    Option::<&Node>::None,
+                    Some(self.exported_variable_statement()),
+                    None,
+                )
+                .into(),
+            );
+        }
+        visit_each_child(
+            Some(node),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+            Option::<
+                fn(
+                    Option<&NodeArray>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<usize>,
+                    Option<usize>,
+                ) -> Option<Gc<NodeArray>>,
+            >::None,
+            Option::<fn(&Node) -> VisitResult>::None,
+            Option::<
+                fn(
+                    Option<&Node>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                ) -> Option<Gc<Node>>,
+            >::None,
+        )
+        .map(Into::into)
     }
 
     fn visit_for_statement(&self, node: &Node /*ForStatement*/) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_for_statement = node.as_for_statement();
+        Some(
+            self.factory
+                .update_for_statement(
+                    &self.base_factory,
+                    node,
+                    visit_node(
+                        node_as_for_statement.initializer.as_deref(),
+                        Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                        Some(is_for_initializer),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                    visit_node(
+                        node_as_for_statement.condition.as_deref(),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                    visit_node(
+                        node_as_for_statement.incrementor.as_deref(),
+                        Some(|node: &Node| self.visitor_with_unused_expression_result(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    ),
+                    visit_iteration_body(
+                        &node_as_for_statement.statement,
+                        |node: &Node| self.visitor(node),
+                        &**self.context,
+                    ),
+                )
+                .into(),
+        )
     }
 
     fn visit_void_expression(&self, node: &Node /*VoidExpression*/) -> VisitResult {
-        unimplemented!()
+        visit_each_child(
+            Some(node),
+            |node: &Node| self.visitor_with_unused_expression_result(node),
+            &**self.context,
+            Option::<
+                fn(
+                    Option<&NodeArray>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<usize>,
+                    Option<usize>,
+                ) -> Option<Gc<NodeArray>>,
+            >::None,
+            Option::<fn(&Node) -> VisitResult>::None,
+            Option::<
+                fn(
+                    Option<&Node>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                ) -> Option<Gc<Node>>,
+            >::None,
+        )
+        .map(Into::into)
     }
 
     fn visit_for_of_statement(
@@ -1227,11 +1554,485 @@ impl TransformES2018 {
         node: &Node, /*ForOfStatement*/
         outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        let node_as_for_of_statement = node.as_for_of_statement();
+        let ancestor_facts = self.enter_subtree(
+            HierarchyFacts::IterationStatementExcludes,
+            HierarchyFacts::IterationStatementIncludes,
+        );
+        let mut node = node.node_wrapper();
+        if node_as_for_of_statement
+            .initializer
+            .transform_flags()
+            .intersects(TransformFlags::ContainsObjectRestOrSpread)
+        {
+            node = self.transform_for_of_statement_with_object_rest(&node);
+        }
+        let result = if node_as_for_of_statement.await_modifier.is_some() {
+            self.transform_for_await_of_statement(
+                &node,
+                outermost_labeled_statement,
+                ancestor_facts,
+            )
+        } else {
+            Some(
+                self.factory
+                    .restore_enclosing_label(
+                        &self.base_factory,
+                        &visit_each_child(
+                            Some(node),
+                            |node: &Node| self.visitor(node),
+                            &**self.context,
+                            Option::<
+                                fn(
+                                    Option<&NodeArray>,
+                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                    Option<&dyn Fn(&Node) -> bool>,
+                                    Option<usize>,
+                                    Option<usize>,
+                                ) -> Option<Gc<NodeArray>>,
+                            >::None,
+                            Option::<fn(&Node) -> VisitResult>::None,
+                            Option::<
+                                fn(
+                                    Option<&Node>,
+                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                    Option<&dyn Fn(&Node) -> bool>,
+                                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                                ) -> Option<Gc<Node>>,
+                            >::None,
+                        )
+                        .unwrap(),
+                        outermost_labeled_statement,
+                        Option::<fn(&Node)>::None,
+                    )
+                    .into(),
+            )
+        };
+        self.exit_subtree(ancestor_facts);
+        result
+    }
+
+    fn transform_for_of_statement_with_object_rest(
+        &self,
+        node: &Node, /*ForOfStatement*/
+    ) -> Gc<Node> {
+        let node_as_for_of_statement = node.as_for_of_statement();
+        let initializer_without_parens =
+            skip_parentheses(&node_as_for_of_statement.initializer, None);
+        if is_variable_declaration_list(&initializer_without_parens)
+            || is_assignment_pattern(&initializer_without_parens)
+        {
+            let mut body_location: Option<Gc<Node /*TextRange*/>> = Default::default();
+            let mut statements_location: Option<ReadonlyTextRangeConcrete /*TextRange*/> =
+                Default::default();
+            let temp = self.factory.create_temp_variable(
+                &self.base_factory,
+                Option::<fn(&Node)>::None,
+                None,
+            );
+            let mut statements: Vec<Gc<Node /*Statement*/>> =
+                vec![create_for_of_binding_statement(
+                    &*self.base_factory,
+                    &self.factory,
+                    &initializer_without_parens,
+                    &temp,
+                )];
+            if is_block(&node_as_for_of_statement.statement) {
+                let node_statement_as_block = node_as_for_of_statement.statement.as_block();
+                add_range(
+                    &mut statements,
+                    Some(&node_statement_as_block.statements),
+                    None,
+                    None,
+                );
+                body_location = Some(node_as_for_of_statement.statement.clone());
+                statements_location = Some((&*node_statement_as_block.statements).into());
+            } else
+            /*if (node.statement)*/
+            {
+                statements.push(node_as_for_of_statement.statement.clone());
+                body_location = Some(node_as_for_of_statement.statement.clone());
+                statements_location = Some((&*node_as_for_of_statement.statement).into());
+            }
+            return self.factory.update_for_of_statement(
+                &self.base_factory,
+                node,
+                node_as_for_of_statement.await_modifier.clone(),
+                Gc::<Node>::from(self.factory.create_variable_declaration_list(
+                    &self.base_factory,
+                    vec![
+                        Gc::<Node>::from(
+                            self.factory.create_variable_declaration(
+                                &self.base_factory,
+                                Some(temp),
+                                None, None, None,
+                            )
+                        ).set_text_range(
+                            Some(&*node_as_for_of_statement.initializer)
+                        )
+                    ],
+                    Some(NodeFlags::Let),
+                ))
+                .set_text_range(Some(&*node_as_for_of_statement.initializer)),
+                node_as_for_of_statement.expression.clone(),
+                Gc::<Node>::from(
+                    self.factory.create_block(
+                        &self.base_factory,
+                        self.factory
+                            .create_node_array(Some(statements), None)
+                            .set_text_range(statements_location.as_ref()),
+                        Some(true),
+                    ),
+                )
+                .set_text_range(body_location.as_deref()),
+            );
+        }
+        node.node_wrapper()
+    }
+
+    fn convert_for_of_statement_head(
+        &self,
+        node: &Node,        /*ForOfStatement*/
+        bound_value: &Node, /*Expression*/
+    ) -> Gc<Node> {
+        let node_as_for_of_statement = node.as_for_of_statement();
+        let binding = create_for_of_binding_statement(
+            &*self.base_factory,
+            &self.factory,
+            &node_as_for_of_statement.initializer,
+            bound_value,
+        );
+
+        let mut body_location: Option<Gc<Node /*TextRange*/>> = Default::default();
+        let mut statements_location: Option<Gc<NodeArray /*TextRange*/>> = Default::default();
+        let mut statements: Vec<Gc<Node /*Statement*/>> = vec![visit_node(
+            Some(&*binding),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_statement),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )
+        .unwrap()];
+        let statement = visit_iteration_body(
+            &node_as_for_of_statement.statement,
+            |node: &Node| self.visitor(node),
+            &**self.context,
+        );
+        if is_block(&statement) {
+            let statement_as_block = statement.as_block();
+            add_range(
+                &mut statements,
+                Some(&statement_as_block.statements),
+                None,
+                None,
+            );
+            body_location = Some(statement.clone());
+            statements_location = Some(statement_as_block.statements.clone());
+        } else {
+            statements.push(statement);
+        }
+
+        Gc::<Node>::from(
+            self.factory.create_block(
+                &self.base_factory,
+                self.factory
+                    .create_node_array(Some(statements), None)
+                    .set_text_range(statements_location.as_deref()),
+                Some(true),
+            ),
+        )
+        .set_text_range(body_location.as_deref())
+        .set_emit_flags(EmitFlags::NoSourceMap | EmitFlags::NoTokenSourceMaps)
     }
 
     fn create_downlevel_await(&self, expression: &Node /*Expression*/) -> Gc<Node> {
-        unimplemented!()
+        if self
+            .maybe_enclosing_function_flags()
+            .matches(|enclosing_function_flags| {
+                enclosing_function_flags.intersects(FunctionFlags::Generator)
+            })
+        {
+            self.factory
+                .create_yield_expression(
+                    &self.base_factory,
+                    None,
+                    Some(
+                        self.emit_helpers()
+                            .create_await_helper(expression.node_wrapper()),
+                    ),
+                )
+                .into()
+        } else {
+            self.factory
+                .create_await_expression(&self.base_factory, expression.node_wrapper())
+                .into()
+        }
+    }
+
+    fn transform_for_await_of_statement(
+        &self,
+        node: &Node, /*ForOfStatement*/
+        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        ancestor_facts: HierarchyFacts,
+    ) -> VisitResult {
+        let node_as_for_of_statement = node.as_for_of_statement();
+        let expression = visit_node(
+            Some(&*node_as_for_of_statement.expression),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )
+        .unwrap();
+        let iterator = if is_identifier(&expression) {
+            self.factory
+                .get_generated_name_for_node(&self.base_factory, Some(&*expression), None)
+        } else {
+            self.factory
+                .create_temp_variable(&self.base_factory, Option::<fn(&Node)>::None, None)
+        };
+        let result = if is_identifier(&expression) {
+            self.factory
+                .get_generated_name_for_node(&self.base_factory, Some(&*iterator), None)
+        } else {
+            self.factory
+                .create_temp_variable(&self.base_factory, Option::<fn(&Node)>::None, None)
+        };
+        let error_record = self
+            .factory
+            .create_unique_name(&self.base_factory, "e", None);
+        let catch_variable = self.factory.get_generated_name_for_node(
+            &self.base_factory,
+            Some(&*error_record),
+            None,
+        );
+        let return_method =
+            self.factory
+                .create_temp_variable(&self.base_factory, Option::<fn(&Node)>::None, None);
+        let call_values = self
+            .emit_helpers()
+            .create_async_values_helper(expression)
+            .set_text_range(Some(&*node_as_for_of_statement.expression));
+        let call_next: Gc<Node> = self
+            .factory
+            .create_call_expression(
+                &self.base_factory,
+                self.factory
+                    .create_property_access_expression(&self.base_factory, iterator.clone(), "next")
+                    .into(),
+                Option::<Gc<NodeArray>>::None,
+                Some(vec![]),
+            )
+            .into();
+        let get_done: Gc<Node> = self
+            .factory
+            .create_property_access_expression(&self.base_factory, result.clone(), "done")
+            .into();
+        let get_value: Gc<Node> = self
+            .factory
+            .create_property_access_expression(&self.base_factory, result.clone(), "value")
+            .into();
+        let call_return = self.factory.create_function_call_call(
+            &self.base_factory,
+            return_method.clone(),
+            iterator.clone(),
+            vec![],
+        );
+
+        self.context.hoist_variable_declaration(&error_record);
+        self.context.hoist_variable_declaration(&return_method);
+
+        let initializer = if ancestor_facts.intersects(HierarchyFacts::IterationContainer) {
+            self.factory.inline_expressions(
+                &self.base_factory,
+                &[
+                    self.factory
+                        .create_assignment(
+                            &self.base_factory,
+                            error_record.clone(),
+                            self.factory.create_void_zero(&self.base_factory),
+                        )
+                        .into(),
+                    call_values,
+                ],
+            )
+        } else {
+            call_values
+        };
+
+        let for_statement = Gc::<Node>::from(
+            self.factory.create_for_statement(
+                &self.base_factory,
+                Some(
+                    Gc::<Node>::from(self.factory.create_variable_declaration_list(
+                        &self.base_factory,
+                        vec![
+                                Gc::<Node>::from(
+                                    self.factory.create_variable_declaration(
+                                        &self.base_factory,
+                                        Some(iterator.clone()),
+                                        None, None, Some(initializer),
+                                    )
+                                ).set_text_range(Some(&*node_as_for_of_statement.expression)),
+                                self.factory.create_variable_declaration(
+                                    &self.base_factory,
+                                    Some(result.clone()),
+                                    None,None, None,
+                                ).into(),
+                            ],
+                        None,
+                    ))
+                    .set_text_range(Some(&*node_as_for_of_statement.expression))
+                    .set_emit_flags(EmitFlags::NoHoisting),
+                ),
+                Some(
+                    self.factory
+                        .create_comma(
+                            &self.base_factory,
+                            self.factory
+                                .create_assignment(
+                                    &self.base_factory,
+                                    result.clone(),
+                                    self.create_downlevel_await(&call_next),
+                                )
+                                .into(),
+                            self.factory
+                                .create_logical_not(&self.base_factory, get_done.clone())
+                                .into(),
+                        )
+                        .into(),
+                ),
+                None,
+                self.convert_for_of_statement_head(node, &get_value),
+            ),
+        )
+        .set_text_range(Some(node))
+        .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps);
+
+        Some(Gc::<Node>::from(self.factory.create_try_statement(
+            &self.base_factory,
+            self.factory.create_block(
+                &self.base_factory,
+                vec![
+                    self.factory.restore_enclosing_label(
+                        &self.base_factory,
+                        &for_statement,
+                        outermost_labeled_statement,
+                        Option::<fn(&Node)>::None,
+                    ),
+                ],
+                None,
+            ).into(),
+            Some(
+                self.factory.create_catch_clause(
+                    &self.base_factory,
+                    Some(
+                        Gc::<Node>::from(
+                            self.factory.create_variable_declaration(
+                                &self.base_factory,
+                                Some(catch_variable.clone()),
+                                None,
+                                None, None,
+                            )
+                        )
+                    ),
+                    Gc::<Node>::from(
+                        self.factory.create_block(
+                            &self.base_factory,
+                            vec![
+                                self.factory.create_expression_statement(
+                                    &self.base_factory,
+                                    self.factory.create_assignment(
+                                        &self.base_factory,
+                                        error_record.clone(),
+                                        self.factory.create_object_literal_expression(
+                                            &self.base_factory,
+                                            Some(vec![
+                                                self.factory.create_property_assignment(
+                                                    &self.base_factory,
+                                                    "error",
+                                                    catch_variable,
+                                                ).into()
+                                            ]),
+                                            None
+                                        ).into(),
+                                    ).into()
+                                ).into()
+                            ],
+                            None,
+                        )
+                    ).set_emit_flags(EmitFlags::SingleLine)
+                ).into()
+            ),
+            Some(
+                self.factory.create_block(
+                    &self.base_factory,
+                    vec![
+                        self.factory.create_try_statement(
+                            &self.base_factory,
+                            self.factory.create_block(
+                                &self.base_factory,
+                                vec![
+                                    Gc::<Node>::from(
+                                        self.factory.create_if_statement(
+                                            &self.base_factory,
+                                            self.factory.create_logical_and(
+                                                &self.base_factory,
+                                                self.factory.create_logical_and(
+                                                    &self.base_factory,
+                                                    result,
+                                                    self.factory.create_logical_not(&self.base_factory, get_done).into()
+                                                ).into(),
+                                                self.factory.create_assignment(
+                                                    &self.base_factory,
+                                                    return_method,
+                                                    self.factory.create_property_access_expression(
+                                                        &self.base_factory,
+                                                        iterator,
+                                                        "return"
+                                                    ).into()
+                                                ).into()
+                                            ).into(),
+                                            self.factory.create_expression_statement(
+                                                &self.base_factory,
+                                                self.create_downlevel_await(&call_return)
+                                            ).into(),
+                                            None,
+                                        )
+                                    ).set_emit_flags(EmitFlags::SingleLine)
+                                ],
+                                None,
+                            ).into(),
+                            None,
+                            Some(
+                                Gc::<Node>::from(
+                                    self.factory.create_block(
+                                        &self.base_factory,
+                                        vec![
+                                            Gc::<Node>::from(
+                                                self.factory.create_if_statement(
+                                                    &self.base_factory,
+                                                    error_record.clone(),
+                                                    self.factory.create_throw_statement(
+                                                        &self.base_factory,
+                                                        self.factory.create_property_access_expression(
+                                                            &self.base_factory,
+                                                            error_record,
+                                                            "error"
+                                                        ).into()
+                                                    ).into(),
+                                                    None,
+                                                )
+                                            ).set_emit_flags(EmitFlags::SingleLine)
+                                        ],
+                                        None
+                                    )
+                                ).set_emit_flags(EmitFlags::SingleLine)
+                            )
+                        ).into()
+                    ],
+                    None,
+                ).into()
+            ),
+        )).into())
     }
 
     fn visit_parameter(

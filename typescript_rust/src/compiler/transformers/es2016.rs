@@ -13,12 +13,14 @@ use crate::{
 struct TransformES2016 {
     context: Gc<Box<dyn TransformationContext>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
 impl TransformES2016 {
     fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
         Self {
             factory: context.factory(),
+            base_factory: context.base_factory(),
             context,
         }
     }
@@ -150,10 +152,12 @@ impl TransformES2016 {
         if is_element_access_expression(left) {
             let left_as_element_access_expression = left.as_element_access_expression();
             let expression_temp = self.factory.create_temp_variable(
+                &self.base_factory,
                 Some(|node: &Node| self.context.hoist_variable_declaration(node)),
                 None,
             );
             let argument_expression_temp = self.factory.create_temp_variable(
+                &self.base_factory,
                 Some(|node: &Node| self.context.hoist_variable_declaration(node)),
                 None,
             );
@@ -204,6 +208,7 @@ impl TransformES2016 {
         } else if is_property_access_expression(left) {
             let left_as_property_access_expression = left.as_property_access_expression();
             let expression_temp = self.factory.create_temp_variable(
+                &self.base_factory,
                 Some(|node: &Node| self.context.hoist_variable_declaration(node)),
                 None,
             );

@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
 
 use crate::{Node, ReadonlyTextRange, TransformationContext, VisitResult};
@@ -22,5 +24,18 @@ pub fn flatten_destructuring_assignment<TCreateAssignmentCallbackLocation: Reado
         ) -> Gc<Node /*Expression*/>,
     >,
 ) -> Gc<Node /*Expression*/> {
+    unimplemented!()
+}
+
+pub fn flatten_destructuring_binding(
+    node: &Node, /*VariableDeclaration | ParameterDeclaration*/
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &(impl TransformationContext + ?Sized),
+    level: FlattenLevel,
+    rval: Option<impl Borrow<Node /*Expression*/>>,
+    hoist_temp_variables: Option<bool>,
+    skip_initializer: Option<bool>,
+) -> Vec<Gc<Node /*VariableDeclaration*/>> {
+    let hoist_temp_variables = hoist_temp_variables.unwrap_or(false);
     unimplemented!()
 }

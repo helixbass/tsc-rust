@@ -1,10 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use std::cell::Cell;
 use std::ops::Deref;
-use std::rc::Rc;
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
@@ -12,6 +11,7 @@ use super::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
     ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
+use crate::set_text_range_node_array;
 use local_macros::ast_type;
 
 mod _NodeArrayDeriveTraceScope {
@@ -153,6 +153,16 @@ mod _NodeArrayDeriveTraceScope {
     }
 }
 pub use _NodeArrayDeriveTraceScope::NodeArray;
+
+pub trait NodeArrayExt {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
+}
+
+impl NodeArrayExt for Gc<NodeArray> {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self {
+        set_text_range_node_array(self, location)
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum NodeArrayOrVec {

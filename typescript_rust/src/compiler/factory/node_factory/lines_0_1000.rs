@@ -1223,6 +1223,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_temp_variable(
         &self,
+        base_factory: &TBaseNodeFactory,
         record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
         reserved_in_nested_scopes: Option<bool>,
     ) -> Gc<Node /*GeneratedIdentifier*/> {

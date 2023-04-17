@@ -515,6 +515,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         unimplemented!()
     }
 
+    pub fn create_function_call_call(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        target: Gc<Node /*Expression*/>,
+        this_arg: Gc<Node /*Expression*/>,
+        arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_global_method_call(
         &self,
         base_factory: &TBaseNodeFactory,
