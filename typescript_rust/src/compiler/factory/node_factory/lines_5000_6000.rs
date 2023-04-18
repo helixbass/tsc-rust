@@ -6,7 +6,7 @@ use std::borrow::Borrow;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     are_option_gcs_equal, every, has_node_array_changed, is_outer_expression,
-    is_statement_or_block, set_original_node, single_or_undefined, BaseNodeFactory,
+    is_statement_or_block, set_original_node, single_or_undefined, BaseNode, BaseNodeFactory,
     BaseUnparsedNode, Bundle, CommaListExpression, Debug_, EnumMember, FileReference,
     HasInitializerInterface, HasStatementsInterface, InputFiles, LanguageVariant,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
@@ -432,6 +432,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::SyntheticExpression);
         let node = SyntheticExpression::new(node, is_spread, type_, tuple_name_source);
         node
+    }
+
+    pub fn create_not_emitted_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        original: Gc<Node>,
+    ) -> Gc<Node> {
+        unimplemented!()
     }
 
     pub fn create_partially_emitted_expression(
