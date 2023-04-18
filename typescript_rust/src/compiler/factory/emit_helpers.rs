@@ -22,6 +22,14 @@ impl EmitHelperFactory {
         unimplemented!()
     }
 
+    pub fn create_async_generator_helper(
+        &self,
+        generator_func: Gc<Node /*FunctionExpression*/>,
+        has_lexical_this: bool,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_async_delegator_helper(
         &self,
         expression: Gc<Node /*Expression*/>,

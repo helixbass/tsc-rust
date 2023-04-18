@@ -1,7 +1,6 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::ptr;
 
 use super::{
     get_cooked_text, propagate_child_flags, propagate_children_flags,
@@ -39,7 +38,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_parameter: Gc<Node /*TypeParameterDeclaration*/>,
     ) -> InferTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::InferType);
-        let mut node = InferTypeNode::new(node, type_parameter);
+        let node = InferTypeNode::new(node, type_parameter);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1278,20 +1277,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_function_expression<
-        'name,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-        TTypeParameters: Into<NodeArrayOrVec>,
-        TParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_function_expression<'name>(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<TModifiers>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Gc<Node>>,
-        name: Option<TName>,
-        type_parameters: Option<TTypeParameters>,
-        parameters: TParameters,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
+        type_parameters: Option<impl Into<NodeArrayOrVec>>,
+        parameters: impl Into<NodeArrayOrVec>,
         type_: Option<Gc<Node>>,
         body: Gc<Node>,
     ) -> FunctionExpression {

@@ -1,3 +1,5 @@
+use crate::add_range;
+
 pub trait VecExt {
     type Item;
 
@@ -16,5 +18,19 @@ impl<TItem> VecExt for Vec<TItem> {
     fn and_extend(mut self, iter: impl IntoIterator<Item = TItem>) -> Self {
         self.extend(iter);
         self
+    }
+}
+
+pub trait VecExtClone {
+    type Item: Clone;
+
+    fn add_range(&mut self, from: Option<&[Self::Item]>, start: Option<isize>, end: Option<isize>);
+}
+
+impl<TItem: Clone> VecExtClone for Vec<TItem> {
+    type Item = TItem;
+
+    fn add_range(&mut self, from: Option<&[Self::Item]>, start: Option<isize>, end: Option<isize>) {
+        add_range(self, from, start, end);
     }
 }

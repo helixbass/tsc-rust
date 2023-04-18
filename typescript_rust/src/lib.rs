@@ -666,8 +666,8 @@ use compiler::utilities_public::{
     text_range_contains_position_inclusive,
 };
 pub use compiler::visitor_public::{
-    visit_each_child, visit_function_body, visit_iteration_body, visit_node, visit_nodes,
-    visit_parameter_list,
+    visit_each_child, visit_function_body, visit_iteration_body, visit_lexical_environment,
+    visit_node, visit_nodes, visit_parameter_list,
 };
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
@@ -705,7 +705,7 @@ pub use rust_helpers::sys::{
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
 };
 pub use rust_helpers::uri::encode_uri;
-pub use rust_helpers::vec::VecExt;
+pub use rust_helpers::vec::{VecExt, VecExtClone};
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,

@@ -1,28 +1,38 @@
-use std::{borrow::Borrow, cell::Cell, collections::HashSet, mem, rc::Rc};
+use std::{
+    borrow::Borrow,
+    cell::Cell,
+    collections::{HashMap, HashSet},
+    mem,
+    rc::Rc,
+};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
-    is_assignment_pattern, is_expression, is_for_initializer, is_statement,
+    is_assignment_pattern, is_concise_body, is_expression, is_for_initializer, is_statement,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, __String,
-    add_emit_helpers, add_range, chain_bundle, create_for_of_binding_statement,
-    flatten_destructuring_assignment, flatten_destructuring_binding, get_emit_script_target,
-    has_syntactic_modifier, is_binding_pattern, is_block, is_destructuring_assignment,
-    is_effective_strict_mode_source_file, is_identifier, is_modifier,
-    is_object_literal_element_like, is_property_access_expression, is_property_name, is_token,
-    is_variable_declaration_list, process_tagged_template_expression, set_original_node,
-    set_text_range_node_array, set_text_range_rc_node, skip_parentheses,
-    unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body, visit_node,
-    visit_nodes, visit_parameter_list, with_synthetic_factory, BaseNodeFactorySynthetic,
-    CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel,
-    FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasStatementsInterface, Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeFactory, NodeFlags, NodeInterface,
-    ProcessLevel, ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface,
-    SyntaxKind, TransformFlags, TransformationContext, VecExt, VisitResult, With,
+    add_emit_helper, add_emit_helpers, add_range, advanced_async_super_helper, async_super_helper,
+    chain_bundle, create_for_of_binding_statement, flatten_destructuring_assignment,
+    flatten_destructuring_binding, gc_cell_ref_unwrapped, get_emit_script_target, get_node_id,
+    has_syntactic_modifier, insert_statements_after_standard_prologue, is_binding_pattern,
+    is_block, is_destructuring_assignment, is_effective_strict_mode_source_file, is_identifier,
+    is_modifier, is_object_literal_element_like, is_property_access_expression, is_property_name,
+    is_token, is_variable_declaration_list, process_tagged_template_expression, set_emit_flags,
+    set_original_node, set_text_range_node_array, set_text_range_rc_node, skip_parentheses, some,
+    unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body,
+    visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
+    with_synthetic_factory, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags,
+    EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel, FunctionFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasStatementsInterface, Matches,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec,
+    NodeCheckFlags, NodeExt, NodeFactory, NodeFlags, NodeId, NodeInterface, ProcessLevel,
+    ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
+    TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
 };
+
+use super::create_super_access_variable_statement;
 
 bitflags! {
     struct ESNextSubstitutionFlags: u32 {
@@ -81,7 +91,7 @@ struct TransformES2018 {
     captured_super_properties: GcCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     has_super_element_access: Cell<bool>,
-    substituted_super_accessors: GcCell<Vec<bool>>,
+    substituted_super_accessors: GcCell<HashMap<NodeId, bool>>,
 }
 
 impl TransformES2018 {
@@ -189,8 +199,16 @@ impl TransformES2018 {
         self.captured_super_properties.borrow()
     }
 
+    fn captured_super_properties(&self) -> GcCellRef<HashSet<String>> {
+        gc_cell_ref_unwrapped(&self.captured_super_properties)
+    }
+
     fn maybe_captured_super_properties_mut(&self) -> GcCellRefMut<Option<HashSet<String>>> {
         self.captured_super_properties.borrow_mut()
+    }
+
+    fn set_captured_super_properties(&self, captured_super_properties: Option<HashSet<String>>) {
+        *self.captured_super_properties.borrow_mut() = captured_super_properties;
     }
 
     fn has_super_element_access(&self) -> bool {
@@ -199,6 +217,10 @@ impl TransformES2018 {
 
     fn set_has_super_element_access(&self, has_super_element_access: bool) {
         self.has_super_element_access.set(has_super_element_access);
+    }
+
+    fn substituted_super_accessors_mut(&self) -> GcCellRefMut<HashMap<NodeId, bool>> {
+        self.substituted_super_accessors.borrow_mut()
     }
 
     fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
@@ -2472,13 +2494,258 @@ impl TransformES2018 {
         &self,
         node: &Node, /*MethodDeclaration | AccessorDeclaration | FunctionDeclaration | FunctionExpression*/
     ) -> Gc<Node /*FunctionBody*/> {
-        unimplemented!()
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        self.context.resume_lexical_environment();
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let statement_offset = self.factory.copy_prologue(
+            &self.base_factory,
+            &node_as_function_like_declaration
+                .maybe_body()
+                .unwrap()
+                .as_block()
+                .statements,
+            &mut statements,
+            Some(false),
+            Some(|node: &Node| self.visitor(node)),
+        );
+        let mut statements = self
+            .append_object_rest_assignments_if_needed(Some(statements), node)
+            .unwrap();
+
+        let saved_captured_super_properties = self.maybe_captured_super_properties().clone();
+        let saved_has_super_element_access = self.has_super_element_access();
+        self.set_captured_super_properties(Some(Default::default()));
+        self.set_has_super_element_access(false);
+
+        let return_statement: Gc<Node> = self
+            .factory
+            .create_return_statement(
+                &self.base_factory,
+                Some(
+                    self.emit_helpers().create_async_generator_helper(
+                        self.factory
+                            .create_function_expression(
+                                &self.base_factory,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(
+                                    self.factory
+                                        .create_token(&self.base_factory, SyntaxKind::AsteriskToken)
+                                        .into(),
+                                ),
+                                node_as_function_like_declaration
+                                    .maybe_name()
+                                    .map(|node_name| {
+                                        self.factory.get_generated_name_for_node(
+                                            &self.base_factory,
+                                            Some(node_name),
+                                            None,
+                                        )
+                                    }),
+                                Option::<Gc<NodeArray>>::None,
+                                vec![],
+                                None,
+                                self.factory.update_block(
+                                    &self.base_factory,
+                                    &node_as_function_like_declaration.maybe_body().unwrap(),
+                                    visit_lexical_environment(
+                                        &node_as_function_like_declaration
+                                            .maybe_body()
+                                            .unwrap()
+                                            .as_block()
+                                            .statements,
+                                        |node: &Node| self.visitor(node),
+                                        &**self.context,
+                                        Some(statement_offset.try_into().unwrap()),
+                                        None,
+                                        Option::<
+                                            fn(
+                                                Option<&NodeArray>,
+                                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                                                Option<&dyn Fn(&Node) -> bool>,
+                                                Option<usize>,
+                                                Option<usize>,
+                                            )
+                                                -> Option<Gc<NodeArray>>,
+                                        >::None,
+                                    ),
+                                ),
+                            )
+                            .into(),
+                        self.hierarchy_facts()
+                            .intersects(HierarchyFacts::HasLexicalThis),
+                    ),
+                ),
+            )
+            .into();
+
+        let emit_super_helpers = self.language_version >= ScriptTarget::ES2015
+            && self.resolver.get_node_check_flags(node).intersects(
+                NodeCheckFlags::AsyncMethodWithSuperBinding | NodeCheckFlags::AsyncMethodWithSuper,
+            );
+
+        if emit_super_helpers {
+            self.enable_substitution_for_async_methods_with_super();
+            let variable_statement = create_super_access_variable_statement(
+                &self.factory,
+                &**self.resolver,
+                node,
+                &self.captured_super_properties(),
+            );
+            self.substituted_super_accessors_mut()
+                .insert(get_node_id(&variable_statement), true);
+            insert_statements_after_standard_prologue(&mut statements, Some(&[variable_statement]));
+        }
+
+        statements.push(return_statement);
+
+        insert_statements_after_standard_prologue(
+            &mut statements,
+            self.context.end_lexical_environment().as_deref(),
+        );
+        let block = self.factory.update_block(
+            &self.base_factory,
+            &node_as_function_like_declaration.maybe_body().unwrap(),
+            statements,
+        );
+
+        if emit_super_helpers && self.has_super_element_access() {
+            if self
+                .resolver
+                .get_node_check_flags(node)
+                .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
+            {
+                add_emit_helper(&block, advanced_async_super_helper());
+            } else if self
+                .resolver
+                .get_node_check_flags(node)
+                .intersects(NodeCheckFlags::AsyncMethodWithSuper)
+            {
+                add_emit_helper(&block, async_super_helper());
+            }
+        }
+
+        self.set_captured_super_properties(saved_captured_super_properties);
+        self.set_has_super_element_access(saved_has_super_element_access);
+
+        block
     }
 
     fn transform_function_body(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
     ) -> Gc<Node /*ConciseBody*/> {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        self.context.resume_lexical_environment();
+        let mut statement_offset = 0;
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let body = visit_node(
+            node_as_function_like_declaration.maybe_body(),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_concise_body),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )
+        .unwrap_or_else(|| {
+            self.factory
+                .create_block(&self.base_factory, vec![], None)
+                .into()
+        });
+        if is_block(&body) {
+            statement_offset = self.factory.copy_prologue(
+                &self.base_factory,
+                &body.as_block().statements,
+                &mut statements,
+                Some(false),
+                Some(|node: &Node| self.visitor(node)),
+            );
+        }
+        statements.add_range(
+            self.append_object_rest_assignments_if_needed(None, node)
+                .as_deref(),
+            None,
+            None,
+        );
+        let leading_statements = self.context.end_lexical_environment();
+        if statement_offset > 0
+            || !statements.is_empty()
+            || some(
+                leading_statements.as_deref(),
+                Option::<fn(&Gc<Node>) -> bool>::None,
+            )
+        {
+            let block = self.factory.converters().convert_to_function_block(
+                &self.base_factory,
+                &body,
+                Some(true),
+            );
+            insert_statements_after_standard_prologue(
+                &mut statements,
+                leading_statements.as_deref(),
+            );
+            let block_as_block = block.as_block();
+            statements.add_range(
+                Some(&block_as_block.statements[statement_offset..]),
+                None,
+                None,
+            );
+            return self.factory.update_block(
+                &self.base_factory,
+                &block,
+                self.factory
+                    .create_node_array(Some(statements), None)
+                    .set_text_range(Some(&*block_as_block.statements)),
+            );
+        }
+        body
+    }
+
+    fn append_object_rest_assignments_if_needed(
+        &self,
+        mut statements: Option<Vec<Gc<Node /*Statement*/>>>,
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> Option<Vec<Gc<Node /*Statement*/>>> {
+        for parameter in &node.as_function_like_declaration().parameters() {
+            if parameter
+                .transform_flags()
+                .intersects(TransformFlags::ContainsObjectRestOrSpread)
+            {
+                let temp = self.factory.get_generated_name_for_node(
+                    &self.base_factory,
+                    Some(&**parameter),
+                    None,
+                );
+                let declarations = flatten_destructuring_binding(
+                    parameter,
+                    |node: &Node| self.visitor(node),
+                    &**self.context,
+                    FlattenLevel::ObjectRest,
+                    Some(temp),
+                    Some(false),
+                    Some(true),
+                );
+                if !declarations.is_empty() {
+                    let statement: Gc<Node> = self
+                        .factory
+                        .create_variable_statement(
+                            &self.base_factory,
+                            Option::<Gc<NodeArray>>::None,
+                            Gc::<Node>::from(self.factory.create_variable_declaration_list(
+                                &self.base_factory,
+                                declarations,
+                                None,
+                            )),
+                        )
+                        .into();
+                    set_emit_flags(&*statement, EmitFlags::CustomPrologue);
+                    statements
+                        .get_or_insert_with(|| Default::default())
+                        .push(statement);
+                }
+            }
+        }
+        statements
+    }
+
+    fn enable_substitution_for_async_methods_with_super(&self) {
         unimplemented!()
     }
 }
