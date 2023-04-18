@@ -8,12 +8,13 @@ use std::rc::Rc;
 use super::{Parser, ParsingContext};
 use crate::{
     attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
-    ensure_script_kind, for_each_child, get_language_variant, is_logging, normalize_path,
-    object_allocator, BaseNode, Debug_, Diagnostic, Diagnostics, HasStatementsInterface,
-    IncrementalParser, IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant,
-    Node, NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
-    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind,
-    ScriptTarget, SourceTextAsChars, SyntaxKind, TextChangeRange,
+    ensure_script_kind, for_each_child, gc_cell_ref_unwrapped, get_language_variant, is_logging,
+    normalize_path, object_allocator, ref_unwrapped, BaseNode, Debug_, Diagnostic, Diagnostics,
+    HasStatementsInterface, IncrementalParser, IncrementalParserSyntaxCursor,
+    JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
+    NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
+    ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
+    TextChangeRange,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -273,24 +274,31 @@ pub struct ParserType {
     pub(super) scanner: RefCell<Scanner>,
     #[unsafe_ignore_trace]
     pub(super) disallow_in_and_decorator_context: NodeFlags,
-    pub(super) NodeConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    pub(super) IdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    pub(super) PrivateIdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    pub(super) TokenConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    pub(super) SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    pub(super) factory: Gc<NodeFactory<ParserType>>,
-    pub(super) file_name: Option<String>,
+    #[unsafe_ignore_trace]
+    pub(super) NodeConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
+    pub(super) IdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
+    pub(super) PrivateIdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
+    pub(super) TokenConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
+    pub(super) SourceFileConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    pub(super) factory: GcCell<Option<Gc<NodeFactory<ParserType>>>>,
+    #[unsafe_ignore_trace]
+    pub(super) file_name: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
     pub(super) source_flags: Cell<Option<NodeFlags>>,
-    pub(super) source_text: Option<String>,
     #[unsafe_ignore_trace]
-    pub(super) source_text_as_chars: Option<SourceTextAsChars>,
+    pub(super) source_text: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
-    pub(super) language_version: Option<ScriptTarget>,
+    pub(super) source_text_as_chars: RefCell<Option<SourceTextAsChars>>,
     #[unsafe_ignore_trace]
-    pub(super) script_kind: Option<ScriptKind>,
+    pub(super) language_version: Cell<Option<ScriptTarget>>,
     #[unsafe_ignore_trace]
-    pub(super) language_variant: Option<LanguageVariant>,
+    pub(super) script_kind: Cell<Option<ScriptKind>>,
+    #[unsafe_ignore_trace]
+    pub(super) language_variant: Cell<Option<LanguageVariant>>,
     pub(super) parse_diagnostics:
         GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) js_doc_diagnostics:
@@ -321,8 +329,8 @@ pub struct ParserType {
 }
 
 impl ParserType {
-    pub(super) fn new() -> Self {
-        ParserType {
+    pub(super) fn new() -> Gc<Self> {
+        let ret = Gc::new(ParserType {
             scanner: RefCell::new(create_scanner(
                 ScriptTarget::Latest,
                 true,
@@ -339,11 +347,7 @@ impl ParserType {
             PrivateIdentifierConstructor: Default::default(),
             TokenConstructor: Default::default(),
             SourceFileConstructor: Default::default(),
-            factory: create_node_factory(
-                NodeFactoryFlags::NoParenthesizerRules
-                    | NodeFactoryFlags::NoNodeConverters
-                    | NodeFactoryFlags::NoOriginalNode,
-            ),
+            factory: Default::default(),
             file_name: Default::default(),
             source_flags: Default::default(),
             source_text: Default::default(),
@@ -365,7 +369,18 @@ impl ParserType {
             top_level: Cell::new(true),
             parse_error_before_next_finished_node: Default::default(),
             has_deprecated_tag: Default::default(),
-        }
+        });
+        *ret.factory.borrow_mut() = Some(create_node_factory(
+            NodeFactoryFlags::NoParenthesizerRules
+                | NodeFactoryFlags::NoNodeConverters
+                | NodeFactoryFlags::NoOriginalNode,
+            ret.clone(),
+        ));
+        ret
+    }
+
+    pub(super) fn factory(&self) -> GcCellRef<Gc<NodeFactory<ParserType>>> {
+        gc_cell_ref_unwrapped(&self.factory)
     }
 
     pub(super) fn scanner(&self) -> Ref<Scanner> {
@@ -378,75 +393,76 @@ impl ParserType {
 
     #[allow(non_snake_case)]
     pub(super) fn NodeConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
-        self.NodeConstructor.unwrap()
+        self.NodeConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_NodeConstructor(
-        &mut self,
+        &self,
         NodeConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
     ) {
-        self.NodeConstructor = Some(NodeConstructor);
+        self.NodeConstructor.set(Some(NodeConstructor));
     }
 
     #[allow(non_snake_case)]
     pub(super) fn IdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
-        self.IdentifierConstructor.unwrap()
+        self.IdentifierConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_IdentifierConstructor(
-        &mut self,
+        &self,
         IdentifierConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
     ) {
-        self.IdentifierConstructor = Some(IdentifierConstructor);
+        self.IdentifierConstructor.set(Some(IdentifierConstructor));
     }
 
     #[allow(non_snake_case)]
     pub(super) fn PrivateIdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
-        self.PrivateIdentifierConstructor.unwrap()
+        self.PrivateIdentifierConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_PrivateIdentifierConstructor(
-        &mut self,
+        &self,
         PrivateIdentifierConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
     ) {
-        self.PrivateIdentifierConstructor = Some(PrivateIdentifierConstructor);
+        self.PrivateIdentifierConstructor
+            .set(Some(PrivateIdentifierConstructor));
     }
 
     #[allow(non_snake_case)]
     pub(super) fn TokenConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
-        self.TokenConstructor.unwrap()
+        self.TokenConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_TokenConstructor(
-        &mut self,
+        &self,
         TokenConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
     ) {
-        self.TokenConstructor = Some(TokenConstructor);
+        self.TokenConstructor.set(Some(TokenConstructor));
     }
 
     #[allow(non_snake_case)]
     pub(super) fn SourceFileConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
-        self.SourceFileConstructor.unwrap()
+        self.SourceFileConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_SourceFileConstructor(
-        &mut self,
+        &self,
         SourceFileConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
     ) {
-        self.SourceFileConstructor = Some(SourceFileConstructor);
+        self.SourceFileConstructor.set(Some(SourceFileConstructor));
     }
 
-    pub(super) fn file_name(&self) -> &str {
-        self.file_name.as_ref().unwrap()
+    pub(super) fn file_name(&self) -> Ref<String> {
+        ref_unwrapped(&self.file_name)
     }
 
-    pub(super) fn set_file_name(&mut self, file_name: String) {
-        self.file_name = Some(file_name);
+    pub(super) fn set_file_name(&self, file_name: String) {
+        *self.file_name.borrow_mut() = Some(file_name);
     }
 
     pub(super) fn source_flags(&self) -> NodeFlags {
@@ -457,43 +473,43 @@ impl ParserType {
         self.source_flags.set(Some(source_flags));
     }
 
-    pub(super) fn source_text(&self) -> &str {
-        self.source_text.as_ref().unwrap()
+    pub(super) fn source_text(&self) -> Ref<String> {
+        ref_unwrapped(&self.source_text)
     }
 
-    pub(super) fn set_source_text(&mut self, source_text: Option<String>) {
-        self.source_text_as_chars = source_text
+    pub(super) fn set_source_text(&self, source_text: Option<String>) {
+        *self.source_text_as_chars.borrow_mut() = source_text
             .as_ref()
             .map(|source_text| source_text.chars().collect());
-        self.source_text = source_text;
+        *self.source_text.borrow_mut() = source_text;
     }
 
-    pub(super) fn source_text_as_chars(&self) -> &SourceTextAsChars {
-        self.source_text_as_chars.as_ref().unwrap()
+    pub(super) fn source_text_as_chars(&self) -> Ref<SourceTextAsChars> {
+        ref_unwrapped(&self.source_text_as_chars)
     }
 
     pub(super) fn language_version(&self) -> ScriptTarget {
-        self.language_version.unwrap()
+        self.language_version.get().unwrap()
     }
 
-    pub(super) fn set_language_version(&mut self, language_version: Option<ScriptTarget>) {
-        self.language_version = language_version;
+    pub(super) fn set_language_version(&self, language_version: Option<ScriptTarget>) {
+        self.language_version.set(language_version);
     }
 
     pub(super) fn script_kind(&self) -> ScriptKind {
-        self.script_kind.unwrap()
+        self.script_kind.get().unwrap()
     }
 
-    pub(super) fn set_script_kind(&mut self, script_kind: Option<ScriptKind>) {
-        self.script_kind = script_kind;
+    pub(super) fn set_script_kind(&self, script_kind: Option<ScriptKind>) {
+        self.script_kind.set(script_kind);
     }
 
     pub(super) fn language_variant(&self) -> LanguageVariant {
-        self.language_variant.unwrap()
+        self.language_variant.get().unwrap()
     }
 
-    pub(super) fn set_language_variant(&mut self, language_variant: Option<LanguageVariant>) {
-        self.language_variant = language_variant;
+    pub(super) fn set_language_variant(&self, language_variant: Option<LanguageVariant>) {
+        self.language_variant.set(language_variant);
     }
 
     pub(super) fn parse_diagnostics(
@@ -504,7 +520,7 @@ impl ParserType {
         })
     }
 
-    pub(super) fn set_parse_diagnostics(&mut self, parse_diagnostics: Option<Vec<Gc<Diagnostic>>>) {
+    pub(super) fn set_parse_diagnostics(&self, parse_diagnostics: Option<Vec<Gc<Diagnostic>>>) {
         *self.parse_diagnostics.borrow_mut() = parse_diagnostics;
     }
 
@@ -520,10 +536,7 @@ impl ParserType {
         })
     }
 
-    pub(super) fn set_js_doc_diagnostics(
-        &mut self,
-        js_doc_diagnostics: Option<Vec<Gc<Diagnostic>>>,
-    ) {
+    pub(super) fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Option<Vec<Gc<Diagnostic>>>) {
         *self.js_doc_diagnostics.borrow_mut() = js_doc_diagnostics;
     }
 
@@ -561,7 +574,7 @@ impl ParserType {
         self.node_count.get().unwrap()
     }
 
-    pub(super) fn set_node_count(&mut self, node_count: usize) {
+    pub(super) fn set_node_count(&self, node_count: usize) {
         self.node_count.set(Some(node_count));
     }
 
@@ -601,7 +614,7 @@ impl ParserType {
         self.identifier_count.get().unwrap()
     }
 
-    pub(super) fn set_identifier_count(&mut self, identifier_count: usize) {
+    pub(super) fn set_identifier_count(&self, identifier_count: usize) {
         self.identifier_count.set(Some(identifier_count));
     }
 
@@ -672,7 +685,7 @@ impl ParserType {
     }
 
     pub fn parse_source_file(
-        &mut self,
+        &self,
         file_name: &str,
         source_text: String,
         language_version: ScriptTarget,
@@ -730,7 +743,7 @@ impl ParserType {
     }
 
     pub fn parse_isolated_entity_name(
-        &mut self,
+        &self,
         content: String,
         language_version: ScriptTarget,
     ) -> Option<Gc<Node /*EntityName*/>> {
@@ -748,7 +761,7 @@ impl ParserType {
     }
 
     pub fn parse_json_text(
-        &mut self,
+        &self,
         file_name: &str,
         source_text: String,
         language_version: Option<ScriptTarget>,
@@ -824,15 +837,18 @@ impl ParserType {
             let expression: Gc<Node> = match expressions {
                 Some(expressions) if expressions.len() > 1 => self
                     .finish_node(
-                        self.factory
-                            .create_array_literal_expression(self, Some(expressions), None),
+                        self.factory().create_array_literal_expression(
+                            self,
+                            Some(expressions),
+                            None,
+                        ),
                         pos,
                         None,
                     )
                     .wrap(),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
-            let statement = self.factory.create_expression_statement(self, expression);
+            let statement = self.factory().create_expression_statement(self, expression);
             let statement = self.finish_node(statement, pos, None);
             statements = self.create_node_array(vec![statement.wrap()], pos, None, None);
             end_of_file_token = self
@@ -881,7 +897,7 @@ impl ParserType {
     }
 
     pub(super) fn initialize_state(
-        &mut self,
+        &self,
         _file_name: &str,
         _source_text: String,
         _language_version: ScriptTarget,

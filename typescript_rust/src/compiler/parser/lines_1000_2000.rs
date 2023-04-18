@@ -22,9 +22,9 @@ use crate::{
 };
 
 impl ParserType {
-    pub(super) fn clear_state(&mut self) {
+    pub(super) fn clear_state(&self) {
         {
-            let mut scanner = self.scanner_mut();
+            let scanner = self.scanner_mut();
             scanner.clear_comment_directives();
             scanner.set_text(Some(vec![]), Some("".to_owned()), None, None);
             // scanner.set_on_error(None);
@@ -50,7 +50,7 @@ impl ParserType {
         set_parent_nodes: bool,
         script_kind: ScriptKind,
     ) -> Gc<Node /*SourceFile*/> {
-        let is_declaration_file = is_declaration_file_name(self.file_name());
+        let is_declaration_file = is_declaration_file_name(&self.file_name());
         if is_declaration_file {
             self.set_context_flags(self.context_flags() | NodeFlags::Ambient);
         }
@@ -65,7 +65,7 @@ impl ParserType {
         let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node().wrap());
 
         let source_file = self.create_source_file(
-            self.file_name(),
+            &self.file_name(),
             language_version,
             script_kind,
             is_declaration_file,
@@ -77,12 +77,12 @@ impl ParserType {
 
         process_comment_pragmas(
             source_file_as_source_file,
-            self.source_text(),
-            self.source_text_as_chars(),
+            &self.source_text(),
+            &self.source_text_as_chars(),
         );
         let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
             self.parse_diagnostics().push(Gc::new(
-                create_detached_diagnostic(self.file_name(), pos, end, diagnostic, None).into(),
+                create_detached_diagnostic(&self.file_name(), pos, end, diagnostic, None).into(),
             ));
         };
         process_pragmas_into_fields(source_file_as_source_file, report_pragma_diagnostic);
@@ -123,7 +123,7 @@ impl ParserType {
     pub(super) fn add_jsdoc_comment(&self, node: Gc<Node>) -> Gc<Node> {
         Debug_.assert(node.maybe_js_doc().is_none(), None);
         let js_doc = map_defined(
-            get_jsdoc_comment_ranges(&*node, self.source_text_as_chars()),
+            get_jsdoc_comment_ranges(&*node, &self.source_text_as_chars()),
             |comment, _| {
                 self.JSDocParser_parse_jsdoc_comment(
                     &node,
@@ -263,9 +263,9 @@ impl ParserType {
         }
 
         self.set_syntax_cursor(saved_syntax_cursor);
-        let new_statements = self.factory.create_node_array(Some(statements), None);
+        let new_statements = self.factory().create_node_array(Some(statements), None);
         set_text_range(&*new_statements, Some(&*source_file_statements));
-        self.factory.update_source_file(
+        self.factory().update_source_file(
             self,
             source_file,
             new_statements,
@@ -327,7 +327,7 @@ impl ParserType {
         flags: NodeFlags,
     ) -> Gc<Node> {
         let mut source_file = self
-            .factory
+            .factory()
             .create_source_file(self, statements, end_of_file_token, flags)
             .wrap();
         set_text_range_pos_width(
@@ -782,7 +782,7 @@ impl ParserType {
             let node_as_tagged_template_expression = node.as_tagged_template_expression();
             self.parse_error_at(
                 skip_trivia(
-                    self.source_text_as_chars(),
+                    &self.source_text_as_chars(),
                     node_as_tagged_template_expression.template.pos(),
                     None,
                     None,
@@ -817,7 +817,7 @@ impl ParserType {
         }
         let expression_text = expression_text.unwrap();
 
-        let pos = skip_trivia(self.source_text_as_chars(), node.pos(), None, None, None);
+        let pos = skip_trivia(&self.source_text_as_chars(), node.pos(), None, None, None);
 
         match expression_text {
             "const" | "let" | "var" => {
@@ -1049,14 +1049,14 @@ impl ParserType {
         let pos = self.get_node_pos();
         let kind = self.token();
         self.next_token();
-        self.finish_node(self.factory.create_token(self, kind), pos, None)
+        self.finish_node(self.factory().create_token(self, kind), pos, None)
     }
 
     pub(super) fn parse_token_node_jsdoc(&self) -> BaseNode {
         let pos = self.get_node_pos();
         let kind = self.token();
         self.next_token_jsdoc();
-        self.finish_node(self.factory.create_token(self, kind), pos, None)
+        self.finish_node(self.factory().create_token(self, kind), pos, None)
     }
 
     pub(super) fn can_parse_semicolon(&self) -> bool {
@@ -1094,7 +1094,7 @@ impl ParserType {
         has_trailing_comma: Option<bool>,
     ) -> Gc<NodeArray> {
         let array = self
-            .factory
+            .factory()
             .create_node_array(Some(elements), has_trailing_comma);
         set_text_range_pos_end(
             &*array,
@@ -1156,11 +1156,11 @@ impl ParserType {
 
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
-            self.factory
+            self.factory()
                 .create_identifier(self, "", Option::<Gc<NodeArray>>::None, None)
                 .into()
         } else if is_template_literal_kind(kind) {
-            self.factory
+            self.factory()
                 .create_template_literal_like_node(
                     self,
                     kind,
@@ -1170,17 +1170,17 @@ impl ParserType {
                 )
                 .into()
         } else if kind == SyntaxKind::NumericLiteral {
-            self.factory
+            self.factory()
                 .create_numeric_literal(self, "".to_owned(), None)
                 .into()
         } else if kind == SyntaxKind::StringLiteral {
-            self.factory
+            self.factory()
                 .create_string_literal(self, "".to_owned(), None, None)
                 .into()
         } else if kind == SyntaxKind::MissingDeclaration {
-            self.factory.create_missing_declaration(self).into()
+            self.factory().create_missing_declaration(self).into()
         } else {
-            self.factory.create_token(self, kind).into()
+            self.factory().create_token(self, kind).into()
         };
         self.finish_node(result, pos, None)
     }
@@ -1211,7 +1211,7 @@ impl ParserType {
             let text = self.intern_identifier(&self.scanner().get_token_value());
             self.next_token_without_check();
             return self.finish_node(
-                self.factory
+                self.factory()
                     .create_identifier(
                         self,
                         &text,
@@ -1348,7 +1348,8 @@ impl ParserType {
         let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory.create_computed_property_name(self, expression),
+            self.factory()
+                .create_computed_property_name(self, expression),
             pos,
             None,
         )
@@ -1369,7 +1370,7 @@ impl ParserType {
 
     pub(super) fn parse_private_identifier(&self) -> Node {
         let pos = self.get_node_pos();
-        let node = self.factory.create_private_identifier(
+        let node = self.factory().create_private_identifier(
             self,
             &self.intern_private_identifier(&self.scanner().get_token_text()),
         );

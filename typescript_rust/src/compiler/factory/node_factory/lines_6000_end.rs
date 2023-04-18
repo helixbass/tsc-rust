@@ -27,7 +27,7 @@ use crate::{
     SyntaxKind, TransformFlags,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn update_modifiers(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -710,7 +710,7 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
 
 thread_local! {
     pub static factory: Gc<NodeFactory<BaseNodeFactorySynthetic>> =
-        create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
+        create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess, get_synthetic_factory());
 }
 
 pub fn get_factory() -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {

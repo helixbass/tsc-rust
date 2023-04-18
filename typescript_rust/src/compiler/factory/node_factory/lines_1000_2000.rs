@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
     TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn create_super(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
         self.create_token(base_factory, SyntaxKind::SuperKeyword)
     }

@@ -51,7 +51,7 @@ impl ParserType {
         }
         self.set_await_context(saved_await_context);
         let node: Node = if kind == SyntaxKind::ClassDeclaration {
-            self.factory
+            self.factory()
                 .create_class_declaration(
                     self,
                     decorators,
@@ -63,7 +63,7 @@ impl ParserType {
                 )
                 .into()
         } else {
-            self.factory
+            self.factory()
                 .create_class_expression(
                     self,
                     decorators,
@@ -120,7 +120,7 @@ impl ParserType {
             None,
         );
         self.finish_node(
-            self.factory.create_heritage_clause(self, tok, types),
+            self.factory().create_heritage_clause(self, tok, types),
             pos,
             None,
         )
@@ -131,7 +131,7 @@ impl ParserType {
         let expression = self.parse_left_hand_side_expression_or_higher();
         let type_arguments = self.try_parse_type_arguments();
         self.finish_node(
-            self.factory
+            self.factory()
                 .create_expression_with_type_arguments(self, expression, type_arguments),
             pos,
             None,
@@ -176,7 +176,7 @@ impl ParserType {
         let type_parameters = self.parse_type_parameters();
         let heritage_clauses = self.parse_heritage_clauses();
         let members = self.parse_object_type_members();
-        let node = self.factory.create_interface_declaration(
+        let node = self.factory().create_interface_declaration(
             self,
             decorators,
             modifiers,
@@ -206,7 +206,7 @@ impl ParserType {
             self.parse_type()
         };
         self.parse_semicolon();
-        let node = self.factory.create_type_alias_declaration(
+        let node = self.factory().create_type_alias_declaration(
             self,
             decorators,
             modifiers,
@@ -224,7 +224,7 @@ impl ParserType {
         let initializer = self.allow_in_and(|| self.parse_initializer());
         self.with_jsdoc(
             self.finish_node(
-                self.factory.create_enum_member(self, name, initializer),
+                self.factory().create_enum_member(self, name, initializer),
                 pos,
                 None,
             )
@@ -255,9 +255,13 @@ impl ParserType {
         } else {
             members = self.create_missing_list();
         }
-        let node =
-            self.factory
-                .create_enum_declaration(self, decorators, modifiers, name, Some(members));
+        let node = self.factory().create_enum_declaration(
+            self,
+            decorators,
+            modifiers,
+            name,
+            Some(members),
+        );
         self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
@@ -273,7 +277,7 @@ impl ParserType {
             statements = self.create_missing_list();
         }
         self.finish_node(
-            self.factory.create_module_block(self, Some(statements)),
+            self.factory().create_module_block(self, Some(statements)),
             pos,
             None,
         )
@@ -300,7 +304,7 @@ impl ParserType {
         } else {
             self.parse_module_block().wrap()
         };
-        let node = self.factory.create_module_declaration(
+        let node = self.factory().create_module_declaration(
             self,
             decorators,
             modifiers,
@@ -335,7 +339,7 @@ impl ParserType {
         } else {
             self.parse_semicolon();
         }
-        let node = self.factory.create_module_declaration(
+        let node = self.factory().create_module_declaration(
             self,
             decorators,
             modifiers,
@@ -398,7 +402,9 @@ impl ParserType {
         self.parse_expected(SyntaxKind::NamespaceKeyword, None, None);
         let name: Gc<Node> = self.parse_identifier(None, None).wrap();
         self.parse_semicolon();
-        let node = self.factory.create_namespace_export_declaration(self, name);
+        let node = self
+            .factory()
+            .create_namespace_export_declaration(self, name);
         node.set_decorators(decorators);
         node.set_modifiers(modifiers);
         self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
@@ -468,7 +474,7 @@ impl ParserType {
         }
 
         self.parse_semicolon();
-        let node = self.factory.create_import_declaration(
+        let node = self.factory().create_import_declaration(
             self,
             decorators,
             modifiers,
@@ -492,7 +498,7 @@ impl ParserType {
             .parse_literal_like_node(SyntaxKind::StringLiteral)
             .wrap();
         self.finish_node(
-            self.factory.create_assert_entry(self, name, value),
+            self.factory().create_assert_entry(self, name, value),
             pos,
             None,
         )
@@ -518,7 +524,7 @@ impl ParserType {
                             last_error,
                             vec![Gc::new(
                                 create_detached_diagnostic(
-                                    self.file_name(),
+                                    &self.file_name(),
                                     open_brace_position.try_into().unwrap(),
                                     1,
                                     &Diagnostics::The_parser_expected_to_find_a_to_match_the_token_here,
@@ -531,7 +537,7 @@ impl ParserType {
                 }
             }
             self.finish_node(
-                self.factory
+                self.factory()
                     .create_assert_clause(self, elements, Some(multi_line)),
                 pos,
                 None,
@@ -539,7 +545,7 @@ impl ParserType {
         } else {
             let elements = self.create_node_array(vec![], self.get_node_pos(), None, Some(false));
             self.finish_node(
-                self.factory
+                self.factory()
                     .create_assert_clause(self, elements, Some(false)),
                 pos,
                 None,
@@ -575,7 +581,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
         let module_reference: Gc<Node> = self.parse_module_reference().wrap();
         self.parse_semicolon();
-        let node = self.factory.create_import_equals_declaration(
+        let node = self.factory().create_import_equals_declaration(
             self,
             decorators,
             modifiers,
@@ -605,7 +611,7 @@ impl ParserType {
         }
 
         self.finish_node(
-            self.factory
+            self.factory()
                 .create_import_clause(self, is_type_only, identifier, named_bindings),
             pos.try_into().unwrap(),
             None,
@@ -627,7 +633,7 @@ impl ParserType {
         let expression = self.parse_module_specifier();
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         self.finish_node(
-            self.factory
+            self.factory()
                 .create_external_module_reference(self, expression),
             pos,
             None,
@@ -652,7 +658,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::AsKeyword, None, None);
         let name = self.parse_identifier(None, None);
         self.finish_node(
-            self.factory.create_namespace_import(self, name.wrap()),
+            self.factory().create_namespace_import(self, name.wrap()),
             pos,
             None,
         )
@@ -663,7 +669,7 @@ impl ParserType {
         let pos = self.get_node_pos();
 
         let node: Node = if kind == SyntaxKind::NamedImports {
-            self.factory
+            self.factory()
                 .create_named_imports(
                     self,
                     self.parse_bracketed_list(
@@ -675,7 +681,7 @@ impl ParserType {
                 )
                 .into()
         } else {
-            self.factory
+            self.factory()
                 .create_named_exports(
                     self,
                     self.parse_bracketed_list(
@@ -757,11 +763,11 @@ impl ParserType {
             );
         }
         let node: Node = if kind == SyntaxKind::ImportSpecifier {
-            self.factory
+            self.factory()
                 .create_import_specifier(self, is_type_only, property_name, name)
                 .into()
         } else {
-            self.factory
+            self.factory()
                 .create_export_specifier(self, is_type_only, property_name, name)
                 .into()
         };
@@ -770,7 +776,7 @@ impl ParserType {
 
     pub(super) fn parse_namespace_export(&self, pos: isize) -> NamespaceExport {
         self.finish_node(
-            self.factory
+            self.factory()
                 .create_namespace_export(self, self.parse_identifier_name(None).wrap()),
             pos,
             None,
@@ -818,7 +824,7 @@ impl ParserType {
         }
         self.parse_semicolon();
         self.set_await_context(saved_await_context);
-        let node = self.factory.create_export_declaration(
+        let node = self.factory().create_export_declaration(
             self,
             decorators,
             modifiers,

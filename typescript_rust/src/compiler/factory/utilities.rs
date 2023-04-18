@@ -15,7 +15,7 @@ use crate::{
     NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
 
-pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
+pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
     base_factory: &TBaseNodeFactory,
     factory: &NodeFactory<TBaseNodeFactory>,
 ) -> Gc<Node> {
@@ -32,7 +32,9 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
         .wrap()
 }
 
-pub fn create_for_of_binding_statement<TBaseNodeFactory: 'static + BaseNodeFactory>(
+pub fn create_for_of_binding_statement<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
     base_factory: &TBaseNodeFactory,
     factory: &NodeFactory<TBaseNodeFactory>,
     node: &Node,        /*ForInitializer*/

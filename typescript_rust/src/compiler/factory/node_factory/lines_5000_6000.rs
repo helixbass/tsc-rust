@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 
 use super::{propagate_child_flags, propagate_children_flags};
@@ -16,7 +16,7 @@ use crate::{
     UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn create_property_assignment<'name>(
         &self,
         base_factory: &TBaseNodeFactory,

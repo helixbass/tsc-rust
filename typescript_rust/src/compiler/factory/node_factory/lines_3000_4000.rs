@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
@@ -22,7 +22,7 @@ use crate::{
     VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn create_omitted_expression(&self, base_factory: &TBaseNodeFactory) -> OmittedExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::OmittedExpression);
         OmittedExpression::new(node)

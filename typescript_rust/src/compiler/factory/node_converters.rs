@@ -12,25 +12,27 @@ use crate::{
     NodeInterface, SignatureDeclarationInterface, SyntaxKind,
 };
 
-pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
+pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
     factory: Gc<NodeFactory<TBaseNodeFactory>>,
 ) -> NodeConvertersConcrete<TBaseNodeFactory> {
     NodeConvertersConcrete::new(factory)
 }
 
 #[derive(Trace, Finalize)]
-pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory + 'static> {
+pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory + 'static + Trace + Finalize> {
     factory: Gc<NodeFactory<TBaseNodeFactory>>,
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConvertersConcrete<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
+    NodeConvertersConcrete<TBaseNodeFactory>
+{
     pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
         Self { factory }
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactory>
-    for NodeConvertersConcrete<TBaseNodeFactory>
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
+    NodeConverters<TBaseNodeFactory> for NodeConvertersConcrete<TBaseNodeFactory>
 {
     fn convert_to_function_block(
         &self,

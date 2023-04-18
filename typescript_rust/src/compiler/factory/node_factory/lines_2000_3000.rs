@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 
 use super::{
     get_cooked_text, propagate_child_flags, propagate_children_flags,
@@ -31,7 +31,7 @@ use crate::{
     YieldExpression,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn create_infer_type_node(
         &self,
         base_factory: &TBaseNodeFactory,

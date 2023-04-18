@@ -787,7 +787,7 @@ impl ParserType {
             }
             dot_pos = self.get_node_pos();
             entity = self.finish_node(
-                self.factory
+                self.factory()
                     .create_qualified_name(
                         self,
                         entity.wrap(),
@@ -808,7 +808,7 @@ impl ParserType {
         name: Gc<Node /*Identifier*/>,
     ) -> QualifiedName {
         self.finish_node(
-            self.factory
+            self.factory()
                 .create_qualified_name(self, entity.clone(), name),
             entity.pos(),
             None,
@@ -873,7 +873,7 @@ impl ParserType {
     pub(super) fn parse_template_expression(&self, is_tagged_template: bool) -> TemplateExpression {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory.create_template_expression(
+            self.factory().create_template_expression(
                 self,
                 self.parse_template_head(is_tagged_template).wrap(),
                 self.parse_template_spans(is_tagged_template),
@@ -886,7 +886,7 @@ impl ParserType {
     pub(super) fn parse_template_type(&self) -> TemplateLiteralTypeNode {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory.create_template_literal_type(
+            self.factory().create_template_literal_type(
                 self,
                 self.parse_template_head(false).wrap(),
                 self.parse_template_type_spans(),
@@ -912,7 +912,7 @@ impl ParserType {
     pub(super) fn parse_template_type_span(&self) -> TemplateLiteralTypeSpan {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory.create_template_literal_type_span(
+            self.factory().create_template_literal_type_span(
                 self,
                 self.parse_type(),
                 self.parse_literal_of_template_span(false).wrap(),
@@ -941,7 +941,7 @@ impl ParserType {
     pub(super) fn parse_template_span(&self, is_tagged_template: bool) -> TemplateSpan {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory.create_template_span(
+            self.factory().create_template_span(
                 self,
                 self.allow_in_and(|| self.parse_expression()),
                 self.parse_literal_of_template_span(is_tagged_template)
@@ -1011,7 +1011,7 @@ impl ParserType {
     pub(super) fn parse_literal_like_node(&self, kind: SyntaxKind) -> Node {
         let pos = self.get_node_pos();
         let node: Node = if is_template_literal_kind(kind) {
-            self.factory
+            self.factory()
                 .create_template_literal_like_node(
                     self,
                     kind,
@@ -1021,7 +1021,7 @@ impl ParserType {
                 )
                 .into()
         } else if kind == SyntaxKind::NumericLiteral {
-            self.factory
+            self.factory()
                 .create_numeric_literal(
                     self,
                     self.scanner().get_token_value().clone(),
@@ -1029,7 +1029,7 @@ impl ParserType {
                 )
                 .into()
         } else if kind == SyntaxKind::StringLiteral {
-            self.factory
+            self.factory()
                 .create_string_literal(
                     self,
                     self.scanner().get_token_value().clone(),
@@ -1038,7 +1038,7 @@ impl ParserType {
                 )
                 .into()
         } else if is_literal_kind(kind) {
-            self.factory.create_literal_like_node(
+            self.factory().create_literal_like_node(
                 self,
                 kind,
                 self.scanner().get_token_value().clone(),
@@ -1085,7 +1085,7 @@ impl ParserType {
         let name = self.parse_entity_name_of_type_reference().wrap();
         let type_arguments = self.parse_type_arguments_of_type_reference();
         self.finish_node(
-            self.factory
+            self.factory()
                 .create_type_reference_node(self, name, type_arguments)
                 .into(),
             pos,
@@ -1121,7 +1121,7 @@ impl ParserType {
     ) -> TypePredicateNode {
         self.next_token();
         self.finish_node(
-            self.factory.create_type_predicate_node(
+            self.factory().create_type_predicate_node(
                 self,
                 None,
                 lhs.clone(),
@@ -1135,20 +1135,20 @@ impl ParserType {
     pub(super) fn parse_this_type_node(&self) -> ThisTypeNode {
         let pos = self.get_node_pos();
         self.next_token();
-        self.finish_node(self.factory.create_this_type_node(self), pos, None)
+        self.finish_node(self.factory().create_this_type_node(self), pos, None)
     }
 
     pub(super) fn parse_jsdoc_all_type(&self) -> BaseNode {
         let pos = self.get_node_pos();
         self.next_token();
-        self.finish_node(self.factory.create_jsdoc_all_type(self), pos, None)
+        self.finish_node(self.factory().create_jsdoc_all_type(self), pos, None)
     }
 
     pub(super) fn parse_jsdoc_non_nullable_type(&self) -> BaseJSDocUnaryType {
         let pos = self.get_node_pos();
         self.next_token();
         self.finish_node(
-            self.factory
+            self.factory()
                 .create_jsdoc_non_nullable_type(self, Some(self.parse_non_array_type())),
             pos,
             None,
@@ -1169,13 +1169,13 @@ impl ParserType {
                 | SyntaxKind::BarToken
         ) {
             self.finish_node(
-                self.factory.create_jsdoc_unknown_type(self, None),
+                self.factory().create_jsdoc_unknown_type(self, None),
                 pos,
                 None,
             )
         } else {
             self.finish_node(
-                self.factory
+                self.factory()
                     .create_jsdoc_nullable_type(self, Some(self.parse_type())),
                 pos,
                 None,

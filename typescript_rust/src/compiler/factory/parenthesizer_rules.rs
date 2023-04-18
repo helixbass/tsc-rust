@@ -1,7 +1,6 @@
 use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::marker::PhantomData;
-use std::rc::Rc;
 
 use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
@@ -14,18 +13,24 @@ use crate::{
     NodeInterface, OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
 };
 
-pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
+pub fn create_parenthesizer_rules<
+    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
+>(
     factory: Gc<NodeFactory<TBaseNodeFactory>>,
 ) -> ParenthesizerRulesConcrete<TBaseNodeFactory> {
     ParenthesizerRulesConcrete::new(factory)
 }
 
 #[derive(Trace, Finalize)]
-pub struct ParenthesizerRulesConcrete<TBaseNodeFactory: BaseNodeFactory + 'static> {
+pub struct ParenthesizerRulesConcrete<
+    TBaseNodeFactory: BaseNodeFactory + 'static + Trace + Finalize,
+> {
     factory: Gc<NodeFactory<TBaseNodeFactory>>,
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
+    ParenthesizerRulesConcrete<TBaseNodeFactory>
+{
     pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
         Self { factory }
     }
@@ -200,8 +205,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBa
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
-    for ParenthesizerRulesConcrete<TBaseNodeFactory>
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
+    ParenthesizerRules<TBaseNodeFactory> for ParenthesizerRulesConcrete<TBaseNodeFactory>
 {
     fn parenthesize_left_side_of_binary(
         &self,

@@ -1,4 +1,4 @@
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
@@ -18,7 +18,7 @@ use crate::{
     StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn create_assert_clause(
         &self,
         base_factory: &TBaseNodeFactory,

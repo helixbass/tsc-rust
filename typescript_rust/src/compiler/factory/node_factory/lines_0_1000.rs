@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Gc, GcCellRef};
+use gc::{Finalize, Gc, GcCellRef, Trace};
 use std::{borrow::Borrow, cell::RefCell, ptr};
 
 use super::{
@@ -51,15 +51,17 @@ bitflags! {
     }
 }
 
-pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory>(
+pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
+    base_factory: Gc<TBaseNodeFactory>,
 ) -> Gc<NodeFactory<TBaseNodeFactory>> {
-    NodeFactory::new(flags)
+    NodeFactory::new(flags, base_factory)
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn new(flags: NodeFactoryFlags) -> Gc<Self> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
+    pub fn new(flags: NodeFactoryFlags, base_factory: Gc<TBaseNodeFactory>) -> Gc<Self> {
         let factory_ = Gc::new(Self {
+            base_factory,
             flags,
             parenthesizer_rules: Default::default(),
             converters: Default::default(),
