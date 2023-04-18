@@ -325,7 +325,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name.map(|name| match name.into() {
             StrOrRcNode::Str(name) => self
                 .create_identifier(base_factory, name, Option::<Gc<NodeArray>>::None, None)
-                .into(),
+                .wrap(),
             StrOrRcNode::RcNode(name) => name,
         })
     }
@@ -338,15 +338,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         value.map(|value| match value.into() {
             StringOrNumberOrBoolOrRcNode::String(value) => self
                 .create_string_literal(base_factory, value, None, None)
-                .into(),
+                .wrap(),
             StringOrNumberOrBoolOrRcNode::Number(value) => self
                 .create_numeric_literal(base_factory, value, None)
-                .into(),
+                .wrap(),
             StringOrNumberOrBoolOrRcNode::Bool(value) => {
                 if value {
-                    self.create_true(base_factory).into()
+                    self.create_true(base_factory).wrap()
                 } else {
-                    self.create_false(base_factory).into()
+                    self.create_false(base_factory).wrap()
                 }
             }
             StringOrNumberOrBoolOrRcNode::RcNode(value) => value,
@@ -359,7 +359,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         value: SyntaxKindOrRcNode,
     ) -> Gc<Node> {
         match value {
-            SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(base_factory, value).into(),
+            SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(base_factory, value).wrap(),
             SyntaxKindOrRcNode::RcNode(value) => value,
         }
     }
@@ -789,7 +789,7 @@ pub fn create_input_files(
             );
         }
     }
-    node.into()
+    node.wrap()
 }
 
 pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {

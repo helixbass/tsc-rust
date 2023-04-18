@@ -53,7 +53,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_infer_type_node.type_parameter, &type_parameter) {
             self.update(
                 self.create_infer_type_node(base_factory, type_parameter)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -94,7 +94,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_template_literal_type(base_factory, head, template_spans)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -157,7 +157,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_arguments,
                     Some(is_type_of),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -185,7 +185,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_parenthesized_type_node = node.as_parenthesized_type_node();
         if !Gc::ptr_eq(&node_as_parenthesized_type_node.type_, &type_) {
             self.update(
-                self.create_parenthesized_type(base_factory, type_).into(),
+                self.create_parenthesized_type(base_factory, type_).wrap(),
                 node,
             )
         } else {
@@ -231,7 +231,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     node_as_type_operator_node.operator,
                     type_,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -269,7 +269,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_indexed_access_type_node(base_factory, object_type, index_type)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -338,7 +338,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_,
                     members,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -366,7 +366,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_literal_type_node = node.as_literal_type_node();
         if !Gc::ptr_eq(&node_as_literal_type_node.literal, &literal) {
             self.update(
-                self.create_literal_type_node(base_factory, literal).into(),
+                self.create_literal_type_node(base_factory, literal).wrap(),
                 node,
             )
         } else {
@@ -409,7 +409,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if has_node_array_changed(&node_as_object_binding_pattern.elements, &elements) {
             self.update(
                 self.create_object_binding_pattern(base_factory, elements)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -443,7 +443,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if has_node_array_changed(&node_as_array_binding_pattern.elements, &elements) {
             self.update(
                 self.create_array_binding_pattern(base_factory, elements)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -522,7 +522,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     name,
                     initializer,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -592,7 +592,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     Some(elements),
                     node_as_array_literal_expression.multi_line,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -631,7 +631,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     Some(properties),
                     node_as_object_literal_expression.multi_line,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -693,7 +693,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_property_access_expression(base_factory, expression, name)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -759,7 +759,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     question_dot_token,
                     name,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -822,7 +822,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     expression,
                     argument_expression,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -887,7 +887,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     question_dot_token,
                     argument_expression,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -966,7 +966,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_arguments,
                     Some(arguments_array),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1057,7 +1057,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_arguments,
                     Some(arguments_array),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1138,7 +1138,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_arguments,
                     arguments_array,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1198,7 +1198,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_tagged_template_expression(base_factory, tag, type_arguments, template)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1240,7 +1240,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_type_assertion(base_factory, type_, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1269,7 +1269,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_parenthesized_expression.expression, &expression) {
             self.update(
                 self.create_parenthesized_expression(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1367,7 +1367,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_,
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1403,7 +1403,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node,
             equals_greater_than_token.unwrap_or_else(|| {
                 self.create_token(base_factory, SyntaxKind::EqualsGreaterThanToken)
-                    .into()
+                    .wrap()
             }),
         );
         node.add_transform_flags(
@@ -1458,7 +1458,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     Some(equals_greater_than_token),
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1491,7 +1491,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_delete_expression.expression, &expression) {
             self.update(
                 self.create_delete_expression(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1524,7 +1524,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_type_of_expression.expression, &expression) {
             self.update(
                 self.create_type_of_expression(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1556,7 +1556,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_void_expression = node.as_void_expression();
         if !Gc::ptr_eq(&node_as_void_expression.expression, &expression) {
             self.update(
-                self.create_void_expression(base_factory, expression).into(),
+                self.create_void_expression(base_factory, expression).wrap(),
                 node,
             )
         } else {
@@ -1594,7 +1594,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_await_expression.expression, &expression) {
             self.update(
                 self.create_await_expression(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1642,7 +1642,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     node_as_prefix_unary_expression.operator,
                     operand,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1687,7 +1687,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     operand,
                     node_as_postfix_unary_expression.operator,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1764,7 +1764,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_binary_expression(base_factory, left, operator, right)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1826,13 +1826,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 .parenthesize_condition_of_conditional_expression(base_factory, &condition),
             question_token.unwrap_or_else(|| {
                 self.create_token(base_factory, SyntaxKind::QuestionToken)
-                    .into()
+                    .wrap()
             }),
             self.parenthesizer_rules()
                 .parenthesize_branch_of_conditional_expression(base_factory, &when_true),
             colon_token.unwrap_or_else(|| {
                 self.create_token(base_factory, SyntaxKind::ColonToken)
-                    .into()
+                    .wrap()
             }),
             self.parenthesizer_rules()
                 .parenthesize_branch_of_conditional_expression(base_factory, &when_false),
@@ -1876,7 +1876,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     Some(colon_token),
                     when_false,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1918,7 +1918,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_template_expression(base_factory, head, template_spans)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -2109,7 +2109,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         ) {
             self.update(
                 self.create_yield_expression(base_factory, asterisk_token, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -2145,7 +2145,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_spread_element = node.as_spread_element();
         if !Gc::ptr_eq(&node_as_spread_element.expression, &expression) {
             self.update(
-                self.create_spread_element(base_factory, expression).into(),
+                self.create_spread_element(base_factory, expression).wrap(),
                 node,
             )
         } else {
@@ -2238,7 +2238,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     heritage_clauses,
                     members,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {

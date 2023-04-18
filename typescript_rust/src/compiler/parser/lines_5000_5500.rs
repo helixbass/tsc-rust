@@ -47,7 +47,7 @@ impl ParserType {
             self.factory
                 .create_property_access_expression(
                     self,
-                    expression.into(),
+                    expression.wrap(),
                     self.parse_right_side_of_dot(true, true).wrap(),
                 )
                 .into(),
@@ -120,12 +120,12 @@ impl ParserType {
                                     end,
                                     Some(end),
                                 )
-                                .into(),
+                                .wrap(),
                             ),
                             end,
                             Some(end),
                         )
-                        .into(),
+                        .wrap(),
                     ),
                     last_child_opening_element_pos,
                     Some(end),
@@ -134,13 +134,13 @@ impl ParserType {
                 let children_pos = children.pos();
                 let mut children = children.to_vec();
                 let children_len = children.len();
-                children[children_len - 1] = new_last.into();
+                children[children_len - 1] = new_last.wrap();
                 let children = self.create_node_array(children, children_pos, Some(end), None);
                 closing_element = last_child_as_jsx_element.closing_element.clone();
             } else {
                 closing_element = self
                     .parse_jsx_closing_element(&opening, in_expression_context)
-                    .into();
+                    .wrap();
                 let closing_element_as_jsx_closing_element =
                     closing_element.as_jsx_closing_element();
                 if !tag_names_are_equivalent(
@@ -194,7 +194,7 @@ impl ParserType {
                         opening.wrap(),
                         children,
                         self.parse_jsx_closing_fragment(in_expression_context)
-                            .into(),
+                            .wrap(),
                     )
                     .into(),
                 pos,
@@ -401,7 +401,7 @@ impl ParserType {
                     self,
                     tag_name.wrap(),
                     type_arguments,
-                    attributes.into(),
+                    attributes.wrap(),
                 )
                 .into();
         } else {
@@ -419,7 +419,7 @@ impl ParserType {
                     self,
                     tag_name.wrap(),
                     type_arguments,
-                    attributes.into(),
+                    attributes.wrap(),
                 )
                 .into();
         }
@@ -503,7 +503,7 @@ impl ParserType {
                         Some(self.parse_literal_node().wrap())
                     } else {
                         self.parse_jsx_expression(true)
-                            .map(|jsx_expression| jsx_expression.into())
+                            .map(|jsx_expression| jsx_expression.wrap())
                     },
                 )
                 .into(),
@@ -724,7 +724,7 @@ impl ParserType {
                         expression,
                         question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
                     )
-                    .into();
+                    .wrap();
                 continue;
             }
 
@@ -739,7 +739,7 @@ impl ParserType {
                         pos,
                         None,
                     )
-                    .into();
+                    .wrap();
                 continue;
             }
 
@@ -752,7 +752,7 @@ impl ParserType {
                         expression,
                         question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
                     )
-                    .into();
+                    .wrap();
                 continue;
             }
 
@@ -792,14 +792,14 @@ impl ParserType {
                 self.re_scan_template_head_or_no_substitution_template();
                 self.parse_literal_node().wrap()
             } else {
-                self.parse_template_expression(true).into()
+                self.parse_template_expression(true).wrap()
             },
         );
         if question_dot_token.is_some() || tag.flags().intersects(NodeFlags::OptionalChain) {
             tag_expression.set_flags(tag_expression.flags() | NodeFlags::OptionalChain);
         }
         tag_expression.question_dot_token = question_dot_token;
-        self.finish_node(tag_expression, pos, None).into()
+        self.finish_node(tag_expression, pos, None).wrap()
     }
 
     pub(super) fn parse_call_expression_rest(
@@ -847,7 +847,7 @@ impl ParserType {
                             Some(argument_list),
                         )
                     };
-                    expression = self.finish_node(call_expr, pos, None).into();
+                    expression = self.finish_node(call_expr, pos, None).wrap();
                     continue;
                 }
             } else if self.token() == SyntaxKind::OpenParenToken {
@@ -870,7 +870,7 @@ impl ParserType {
                         Some(argument_list),
                     )
                 };
-                expression = self.finish_node(call_expr, pos, None).into();
+                expression = self.finish_node(call_expr, pos, None).wrap();
                 continue;
             }
             if let Some(question_dot_token) = question_dot_token {
@@ -891,7 +891,7 @@ impl ParserType {
                         pos,
                         None,
                     )
-                    .into();
+                    .wrap();
             }
             break;
         }

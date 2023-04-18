@@ -430,7 +430,7 @@ impl TypeChecker {
                 |synthetic_factory, factory| {
                     factory
                         .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .into()
+                        .wrap()
                 },
             ));
         }
@@ -477,7 +477,7 @@ impl TypeChecker {
                 |synthetic_factory, factory| {
                     factory
                         .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .into()
+                        .wrap()
                 },
             ));
         }
@@ -504,7 +504,7 @@ impl TypeChecker {
                 |synthetic_factory, factory| {
                     factory
                         .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .into()
+                        .wrap()
                 },
             ));
         }
@@ -612,11 +612,11 @@ impl TypeChecker {
             )
         } else if ptr::eq(type_, &*self.true_type()) {
             Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_true(synthetic_factory).into(),
+                |synthetic_factory, factory| factory.create_true(synthetic_factory).wrap(),
             ))
         } else if ptr::eq(type_, &*self.false_type()) {
             Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_false(synthetic_factory).into(),
+                |synthetic_factory, factory| factory.create_false(synthetic_factory).wrap(),
             ))
         } else {
             None
@@ -629,21 +629,21 @@ impl TypeChecker {
                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                     factory
                         .create_big_int_literal(synthetic_factory, type_.value.clone())
-                        .into()
+                        .wrap()
                 })
             }
             Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                     factory
                         .create_numeric_literal(synthetic_factory, type_.value.clone(), None)
-                        .into()
+                        .wrap()
                 })
             }
             Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                     factory
                         .create_string_literal(synthetic_factory, type_.value.clone(), None, None)
-                        .into()
+                        .wrap()
                 })
             }
             _ => unreachable!(),

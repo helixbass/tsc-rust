@@ -136,11 +136,11 @@ impl NodeBuilder {
                                                 None,
                                                 None,
                                             )
-                                            .into(),
+                                            .wrap(),
                                     )
-                                    .into(),
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     });
                 } else {
                     return with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
@@ -153,7 +153,7 @@ impl NodeBuilder {
                                         lhs.clone(),
                                         type_parameter_nodes,
                                     )
-                                    .into(),
+                                    .wrap(),
                                 factory_
                                     .create_literal_type_node(
                                         synthetic_factory_,
@@ -164,11 +164,11 @@ impl NodeBuilder {
                                                 None,
                                                 None,
                                             )
-                                            .into(),
+                                            .wrap(),
                                     )
-                                    .into(),
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     });
                 }
             }
@@ -184,7 +184,7 @@ impl NodeBuilder {
                             type_parameter_nodes,
                             None,
                         )
-                        .into(),
+                        .wrap(),
                     EmitFlags::NoAsciiEscaping,
                 )
             });
@@ -206,7 +206,7 @@ impl NodeBuilder {
             return with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_qualified_name(synthetic_factory_, lhs.clone(), identifier)
-                    .into()
+                    .wrap()
             });
         }
         identifier
@@ -275,7 +275,7 @@ impl NodeBuilder {
                         Option::<Gc<NodeArray>>::None,
                         None,
                     )
-                    .into()
+                    .wrap()
             });
         }
         if context
@@ -310,7 +310,7 @@ impl NodeBuilder {
                             result.as_identifier().maybe_type_arguments().clone(),
                             None,
                         )
-                        .into()
+                        .wrap()
                 });
             }
             context
@@ -376,7 +376,7 @@ impl NodeBuilder {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_identifier(synthetic_factory_, &symbol_name, type_parameter_nodes, None)
-                    .into()
+                    .wrap()
             }),
             EmitFlags::NoAsciiEscaping,
         );
@@ -390,7 +390,7 @@ impl NodeBuilder {
                         self.create_entity_name_from_symbol_chain(context, chain, index - 1),
                         identifier,
                     )
-                    .into()
+                    .wrap()
             })
         } else {
             identifier
@@ -446,7 +446,7 @@ impl NodeBuilder {
                         None,
                         None,
                     )
-                    .into()
+                    .wrap()
             });
         }
         let can_use_property_access = if first_char == CharacterCodes::hash {
@@ -462,12 +462,14 @@ impl NodeBuilder {
         if index == 0 || can_use_property_access {
             let identifier = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 set_emit_flags(
-                    Gc::<Node>::from(factory_.create_identifier(
-                        synthetic_factory_,
-                        &symbol_name,
-                        type_parameter_nodes,
-                        None,
-                    )),
+                    factory_
+                        .create_identifier(
+                            synthetic_factory_,
+                            &symbol_name,
+                            type_parameter_nodes,
+                            None,
+                        )
+                        .wrap(),
                     EmitFlags::NoAsciiEscaping,
                 )
             });
@@ -481,7 +483,7 @@ impl NodeBuilder {
                             self.create_expression_from_symbol_chain(context, chain, index - 1),
                             identifier,
                         )
-                        .into()
+                        .wrap()
                 })
             } else {
                 identifier
@@ -515,7 +517,7 @@ impl NodeBuilder {
                                 Some(first_char == CharacterCodes::single_quote),
                                 None,
                             )
-                            .into()
+                            .wrap()
                     },
                 ));
             } else if matches!(
@@ -530,7 +532,7 @@ impl NodeBuilder {
                                 Into::<Number>::into(&*symbol_name),
                                 None,
                             )
-                            .into()
+                            .wrap()
                     },
                 ));
             }
@@ -545,7 +547,7 @@ impl NodeBuilder {
                                     type_parameter_nodes,
                                     None,
                                 )
-                                .into(),
+                                .wrap(),
                             EmitFlags::NoAsciiEscaping,
                         )
                     },
@@ -560,7 +562,7 @@ impl NodeBuilder {
                         self.create_expression_from_symbol_chain(context, chain, index - 1),
                         expression,
                     )
-                    .into()
+                    .wrap()
             })
         }
     }
@@ -659,7 +661,7 @@ impl NodeBuilder {
                                 Some(single_quote == Some(true)),
                                 None,
                             )
-                            .into()
+                            .wrap()
                     },
                 ));
             }
@@ -675,9 +677,9 @@ impl NodeBuilder {
                                         Into::<Number>::into(&*name),
                                         None,
                                     )
-                                    .into(),
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     },
                 ));
             }
@@ -697,7 +699,7 @@ impl NodeBuilder {
                                 Some(SymbolFlags::Value),
                             ),
                         )
-                        .into()
+                        .wrap()
                 },
             ));
         }
@@ -723,7 +725,7 @@ impl NodeBuilder {
                         Option::<Gc<NodeArray>>::None,
                         None,
                     )
-                    .into()
+                    .wrap()
             })
         } else if string_named != Some(true)
             && self.type_checker.is_numeric_literal_name(&name)
@@ -732,7 +734,7 @@ impl NodeBuilder {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_numeric_literal(synthetic_factory_, Into::<Number>::into(&*name), None)
-                    .into()
+                    .wrap()
             })
         } else {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
@@ -743,7 +745,7 @@ impl NodeBuilder {
                         Some(single_quote == Some(true)),
                         None,
                     )
-                    .into()
+                    .wrap()
             })
         }
     }
@@ -1099,23 +1101,20 @@ impl NodeBuilder {
         if is_jsdoc_all_type(node) || node.kind() == SyntaxKind::JSDocNamepathType {
             return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 Some(
-                    Into::<Gc<Node>>::into(
-                        factory.create_keyword_type_node(synthetic_factory, SyntaxKind::AnyKeyword),
-                    )
-                    .into(),
+                    factory
+                        .create_keyword_type_node(synthetic_factory, SyntaxKind::AnyKeyword)
+                        .wrap()
+                        .into(),
                 )
             });
         }
         if is_jsdoc_unknown_type(node) {
             return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 Some(
-                    Into::<Gc<Node>>::into(
-                        factory.create_keyword_type_node(
-                            synthetic_factory,
-                            SyntaxKind::UnknownKeyword,
-                        ),
-                    )
-                    .into(),
+                    factory
+                        .create_keyword_type_node(synthetic_factory, SyntaxKind::UnknownKeyword)
+                        .wrap()
+                        .into(),
                 )
             });
         }
@@ -1143,9 +1142,9 @@ impl NodeBuilder {
                             factory
                                 .create_literal_type_node(
                                     synthetic_factory,
-                                    factory.create_null(synthetic_factory).into(),
+                                    factory.create_null(synthetic_factory).wrap(),
                                 )
-                                .into(),
+                                .wrap(),
                         ],
                     ))
                     .into(),
@@ -1178,7 +1177,7 @@ impl NodeBuilder {
                                     synthetic_factory,
                                     SyntaxKind::UndefinedKeyword,
                                 )
-                                .into(),
+                                .wrap(),
                         ],
                     ))
                     .into(),
@@ -1208,8 +1207,8 @@ impl NodeBuilder {
         if is_jsdoc_variadic_type(node) {
             return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 Some(
-                    Into::<Gc<Node>>::into(
-                        factory.create_array_type_node(
+                    factory
+                        .create_array_type_node(
                             synthetic_factory,
                             visit_node(
                                 node.as_base_jsdoc_unary_type().type_.as_deref(),
@@ -1226,16 +1225,15 @@ impl NodeBuilder {
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             )
                             .unwrap(),
-                        ),
-                    )
-                    .into(),
+                        )
+                        .wrap()
+                        .into(),
                 )
             });
         }
         if is_jsdoc_type_literal(node) {
             return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 Some(
-                    Into::<Gc<Node>>::into(
                         factory.create_type_literal_node(
                             synthetic_factory,
                             maybe_map(
@@ -1282,7 +1280,7 @@ impl NodeBuilder {
                                             Some(factory.create_token(
                                                 synthetic_factory,
                                                 SyntaxKind::QuestionToken,
-                                            ).into())
+                                            ).wrap())
                                         } else {
                                             None
                                         },
@@ -1299,13 +1297,13 @@ impl NodeBuilder {
                                             factory.create_keyword_type_node(
                                                 synthetic_factory,
                                                 SyntaxKind::AnyKeyword
-                                            ).into()
+                                            ).wrap()
                                         }))
-                                    ).into()
+                                    ).wrap()
                                 }
                             )
-                        )
-                    ).into()
+                        ).wrap()
+                    .into()
                 )
             });
         }
@@ -1323,7 +1321,7 @@ impl NodeBuilder {
                     with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                         factory
                             .create_keyword_type_node(synthetic_factory, SyntaxKind::AnyKeyword)
-                            .into()
+                            .wrap()
                     }),
                     Some(node.node_wrapper()),
                 )
@@ -1335,9 +1333,10 @@ impl NodeBuilder {
         {
             return Some(
                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                    Into::<Gc<Node>>::into(factory.create_type_literal_node(
-                        synthetic_factory,
-                        Some(vec![factory
+                    factory
+                        .create_type_literal_node(
+                            synthetic_factory,
+                            Some(vec![factory
                                 .create_index_signature(
                                     synthetic_factory,
                                     Option::<Gc<NodeArray>>::None,
@@ -1371,7 +1370,7 @@ impl NodeBuilder {
                                             ),
                                             None,
                                         )
-                                        .into()],
+                                        .wrap()],
                                     visit_node(
                                         node.as_has_type_arguments()
                                             .maybe_type_arguments()
@@ -1392,8 +1391,9 @@ impl NodeBuilder {
                                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                     ),
                                 )
-                                .into()]),
-                    ))
+                                .wrap()]),
+                        )
+                        .wrap()
                 })
                 .into(),
             );
@@ -1404,7 +1404,7 @@ impl NodeBuilder {
                 let mut new_type_node: Option<Gc<Node>> = None;
                 return Some(with_synthetic_factory_and_factory(
                     |synthetic_factory, factory| {
-                        Into::<Gc<Node>>::into(factory.create_constructor_type_node(
+                        factory.create_constructor_type_node(
                             synthetic_factory,
                             node_as_jsdoc_function_type.maybe_modifiers().clone(),
                             visit_nodes(
@@ -1439,7 +1439,7 @@ impl NodeBuilder {
                                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                                 ),
                                                 None,
-                                            ).into()
+                                            ).wrap()
                                         }))
                                     }
                                 }
@@ -1455,18 +1455,18 @@ impl NodeBuilder {
                                         factory.create_keyword_type_node(
                                             synthetic_factory,
                                             SyntaxKind::AnyKeyword
-                                        ).into()
+                                        ).wrap()
                                     })
                                 }),
                             ),
-                        )).into()
+                        ).wrap().into()
                     },
                 ));
             } else {
                 return Some(with_synthetic_factory_and_factory(
                     |synthetic_factory, factory| {
-                        Into::<Gc<Node>>::into(
-                            factory.create_function_type_node(
+                        factory
+                            .create_function_type_node(
                                 synthetic_factory,
                                 visit_nodes(
                                     node_as_jsdoc_function_type
@@ -1517,7 +1517,7 @@ impl NodeBuilder {
                                                     ),
                                                     None,
                                                 )
-                                                .into()
+                                                .wrap()
                                             },
                                         )
                                     },
@@ -1545,14 +1545,14 @@ impl NodeBuilder {
                                                         synthetic_factory,
                                                         SyntaxKind::AnyKeyword,
                                                     )
-                                                    .into()
+                                                    .wrap()
                                             },
                                         )
                                     }),
                                 ),
-                            ),
-                        )
-                        .into()
+                            )
+                            .wrap()
+                            .into()
                     },
                 ));
             }

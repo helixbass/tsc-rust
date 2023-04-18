@@ -850,14 +850,16 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                         self.factory.create_variable_statement(
                             synthetic_factory_,
                             Option::<Gc<NodeArray>>::None,
-                            Into::<Gc<Node>>::into(self.factory.create_variable_declaration_list(
-                                synthetic_factory_,
-                                lexical_environment_variable_declarations.clone(),
-                                None,
-                            )),
+                            self.factory
+                                .create_variable_declaration_list(
+                                    synthetic_factory_,
+                                    lexical_environment_variable_declarations.clone(),
+                                    None,
+                                )
+                                .wrap(),
                         )
                     })
-                    .into();
+                    .wrap();
 
                 let statement = set_emit_flags(statement, EmitFlags::CustomPrologue);
 
@@ -942,7 +944,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                         None,
                         None,
                     )
-                    .into()
+                    .wrap()
             }),
             EmitFlags::NoNestedSourceMaps,
         );
@@ -1000,8 +1002,8 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                     .create_variable_statement(
                         synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
-                        Into::<Gc<Node>>::into(
-                            self.factory().create_variable_declaration_list(
+                        self.factory()
+                            .create_variable_declaration_list(
                                 synthetic_factory_,
                                 block_scoped_variable_declarations
                                     .as_ref()
@@ -1016,14 +1018,14 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                                                 None,
                                                 None,
                                             )
-                                            .into()
+                                            .wrap()
                                     })
-                                    .collect::<Vec<Gc<Node>>>(),
+                                    .collect::<Vec<_>>(),
                                 Some(NodeFlags::Let),
-                            ),
-                        ),
+                            )
+                            .wrap(),
                     )
-                    .into()
+                    .wrap()
             })])
         } else {
             None

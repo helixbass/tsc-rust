@@ -864,7 +864,7 @@ impl ParserType {
         while {
             node = self.parse_template_span(is_tagged_template);
             let is_node_template_middle = node.literal.kind() == SyntaxKind::TemplateMiddle;
-            list.push(node.into());
+            list.push(node.wrap());
             is_node_template_middle
         } {}
         self.create_node_array(list, pos, None, None)
@@ -903,7 +903,7 @@ impl ParserType {
         while {
             node = self.parse_template_type_span();
             let is_node_template_middle = node.literal.kind() == SyntaxKind::TemplateMiddle;
-            list.push(node.into());
+            list.push(node.wrap());
             is_node_template_middle
         } {}
         self.create_node_array(list, pos, None, None)

@@ -1213,7 +1213,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if has_option_node_array_changed(node_type_arguments.as_deref(), type_arguments.as_ref()) {
             self.update(
                 self.create_identifier(base_factory, &id_text(node), type_arguments, None)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1250,7 +1250,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             text,
             GeneratedIdentifierFlags::Unique | flags,
         )
-        .into()
+        .wrap()
     }
 
     pub fn get_generated_name_for_node(
@@ -1265,7 +1265,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             Some("Argument out of range: flags"),
         );
         let node = node.map(|node| node.borrow().node_wrapper());
-        let name: Gc<Node> = self
+        let name = self
             .create_base_generated_identifier(
                 base_factory,
                 if let Some(node) = node.as_ref().filter(|node| is_identifier(node)) {
@@ -1275,7 +1275,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 },
                 GeneratedIdentifierFlags::Node | flags,
             )
-            .into();
+            .wrap();
         name.set_original(node);
         name
     }

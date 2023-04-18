@@ -639,7 +639,7 @@ impl TransformDeclarations {
                                                     self.factory.create_modifier(
                                                         synthetic_factory_,
                                                         SyntaxKind::DeclareKeyword,
-                                                    ).into()
+                                                    ).wrap()
                                                 ]),
                                                 self.factory.create_string_literal(
                                                     synthetic_factory_,
@@ -650,7 +650,7 @@ impl TransformDeclarations {
                                                     ),
                                                     None,
                                                     None,
-                                                ).into(),
+                                                ).wrap(),
                                                 Some(
                                                     self.factory.create_module_block(
                                                         synthetic_factory_,
@@ -665,10 +665,10 @@ impl TransformDeclarations {
                                                                 Some(&*source_file_as_source_file.statements()),
                                                             )
                                                         )
-                                                    ).into()
+                                                    ).wrap()
                                                 ),
                                                 None,
-                                            ).into()
+                                            ).wrap()
                                         ],
                                         Some(true),
                                         Some(vec![]),
@@ -760,7 +760,7 @@ impl TransformDeclarations {
                     reference_visitor(ref_);
                 });
             }
-            return bundle.into();
+            return bundle.wrap();
         }
         let node_as_source_file = node.as_source_file();
 
@@ -1160,7 +1160,7 @@ impl TransformDeclarations {
                             .unwrap_or_else(|| {
                                 self.factory
                                     .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                    .into()
+                                    .wrap()
                             }),
                     )
                 } else {

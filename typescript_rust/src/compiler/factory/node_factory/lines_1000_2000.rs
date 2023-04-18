@@ -55,73 +55,73 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if flags.intersects(ModifierFlags::Export) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::ExportKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Ambient) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::DeclareKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Default) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::DefaultKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Const) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::ConstKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Public) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::PublicKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Private) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::PrivateKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Protected) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::ProtectedKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Abstract) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::AbstractKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Static) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::StaticKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Override) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::OverrideKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Readonly) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::ReadonlyKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         if flags.intersects(ModifierFlags::Async) {
             result.push(
                 self.create_modifier(base_factory, SyntaxKind::AsyncKeyword)
-                    .into(),
+                    .wrap(),
             );
         }
         result
@@ -154,7 +154,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             || !Gc::ptr_eq(&node_as_qualified_name.right, &right)
         {
             self.update(
-                self.create_qualified_name(base_factory, left, right).into(),
+                self.create_qualified_name(base_factory, left, right).wrap(),
                 node,
             )
         } else {
@@ -191,7 +191,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_computed_property_name.expression, &expression) {
             self.update(
                 self.create_computed_property_name(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -244,7 +244,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     constraint,
                     default_type,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -349,7 +349,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_,
                     initializer,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -384,7 +384,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> Gc<Node> {
         let node_as_decorator = node.as_decorator();
         if !Gc::ptr_eq(&node_as_decorator.expression, &expression) {
-            self.update(self.create_decorator(base_factory, expression).into(), node)
+            self.update(self.create_decorator(base_factory, expression).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -440,7 +440,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     question_token,
                     type_,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -484,7 +484,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(node.exclamation_token.clone())
                 | TransformFlags::ContainsClassFields,
         );
-        let node: Gc<Node> = node.into();
+        let node = node.wrap();
         let node_as_property_declaration = node.as_property_declaration();
         if is_computed_property_name(&node_as_property_declaration.name())
             || has_static_modifier(&node)
@@ -631,7 +631,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     Some(parameters),
                     type_,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -749,7 +749,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_,
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -801,7 +801,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     modifiers,
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -862,7 +862,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     Some(parameters),
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -932,7 +932,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_,
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -995,7 +995,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     parameters,
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1048,7 +1048,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         ) {
             self.update_base_signature_declaration(
                 self.create_call_signature(base_factory, type_parameters, parameters, type_)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1103,7 +1103,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         ) {
             self.update_base_signature_declaration(
                 self.create_construct_signature(base_factory, type_parameters, parameters, type_)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1171,7 +1171,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     parameters,
                     Some(type_),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1204,7 +1204,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_template_literal_type_span(base_factory, type_, literal)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1260,7 +1260,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     parameter_name,
                     type_,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1307,7 +1307,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_type_reference_node(base_factory, type_name, type_arguments)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1357,7 +1357,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update_base_signature_declaration(
                 self.create_function_type_node(base_factory, type_parameters, parameters, type_)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1420,7 +1420,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     parameters,
                     type_,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1448,7 +1448,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_type_query_node = node.as_type_query_node();
         if !Gc::ptr_eq(&node_as_type_query_node.expr_name, &expr_name) {
             self.update(
-                self.create_type_query_node(base_factory, expr_name).into(),
+                self.create_type_query_node(base_factory, expr_name).wrap(),
                 node,
             )
         } else {
@@ -1477,7 +1477,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_type_literal_node.members, &members) {
             self.update(
                 self.create_type_literal_node(base_factory, Some(members))
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1510,7 +1510,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_array_type_node.element_type, &element_type) {
             self.update(
                 self.create_array_type_node(base_factory, element_type)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1540,7 +1540,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if has_node_array_changed(&node_as_tuple_type_node.elements, &elements) {
             self.update(
                 self.create_tuple_type_node(base_factory, Some(elements))
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1590,7 +1590,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     question_token,
                     type_,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1622,7 +1622,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_optional_type_node = node.as_optional_type_node();
         if !Gc::ptr_eq(&node_as_optional_type_node.type_, &type_) {
             self.update(
-                self.create_optional_type_node(base_factory, type_).into(),
+                self.create_optional_type_node(base_factory, type_).wrap(),
                 node,
             )
         } else {
@@ -1649,7 +1649,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> Gc<Node> {
         let node_as_rest_type_node = node.as_rest_type_node();
         if !Gc::ptr_eq(&node_as_rest_type_node.type_, &type_) {
-            self.update(self.create_rest_type_node(base_factory, type_).into(), node)
+            self.update(self.create_rest_type_node(base_factory, type_).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -1778,7 +1778,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     true_type,
                     false_type,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {

@@ -64,7 +64,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             updated.exclamation_token = Some(original_exclamation_token.clone());
         }
-        self.update(updated.into(), original)
+        self.update(updated.wrap(), original)
     }
 
     pub fn update_property_assignment(
@@ -150,7 +150,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             updated.exclamation_token = Some(original_exclamation_token.clone());
         }
-        self.update(updated.into(), original)
+        self.update(updated.wrap(), original)
     }
 
     pub fn update_shorthand_property_assignment(
@@ -211,7 +211,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_spread_assignment.expression, &expression) {
             self.update(
                 self.create_spread_assignment(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -258,7 +258,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_enum_member(base_factory, name, initializer)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -460,7 +460,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     expression,
                     node_as_partially_emitted_expression.maybe_original(),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -487,7 +487,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if has_node_array_changed(&node_as_comma_list_expression.elements, &elements) {
             self.update(
                 self.create_comma_list_expression(base_factory, elements)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -607,7 +607,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             .cloned()
             .unwrap_or_else(|| {
                 self.create_block(base_factory, nodes.to_owned(), None)
-                    .into()
+                    .wrap()
             })
     }
 }

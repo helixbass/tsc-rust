@@ -88,7 +88,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .into();
+                .wrap();
         }
         type_
     }
@@ -190,7 +190,7 @@ impl ParserType {
                     self.parse_assignment_expression_or_higher(),
                     pos,
                 )
-                .into();
+                .wrap();
         }
 
         if save_decorator_context {
@@ -210,7 +210,7 @@ impl ParserType {
 
     pub(super) fn parse_assignment_expression_or_higher(&self) -> Gc<Node> {
         if self.is_yield_expression() {
-            return self.parse_yield_expression().into();
+            return self.parse_yield_expression().wrap();
         }
 
         let arrow_expression = self
@@ -237,11 +237,11 @@ impl ParserType {
             return self
                 .make_binary_expression(
                     expr,
-                    self.parse_token_node().into(),
+                    self.parse_token_node().wrap(),
                     self.parse_assignment_expression_or_higher(),
                     pos,
                 )
-                .into();
+                .wrap();
         }
 
         self.parse_conditional_expression_rest(expr, pos)
@@ -319,7 +319,7 @@ impl ParserType {
         let parameter_pos = parameter.pos();
         let parameter_end = parameter.end();
         let parameters = self.create_node_array(
-            vec![parameter.into()],
+            vec![parameter.wrap()],
             parameter_pos,
             Some(parameter_end),
             None,
@@ -336,7 +336,7 @@ impl ParserType {
             Some(equals_greater_than_token.wrap()),
             body,
         );
-        self.add_jsdoc_comment(self.finish_node(node, pos, None).into())
+        self.add_jsdoc_comment(self.finish_node(node, pos, None).wrap())
     }
 
     pub(super) fn try_parse_parenthesized_arrow_function_expression(
@@ -618,7 +618,7 @@ impl ParserType {
             Some(equals_greater_than_token.wrap()),
             body,
         );
-        Some(self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc))
+        Some(self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc))
     }
 
     pub(super) fn parse_arrow_function_expression_body(
@@ -705,7 +705,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into();
+            .wrap();
     }
 
     pub(super) fn parse_binary_expression_or_higher(
@@ -752,17 +752,17 @@ impl ParserType {
                     self.next_token();
                     left_operand = self
                         .make_as_expression(left_operand, self.parse_type())
-                        .into();
+                        .wrap();
                 }
             } else {
                 left_operand = self
                     .make_binary_expression(
                         left_operand,
-                        self.parse_token_node().into(),
+                        self.parse_token_node().wrap(),
                         self.parse_binary_expression_or_higher(new_precedence),
                         pos,
                     )
-                    .into();
+                    .wrap();
             }
         }
 
@@ -917,14 +917,14 @@ impl ParserType {
             SyntaxKind::PlusToken
             | SyntaxKind::MinusToken
             | SyntaxKind::TildeToken
-            | SyntaxKind::ExclamationToken => self.parse_prefix_unary_expression().into(),
-            SyntaxKind::DeleteKeyword => self.parse_delete_expression().into(),
-            SyntaxKind::TypeOfKeyword => self.parse_type_of_expression().into(),
-            SyntaxKind::VoidKeyword => self.parse_void_expression().into(),
-            SyntaxKind::LessThanToken => self.parse_type_assertion().into(),
+            | SyntaxKind::ExclamationToken => self.parse_prefix_unary_expression().wrap(),
+            SyntaxKind::DeleteKeyword => self.parse_delete_expression().wrap(),
+            SyntaxKind::TypeOfKeyword => self.parse_type_of_expression().wrap(),
+            SyntaxKind::VoidKeyword => self.parse_void_expression().wrap(),
+            SyntaxKind::LessThanToken => self.parse_type_assertion().wrap(),
             SyntaxKind::AwaitKeyword => {
                 if self.is_await_expression() {
-                    self.parse_await_expression().into()
+                    self.parse_await_expression().wrap()
                 } else {
                     self.parse_update_expression()
                 }
@@ -970,7 +970,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .into();
+                .wrap();
         } else if self.language_variant() == LanguageVariant::JSX
             && self.token() == SyntaxKind::LessThanToken
             && self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword_or_greater_than())
@@ -998,7 +998,7 @@ impl ParserType {
                     expression_pos,
                     None,
                 )
-                .into();
+                .wrap();
         }
 
         expression
@@ -1014,7 +1014,7 @@ impl ParserType {
                 self.set_source_flags(
                     self.source_flags() | NodeFlags::PossiblyContainsDynamicImport,
                 );
-                expression = self.parse_token_node().into();
+                expression = self.parse_token_node().wrap();
             } else if self.look_ahead_bool(|| self.next_token_is_dot()) {
                 self.next_token();
                 self.next_token();
@@ -1028,7 +1028,7 @@ impl ParserType {
                         pos,
                         None,
                     )
-                    .into();
+                    .wrap();
             } else {
                 expression = self.parse_member_expression_or_higher();
             }

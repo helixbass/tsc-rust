@@ -165,10 +165,10 @@ impl TypeChecker {
                                         Option::<Gc<NodeArray>>::None,
                                         None,
                                     )
-                                    .into(),
+                                    .wrap(),
                                 "createElement",
                             )
-                            .into(),
+                            .wrap(),
                     )
                 })
             });

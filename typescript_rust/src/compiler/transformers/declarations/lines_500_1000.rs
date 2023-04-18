@@ -65,7 +65,7 @@ impl TransformDeclarations {
                 Some(with_synthetic_factory(|synthetic_factory_| {
                     self.factory
                         .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
-                        .into()
+                        .wrap()
                 }))
             };
         }
@@ -73,7 +73,7 @@ impl TransformDeclarations {
             return Some(with_synthetic_factory(|synthetic_factory_| {
                 self.factory
                     .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
-                    .into()
+                    .wrap()
             }));
         }
         self.set_error_name_node(node.as_named_declaration().maybe_name());
@@ -163,7 +163,7 @@ impl TransformDeclarations {
                 with_synthetic_factory(|synthetic_factory_| {
                     self.factory
                         .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
-                        .into()
+                        .wrap()
                 })
             })
     }
@@ -306,7 +306,7 @@ impl TransformDeclarations {
                             None,
                             None,
                         )
-                        .into()
+                        .wrap()
                 }));
             }
             let new_value_parameter = new_value_parameter.unwrap();
@@ -396,7 +396,7 @@ impl TransformDeclarations {
                     return Some(with_synthetic_factory(|synthetic_factory_| {
                         self.factory
                             .create_string_literal(synthetic_factory_, new_name, None, None)
-                            .into()
+                            .wrap()
                     }));
                 }
             } else {
@@ -930,7 +930,7 @@ impl TransformDeclarations {
                 }
                 SyntaxKind::Constructor => {
                     let input_as_constructor_declaration = input.as_constructor_declaration();
-                    let ctor: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                    let ctor = with_synthetic_factory(|synthetic_factory_| {
                         self.factory
                             .create_constructor_declaration(
                                 synthetic_factory_,
@@ -943,7 +943,7 @@ impl TransformDeclarations {
                                 ),
                                 None,
                             )
-                            .into()
+                            .wrap()
                     });
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -968,7 +968,7 @@ impl TransformDeclarations {
                             None,
                         );
                     }
-                    let sig: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                    let sig = with_synthetic_factory(|synthetic_factory_| {
                         self.factory
                             .create_method_declaration(
                                 synthetic_factory_,
@@ -996,7 +996,7 @@ impl TransformDeclarations {
                                 ),
                                 None,
                             )
-                            .into()
+                            .wrap()
                     });
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1274,7 +1274,7 @@ impl TransformDeclarations {
                                                 synthetic_factory_,
                                                 SyntaxKind::AnyKeyword,
                                             )
-                                            .into()
+                                            .wrap()
                                     })
                                 }),
                             )

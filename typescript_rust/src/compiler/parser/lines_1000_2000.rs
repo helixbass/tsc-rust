@@ -62,7 +62,7 @@ impl ParserType {
             self.parse_statement()
         });
         Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
-        let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node().into());
+        let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node().wrap());
 
         let source_file = self.create_source_file(
             self.file_name(),
@@ -326,10 +326,10 @@ impl ParserType {
         end_of_file_token: Gc<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
     ) -> Gc<Node> {
-        let mut source_file: Gc<Node> = self
+        let mut source_file = self
             .factory
             .create_source_file(self, statements, end_of_file_token, flags)
-            .into();
+            .wrap();
         set_text_range_pos_width(
             &*source_file,
             0,

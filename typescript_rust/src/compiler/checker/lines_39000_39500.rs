@@ -90,10 +90,10 @@ impl TypeChecker {
                         factory_
                             .create_property_access_expression(
                                 synthetic_factory_,
-                                factory_.create_this(synthetic_factory_).into(),
+                                factory_.create_this(synthetic_factory_).wrap(),
                                 prop_name.node_wrapper(),
                             )
-                            .into()
+                            .wrap()
                     })
                 });
                 set_parent(
@@ -127,15 +127,15 @@ impl TypeChecker {
         prop_type: &Type,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> bool {
-        let reference: Gc<Node> = factory.with(|factory_| {
+        let reference = factory.with(|factory_| {
             synthetic_factory.with(|synthetic_factory_| {
                 factory_
                     .create_property_access_expression(
                         synthetic_factory_,
-                        factory_.create_this(synthetic_factory_).into(),
+                        factory_.create_this(synthetic_factory_).wrap(),
                         prop_name.node_wrapper(),
                     )
-                    .into()
+                    .wrap()
             })
         });
         set_parent(

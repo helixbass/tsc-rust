@@ -34,8 +34,8 @@ impl SymbolTableToDeclarationStatements {
     ) {
         self.add_result(
             &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                Gc::<Node>::from(
-                    factory_.create_export_declaration(
+                factory_
+                    .create_export_declaration(
                         synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
@@ -51,14 +51,14 @@ impl SymbolTableToDeclarationStatements {
                                             (local_name != target_name).then_some(target_name),
                                             local_name,
                                         )
-                                        .into()],
+                                        .wrap()],
                                 )
-                                .into(),
+                                .wrap(),
                         ),
                         specifier.node_wrappered(),
                         None,
-                    ),
-                )
+                    )
+                    .wrap()
             }),
             ModifierFlags::None,
         );
@@ -134,7 +134,7 @@ impl SymbolTableToDeclarationStatements {
                                     Some(SymbolFlags::All),
                                 ),
                             )
-                            .into()
+                            .wrap()
                     },
                 ));
             } else {
@@ -155,24 +155,28 @@ impl SymbolTableToDeclarationStatements {
                     let var_name = self.get_unused_name(name, Some(symbol));
                     self.add_result(
                         &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            Gc::<Node>::from(factory_.create_import_equals_declaration(
-                                synthetic_factory_,
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                false,
-                                Gc::<Node>::from(factory_.create_identifier(
+                            factory_
+                                .create_import_equals_declaration(
                                     synthetic_factory_,
-                                    &var_name,
                                     Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )),
-                                self.node_builder.symbol_to_name(
-                                    target,
-                                    &self.context(),
-                                    Some(SymbolFlags::All),
+                                    Option::<Gc<NodeArray>>::None,
                                     false,
-                                ),
-                            ))
+                                    factory_
+                                        .create_identifier(
+                                            synthetic_factory_,
+                                            &var_name,
+                                            Option::<Gc<NodeArray>>::None,
+                                            None,
+                                        )
+                                        .wrap(),
+                                    self.node_builder.symbol_to_name(
+                                        target,
+                                        &self.context(),
+                                        Some(SymbolFlags::All),
+                                        false,
+                                    ),
+                                )
+                                .wrap()
                         }),
                         ModifierFlags::None,
                     );
@@ -200,36 +204,41 @@ impl SymbolTableToDeclarationStatements {
                     },
                 );
             } else {
-                let statement: Gc<Node> =
+                let statement =
                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                         factory_
                             .create_variable_statement(
                                 synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
-                                Gc::<Node>::from(factory_.create_variable_declaration_list(
-                                    synthetic_factory_,
-                                    vec![
-                                    factory_.create_variable_declaration(
+                                factory_
+                                    .create_variable_declaration_list(
                                         synthetic_factory_,
-                                        Some(&*var_name),
-                                        None,
-                                        Some(self.node_builder.serialize_type_for_declaration(
-                                            &self.context(),
-                                            type_to_serialize,
-                                            symbol,
-                                            Some(&*self.enclosing_declaration),
-                                            Some(&|symbol: &Symbol| {
-                                                self.include_private_symbol(symbol);
-                                            }),
-                                            self.bundled,
-                                        )),
-                                        None,
-                                    ).into()
-                                ],
-                                    Some(NodeFlags::Const),
-                                )),
+                                        vec![factory_
+                                            .create_variable_declaration(
+                                                synthetic_factory_,
+                                                Some(&*var_name),
+                                                None,
+                                                Some(
+                                                    self.node_builder
+                                                        .serialize_type_for_declaration(
+                                                            &self.context(),
+                                                            type_to_serialize,
+                                                            symbol,
+                                                            Some(&*self.enclosing_declaration),
+                                                            Some(&|symbol: &Symbol| {
+                                                                self.include_private_symbol(symbol);
+                                                            }),
+                                                            self.bundled,
+                                                        ),
+                                                ),
+                                                None,
+                                            )
+                                            .wrap()],
+                                        Some(NodeFlags::Const),
+                                    )
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     });
                 self.add_result(
                     &statement,
@@ -262,9 +271,9 @@ impl SymbolTableToDeclarationStatements {
                                         Option::<Gc<NodeArray>>::None,
                                         None,
                                     )
-                                    .into(),
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     },
                 ));
                 return true;
@@ -445,7 +454,7 @@ impl SymbolTableToDeclarationStatements {
                                 Some(vec![]),
                                 None,
                             )
-                            .into()
+                            .wrap()
                     }),
                     signatures[0].declaration.as_deref(),
                 )];
@@ -509,31 +518,32 @@ impl SymbolTableToDeclarationStatements {
             return ref_;
         }
         let temp_name = self.get_unused_name(&format!("{root_name}_base"), Option::<&Symbol>::None);
-        let statement: Gc<Node> =
-            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_
-                    .create_variable_statement(
-                        synthetic_factory_,
-                        Option::<Gc<NodeArray>>::None,
-                        Gc::<Node>::from(factory_.create_variable_declaration_list(
+        let statement = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+            factory_
+                .create_variable_statement(
+                    synthetic_factory_,
+                    Option::<Gc<NodeArray>>::None,
+                    factory_
+                        .create_variable_declaration_list(
                             synthetic_factory_,
-                            vec![
-                            factory_.create_variable_declaration(
-                                synthetic_factory_,
-                                Some(&*temp_name),
-                                None,
-                                self.node_builder.type_to_type_node_helper(
-                                    Some(static_type),
-                                    &self.context(),
-                                ),
-                                None,
-                            ).into()
-                        ],
+                            vec![factory_
+                                .create_variable_declaration(
+                                    synthetic_factory_,
+                                    Some(&*temp_name),
+                                    None,
+                                    self.node_builder.type_to_type_node_helper(
+                                        Some(static_type),
+                                        &self.context(),
+                                    ),
+                                    None,
+                                )
+                                .wrap()],
                             Some(NodeFlags::Const),
-                        )),
-                    )
-                    .into()
-            });
+                        )
+                        .wrap(),
+                )
+                .wrap()
+        });
         self.add_result(&statement, ModifierFlags::None);
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
@@ -546,10 +556,10 @@ impl SymbolTableToDeclarationStatements {
                             Option::<Gc<NodeArray>>::None,
                             None,
                         )
-                        .into(),
+                        .wrap(),
                     Option::<Gc<NodeArray>>::None,
                 )
-                .into()
+                .wrap()
         })
     }
 
@@ -605,7 +615,7 @@ impl SymbolTableToDeclarationStatements {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_expression_with_type_arguments(synthetic_factory_, reference, type_args)
-                    .into()
+                    .wrap()
             })
         })
     }
@@ -627,7 +637,7 @@ impl SymbolTableToDeclarationStatements {
                         ),
                         Option::<Gc<NodeArray>>::None,
                     )
-                    .into()
+                    .wrap()
             })
         })
     }
@@ -872,10 +882,10 @@ impl MakeSerializePropertySymbol {
                                         },
                                         None,
                                     )
-                                    .into()],
+                                    .wrap()],
                                 None,
                             )
-                            .into()
+                            .wrap()
                     }),
                     p.maybe_declarations()
                         .as_ref()
@@ -926,7 +936,7 @@ impl MakeSerializePropertySymbol {
                                 },
                                 None,
                             )
-                            .into()
+                            .wrap()
                     }),
                     p.maybe_declarations()
                         .as_ref()
@@ -967,7 +977,7 @@ impl MakeSerializePropertySymbol {
                         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                             factory_
                                 .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                .into()
+                                .wrap()
                         })
                     }),
                     (!is_private).then(|| {
@@ -1034,7 +1044,7 @@ impl MakeSerializePropertySymbol {
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                                 factory_
                                     .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                    .into()
+                                    .wrap()
                             })
                         }),
                         None,
@@ -1074,7 +1084,7 @@ impl MakeSerializePropertySymbol {
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                                 factory_
                                     .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                    .into()
+                                    .wrap()
                             })
                         }),
                         modifiers: (flag != ModifierFlags::None).then(|| {

@@ -42,7 +42,7 @@ impl ParserType {
             is_export_equals,
             expression,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
@@ -148,7 +148,7 @@ impl ParserType {
             vec![],
             self.factory
                 .create_token(self, SyntaxKind::EndOfFileToken)
-                .into(),
+                .wrap(),
             NodeFlags::None,
         );
         let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file);
@@ -189,7 +189,10 @@ impl ParserType {
             self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
         }
 
-        let result = Into::<Gc<Node>>::into(self.factory.create_jsdoc_type_expression(self, type_));
+        let result = self
+            .factory
+            .create_jsdoc_type_expression(self, type_)
+            .wrap();
         self.fixup_parent_references(&result);
         self.finish_node_ref(&*result, pos, None);
         result
@@ -214,14 +217,16 @@ impl ParserType {
                     p2,
                     None,
                 )
-                .into();
+                .wrap();
         }
         if has_brace {
             self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
         }
 
-        let result =
-            Into::<Gc<Node>>::into(self.factory.create_jsdoc_name_reference(self, entity_name));
+        let result = self
+            .factory
+            .create_jsdoc_name_reference(self, entity_name)
+            .wrap();
         self.fixup_parent_references(&result);
         self.finish_node_ref(&*result, pos, None);
         result
@@ -242,7 +247,7 @@ impl ParserType {
         );
         let js_doc: Option<Gc<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
             self.JSDocParser_parse_jsdoc_comment_worker(start, length)
-                .map(Into::into)
+                .map(NodeInterface::wrap)
         });
 
         let source_file = self.create_source_file(
@@ -253,7 +258,7 @@ impl ParserType {
             vec![],
             self.factory
                 .create_token(self, SyntaxKind::EndOfFileToken)
-                .into(),
+                .wrap(),
             NodeFlags::None,
         );
         source_file.as_source_file().set_text(content);
@@ -282,7 +287,7 @@ impl ParserType {
 
         let comment: Option<Gc<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
             self.JSDocParser_parse_jsdoc_comment_worker(Some(start), Some(length))
-                .map(Into::into)
+                .map(NodeInterface::wrap)
         });
         if let Some(comment) = comment.as_ref() {
             set_parent(comment, Some(parent.node_wrapper()));
@@ -494,7 +499,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 } {
                                     self.remove_leading_newlines(&mut self.comments());
                                 }
-                                let part: Gc<Node> =
+                                let part=
                                     self.parser.finish_node(
                                         self.parser.factory.create_jsdoc_text(
                                             self.parser,
@@ -502,7 +507,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                         ),
                                         self.link_end.unwrap_or(self.start).try_into().unwrap(),
                                         Some(comment_end.try_into().unwrap()),
-                                    ).into();
+                                    ).wrap();
                                 self.parts.push(part);
                                 self.parts.push(link.wrap());
                                 *self.comments() = vec![];
@@ -524,12 +529,12 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 }
                 self.remove_trailing_whitespace(&mut self.comments());
                 if !self.parts.is_empty() && !self.comments().is_empty() {
-                    let part: Gc<Node> =
+                    let part=
                         self.parser.finish_node(
                             self.parser.factory.create_jsdoc_text(self.parser, self.comments().join("")),
                             self.link_end.unwrap_or(self.start).try_into().unwrap(),
                             self.comments_pos,
-                        ).into();
+                        ).wrap();
                     self.parts.push(part);
                 }
                 if !self.parts.is_empty() && self.tags.is_some() {
@@ -978,7 +983,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                         .unwrap_or(comments_pos),
                                     Some(comment_end.try_into().unwrap()),
                                 )
-                                .into(),
+                                .wrap(),
                         );
                         parts.push(link);
                         comments = vec![];
@@ -1050,7 +1055,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 .unwrap_or(comments_pos),
                             None,
                         )
-                        .into(),
+                        .wrap(),
                 );
             }
             Some(

@@ -232,7 +232,7 @@ pub fn visit_iteration_body(
             context
                 .factory()
                 .create_block(synthetic_factory_, declarations, None)
-                .into()
+                .wrap()
         });
     }
     updated

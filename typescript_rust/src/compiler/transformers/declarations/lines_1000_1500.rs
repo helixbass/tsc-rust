@@ -128,7 +128,7 @@ impl TransformDeclarations {
                         VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic::new(input),
                     );
                     self.set_error_fallback_node(Some(input.node_wrapper()));
-                    let var_decl: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                    let var_decl = with_synthetic_factory(|synthetic_factory_| {
                         self.factory
                             .create_variable_declaration(
                                 synthetic_factory_,
@@ -142,10 +142,10 @@ impl TransformDeclarations {
                                 ),
                                 None,
                             )
-                            .into()
+                            .wrap()
                     });
                     self.set_error_fallback_node(None);
-                    let statement: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                    let statement = with_synthetic_factory(|synthetic_factory_| {
                         self.factory
                             .create_variable_statement(
                                 synthetic_factory_,
@@ -156,17 +156,19 @@ impl TransformDeclarations {
                                             synthetic_factory_,
                                             SyntaxKind::DeclareKeyword,
                                         )
-                                        .into()])
+                                        .wrap()])
                                 } else {
                                     Some(vec![])
                                 },
-                                Gc::<Node>::from(self.factory.create_variable_declaration_list(
-                                    synthetic_factory_,
-                                    vec![var_decl],
-                                    Some(NodeFlags::Const),
-                                )),
+                                self.factory
+                                    .create_variable_declaration_list(
+                                        synthetic_factory_,
+                                        vec![var_decl],
+                                        Some(NodeFlags::Const),
+                                    )
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     });
                     return Some(
                         vec![
@@ -381,7 +383,7 @@ impl TransformDeclarations {
                     let ref clean = clean.as_single_node();
                     let clean_as_function_declaration = clean.as_function_declaration();
                     let props = self.resolver.get_properties_of_container_function(input);
-                    let fakespace: Gc<Node> =
+                    let fakespace =
                         with_parse_base_node_factory_and_factory(|base_factory, factory_| {
                             factory_
                                 .create_module_declaration(
@@ -398,18 +400,18 @@ impl TransformDeclarations {
                                                         Option::<Gc<NodeArray>>::None,
                                                         None,
                                                     )
-                                                    .into()
+                                                    .wrap()
                                             })
                                         },
                                     ),
                                     Some(with_synthetic_factory(|synthetic_factory_| {
                                         self.factory
                                             .create_module_block(synthetic_factory_, Some(vec![]))
-                                            .into()
+                                            .wrap()
                                     })),
                                     Some(NodeFlags::Namespace),
                                 )
-                                .into()
+                                .wrap()
                         });
                     set_parent(&fakespace, self.maybe_enclosing_declaration());
                     fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(Some(
@@ -457,13 +459,13 @@ impl TransformDeclarations {
                                             Option::<Gc<NodeArray>>::None,
                                             None,
                                         )
-                                        .into()
+                                        .wrap()
                                 })
                             };
                             if is_non_contextual_keyword_name {
                                 export_mappings.push((name.clone(), name_str.to_owned()));
                             }
-                            let var_decl: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                            let var_decl = with_synthetic_factory(|synthetic_factory_| {
                                 self.factory
                                     .create_variable_declaration(
                                         synthetic_factory_,
@@ -472,7 +474,7 @@ impl TransformDeclarations {
                                         type_,
                                         None,
                                     )
-                                    .into()
+                                    .wrap()
                             });
                             Some(with_synthetic_factory(|synthetic_factory_| {
                                 self.factory
@@ -487,17 +489,17 @@ impl TransformDeclarations {
                                                     synthetic_factory_,
                                                     SyntaxKind::ExportKeyword,
                                                 )
-                                                .into()])
+                                                .wrap()])
                                         },
-                                        Gc::<Node>::from(
-                                            self.factory.create_variable_declaration_list(
+                                        self.factory
+                                            .create_variable_declaration_list(
                                                 synthetic_factory_,
                                                 vec![var_decl],
                                                 None,
-                                            ),
-                                        ),
+                                            )
+                                            .wrap(),
                                     )
-                                    .into()
+                                    .wrap()
                             }))
                         });
                     if export_mappings.is_empty() {
@@ -531,18 +533,18 @@ impl TransformDeclarations {
                                                             Some(gen),
                                                             &*exp,
                                                         )
-                                                        .into()
+                                                        .wrap()
                                                 }),
                                             )
-                                            .into(),
+                                            .wrap(),
                                     ),
                                     None,
                                     None,
                                 )
-                                .into()
+                                .wrap()
                         }));
                     }
-                    let namespace_decl: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                    let namespace_decl = with_synthetic_factory(|synthetic_factory_| {
                         self.factory
                             .create_module_declaration(
                                 synthetic_factory_,
@@ -552,11 +554,11 @@ impl TransformDeclarations {
                                 Some(with_synthetic_factory(|synthetic_factory_| {
                                     self.factory
                                         .create_module_block(synthetic_factory_, Some(declarations))
-                                        .into()
+                                        .wrap()
                                 })),
                                 Some(NodeFlags::Namespace),
                             )
-                            .into()
+                            .wrap()
                     });
                     if !has_effective_modifier(clean, ModifierFlags::Default) {
                         return Some(vec![clean.clone(), namespace_decl].into());
@@ -597,18 +599,17 @@ impl TransformDeclarations {
                         )
                     });
 
-                    let export_default_declaration: Gc<Node> =
-                        with_synthetic_factory(|synthetic_factory_| {
-                            self.factory
-                                .create_export_assignment(
-                                    synthetic_factory_,
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    Some(false),
-                                    namespace_decl_as_module_declaration.name(),
-                                )
-                                .into()
-                        });
+                    let export_default_declaration = with_synthetic_factory(|synthetic_factory_| {
+                        self.factory
+                            .create_export_assignment(
+                                synthetic_factory_,
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(false),
+                                namespace_decl_as_module_declaration.name(),
+                            )
+                            .wrap()
+                    });
 
                     if is_source_file(&input.parent()) {
                         self.set_result_has_external_module_indicator(true);
@@ -827,10 +828,9 @@ impl TransformDeclarations {
                             synthetic_factory_,
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
-                            Gc::<Node>::from(
-                                self.factory
-                                    .create_private_identifier(synthetic_factory_, "#private"),
-                            ),
+                            self.factory
+                                .create_private_identifier(synthetic_factory_, "#private")
+                                .wrap(),
                             None,
                             None,
                             None,
@@ -882,7 +882,7 @@ impl TransformDeclarations {
                             input,
                         ),
                     );
-                    let var_decl: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                    let var_decl = with_synthetic_factory(|synthetic_factory_| {
                         self.factory
                             .create_variable_declaration(
                                 synthetic_factory_,
@@ -898,9 +898,9 @@ impl TransformDeclarations {
                                 ),
                                 None,
                             )
-                            .into()
+                            .wrap()
                     });
-                    let statement: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
+                    let statement = with_synthetic_factory(|synthetic_factory_| {
                         self.factory
                             .create_variable_statement(
                                 synthetic_factory_,
@@ -911,17 +911,19 @@ impl TransformDeclarations {
                                             synthetic_factory_,
                                             SyntaxKind::DeclareKeyword,
                                         )
-                                        .into()])
+                                        .wrap()])
                                 } else {
                                     Some(vec![])
                                 },
-                                Gc::<Node>::from(self.factory.create_variable_declaration_list(
-                                    synthetic_factory_,
-                                    vec![var_decl],
-                                    Some(NodeFlags::Const),
-                                )),
+                                self.factory
+                                    .create_variable_declaration_list(
+                                        synthetic_factory_,
+                                        vec![var_decl],
+                                        Some(NodeFlags::Const),
+                                    )
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     });
                     let heritage_clauses = self.factory.create_node_array(
                         maybe_map(
@@ -1083,25 +1085,25 @@ impl TransformDeclarations {
                                                 synthetic_factory_,
                                                 m,
                                                 m.as_enum_member().name(),
-                                                const_value.map(|const_value| match const_value {
-                                                    StringOrNumber::String(const_value) => {
-                                                        Gc::<Node>::from(
-                                                            self.factory.create_string_literal(
+                                                const_value.map(|const_value| {
+                                                    match const_value {
+                                                        StringOrNumber::String(const_value) => self
+                                                            .factory
+                                                            .create_string_literal(
                                                                 synthetic_factory_,
                                                                 const_value,
                                                                 None,
                                                                 None,
-                                                            ),
-                                                        )
-                                                    }
-                                                    StringOrNumber::Number(const_value) => {
-                                                        Gc::<Node>::from(
-                                                            self.factory.create_numeric_literal(
+                                                            )
+                                                            .wrap(),
+                                                        StringOrNumber::Number(const_value) => self
+                                                            .factory
+                                                            .create_numeric_literal(
                                                                 synthetic_factory_,
                                                                 const_value,
                                                                 None,
-                                                            ),
-                                                        )
+                                                            )
+                                                            .wrap(),
                                                     }
                                                 }),
                                             ),

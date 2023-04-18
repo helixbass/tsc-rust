@@ -779,7 +779,7 @@ impl NodeBuilder {
                             .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
                     })
                 }))
-                .into(),
+                .wrap(),
             );
         }
         let type_ = type_.unwrap();
@@ -806,7 +806,7 @@ impl NodeBuilder {
                                     None,
                                 ),
                             )
-                            .into()
+                            .wrap()
                     })
                 }));
             }
@@ -840,7 +840,7 @@ impl NodeBuilder {
                             SyntaxKind::AnyKeyword
                         },
                     ))
-                    .into()
+                    .wrap()
                 })
             }));
         }
@@ -853,7 +853,7 @@ impl NodeBuilder {
                             SyntaxKind::UnknownKeyword,
                         ),
                     )
-                    .into()
+                    .wrap()
                 })
             }));
         }
@@ -866,7 +866,7 @@ impl NodeBuilder {
                             .create_keyword_type_node(synthetic_factory_, SyntaxKind::StringKeyword)
                     })
                 }))
-                .into(),
+                .wrap(),
             );
         }
         if type_.flags().intersects(TypeFlags::Number) {
@@ -878,7 +878,7 @@ impl NodeBuilder {
                             .create_keyword_type_node(synthetic_factory_, SyntaxKind::NumberKeyword)
                     })
                 }))
-                .into(),
+                .wrap(),
             );
         }
         if type_.flags().intersects(TypeFlags::BigInt) {
@@ -890,7 +890,7 @@ impl NodeBuilder {
                             .create_keyword_type_node(synthetic_factory_, SyntaxKind::BigIntKeyword)
                     })
                 }))
-                .into(),
+                .wrap(),
             );
         }
         if type_.flags().intersects(TypeFlags::Boolean) && type_.maybe_alias_symbol().is_none() {
@@ -904,7 +904,7 @@ impl NodeBuilder {
                         )
                     })
                 }))
-                .into(),
+                .wrap(),
             );
         }
         if type_.flags().intersects(TypeFlags::EnumLiteral)
@@ -960,11 +960,11 @@ impl NodeBuilder {
                                                 None,
                                                 None,
                                             )
-                                            .into(),
+                                            .wrap(),
                                     )
-                                    .into(),
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     })
                 }));
             } else if is_type_reference_node(&parent_name) {
@@ -978,7 +978,7 @@ impl NodeBuilder {
                                         synthetic_factory_,
                                         parent_name.as_type_reference_node().type_name.clone(),
                                     )
-                                    .into(),
+                                    .wrap(),
                                 factory_
                                     .create_literal_type_node(
                                         synthetic_factory_,
@@ -989,11 +989,11 @@ impl NodeBuilder {
                                                 None,
                                                 None,
                                             )
-                                            .into(),
+                                            .wrap(),
                                     )
-                                    .into(),
+                                    .wrap(),
                             )
-                            .into()
+                            .wrap()
                     })
                 }));
             } else {
@@ -1029,13 +1029,13 @@ impl NodeBuilder {
                                         )),
                                         None,
                                     )
-                                    .into(),
+                                    .wrap(),
                                 EmitFlags::NoAsciiEscaping,
                             ),
                         )
                         })
                     })
-                    .into(),
+                    .wrap(),
             );
         }
         if type_.flags().intersects(TypeFlags::NumberLiteral) {
@@ -1057,9 +1057,9 @@ impl NodeBuilder {
                                                 (-value).to_string(),
                                                 None,
                                             )
-                                            .into(),
+                                            .wrap(),
                                     )
-                                    .into()
+                                    .wrap()
                             } else {
                                 factory_
                                     .create_numeric_literal(
@@ -1067,10 +1067,10 @@ impl NodeBuilder {
                                         value.to_string(),
                                         None,
                                     )
-                                    .into()
+                                    .wrap()
                             },
                         )
-                        .into()
+                        .wrap()
                 })
             }));
         }
@@ -1084,9 +1084,9 @@ impl NodeBuilder {
                             synthetic_factory_,
                             factory_
                                 .create_big_int_literal(synthetic_factory_, value.clone())
-                                .into(),
+                                .wrap(),
                         )
-                        .into()
+                        .wrap()
                 })
             }));
         }
@@ -1104,11 +1104,11 @@ impl NodeBuilder {
                                 } else {
                                     factory_.create_false(synthetic_factory_)
                                 }
-                                .into(),
+                                .wrap(),
                             )
                         })
                     })
-                    .into(),
+                    .wrap(),
             );
         }
         if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
@@ -1143,9 +1143,9 @@ impl NodeBuilder {
                                 synthetic_factory_,
                                 SyntaxKind::SymbolKeyword,
                             ))
-                            .into(),
+                            .wrap(),
                         )
-                        .into()
+                        .wrap()
                 })
             }));
         }
@@ -1157,7 +1157,7 @@ impl NodeBuilder {
                         factory_
                             .create_keyword_type_node(synthetic_factory_, SyntaxKind::VoidKeyword),
                     )
-                    .into()
+                    .wrap()
                 })
             }));
         }
@@ -1171,7 +1171,7 @@ impl NodeBuilder {
                             SyntaxKind::UndefinedKeyword,
                         ),
                     )
-                    .into()
+                    .wrap()
                 })
             }));
         }
@@ -1182,9 +1182,9 @@ impl NodeBuilder {
                     factory_
                         .create_literal_type_node(
                             synthetic_factory_,
-                            factory_.create_null(synthetic_factory_).into(),
+                            factory_.create_null(synthetic_factory_).wrap(),
                         )
-                        .into()
+                        .wrap()
                 })
             }));
         }
@@ -1196,7 +1196,7 @@ impl NodeBuilder {
                         factory_
                             .create_keyword_type_node(synthetic_factory_, SyntaxKind::NeverKeyword),
                     )
-                    .into()
+                    .wrap()
                 })
             }));
         }
@@ -1210,7 +1210,7 @@ impl NodeBuilder {
                             SyntaxKind::SymbolKeyword,
                         ),
                     )
-                    .into()
+                    .wrap()
                 })
             }));
         }
@@ -1224,7 +1224,7 @@ impl NodeBuilder {
                             SyntaxKind::ObjectKeyword,
                         ),
                     )
-                    .into()
+                    .wrap()
                 })
             }));
         }
@@ -1246,7 +1246,7 @@ impl NodeBuilder {
             }
             context.increment_approximate_length_by(4);
             return Some(synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| factory_.create_this_type_node(synthetic_factory_).into())
+                factory.with(|factory_| factory_.create_this_type_node(synthetic_factory_).wrap())
             }));
         }
 
@@ -1275,15 +1275,17 @@ impl NodeBuilder {
                                 factory_
                                     .create_type_reference_node(
                                         synthetic_factory_,
-                                        Into::<Gc<Node>>::into(factory_.create_identifier(
-                                            synthetic_factory_,
-                                            "",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )),
+                                        factory_
+                                            .create_identifier(
+                                                synthetic_factory_,
+                                                "",
+                                                Option::<Gc<NodeArray>>::None,
+                                                None,
+                                            )
+                                            .wrap(),
                                         type_argument_nodes,
                                     )
-                                    .into()
+                                    .wrap()
                             })
                         }));
                     }
@@ -1330,7 +1332,7 @@ impl NodeBuilder {
                                     &type_, context, None,
                                 ),
                             )
-                            .into()
+                            .wrap()
                     })
                 }));
             }
@@ -1350,15 +1352,17 @@ impl NodeBuilder {
                         factory_
                             .create_type_reference_node(
                                 synthetic_factory_,
-                                Into::<Gc<Node>>::into(factory_.create_identifier(
-                                    synthetic_factory_,
-                                    &id_text(&name),
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )),
+                                factory_
+                                    .create_identifier(
+                                        synthetic_factory_,
+                                        &id_text(&name),
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                    )
+                                    .wrap(),
                                 Option::<Gc<NodeArray>>::None,
                             )
-                            .into()
+                            .wrap()
                     })
                 }));
             }
@@ -1370,15 +1374,17 @@ impl NodeBuilder {
                         factory_
                             .create_type_reference_node(
                                 synthetic_factory_,
-                                Into::<Gc<Node>>::into(factory_.create_identifier(
-                                    synthetic_factory_,
-                                    "?",
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )),
+                                factory_
+                                    .create_identifier(
+                                        synthetic_factory_,
+                                        "?",
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                    )
+                                    .wrap(),
                                 Option::<Gc<NodeArray>>::None,
                             )
-                            .into()
+                            .wrap()
                     })
                 })
             });
@@ -1452,7 +1458,7 @@ impl NodeBuilder {
                             SyntaxKind::KeyOfKeyword,
                             index_type_node,
                         )
-                        .into()
+                        .wrap()
                 })
             }));
         }
@@ -1469,7 +1475,7 @@ impl NodeBuilder {
                             None,
                             None,
                         )
-                        .into()
+                        .wrap()
                 })
             });
             let template_spans = synthetic_factory.with(|synthetic_factory_| {
@@ -1488,7 +1494,7 @@ impl NodeBuilder {
                                                 None,
                                                 None,
                                             )
-                                            .into()
+                                            .wrap()
                                     } else {
                                         factory_
                                             .create_template_tail(
@@ -1497,10 +1503,10 @@ impl NodeBuilder {
                                                 None,
                                                 None,
                                             )
-                                            .into()
+                                            .wrap()
                                     },
                                 )
-                                .into()
+                                .wrap()
                         })),
                         None,
                     )
@@ -1515,7 +1521,7 @@ impl NodeBuilder {
                             template_head,
                             template_spans,
                         )
-                        .into()
+                        .wrap()
                 })
             }));
         }
@@ -1547,7 +1553,7 @@ impl NodeBuilder {
                             object_type_node,
                             index_type_node,
                         )
-                        .into()
+                        .wrap()
                 })
             }));
         }

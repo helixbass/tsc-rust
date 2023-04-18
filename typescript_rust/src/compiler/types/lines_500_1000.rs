@@ -172,6 +172,7 @@ pub type NodeId = usize;
 pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Gc<Node>;
     fn set_node_wrapper(&self, wrapper: Gc<Node>);
+    fn wrap(self) -> Gc<Node>;
     fn kind(&self) -> SyntaxKind;
     fn modifier_flags_cache(&self) -> ModifierFlags;
     fn set_modifier_flags_cache(&self, flags: ModifierFlags);
@@ -425,12 +426,6 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn wrap(self) -> Gc<Node> {
-        let rc = Gc::new(self);
-        rc.set_node_wrapper(rc.clone());
-        rc
-    }
-
     pub fn maybe_as_named_declaration(&self) -> Option<&dyn NamedDeclarationInterface> {
         match self {
             Node::ImportClause(node) => Some(node),
@@ -1780,7 +1775,15 @@ impl NodeInterface for BaseNode {
     }
 
     fn set_node_wrapper(&self, wrapper: Gc<Node>) {
-        *self._node_wrapper.borrow_mut() = Some(wrapper);
+        let mut node_wrapper = self._node_wrapper.borrow_mut();
+        debug_assert!(node_wrapper.is_none());
+        *node_wrapper = Some(wrapper);
+    }
+
+    fn wrap(self) -> Gc<Node> {
+        let rc = Gc::new(Node::from(self));
+        rc.set_node_wrapper(rc.clone());
+        rc
     }
 
     fn kind(&self) -> SyntaxKind {
@@ -2017,14 +2020,6 @@ impl ReadonlyTextRange for BaseNode {
 impl From<BaseNode> for Node {
     fn from(base_node: BaseNode) -> Self {
         Node::BaseNode(base_node)
-    }
-}
-
-impl From<BaseNode> for Gc<Node> {
-    fn from(base_node: BaseNode) -> Self {
-        let rc = Gc::new(Node::BaseNode(base_node));
-        rc.set_node_wrapper(rc.clone());
-        rc
     }
 }
 

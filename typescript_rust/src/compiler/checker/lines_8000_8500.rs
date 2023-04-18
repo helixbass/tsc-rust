@@ -67,7 +67,7 @@ impl TypeChecker {
     ) {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let predicate: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
+        let predicate = synthetic_factory.with(|synthetic_factory_| {
             factory.with(|factory_| {
                 factory_
                     .create_type_predicate_node(
@@ -79,7 +79,7 @@ impl TypeChecker {
                             Some(
                                 factory_
                                     .create_token(synthetic_factory_, SyntaxKind::AssertsKeyword)
-                                    .into(),
+                                    .wrap(),
                             )
                         } else {
                             None
@@ -88,14 +88,16 @@ impl TypeChecker {
                             type_predicate.kind,
                             TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
                         ) {
-                            Into::<Gc<Node>>::into(factory_.create_identifier(
-                                synthetic_factory_,
-                                type_predicate.parameter_name.as_ref().unwrap(),
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                            ))
+                            factory_
+                                .create_identifier(
+                                    synthetic_factory_,
+                                    type_predicate.parameter_name.as_ref().unwrap(),
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                )
+                                .wrap()
                         } else {
-                            factory_.create_this_type_node(synthetic_factory_).into()
+                            factory_.create_this_type_node(synthetic_factory_).wrap()
                         },
                         type_predicate.type_.as_ref().and_then(|type_| {
                             self.node_builder().type_to_type_node(
@@ -110,7 +112,7 @@ impl TypeChecker {
                             )
                         }),
                     )
-                    .into()
+                    .wrap()
             })
         });
         let mut printer = create_printer(
@@ -886,11 +888,11 @@ impl TypeChecker {
             .clone()
             .and_then(|parent_access_flow_node| {
                 let prop_name = self.get_destructuring_property_name(node)?;
-                let literal: Gc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
+                let literal = parse_base_node_factory.with(|parse_base_node_factory_| {
                     parse_node_factory.with(|parse_node_factory_| {
                         parse_node_factory_
                             .create_string_literal(parse_base_node_factory_, prop_name, None, None)
-                            .into()
+                            .wrap()
                     })
                 });
                 set_text_range(&*literal, Some(node));
@@ -904,11 +906,11 @@ impl TypeChecker {
                                     parse_base_node_factory_,
                                     parent_access.clone(),
                                 )
-                                .into()
+                                .wrap()
                         })
                     })
                 };
-                let result: Gc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
+                let result = parse_base_node_factory.with(|parse_base_node_factory_| {
                     parse_node_factory.with(|parse_node_factory_| {
                         parse_node_factory_
                             .create_element_access_expression(
@@ -916,7 +918,7 @@ impl TypeChecker {
                                 lhs_expr.clone(),
                                 literal.clone(),
                             )
-                            .into()
+                            .wrap()
                     })
                 });
                 set_text_range(&*result, Some(node));

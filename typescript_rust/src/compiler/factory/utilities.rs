@@ -25,11 +25,11 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory>(
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             false,
-            Some(factory.create_named_exports(base_factory, vec![]).into()),
+            Some(factory.create_named_exports(base_factory, vec![]).wrap()),
             None,
             None,
         )
-        .into()
+        .wrap()
 }
 
 pub fn create_for_of_binding_statement<TBaseNodeFactory: 'static + BaseNodeFactory>(

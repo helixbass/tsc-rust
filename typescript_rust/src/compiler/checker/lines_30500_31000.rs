@@ -311,7 +311,7 @@ impl TypeChecker {
                 None,
             )
         });
-        let declaration: Gc<Node> = factory.with(|factory_| {
+        let declaration = factory.with(|factory_| {
             synthetic_factory.with(|synthetic_factory_| {
                 factory_
                     .create_function_type_node(
@@ -333,7 +333,7 @@ impl TypeChecker {
                                 ),
                                 None,
                             )
-                            .into()],
+                            .wrap()],
                         Some(if let Some(return_node) = return_node {
                             factory_
                                 .create_type_reference_node(
@@ -341,17 +341,17 @@ impl TypeChecker {
                                     return_node,
                                     Option::<Gc<NodeArray>>::None,
                                 )
-                                .into()
+                                .wrap()
                         } else {
                             factory_
                                 .create_keyword_type_node(
                                     synthetic_factory_,
                                     SyntaxKind::AnyKeyword,
                                 )
-                                .into()
+                                .wrap()
                         }),
                     )
-                    .into()
+                    .wrap()
             })
         });
         let parameter_symbol: Gc<Symbol> = self

@@ -93,7 +93,7 @@ pub fn for_each_emitted_file_returns<TReturn>(
                             source_files.into_iter().map(Option::Some).collect(),
                             Some(prepends),
                         )
-                        .into()
+                        .wrap()
                 });
             let result = action(
                 &get_output_paths_for(&bundle, host, force_dts_emit),
@@ -900,7 +900,7 @@ fn emit_declaration_file_or_bundle(
                             None
                         },
                     )
-                    .into()
+                    .wrap()
             },
         )]
     } else {

@@ -852,25 +852,24 @@ impl Program {
     }
 
     pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Gc<Node> {
-        let external_helpers_module_reference: Gc<Node> =
+        let external_helpers_module_reference =
             with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 factory
                     .create_string_literal(synthetic_factory, text.to_owned(), None, None)
-                    .into()
+                    .wrap()
             });
-        let import_decl: Gc<Node> =
-            with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                factory
-                    .create_import_declaration(
-                        synthetic_factory,
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        None,
-                        external_helpers_module_reference.clone(),
-                        None,
-                    )
-                    .into()
-            });
+        let import_decl = with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+            factory
+                .create_import_declaration(
+                    synthetic_factory,
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    None,
+                    external_helpers_module_reference.clone(),
+                    None,
+                )
+                .wrap()
+        });
         add_emit_flags(import_decl.clone(), EmitFlags::NeverApplyImportHelper);
         set_parent(&external_helpers_module_reference, Some(&*import_decl));
         set_parent(&import_decl, Some(file));

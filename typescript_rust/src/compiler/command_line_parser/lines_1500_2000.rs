@@ -586,15 +586,15 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
                 -1,
                 -1,
             );
-            let end_of_file_token: Gc<Node> = BaseNode::new(
+            let end_of_file_token = BaseNode::new(
                 SyntaxKind::EndOfFileToken,
                 NodeFlags::None,
                 TransformFlags::None,
                 -1,
                 -1,
             )
-            .into();
-            let source_file: Gc<Node> = SourceFile::new(
+            .wrap();
+            let source_file = SourceFile::new(
                 base_node,
                 NodeArray::new(vec![], -1, -1, false, None),
                 end_of_file_token,
@@ -606,7 +606,7 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
                 false,
                 false,
             )
-            .into();
+            .wrap();
             source_file
                 .as_source_file()
                 .set_parse_diagnostics(Gc::new(GcCell::new(vec![text_or_diagnostic])));

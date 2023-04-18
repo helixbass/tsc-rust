@@ -772,39 +772,39 @@ impl ParserType {
         let end_of_file_token: Gc<Node>;
         if self.token() == SyntaxKind::EndOfFileToken {
             statements = self.create_node_array(vec![], pos, Some(pos), None);
-            end_of_file_token = self.parse_token_node().into();
+            end_of_file_token = self.parse_token_node().wrap();
         } else {
             let mut expressions: Option<Vec<Gc<Node>>> = None;
             while self.token() != SyntaxKind::EndOfFileToken {
                 let expression: Gc<Node>;
                 match self.token() {
                     SyntaxKind::OpenBracketToken => {
-                        expression = self.parse_array_literal_expression().into();
+                        expression = self.parse_array_literal_expression().wrap();
                     }
                     SyntaxKind::TrueKeyword
                     | SyntaxKind::FalseKeyword
                     | SyntaxKind::NullKeyword => {
-                        expression = self.parse_token_node().into();
+                        expression = self.parse_token_node().wrap();
                     }
                     SyntaxKind::MinusToken => {
                         if self.look_ahead_bool(|| {
                             self.next_token() == SyntaxKind::NumericLiteral
                                 && self.next_token() != SyntaxKind::ColonToken
                         }) {
-                            expression = self.parse_prefix_unary_expression().into();
+                            expression = self.parse_prefix_unary_expression().wrap();
                         } else {
-                            expression = self.parse_object_literal_expression().into();
+                            expression = self.parse_object_literal_expression().wrap();
                         }
                     }
                     SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
                         if self.look_ahead_bool(|| self.next_token() != SyntaxKind::ColonToken) {
                             expression = self.parse_literal_node().wrap();
                         } else {
-                            expression = self.parse_object_literal_expression().into();
+                            expression = self.parse_object_literal_expression().wrap();
                         }
                     }
                     _ => {
-                        expression = self.parse_object_literal_expression().into();
+                        expression = self.parse_object_literal_expression().wrap();
                     }
                 }
 
@@ -829,12 +829,12 @@ impl ParserType {
                         pos,
                         None,
                     )
-                    .into(),
+                    .wrap(),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
             let statement = self.factory.create_expression_statement(self, expression);
             let statement = self.finish_node(statement, pos, None);
-            statements = self.create_node_array(vec![statement.into()], pos, None, None);
+            statements = self.create_node_array(vec![statement.wrap()], pos, None, None);
             end_of_file_token = self
                 .parse_expected_token(
                     SyntaxKind::EndOfFileToken,

@@ -103,7 +103,7 @@ impl TypeChecker {
             TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
         >,
     ) -> Gc<Node> {
-        let result: Gc<Node> = parse_node_factory.with(|parse_node_factory_| {
+        let result = parse_node_factory.with(|parse_node_factory_| {
             parse_base_node_factory.with(|parse_base_node_factory_| {
                 parse_node_factory_
                     .create_synthetic_expression(
@@ -113,7 +113,7 @@ impl TypeChecker {
                         tuple_name_source
                             .map(|tuple_name_source| tuple_name_source.borrow().node_wrapper()),
                     )
-                    .into()
+                    .wrap()
             })
         });
         set_text_range(&*result, Some(parent));

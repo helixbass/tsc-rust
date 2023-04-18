@@ -49,7 +49,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                             p2,
                             None,
                         )
-                        .into(),
+                        .wrap(),
                 );
             }
         }
@@ -240,7 +240,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             None
         };
         if let Some(nested_type_literal) = nested_type_literal {
-            type_expression = Some(nested_type_literal.into());
+            type_expression = Some(nested_type_literal.wrap());
             is_name_first = true;
         }
         let result = if target == PropertyLikeParse::Property {
@@ -316,7 +316,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parser.finish_node(
                         self.parser
                             .factory
-                            .create_jsdoc_type_expression(self.parser, literal.into()),
+                            .create_jsdoc_type_expression(self.parser, literal.wrap()),
                         pos,
                         None,
                     ),
@@ -471,7 +471,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 comment_start,
                                 Some(comment_end.try_into().unwrap()),
                             )
-                            .into()],
+                            .wrap()],
                         comments.to_vec(),
                     ),
                     comment_start,
@@ -490,7 +490,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 comment_start,
                                 Some(comment_end.try_into().unwrap()),
                             )
-                            .into()],
+                            .wrap()],
                         vec![],
                     ),
                     comment_start,
@@ -552,7 +552,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             self.parser.factory.create_jsdoc_implements_tag(
                 self.parser,
                 Some(tag_name),
-                class_name.into(),
+                class_name.wrap(),
                 self.parse_trailing_tag_comments(
                     start,
                     self.parser.get_node_pos().try_into().unwrap(),
@@ -577,7 +577,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             self.parser.factory.create_jsdoc_augments_tag(
                 self.parser,
                 Some(tag_name),
-                class_name.into(),
+                class_name.wrap(),
                 self.parse_trailing_tag_comments(
                     start,
                     self.parser.get_node_pos().try_into().unwrap(),
@@ -800,7 +800,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     _ => self
                         .parser
                         .finish_node(jsdoc_type_literal, start.try_into().unwrap(), None)
-                        .into(),
+                        .wrap(),
                 });
                 end = Some(type_expression.as_ref().unwrap().end());
             }
@@ -944,7 +944,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             self.parser.factory.create_jsdoc_callback_tag(
                 self.parser,
                 Some(tag_name),
-                type_expression.into(),
+                type_expression.wrap(),
                 full_name,
                 comment,
             ),
@@ -1114,7 +1114,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let mut type_parameters: Vec<Gc<Node>> = vec![];
         while {
             self.skip_whitespace();
-            let node: Option<Gc<Node>> = self.parse_template_tag_type_parameter().map(Into::into);
+            let node = self
+                .parse_template_tag_type_parameter()
+                .map(NodeInterface::wrap);
             if let Some(node) = node {
                 type_parameters.push(node);
             }

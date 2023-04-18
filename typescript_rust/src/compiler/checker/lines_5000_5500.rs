@@ -66,7 +66,7 @@ impl NodeBuilder {
                         true_type_node,
                         false_type_node,
                     )
-                    .into()
+                    .wrap()
             })
         })
     }
@@ -112,7 +112,7 @@ impl NodeBuilder {
                     factory.with(|factory_| {
                         factory_
                             .create_token(synthetic_factory_, readonly_token.kind())
-                            .into()
+                            .wrap()
                     })
                 })
             });
@@ -124,7 +124,7 @@ impl NodeBuilder {
                     factory.with(|factory_| {
                         factory_
                             .create_token(synthetic_factory_, question_token.kind())
-                            .into()
+                            .wrap()
                     })
                 })
             });
@@ -145,7 +145,7 @@ impl NodeBuilder {
                             )
                             .unwrap(),
                         )
-                        .into()
+                        .wrap()
                 })
             });
         } else {
@@ -196,7 +196,7 @@ impl NodeBuilder {
                         template_type_node,
                         Option::<Gc<NodeArray>>::None,
                     )
-                    .into()
+                    .wrap()
             })
         });
         context.increment_approximate_length_by(10);
@@ -505,7 +505,7 @@ impl NodeBuilder {
                                     synthetic_factory_,
                                     Option::<Gc<NodeArray>>::None,
                                 )
-                                .into()
+                                .wrap()
                         })
                     }),
                     EmitFlags::SingleLine,
@@ -592,7 +592,7 @@ impl NodeBuilder {
             factory.with(|factory_| {
                 factory_
                     .create_type_literal_node(synthetic_factory_, members)
-                    .into()
+                    .wrap()
             })
         });
         context.increment_approximate_length_by(2);
@@ -644,18 +644,18 @@ impl NodeBuilder {
                                 },
                                 Some(vec![type_argument_node]),
                             )
-                            .into()
+                            .wrap()
                     })
                 }));
             }
             let element_type = self
                 .type_to_type_node_helper(Some(&*type_arguments[0]), context)
                 .unwrap();
-            let array_type: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
+            let array_type = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_
                         .create_array_type_node(synthetic_factory_, element_type)
-                        .into()
+                        .wrap()
                 })
             });
             Some(
@@ -670,7 +670,7 @@ impl NodeBuilder {
                                     SyntaxKind::ReadonlyKeyword,
                                     array_type,
                                 )
-                                .into()
+                                .wrap()
                         })
                     })
                 },
@@ -706,7 +706,7 @@ impl NodeBuilder {
                                         .create_named_tuple_member(
                                             synthetic_factory_,
                                             if flags.intersects(ElementFlags::Variable) {
-                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::DotDotDotToken).into())
+                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::DotDotDotToken).wrap())
                                             } else {
                                                 None
                                             },
@@ -719,19 +719,19 @@ impl NodeBuilder {
                                                 ),
                                                 Option::<Gc<NodeArray>>::None,
                                                 None,
-                                            ).into(),
+                                            ).wrap(),
                                             if flags.intersects(ElementFlags::Optional) {
-                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::QuestionToken).into())
+                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::QuestionToken).wrap())
                                             } else {
                                                 None
                                             },
                                             if flags.intersects(ElementFlags::Rest) {
-                                                factory_.create_array_type_node(synthetic_factory_, tuple_constituent_node).into()
+                                                factory_.create_array_type_node(synthetic_factory_, tuple_constituent_node).wrap()
                                             } else {
                                                 tuple_constituent_node
                                             },
                                         )
-                                        .into()
+                                        .wrap()
                                 })
                             });
                         }
@@ -752,12 +752,12 @@ impl NodeBuilder {
                                                             synthetic_factory_,
                                                             tuple_constituent_node,
                                                         )
-                                                        .into()
+                                                        .wrap()
                                                 } else {
                                                     tuple_constituent_node
                                                 },
                                             )
-                                            .into()
+                                            .wrap()
                                     })
                                 })
                             } else if flags.intersects(ElementFlags::Optional) {
@@ -768,7 +768,7 @@ impl NodeBuilder {
                                                 synthetic_factory_,
                                                 tuple_constituent_node,
                                             )
-                                            .into()
+                                            .wrap()
                                     })
                                 })
                             } else {
@@ -784,7 +784,7 @@ impl NodeBuilder {
                                         synthetic_factory_,
                                         Some(tuple_constituent_nodes),
                                     )
-                                    .into()
+                                    .wrap()
                             })
                         }),
                         EmitFlags::SingleLine,
@@ -798,7 +798,7 @@ impl NodeBuilder {
                                         SyntaxKind::ReadonlyKeyword,
                                         tuple_type_node,
                                     )
-                                    .into()
+                                    .wrap()
                             })
                         })
                     } else {
@@ -816,7 +816,7 @@ impl NodeBuilder {
                         factory.with(|factory_| {
                             factory_
                                 .create_tuple_type_node(synthetic_factory_, Some(vec![]))
-                                .into()
+                                .wrap()
                         })
                     }),
                     EmitFlags::SingleLine,
@@ -830,7 +830,7 @@ impl NodeBuilder {
                                     SyntaxKind::ReadonlyKeyword,
                                     tuple_type_node,
                                 )
-                                .into()
+                                .wrap()
                         })
                     })
                 } else {
@@ -967,7 +967,7 @@ impl NodeBuilder {
                         factory.with(|factory_| {
                             factory_
                                 .create_qualified_name(synthetic_factory_, qualifier, id)
-                                .into()
+                                .wrap()
                         })
                     })
                 } else {
@@ -1027,7 +1027,7 @@ impl NodeBuilder {
                     factory.with(|factory_| {
                         factory_
                             .create_qualified_name(synthetic_factory_, type_name, id)
-                            .into()
+                            .wrap()
                     })
                 });
             }
@@ -1075,7 +1075,7 @@ impl NodeBuilder {
                             None,
                             None,
                         )
-                        .into()
+                        .wrap()
                 })
             })]);
         }
@@ -1154,7 +1154,7 @@ impl NodeBuilder {
                                 None,
                                 None,
                             )
-                            .into()
+                            .wrap()
                     })
                 }));
                 self.add_property_to_element_list(
@@ -1184,15 +1184,17 @@ impl NodeBuilder {
                     factory_
                         .create_type_reference_node(
                             synthetic_factory_,
-                            Into::<Gc<Node>>::into(factory_.create_identifier(
-                                synthetic_factory_,
-                                "...",
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                            )),
+                            factory_
+                                .create_identifier(
+                                    synthetic_factory_,
+                                    "...",
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                )
+                                .wrap(),
                             Option::<Gc<NodeArray>>::None,
                         )
-                        .into()
+                        .wrap()
                 })
             });
         }
@@ -1201,7 +1203,7 @@ impl NodeBuilder {
                 Into::<KeywordTypeNode>::into(
                     factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword),
                 )
-                .into()
+                .wrap()
             })
         })
     }
@@ -1314,7 +1316,7 @@ impl NodeBuilder {
                         Some(
                             factory_
                                 .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                .into(),
+                                .wrap(),
                         )
                     })
                 })
@@ -1382,7 +1384,7 @@ impl NodeBuilder {
                                     synthetic_factory_,
                                     SyntaxKind::AnyKeyword,
                                 )
-                                .into()
+                                .wrap()
                         })
                     })
                 };
@@ -1402,7 +1404,7 @@ impl NodeBuilder {
                         factory.with(|factory_| {
                             factory_
                                 .create_token(synthetic_factory_, SyntaxKind::ReadonlyKeyword)
-                                .into()
+                                .wrap()
                         })
                     })])
                 } else {
@@ -1421,7 +1423,7 @@ impl NodeBuilder {
                             optional_token,
                             Some(property_type_node),
                         )
-                        .into()
+                        .wrap()
                 })
             });
 

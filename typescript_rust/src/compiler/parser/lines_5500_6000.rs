@@ -90,10 +90,10 @@ impl ParserType {
             | SyntaxKind::SuperKeyword
             | SyntaxKind::NullKeyword
             | SyntaxKind::TrueKeyword
-            | SyntaxKind::FalseKeyword => return self.parse_token_node().into(),
+            | SyntaxKind::FalseKeyword => return self.parse_token_node().wrap(),
             SyntaxKind::OpenParenToken => return self.parse_parenthesized_expression(),
-            SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().into(),
-            SyntaxKind::OpenBraceToken => return self.parse_object_literal_expression().into(),
+            SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().wrap(),
+            SyntaxKind::OpenBraceToken => return self.parse_object_literal_expression().wrap(),
             SyntaxKind::AsyncKeyword => {
                 if self.look_ahead_bool(|| self.next_token_is_function_keyword_on_same_line()) {
                     return self.parse_function_expression();
@@ -107,7 +107,7 @@ impl ParserType {
                     return self.parse_literal_node().wrap();
                 }
             }
-            SyntaxKind::TemplateHead => return self.parse_template_expression(false).into(),
+            SyntaxKind::TemplateHead => return self.parse_template_expression(false).wrap(),
             SyntaxKind::PrivateIdentifier => return self.parse_private_identifier().wrap(),
             _ => (),
         }
@@ -129,7 +129,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -154,7 +154,7 @@ impl ParserType {
                 self.get_node_pos(),
                 None,
             )
-            .into()
+            .wrap()
         } else {
             self.parse_assignment_expression_or_higher()
         }
@@ -199,7 +199,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .into(),
+                .wrap(),
                 has_jsdoc,
             );
         }
@@ -393,7 +393,7 @@ impl ParserType {
             type_,
             body,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node /*Identifier*/> {
@@ -496,7 +496,7 @@ impl ParserType {
                     pos,
                     None,
                 )
-                .into(),
+                .wrap(),
                 has_jsdoc,
             );
             if self.token() == SyntaxKind::EqualsToken {
@@ -509,7 +509,7 @@ impl ParserType {
             let statements = self.create_missing_list();
             self.with_jsdoc(
                 self.finish_node(self.factory.create_block(self, statements, None), pos, None)
-                    .into(),
+                    .wrap(),
                 has_jsdoc,
             )
         }
@@ -556,7 +556,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
         self.with_jsdoc(
             self.finish_node(self.factory.create_empty_statement(self), pos, None)
-                .into(),
+                .wrap(),
             has_jsdoc,
         )
     }
@@ -581,7 +581,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -604,7 +604,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -624,7 +624,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -642,7 +642,7 @@ impl ParserType {
                 self.token(),
                 SyntaxKind::VarKeyword | SyntaxKind::LetKeyword | SyntaxKind::ConstKeyword
             ) {
-                initializer = Some(self.parse_variable_declaration_list(true).into());
+                initializer = Some(self.parse_variable_declaration_list(true).wrap());
             } else {
                 initializer = Some(self.disallow_in_and(|| self.parse_expression()));
             }
@@ -757,7 +757,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -778,7 +778,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }

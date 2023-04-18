@@ -54,11 +54,11 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory
-                    .create_switch_statement(self, expression, case_block.into()),
+                    .create_switch_statement(self, expression, case_block.wrap()),
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -82,7 +82,7 @@ impl ParserType {
                     self.get_node_pos(),
                     None,
                 )
-                .into(),
+                .wrap(),
             );
         }
         let expression = expression.unwrap();
@@ -95,7 +95,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -107,7 +107,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::TryKeyword, None, None);
         let try_block: Gc<Node> = self.parse_block(false, None);
         let catch_clause: Option<Gc<Node>> = if self.token() == SyntaxKind::CatchKeyword {
-            Some(self.parse_catch_clause().into())
+            Some(self.parse_catch_clause().wrap())
         } else {
             None
         };
@@ -125,7 +125,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -158,7 +158,7 @@ impl ParserType {
         self.parse_semicolon();
         self.with_jsdoc(
             self.finish_node(self.factory.create_debugger_statement(self), pos, None)
-                .into(),
+                .wrap(),
             has_jsdoc,
         )
     }

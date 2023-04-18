@@ -76,7 +76,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     expression,
                     type_arguments,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -113,7 +113,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_as_expression(base_factory, expression, type_)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -151,7 +151,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_non_null_expression.expression, &expression) {
             self.update(
                 self.create_non_null_expression(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -190,7 +190,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         if !Gc::ptr_eq(&node_as_non_null_expression.expression, &expression) {
             self.update(
-                self.create_non_null_chain(base_factory, expression).into(),
+                self.create_non_null_chain(base_factory, expression).wrap(),
                 node,
             )
         } else {
@@ -231,7 +231,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_meta_property.name, &name) {
             self.update(
                 self.create_meta_property(base_factory, node_as_meta_property.keyword_token, name)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -268,7 +268,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_template_span(base_factory, expression, literal)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -313,7 +313,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if has_node_array_changed(&node_as_block.statements, &statements) {
             self.update(
                 self.create_block(base_factory, statements, node_as_block.multi_line)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -339,10 +339,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 RcNodeOrNodeArrayOrVec::RcNode(declaration_list) => declaration_list,
                 RcNodeOrNodeArrayOrVec::NodeArray(declaration_list) => self
                     .create_variable_declaration_list(base_factory, declaration_list, None)
-                    .into(),
+                    .wrap(),
                 RcNodeOrNodeArrayOrVec::Vec(declaration_list) => self
                     .create_variable_declaration_list(base_factory, declaration_list, None)
-                    .into(),
+                    .wrap(),
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list)));
@@ -371,7 +371,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_variable_statement(base_factory, modifiers, declaration_list)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -409,7 +409,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_expression_statement.expression, &expression) {
             self.update(
                 self.create_expression_statement(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -457,7 +457,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_if_statement(base_factory, expression, then_statement, else_statement)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -497,7 +497,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_do_statement(base_factory, statement, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -537,7 +537,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_while_statement(base_factory, expression, statement)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -598,7 +598,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     incrementor,
                     statement,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -643,7 +643,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_for_in_statement(base_factory, initializer, expression, statement)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -707,7 +707,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     expression,
                     statement,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -738,7 +738,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_continue_statement = node.as_continue_statement();
         if !are_option_gcs_equal(node_as_continue_statement.label.as_ref(), label.as_ref()) {
             self.update(
-                self.create_continue_statement(base_factory, label).into(),
+                self.create_continue_statement(base_factory, label).wrap(),
                 node,
             )
         } else {
@@ -769,7 +769,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_break_statement = node.as_break_statement();
         if !are_option_gcs_equal(node_as_break_statement.label.as_ref(), label.as_ref()) {
             self.update(
-                self.create_break_statement(base_factory, label).into(),
+                self.create_break_statement(base_factory, label).wrap(),
                 node,
             )
         } else {
@@ -805,7 +805,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         ) {
             self.update(
                 self.create_return_statement(base_factory, expression)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -845,7 +845,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_with_statement(base_factory, expression, statement)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -886,7 +886,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_switch_statement(base_factory, expression, case_block)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -926,7 +926,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_labeled_statement(base_factory, label, statement)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -954,7 +954,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_throw_statement = node.as_throw_statement();
         if !Gc::ptr_eq(&node_as_throw_statement.expression, &expression) {
             self.update(
-                self.create_throw_statement(base_factory, expression).into(),
+                self.create_throw_statement(base_factory, expression).wrap(),
                 node,
             )
         } else {
@@ -1000,7 +1000,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_try_statement(base_factory, try_block, catch_clause, finally_block)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1073,7 +1073,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_,
                     initializer,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1122,7 +1122,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     declarations,
                     Some(node.flags()),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1245,7 +1245,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_,
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1350,7 +1350,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     heritage_clauses,
                     members,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1426,7 +1426,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     heritage_clauses,
                     members,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1493,7 +1493,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_parameters,
                     type_,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1549,7 +1549,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_enum_declaration(base_factory, decorators, modifiers, name, members)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1624,7 +1624,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     body,
                     Some(node.flags()),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1654,7 +1654,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if has_node_array_changed(&node_as_module_block.statements, &statements) {
             self.update(
                 self.create_module_block(base_factory, Some(statements))
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {
@@ -1765,7 +1765,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     name,
                     module_reference,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1833,7 +1833,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     module_specifier,
                     assert_clause,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1881,7 +1881,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_import_clause(base_factory, is_type_only, name, named_bindings)
-                    .into(),
+                    .wrap(),
                 node,
             )
         } else {

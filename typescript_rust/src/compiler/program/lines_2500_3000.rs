@@ -245,7 +245,7 @@ impl Program {
         });
         self.source_files_found_searching_node_modules_mut()
             .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
-        let redirect: Gc<Node> = redirect.into();
+        let redirect = redirect.wrap();
         redirect.set_id_override(Gc::new(Box::new(RedirectSourceFileIdOverride::new(
             redirect.clone(),
         ))));

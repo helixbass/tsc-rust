@@ -172,7 +172,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBa
         ) {
             self.factory
                 .create_parenthesized_expression(base_node_factory, operand.node_wrapper())
-                .into()
+                .wrap()
         } else {
             operand.node_wrapper()
         }
@@ -193,7 +193,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBa
         {
             self.factory
                 .create_parenthesized_type(base_node_factory, node.node_wrapper())
-                .into()
+                .wrap()
         } else {
             node.node_wrapper()
         }
@@ -242,7 +242,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         if is_comma_sequence(expression) {
             self.factory
                 .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
-                .into()
+                .wrap()
         } else {
             expression.node_wrapper()
         }
@@ -266,7 +266,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             return self
                 .factory
                 .create_parenthesized_expression(base_node_factory, condition.node_wrapper())
-                .into();
+                .wrap();
         }
         condition.node_wrapper()
     }
@@ -280,7 +280,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         if is_comma_sequence(&emitted_expression) {
             self.factory
                 .create_parenthesized_expression(base_node_factory, branch.node_wrapper())
-                .into()
+                .wrap()
         } else {
             branch.node_wrapper()
         }
@@ -304,7 +304,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         if needs_parens {
             self.factory
                 .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
-                .into()
+                .wrap()
         } else {
             expression.node_wrapper()
         }
@@ -321,7 +321,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
                 return self
                     .factory
                     .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
-                    .into();
+                    .wrap();
             }
 
             SyntaxKind::NewExpression => {
@@ -331,7 +331,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
                             base_node_factory,
                             expression.node_wrapper(),
                         )
-                        .into()
+                        .wrap()
                 } else {
                     expression.node_wrapper()
                 };
@@ -356,10 +356,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         }
 
         set_text_range(
-            &*Into::<Gc<Node>>::into(
-                self.factory
-                    .create_parenthesized_expression(base_node_factory, expression.node_wrapper()),
-            ),
+            &*self
+                .factory
+                .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
+                .wrap(),
             Some(expression),
         )
         .node_wrapper()
@@ -374,10 +374,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             operand.node_wrapper()
         } else {
             set_text_range(
-                &*Into::<Gc<Node>>::into(
-                    self.factory
-                        .create_parenthesized_expression(base_node_factory, operand.node_wrapper()),
-                ),
+                &*self
+                    .factory
+                    .create_parenthesized_expression(base_node_factory, operand.node_wrapper())
+                    .wrap(),
                 Some(operand),
             )
             .node_wrapper()
@@ -393,10 +393,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             operand.node_wrapper()
         } else {
             set_text_range(
-                &*Into::<Gc<Node>>::into(
-                    self.factory
-                        .create_parenthesized_expression(base_node_factory, operand.node_wrapper()),
-                ),
+                &*self
+                    .factory
+                    .create_parenthesized_expression(base_node_factory, operand.node_wrapper())
+                    .wrap(),
                 Some(operand),
             )
             .node_wrapper()
@@ -447,12 +447,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             expression.node_wrapper()
         } else {
             set_text_range(
-                &*Into::<Gc<Node>>::into(
-                    self.factory.create_parenthesized_expression(
-                        base_node_factory,
-                        expression.node_wrapper(),
-                    ),
-                ),
+                &*self
+                    .factory
+                    .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
+                    .wrap(),
                 Some(expression),
             )
             .node_wrapper()
@@ -482,7 +480,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
                                 base_node_factory,
                                 callee.node_wrapper(),
                             )
-                            .into(),
+                            .wrap(),
                         Some(&**callee),
                     ),
                     emitted_expression_as_call_expression.maybe_type_arguments(),
@@ -502,12 +500,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             SyntaxKind::ObjectLiteralExpression | SyntaxKind::FunctionExpression
         ) {
             return set_text_range(
-                &*Into::<Gc<Node>>::into(
-                    self.factory.create_parenthesized_expression(
-                        base_node_factory,
-                        expression.node_wrapper(),
-                    ),
-                ),
+                &*self
+                    .factory
+                    .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
+                    .wrap(),
                 Some(expression),
             )
             .node_wrapper();
@@ -527,10 +523,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
                     == SyntaxKind::ObjectLiteralExpression)
         {
             return set_text_range(
-                &*Into::<Gc<Node>>::into(
-                    self.factory
-                        .create_parenthesized_expression(base_node_factory, body.node_wrapper()),
-                ),
+                &*self
+                    .factory
+                    .create_parenthesized_expression(base_node_factory, body.node_wrapper())
+                    .wrap(),
                 Some(body),
             )
             .node_wrapper();
@@ -547,7 +543,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         if member.kind() == SyntaxKind::ConditionalType {
             self.factory
                 .create_parenthesized_type(base_node_factory, member.node_wrapper())
-                .into()
+                .wrap()
         } else {
             member.node_wrapper()
         }
@@ -565,7 +561,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             | SyntaxKind::ConstructorType => self
                 .factory
                 .create_parenthesized_type(base_node_factory, member.node_wrapper())
-                .into(),
+                .wrap(),
             _ => self.parenthesize_member_of_conditional_type(base_node_factory, member),
         }
     }
@@ -579,7 +575,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
                 .factory
                 .create_parenthesized_type(base_node_factory, member.node_wrapper())
-                .into(),
+                .wrap(),
             _ => self.parenthesize_member_of_element_type(base_node_factory, member),
         }
     }

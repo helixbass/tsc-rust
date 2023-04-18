@@ -59,9 +59,25 @@ fn get_ast_struct_interface_impl(
     interface_name: &str,
     first_field_name: &Ident,
     ast_type_name: &Ident,
+    should_impl_from: bool,
 ) -> TokenStream2 {
     match interface_name {
         "NodeInterface" => {
+            let wrap = if should_impl_from {
+                quote! {
+                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                        let rc = ::gc::Gc::new(Into::<crate::Node>::into(self));
+                        crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
+                        rc
+                    }
+                }
+            } else {
+                quote! {
+                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                        unreachable!()
+                    }
+                }
+            };
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn node_wrapper(&self) -> ::gc::Gc<crate::Node> {
@@ -71,6 +87,8 @@ fn get_ast_struct_interface_impl(
                     fn set_node_wrapper(&self, wrapper: ::gc::Gc<crate::Node>) {
                         self.#first_field_name.set_node_wrapper(wrapper)
                     }
+
+                    #wrap
 
                     fn kind(&self) -> crate::SyntaxKind {
                         self.#first_field_name.kind()
@@ -499,9 +517,25 @@ fn get_ast_enum_interface_impl(
     interface_name: &str,
     variant_names: &[&Ident],
     ast_type_name: &Ident,
+    should_impl_from: bool,
 ) -> TokenStream2 {
     match interface_name {
         "NodeInterface" => {
+            let wrap = if should_impl_from {
+                quote! {
+                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                        let rc = ::gc::Gc::new(Into::<crate::Node>::into(self));
+                        crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
+                        rc
+                    }
+                }
+            } else {
+                quote! {
+                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                        unreachable!()
+                    }
+                }
+            };
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn node_wrapper(&self) -> ::gc::Gc<crate::Node> {
@@ -515,6 +549,8 @@ fn get_ast_enum_interface_impl(
                             #(#ast_type_name::#variant_names(nested) => nested.set_node_wrapper(wrapper)),*
                         }
                     }
+
+                    #wrap
 
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
@@ -1110,8 +1146,12 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             let mut interface_impls: TokenStream2 = quote! {};
             for interface in args.interfaces_vec() {
-                let interface_impl =
-                    get_ast_struct_interface_impl(&interface, &first_field_name, &ast_type_name);
+                let interface_impl = get_ast_struct_interface_impl(
+                    &interface,
+                    &first_field_name,
+                    &ast_type_name,
+                    args.should_impl_from(),
+                );
                 interface_impls = quote! {
                     #interface_impls
 
@@ -1129,8 +1169,12 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             let mut interface_impls: TokenStream2 = quote! {};
             for interface in args.interfaces_vec() {
-                let interface_impl =
-                    get_ast_enum_interface_impl(&interface, &variant_names, &ast_type_name);
+                let interface_impl = get_ast_enum_interface_impl(
+                    &interface,
+                    &variant_names,
+                    &ast_type_name,
+                    args.should_impl_from(),
+                );
                 interface_impls = quote! {
                     #interface_impls
 
@@ -1168,14 +1212,6 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         quote! {
             #into_implementations
-
-            impl ::std::convert::From<#ast_type_name> for ::gc::Gc<crate::Node> {
-                fn from(concrete: #ast_type_name) -> Self {
-                    let rc = ::gc::Gc::new(#construct_variant);
-                    crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
-                    rc
-                }
-            }
         }
     } else {
         quote! {}

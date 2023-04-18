@@ -173,7 +173,7 @@ impl TransformES2016 {
                                         expression_temp.clone(),
                                         left_as_element_access_expression.expression.clone(),
                                     )
-                                    .into(),
+                                    .wrap(),
                                 Some(&*left_as_element_access_expression.expression),
                             ),
                             set_text_range_rc_node(
@@ -185,11 +185,11 @@ impl TransformES2016 {
                                             .argument_expression
                                             .clone(),
                                     )
-                                    .into(),
+                                    .wrap(),
                                 Some(&*left_as_element_access_expression.argument_expression),
                             ),
                         )
-                        .into()
+                        .wrap()
                 }),
                 Some(&**left),
             );
@@ -201,7 +201,7 @@ impl TransformES2016 {
                             expression_temp,
                             argument_expression_temp,
                         )
-                        .into()
+                        .wrap()
                 }),
                 Some(&**left),
             );
@@ -224,12 +224,12 @@ impl TransformES2016 {
                                         expression_temp.clone(),
                                         left_as_property_access_expression.expression.clone(),
                                     )
-                                    .into(),
+                                    .wrap(),
                                 Some(&*left_as_property_access_expression.expression),
                             ),
                             left_as_property_access_expression.name.clone(),
                         )
-                        .into()
+                        .wrap()
                 }),
                 Some(&**left),
             );
@@ -241,7 +241,7 @@ impl TransformES2016 {
                             expression_temp,
                             left_as_property_access_expression.name.clone(),
                         )
-                        .into()
+                        .wrap()
                 }),
                 Some(&**left),
             );
@@ -265,7 +265,7 @@ impl TransformES2016 {
                             Some(node),
                         ),
                     )
-                    .into()
+                    .wrap()
             }),
             Some(node),
         )

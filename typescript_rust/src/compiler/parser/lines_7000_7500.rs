@@ -96,7 +96,7 @@ impl ParserType {
     pub(super) fn parse_heritage_clauses(&self) -> Option<Gc<NodeArray> /*<HeritageClause>*/> {
         if self.is_heritage_clause() {
             return Some(self.parse_list(ParsingContext::HeritageClauses, &mut || {
-                self.parse_heritage_clause().into()
+                self.parse_heritage_clause().wrap()
             }));
         }
 
@@ -116,7 +116,7 @@ impl ParserType {
         self.next_token();
         let types = self.parse_delimited_list(
             ParsingContext::HeritageClauseElement,
-            || self.parse_expression_with_type_arguments().into(),
+            || self.parse_expression_with_type_arguments().wrap(),
             None,
         );
         self.finish_node(
@@ -185,7 +185,7 @@ impl ParserType {
             heritage_clauses,
             members,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_type_alias_declaration(
@@ -214,7 +214,7 @@ impl ParserType {
             type_parameters,
             type_,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_enum_member(&self) -> Gc<Node /*EnumMember*/> {
@@ -228,7 +228,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -258,7 +258,7 @@ impl ParserType {
         let node =
             self.factory
                 .create_enum_declaration(self, decorators, modifiers, name, Some(members));
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_module_block(&self) -> ModuleBlock {
@@ -298,7 +298,7 @@ impl ParserType {
                 NodeFlags::NestedNamespace | namespace_flag,
             )
         } else {
-            self.parse_module_block().into()
+            self.parse_module_block().wrap()
         };
         let node = self.factory.create_module_declaration(
             self,
@@ -308,7 +308,7 @@ impl ParserType {
             Some(body),
             Some(flags),
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_ambient_external_module_declaration(
@@ -331,7 +331,7 @@ impl ParserType {
         }
         let mut body: Option<Gc<Node>> = None;
         if self.token() == SyntaxKind::OpenBraceToken {
-            body = Some(self.parse_module_block().into());
+            body = Some(self.parse_module_block().wrap());
         } else {
             self.parse_semicolon();
         }
@@ -343,7 +343,7 @@ impl ParserType {
             body,
             Some(flags),
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_module_declaration(
@@ -401,7 +401,7 @@ impl ParserType {
         let node = self.factory.create_namespace_export_declaration(self, name);
         node.set_decorators(decorators);
         node.set_modifiers(modifiers);
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_import_declaration_or_import_equals_declaration(
@@ -456,7 +456,7 @@ impl ParserType {
         {
             import_clause = Some(
                 self.parse_import_clause(identifier, after_import_pos, is_type_only)
-                    .into(),
+                    .wrap(),
             );
             self.parse_expected(SyntaxKind::FromKeyword, None, None);
         }
@@ -464,7 +464,7 @@ impl ParserType {
 
         let mut assert_clause: Option<Gc<Node>> = None;
         if self.token() == SyntaxKind::AssertKeyword && !self.scanner().has_preceding_line_break() {
-            assert_clause = Some(self.parse_assert_clause().into());
+            assert_clause = Some(self.parse_assert_clause().wrap());
         }
 
         self.parse_semicolon();
@@ -476,7 +476,7 @@ impl ParserType {
             module_specifier,
             assert_clause,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_assert_entry(&self) -> AssertEntry {
@@ -506,7 +506,7 @@ impl ParserType {
             let multi_line = self.scanner().has_preceding_line_break();
             let elements = self.parse_delimited_list(
                 ParsingContext::AssertEntries,
-                || self.parse_assert_entry().into(),
+                || self.parse_assert_entry().wrap(),
                 Some(true),
             );
             if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
@@ -583,7 +583,7 @@ impl ParserType {
             identifier,
             module_reference,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_import_clause(
@@ -595,7 +595,7 @@ impl ParserType {
         let mut named_bindings: Option<Gc<Node>> = None;
         if identifier.is_none() || self.parse_optional(SyntaxKind::CommaToken) {
             named_bindings = if self.token() == SyntaxKind::AsteriskToken {
-                Some(self.parse_namespace_import().into())
+                Some(self.parse_namespace_import().wrap())
             } else {
                 Some(
                     self.parse_named_imports_or_exports(SyntaxKind::NamedImports)
@@ -793,7 +793,7 @@ impl ParserType {
         let namespace_export_pos = self.get_node_pos();
         if self.parse_optional(SyntaxKind::AsteriskToken) {
             if self.parse_optional(SyntaxKind::AsKeyword) {
-                export_clause = Some(self.parse_namespace_export(namespace_export_pos).into());
+                export_clause = Some(self.parse_namespace_export(namespace_export_pos).wrap());
             }
             self.parse_expected(SyntaxKind::FromKeyword, None, None);
             module_specifier = Some(self.parse_module_specifier());
@@ -814,7 +814,7 @@ impl ParserType {
             && self.token() == SyntaxKind::AssertKeyword
             && !self.scanner().has_preceding_line_break()
         {
-            assert_clause = Some(self.parse_assert_clause().into());
+            assert_clause = Some(self.parse_assert_clause().wrap());
         }
         self.parse_semicolon();
         self.set_await_context(saved_await_context);
@@ -827,6 +827,6 @@ impl ParserType {
             module_specifier,
             assert_clause,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 }

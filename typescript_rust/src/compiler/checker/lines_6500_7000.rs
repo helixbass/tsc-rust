@@ -330,18 +330,18 @@ impl SymbolTableToDeclarationStatements {
                                                                     |e: &Gc<Node>, _| self.get_names_of_declaration(e)
                                                                 ),
                                                                 |id: Gc<Node>, _| {
-                                                                    Gc::<Node>::from(factory_.create_export_specifier(
+                                                                    factory_.create_export_specifier(
                                                                         synthetic_factory_,
                                                                         false,
                                                                         Option::<Gc<Node>>::None,
                                                                         id,
-                                                                    ))
+                                                                    ).wrap()
                                                                 }
                                                             )
-                                                        ).into()),
+                                                        ).wrap()),
                                                         None,
                                                         None,
-                                                    ).into()
+                                                    ).wrap()
                                                 );
                                                 arg
                                             }),
@@ -444,12 +444,12 @@ impl SymbolTableToDeclarationStatements {
                                                 .to_vec()
                                             }),
                                         )
-                                        .into(),
+                                        .wrap(),
                                 ),
                                 None,
                                 None,
                             )
-                            .into()
+                            .wrap()
                     },
                 ));
                 statements
@@ -533,7 +533,7 @@ impl SymbolTableToDeclarationStatements {
                                                             },
                                                         ),
                                                     )
-                                                    .into(),
+                                                    .wrap(),
                                             ),
                                             group[0]
                                                 .as_export_declaration()
@@ -541,7 +541,7 @@ impl SymbolTableToDeclarationStatements {
                                                 .clone(),
                                             None,
                                         )
-                                        .into()
+                                        .wrap()
                                 },
                             ));
                             statements
@@ -923,7 +923,6 @@ impl SymbolTableToDeclarationStatements {
                         };
                         self.add_result(
                             &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                Gc::<Node>::from(
                                     factory_.create_export_declaration(
                                         synthetic_factory_,
                                         Option::<Gc<NodeArray>>::None,
@@ -937,12 +936,11 @@ impl SymbolTableToDeclarationStatements {
                                                     false,
                                                     alias,
                                                     &*local_name,
-                                                ).into()
+                                                ).wrap()
                                             ]
-                                        ).into()),
+                                        ).wrap()),
                                         None, None,
-                                    )
-                                )
+                                    ).wrap()
                             }),
                             ModifierFlags::None
                         );
@@ -957,7 +955,6 @@ impl SymbolTableToDeclarationStatements {
                                 factory_.create_variable_statement(
                                     synthetic_factory_,
                                     Option::<Gc<NodeArray>>::None,
-                                    Gc::<Node>::from(
                                         factory_.create_variable_declaration_list(
                                             synthetic_factory_,
                                             vec![
@@ -974,12 +971,11 @@ impl SymbolTableToDeclarationStatements {
                                                         self.bundled,
                                                     )),
                                                     None,
-                                                ).into()
+                                                ).wrap()
                                             ],
                                             flags,
-                                        )
-                                    )
-                                ).into()
+                                        ).wrap()
+                                ).wrap()
                             }),
                             text_range.as_deref(),
                         );
@@ -993,7 +989,7 @@ impl SymbolTableToDeclarationStatements {
                         );
                         if name != local_name && !is_private {
                             self.add_result(
-                                &Gc::<Node>::from(
+                                &
                                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                                         factory_.create_export_declaration(
                                             synthetic_factory_,
@@ -1008,13 +1004,12 @@ impl SymbolTableToDeclarationStatements {
                                                         false,
                                                         Some(&*name),
                                                         &*local_name,
-                                                    ).into()
+                                                    ).wrap()
                                                 ]
-                                            ).into()),
+                                            ).wrap()),
                                             None, None,
-                                        )
-                                    })
-                                ),
+                                        ).wrap()
+                                    }),
                                 ModifierFlags::None,
                             );
                             needs_export_declaration = false;
@@ -1090,8 +1085,8 @@ impl SymbolTableToDeclarationStatements {
                     let ref resolved_module = resolved_module.unwrap();
                     self.add_result(
                         &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            Gc::<Node>::from(
-                                factory_.create_export_declaration(
+                            factory_
+                                .create_export_declaration(
                                     synthetic_factory_,
                                     Option::<Gc<NodeArray>>::None,
                                     Option::<Gc<NodeArray>>::None,
@@ -1108,11 +1103,11 @@ impl SymbolTableToDeclarationStatements {
                                                 None,
                                                 None,
                                             )
-                                            .into(),
+                                            .wrap(),
                                     ),
                                     None,
-                                ),
-                            )
+                                )
+                                .wrap()
                         }),
                         ModifierFlags::None,
                     );
@@ -1122,8 +1117,8 @@ impl SymbolTableToDeclarationStatements {
         if needs_post_export_default {
             self.add_result(
                 &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                    Gc::<Node>::from(
-                        factory_.create_export_assignment(
+                    factory_
+                        .create_export_assignment(
                             synthetic_factory_,
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
@@ -1135,17 +1130,17 @@ impl SymbolTableToDeclarationStatements {
                                     Option::<Gc<NodeArray>>::None,
                                     None,
                                 )
-                                .into(),
-                        ),
-                    )
+                                .wrap(),
+                        )
+                        .wrap()
                 }),
                 ModifierFlags::None,
             );
         } else if needs_export_declaration {
             self.add_result(
                 &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                    Gc::<Node>::from(
-                        factory_.create_export_declaration(
+                    factory_
+                        .create_export_declaration(
                             synthetic_factory_,
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
@@ -1166,14 +1161,14 @@ impl SymbolTableToDeclarationStatements {
                                                 ),
                                                 symbol_name,
                                             )
-                                            .into()],
+                                            .wrap()],
                                     )
-                                    .into(),
+                                    .wrap(),
                             ),
                             None,
                             None,
-                        ),
-                    )
+                        )
+                        .wrap()
                 }),
                 ModifierFlags::None,
             );
@@ -1424,7 +1419,7 @@ impl MakeSerializePropertySymbolCreateProperty
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
                 .create_property_signature(synthetic_factory_, mods, name, question, type_)
-                .into()
+                .wrap()
         })
     }
 }

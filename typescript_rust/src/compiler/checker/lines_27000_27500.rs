@@ -457,7 +457,7 @@ impl TypeChecker {
                                         None,
                                         None,
                                     )
-                                    .into()
+                                    .wrap()
                             })
                         },
                     ));

@@ -44,12 +44,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         let return_statement = self
             .factory
             .create_return_statement(base_factory, Some(node.node_wrapper()));
-        let return_statement =
-            set_text_range(&*Into::<Gc<Node>>::into(return_statement), Some(node)).node_wrapper();
+        let return_statement = set_text_range(&*return_statement.wrap(), Some(node)).node_wrapper();
         let body = self
             .factory
             .create_block(base_factory, vec![return_statement], multi_line);
-        let body = set_text_range(&*Into::<Gc<Node>>::into(body), Some(node)).node_wrapper();
+        let body = set_text_range(&*body.wrap(), Some(node)).node_wrapper();
         body
     }
 
@@ -62,7 +61,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         if node_as_function_declaration.maybe_body().is_none() {
             Debug_.fail(Some("Cannot convert a FunctionDeclaration without a body"));
         }
-        let updated: Gc<Node> = self
+        let updated = self
             .factory
             .create_function_expression(
                 base_factory,
@@ -80,7 +79,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 node_as_function_declaration.maybe_type(),
                 node_as_function_declaration.maybe_body().unwrap(),
             )
-            .into();
+            .wrap();
         set_original_node(updated.clone(), Some(node.node_wrapper()));
         let updated = set_text_range(&*updated, Some(node)).node_wrapper();
         if get_starts_on_new_line(node) == Some(true) {
@@ -105,8 +104,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 let ret = self
                     .factory
                     .create_spread_element(base_factory, element_as_binding_element.name());
-                let ret =
-                    set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
+                let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
             }
@@ -121,8 +119,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                         expression,
                         element_initializer,
                     );
-                    let ret =
-                        set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
+                    let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                     set_original_node(ret.clone(), Some(element.node_wrapper()));
                     return ret;
                 }
@@ -148,8 +145,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 let ret = self
                     .factory
                     .create_spread_assignment(base_factory, element_as_binding_element.name());
-                let ret =
-                    set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
+                let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
             }
@@ -165,12 +161,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                         Some(initializer) => self
                             .factory
                             .create_assignment(base_factory, expression, initializer)
-                            .into(),
+                            .wrap(),
                         None => expression,
                     },
                 );
-                let ret =
-                    set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
+                let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
             }
@@ -184,7 +179,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 element_as_binding_element.name(),
                 element_as_binding_element.maybe_initializer(),
             );
-            let ret = set_text_range(&*Into::<Gc<Node>>::into(ret), Some(element)).node_wrapper();
+            let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
             set_original_node(ret.clone(), Some(element.node_wrapper()));
             return ret;
         }
@@ -225,7 +220,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 )),
                 None,
             );
-            let ret = set_text_range(&*Into::<Gc<Node>>::into(ret), Some(node)).node_wrapper();
+            let ret = set_text_range(&*ret.wrap(), Some(node)).node_wrapper();
             set_original_node(ret.clone(), Some(node.node_wrapper()));
             return ret;
         }
@@ -247,7 +242,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 )),
                 None,
             );
-            let ret = set_text_range(&*Into::<Gc<Node>>::into(ret), Some(node)).node_wrapper();
+            let ret = set_text_range(&*ret.wrap(), Some(node)).node_wrapper();
             set_original_node(ret.clone(), Some(node.node_wrapper()));
             return ret;
         }

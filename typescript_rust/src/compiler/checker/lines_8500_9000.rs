@@ -625,18 +625,20 @@ impl TypeChecker {
                                             Option::<Gc<NodeArray>>::None,
                                             None,
                                         )
-                                        .into(),
-                                    Into::<Gc<Node>>::into(factory_.create_identifier(
-                                        synthetic_factory_,
-                                        "exports",
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )),
+                                        .wrap(),
+                                    factory_
+                                        .create_identifier(
+                                            synthetic_factory_,
+                                            "exports",
+                                            Option::<Gc<NodeArray>>::None,
+                                            None,
+                                        )
+                                        .wrap(),
                                 )
-                                .into(),
+                                .wrap(),
                             access_name,
                         )
-                        .into()
+                        .wrap()
                 })
             })
         } else {
@@ -652,10 +654,10 @@ impl TypeChecker {
                                     Option::<Gc<NodeArray>>::None,
                                     None,
                                 )
-                                .into(),
+                                .wrap(),
                             access_name,
                         )
-                        .into()
+                        .wrap()
                 })
             })
         };
@@ -691,26 +693,28 @@ impl TypeChecker {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
             synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
-                    Into::<Gc<Node>>::into(factory_.create_private_identifier(
-                        synthetic_factory_,
-                        (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
-                    ))
-                    .into()
+                    factory_
+                        .create_private_identifier(
+                            synthetic_factory_,
+                            (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
+                        )
+                        .wrap()
+                        .into()
                 })
             })
         } else {
             unescape_leading_underscores(symbol.escaped_name()).into()
         };
         for static_block in static_blocks {
-            let reference: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
+            let reference = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_
                         .create_property_access_expression(
                             synthetic_factory_,
-                            factory_.create_this(synthetic_factory_).into(),
+                            factory_.create_this(synthetic_factory_).wrap(),
                             access_name.clone(),
                         )
-                        .into()
+                        .wrap()
                 })
             });
             set_parent(
@@ -753,25 +757,27 @@ impl TypeChecker {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
             synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
-                    Into::<Gc<Node>>::into(factory_.create_private_identifier(
-                        synthetic_factory_,
-                        (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
-                    ))
-                    .into()
+                    factory_
+                        .create_private_identifier(
+                            synthetic_factory_,
+                            (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
+                        )
+                        .wrap()
+                        .into()
                 })
             })
         } else {
             unescape_leading_underscores(symbol.escaped_name()).into()
         };
-        let reference: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
+        let reference = synthetic_factory.with(|synthetic_factory_| {
             factory.with(|factory_| {
                 factory_
                     .create_property_access_expression(
                         synthetic_factory_,
-                        factory_.create_this(synthetic_factory_).into(),
+                        factory_.create_this(synthetic_factory_).wrap(),
                         access_name,
                     )
-                    .into()
+                    .wrap()
             })
         });
         set_parent(
