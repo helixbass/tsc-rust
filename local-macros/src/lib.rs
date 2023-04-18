@@ -21,7 +21,7 @@ struct AstTypeArgs {
 }
 
 impl AstTypeArgs {
-    fn ancestors_vec(&self) -> Vec<String> {
+    fn ancestors_vec(&self, ast_type_name: &Ident) -> Vec<String> {
         let mut vec = self.ancestors.as_ref().map_or_else(
             || vec![],
             |ancestors_str| {
@@ -32,7 +32,9 @@ impl AstTypeArgs {
                     .collect()
             },
         );
-        vec.push("Node".to_string());
+        if ast_type_name.to_string() != "Node" {
+            vec.push("Node".to_string());
+        }
         vec
     }
 
@@ -1193,7 +1195,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         };
         let mut previous_variant_name = ast_type_name.clone();
         let mut into_implementations = quote! {};
-        for ancestor in args.ancestors_vec() {
+        for ancestor in args.ancestors_vec(&ast_type_name) {
             let ancestor_ident = Ident::new(&ancestor, previous_variant_name.span());
             construct_variant = quote! {
                 crate::#ancestor_ident::#previous_variant_name(#construct_variant)

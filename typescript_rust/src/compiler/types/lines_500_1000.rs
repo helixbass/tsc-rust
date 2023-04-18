@@ -240,7 +240,7 @@ pub trait NodeSymbolOverride: fmt::Debug + Trace + Finalize {
 }
 
 #[derive(Debug, Finalize, Trace)]
-#[ast_type(impl_from = false)]
+#[ast_type]
 pub enum Node {
     BaseNode(BaseNode),
     TypeParameterDeclaration(TypeParameterDeclaration),
