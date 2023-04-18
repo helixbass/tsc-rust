@@ -10,17 +10,18 @@ use crate::{
     add_emit_helpers, add_range, chain_bundle, create_for_of_binding_statement,
     flatten_destructuring_assignment, flatten_destructuring_binding, get_emit_script_target,
     has_syntactic_modifier, is_binding_pattern, is_block, is_destructuring_assignment,
-    is_effective_strict_mode_source_file, is_identifier, is_object_literal_element_like,
-    is_property_access_expression, is_variable_declaration_list,
-    process_tagged_template_expression, set_original_node, set_text_range_node_array,
-    set_text_range_rc_node, skip_parentheses, unwrap_innermost_statement_of_label,
-    visit_each_child, visit_iteration_body, visit_node, with_synthetic_factory,
-    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitResolver, FlattenLevel, FunctionFlags, HasInitializerInterface, HasStatementsInterface,
-    Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt,
-    NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeFactory, NodeFlags, NodeInterface, ProcessLevel,
-    ReadonlyTextRangeConcrete, ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
-    VecExt, VisitResult, With,
+    is_effective_strict_mode_source_file, is_identifier, is_modifier,
+    is_object_literal_element_like, is_property_access_expression, is_property_name, is_token,
+    is_variable_declaration_list, process_tagged_template_expression, set_original_node,
+    set_text_range_node_array, set_text_range_rc_node, skip_parentheses,
+    unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body, visit_node,
+    visit_nodes, visit_parameter_list, with_synthetic_factory, BaseNodeFactorySynthetic,
+    CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel,
+    FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    HasStatementsInterface, Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeFactory, NodeFlags, NodeInterface,
+    ProcessLevel, ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface,
+    SyntaxKind, TransformFlags, TransformationContext, VecExt, VisitResult, With,
 };
 
 bitflags! {
@@ -2039,43 +2040,445 @@ impl TransformES2018 {
         &self,
         node: &Node, /*ParameterDeclaration*/
     ) -> Gc<Node /*ParameterDeclaration*/> {
-        unimplemented!()
+        let node_as_parameter_declaration = node.as_parameter_declaration();
+        if node
+            .transform_flags()
+            .intersects(TransformFlags::ContainsObjectRestOrSpread)
+        {
+            return self.factory.update_parameter_declaration(
+                &self.base_factory,
+                node,
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                node_as_parameter_declaration.dot_dot_dot_token.clone(),
+                Some(self.factory.get_generated_name_for_node(
+                    &self.base_factory,
+                    Some(node),
+                    None,
+                )),
+                None,
+                None,
+                visit_node(
+                    node_as_parameter_declaration.maybe_initializer(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                ),
+            );
+        }
+        visit_each_child(
+            Some(node),
+            |node: &Node| self.visitor(node),
+            &**self.context,
+            Option::<
+                fn(
+                    Option<&NodeArray>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<usize>,
+                    Option<usize>,
+                ) -> Option<Gc<NodeArray>>,
+            >::None,
+            Option::<fn(&Node) -> VisitResult>::None,
+            Option::<
+                fn(
+                    Option<&Node>,
+                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                    Option<&dyn Fn(&Node) -> bool>,
+                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                ) -> Option<Gc<Node>>,
+            >::None,
+        )
+        .unwrap()
     }
 
     fn visit_constructor_declaration(
         &self,
         node: &Node, /*ConstructorDeclaration*/
     ) -> VisitResult {
-        unimplemented!()
+        let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
+        self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
+        let updated = self.factory.update_constructor_declaration(
+            &self.base_factory,
+            node,
+            Option::<Gc<NodeArray>>::None,
+            node.maybe_modifiers(),
+            visit_parameter_list(
+                Some(&node.as_constructor_declaration().parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            Some(self.transform_function_body(node)),
+        );
+        self.set_enclosing_function_flags(saved_enclosing_function_flags);
+        Some(updated.into())
     }
 
     fn visit_get_accessor_declaration(
         &self,
         node: &Node, /*GetAccessorDeclaration*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
+        let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
+        self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
+        let updated = self.factory.update_get_accessor_declaration(
+            &self.base_factory,
+            node,
+            Option::<Gc<NodeArray>>::None,
+            node.maybe_modifiers(),
+            visit_node(
+                node_as_get_accessor_declaration.maybe_name(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_property_name),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )
+            .unwrap(),
+            visit_parameter_list(
+                Some(&node_as_get_accessor_declaration.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            None,
+            Some(self.transform_function_body(node)),
+        );
+        self.set_enclosing_function_flags(saved_enclosing_function_flags);
+        Some(updated.into())
     }
 
     fn visit_set_accessor_declaration(
         &self,
         node: &Node, /*SetAccessorDeclaration*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
+        let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
+        self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
+        let updated = self.factory.update_set_accessor_declaration(
+            &self.base_factory,
+            node,
+            Option::<Gc<NodeArray>>::None,
+            node.maybe_modifiers(),
+            visit_node(
+                node_as_set_accessor_declaration.maybe_name(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_property_name),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )
+            .unwrap(),
+            visit_parameter_list(
+                Some(&node_as_set_accessor_declaration.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            Some(self.transform_function_body(node)),
+        );
+        self.set_enclosing_function_flags(saved_enclosing_function_flags);
+        Some(updated.into())
     }
 
     fn visit_method_declaration(&self, node: &Node /*MethodDeclaration*/) -> VisitResult {
-        unimplemented!()
+        let node_as_method_declaration = node.as_method_declaration();
+        let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
+        self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
+        let updated = self.factory.update_method_declaration(
+            &self.base_factory,
+            node,
+            Option::<Gc<NodeArray>>::None,
+            if self
+                .maybe_enclosing_function_flags()
+                .matches(|enclosing_function_flags| {
+                    enclosing_function_flags.intersects(FunctionFlags::Generator)
+                })
+            {
+                visit_nodes(
+                    node.maybe_modifiers().as_deref(),
+                    Some(|node: &Node| self.visitor_no_async_modifier(node)),
+                    Some(is_modifier),
+                    None,
+                    None,
+                )
+            } else {
+                node.maybe_modifiers()
+            },
+            if self
+                .maybe_enclosing_function_flags()
+                .matches(|enclosing_function_flags| {
+                    enclosing_function_flags.intersects(FunctionFlags::Async)
+                })
+            {
+                None
+            } else {
+                node_as_method_declaration.maybe_asterisk_token()
+            },
+            visit_node(
+                node_as_method_declaration.maybe_name(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_property_name),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            )
+            .unwrap(),
+            visit_node(
+                Option::<&Node>::None,
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_token),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            Option::<Gc<NodeArray>>::None,
+            visit_parameter_list(
+                Some(&node_as_method_declaration.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            None,
+            Some(
+                if self
+                    .maybe_enclosing_function_flags()
+                    .matches(|enclosing_function_flags| {
+                        enclosing_function_flags.intersects(FunctionFlags::Async)
+                    })
+                    && self
+                        .maybe_enclosing_function_flags()
+                        .matches(|enclosing_function_flags| {
+                            enclosing_function_flags.intersects(FunctionFlags::Generator)
+                        })
+                {
+                    self.transform_async_generator_function_body(node)
+                } else {
+                    self.transform_function_body(node)
+                },
+            ),
+        );
+        self.set_enclosing_function_flags(saved_enclosing_function_flags);
+        Some(updated.into())
     }
 
     fn visit_function_declaration(&self, node: &Node /*FunctionDeclaration*/) -> VisitResult {
-        unimplemented!()
+        let node_as_function_declaration = node.as_function_declaration();
+        let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
+        self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
+        let updated = self.factory.update_function_declaration(
+            &self.base_factory,
+            node,
+            Option::<Gc<NodeArray>>::None,
+            if self
+                .maybe_enclosing_function_flags()
+                .matches(|enclosing_function_flags| {
+                    enclosing_function_flags.intersects(FunctionFlags::Generator)
+                })
+            {
+                visit_nodes(
+                    node.maybe_modifiers().as_deref(),
+                    Some(|node: &Node| self.visitor_no_async_modifier(node)),
+                    Some(is_modifier),
+                    None,
+                    None,
+                )
+            } else {
+                node.maybe_modifiers()
+            },
+            if self
+                .maybe_enclosing_function_flags()
+                .matches(|enclosing_function_flags| {
+                    enclosing_function_flags.intersects(FunctionFlags::Async)
+                })
+            {
+                None
+            } else {
+                node_as_function_declaration.maybe_asterisk_token()
+            },
+            node_as_function_declaration.maybe_name(),
+            Option::<Gc<NodeArray>>::None,
+            visit_parameter_list(
+                Some(&node_as_function_declaration.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            None,
+            Some(
+                if self
+                    .maybe_enclosing_function_flags()
+                    .matches(|enclosing_function_flags| {
+                        enclosing_function_flags.intersects(FunctionFlags::Async)
+                    })
+                    && self
+                        .maybe_enclosing_function_flags()
+                        .matches(|enclosing_function_flags| {
+                            enclosing_function_flags.intersects(FunctionFlags::Generator)
+                        })
+                {
+                    self.transform_async_generator_function_body(node)
+                } else {
+                    self.transform_function_body(node)
+                },
+            ),
+        );
+        self.set_enclosing_function_flags(saved_enclosing_function_flags);
+        Some(updated.into())
     }
 
     fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> VisitResult {
-        unimplemented!()
+        let node_as_arrow_function = node.as_arrow_function();
+        let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
+        self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
+        let updated = self.factory.update_arrow_function(
+            &self.base_factory,
+            node,
+            node.maybe_modifiers(),
+            Option::<Gc<NodeArray>>::None,
+            visit_parameter_list(
+                Some(&node_as_arrow_function.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            None,
+            node_as_arrow_function.equals_greater_than_token.clone(),
+            self.transform_function_body(node),
+        );
+        self.set_enclosing_function_flags(saved_enclosing_function_flags);
+        Some(updated.into())
     }
 
     fn visit_function_expression(&self, node: &Node /*FunctionExpression*/) -> VisitResult {
+        let node_as_function_expression = node.as_function_expression();
+        let saved_enclosing_function_flags = self.maybe_enclosing_function_flags();
+        self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
+        let updated = self.factory.update_function_expression(
+            &self.base_factory,
+            node,
+            if self
+                .maybe_enclosing_function_flags()
+                .matches(|enclosing_function_flags| {
+                    enclosing_function_flags.intersects(FunctionFlags::Generator)
+                })
+            {
+                visit_nodes(
+                    node.maybe_modifiers().as_deref(),
+                    Some(|node: &Node| self.visitor_no_async_modifier(node)),
+                    Some(is_modifier),
+                    None,
+                    None,
+                )
+            } else {
+                node.maybe_modifiers()
+            },
+            if self
+                .maybe_enclosing_function_flags()
+                .matches(|enclosing_function_flags| {
+                    enclosing_function_flags.intersects(FunctionFlags::Async)
+                })
+            {
+                None
+            } else {
+                node_as_function_expression.maybe_asterisk_token()
+            },
+            node_as_function_expression.maybe_name(),
+            Option::<Gc<NodeArray>>::None,
+            visit_parameter_list(
+                Some(&node_as_function_expression.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            None,
+            if self
+                .maybe_enclosing_function_flags()
+                .matches(|enclosing_function_flags| {
+                    enclosing_function_flags.intersects(FunctionFlags::Async)
+                })
+                && self
+                    .maybe_enclosing_function_flags()
+                    .matches(|enclosing_function_flags| {
+                        enclosing_function_flags.intersects(FunctionFlags::Generator)
+                    })
+            {
+                self.transform_async_generator_function_body(node)
+            } else {
+                self.transform_function_body(node)
+            },
+        );
+        self.set_enclosing_function_flags(saved_enclosing_function_flags);
+        Some(updated.into())
+    }
+
+    fn transform_async_generator_function_body(
+        &self,
+        node: &Node, /*MethodDeclaration | AccessorDeclaration | FunctionDeclaration | FunctionExpression*/
+    ) -> Gc<Node /*FunctionBody*/> {
+        unimplemented!()
+    }
+
+    fn transform_function_body(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> Gc<Node /*ConciseBody*/> {
         unimplemented!()
     }
 }
