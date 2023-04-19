@@ -437,7 +437,120 @@ impl TransformTypeScript {
             );
         }
 
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword => {
+                if self.maybe_current_namespace().is_some() {
+                    None
+                } else {
+                    Some(node.node_wrapper().into())
+                }
+            }
+            SyntaxKind::PublicKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::AbstractKeyword
+            | SyntaxKind::OverrideKeyword
+            | SyntaxKind::ConstKeyword
+            | SyntaxKind::DeclareKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::ArrayType
+            | SyntaxKind::TupleType
+            | SyntaxKind::OptionalType
+            | SyntaxKind::RestType
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::TypePredicate
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::AnyKeyword
+            | SyntaxKind::UnknownKeyword
+            | SyntaxKind::BooleanKeyword
+            | SyntaxKind::StringKeyword
+            | SyntaxKind::NumberKeyword
+            | SyntaxKind::NeverKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::SymbolKeyword
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::FunctionType
+            | SyntaxKind::TypeQuery
+            | SyntaxKind::TypeReference
+            | SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::ConditionalType
+            | SyntaxKind::ParenthesizedType
+            | SyntaxKind::ThisType
+            | SyntaxKind::TypeOperator
+            | SyntaxKind::IndexedAccessType
+            | SyntaxKind::MappedType
+            | SyntaxKind::LiteralType
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::Decorator => None,
+            SyntaxKind::TypeAliasDeclaration => Some(
+                self.factory
+                    .create_not_emitted_statement(node.node_wrapper())
+                    .into(),
+            ),
+            SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node),
+            SyntaxKind::NamespaceExportDeclaration => None,
+            SyntaxKind::Constructor => self.visit_constructor(node),
+            SyntaxKind::InterfaceDeclaration => Some(
+                self.factory
+                    .create_not_emitted_statement(node.node_wrapper())
+                    .into(),
+            ),
+            SyntaxKind::ClassDeclaration => self.visit_class_declaration(node),
+            SyntaxKind::ClassExpression => Some(self.visit_class_expression(node).into()),
+            SyntaxKind::HeritageClause => self.visit_heritage_clause(node).map(Into::into),
+            SyntaxKind::ExpressionWithTypeArguments => {
+                Some(self.visit_expression_with_type_arguments(node).into())
+            }
+            SyntaxKind::MethodDeclaration => self.visit_method_declaration(node),
+            SyntaxKind::GetAccessor => self.visit_get_accessor(node),
+            SyntaxKind::SetAccessor => self.visit_set_accessor(node),
+            SyntaxKind::FunctionDeclaration => self.visit_function_declaration(node),
+            SyntaxKind::FunctionExpression => Some(self.visit_function_expression(node).into()),
+            SyntaxKind::ArrowFunction => self.visit_arrow_function(node),
+            SyntaxKind::Parameter => self.visit_parameter(node),
+            SyntaxKind::ParenthesizedExpression => {
+                Some(self.visit_parenthesized_expression(node).into())
+            }
+            SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
+                Some(self.visit_assertion_expression(node).into())
+            }
+            SyntaxKind::CallExpression => self.visit_call_expression(node),
+            SyntaxKind::NewExpression => self.visit_new_expression(node),
+            SyntaxKind::TaggedTemplateExpression => self.visit_tagged_template_expression(node),
+            SyntaxKind::NonNullExpression => Some(self.visit_non_null_expression(node).into()),
+            SyntaxKind::EnumDeclaration => self.visit_enum_declaration(node),
+            SyntaxKind::VariableStatement => self.visit_variable_statement(node).map(Into::into),
+            SyntaxKind::VariableDeclaration => self.visit_variable_declaration(node),
+            SyntaxKind::ModuleDeclaration => self.visit_module_declaration(node),
+            SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node),
+            SyntaxKind::JsxSelfClosingElement => self.visit_jsx_self_closing_element(node),
+            SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node),
+            _ => visit_each_child(
+                Some(node),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+                Option::<fn(&Node) -> VisitResult>::None,
+                Option::<
+                    fn(
+                        Option<&Node>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                    ) -> Option<Gc<Node>>,
+                >::None,
+            )
+            .map(Into::into),
+        }
     }
 }
 

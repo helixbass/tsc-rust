@@ -10,6 +10,13 @@ impl TransformTypeScript {
         unimplemented!()
     }
 
+    pub(super) fn visit_module_declaration(
+        &self,
+        node: &Node, /*ModuleDeclaration*/
+    ) -> VisitResult /*<Statement>*/ {
+        unimplemented!()
+    }
+
     pub(super) fn visit_import_declaration(
         &self,
         node: &Node, /*ImportDeclaration*/
