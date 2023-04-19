@@ -304,26 +304,22 @@ impl SymbolTableToDeclarationStatements {
                     if !excess_exports.is_empty() {
                         ns = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                             factory_.update_module_declaration(
-                                synthetic_factory_,
                                 &ns,
                                 ns.maybe_decorators(),
                                 ns.maybe_modifiers(),
                                 ns.as_module_declaration().name.clone(),
                                 Some({
                                     body = factory_.update_module_block(
-                                        synthetic_factory_,
                                         &body,
                                         factory_.create_node_array(
                                             Some({
                                                 let mut arg = ns_body.as_module_block().statements.to_vec();
                                                 arg.push(
                                                     factory_.create_export_declaration(
-                                                        synthetic_factory_,
                                                         Option::<Gc<NodeArray>>::None,
                                                         Option::<Gc<NodeArray>>::None,
                                                         false,
                                                         Some(factory_.create_named_exports(
-                                                            synthetic_factory_,
                                                             map(
                                                                 flat_map(
                                                                     Some(&excess_exports),
@@ -331,7 +327,6 @@ impl SymbolTableToDeclarationStatements {
                                                                 ),
                                                                 |id: Gc<Node>, _| {
                                                                     factory_.create_export_specifier(
-                                                                        synthetic_factory_,
                                                                         false,
                                                                         Option::<Gc<Node>>::None,
                                                                         id,
@@ -422,15 +417,14 @@ impl SymbolTableToDeclarationStatements {
                     |synthetic_factory_, factory_| {
                         factory_
                             .create_export_declaration(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 false,
                                 Some(
                                     factory_
-                                        .create_named_exports(
-                                            synthetic_factory_,
-                                            flat_map(Some(&exports), |e: &Gc<Node>, _| {
+                                        .create_named_exports(flat_map(
+                                            Some(&exports),
+                                            |e: &Gc<Node>, _| {
                                                 cast(
                                                     e.as_export_declaration()
                                                         .export_clause
@@ -442,8 +436,8 @@ impl SymbolTableToDeclarationStatements {
                                                 .as_named_exports()
                                                 .elements
                                                 .to_vec()
-                                            }),
-                                        )
+                                            },
+                                        ))
                                         .wrap(),
                                 ),
                                 None,
@@ -506,33 +500,27 @@ impl SymbolTableToDeclarationStatements {
                                 |synthetic_factory_, factory_| {
                                     factory_
                                         .create_export_declaration(
-                                            synthetic_factory_,
                                             Option::<Gc<NodeArray>>::None,
                                             Option::<Gc<NodeArray>>::None,
                                             false,
                                             Some(
                                                 factory_
-                                                    .create_named_exports(
-                                                        synthetic_factory_,
-                                                        flat_map(
-                                                            Some(&group),
-                                                            |e: &Gc<Node>, _| {
-                                                                cast(
-                                                                    e.as_export_declaration()
-                                                                        .export_clause
-                                                                        .as_ref(),
-                                                                    |export_clause: &&Gc<Node>| {
-                                                                        is_named_exports(
-                                                                            export_clause,
-                                                                        )
-                                                                    },
-                                                                )
-                                                                .as_named_exports()
-                                                                .elements
-                                                                .to_vec()
-                                                            },
-                                                        ),
-                                                    )
+                                                    .create_named_exports(flat_map(
+                                                        Some(&group),
+                                                        |e: &Gc<Node>, _| {
+                                                            cast(
+                                                                e.as_export_declaration()
+                                                                    .export_clause
+                                                                    .as_ref(),
+                                                                |export_clause: &&Gc<Node>| {
+                                                                    is_named_exports(export_clause)
+                                                                },
+                                                            )
+                                                            .as_named_exports()
+                                                            .elements
+                                                            .to_vec()
+                                                        },
+                                                    ))
                                                     .wrap(),
                                             ),
                                             group[0]
@@ -611,14 +599,12 @@ impl SymbolTableToDeclarationStatements {
                 statements[index] =
                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                         factory_.update_export_declaration(
-                            synthetic_factory_,
                             &export_decl,
                             export_decl.maybe_decorators(),
                             export_decl.maybe_modifiers(),
                             export_decl_as_export_declaration.is_type_only,
                             Some(
                                 factory_.update_named_exports(
-                                    synthetic_factory_,
                                     export_decl_as_export_declaration
                                         .export_clause
                                         .as_ref()
@@ -656,7 +642,7 @@ impl SymbolTableToDeclarationStatements {
                         .any(|statement| needs_scope_marker(statement)))
         {
             statements.push(with_synthetic_factory_and_factory(
-                |synthetic_factory_, factory_| create_empty_exports(synthetic_factory_, factory_),
+                |synthetic_factory_, factory_| create_empty_exports(factory_),
             ));
         }
         statements
@@ -681,7 +667,7 @@ impl SymbolTableToDeclarationStatements {
         let flags =
             (get_effective_modifier_flags(node) | ModifierFlags::Export) & !ModifierFlags::Ambient;
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-            factory_.update_modifiers(synthetic_factory_, node, flags)
+            factory_.update_modifiers(node, flags)
         })
     }
 
@@ -691,7 +677,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> Gc<Node> {
         let flags = get_effective_modifier_flags(node) & !ModifierFlags::Export;
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-            factory_.update_modifiers(synthetic_factory_, node, flags)
+            factory_.update_modifiers(node, flags)
         })
     }
 
@@ -924,15 +910,12 @@ impl SymbolTableToDeclarationStatements {
                         self.add_result(
                             &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                                     factory_.create_export_declaration(
-                                        synthetic_factory_,
                                         Option::<Gc<NodeArray>>::None,
                                         Option::<Gc<NodeArray>>::None,
                                         false,
                                         Some(factory_.create_named_exports(
-                                            synthetic_factory_,
                                             vec![
                                                 factory_.create_export_specifier(
-                                                    synthetic_factory_,
                                                     false,
                                                     alias,
                                                     &*local_name,
@@ -953,13 +936,10 @@ impl SymbolTableToDeclarationStatements {
                         let statement = set_text_range_rc_node(
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                                 factory_.create_variable_statement(
-                                    synthetic_factory_,
                                     Option::<Gc<NodeArray>>::None,
                                         factory_.create_variable_declaration_list(
-                                            synthetic_factory_,
                                             vec![
                                                 factory_.create_variable_declaration(
-                                                    synthetic_factory_,
                                                     Some(&*name),
                                                     None,
                                                     Some(self.node_builder.serialize_type_for_declaration(
@@ -992,15 +972,12 @@ impl SymbolTableToDeclarationStatements {
                                 &
                                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                                         factory_.create_export_declaration(
-                                            synthetic_factory_,
                                             Option::<Gc<NodeArray>>::None,
                                             Option::<Gc<NodeArray>>::None,
                                             false,
                                             Some(factory_.create_named_exports(
-                                                synthetic_factory_,
                                                 vec![
                                                     factory_.create_export_specifier(
-                                                        synthetic_factory_,
                                                         false,
                                                         Some(&*name),
                                                         &*local_name,
@@ -1087,7 +1064,6 @@ impl SymbolTableToDeclarationStatements {
                         &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                             factory_
                                 .create_export_declaration(
-                                    synthetic_factory_,
                                     Option::<Gc<NodeArray>>::None,
                                     Option::<Gc<NodeArray>>::None,
                                     false,
@@ -1095,7 +1071,6 @@ impl SymbolTableToDeclarationStatements {
                                     Some(
                                         factory_
                                             .create_string_literal(
-                                                synthetic_factory_,
                                                 self.node_builder.get_specifier_for_module_symbol(
                                                     resolved_module,
                                                     &self.context(),
@@ -1119,13 +1094,11 @@ impl SymbolTableToDeclarationStatements {
                 &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                     factory_
                         .create_export_assignment(
-                            synthetic_factory_,
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             Some(false),
                             factory_
                                 .create_identifier(
-                                    synthetic_factory_,
                                     &self.get_internal_symbol_name(symbol, symbol_name),
                                     Option::<Gc<NodeArray>>::None,
                                     None,
@@ -1141,28 +1114,21 @@ impl SymbolTableToDeclarationStatements {
                 &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                     factory_
                         .create_export_declaration(
-                            synthetic_factory_,
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             false,
                             Some(
                                 factory_
-                                    .create_named_exports(
-                                        synthetic_factory_,
-                                        vec![factory_
-                                            .create_export_specifier(
-                                                synthetic_factory_,
-                                                false,
-                                                Some(
-                                                    &*self.get_internal_symbol_name(
-                                                        symbol,
-                                                        symbol_name,
-                                                    ),
-                                                ),
-                                                symbol_name,
-                                            )
-                                            .wrap()],
-                                    )
+                                    .create_named_exports(vec![factory_
+                                        .create_export_specifier(
+                                            false,
+                                            Some(
+                                                &*self
+                                                    .get_internal_symbol_name(symbol, symbol_name),
+                                            ),
+                                            symbol_name,
+                                        )
+                                        .wrap()])
                                     .wrap(),
                             ),
                             None,
@@ -1383,7 +1349,6 @@ impl MakeSerializePropertySymbolCreateProperty
     ) -> Gc<Node> {
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_.create_property_declaration(
-                synthetic_factory_,
                 decorators,
                 modifiers,
                 name,
@@ -1418,7 +1383,7 @@ impl MakeSerializePropertySymbolCreateProperty
     ) -> Gc<Node> {
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
-                .create_property_signature(synthetic_factory_, mods, name, question, type_)
+                .create_property_signature(mods, name, question, type_)
                 .wrap()
         })
     }

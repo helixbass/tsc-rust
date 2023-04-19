@@ -837,18 +837,15 @@ impl ParserType {
             let expression: Gc<Node> = match expressions {
                 Some(expressions) if expressions.len() > 1 => self
                     .finish_node(
-                        self.factory().create_array_literal_expression(
-                            self,
-                            Some(expressions),
-                            None,
-                        ),
+                        self.factory()
+                            .create_array_literal_expression(Some(expressions), None),
                         pos,
                         None,
                     )
                     .wrap(),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
-            let statement = self.factory().create_expression_statement(self, expression);
+            let statement = self.factory().create_expression_statement(expression);
             let statement = self.finish_node(statement, pos, None);
             statements = self.create_node_array(vec![statement.wrap()], pos, None, None);
             end_of_file_token = self

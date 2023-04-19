@@ -89,7 +89,6 @@ pub fn for_each_emitted_file_returns<TReturn>(
                 with_synthetic_factory_and_factory(|synthetic_factory, factory_| {
                     factory_
                         .create_bundle(
-                            synthetic_factory,
                             source_files.into_iter().map(Option::Some).collect(),
                             Some(prepends),
                         )
@@ -892,7 +891,6 @@ fn emit_declaration_file_or_bundle(
             |synthetic_factory_, factory_| {
                 factory_
                     .create_bundle(
-                        synthetic_factory_,
                         files_for_emit.iter().cloned().map(Option::Some).collect(),
                         if !is_source_file(source_file_or_bundle) {
                             Some(source_file_or_bundle.as_bundle().prepends.clone())

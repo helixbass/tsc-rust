@@ -36,7 +36,6 @@ impl ParserType {
         self.parse_semicolon();
         self.set_await_context(saved_await_context);
         let node = self.factory().create_export_assignment(
-            self,
             decorators,
             modifiers,
             is_export_equals,
@@ -147,7 +146,7 @@ impl ParserType {
             false,
             vec![],
             self.factory()
-                .create_token(self, SyntaxKind::EndOfFileToken)
+                .create_token(SyntaxKind::EndOfFileToken)
                 .wrap(),
             NodeFlags::None,
         );
@@ -189,10 +188,7 @@ impl ParserType {
             self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
         }
 
-        let result = self
-            .factory()
-            .create_jsdoc_type_expression(self, type_)
-            .wrap();
+        let result = self.factory().create_jsdoc_type_expression(type_).wrap();
         self.fixup_parent_references(&result);
         self.finish_node_ref(&*result, pos, None);
         result
@@ -210,7 +206,6 @@ impl ParserType {
             entity_name = self
                 .finish_node(
                     self.factory().create_jsdoc_member_name(
-                        self,
                         entity_name,
                         self.parse_identifier(None, None).wrap(),
                     ),
@@ -225,7 +220,7 @@ impl ParserType {
 
         let result = self
             .factory()
-            .create_jsdoc_name_reference(self, entity_name)
+            .create_jsdoc_name_reference(entity_name)
             .wrap();
         self.fixup_parent_references(&result);
         self.finish_node_ref(&*result, pos, None);
@@ -257,7 +252,7 @@ impl ParserType {
             false,
             vec![],
             self.factory()
-                .create_token(self, SyntaxKind::EndOfFileToken)
+                .create_token(SyntaxKind::EndOfFileToken)
                 .wrap(),
             NodeFlags::None,
         );
@@ -502,7 +497,6 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 let part=
                                     self.parser.finish_node(
                                         self.parser.factory().create_jsdoc_text(
-                                            self.parser,
                                             self.comments().join(""),
                                         ),
                                         self.link_end.unwrap_or(self.start).try_into().unwrap(),
@@ -531,7 +525,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 if !self.parts.is_empty() && !self.comments().is_empty() {
                     let part=
                         self.parser.finish_node(
-                            self.parser.factory().create_jsdoc_text(self.parser, self.comments().join("")),
+                            self.parser.factory().create_jsdoc_text(self.comments().join("")),
                             self.link_end.unwrap_or(self.start).try_into().unwrap(),
                             self.comments_pos,
                         ).wrap();
@@ -543,7 +537,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 let tags_array = self.tags.as_ref().map(
                     |tags| self.parser.create_node_array(tags.clone(), self.tags_pos.unwrap(), self.tags_end, None));
                 self.parser.finish_node(
-                    self.parser.factory().create_jsdoc_comment(self.parser, if !self.parts.is_empty() {
+                    self.parser.factory().create_jsdoc_comment(if !self.parts.is_empty() {
                         Some(Into::<StringOrNodeArray>::into(self.parser.create_node_array(self.parts.clone(), self.start.try_into().unwrap(), self.comments_pos, None)))
                     } else if !self.comments().is_empty() {
                         Some(Into::<StringOrNodeArray>::into(self.comments().join("")))
@@ -690,11 +684,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parse_simple_tag(
                         start,
                         |tag_name, comment| {
-                            self.parser.factory().create_jsdoc_class_tag(
-                                self.parser,
-                                tag_name,
-                                comment,
-                            )
+                            self.parser
+                                .factory()
+                                .create_jsdoc_class_tag(tag_name, comment)
                         },
                         tag_name,
                         margin,
@@ -708,11 +700,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parse_simple_tag(
                         start,
                         |tag_name, comment| {
-                            self.parser.factory().create_jsdoc_public_tag(
-                                self.parser,
-                                tag_name,
-                                comment,
-                            )
+                            self.parser
+                                .factory()
+                                .create_jsdoc_public_tag(tag_name, comment)
                         },
                         tag_name,
                         margin,
@@ -726,11 +716,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parse_simple_tag(
                         start,
                         |tag_name, comment| {
-                            self.parser.factory().create_jsdoc_private_tag(
-                                self.parser,
-                                tag_name,
-                                comment,
-                            )
+                            self.parser
+                                .factory()
+                                .create_jsdoc_private_tag(tag_name, comment)
                         },
                         tag_name,
                         margin,
@@ -744,11 +732,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parse_simple_tag(
                         start,
                         |tag_name, comment| {
-                            self.parser.factory().create_jsdoc_protected_tag(
-                                self.parser,
-                                tag_name,
-                                comment,
-                            )
+                            self.parser
+                                .factory()
+                                .create_jsdoc_protected_tag(tag_name, comment)
                         },
                         tag_name,
                         margin,
@@ -762,11 +748,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parse_simple_tag(
                         start,
                         |tag_name, comment| {
-                            self.parser.factory().create_jsdoc_readonly_tag(
-                                self.parser,
-                                tag_name,
-                                comment,
-                            )
+                            self.parser
+                                .factory()
+                                .create_jsdoc_readonly_tag(tag_name, comment)
                         },
                         tag_name,
                         margin,
@@ -780,11 +764,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parse_simple_tag(
                         start,
                         |tag_name, comment| {
-                            self.parser.factory().create_jsdoc_override_tag(
-                                self.parser,
-                                tag_name,
-                                comment,
-                            )
+                            self.parser
+                                .factory()
+                                .create_jsdoc_override_tag(tag_name, comment)
                         },
                         tag_name,
                         margin,
@@ -799,11 +781,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     self.parse_simple_tag(
                         start,
                         |tag_name, comment| {
-                            self.parser.factory().create_jsdoc_deprecated_tag(
-                                self.parser,
-                                tag_name,
-                                comment,
-                            )
+                            self.parser
+                                .factory()
+                                .create_jsdoc_deprecated_tag(tag_name, comment)
                         },
                         tag_name,
                         margin,
@@ -975,9 +955,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         parts.push(
                             self.parser
                                 .finish_node(
-                                    self.parser
-                                        .factory()
-                                        .create_jsdoc_text(self.parser, comments.join("")),
+                                    self.parser.factory().create_jsdoc_text(comments.join("")),
                                     link_end
                                         .map(|link_end| link_end.try_into().unwrap())
                                         .unwrap_or(comments_pos),
@@ -1047,9 +1025,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 parts.push(
                     self.parser
                         .finish_node(
-                            self.parser
-                                .factory()
-                                .create_jsdoc_text(self.parser, comments.join("")),
+                            self.parser.factory().create_jsdoc_text(comments.join("")),
                             link_end
                                 .map(|link_end| link_end.try_into().unwrap())
                                 .unwrap_or(comments_pos),

@@ -25,7 +25,7 @@ use crate::{
     maybe_filter, maybe_for_each, maybe_for_each_bool, module_specifiers, normalize_slashes,
     path_contains_node_modules, path_is_relative, push_if_unique_gc, set_text_range_node_array,
     skip_trivia, starts_with, string_contains, to_file_name_lower_case, to_path, transform_nodes,
-    visit_nodes, with_synthetic_factory, BaseNodeFactorySynthetic, CommentRange, CompilerOptions,
+    visit_nodes, BaseNodeFactorySynthetic, CommentRange, CompilerOptions,
     Debug_, Diagnostic, Diagnostics, EmitHost, EmitResolver, FileReference,
     GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
     HasInitializerInterface, HasStatementsInterface, HasTypeInterface, LiteralLikeNodeInterface,
@@ -573,9 +573,8 @@ impl TransformDeclarations {
             self.set_refs(Some(HashMap::new()));
             self.set_libs(Some(HashMap::new()));
             let mut has_no_default_lib = false;
-            let mut bundle = with_synthetic_factory(|synthetic_factory_| {
+            let mut bundle = 
                 self.factory.create_bundle(
-                    synthetic_factory_,
                     map(
                         &node_as_bundle.source_files,
                         |source_file: &Option<Gc<Node>>, _| -> Option<Gc<Node>> {
@@ -627,22 +626,18 @@ impl TransformDeclarations {
                                         None,
                                     ).unwrap()
                                 };
-                                let new_file = with_synthetic_factory(|synthetic_factory_| {
+                                let new_file = 
                                     self.factory.update_source_file(
-                                        synthetic_factory_,
                                         source_file,
                                         vec![
                                             self.factory.create_module_declaration(
-                                                synthetic_factory_,
                                                 Some(vec![]),
                                                 Some(vec![
                                                     self.factory.create_modifier(
-                                                        synthetic_factory_,
                                                         SyntaxKind::DeclareKeyword,
                                                     ).wrap()
                                                 ]),
                                                 self.factory.create_string_literal(
-                                                    synthetic_factory_,
                                                     get_resolved_external_module_name(
                                                         &**self.context.get_emit_host(),
                                                         source_file,
@@ -653,7 +648,6 @@ impl TransformDeclarations {
                                                 ).wrap(),
                                                 Some(
                                                     self.factory.create_module_block(
-                                                        synthetic_factory_,
                                                         Some(
                                                             set_text_range_node_array(
                                                                 self.factory.create_node_array(
@@ -676,7 +670,7 @@ impl TransformDeclarations {
                                         Some(false),
                                         Some(vec![]),
                                     )
-                                });
+                                ;
                                 return Some(new_file);
                             }
                             self.set_needs_declare(true);
@@ -694,9 +688,8 @@ impl TransformDeclarations {
                                     None,
                                 ).unwrap()
                             };
-                            Some(with_synthetic_factory(|synthetic_factory| {
+                            Some(
                                 self.factory.update_source_file(
-                                    synthetic_factory_,
                                     source_file,
                                     self.transform_and_replace_late_painted_statements(
                                         &updated
@@ -707,7 +700,7 @@ impl TransformDeclarations {
                                     Some(false),
                                     Some(vec![]),
                                 )
-                            }))
+                            )
                         }
                     ),
                     Some(map_defined(
@@ -738,7 +731,7 @@ impl TransformDeclarations {
                         }
                     )),
                 )
-            });
+            ;
             bundle.synthetic_file_references = Some(vec![]);
             bundle.synthetic_type_references =
                 Some(self.get_file_references_for_used_type_references());
@@ -838,11 +831,9 @@ impl TransformDeclarations {
                     self.factory.create_node_array(
                         Some({
                             let mut combined_statements = combined_statements.to_vec();
-                            combined_statements.push(with_synthetic_factory(
-                                |synthetic_factory_| {
-                                    create_empty_exports(synthetic_factory_, &self.factory)
-                                },
-                            ));
+                            combined_statements.push(
+                                    create_empty_exports(&self.factory)
+                            );
                             combined_statements
                         }),
                         None,
@@ -852,9 +843,8 @@ impl TransformDeclarations {
             }
         }
         drop(reference_visitor);
-        let updated = with_synthetic_factory(|synthetic_factory_| {
+        let updated = 
             self.factory.update_source_file(
-                synthetic_factory_,
                 node,
                 combined_statements,
                 Some(true),
@@ -863,7 +853,7 @@ impl TransformDeclarations {
                 Some(node_as_source_file.has_no_default_lib()),
                 Some(self.get_lib_references()),
             )
-        });
+        ;
         *updated
             .as_source_file()
             .maybe_exported_modules_from_declaration_emit() =
@@ -1073,9 +1063,8 @@ impl TransformDeclarations {
             return name.node_wrapper();
         } else {
             if name.kind() == SyntaxKind::ArrayBindingPattern {
-                return with_synthetic_factory(|synthetic_factory_| {
+                return 
                     self.factory.update_array_binding_pattern(
-                        synthetic_factory_,
                         name,
                         visit_nodes(
                             Some(&name.as_array_binding_pattern().elements),
@@ -1086,11 +1075,10 @@ impl TransformDeclarations {
                         )
                         .unwrap(),
                     )
-                });
+                ;
             } else {
-                return with_synthetic_factory(|synthetic_factory_| {
+                return 
                     self.factory.update_object_binding_pattern(
-                        synthetic_factory_,
                         name,
                         visit_nodes(
                             Some(&name.as_object_binding_pattern().elements),
@@ -1101,7 +1089,7 @@ impl TransformDeclarations {
                         )
                         .unwrap(),
                     )
-                });
+                ;
             }
         }
     }
@@ -1114,9 +1102,7 @@ impl TransformDeclarations {
             return elem.node_wrapper();
         }
         let elem_as_binding_element = elem.as_binding_element();
-        with_synthetic_factory(|synthetic_factory_| {
             self.factory.update_binding_element(
-                synthetic_factory_,
                 elem,
                 elem_as_binding_element.dot_dot_dot_token.clone(),
                 elem_as_binding_element.property_name.clone(),
@@ -1127,7 +1113,6 @@ impl TransformDeclarations {
                     None
                 },
             )
-        })
     }
 
     pub(super) fn ensure_parameter(
@@ -1144,9 +1129,8 @@ impl TransformDeclarations {
                 create_get_symbol_accessibility_diagnostic_for_node(p),
             );
         }
-        let new_param = with_synthetic_factory(|synthetic_factory_| {
+        let new_param = 
             self.factory.update_parameter_declaration(
-                synthetic_factory_,
                 p,
                 Option::<Gc<NodeArray>>::None,
                 Some(mask_modifiers(p, modifier_mask, None)),
@@ -1159,7 +1143,7 @@ impl TransformDeclarations {
                             .clone()
                             .unwrap_or_else(|| {
                                 self.factory
-                                    .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
+                                    .create_token(SyntaxKind::QuestionToken)
                                     .wrap()
                             }),
                     )
@@ -1176,7 +1160,7 @@ impl TransformDeclarations {
                 ),
                 self.ensure_no_initializer(p),
             )
-        });
+        ;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             self.set_get_symbol_accessibility_diagnostic(old_diag.unwrap());
         }

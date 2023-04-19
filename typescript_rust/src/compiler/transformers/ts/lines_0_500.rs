@@ -192,7 +192,6 @@ impl TransformTypeScript {
         let node_as_bundle = node.as_bundle();
         self.factory
             .create_bundle(
-                &self.base_factory,
                 node_as_bundle
                     .source_files
                     .iter()
@@ -433,7 +432,7 @@ impl TransformTypeScript {
         if is_statement(node) && has_syntactic_modifier(node, ModifierFlags::Ambient) {
             return Some(
                 self.factory
-                    .create_not_emitted_statement(&self.base_factory, node.node_wrapper())
+                    .create_not_emitted_statement(node.node_wrapper())
                     .into(),
             );
         }

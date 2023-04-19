@@ -36,23 +36,18 @@ impl SymbolTableToDeclarationStatements {
             &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_export_declaration(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
                         false,
                         Some(
                             factory_
-                                .create_named_exports(
-                                    synthetic_factory_,
-                                    vec![factory_
-                                        .create_export_specifier(
-                                            synthetic_factory_,
-                                            false,
-                                            (local_name != target_name).then_some(target_name),
-                                            local_name,
-                                        )
-                                        .wrap()],
-                                )
+                                .create_named_exports(vec![factory_
+                                    .create_export_specifier(
+                                        false,
+                                        (local_name != target_name).then_some(target_name),
+                                        local_name,
+                                    )
+                                    .wrap()])
                                 .wrap(),
                         ),
                         specifier.node_wrappered(),
@@ -124,7 +119,6 @@ impl SymbolTableToDeclarationStatements {
                     |synthetic_factory_, factory_| {
                         factory_
                             .create_export_assignment(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 Some(is_export_equals),
@@ -157,13 +151,11 @@ impl SymbolTableToDeclarationStatements {
                         &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                             factory_
                                 .create_import_equals_declaration(
-                                    synthetic_factory_,
                                     Option::<Gc<NodeArray>>::None,
                                     Option::<Gc<NodeArray>>::None,
                                     false,
                                     factory_
                                         .create_identifier(
-                                            synthetic_factory_,
                                             &var_name,
                                             Option::<Gc<NodeArray>>::None,
                                             None,
@@ -208,14 +200,11 @@ impl SymbolTableToDeclarationStatements {
                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                         factory_
                             .create_variable_statement(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
                                 factory_
                                     .create_variable_declaration_list(
-                                        synthetic_factory_,
                                         vec![factory_
                                             .create_variable_declaration(
-                                                synthetic_factory_,
                                                 Some(&*var_name),
                                                 None,
                                                 Some(
@@ -260,13 +249,11 @@ impl SymbolTableToDeclarationStatements {
                     |synthetic_factory_, factory_| {
                         factory_
                             .create_export_assignment(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 Some(is_export_equals),
                                 factory_
                                     .create_identifier(
-                                        synthetic_factory_,
                                         &var_name,
                                         Option::<Gc<NodeArray>>::None,
                                         None,
@@ -445,12 +432,11 @@ impl SymbolTableToDeclarationStatements {
                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                         factory_
                             .create_constructor_declaration(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
-                                Some(factory_.create_modifiers_from_modifier_flags(
-                                    synthetic_factory_,
-                                    private_protected,
-                                )),
+                                Some(
+                                    factory_
+                                        .create_modifiers_from_modifier_flags(private_protected),
+                                ),
                                 Some(vec![]),
                                 None,
                             )
@@ -521,14 +507,11 @@ impl SymbolTableToDeclarationStatements {
         let statement = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
                 .create_variable_statement(
-                    synthetic_factory_,
                     Option::<Gc<NodeArray>>::None,
                     factory_
                         .create_variable_declaration_list(
-                            synthetic_factory_,
                             vec![factory_
                                 .create_variable_declaration(
-                                    synthetic_factory_,
                                     Some(&*temp_name),
                                     None,
                                     self.node_builder.type_to_type_node_helper(
@@ -548,14 +531,8 @@ impl SymbolTableToDeclarationStatements {
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
                 .create_expression_with_type_arguments(
-                    synthetic_factory_,
                     factory_
-                        .create_identifier(
-                            synthetic_factory_,
-                            &temp_name,
-                            Option::<Gc<NodeArray>>::None,
-                            None,
-                        )
+                        .create_identifier(&temp_name, Option::<Gc<NodeArray>>::None, None)
                         .wrap(),
                     Option::<Gc<NodeArray>>::None,
                 )
@@ -614,7 +591,7 @@ impl SymbolTableToDeclarationStatements {
         reference.map(|reference| {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
-                    .create_expression_with_type_arguments(synthetic_factory_, reference, type_args)
+                    .create_expression_with_type_arguments(reference, type_args)
                     .wrap()
             })
         })
@@ -629,7 +606,6 @@ impl SymbolTableToDeclarationStatements {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_expression_with_type_arguments(
-                        synthetic_factory_,
                         self.node_builder.symbol_to_expression_(
                             t_symbol,
                             &self.context(),
@@ -843,16 +819,11 @@ impl MakeSerializePropertySymbol {
                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                         factory_
                             .create_set_accessor_declaration(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
-                                Some(factory_.create_modifiers_from_modifier_flags(
-                                    synthetic_factory_,
-                                    flag,
-                                )),
+                                Some(factory_.create_modifiers_from_modifier_flags(flag)),
                                 name.clone(),
                                 vec![factory_
                                     .create_parameter_declaration(
-                                        synthetic_factory_,
                                         Option::<Gc<NodeArray>>::None,
                                         Option::<Gc<NodeArray>>::None,
                                         None,
@@ -905,12 +876,8 @@ impl MakeSerializePropertySymbol {
                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                         factory_
                             .create_get_accessor_declaration(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
-                                Some(factory_.create_modifiers_from_modifier_flags(
-                                    synthetic_factory_,
-                                    flag,
-                                )),
+                                Some(factory_.create_modifiers_from_modifier_flags(flag)),
                                 name.clone(),
                                 vec![],
                                 if is_private {
@@ -962,7 +929,6 @@ impl MakeSerializePropertySymbol {
                         |synthetic_factory_, factory_| {
                             factory_
                                 .create_modifiers_from_modifier_flags(
-                                    synthetic_factory_,
                                     if self.type_checker.is_readonly_symbol(p) {
                                         ModifierFlags::Readonly
                                     } else {
@@ -975,9 +941,7 @@ impl MakeSerializePropertySymbol {
                     name.clone().into(),
                     p.flags().intersects(SymbolFlags::Optional).then(|| {
                         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            factory_
-                                .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                .wrap()
+                            factory_.create_token(SyntaxKind::QuestionToken).wrap()
                         })
                     }),
                     (!is_private).then(|| {
@@ -1029,7 +993,6 @@ impl MakeSerializePropertySymbol {
                             |synthetic_factory_, factory_| {
                                 factory_
                                     .create_modifiers_from_modifier_flags(
-                                        synthetic_factory_,
                                         if self.type_checker.is_readonly_symbol(p) {
                                             ModifierFlags::Readonly
                                         } else {
@@ -1042,9 +1005,7 @@ impl MakeSerializePropertySymbol {
                         name.clone().into(),
                         p.flags().intersects(SymbolFlags::Optional).then(|| {
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_
-                                    .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                    .wrap()
+                                factory_.create_token(SyntaxKind::QuestionToken).wrap()
                             })
                         }),
                         None,
@@ -1082,15 +1043,12 @@ impl MakeSerializePropertySymbol {
                         name: Some(name.clone()),
                         question_token: p.flags().intersects(SymbolFlags::Optional).then(|| {
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_
-                                    .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                    .wrap()
+                                factory_.create_token(SyntaxKind::QuestionToken).wrap()
                             })
                         }),
                         modifiers: (flag != ModifierFlags::None).then(|| {
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_
-                                    .create_modifiers_from_modifier_flags(synthetic_factory_, flag)
+                                factory_.create_modifiers_from_modifier_flags(flag)
                             })
                         }),
                         private_symbol_visitor: Option::<fn(&Symbol)>::None,

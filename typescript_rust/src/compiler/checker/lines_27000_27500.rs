@@ -451,7 +451,6 @@ impl TypeChecker {
                             factory.with(|factory_| {
                                 factory_
                                     .create_property_signature(
-                                        synthetic_factory_,
                                         Option::<Gc<NodeArray>>::None,
                                         unescape_leading_underscores(jsx_children_property_name),
                                         None,

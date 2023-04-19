@@ -265,16 +265,8 @@ impl ParserType {
         self.set_syntax_cursor(saved_syntax_cursor);
         let new_statements = self.factory().create_node_array(Some(statements), None);
         set_text_range(&*new_statements, Some(&*source_file_statements));
-        self.factory().update_source_file(
-            self,
-            source_file,
-            new_statements,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
+        self.factory()
+            .update_source_file(source_file, new_statements, None, None, None, None, None)
     }
 
     pub(super) fn contains_possible_top_level_await(&self, node: &Node) -> bool {
@@ -328,7 +320,7 @@ impl ParserType {
     ) -> Gc<Node> {
         let mut source_file = self
             .factory()
-            .create_source_file(self, statements, end_of_file_token, flags)
+            .create_source_file(statements, end_of_file_token, flags)
             .wrap();
         set_text_range_pos_width(
             &*source_file,
@@ -1049,14 +1041,14 @@ impl ParserType {
         let pos = self.get_node_pos();
         let kind = self.token();
         self.next_token();
-        self.finish_node(self.factory().create_token(self, kind), pos, None)
+        self.finish_node(self.factory().create_token(kind), pos, None)
     }
 
     pub(super) fn parse_token_node_jsdoc(&self) -> BaseNode {
         let pos = self.get_node_pos();
         let kind = self.token();
         self.next_token_jsdoc();
-        self.finish_node(self.factory().create_token(self, kind), pos, None)
+        self.finish_node(self.factory().create_token(kind), pos, None)
     }
 
     pub(super) fn can_parse_semicolon(&self) -> bool {
@@ -1157,30 +1149,24 @@ impl ParserType {
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
             self.factory()
-                .create_identifier(self, "", Option::<Gc<NodeArray>>::None, None)
+                .create_identifier("", Option::<Gc<NodeArray>>::None, None)
                 .into()
         } else if is_template_literal_kind(kind) {
             self.factory()
-                .create_template_literal_like_node(
-                    self,
-                    kind,
-                    "".to_owned(),
-                    Some("".to_owned()),
-                    None,
-                )
+                .create_template_literal_like_node(kind, "".to_owned(), Some("".to_owned()), None)
                 .into()
         } else if kind == SyntaxKind::NumericLiteral {
             self.factory()
-                .create_numeric_literal(self, "".to_owned(), None)
+                .create_numeric_literal("".to_owned(), None)
                 .into()
         } else if kind == SyntaxKind::StringLiteral {
             self.factory()
-                .create_string_literal(self, "".to_owned(), None, None)
+                .create_string_literal("".to_owned(), None, None)
                 .into()
         } else if kind == SyntaxKind::MissingDeclaration {
-            self.factory().create_missing_declaration(self).into()
+            self.factory().create_missing_declaration().into()
         } else {
-            self.factory().create_token(self, kind).into()
+            self.factory().create_token(kind).into()
         };
         self.finish_node(result, pos, None)
     }
@@ -1213,7 +1199,6 @@ impl ParserType {
             return self.finish_node(
                 self.factory()
                     .create_identifier(
-                        self,
                         &text,
                         Option::<Gc<NodeArray>>::None,
                         Some(original_keyword_kind),
@@ -1348,8 +1333,7 @@ impl ParserType {
         let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory()
-                .create_computed_property_name(self, expression),
+            self.factory().create_computed_property_name(expression),
             pos,
             None,
         )
@@ -1371,7 +1355,6 @@ impl ParserType {
     pub(super) fn parse_private_identifier(&self) -> Node {
         let pos = self.get_node_pos();
         let node = self.factory().create_private_identifier(
-            self,
             &self.intern_private_identifier(&self.scanner().get_token_text()),
         );
         self.next_token();

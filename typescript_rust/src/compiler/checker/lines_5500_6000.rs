@@ -94,7 +94,6 @@ impl NodeBuilder {
                             |synthetic_factory_, factory_| {
                                 factory_
                                     .create_type_reference_node(
-                                        synthetic_factory_,
                                         "...",
                                         Option::<Gc<NodeArray>>::None,
                                     )
@@ -108,7 +107,6 @@ impl NodeBuilder {
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                                 factory_
                                     .create_type_reference_node(
-                                        synthetic_factory_,
                                         &*format!("... {} more ...", types.len() - 2),
                                         Option::<Gc<NodeArray>>::None,
                                     )
@@ -137,7 +135,6 @@ impl NodeBuilder {
                             |synthetic_factory_, factory_| {
                                 factory_
                                     .create_type_reference_node(
-                                        synthetic_factory_,
                                         &*format!("... {} more ...", types.len() - i),
                                         Option::<Gc<NodeArray>>::None,
                                     )
@@ -216,11 +213,10 @@ impl NodeBuilder {
         let name = get_name_from_index_info(index_info).unwrap_or_else(|| Cow::Borrowed("x"));
         let indexer_type_node = self.type_to_type_node_helper(Some(&*index_info.key_type), context);
 
-        let indexing_parameter: Gc<Node> =
+        let indexing_parameter =
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_parameter_declaration(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
                         None,
@@ -243,11 +239,10 @@ impl NodeBuilder {
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
                 .create_index_signature(
-                    synthetic_factory_,
                     Option::<Gc<NodeArray>>::None,
                     if index_info.is_readonly {
                         Some(vec![factory_
-                            .create_token(synthetic_factory_, SyntaxKind::ReadonlyKeyword)
+                            .create_token(SyntaxKind::ReadonlyKeyword)
                             .wrap()])
                     } else {
                         None
@@ -372,15 +367,13 @@ impl NodeBuilder {
             ) {
                 Some(with_synthetic_factory_and_factory(
                     |synthetic_factory_, factory_| {
-                        factory_
-                            .create_token(synthetic_factory_, SyntaxKind::AssertsKeyword)
-                            .wrap()
+                        factory_.create_token(SyntaxKind::AssertsKeyword).wrap()
                     },
                 ))
             } else {
                 None
             };
-            let parameter_name: Gc<Node> = if matches!(
+            let parameter_name = if matches!(
                 type_predicate.kind,
                 TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
             ) {
@@ -388,7 +381,6 @@ impl NodeBuilder {
                     with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                         factory_
                             .create_identifier(
-                                synthetic_factory_,
                                 type_predicate.parameter_name.as_ref().unwrap(),
                                 Option::<Gc<NodeArray>>::None,
                                 None,
@@ -399,7 +391,7 @@ impl NodeBuilder {
                 )
             } else {
                 with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                    factory_.create_this_type_node(synthetic_factory_).wrap()
+                    factory_.create_this_type_node().wrap()
                 })
             };
             let type_node = type_predicate
@@ -411,12 +403,7 @@ impl NodeBuilder {
             return_type_node = Some(with_synthetic_factory_and_factory(
                 |synthetic_factory_, factory_| {
                     factory_
-                        .create_type_predicate_node(
-                            synthetic_factory_,
-                            asserts_modifier,
-                            parameter_name,
-                            type_node,
-                        )
+                        .create_type_predicate_node(asserts_modifier, parameter_name, type_node)
                         .wrap()
                 },
             ));
@@ -442,7 +429,7 @@ impl NodeBuilder {
                 return_type_node = Some(with_synthetic_factory_and_factory(
                     |synthetic_factory_, factory_| {
                         factory_
-                            .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
+                            .create_keyword_type_node(SyntaxKind::AnyKeyword)
                             .wrap()
                     },
                 ));
@@ -457,10 +444,7 @@ impl NodeBuilder {
             let flags = modifiers_to_flags(modifiers.as_deref());
             modifiers = Some(with_synthetic_factory_and_factory(
                 |synthetic_factory_, factory_| {
-                    factory_.create_modifiers_from_modifier_flags(
-                        synthetic_factory_,
-                        flags | ModifierFlags::Abstract,
-                    )
+                    factory_.create_modifiers_from_modifier_flags(flags | ModifierFlags::Abstract)
                 },
             ));
         }
@@ -468,24 +452,13 @@ impl NodeBuilder {
         let node: Gc<Node> =
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| match kind {
                 SyntaxKind::CallSignature => factory_
-                    .create_call_signature(
-                        synthetic_factory_,
-                        type_parameters,
-                        parameters,
-                        return_type_node,
-                    )
+                    .create_call_signature(type_parameters, parameters, return_type_node)
                     .wrap(),
                 SyntaxKind::ConstructSignature => factory_
-                    .create_construct_signature(
-                        synthetic_factory_,
-                        type_parameters,
-                        parameters,
-                        return_type_node,
-                    )
+                    .create_construct_signature(type_parameters, parameters, return_type_node)
                     .wrap(),
                 SyntaxKind::MethodSignature => factory_
                     .create_method_signature(
-                        synthetic_factory_,
                         modifiers,
                         options.as_ref().and_then(|options| options.name.clone()),
                         options
@@ -498,7 +471,6 @@ impl NodeBuilder {
                     .wrap(),
                 SyntaxKind::MethodDeclaration => factory_
                     .create_method_declaration(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         modifiers,
                         None,
@@ -507,12 +479,7 @@ impl NodeBuilder {
                             .and_then(|options| options.name.clone())
                             .unwrap_or_else(|| {
                                 factory_
-                                    .create_identifier(
-                                        synthetic_factory_,
-                                        "",
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
+                                    .create_identifier("", Option::<Gc<NodeArray>>::None, None)
                                     .wrap()
                             }),
                         None,
@@ -524,7 +491,6 @@ impl NodeBuilder {
                     .wrap(),
                 SyntaxKind::Constructor => factory_
                     .create_constructor_declaration(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         modifiers,
                         Some(parameters),
@@ -533,7 +499,6 @@ impl NodeBuilder {
                     .wrap(),
                 SyntaxKind::GetAccessor => factory_
                     .create_get_accessor_declaration(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         modifiers,
                         options
@@ -541,12 +506,7 @@ impl NodeBuilder {
                             .and_then(|options| options.name.clone())
                             .unwrap_or_else(|| {
                                 factory_
-                                    .create_identifier(
-                                        synthetic_factory_,
-                                        "",
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
+                                    .create_identifier("", Option::<Gc<NodeArray>>::None, None)
                                     .wrap()
                             }),
                         parameters,
@@ -556,7 +516,6 @@ impl NodeBuilder {
                     .wrap(),
                 SyntaxKind::SetAccessor => factory_
                     .create_set_accessor_declaration(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         modifiers,
                         options
@@ -564,12 +523,7 @@ impl NodeBuilder {
                             .and_then(|options| options.name.clone())
                             .unwrap_or_else(|| {
                                 factory_
-                                    .create_identifier(
-                                        synthetic_factory_,
-                                        "",
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
+                                    .create_identifier("", Option::<Gc<NodeArray>>::None, None)
                                     .wrap()
                             }),
                         parameters,
@@ -578,7 +532,6 @@ impl NodeBuilder {
                     .wrap(),
                 SyntaxKind::IndexSignature => factory_
                     .create_index_signature(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         modifiers,
                         parameters,
@@ -586,24 +539,17 @@ impl NodeBuilder {
                     )
                     .wrap(),
                 SyntaxKind::JSDocFunctionType => factory_
-                    .create_jsdoc_function_type(synthetic_factory_, parameters, return_type_node)
+                    .create_jsdoc_function_type(parameters, return_type_node)
                     .wrap(),
                 SyntaxKind::FunctionType => factory_
                     .create_function_type_node(
-                        synthetic_factory_,
                         type_parameters,
                         parameters,
                         Some(return_type_node.unwrap_or_else(|| {
                             factory_
                                 .create_type_reference_node(
-                                    synthetic_factory_,
                                     factory_
-                                        .create_identifier(
-                                            synthetic_factory_,
-                                            "",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
+                                        .create_identifier("", Option::<Gc<NodeArray>>::None, None)
                                         .wrap(),
                                     Option::<Gc<NodeArray>>::None,
                                 )
@@ -613,21 +559,14 @@ impl NodeBuilder {
                     .wrap(),
                 SyntaxKind::ConstructorType => factory_
                     .create_constructor_type_node(
-                        synthetic_factory_,
                         modifiers,
                         type_parameters,
                         parameters,
                         Some(return_type_node.unwrap_or_else(|| {
                             factory_
                                 .create_type_reference_node(
-                                    synthetic_factory_,
                                     factory_
-                                        .create_identifier(
-                                            synthetic_factory_,
-                                            "",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
+                                        .create_identifier("", Option::<Gc<NodeArray>>::None, None)
                                         .wrap(),
                                     Option::<Gc<NodeArray>>::None,
                                 )
@@ -637,7 +576,6 @@ impl NodeBuilder {
                     .wrap(),
                 SyntaxKind::FunctionDeclaration => factory_
                     .create_function_declaration(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         modifiers,
                         None,
@@ -650,12 +588,7 @@ impl NodeBuilder {
                                 })
                                 .unwrap_or_else(|| {
                                     factory_
-                                        .create_identifier(
-                                            synthetic_factory_,
-                                            "",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
+                                        .create_identifier("", Option::<Gc<NodeArray>>::None, None)
                                         .wrap()
                                 }),
                         ),
@@ -667,7 +600,6 @@ impl NodeBuilder {
                     .wrap(),
                 SyntaxKind::FunctionExpression => factory_
                     .create_function_expression(
-                        synthetic_factory_,
                         modifiers,
                         None,
                         Some(
@@ -679,34 +611,24 @@ impl NodeBuilder {
                                 })
                                 .unwrap_or_else(|| {
                                     factory_
-                                        .create_identifier(
-                                            synthetic_factory_,
-                                            "",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
+                                        .create_identifier("", Option::<Gc<NodeArray>>::None, None)
                                         .wrap()
                                 }),
                         ),
                         type_parameters,
                         parameters,
                         return_type_node,
-                        factory_
-                            .create_block(synthetic_factory_, vec![], None)
-                            .wrap(),
+                        factory_.create_block(vec![], None).wrap(),
                     )
                     .wrap(),
                 SyntaxKind::ArrowFunction => factory_
                     .create_arrow_function(
-                        synthetic_factory_,
                         modifiers,
                         type_parameters,
                         parameters,
                         return_type_node,
                         None,
-                        factory_
-                            .create_block(synthetic_factory_, vec![], None)
-                            .wrap(),
+                        factory_.create_block(vec![], None).wrap(),
                     )
                     .wrap(),
                 _ => Debug_.assert_never(kind, None),
@@ -739,12 +661,7 @@ impl NodeBuilder {
         context.set_flags(saved_context_flags);
         with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
-                .create_type_parameter_declaration(
-                    synthetic_factory_,
-                    name,
-                    constraint_node,
-                    default_parameter_node,
-                )
+                .create_type_parameter_declaration(name, constraint_node, default_parameter_node)
                 .wrap()
         })
     }
@@ -821,9 +738,7 @@ impl NodeBuilder {
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                                 parameter_declaration_modifiers
                                     .into_iter()
-                                    .map(|modifier| {
-                                        factory_.clone_node(synthetic_factory_, modifier)
-                                    })
+                                    .map(|modifier| factory_.clone_node(modifier))
                                     .collect()
                             })
                         },
@@ -839,49 +754,46 @@ impl NodeBuilder {
         let dot_dot_dot_token: Option<Gc<Node>> = if is_rest {
             Some(with_synthetic_factory_and_factory(
                 |synthetic_factory_, factory_| {
-                    factory_
-                        .create_token(synthetic_factory_, SyntaxKind::DotDotDotToken)
-                        .wrap()
+                    factory_.create_token(SyntaxKind::DotDotDotToken).wrap()
                 },
             ))
         } else {
             None
         };
         let mut parameter_symbol_name: Option<Cow<'_, str>> = None;
-        let name: StrOrRcNode<'_> =
-            if let Some(parameter_declaration) = parameter_declaration.as_ref() {
-                if let Some(parameter_declaration_name) = parameter_declaration
-                    .as_named_declaration()
-                    .maybe_name()
-                    .as_ref()
-                {
-                    match parameter_declaration_name.kind() {
-                        SyntaxKind::Identifier => set_emit_flags(
-                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_.clone_node(synthetic_factory_, parameter_declaration_name)
-                            }),
-                            EmitFlags::NoAsciiEscaping,
-                        ),
-                        SyntaxKind::QualifiedName => set_emit_flags(
-                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_.clone_node(
-                                    synthetic_factory_,
-                                    &parameter_declaration_name.as_qualified_name().right,
-                                )
-                            }),
-                            EmitFlags::NoAsciiEscaping,
-                        ),
-                        _ => self.clone_binding_name(context, parameter_declaration_name),
-                    }
-                    .into()
-                } else {
-                    parameter_symbol_name = Some(symbol_name(parameter_symbol));
-                    parameter_symbol_name.as_deref().unwrap().into()
+        let name: StrOrRcNode<'_> = if let Some(parameter_declaration) =
+            parameter_declaration.as_ref()
+        {
+            if let Some(parameter_declaration_name) = parameter_declaration
+                .as_named_declaration()
+                .maybe_name()
+                .as_ref()
+            {
+                match parameter_declaration_name.kind() {
+                    SyntaxKind::Identifier => set_emit_flags(
+                        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                            factory_.clone_node(parameter_declaration_name)
+                        }),
+                        EmitFlags::NoAsciiEscaping,
+                    ),
+                    SyntaxKind::QualifiedName => set_emit_flags(
+                        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                            factory_
+                                .clone_node(&parameter_declaration_name.as_qualified_name().right)
+                        }),
+                        EmitFlags::NoAsciiEscaping,
+                    ),
+                    _ => self.clone_binding_name(context, parameter_declaration_name),
                 }
+                .into()
             } else {
                 parameter_symbol_name = Some(symbol_name(parameter_symbol));
                 parameter_symbol_name.as_deref().unwrap().into()
-            };
+            }
+        } else {
+            parameter_symbol_name = Some(symbol_name(parameter_symbol));
+            parameter_symbol_name.as_deref().unwrap().into()
+        };
         let is_optional = matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)
@@ -890,9 +802,7 @@ impl NodeBuilder {
         let question_token = if is_optional {
             Some(with_synthetic_factory_and_factory(
                 |synthetic_factory_, factory_| {
-                    factory_
-                        .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                        .wrap()
+                    factory_.create_token(SyntaxKind::QuestionToken).wrap()
                 },
             ))
         } else {
@@ -901,7 +811,6 @@ impl NodeBuilder {
         let parameter_node = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
                 .create_parameter_declaration(
-                    synthetic_factory_,
                     Option::<Gc<NodeArray>>::None,
                     modifiers,
                     dot_dot_dot_token,
@@ -977,7 +886,6 @@ impl NodeBuilder {
             let visited_as_binding_element = visited.as_binding_element();
             visited = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_.update_binding_element(
-                    synthetic_factory_,
                     &visited,
                     visited_as_binding_element.dot_dot_dot_token.clone(),
                     visited_as_binding_element.property_name.clone(),
@@ -988,7 +896,7 @@ impl NodeBuilder {
         }
         if !node_is_synthesized(&*visited) {
             visited = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_.clone_node(synthetic_factory_, &visited)
+                factory_.clone_node(&visited)
             });
         }
         set_emit_flags(visited, EmitFlags::SingleLine | EmitFlags::NoAsciiEscaping)
@@ -1470,7 +1378,6 @@ impl NodeBuilder {
         let identifier = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
             factory_
                 .create_identifier(
-                    synthetic_factory_,
                     &unescape_leading_underscores(symbol.escaped_name()),
                     Option::<Gc<NodeArray>>::None,
                     None,
@@ -1481,7 +1388,6 @@ impl NodeBuilder {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_qualified_name(
-                        synthetic_factory_,
                         self.symbol_to_entity_name_node(symbol_parent),
                         identifier,
                     )
@@ -1549,14 +1455,8 @@ impl NodeBuilder {
                 with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                     factory_
                         .create_literal_type_node(
-                            synthetic_factory_,
                             factory_
-                                .create_string_literal(
-                                    synthetic_factory_,
-                                    specifier.clone(),
-                                    None,
-                                    None,
-                                )
+                                .create_string_literal(specifier.clone(), None, None)
                                 .wrap(),
                         )
                         .wrap()
@@ -1580,7 +1480,6 @@ impl NodeBuilder {
                 return with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                     factory_
                         .create_import_type_node(
-                            synthetic_factory_,
                             lit,
                             non_root_parts,
                             type_parameter_nodes,
@@ -1599,10 +1498,8 @@ impl NodeBuilder {
                 return with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                     factory_
                         .create_indexed_access_type_node(
-                            synthetic_factory_,
                             factory_
                                 .create_import_type_node(
-                                    synthetic_factory_,
                                     lit,
                                     Some(qualifier.clone()),
                                     type_parameter_nodes,
@@ -1628,9 +1525,7 @@ impl NodeBuilder {
         }
         if is_type_of {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_
-                    .create_type_query_node(synthetic_factory_, entity_name)
-                    .wrap()
+                factory_.create_type_query_node(entity_name).wrap()
             })
         } else {
             let last_id = if is_identifier(&entity_name) {
@@ -1641,7 +1536,7 @@ impl NodeBuilder {
             let last_type_args = last_id.as_identifier().maybe_type_arguments_mut().take();
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
-                    .create_type_reference_node(synthetic_factory_, entity_name, last_type_args)
+                    .create_type_reference_node(entity_name, last_type_args)
                     .wrap()
             })
         }

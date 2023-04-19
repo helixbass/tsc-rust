@@ -794,9 +794,7 @@ impl Printer {
             .unwrap_or_else(|| {
                 let token: Gc<Node> =
                     with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                        factory
-                            .create_token(synthetic_factory, SyntaxKind::DotToken)
-                            .wrap()
+                        factory.create_token(SyntaxKind::DotToken).wrap()
                     });
                 set_text_range_pos_end(
                     &*token,

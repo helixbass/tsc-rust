@@ -1206,22 +1206,14 @@ impl MaybeEmitExpressionCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
         if self.side == LeftOrRight::Left {
-            with_synthetic_factory(|synthetic_factory| {
-                self.parenthesizer.parenthesize_left_side_of_binary(
-                    synthetic_factory,
-                    self.parent_operator_token_kind,
-                    node,
-                )
-            })
+            self.parenthesizer
+                .parenthesize_left_side_of_binary(self.parent_operator_token_kind, node)
         } else {
-            with_synthetic_factory(|synthetic_factory| {
-                self.parenthesizer.parenthesize_right_side_of_binary(
-                    synthetic_factory,
-                    self.parent_operator_token_kind,
-                    None,
-                    node,
-                )
-            })
+            self.parenthesizer.parenthesize_right_side_of_binary(
+                self.parent_operator_token_kind,
+                None,
+                node,
+            )
         }
     }
 }
@@ -1239,10 +1231,8 @@ impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_operand_of_prefix_unary(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_operand_of_prefix_unary(node)
     }
 }
 
@@ -1259,10 +1249,8 @@ impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_operand_of_postfix_unary(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_operand_of_postfix_unary(node)
     }
 }
 
@@ -1279,10 +1267,7 @@ impl ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_left_side_of_access(synthetic_factory, node)
-        })
+        self.parenthesizer.parenthesize_left_side_of_access(node)
     }
 }
 
@@ -1299,10 +1284,7 @@ impl ParenthesizeExpressionOfNewCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_expression_of_new(synthetic_factory, node)
-        })
+        self.parenthesizer.parenthesize_expression_of_new(node)
     }
 }
 
@@ -1319,10 +1301,7 @@ impl ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_member_of_element_type(synthetic_factory, node)
-        })
+        self.parenthesizer.parenthesize_member_of_element_type(node)
     }
 }
 
@@ -1339,10 +1318,8 @@ impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_member_of_conditional_type(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_member_of_conditional_type(node)
     }
 }
 
@@ -1359,10 +1336,8 @@ impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_element_type_of_array_type(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_element_type_of_array_type(node)
     }
 }
 
@@ -1381,10 +1356,8 @@ impl CurrentParenthesizerRule
     for ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule
 {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_expression_of_computed_property_name(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_expression_of_computed_property_name(node)
     }
 }
 
@@ -1401,10 +1374,8 @@ impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_expression_for_disallowed_comma(node)
     }
 }
 
@@ -1421,10 +1392,8 @@ impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_expression_of_export_default(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_expression_of_export_default(node)
     }
 }
 
@@ -1441,14 +1410,8 @@ impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer.parenthesize_right_side_of_binary(
-                synthetic_factory,
-                SyntaxKind::EqualsToken,
-                None,
-                node,
-            )
-        })
+        self.parenthesizer
+            .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, node)
     }
 }
 
@@ -1465,10 +1428,8 @@ impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_concise_body_of_arrow_function(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_concise_body_of_arrow_function(node)
     }
 }
 
@@ -1487,10 +1448,8 @@ impl CurrentParenthesizerRule
     for ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule
 {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_expression_of_expression_statement(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_expression_of_expression_statement(node)
     }
 }
 
@@ -1509,10 +1468,8 @@ impl CurrentParenthesizerRule
     for ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule
 {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_branch_of_conditional_expression(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_branch_of_conditional_expression(node)
     }
 }
 
@@ -1531,9 +1488,7 @@ impl CurrentParenthesizerRule
     for ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule
 {
     fn call(&self, node: &Node) -> Gc<Node> {
-        with_synthetic_factory(|synthetic_factory| {
-            self.parenthesizer
-                .parenthesize_condition_of_conditional_expression(synthetic_factory, node)
-        })
+        self.parenthesizer
+            .parenthesize_condition_of_conditional_expression(node)
     }
 }

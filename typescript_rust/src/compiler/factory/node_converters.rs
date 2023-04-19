@@ -36,7 +36,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 {
     fn convert_to_function_block(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ConciseBody*/
         multi_line: Option<bool>,
     ) -> Gc<Node /*Block*/> {
@@ -45,18 +44,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
         let return_statement = self
             .factory
-            .create_return_statement(base_factory, Some(node.node_wrapper()));
+            .create_return_statement(Some(node.node_wrapper()));
         let return_statement = set_text_range(&*return_statement.wrap(), Some(node)).node_wrapper();
         let body = self
             .factory
-            .create_block(base_factory, vec![return_statement], multi_line);
+            .create_block(vec![return_statement], multi_line);
         let body = set_text_range(&*body.wrap(), Some(node)).node_wrapper();
         body
     }
 
     fn convert_to_function_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*FunctionDeclaration*/
     ) -> Gc<Node /*FunctionExpression*/> {
         let node_as_function_declaration = node.as_function_declaration();
@@ -66,7 +64,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         let updated = self
             .factory
             .create_function_expression(
-                base_factory,
                 node_as_function_declaration
                     .maybe_modifiers()
                     .as_ref()
@@ -92,7 +89,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_array_assignment_element(
         &self,
-        base_factory: &TBaseNodeFactory,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
     ) -> Gc<Node /*Expression*/> {
         if is_binding_element(element) {
@@ -105,22 +101,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 );
                 let ret = self
                     .factory
-                    .create_spread_element(base_factory, element_as_binding_element.name());
+                    .create_spread_element(element_as_binding_element.name());
                 let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
             }
-            let expression = self.convert_to_assignment_element_target(
-                base_factory,
-                &element_as_binding_element.name(),
-            );
+            let expression =
+                self.convert_to_assignment_element_target(&element_as_binding_element.name());
             return match element_as_binding_element.maybe_initializer() {
                 Some(element_initializer) => {
-                    let ret = self.factory.create_assignment(
-                        base_factory,
-                        expression,
-                        element_initializer,
-                    );
+                    let ret = self
+                        .factory
+                        .create_assignment(expression, element_initializer);
                     let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                     set_original_node(ret.clone(), Some(element.node_wrapper()));
                     return ret;
@@ -133,7 +125,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_object_assignment_element(
         &self,
-        base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
     ) -> Gc<Node /*ObjectLiteralElementLike*/> {
         if is_binding_element(element) {
@@ -146,23 +137,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 );
                 let ret = self
                     .factory
-                    .create_spread_assignment(base_factory, element_as_binding_element.name());
+                    .create_spread_assignment(element_as_binding_element.name());
                 let ret = set_text_range(&*ret.wrap(), Some(element)).node_wrapper();
                 set_original_node(ret.clone(), Some(element.node_wrapper()));
                 return ret;
             }
             if let Some(element_property_name) = element_as_binding_element.property_name.as_ref() {
-                let expression = self.convert_to_assignment_element_target(
-                    base_factory,
-                    &element_as_binding_element.name(),
-                );
+                let expression =
+                    self.convert_to_assignment_element_target(&element_as_binding_element.name());
                 let ret = self.factory.create_property_assignment(
-                    base_factory,
                     element_property_name.clone(),
                     match element_as_binding_element.maybe_initializer() {
                         Some(initializer) => self
                             .factory
-                            .create_assignment(base_factory, expression, initializer)
+                            .create_assignment(expression, initializer)
                             .wrap(),
                         None => expression,
                     },
@@ -177,7 +165,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 None,
             );
             let ret = self.factory.create_shorthand_property_assignment(
-                base_factory,
                 element_as_binding_element.name(),
                 element_as_binding_element.maybe_initializer(),
             );
@@ -193,15 +180,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentPattern*/
     ) -> Gc<Node /*AssignmentPattern*/> {
         match node.kind() {
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ArrayLiteralExpression => {
-                self.convert_to_array_assignment_pattern(base_factory, node)
+                self.convert_to_array_assignment_pattern(node)
             }
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ObjectLiteralExpression => {
-                self.convert_to_object_assignment_pattern(base_factory, node)
+                self.convert_to_object_assignment_pattern(node)
             }
             _ => panic!("Unexpected kind"),
         }
@@ -209,16 +195,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_object_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ObjectBindingOrAssignmentPattern*/
     ) -> Gc<Node /*ObjectLiteralExpression*/> {
         if is_object_binding_pattern(node) {
             let node_as_object_binding_pattern = node.as_object_binding_pattern();
             let ret = self.factory.create_object_literal_expression(
-                base_factory,
                 Some(map(
                     &node_as_object_binding_pattern.elements,
-                    |element, _| self.convert_to_object_assignment_element(base_factory, element),
+                    |element, _| self.convert_to_object_assignment_element(element),
                 )),
                 None,
             );
@@ -231,16 +215,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_array_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ArrayBindingOrAssignmentPattern*/
     ) -> Gc<Node /*ArrayLiteralExpression*/> {
         if is_array_binding_pattern(node) {
             let node_as_array_binding_pattern = node.as_array_binding_pattern();
             let ret = self.factory.create_array_literal_expression(
-                base_factory,
                 Some(map(
                     &node_as_array_binding_pattern.elements,
-                    |element, _| self.convert_to_array_assignment_element(base_factory, element),
+                    |element, _| self.convert_to_array_assignment_element(element),
                 )),
                 None,
             );
@@ -253,11 +235,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
     fn convert_to_assignment_element_target(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentElementTarget*/
     ) -> Gc<Node /*Expression*/> {
         if is_binding_pattern(Some(node)) {
-            return self.convert_to_assignment_pattern(base_factory, node);
+            return self.convert_to_assignment_pattern(node);
         }
         cast(Some(node), |node| is_expression(node)).node_wrapper()
     }
@@ -287,7 +268,6 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 {
     fn convert_to_function_block(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ConciseBody*/
         multi_line: Option<bool>,
     ) -> Gc<Node /*Block*/> {
@@ -296,7 +276,6 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 
     fn convert_to_function_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*FunctionDeclaration*/
     ) -> Gc<Node /*FunctionExpression*/> {
         unimplemented!()
@@ -304,7 +283,6 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 
     fn convert_to_array_assignment_element(
         &self,
-        base_factory: &TBaseNodeFactory,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
@@ -312,7 +290,6 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 
     fn convert_to_object_assignment_element(
         &self,
-        base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
     ) -> Gc<Node /*ObjectLiteralElementLike*/> {
         unimplemented!()
@@ -320,7 +297,6 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 
     fn convert_to_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentPattern*/
     ) -> Gc<Node /*AssignmentPattern*/> {
         unimplemented!()
@@ -328,7 +304,6 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 
     fn convert_to_object_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ObjectBindingOrAssignmentPattern*/
     ) -> Gc<Node /*ObjectLiteralExpression*/> {
         unimplemented!()
@@ -336,7 +311,6 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 
     fn convert_to_array_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ArrayBindingOrAssignmentPattern*/
     ) -> Gc<Node /*ArrayLiteralExpression*/> {
         unimplemented!()
@@ -344,7 +318,6 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 
     fn convert_to_assignment_element_target(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentElementTarget*/
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()

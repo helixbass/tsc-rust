@@ -427,11 +427,7 @@ impl TypeChecker {
         );
         if declaration.is_none() {
             return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| {
-                    factory
-                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .wrap()
-                },
+                |synthetic_factory, factory| factory.create_token(SyntaxKind::AnyKeyword).wrap(),
             ));
         }
         let declaration = declaration.as_ref().unwrap();
@@ -474,11 +470,7 @@ impl TypeChecker {
         );
         if signature_declaration.is_none() {
             return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| {
-                    factory
-                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .wrap()
-                },
+                |synthetic_factory, factory| factory.create_token(SyntaxKind::AnyKeyword).wrap(),
             ));
         }
         let signature_declaration = signature_declaration.as_ref().unwrap();
@@ -501,11 +493,7 @@ impl TypeChecker {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
             return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| {
-                    factory
-                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .wrap()
-                },
+                |synthetic_factory, factory| factory.create_token(SyntaxKind::AnyKeyword).wrap(),
             ));
         }
         let expr = expr.as_ref().unwrap();
@@ -612,11 +600,11 @@ impl TypeChecker {
             )
         } else if ptr::eq(type_, &*self.true_type()) {
             Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_true(synthetic_factory).wrap(),
+                |synthetic_factory, factory| factory.create_true().wrap(),
             ))
         } else if ptr::eq(type_, &*self.false_type()) {
             Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_false(synthetic_factory).wrap(),
+                |synthetic_factory, factory| factory.create_false().wrap(),
             ))
         } else {
             None
@@ -627,22 +615,20 @@ impl TypeChecker {
         match type_ {
             Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                    factory
-                        .create_big_int_literal(synthetic_factory, type_.value.clone())
-                        .wrap()
+                    factory.create_big_int_literal(type_.value.clone()).wrap()
                 })
             }
             Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                     factory
-                        .create_numeric_literal(synthetic_factory, type_.value.clone(), None)
+                        .create_numeric_literal(type_.value.clone(), None)
                         .wrap()
                 })
             }
             Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                     factory
-                        .create_string_literal(synthetic_factory, type_.value.clone(), None, None)
+                        .create_string_literal(type_.value.clone(), None, None)
                         .wrap()
                 })
             }

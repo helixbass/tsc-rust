@@ -16,16 +16,14 @@ use crate::{
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    base_factory: &TBaseNodeFactory,
     factory: &NodeFactory<TBaseNodeFactory>,
 ) -> Gc<Node> {
     factory
         .create_export_declaration(
-            base_factory,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             false,
-            Some(factory.create_named_exports(base_factory, vec![]).wrap()),
+            Some(factory.create_named_exports(vec![]).wrap()),
             None,
             None,
         )
@@ -35,7 +33,6 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace 
 pub fn create_for_of_binding_statement<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    base_factory: &TBaseNodeFactory,
     factory: &NodeFactory<TBaseNodeFactory>,
     node: &Node,        /*ForInitializer*/
     bound_value: &Node, /*Expression*/

@@ -152,25 +152,21 @@ impl TypeChecker {
         let _jsx_namespace = _jsx_namespace.clone().unwrap();
         let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
         if _jsx_factory_entity.is_none() {
-            *_jsx_factory_entity = synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    Some(
-                        factory_
-                            .create_qualified_name(
-                                synthetic_factory_,
-                                factory_
-                                    .create_identifier(
-                                        synthetic_factory_,
-                                        &unescape_leading_underscores(&_jsx_namespace),
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .wrap(),
-                                "createElement",
-                            )
-                            .wrap(),
-                    )
-                })
+            *_jsx_factory_entity = factory.with(|factory_| {
+                Some(
+                    factory_
+                        .create_qualified_name(
+                            factory_
+                                .create_identifier(
+                                    &unescape_leading_underscores(&_jsx_namespace),
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                )
+                                .wrap(),
+                            "createElement",
+                        )
+                        .wrap(),
+                )
             });
         }
         _jsx_namespace

@@ -566,17 +566,10 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
 pub fn create_modifiers(modifier_flags: ModifierFlags) -> Option<ModifiersArray> {
     if modifier_flags != ModifierFlags::None {
         Some(factory.with(|factory_| {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory_.create_node_array(
-                    Some(
-                        factory_.create_modifiers_from_modifier_flags(
-                            synthetic_factory_,
-                            modifier_flags,
-                        ),
-                    ),
-                    None,
-                )
-            })
+            factory_.create_node_array(
+                Some(factory_.create_modifiers_from_modifier_flags(modifier_flags)),
+                None,
+            )
         }))
     } else {
         None

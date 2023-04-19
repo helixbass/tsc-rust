@@ -315,11 +315,9 @@ impl TypeChecker {
             synthetic_factory.with(|synthetic_factory_| {
                 factory_
                     .create_function_type_node(
-                        synthetic_factory_,
                         Option::<Gc<NodeArray>>::None,
                         vec![factory_
                             .create_parameter_declaration(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 None,
@@ -337,17 +335,13 @@ impl TypeChecker {
                         Some(if let Some(return_node) = return_node {
                             factory_
                                 .create_type_reference_node(
-                                    synthetic_factory_,
                                     return_node,
                                     Option::<Gc<NodeArray>>::None,
                                 )
                                 .wrap()
                         } else {
                             factory_
-                                .create_keyword_type_node(
-                                    synthetic_factory_,
-                                    SyntaxKind::AnyKeyword,
-                                )
+                                .create_keyword_type_node(SyntaxKind::AnyKeyword)
                                 .wrap()
                         }),
                     )

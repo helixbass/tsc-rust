@@ -1,7 +1,6 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
@@ -18,11 +17,7 @@ impl ParserType {
         let statements = self.parse_list(ParsingContext::SwitchClauseStatements, &mut || {
             self.parse_statement()
         });
-        self.finish_node(
-            self.factory().create_default_clause(self, statements),
-            pos,
-            None,
-        )
+        self.finish_node(self.factory().create_default_clause(statements), pos, None)
     }
 
     pub(super) fn parse_case_or_default_clause(&self) -> Node /*CaseOrDefaultClause*/ {
@@ -40,7 +35,7 @@ impl ParserType {
             self.parse_case_or_default_clause().wrap()
         });
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
-        self.finish_node(self.factory().create_case_block(self, clauses), pos, None)
+        self.finish_node(self.factory().create_case_block(clauses), pos, None)
     }
 
     pub(super) fn parse_switch_statement(&self) -> Gc<Node /*SwitchStatement*/> {
@@ -54,7 +49,7 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .create_switch_statement(self, expression, case_block.wrap()),
+                    .create_switch_statement(expression, case_block.wrap()),
                 pos,
                 None,
             )
@@ -78,7 +73,7 @@ impl ParserType {
             expression = Some(
                 self.finish_node(
                     self.factory()
-                        .create_identifier(self, "", Option::<Gc<NodeArray>>::None, None),
+                        .create_identifier("", Option::<Gc<NodeArray>>::None, None),
                     self.get_node_pos(),
                     None,
                 )
@@ -90,12 +85,8 @@ impl ParserType {
             self.parse_error_for_missing_semicolon_after(&expression);
         }
         self.with_jsdoc(
-            self.finish_node(
-                self.factory().create_throw_statement(self, expression),
-                pos,
-                None,
-            )
-            .wrap(),
+            self.finish_node(self.factory().create_throw_statement(expression), pos, None)
+                .wrap(),
             has_jsdoc,
         )
     }
@@ -121,7 +112,7 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .create_try_statement(self, try_block, catch_clause, finally_block),
+                    .create_try_statement(try_block, catch_clause, finally_block),
                 pos,
                 None,
             )
@@ -145,7 +136,7 @@ impl ParserType {
         let block = self.parse_block(false, None);
         self.finish_node(
             self.factory()
-                .create_catch_clause(self, variable_declaration, block),
+                .create_catch_clause(variable_declaration, block),
             pos,
             None,
         )
@@ -157,7 +148,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::DebuggerKeyword, None, None);
         self.parse_semicolon();
         self.with_jsdoc(
-            self.finish_node(self.factory().create_debugger_statement(self), pos, None)
+            self.finish_node(self.factory().create_debugger_statement(), pos, None)
                 .wrap(),
             has_jsdoc,
         )
@@ -174,7 +165,7 @@ impl ParserType {
         if is_identifier(&expression) && self.parse_optional(SyntaxKind::ColonToken) {
             node = self
                 .factory()
-                .create_labeled_statement(self, expression, self.parse_statement())
+                .create_labeled_statement(expression, self.parse_statement())
                 .into();
         } else {
             if !self.try_parse_semicolon() {
@@ -182,7 +173,7 @@ impl ParserType {
             }
             node = self
                 .factory()
-                .create_expression_statement(self, expression)
+                .create_expression_statement(expression)
                 .into();
             if has_paren {
                 has_jsdoc = false;
@@ -581,11 +572,7 @@ impl ParserType {
     pub(super) fn parse_array_binding_element(&self) -> Node /*ArrayBindingElement*/ {
         let pos = self.get_node_pos();
         if self.token() == SyntaxKind::CommaToken {
-            return self.finish_node(
-                self.factory().create_omitted_expression(self).into(),
-                pos,
-                None,
-            );
+            return self.finish_node(self.factory().create_omitted_expression().into(), pos, None);
         }
         let dot_dot_dot_token = self
             .parse_optional_token(SyntaxKind::DotDotDotToken)
@@ -595,7 +582,6 @@ impl ParserType {
         self.finish_node(
             self.factory()
                 .create_binding_element(
-                    self,
                     dot_dot_dot_token,
                     Option::<Gc<Node>>::None,
                     name,
@@ -625,7 +611,6 @@ impl ParserType {
         let initializer = self.parse_initializer();
         self.finish_node(
             self.factory().create_binding_element(
-                self,
                 dot_dot_dot_token,
                 property_name,
                 name,

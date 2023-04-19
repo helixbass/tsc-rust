@@ -855,13 +855,12 @@ impl Program {
         let external_helpers_module_reference =
             with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 factory
-                    .create_string_literal(synthetic_factory, text.to_owned(), None, None)
+                    .create_string_literal(text.to_owned(), None, None)
                     .wrap()
             });
         let import_decl = with_synthetic_factory_and_factory(|synthetic_factory, factory| {
             factory
                 .create_import_declaration(
-                    synthetic_factory,
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     None,

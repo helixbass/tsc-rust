@@ -56,18 +56,15 @@ impl NodeBuilder {
                 .get_false_type_from_conditional_type(type_),
         );
         context.increment_approximate_length_by(15);
-        synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| {
-                factory_
-                    .create_conditional_type_node(
-                        synthetic_factory_,
-                        check_type_node,
-                        extends_type_node,
-                        true_type_node,
-                        false_type_node,
-                    )
-                    .wrap()
-            })
+        factory.with(|factory_| {
+            factory_
+                .create_conditional_type_node(
+                    check_type_node,
+                    extends_type_node,
+                    true_type_node,
+                    false_type_node,
+                )
+                .wrap()
         })
     }
 
@@ -108,45 +105,30 @@ impl NodeBuilder {
             .readonly_token
             .as_ref()
             .map(|readonly_token| {
-                synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_
-                            .create_token(synthetic_factory_, readonly_token.kind())
-                            .wrap()
-                    })
-                })
+                factory.with(|factory_| factory_.create_token(readonly_token.kind()).wrap())
             });
         let question_token: Option<Gc<Node>> = type_declaration_as_mapped_type_node
             .question_token
             .as_ref()
             .map(|question_token| {
-                synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_
-                            .create_token(synthetic_factory_, question_token.kind())
-                            .wrap()
-                    })
-                })
+                factory.with(|factory_| factory_.create_token(question_token.kind()).wrap())
             });
         let appropriate_constraint_type_node: Gc<Node /*TypeNode*/>;
         if self
             .type_checker
             .is_mapped_type_with_keyof_constraint_declaration(type_)
         {
-            appropriate_constraint_type_node = synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_type_operator_node(
-                            synthetic_factory_,
-                            SyntaxKind::KeyOfKeyword,
-                            self.type_to_type_node_helper(
-                                Some(self.type_checker.get_modifiers_type_from_mapped_type(type_)),
-                                context,
-                            )
-                            .unwrap(),
+            appropriate_constraint_type_node = factory.with(|factory_| {
+                factory_
+                    .create_type_operator_node(
+                        SyntaxKind::KeyOfKeyword,
+                        self.type_to_type_node_helper(
+                            Some(self.type_checker.get_modifiers_type_from_mapped_type(type_)),
+                            context,
                         )
-                        .wrap()
-                })
+                        .unwrap(),
+                    )
+                    .wrap()
             });
         } else {
             appropriate_constraint_type_node = self
@@ -184,20 +166,17 @@ impl NodeBuilder {
             ),
             context,
         );
-        let mapped_type_node: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| {
-                factory_
-                    .create_mapped_type_node(
-                        synthetic_factory_,
-                        readonly_token,
-                        type_parameter_node,
-                        name_type_node,
-                        question_token,
-                        template_type_node,
-                        Option::<Gc<NodeArray>>::None,
-                    )
-                    .wrap()
-            })
+        let mapped_type_node = factory.with(|factory_| {
+            factory_
+                .create_mapped_type_node(
+                    readonly_token,
+                    type_parameter_node,
+                    name_type_node,
+                    question_token,
+                    template_type_node,
+                    Option::<Gc<NodeArray>>::None,
+                )
+                .wrap()
         });
         context.increment_approximate_length_by(10);
         set_emit_flags(mapped_type_node, EmitFlags::SingleLine)
@@ -437,36 +416,33 @@ impl NodeBuilder {
         {
             return node.node_wrapper();
         }
-        let ret = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| {
-                factory_.clone_node(
-                    synthetic_factory_,
-                    &visit_each_child(
-                        Some(node),
-                        |node: &Node| Some(self.deep_clone_or_reuse_node(node).into()),
-                        &*null_transformation_context,
-                        Option::<
-                            fn(
-                                Option<&NodeArray>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<usize>,
-                                Option<usize>,
-                            ) -> Option<Gc<NodeArray>>,
-                        >::None,
-                        Option::<fn(&Node) -> VisitResult>::None,
-                        Option::<
-                            fn(
-                                Option<&Node>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                            ) -> Option<Gc<Node>>,
-                        >::None,
-                    )
-                    .unwrap(),
+        let ret = factory.with(|factory_| {
+            factory_.clone_node(
+                &visit_each_child(
+                    Some(node),
+                    |node: &Node| Some(self.deep_clone_or_reuse_node(node).into()),
+                    &*null_transformation_context,
+                    Option::<
+                        fn(
+                            Option<&NodeArray>,
+                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                            Option<&dyn Fn(&Node) -> bool>,
+                            Option<usize>,
+                            Option<usize>,
+                        ) -> Option<Gc<NodeArray>>,
+                    >::None,
+                    Option::<fn(&Node) -> VisitResult>::None,
+                    Option::<
+                        fn(
+                            Option<&Node>,
+                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                            Option<&dyn Fn(&Node) -> bool>,
+                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                        ) -> Option<Gc<Node>>,
+                    >::None,
                 )
-            })
+                .unwrap(),
+            )
         });
         set_text_range(&*ret, Some(node));
         ret
@@ -498,15 +474,10 @@ impl NodeBuilder {
             {
                 context.increment_approximate_length_by(2);
                 return set_emit_flags(
-                    synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_
-                                .create_type_literal_node(
-                                    synthetic_factory_,
-                                    Option::<Gc<NodeArray>>::None,
-                                )
-                                .wrap()
-                        })
+                    factory.with(|factory_| {
+                        factory_
+                            .create_type_literal_node(Option::<Gc<NodeArray>>::None)
+                            .wrap()
                     }),
                     EmitFlags::SingleLine,
                 );
@@ -588,13 +559,8 @@ impl NodeBuilder {
         context.set_flags(context.flags() | NodeBuilderFlags::InObjectTypeLiteral);
         let members = self.create_type_nodes_from_resolved_type(context, &resolved);
         context.set_flags(saved_flags);
-        let type_literal_node: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| {
-                factory_
-                    .create_type_literal_node(synthetic_factory_, members)
-                    .wrap()
-            })
-        });
+        let type_literal_node =
+            factory.with(|factory_| factory_.create_type_literal_node(members).wrap());
         context.increment_approximate_length_by(2);
         set_emit_flags(
             type_literal_node.clone(),
@@ -631,47 +597,32 @@ impl NodeBuilder {
                 let type_argument_node = self
                     .type_to_type_node_helper(Some(&*type_arguments[0]), context)
                     .unwrap();
-                return Some(synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_
-                            .create_type_reference_node(
-                                synthetic_factory_,
-                                if Gc::ptr_eq(&type_target, &self.type_checker.global_array_type())
-                                {
-                                    "Array"
-                                } else {
-                                    "ReadonlyArray"
-                                },
-                                Some(vec![type_argument_node]),
-                            )
-                            .wrap()
-                    })
+                return Some(factory.with(|factory_| {
+                    factory_
+                        .create_type_reference_node(
+                            if Gc::ptr_eq(&type_target, &self.type_checker.global_array_type()) {
+                                "Array"
+                            } else {
+                                "ReadonlyArray"
+                            },
+                            Some(vec![type_argument_node]),
+                        )
+                        .wrap()
                 }));
             }
             let element_type = self
                 .type_to_type_node_helper(Some(&*type_arguments[0]), context)
                 .unwrap();
-            let array_type = synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_array_type_node(synthetic_factory_, element_type)
-                        .wrap()
-                })
-            });
+            let array_type =
+                factory.with(|factory_| factory_.create_array_type_node(element_type).wrap());
             Some(
                 if Gc::ptr_eq(&type_target, &self.type_checker.global_array_type()) {
                     array_type
                 } else {
-                    synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_
-                                .create_type_operator_node(
-                                    synthetic_factory_,
-                                    SyntaxKind::ReadonlyKeyword,
-                                    array_type,
-                                )
-                                .wrap()
-                        })
+                    factory.with(|factory_| {
+                        factory_
+                            .create_type_operator_node(SyntaxKind::ReadonlyKeyword, array_type)
+                            .wrap()
                     })
                 },
             )
@@ -700,39 +651,48 @@ impl NodeBuilder {
                         for i in 0..tuple_constituent_nodes.len() {
                             let tuple_constituent_node = tuple_constituent_nodes[i].clone();
                             let flags = type_target_as_tuple_type.element_flags[i];
-                            tuple_constituent_nodes[i] = synthetic_factory.with(|synthetic_factory_| {
-                                factory.with(|factory_| {
-                                    factory_
-                                        .create_named_tuple_member(
-                                            synthetic_factory_,
-                                            if flags.intersects(ElementFlags::Variable) {
-                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::DotDotDotToken).wrap())
-                                            } else {
-                                                None
-                                            },
-                                            factory_.create_identifier(
-                                                synthetic_factory_,
+                            tuple_constituent_nodes[i] = factory.with(|factory_| {
+                                factory_
+                                    .create_named_tuple_member(
+                                        if flags.intersects(ElementFlags::Variable) {
+                                            Some(
+                                                factory_
+                                                    .create_token(SyntaxKind::DotDotDotToken)
+                                                    .wrap(),
+                                            )
+                                        } else {
+                                            None
+                                        },
+                                        factory_
+                                            .create_identifier(
                                                 &unescape_leading_underscores(
                                                     &self.type_checker.get_tuple_element_label(
-                                                        &type_target_labeled_element_declarations[i]
-                                                    )
+                                                        &type_target_labeled_element_declarations
+                                                            [i],
+                                                    ),
                                                 ),
                                                 Option::<Gc<NodeArray>>::None,
                                                 None,
-                                            ).wrap(),
-                                            if flags.intersects(ElementFlags::Optional) {
-                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::QuestionToken).wrap())
-                                            } else {
-                                                None
-                                            },
-                                            if flags.intersects(ElementFlags::Rest) {
-                                                factory_.create_array_type_node(synthetic_factory_, tuple_constituent_node).wrap()
-                                            } else {
-                                                tuple_constituent_node
-                                            },
-                                        )
-                                        .wrap()
-                                })
+                                            )
+                                            .wrap(),
+                                        if flags.intersects(ElementFlags::Optional) {
+                                            Some(
+                                                factory_
+                                                    .create_token(SyntaxKind::QuestionToken)
+                                                    .wrap(),
+                                            )
+                                        } else {
+                                            None
+                                        },
+                                        if flags.intersects(ElementFlags::Rest) {
+                                            factory_
+                                                .create_array_type_node(tuple_constituent_node)
+                                                .wrap()
+                                        } else {
+                                            tuple_constituent_node
+                                        },
+                                    )
+                                    .wrap()
                             });
                         }
                     } else {
@@ -741,35 +701,24 @@ impl NodeBuilder {
                             let flags = type_target_as_tuple_type.element_flags[i];
                             tuple_constituent_nodes[i] = if flags.intersects(ElementFlags::Variable)
                             {
-                                synthetic_factory.with(|synthetic_factory_| {
-                                    factory.with(|factory_| {
-                                        factory_
-                                            .create_rest_type_node(
-                                                synthetic_factory_,
-                                                if flags.intersects(ElementFlags::Rest) {
-                                                    factory_
-                                                        .create_array_type_node(
-                                                            synthetic_factory_,
-                                                            tuple_constituent_node,
-                                                        )
-                                                        .wrap()
-                                                } else {
-                                                    tuple_constituent_node
-                                                },
-                                            )
-                                            .wrap()
-                                    })
+                                factory.with(|factory_| {
+                                    factory_
+                                        .create_rest_type_node(
+                                            if flags.intersects(ElementFlags::Rest) {
+                                                factory_
+                                                    .create_array_type_node(tuple_constituent_node)
+                                                    .wrap()
+                                            } else {
+                                                tuple_constituent_node
+                                            },
+                                        )
+                                        .wrap()
                                 })
                             } else if flags.intersects(ElementFlags::Optional) {
-                                synthetic_factory.with(|synthetic_factory_| {
-                                    factory.with(|factory_| {
-                                        factory_
-                                            .create_optional_type_node(
-                                                synthetic_factory_,
-                                                tuple_constituent_node,
-                                            )
-                                            .wrap()
-                                    })
+                                factory.with(|factory_| {
+                                    factory_
+                                        .create_optional_type_node(tuple_constituent_node)
+                                        .wrap()
                                 })
                             } else {
                                 tuple_constituent_node
@@ -777,29 +726,21 @@ impl NodeBuilder {
                         }
                     }
                     let tuple_type_node = set_emit_flags(
-                        synthetic_factory.with(|synthetic_factory_| {
-                            factory.with(|factory_| {
-                                factory_
-                                    .create_tuple_type_node(
-                                        synthetic_factory_,
-                                        Some(tuple_constituent_nodes),
-                                    )
-                                    .wrap()
-                            })
+                        factory.with(|factory_| {
+                            factory_
+                                .create_tuple_type_node(Some(tuple_constituent_nodes))
+                                .wrap()
                         }),
                         EmitFlags::SingleLine,
                     );
                     return Some(if type_target_as_tuple_type.readonly {
-                        synthetic_factory.with(|synthetic_factory_| {
-                            factory.with(|factory_| {
-                                factory_
-                                    .create_type_operator_node(
-                                        synthetic_factory_,
-                                        SyntaxKind::ReadonlyKeyword,
-                                        tuple_type_node,
-                                    )
-                                    .wrap()
-                            })
+                        factory.with(|factory_| {
+                            factory_
+                                .create_type_operator_node(
+                                    SyntaxKind::ReadonlyKeyword,
+                                    tuple_type_node,
+                                )
+                                .wrap()
                         })
                     } else {
                         tuple_type_node
@@ -812,26 +753,14 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::AllowEmptyTuple)
             {
                 let tuple_type_node = set_emit_flags(
-                    synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_
-                                .create_tuple_type_node(synthetic_factory_, Some(vec![]))
-                                .wrap()
-                        })
-                    }),
+                    factory.with(|factory_| factory_.create_tuple_type_node(Some(vec![])).wrap()),
                     EmitFlags::SingleLine,
                 );
                 return Some(if type_target_as_tuple_type.readonly {
-                    synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_
-                                .create_type_operator_node(
-                                    synthetic_factory_,
-                                    SyntaxKind::ReadonlyKeyword,
-                                    tuple_type_node,
-                                )
-                                .wrap()
-                        })
+                    factory.with(|factory_| {
+                        factory_
+                            .create_type_operator_node(SyntaxKind::ReadonlyKeyword, tuple_type_node)
+                            .wrap()
                     })
                 } else {
                     tuple_type_node
@@ -932,29 +861,19 @@ impl NodeBuilder {
             let mut qualifier: Option<Gc<Node>> = root_as_import_type_node.qualifier.clone();
             if let Some(qualifier_present) = qualifier {
                 if is_identifier(&qualifier_present) {
-                    qualifier = Some(synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_.update_identifier(
-                                synthetic_factory_,
-                                &qualifier_present,
-                                type_arguments.cloned(),
-                            )
-                        })
+                    qualifier = Some(factory.with(|factory_| {
+                        factory_.update_identifier(&qualifier_present, type_arguments.cloned())
                     }));
                 } else {
-                    qualifier = Some(synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_.update_qualified_name(
-                                synthetic_factory_,
-                                &qualifier_present,
-                                qualifier_present.as_qualified_name().left.clone(),
-                                factory_.update_identifier(
-                                    synthetic_factory_,
-                                    &qualifier_present.as_qualified_name().right,
-                                    type_arguments.cloned(),
-                                ),
-                            )
-                        })
+                    qualifier = Some(factory.with(|factory_| {
+                        factory_.update_qualified_name(
+                            &qualifier_present,
+                            qualifier_present.as_qualified_name().left.clone(),
+                            factory_.update_identifier(
+                                &qualifier_present.as_qualified_name().right,
+                                type_arguments.cloned(),
+                            ),
+                        )
                     }));
                 }
             }
@@ -963,30 +882,21 @@ impl NodeBuilder {
             let ids = self.get_access_stack(ref_);
             for id in ids {
                 qualifier = Some(if let Some(qualifier) = qualifier {
-                    synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_
-                                .create_qualified_name(synthetic_factory_, qualifier, id)
-                                .wrap()
-                        })
-                    })
+                    factory.with(|factory_| factory_.create_qualified_name(qualifier, id).wrap())
                 } else {
                     id
                 });
             }
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .update_import_type_node(
-                            synthetic_factory_,
-                            root,
-                            root_as_import_type_node.argument.clone(),
-                            qualifier,
-                            type_arguments.map(NodeArray::rc_wrapper),
-                            Some(root_as_import_type_node.is_type_of()),
-                        )
-                        .into()
-                })
+            factory.with(|factory_| {
+                factory_
+                    .update_import_type_node(
+                        root,
+                        root_as_import_type_node.argument.clone(),
+                        qualifier,
+                        type_arguments.map(NodeArray::rc_wrapper),
+                        Some(root_as_import_type_node.is_type_of()),
+                    )
+                    .into()
             })
         } else {
             let root_as_type_reference_node = root.as_type_reference_node();
@@ -994,52 +904,30 @@ impl NodeBuilder {
             let type_arguments = type_arguments.as_ref();
             let mut type_name: Gc<Node> = root_as_type_reference_node.type_name.clone();
             if is_identifier(&type_name) {
-                type_name = synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_.update_identifier(
-                            synthetic_factory_,
-                            &type_name,
-                            type_arguments.cloned(),
-                        )
-                    })
+                type_name = factory.with(|factory_| {
+                    factory_.update_identifier(&type_name, type_arguments.cloned())
                 });
             } else {
-                type_name = synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_.update_qualified_name(
-                            synthetic_factory_,
-                            &type_name,
-                            type_name.as_qualified_name().left.clone(),
-                            factory_.update_identifier(
-                                synthetic_factory_,
-                                &type_name.as_qualified_name().right,
-                                type_arguments.cloned(),
-                            ),
-                        )
-                    })
+                type_name = factory.with(|factory_| {
+                    factory_.update_qualified_name(
+                        &type_name,
+                        type_name.as_qualified_name().left.clone(),
+                        factory_.update_identifier(
+                            &type_name.as_qualified_name().right,
+                            type_arguments.cloned(),
+                        ),
+                    )
                 });
             }
             let type_arguments = ref_.as_type_reference_node().maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
             let ids = self.get_access_stack(ref_);
             for id in ids {
-                type_name = synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_
-                            .create_qualified_name(synthetic_factory_, type_name, id)
-                            .wrap()
-                    })
-                });
+                type_name =
+                    factory.with(|factory_| factory_.create_qualified_name(type_name, id).wrap());
             }
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_.update_type_reference_node(
-                        synthetic_factory_,
-                        root,
-                        type_name,
-                        type_arguments.cloned(),
-                    )
-                })
+            factory.with(|factory_| {
+                factory_.update_type_reference_node(root, type_name, type_arguments.cloned())
             })
         }
     }
@@ -1065,18 +953,10 @@ impl NodeBuilder {
         resolved_type: &Type, /*ResolvedType*/
     ) -> Option<Vec<Gc<Node /*TypeElement*/>>> {
         if self.check_truncation_length(context) {
-            return Some(vec![synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_property_signature(
-                            synthetic_factory_,
-                            Option::<Gc<NodeArray>>::None,
-                            "...",
-                            None,
-                            None,
-                        )
-                        .wrap()
-                })
+            return Some(vec![factory.with(|factory_| {
+                factory_
+                    .create_property_signature(Option::<Gc<NodeArray>>::None, "...", None, None)
+                    .wrap()
             })]);
         }
         let mut type_elements: Vec<Gc<Node>> = vec![];
@@ -1144,18 +1024,15 @@ impl NodeBuilder {
                 }
             }
             if self.check_truncation_length(context) && i + 2 < properties.len() - 1 {
-                type_elements.push(synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_
-                            .create_property_signature(
-                                synthetic_factory_,
-                                Option::<Gc<NodeArray>>::None,
-                                &*format!("... {} more ...", properties.len() - 1),
-                                None,
-                                None,
-                            )
-                            .wrap()
-                    })
+                type_elements.push(factory.with(|factory_| {
+                    factory_
+                        .create_property_signature(
+                            Option::<Gc<NodeArray>>::None,
+                            &*format!("... {} more ...", properties.len() - 1),
+                            None,
+                            None,
+                        )
+                        .wrap()
                 }));
                 self.add_property_to_element_list(
                     &properties[properties.len() - 1],
@@ -1179,32 +1056,20 @@ impl NodeBuilder {
     ) -> Gc<Node> {
         context.increment_approximate_length_by(3);
         if !context.flags().intersects(NodeBuilderFlags::NoTruncation) {
-            return synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_type_reference_node(
-                            synthetic_factory_,
-                            factory_
-                                .create_identifier(
-                                    synthetic_factory_,
-                                    "...",
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )
-                                .wrap(),
-                            Option::<Gc<NodeArray>>::None,
-                        )
-                        .wrap()
-                })
+            return factory.with(|factory_| {
+                factory_
+                    .create_type_reference_node(
+                        factory_
+                            .create_identifier("...", Option::<Gc<NodeArray>>::None, None)
+                            .wrap(),
+                        Option::<Gc<NodeArray>>::None,
+                    )
+                    .wrap()
             });
         }
-        synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| {
-                Into::<KeywordTypeNode>::into(
-                    factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword),
-                )
+        factory.with(|factory_| {
+            Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node(SyntaxKind::AnyKeyword))
                 .wrap()
-            })
         })
     }
 
@@ -1311,15 +1176,8 @@ impl NodeBuilder {
         context.increment_approximate_length_by(symbol_name(property_symbol).len() + 1);
         let optional_token: Option<Gc<Node>> =
             if property_symbol.flags().intersects(SymbolFlags::Optional) {
-                synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        Some(
-                            factory_
-                                .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
-                                .wrap(),
-                        )
-                    })
-                })
+                factory
+                    .with(|factory_| Some(factory_.create_token(SyntaxKind::QuestionToken).wrap()))
             } else {
                 None
             };
@@ -1377,15 +1235,10 @@ impl NodeBuilder {
                         None,
                     )
                 } else {
-                    synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_
-                                .create_keyword_type_node(
-                                    synthetic_factory_,
-                                    SyntaxKind::AnyKeyword,
-                                )
-                                .wrap()
-                        })
+                    factory.with(|factory_| {
+                        factory_
+                            .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                            .wrap()
                     })
                 };
                 if property_is_reverse_mapped {
@@ -1400,12 +1253,8 @@ impl NodeBuilder {
 
             let modifiers: Option<Vec<Gc<Node>>> =
                 if self.type_checker.is_readonly_symbol(property_symbol) {
-                    Some(vec![synthetic_factory.with(|synthetic_factory_| {
-                        factory.with(|factory_| {
-                            factory_
-                                .create_token(synthetic_factory_, SyntaxKind::ReadonlyKeyword)
-                                .wrap()
-                        })
+                    Some(vec![factory.with(|factory_| {
+                        factory_.create_token(SyntaxKind::ReadonlyKeyword).wrap()
                     })])
                 } else {
                     None
@@ -1413,18 +1262,15 @@ impl NodeBuilder {
             if modifiers.is_some() {
                 context.increment_approximate_length_by(9);
             }
-            let property_signature: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_property_signature(
-                            synthetic_factory_,
-                            modifiers,
-                            property_name,
-                            optional_token,
-                            Some(property_type_node),
-                        )
-                        .wrap()
-                })
+            let property_signature = factory.with(|factory_| {
+                factory_
+                    .create_property_signature(
+                        modifiers,
+                        property_name,
+                        optional_token,
+                        Some(property_type_node),
+                    )
+                    .wrap()
             });
 
             type_elements.push(self.preserve_comments_on(property_symbol, property_signature));

@@ -124,8 +124,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         self.with_jsdoc(
             self.finish_node(
-                self.factory()
-                    .create_parenthesized_expression(self, expression),
+                self.factory().create_parenthesized_expression(expression),
                 pos,
                 None,
             )
@@ -139,9 +138,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::DotDotDotToken, None, None);
         let expression = self.parse_assignment_expression_or_higher();
         self.finish_node(
-            self.factory()
-                .create_spread_element(self, expression)
-                .into(),
+            self.factory().create_spread_element(expression).into(),
             pos,
             None,
         )
@@ -152,7 +149,7 @@ impl ParserType {
             self.parse_spread_element().wrap()
         } else if self.token() == SyntaxKind::CommaToken {
             self.finish_node(
-                self.factory().create_omitted_expression(self),
+                self.factory().create_omitted_expression(),
                 self.get_node_pos(),
                 None,
             )
@@ -180,7 +177,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
             self.factory()
-                .create_array_literal_expression(self, Some(elements), Some(multi_line)),
+                .create_array_literal_expression(Some(elements), Some(multi_line)),
             pos,
             None,
         )
@@ -197,7 +194,7 @@ impl ParserType {
             let expression = self.parse_assignment_expression_or_higher();
             return self.with_jsdoc(
                 self.finish_node(
-                    self.factory().create_spread_assignment(self, expression),
+                    self.factory().create_spread_assignment(expression),
                     pos,
                     None,
                 )
@@ -274,7 +271,7 @@ impl ParserType {
             };
             let mut node_as_shorthand_property_assignment = self
                 .factory()
-                .create_shorthand_property_assignment(self, name, object_assignment_initializer);
+                .create_shorthand_property_assignment(name, object_assignment_initializer);
             node_as_shorthand_property_assignment.equals_token = equals_token;
             node_as_shorthand_property_assignment.question_token = question_token;
             node_as_shorthand_property_assignment.exclamation_token = exclamation_token;
@@ -283,8 +280,7 @@ impl ParserType {
             self.parse_expected(SyntaxKind::ColonToken, None, None);
             let initializer = self.allow_in_and(|| self.parse_assignment_expression_or_higher());
             let mut node_as_property_assignment =
-                self.factory()
-                    .create_property_assignment(self, name, initializer);
+                self.factory().create_property_assignment(name, initializer);
             node_as_property_assignment.question_token = question_token;
             node_as_property_assignment.exclamation_token = exclamation_token;
             node = node_as_property_assignment.into();
@@ -326,11 +322,8 @@ impl ParserType {
             }
         }
         self.finish_node(
-            self.factory().create_object_literal_expression(
-                self,
-                Some(properties),
-                Some(multi_line),
-            ),
+            self.factory()
+                .create_object_literal_expression(Some(properties), Some(multi_line)),
             pos,
             None,
         )
@@ -389,7 +382,6 @@ impl ParserType {
         self.set_decorator_context(saved_decorator_context);
 
         let node = self.factory().create_function_expression(
-            self,
             modifiers,
             asterisk_token,
             name,
@@ -417,7 +409,7 @@ impl ParserType {
             let name: Gc<Node> = self.parse_identifier_name(None).wrap();
             return self.finish_node(
                 self.factory()
-                    .create_meta_property(self, SyntaxKind::NewKeyword, name)
+                    .create_meta_property(SyntaxKind::NewKeyword, name)
                     .into(),
                 pos,
                 None,
@@ -451,7 +443,7 @@ impl ParserType {
         }
         self.finish_node(
             self.factory()
-                .create_new_expression(self, expression, type_arguments, arguments_array)
+                .create_new_expression(expression, type_arguments, arguments_array)
                 .into(),
             pos,
             None,
@@ -496,8 +488,7 @@ impl ParserType {
             }
             let result = self.with_jsdoc(
                 self.finish_node(
-                    self.factory()
-                        .create_block(self, statements, Some(multi_line)),
+                    self.factory().create_block(statements, Some(multi_line)),
                     pos,
                     None,
                 )
@@ -513,12 +504,8 @@ impl ParserType {
         } else {
             let statements = self.create_missing_list();
             self.with_jsdoc(
-                self.finish_node(
-                    self.factory().create_block(self, statements, None),
-                    pos,
-                    None,
-                )
-                .wrap(),
+                self.finish_node(self.factory().create_block(statements, None), pos, None)
+                    .wrap(),
                 has_jsdoc,
             )
         }
@@ -564,7 +551,7 @@ impl ParserType {
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
         self.with_jsdoc(
-            self.finish_node(self.factory().create_empty_statement(self), pos, None)
+            self.finish_node(self.factory().create_empty_statement(), pos, None)
                 .wrap(),
             has_jsdoc,
         )
@@ -585,12 +572,8 @@ impl ParserType {
         };
         self.with_jsdoc(
             self.finish_node(
-                self.factory().create_if_statement(
-                    self,
-                    expression,
-                    then_statement,
-                    else_statement,
-                ),
+                self.factory()
+                    .create_if_statement(expression, then_statement, else_statement),
                 pos,
                 None,
             )
@@ -612,8 +595,7 @@ impl ParserType {
         self.parse_optional(SyntaxKind::SemicolonToken);
         self.with_jsdoc(
             self.finish_node(
-                self.factory()
-                    .create_do_statement(self, statement, expression),
+                self.factory().create_do_statement(statement, expression),
                 pos,
                 None,
             )
@@ -632,8 +614,7 @@ impl ParserType {
         let statement = self.parse_statement();
         self.with_jsdoc(
             self.finish_node(
-                self.factory()
-                    .create_while_statement(self, expression, statement),
+                self.factory().create_while_statement(expression, statement),
                 pos,
                 None,
             )
@@ -672,7 +653,6 @@ impl ParserType {
             node = self
                 .factory()
                 .create_for_of_statement(
-                    self,
                     await_token.map(Node::wrap),
                     initializer.unwrap(),
                     expression,
@@ -684,12 +664,7 @@ impl ParserType {
             self.parse_expected(SyntaxKind::CloseParenToken, None, None);
             node = self
                 .factory()
-                .create_for_in_statement(
-                    self,
-                    initializer.unwrap(),
-                    expression,
-                    self.parse_statement(),
-                )
+                .create_for_in_statement(initializer.unwrap(), expression, self.parse_statement())
                 .into();
         } else {
             self.parse_expected(SyntaxKind::SemicolonToken, None, None);
@@ -710,13 +685,7 @@ impl ParserType {
             self.parse_expected(SyntaxKind::CloseParenToken, None, None);
             node = self
                 .factory()
-                .create_for_statement(
-                    self,
-                    initializer,
-                    condition,
-                    incrementor,
-                    self.parse_statement(),
-                )
+                .create_for_statement(initializer, condition, incrementor, self.parse_statement())
                 .into();
         }
 
@@ -747,9 +716,9 @@ impl ParserType {
 
         self.parse_semicolon();
         let node: Node = if kind == SyntaxKind::BreakStatement {
-            self.factory().create_break_statement(self, label).into()
+            self.factory().create_break_statement(label).into()
         } else {
-            self.factory().create_continue_statement(self, label).into()
+            self.factory().create_continue_statement(label).into()
         };
         self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
@@ -766,7 +735,7 @@ impl ParserType {
         self.parse_semicolon();
         self.with_jsdoc(
             self.finish_node(
-                self.factory().create_return_statement(self, expression),
+                self.factory().create_return_statement(expression),
                 pos,
                 None,
             )
@@ -786,8 +755,7 @@ impl ParserType {
             self.do_inside_of_context(NodeFlags::InWithStatement, || self.parse_statement());
         self.with_jsdoc(
             self.finish_node(
-                self.factory()
-                    .create_with_statement(self, expression, statement),
+                self.factory().create_with_statement(expression, statement),
                 pos,
                 None,
             )
@@ -805,8 +773,7 @@ impl ParserType {
             self.parse_statement()
         });
         self.finish_node(
-            self.factory()
-                .create_case_clause(self, expression, statements),
+            self.factory().create_case_clause(expression, statements),
             pos,
             None,
         )

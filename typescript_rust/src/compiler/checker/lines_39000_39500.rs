@@ -86,15 +86,12 @@ impl TypeChecker {
         for static_block in static_blocks {
             if static_block.pos() >= start_pos && static_block.pos() <= end_pos {
                 let reference: Gc<Node> = factory.with(|factory_| {
-                    synthetic_factory.with(|synthetic_factory_| {
-                        factory_
-                            .create_property_access_expression(
-                                synthetic_factory_,
-                                factory_.create_this(synthetic_factory_).wrap(),
-                                prop_name.node_wrapper(),
-                            )
-                            .wrap()
-                    })
+                    factory_
+                        .create_property_access_expression(
+                            factory_.create_this().wrap(),
+                            prop_name.node_wrapper(),
+                        )
+                        .wrap()
                 });
                 set_parent(
                     &reference.as_property_access_expression().expression,
@@ -128,15 +125,12 @@ impl TypeChecker {
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> bool {
         let reference = factory.with(|factory_| {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory_
-                    .create_property_access_expression(
-                        synthetic_factory_,
-                        factory_.create_this(synthetic_factory_).wrap(),
-                        prop_name.node_wrapper(),
-                    )
-                    .wrap()
-            })
+            factory_
+                .create_property_access_expression(
+                    factory_.create_this().wrap(),
+                    prop_name.node_wrapper(),
+                )
+                .wrap()
         });
         set_parent(
             &reference.as_property_access_expression().expression,

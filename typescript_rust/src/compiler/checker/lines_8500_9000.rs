@@ -610,55 +610,41 @@ impl TypeChecker {
             },
         );
         let reference: Gc<Node> = if are_all_module_exports {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            factory_
-                                .create_property_access_expression(
-                                    synthetic_factory_,
-                                    factory_
-                                        .create_identifier(
-                                            synthetic_factory_,
-                                            "module",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
-                                    factory_
-                                        .create_identifier(
-                                            synthetic_factory_,
-                                            "exports",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
-                                )
-                                .wrap(),
-                            access_name,
-                        )
-                        .wrap()
-                })
+            factory.with(|factory_| {
+                factory_
+                    .create_property_access_expression(
+                        factory_
+                            .create_property_access_expression(
+                                factory_
+                                    .create_identifier(
+                                        "module",
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                    )
+                                    .wrap(),
+                                factory_
+                                    .create_identifier(
+                                        "exports",
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                    )
+                                    .wrap(),
+                            )
+                            .wrap(),
+                        access_name,
+                    )
+                    .wrap()
             })
         } else {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            factory_
-                                .create_identifier(
-                                    synthetic_factory_,
-                                    "exports",
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )
-                                .wrap(),
-                            access_name,
-                        )
-                        .wrap()
-                })
+            factory.with(|factory_| {
+                factory_
+                    .create_property_access_expression(
+                        factory_
+                            .create_identifier("exports", Option::<Gc<NodeArray>>::None, None)
+                            .wrap(),
+                        access_name,
+                    )
+                    .wrap()
             })
         };
         if are_all_module_exports {
@@ -691,31 +677,23 @@ impl TypeChecker {
         static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
     ) -> Option<Gc<Type>> {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_private_identifier(
-                            synthetic_factory_,
-                            (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
-                        )
-                        .wrap()
-                        .into()
-                })
+            factory.with(|factory_| {
+                factory_
+                    .create_private_identifier((&*symbol.escaped_name()).split("@").nth(1).unwrap())
+                    .wrap()
+                    .into()
             })
         } else {
             unescape_leading_underscores(symbol.escaped_name()).into()
         };
         for static_block in static_blocks {
-            let reference = synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            factory_.create_this(synthetic_factory_).wrap(),
-                            access_name.clone(),
-                        )
-                        .wrap()
-                })
+            let reference = factory.with(|factory_| {
+                factory_
+                    .create_property_access_expression(
+                        factory_.create_this().wrap(),
+                        access_name.clone(),
+                    )
+                    .wrap()
             });
             set_parent(
                 &reference.as_property_access_expression().expression,
@@ -755,30 +733,19 @@ impl TypeChecker {
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> Option<Gc<Type>> {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_private_identifier(
-                            synthetic_factory_,
-                            (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
-                        )
-                        .wrap()
-                        .into()
-                })
+            factory.with(|factory_| {
+                factory_
+                    .create_private_identifier((&*symbol.escaped_name()).split("@").nth(1).unwrap())
+                    .wrap()
+                    .into()
             })
         } else {
             unescape_leading_underscores(symbol.escaped_name()).into()
         };
-        let reference = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| {
-                factory_
-                    .create_property_access_expression(
-                        synthetic_factory_,
-                        factory_.create_this(synthetic_factory_).wrap(),
-                        access_name,
-                    )
-                    .wrap()
-            })
+        let reference = factory.with(|factory_| {
+            factory_
+                .create_property_access_expression(factory_.create_this().wrap(), access_name)
+                .wrap()
         });
         set_parent(
             &reference.as_property_access_expression().expression,
