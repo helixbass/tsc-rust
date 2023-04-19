@@ -4,6 +4,8 @@ use gc::{unsafe_empty_trace, Finalize, Trace};
 use std::cell::Cell;
 use std::ops::Deref;
 
+use crate::Node;
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Finalize)]
 pub struct Path(String);
 
@@ -126,6 +128,12 @@ impl TextRange for BaseTextRange {
 
     fn set_end(&self, end: isize) {
         self.end.set(end);
+    }
+}
+
+impl From<&Node> for BaseTextRange {
+    fn from(value: &Node) -> Self {
+        Self::new(value.pos(), value.end())
     }
 }
 

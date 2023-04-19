@@ -10,9 +10,10 @@ use crate::{
     is_in_js_file, is_minus_token, is_object_literal_element_like, is_parenthesized_expression,
     is_plus_token, is_prologue_directive, is_question_token, is_readonly_keyword, is_source_file,
     is_spread_element, is_string_literal, is_this_type_node, is_type_node,
-    is_type_parameter_declaration, push_or_replace, AssertionLevel, BaseNodeFactory, Debug_,
-    EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds, SyntaxKind,
+    is_type_parameter_declaration, push_or_replace, set_starts_on_new_line, AssertionLevel,
+    BaseNodeFactory, Debug_, EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeInterface, OuterExpressionKinds,
+    SyntaxKind,
 };
 
 pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
@@ -124,6 +125,11 @@ pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) 
     while is_outer_expression(&node, Some(kinds)) {
         node = node.as_has_expression().expression();
     }
+    node
+}
+
+pub fn start_on_new_line(node: Gc<Node>) -> Gc<Node> {
+    set_starts_on_new_line(&node, true);
     node
 }
 

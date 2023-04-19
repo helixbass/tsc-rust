@@ -19,14 +19,15 @@ use crate::{
     is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
     is_namespace_export_declaration, is_property_access_expression, is_property_name,
     is_qualified_name, parse_config_file_text_to_json, position_is_synthesized, skip_trivia,
-    unescape_leading_underscores, walk_up_parenthesized_expressions, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, BundleFileSection,
-    CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, HasInitializerInterface,
-    MapLike, ModifierFlags, NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface,
-    ObjectFlags, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    token_to_string, unescape_leading_underscores, walk_up_parenthesized_expressions,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseTextRange,
+    BaseType, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    Extension, HasInitializerInterface, MapLike, ModifierFlags, NamedDeclarationInterface,
+    NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, Signature,
+    SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind,
 };
 
 pub fn get_first_identifier(node: &Node) -> Gc<Node /*Identifier*/> {
@@ -251,6 +252,34 @@ pub fn get_new_line_character<TGetNewLine: Fn() -> String>(
     } else {
         get_sys().new_line().to_owned()
     }
+}
+
+pub fn create_range(pos: isize, end: Option<isize>) -> BaseTextRange {
+    let end = end.unwrap_or(pos);
+    Debug_.assert(end >= pos || end == -1, None);
+    BaseTextRange::new(pos, end)
+}
+
+pub fn move_range_pos(range: &impl ReadonlyTextRange, pos: isize) -> BaseTextRange {
+    create_range(pos, Some(range.end()))
+}
+
+pub fn move_range_past_decorators(node: &Node) -> BaseTextRange {
+    if let Some(node_decorators) = node
+        .maybe_decorators()
+        .filter(|node_decorators| !node_decorators.is_empty())
+    {
+        move_range_pos(node, node_decorators.end())
+    } else {
+        node.into()
+    }
+}
+
+pub fn create_token_range(pos: isize, token: SyntaxKind) -> BaseTextRange {
+    create_range(
+        pos,
+        Some(pos + isize::try_from(token_to_string(token).unwrap().len()).unwrap()),
+    )
 }
 
 pub fn range_is_on_single_line(

@@ -5,13 +5,14 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::{cell::Cell, fmt};
 
 use crate::{
-    set_emit_flags, set_text_range_rc_node, CaseOrDefaultClauseInterface, EmitFlags,
-    HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
-    HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
-    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
-    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
-    JsxOpeningLikeElementInterface, SourceFileLike, SyntheticExpression,
-    UnparsedSyntheticReference,
+    set_comment_range_rc, set_emit_flags, set_original_node, set_source_map_range,
+    set_text_range_end, set_text_range_pos, set_text_range_rc_node, start_on_new_line,
+    CaseOrDefaultClauseInterface, EmitFlags, HasArgumentsInterface, HasAssertClauseInterface,
+    HasChildrenInterface, HasDotDotDotTokenInterface, HasFileNameInterface,
+    HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
+    HasOldFileOfCurrentEmitInterface, HasTagNameInterface, HasTextsInterface, InferenceContext,
+    JSDocHeritageTagInterface, JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange,
+    SyntheticExpression, UnparsedSyntheticReference,
 };
 
 use super::{
@@ -2057,7 +2058,13 @@ impl Clone for BaseNode {
 
 pub trait NodeExt {
     fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
+    fn set_text_range_pos(self, pos: isize) -> Self;
+    fn set_text_range_end(self, end: isize) -> Self;
     fn set_emit_flags(self, emit_flags: EmitFlags) -> Self;
+    fn set_original_node(self, original: Option<Gc<Node>>) -> Self;
+    fn set_comment_range(self, range: &impl ReadonlyTextRange) -> Self;
+    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self;
+    fn start_on_new_line(self) -> Self;
 }
 
 impl NodeExt for Gc<Node> {
@@ -2065,8 +2072,34 @@ impl NodeExt for Gc<Node> {
         set_text_range_rc_node(self, location)
     }
 
+    fn set_text_range_pos(self, pos: isize) -> Self {
+        set_text_range_pos(&*self, pos);
+        self
+    }
+
+    fn set_text_range_end(self, end: isize) -> Self {
+        set_text_range_end(&*self, end);
+        self
+    }
+
     fn set_emit_flags(self, emit_flags: EmitFlags) -> Self {
         set_emit_flags(self, emit_flags)
+    }
+
+    fn set_original_node(self, original: Option<Gc<Node>>) -> Self {
+        set_original_node(self, original)
+    }
+
+    fn set_comment_range(self, range: &impl ReadonlyTextRange) -> Self {
+        set_comment_range_rc(self, range)
+    }
+
+    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self {
+        set_source_map_range(self, range)
+    }
+
+    fn start_on_new_line(self) -> Self {
+        start_on_new_line(self)
     }
 }
 

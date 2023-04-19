@@ -566,6 +566,18 @@ impl From<&Node> for Gc<SourceMapRange> {
     }
 }
 
+impl From<&BaseTextRange> for SourceMapRange {
+    fn from(value: &BaseTextRange) -> Self {
+        Self::new(value.pos(), value.end(), None)
+    }
+}
+
+impl From<&BaseTextRange> for Gc<SourceMapRange> {
+    fn from(value: &BaseTextRange) -> Self {
+        Gc::new(value.into())
+    }
+}
+
 #[derive(Debug, Trace, Finalize)]
 pub enum SourceMapSource {
     SourceFile(Gc<Node /*SourceFile*/>),

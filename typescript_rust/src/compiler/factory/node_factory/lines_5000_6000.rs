@@ -450,6 +450,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
+    pub fn create_end_of_declaration_marker(&self, original: Gc<Node>) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn clone_node(&self, node: &Node) -> Gc<Node> {
         // if (node === undefined) {
         //     return node;
@@ -466,7 +470,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         clone
     }
 
+    pub fn create_immediately_invoked_arrow_function(
+        &self,
+        statements: impl Into<NodeArrayOrVec>,
+        param: Option<Gc<Node /*ParameterDeclaration*/>>,
+        param_value: Option<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_void_zero(&self) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_export_default(&self, expression: Gc<Node /*Expression*/>) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_external_module_export(&self, export_name: Gc<Node /*Identifier*/>) -> Gc<Node> {
         unimplemented!()
     }
 
@@ -519,6 +540,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     pub fn inline_expressions(&self, expressions: &[Gc<Node /*Expression*/>]) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn get_internal_name(
+        &self,
+        node: &Node, /*Declaration*/
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn get_local_name(
+        &self,
+        node: &Node, /*Declaration*/
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
+    ) -> Gc<Node> {
         unimplemented!()
     }
 

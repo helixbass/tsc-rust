@@ -529,10 +529,7 @@ pub fn node_or_child_is_decorated<TParent: Borrow<Node> + Clone, TGrandparent: B
     node_is_decorated(node, parent.clone(), grandparent) || child_is_decorated(node, parent)
 }
 
-pub fn child_is_decorated<TParent: Borrow<Node> + Clone>(
-    node: &Node,
-    parent: Option<TParent>,
-) -> bool {
+pub fn child_is_decorated(node: &Node, parent: Option<impl Borrow<Node> + Clone>) -> bool {
     match node.kind() {
         SyntaxKind::ClassDeclaration => some(
             Some(&node.as_class_declaration().members()),

@@ -124,6 +124,10 @@ impl TransformTypeScript {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
+    pub(super) fn current_source_file(&self) -> Gc<Node> {
+        self.current_source_file.borrow().clone().unwrap()
+    }
+
     pub(super) fn set_current_source_file(&self, current_source_file: Option<Gc<Node>>) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }

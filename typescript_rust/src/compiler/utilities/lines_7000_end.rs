@@ -213,7 +213,7 @@ pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize)
     range
 }
 
-fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> &TRange {
+pub(crate) fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> &TRange {
     range.set_end(end);
     range
 }
