@@ -246,7 +246,7 @@ impl TypeChecker {
         Some(self.widen_type_inferred_from_initializer(
             declaration,
             &self.get_union_type(
-                vec![
+                &[
                     self.get_non_undefined_type(&type_),
                     self.check_declaration_initializer(declaration, Option::<&Type>::None),
                 ],
@@ -944,7 +944,7 @@ impl TypeChecker {
                     types
                 };
                 type_ = Some(self.get_union_type(
-                    source_types,
+                    &source_types,
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
@@ -1201,7 +1201,7 @@ impl TypeChecker {
                             .symbol_links()
                             .borrow_mut()
                             .type_ = Some(self.get_union_type(
-                            vec![
+                            &[
                                 self.get_type_of_symbol(s),
                                 self.get_type_of_symbol(&exported_member),
                             ],

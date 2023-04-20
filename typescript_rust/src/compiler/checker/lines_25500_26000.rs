@@ -432,7 +432,7 @@ impl TypeChecker {
                         .as_ref()
                         .map(|contextual_awaited_type| {
                             self.get_union_type(
-                                vec![
+                                &[
                                     contextual_awaited_type.clone(),
                                     self.create_promise_like_type(contextual_awaited_type),
                                 ],
@@ -463,7 +463,7 @@ impl TypeChecker {
                 .as_ref()
                 .map(|contextual_awaited_type| {
                     self.get_union_type(
-                        vec![
+                        &[
                             contextual_awaited_type.clone(),
                             self.create_promise_like_type(contextual_awaited_type),
                         ],

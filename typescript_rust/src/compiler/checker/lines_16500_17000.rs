@@ -653,7 +653,7 @@ impl TypeChecker {
                 )
             } else {
                 self.get_union_type(
-                    new_types,
+                    &new_types,
                     Some(UnionReduction::Literal),
                     new_alias_symbol,
                     new_alias_type_arguments.as_deref(),

@@ -229,27 +229,30 @@ impl TypeChecker {
             if every(types, |t: &Gc<Type>, _| {
                 self.get_index_info_of_type_(t, index_type).is_some()
             }) {
-                result.push(Gc::new(self.create_index_info(
-                    index_type.clone(),
-                    self.get_union_type(
-                        map(types, |t: &Gc<Type>, _| {
-                            self.get_index_type_of_type_(t, index_type).unwrap()
-                        }),
+                result.push(Gc::new(
+                    self.create_index_info(
+                        index_type.clone(),
+                        self.get_union_type(
+                            &types
+                                .into_iter()
+                                .map(|t| self.get_index_type_of_type_(t, index_type).unwrap())
+                                .collect::<Vec<_>>(),
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
+                        ),
+                        some(
+                            Some(types),
+                            Some(|t: &Gc<Type>| {
+                                self.get_index_info_of_type_(t, index_type)
+                                    .unwrap()
+                                    .is_readonly
+                            }),
+                        ),
                         None,
-                        Option::<&Symbol>::None,
-                        None,
-                        Option::<&Type>::None,
                     ),
-                    some(
-                        Some(types),
-                        Some(|t: &Gc<Type>| {
-                            self.get_index_info_of_type_(t, index_type)
-                                .unwrap()
-                                .is_readonly
-                        }),
-                    ),
-                    None,
-                )));
+                ));
             }
         }
         result
@@ -425,7 +428,7 @@ impl TypeChecker {
                     info.key_type.clone(),
                     if union {
                         self.get_union_type(
-                            vec![info.type_.clone(), new_info.type_.clone()],
+                            &[info.type_.clone(), new_info.type_.clone()],
                             None,
                             Option::<&Symbol>::None,
                             None,
@@ -995,14 +998,14 @@ impl TypeChecker {
                     .symbol_links()
                     .borrow_mut()
                     .name_type = Some(self.get_union_type(
-                    vec![existing_prop_name_type, prop_name_type.type_wrapper()],
+                    &[existing_prop_name_type, prop_name_type.type_wrapper()],
                     None,
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
                 ));
                 existing_prop_as_mapped_symbol.set_key_type(self.get_union_type(
-                    vec![
+                    &[
                         existing_prop_as_mapped_symbol.key_type(),
                         key_type.type_wrapper(),
                     ],

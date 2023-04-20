@@ -432,7 +432,7 @@ impl TypeChecker {
         if changed {
             if !mapped_types.is_empty() {
                 Some(self.get_union_type(
-                    mapped_types,
+                    &mapped_types,
                     Some(if no_reductions {
                         UnionReduction::None
                     } else {
@@ -462,7 +462,7 @@ impl TypeChecker {
     ) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Union) && alias_symbol.is_some() {
             self.get_union_type(
-                map(type_.as_union_type().types(), |type_: &Gc<Type>, _| {
+                &map(type_.as_union_type().types(), |type_: &Gc<Type>, _| {
                     mapper(type_)
                 }),
                 Some(UnionReduction::Literal),
@@ -610,16 +610,20 @@ impl TypeChecker {
         ) {
             evolving_array_type.type_wrapper()
         } else {
-            self.get_evolving_array_type(&self.get_union_type(
-                vec![
-                        evolving_array_type_as_evolving_array_type.element_type.clone(),
+            self.get_evolving_array_type(
+                &self.get_union_type(
+                    &[
+                        evolving_array_type_as_evolving_array_type
+                            .element_type
+                            .clone(),
                         element_type,
                     ],
-                None,
-                Option::<&Symbol>::None,
-                None,
-                Option::<&Type>::None,
-            ))
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ),
+            )
         }
     }
 
@@ -630,7 +634,7 @@ impl TypeChecker {
             self.create_array_type(
                 &*if element_type.flags().intersects(TypeFlags::Union) {
                     self.get_union_type(
-                        element_type.as_union_type().types().to_owned(),
+                        element_type.as_union_type().types(),
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
                         None,

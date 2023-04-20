@@ -350,7 +350,7 @@ impl TypeChecker {
         if let Some(mut extra_types) = extra_types {
             append(&mut extra_types, Some(result));
             self.get_union_type(
-                extra_types,
+                &extra_types,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -1119,7 +1119,7 @@ impl TypeChecker {
                     let result_links = result.as_transient_symbol().symbol_links();
                     let mut result_links = result_links.borrow_mut();
                     result_links.type_ = Some(self.get_union_type(
-                        vec![
+                        &[
                             self.get_type_of_symbol(&left_prop),
                             self.remove_missing_or_undefined_type(&right_type),
                         ],

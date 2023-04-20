@@ -429,7 +429,7 @@ impl TypeChecker {
                 });
                 if filtered_types.len() != array_types.len() {
                     array_type = self.get_union_type(
-                        filtered_types,
+                        &filtered_types,
                         Some(UnionReduction::Subtype),
                         Option::<&Symbol>::None,
                         None,
@@ -517,7 +517,7 @@ impl TypeChecker {
                 }
 
                 return Some(self.get_union_type(
-                    if possible_out_of_bounds {
+                    &if possible_out_of_bounds {
                         vec![
                             array_element_type.clone(),
                             self.string_type(),
@@ -706,7 +706,7 @@ impl TypeChecker {
             return self.create_iteration_types(
                 yield_types.map(|yield_types| {
                     self.get_union_type(
-                        yield_types,
+                        &yield_types,
                         None,
                         Option::<&Symbol>::None,
                         None,
@@ -715,7 +715,7 @@ impl TypeChecker {
                 }),
                 return_types.map(|return_types| {
                     self.get_union_type(
-                        return_types,
+                        &return_types,
                         None,
                         Option::<&Symbol>::None,
                         None,

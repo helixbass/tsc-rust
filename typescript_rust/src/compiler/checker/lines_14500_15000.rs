@@ -278,7 +278,7 @@ impl TypeChecker {
                         };
                     self.remove_from_each(&mut type_set, TypeFlags::Undefined);
                     result = Some(self.get_union_type(
-                        vec![
+                        &[
                             self.get_intersection_type(&type_set, Option::<&Symbol>::None, None),
                             undefined_or_missing_type,
                         ],
@@ -290,7 +290,7 @@ impl TypeChecker {
                 } else if self.each_is_union_containing(&type_set, TypeFlags::Null) {
                     self.remove_from_each(&mut type_set, TypeFlags::Null);
                     result = Some(self.get_union_type(
-                        vec![
+                        &[
                             self.get_intersection_type(&type_set, Option::<&Symbol>::None, None),
                             self.null_type(),
                         ],
@@ -316,7 +316,7 @@ impl TypeChecker {
                         None
                     };
                     result = Some(self.get_union_type(
-                        constituents,
+                        &constituents,
                         Some(UnionReduction::Literal),
                         alias_symbol.as_deref(),
                         alias_type_arguments,
@@ -538,7 +538,7 @@ impl TypeChecker {
         let result = if matches!(no_index_signatures, Some(true)) {
             self.filter_type(
                 &self.get_union_type(
-                    key_types,
+                    &key_types,
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -548,7 +548,7 @@ impl TypeChecker {
             )
         } else {
             self.get_union_type(
-                key_types,
+                &key_types,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -749,7 +749,7 @@ impl TypeChecker {
             },
         );
         self.get_union_type(
-            concatenate(property_types, index_key_types),
+            &concatenate(property_types, index_key_types),
             Some(UnionReduction::Literal),
             Option::<&Symbol>::None,
             None,
@@ -775,7 +775,7 @@ impl TypeChecker {
             )
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             self.get_union_type(
-                map(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
+                &map(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
                     self.get_index_type(t, Some(strings_only), no_index_signatures)
                 }),
                 None,

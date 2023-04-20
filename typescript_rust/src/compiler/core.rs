@@ -1066,12 +1066,9 @@ pub fn reduce_left<TItem, TMemo, TCallback: FnMut(TMemo, &TItem, usize) -> TMemo
     initial
 }
 
-pub fn reduce_left_no_initial_value<
-    TItem: Clone,
-    TCallback: FnMut(TItem, &TItem, usize) -> TItem,
->(
+pub fn reduce_left_no_initial_value<TItem: Clone>(
     array: &[TItem],
-    mut f: TCallback,
+    mut f: impl FnMut(TItem, &TItem, usize) -> TItem,
     start: Option<usize>,
     count: Option<usize>,
 ) -> TItem {

@@ -517,7 +517,7 @@ impl GetFlowTypeOfReference {
             }
             if node_as_binary_expression.operator_token.kind() == SyntaxKind::BarBarToken {
                 return self.type_checker.get_union_type(
-                    vec![
+                    &[
                         self.narrow_type_by_assertion(type_, &node_as_binary_expression.left),
                         self.narrow_type_by_assertion(type_, &node_as_binary_expression.right),
                     ],

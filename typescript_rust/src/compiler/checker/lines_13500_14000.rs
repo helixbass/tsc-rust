@@ -1059,7 +1059,7 @@ impl TypeChecker {
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.get_union_type(
-                literal_types,
+                &literal_types,
                 None,
                 Option::<&Symbol>::None,
                 None,

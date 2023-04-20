@@ -218,7 +218,7 @@ impl TypeChecker {
         let left = left.unwrap();
         let right = right.unwrap();
         let this_type = self.get_union_type(
-            vec![
+            &[
                 self.get_type_of_symbol(&left),
                 self.instantiate_type(&self.get_type_of_symbol(&right), mapper),
             ],
@@ -267,7 +267,7 @@ impl TypeChecker {
                 shorter_param_type = self.instantiate_type(&shorter_param_type, mapper.clone());
             }
             let union_param_type = self.get_union_type(
-                vec![longest_param_type, shorter_param_type],
+                &[longest_param_type, shorter_param_type],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -675,7 +675,7 @@ impl TypeChecker {
         self.create_array_literal_type(&self.create_array_type(
             &*if !element_types.is_empty() {
                 self.get_union_type(
-                    same_map(&element_types, |t: &Gc<Type>, i| {
+                    &same_map(&element_types, |t: &Gc<Type>, i| {
                         if element_flags[i].intersects(ElementFlags::Variadic) {
                             self.get_indexed_access_type_or_undefined(
                                 t,
@@ -873,7 +873,7 @@ impl TypeChecker {
         }
         let union_type = if !prop_types.is_empty() {
             self.get_union_type(
-                prop_types,
+                &prop_types,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,

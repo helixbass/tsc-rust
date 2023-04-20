@@ -103,7 +103,7 @@ impl TypeChecker {
         if !rest_parameter_symbols.is_empty() {
             let type_ = self.create_array_type(
                 &self.get_union_type(
-                    map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
+                    &map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
                         self.try_get_rest_type_of_signature(candidate)
                     }),
                     Some(UnionReduction::Subtype),
@@ -164,7 +164,7 @@ impl TypeChecker {
         self.create_combined_symbol_for_overload_failure(
             sources,
             &self.get_union_type(
-                types.to_owned(),
+                types,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,

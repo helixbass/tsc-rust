@@ -154,7 +154,7 @@ impl TypeChecker {
 
     pub(super) fn create_typeof_type(&self) -> Gc<Type> {
         self.get_union_type(
-            typeof_eq_facts
+            &typeof_eq_facts
                 .keys()
                 .map(|key| -> Gc<Type> { self.get_string_literal_type(key).into() })
                 .collect::<Vec<_>>(),

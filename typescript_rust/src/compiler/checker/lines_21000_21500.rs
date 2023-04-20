@@ -263,7 +263,7 @@ impl TypeChecker {
                     UnionReduction::Literal
                 };
                 result = Some(self.get_union_type(
-                    widened_types,
+                    &widened_types,
                     Some(union_reduction),
                     Option::<&Symbol>::None,
                     None,

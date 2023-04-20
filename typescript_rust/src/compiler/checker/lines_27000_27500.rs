@@ -437,7 +437,7 @@ impl TypeChecker {
                     } else {
                         self.create_array_type(
                             &self.get_union_type(
-                                children_types,
+                                &children_types,
                                 None,
                                 Option::<&Symbol>::None,
                                 None,

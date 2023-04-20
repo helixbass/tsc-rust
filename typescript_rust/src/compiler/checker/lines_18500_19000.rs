@@ -1034,7 +1034,7 @@ impl CheckTypeRelatedTo {
                             );
                         mapped_keys.push(name_type.clone());
                         target_keys = self.type_checker.get_union_type(
-                            mapped_keys,
+                            &mapped_keys,
                             None,
                             Option::<&Symbol>::None,
                             None,

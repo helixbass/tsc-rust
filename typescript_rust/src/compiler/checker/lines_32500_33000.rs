@@ -818,7 +818,7 @@ impl TypeChecker {
                     .intersects(TypeFacts::Truthy)
                 {
                     self.get_union_type(
-                        vec![
+                        &[
                             self.extract_definitely_falsy_types(&*if self.strict_null_checks {
                                 left_type.type_wrapper()
                             } else {
@@ -845,7 +845,7 @@ impl TypeChecker {
                     .intersects(TypeFacts::Falsy)
                 {
                     self.get_union_type(
-                        vec![
+                        &[
                             self.remove_definitely_falsy_types(left_type),
                             right_type.type_wrapper(),
                         ],
@@ -868,7 +868,7 @@ impl TypeChecker {
                     .intersects(TypeFacts::EQUndefinedOrNull)
                 {
                     self.get_union_type(
-                        vec![
+                        &[
                             self.get_non_nullable_type(left_type),
                             right_type.type_wrapper(),
                         ],

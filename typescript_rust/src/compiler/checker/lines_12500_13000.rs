@@ -565,7 +565,7 @@ impl TypeChecker {
     ) -> Gc<Type> {
         if !matches!(kind, Some(TypeFlags::Intersection)) {
             self.get_union_type(
-                types.to_owned(),
+                types,
                 union_reduction,
                 Option::<&Symbol>::None,
                 None,

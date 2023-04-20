@@ -282,7 +282,7 @@ impl TypeChecker {
                     .intersects(TypeFlags::Union)
                 {
                     self.get_union_type(
-                        links.deferral_constituents.clone().unwrap(),
+                        links.deferral_constituents.as_ref().unwrap(),
                         None,
                         Option::<&Symbol>::None,
                         None,
@@ -959,7 +959,7 @@ impl TypeChecker {
         );
         self.create_array_type(
             &self.get_union_type(
-                element_types.unwrap_or_else(|| vec![]),
+                &element_types.unwrap_or_else(|| vec![]),
                 None,
                 Option::<&Symbol>::None,
                 None,

@@ -556,11 +556,11 @@ impl TypeChecker {
                             None,
                         ))]
                     };
-                let inherited_index_infos_filtered =
-                    filter(&inherited_index_infos, |info: &Gc<IndexInfo>| {
-                        self.find_index_info(&index_infos, &info.key_type).is_none()
-                    });
-                index_infos = concatenate(index_infos, inherited_index_infos_filtered);
+                let inherited_index_infos_filtered = inherited_index_infos
+                    .into_iter()
+                    .filter(|info| self.find_index_info(&index_infos, &info.key_type).is_none())
+                    .collect::<Vec<_>>();
+                index_infos.extend(inherited_index_infos_filtered);
             }
         }
         self.set_structured_type_members(

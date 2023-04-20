@@ -246,7 +246,7 @@ impl TypeChecker {
             let sfc_return_constraint = sfc_return_constraint.unwrap();
             let class_constraint = class_constraint.unwrap();
             let combined = self.get_union_type(
-                vec![sfc_return_constraint, class_constraint],
+                &[sfc_return_constraint, class_constraint],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -339,7 +339,7 @@ impl TypeChecker {
         let jsx_element_type = self.get_jsx_element_type_at(location);
         // if (jsxElementType) {
         Some(self.get_union_type(
-            vec![jsx_element_type, self.null_type()],
+            &[jsx_element_type, self.null_type()],
             None,
             Option::<&Symbol>::None,
             None,

@@ -853,7 +853,7 @@ impl TypeChecker {
     ) -> Gc<Type> {
         /*defaultExpression ? */
         self.get_union_type(
-            vec![
+            &[
                 self.get_non_undefined_type(type_),
                 self.get_type_of_expression(default_expression),
             ],
@@ -917,7 +917,7 @@ impl TypeChecker {
         Some(
             if self.compiler_options.no_unchecked_indexed_access == Some(true) {
                 self.get_union_type(
-                    vec![type_.type_wrapper(), self.undefined_type()],
+                    &[type_.type_wrapper(), self.undefined_type()],
                     None,
                     Option::<&Symbol>::None,
                     None,

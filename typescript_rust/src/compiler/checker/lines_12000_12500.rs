@@ -327,7 +327,7 @@ impl TypeChecker {
         } else {
             result_links.type_ = Some(if is_union {
                 self.get_union_type(
-                    prop_types,
+                    &prop_types,
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -470,7 +470,7 @@ impl TypeChecker {
             return union_type.type_wrapper();
         }
         let reduced = self.get_union_type(
-            reduced_types,
+            &reduced_types,
             None,
             Option::<Symbol>::None,
             None,

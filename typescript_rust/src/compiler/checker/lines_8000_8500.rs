@@ -761,7 +761,7 @@ impl TypeChecker {
                 .unwrap();
         }
         let omit_key_type = self.get_union_type(
-            map(properties, |property: &Gc<Node>, _| {
+            &map(properties, |property: &Gc<Node>, _| {
                 self.get_literal_type_from_property_name(property)
             }),
             None,

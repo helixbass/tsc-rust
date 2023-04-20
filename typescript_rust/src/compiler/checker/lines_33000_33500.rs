@@ -491,7 +491,7 @@ impl TypeChecker {
         let type2 =
             self.check_expression(&node_as_conditional_expression.when_false, check_mode, None);
         self.get_union_type(
-            vec![type1, type2],
+            &[type1, type2],
             Some(UnionReduction::Subtype),
             Option::<&Symbol>::None,
             None,

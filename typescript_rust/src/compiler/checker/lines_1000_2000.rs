@@ -3,48 +3,46 @@
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{
     get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id,
     MembersOrExportsResolutionKind,
 };
 use crate::{
-    add_range, add_related_info, are_option_gcs_equal, are_option_rcs_equal, compare_diagnostics,
-    compare_paths, create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
+    add_range, add_related_info, are_option_gcs_equal, compare_diagnostics, compare_paths,
+    create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, create_symbol_table,
-    declaration_name_to_string, every, filter, find_ancestor, for_each, for_each_bool,
-    for_each_child_bool, get_ancestor, get_check_flags, get_containing_class,
-    get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag,
-    get_emit_script_target, get_enclosing_block_scope_container, get_expando_initializer,
-    get_jsdoc_deprecated_tag, get_jsdoc_root, get_local_symbol_for_export_default,
-    get_name_of_declaration, get_name_of_expando, get_or_update, get_root_declaration,
-    has_static_modifier, index_of_gc, index_of_rc, is_ambient_module, is_binding_element,
-    is_binding_pattern, is_class_declaration, is_class_element, is_class_like,
-    is_class_static_block_declaration, is_computed_property_name, is_external_or_common_js_module,
-    is_for_in_or_of_statement, is_function_like, is_global_scope_augmentation, is_identifier,
-    is_in_js_file, is_interface_declaration, is_jsdoc_template_tag, is_jsdoc_type_alias,
-    is_module_declaration, is_namespace_export_declaration, is_nullish_coalesce,
-    is_object_binding_pattern, is_optional_chain, is_parameter, is_parameter_declaration,
-    is_parameter_property_declaration, is_private_identifier, is_property_declaration,
-    is_require_call, is_source_file, is_static, is_this_property, is_type_alias_declaration,
-    is_type_node, length, maybe_for_each, node_is_synthesized, null_transformation_context,
-    out_file, push_if_unique_gc, push_if_unique_rc, set_text_range_pos_end, set_value_declaration,
-    some, synthetic_factory, try_cast, visit_each_child, CancellationTokenDebuggable, Comparison,
-    DiagnosticCategory, DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
-    DuplicateInfoForSymbol, EmitResolver, FindAncestorCallbackReturn, HasInitializerInterface,
-    InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray, NodeFlags,
-    PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange, ScriptTarget,
-    VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
-    get_first_identifier, get_or_update_indexmap, get_source_file_of_node, is_jsx_opening_fragment,
-    maybe_get_source_file_of_node, parse_isolated_entity_name, unescape_leading_underscores,
-    visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node,
-    NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable,
-    SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
+    declaration_name_to_string, every, find_ancestor, for_each, for_each_bool, for_each_child_bool,
+    get_ancestor, get_check_flags, get_containing_class, get_declaration_of_kind,
+    get_effective_container_for_jsdoc_template_tag, get_emit_script_target,
+    get_enclosing_block_scope_container, get_expando_initializer, get_jsdoc_deprecated_tag,
+    get_jsdoc_root, get_local_symbol_for_export_default, get_name_of_declaration,
+    get_name_of_expando, get_or_update, get_root_declaration, has_static_modifier, index_of_gc,
+    is_ambient_module, is_binding_element, is_binding_pattern, is_class_declaration,
+    is_class_element, is_class_like, is_class_static_block_declaration, is_computed_property_name,
+    is_external_or_common_js_module, is_for_in_or_of_statement, is_function_like,
+    is_global_scope_augmentation, is_identifier, is_in_js_file, is_interface_declaration,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_module_declaration,
+    is_namespace_export_declaration, is_nullish_coalesce, is_object_binding_pattern,
+    is_optional_chain, is_parameter, is_parameter_declaration, is_parameter_property_declaration,
+    is_private_identifier, is_property_declaration, is_require_call, is_source_file, is_static,
+    is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
+    node_is_synthesized, null_transformation_context, out_file, push_if_unique_gc,
+    set_text_range_pos_end, set_value_declaration, some, try_cast, visit_each_child,
+    CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Diagnostics, DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolver,
+    FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
+    NamedDeclarationInterface, NodeArray, NodeFlags, PatternAmbientModule, PragmaArgumentName,
+    PragmaName, ReadonlyTextRange, ScriptTarget, VisitResult, __String, create_diagnostic_for_node,
+    escape_leading_underscores, factory, get_first_identifier, get_or_update_indexmap,
+    get_source_file_of_node, is_jsx_opening_fragment, maybe_get_source_file_of_node,
+    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -1281,8 +1279,8 @@ impl TypeChecker {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                                 let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(declaration).unwrap());
-                                let static_blocks = filter(&declaration.parent().as_class_like_declaration().members(), |node: &Gc<Node>| is_class_static_block_declaration(node));
-                                if self.is_property_initialized_in_static_blocks(&prop_name, &type_, &static_blocks, declaration.parent().pos(), current.pos()) {
+                                let static_blocks = declaration.parent().as_class_like_declaration().members().owned_iter().filter(|node| is_class_static_block_declaration(node));
+                                if self.is_property_initialized_in_static_blocks(&prop_name, &type_, static_blocks, declaration.parent().pos(), current.pos()) {
                                     return true.into();
                                 }
                             }

@@ -454,7 +454,7 @@ impl TypeChecker {
             }
             if !member_type_list.is_empty() {
                 let enum_type = self.get_union_type(
-                    member_type_list,
+                    &member_type_list,
                     Some(UnionReduction::Literal),
                     Some(symbol),
                     None,

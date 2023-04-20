@@ -375,7 +375,7 @@ impl TypeChecker {
                             .unwrap_or_else(|| self.undefined_type());
                         Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
                             self.get_union_type(
-                                vec![rest_type, self.undefined_type()],
+                                &[rest_type, self.undefined_type()],
                                 None,
                                 Option::<&Symbol>::None,
                                 None,
@@ -447,7 +447,7 @@ impl TypeChecker {
                         );
                         return Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
                             self.get_union_type(
-                                vec![index_info.type_.clone(), self.undefined_type()],
+                                &[index_info.type_.clone(), self.undefined_type()],
                                 None,
                                 Option::<&Symbol>::None,
                                 None,
@@ -465,7 +465,7 @@ impl TypeChecker {
                 );
                 return Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
                     self.get_union_type(
-                        vec![index_info.type_.clone(), self.undefined_type()],
+                        &[index_info.type_.clone(), self.undefined_type()],
                         None,
                         Option::<&Symbol>::None,
                         None,
@@ -524,7 +524,7 @@ impl TypeChecker {
                             );
                             append(&mut types, Some(self.undefined_type()));
                             return Some(self.get_union_type(
-                                types,
+                                &types,
                                 None,
                                 Option::<&Symbol>::None,
                                 None,
@@ -995,7 +995,7 @@ impl TypeChecker {
                     self.get_intersection_type(&types, Option::<&Symbol>::None, None)
                 } else {
                     self.get_union_type(
-                        types,
+                        &types,
                         None,
                         Option::<&Symbol>::None,
                         None,
@@ -1031,7 +1031,7 @@ impl TypeChecker {
                 self.get_intersection_type(&types, Option::<&Symbol>::None, None)
             } else {
                 self.get_union_type(
-                    types,
+                    &types,
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -1181,7 +1181,7 @@ impl TypeChecker {
 
     pub(super) fn is_intersection_empty(&self, type1: &Type, type2: &Type) -> bool {
         self.get_union_type(
-            vec![
+            &[
                 self.intersect_types(Some(type1), Some(type2)).unwrap(),
                 self.never_type(),
             ],
@@ -1393,7 +1393,7 @@ impl TypeChecker {
                 )
             } else {
                 self.get_union_type(
-                    prop_types,
+                    &prop_types,
                     Some(UnionReduction::Literal),
                     alias_symbol.as_deref(),
                     alias_type_arguments,

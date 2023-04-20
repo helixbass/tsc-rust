@@ -371,7 +371,7 @@ impl TypeChecker {
         types: &[Gc<Type>],
     ) -> Vec<Gc<Symbol>> {
         let union_type = self.get_union_type(
-            types.to_owned(),
+            types,
             None,
             Option::<&Symbol>::None,
             None,
@@ -500,7 +500,7 @@ impl TypeChecker {
                     true_constraint
                 } else {
                     self.get_union_type(
-                        vec![true_constraint, false_constraint],
+                        &[true_constraint, false_constraint],
                         None,
                         Option::<&Symbol>::None,
                         None,
@@ -782,7 +782,7 @@ impl TypeChecker {
             }
             return if t.flags().intersects(TypeFlags::Union) && base_types.len() == types.len() {
                 Some(self.get_union_type(
-                    base_types,
+                    &base_types,
                     None,
                     Option::<&Symbol>::None,
                     None,

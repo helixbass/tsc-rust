@@ -2,17 +2,17 @@
 
 use gc::Gc;
 use indexmap::IndexMap;
+use peekmore::PeekMore;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
-    ordered_remove_item_at, push_if_unique_gc, push_if_unique_rc, reduce_left, replace_element,
-    same_map, some, BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType,
-    LiteralTypeInterface, Node, ObjectFlags, Signature, Symbol, SymbolInterface, Type, TypeChecker,
+    ordered_remove_item_at, push_if_unique_gc, reduce_left, replace_element, same_map, some,
+    BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
+    Node, ObjectFlags, PeekMoreExt, Signature, Symbol, SymbolInterface, Type, TypeChecker,
     TypeFlags, TypeId, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
     UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
 };
@@ -210,7 +210,7 @@ impl TypeChecker {
             let last_optional_or_rest_index: usize =
                 last_optional_or_rest_index.try_into().unwrap();
             expanded_types[first_rest_index] = self.get_union_type(
-                same_map(
+                &same_map(
                     &expanded_types[first_rest_index..last_optional_or_rest_index + 1],
                     |t: &Gc<Type>, i| {
                         if expanded_flags[first_rest_index + i].intersects(ElementFlags::Variadic) {
@@ -322,7 +322,7 @@ impl TypeChecker {
         let type_target = type_.as_type_reference().target();
         let type_target_as_tuple_type = type_target.as_tuple_type();
         self.get_union_type(
-            {
+            &{
                 let mut ret = array_of(type_target_as_tuple_type.fixed_length, |i| {
                     self.get_string_literal_type(&i.to_string())
                 });
@@ -466,14 +466,14 @@ impl TypeChecker {
         includes
     }
 
-    pub(super) fn add_types_to_union(
+    pub(super) fn add_types_to_union<'types_item>(
         &self,
         type_set: &mut Vec<Gc<Type>>,
         mut includes: TypeFlags,
-        types: &[Gc<Type>],
+        types: impl IntoIterator<Item = &'types_item Gc<Type>>,
     ) -> TypeFlags {
         for type_ in types {
-            includes = self.add_type_to_union(type_set, includes, &type_);
+            includes = self.add_type_to_union(type_set, includes, type_);
         }
         includes
     }
@@ -654,7 +654,11 @@ impl TypeChecker {
             && (type_.maybe_alias_symbol().is_some() || type_.as_union_type().origin.is_some())
     }
 
-    pub(super) fn add_named_unions(&self, named_unions: &mut Vec<Gc<Type>>, types: &[Gc<Type>]) {
+    pub(super) fn add_named_unions<'types_item>(
+        &self,
+        named_unions: &mut Vec<Gc<Type>>,
+        types: impl IntoIterator<Item = &'types_item Gc<Type>>,
+    ) {
         for t in types {
             if t.flags().intersects(TypeFlags::Union) {
                 let origin = t.as_union_type().origin.clone();
@@ -690,23 +694,29 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_union_type<TAliasSymbol: Borrow<Symbol>, TOrigin: Borrow<Type>>(
+    pub(super) fn get_union_type<'types_item, TTypes>(
         &self,
-        types: Vec<Gc<Type>>,
+        types: TTypes,
         union_reduction: Option<UnionReduction>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-        origin: Option<TOrigin>,
-    ) -> Gc<Type> {
+        origin: Option<impl Borrow<Type>>,
+    ) -> Gc<Type>
+    where
+        TTypes: IntoIterator<Item = &'types_item Gc<Type>>,
+        TTypes::IntoIter: Clone,
+    {
         let union_reduction = union_reduction.unwrap_or(UnionReduction::Literal);
-        if types.is_empty() {
+        let mut types = types.into_iter();
+        let mut types_peekmore = types.clone().peekmore();
+        if types_peekmore.is_empty() {
             return self.never_type();
         }
-        if types.len() == 1 {
-            return types[0].clone();
+        if types_peekmore.is_len_equal_to(1) {
+            return types.next().unwrap().clone();
         }
         let mut type_set: Vec<Gc<Type>> = vec![];
-        let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, &types);
+        let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, types.clone());
         if union_reduction != UnionReduction::None {
             if includes.intersects(TypeFlags::AnyOrUnknown) {
                 return if includes.intersects(TypeFlags::Any) {
@@ -791,7 +801,7 @@ impl TypeChecker {
         let mut origin = origin.map(|origin| origin.borrow().type_wrapper());
         if origin.is_none() && includes.intersects(TypeFlags::Union) {
             let mut named_unions: Vec<Gc<Type>> = vec![];
-            self.add_named_unions(&mut named_unions, &types);
+            self.add_named_unions(&mut named_unions, types);
             let mut reduced_types: Vec<Gc<Type>> = vec![];
             for t in &type_set {
                 if !some(
@@ -969,7 +979,7 @@ impl TypeChecker {
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
             links.borrow_mut().resolved_type = Some(
                 self.get_union_type(
-                    map(&node.as_union_type_node().types, |type_: &Gc<Node>, _| {
+                    &map(&node.as_union_type_node().types, |type_: &Gc<Node>, _| {
                         self.get_type_from_type_node_(type_)
                     }),
                     Some(UnionReduction::Literal),

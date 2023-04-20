@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::ptr;
+use std::{borrow::Borrow, ptr};
 
 use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
@@ -79,11 +79,11 @@ impl TypeChecker {
         &self,
         prop_name: &Node, /*Identifier | PrivateIdentifier*/
         prop_type: &Type,
-        static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
+        static_blocks: impl IntoIterator<Item = Gc<Node /*ClassStaticBlockDeclaration*/>>,
         start_pos: isize,
         end_pos: isize,
     ) -> bool {
-        for static_block in static_blocks {
+        for ref static_block in static_blocks {
             if static_block.pos() >= start_pos && static_block.pos() <= end_pos {
                 let reference: Gc<Node> = factory.with(|factory_| {
                     factory_

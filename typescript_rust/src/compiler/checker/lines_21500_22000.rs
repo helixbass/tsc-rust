@@ -138,7 +138,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_inference(&self, inference: &InferenceInfo) -> Option<Gc<Type>> {
         if let Some(inference_candidates) = inference.maybe_candidates().as_ref() {
             Some(self.get_union_type(
-                inference_candidates.clone(),
+                inference_candidates,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
@@ -681,7 +681,7 @@ impl InferTypes {
                 return;
             }
             target = self.type_checker.get_union_type(
-                targets,
+                &targets,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -692,7 +692,7 @@ impl InferTypes {
                 return;
             }
             source = self.type_checker.get_union_type(
-                sources,
+                &sources,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -1046,11 +1046,11 @@ impl InferTypes {
         self.set_inference_priority(cmp::min(self.inference_priority(), save_inference_priority));
     }
 
-    pub(super) fn infer_from_matching_types<TMatches: FnMut(&Type, &Type) -> bool>(
+    pub(super) fn infer_from_matching_types(
         &self,
         sources: &[Gc<Type>],
         targets: &[Gc<Type>],
-        mut matches: TMatches,
+        mut matches: impl FnMut(&Type, &Type) -> bool,
     ) -> (Vec<Gc<Type>>, Vec<Gc<Type>>) {
         let mut matched_sources: Option<Vec<Gc<Type>>> = None;
         let mut matched_targets: Option<Vec<Gc<Type>>> = None;

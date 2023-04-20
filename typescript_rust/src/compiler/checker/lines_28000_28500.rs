@@ -690,7 +690,7 @@ impl TypeChecker {
                     && !is_assignment_target(node)
                 {
                     self.get_union_type(
-                        vec![index_info.type_.clone(), self.undefined_type()],
+                        &[index_info.type_.clone(), self.undefined_type()],
                         None,
                         Option::<&Symbol>::None,
                         None,

@@ -779,7 +779,7 @@ impl TypeChecker {
         }
         if type_.flags().intersects(TypeFlags::Union) {
             return self.get_union_type(
-                map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
+                &map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
                     self.instantiate_instantiable_types(t, mapper.clone())
                 }),
                 Some(UnionReduction::None),

@@ -184,7 +184,7 @@ impl TypeChecker {
                 let class_symbol = self.get_symbol_of_node(&node.parent()).unwrap();
                 let class_constructor_type = self.get_type_of_symbol(&class_symbol);
                 expected_return_type = self.get_union_type(
-                    vec![class_constructor_type, self.void_type()],
+                    &[class_constructor_type, self.void_type()],
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -218,7 +218,7 @@ impl TypeChecker {
                 let method_type = self.get_type_of_node(&node.parent());
                 let descriptor_type = self.create_typed_property_descriptor_type(&method_type);
                 expected_return_type = self.get_union_type(
-                    vec![descriptor_type, self.void_type()],
+                    &[descriptor_type, self.void_type()],
                     None,
                     Option::<&Symbol>::None,
                     None,

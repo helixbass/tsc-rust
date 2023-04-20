@@ -1030,7 +1030,7 @@ pub fn create_type_checker(
     regular_true_type_as_freshable_intrinsic_type.set_fresh_type(type_checker.true_type());
     type_checker.regular_true_type = Some(regular_true_type);
     type_checker.boolean_type = Some(type_checker.get_union_type(
-        vec![
+        &[
             type_checker.regular_false_type(),
             type_checker.regular_true_type(),
         ],
@@ -1084,14 +1084,14 @@ pub fn create_type_checker(
             .into(),
     );
     type_checker.string_or_number_type = Some(type_checker.get_union_type(
-        vec![type_checker.string_type(), type_checker.number_type()],
+        &[type_checker.string_type(), type_checker.number_type()],
         None,
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
     ));
     type_checker.string_number_symbol_type = Some(type_checker.get_union_type(
-        vec![
+        &[
             type_checker.string_type(),
             type_checker.number_type(),
             type_checker.es_symbol_type(),
@@ -1107,14 +1107,14 @@ pub fn create_type_checker(
         type_checker.string_number_symbol_type()
     });
     type_checker.number_or_big_int_type = Some(type_checker.get_union_type(
-        vec![type_checker.number_type(), type_checker.bigint_type()],
+        &[type_checker.number_type(), type_checker.bigint_type()],
         None,
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
     ));
     type_checker.template_constraint_type = Some(type_checker.get_union_type(
-        vec![
+        &[
             type_checker.string_type(),
             type_checker.number_type(),
             type_checker.boolean_type(),
