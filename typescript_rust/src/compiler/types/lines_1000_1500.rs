@@ -15,6 +15,8 @@ use crate::set_text_range_node_array;
 use local_macros::ast_type;
 
 mod _NodeArrayDeriveTraceScope {
+    use std::slice;
+
     use super::*;
     use local_macros::Trace;
 
@@ -59,7 +61,11 @@ mod _NodeArrayDeriveTraceScope {
         }
 
         pub fn iter(&self) -> NodeArrayIter {
-            NodeArrayIter(Box::new(self._nodes.iter()))
+            NodeArrayIter(self._nodes.iter())
+        }
+
+        pub fn owned_iter(&self) -> NodeArrayOwnedIter {
+            self.rc_wrapper().into()
         }
 
         pub fn len(&self) -> usize {
@@ -123,9 +129,7 @@ mod _NodeArrayDeriveTraceScope {
         }
     }
 
-    pub struct NodeArrayIter<'node_array>(
-        Box<dyn Iterator<Item = &'node_array Gc<Node>> + 'node_array>,
-    );
+    pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Gc<Node>>);
 
     impl<'node_array> Iterator for NodeArrayIter<'node_array> {
         type Item = &'node_array Gc<Node>;
@@ -141,6 +145,35 @@ mod _NodeArrayDeriveTraceScope {
 
         fn into_iter(self) -> Self::IntoIter {
             self.iter()
+        }
+    }
+
+    #[derive(Trace, Finalize)]
+    pub struct NodeArrayOwnedIter {
+        node_array: Gc<NodeArray>,
+        index: usize,
+    }
+
+    impl From<Gc<NodeArray>> for NodeArrayOwnedIter {
+        fn from(value: Gc<NodeArray>) -> Self {
+            Self {
+                node_array: value,
+                index: 0,
+            }
+        }
+    }
+
+    impl Iterator for NodeArrayOwnedIter {
+        type Item = Gc<Node>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.index >= self.node_array.len() {
+                None
+            } else {
+                let ret = self.node_array[self.index].clone();
+                self.index += 1;
+                Some(ret)
+            }
         }
     }
 

@@ -108,6 +108,10 @@ impl BaseTextRange {
         }
     }
 
+    pub fn to_readonly_text_range(&self) -> impl ReadonlyTextRange {
+        ReadonlyTextRangeConcrete::new(self.pos(), self.end())
+    }
+
     pub fn into_readonly_text_range(self) -> impl ReadonlyTextRange {
         ReadonlyTextRangeConcrete::new(self.pos(), self.end())
     }
@@ -136,6 +140,24 @@ impl From<&Node> for BaseTextRange {
         Self::new(value.pos(), value.end())
     }
 }
+
+// impl<TTextRange: TextRange> ReadonlyTextRange for TTextRange {
+//     fn pos(&self) -> isize {
+//         TextRange::pos(self)
+//     }
+
+//     fn set_pos(&self, pos: isize) {
+//         TextRange::set_pos(self, pos);
+//     }
+
+//     fn end(&self) -> isize {
+//         TextRange::end(self)
+//     }
+
+//     fn set_end(&self, end: isize) {
+//         TextRange::set_pos(self, end);
+//     }
+// }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum SyntaxKind {

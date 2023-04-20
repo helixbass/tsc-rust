@@ -3,15 +3,17 @@ use std::borrow::Borrow;
 use gc::Gc;
 
 use crate::{
-    child_is_decorated, class_or_constructor_parameter_is_decorated, create_token_range,
-    get_effective_base_type_node, get_emit_flags, get_properties, get_strict_option_value,
-    has_syntactic_modifier, insert_statements_after_standard_prologue, is_external_module,
-    is_json_source_file, move_range_past_decorators, set_emit_flags, skip_outer_expressions,
-    skip_trivia, some, visit_each_child, visit_lexical_environment, AsDoubleDeref,
-    ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface, Matches, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface,
-    ReadonlyTextRange, ScriptTarget, SourceFileLike, SyntaxKind, TextRange, TransformFlags,
-    VisitResult,
+    add_range, child_is_decorated, class_or_constructor_parameter_is_decorated, create_token_range,
+    get_effective_base_type_node, get_emit_flags, get_first_constructor_with_body, get_properties,
+    get_strict_option_value, has_syntactic_modifier, insert_statements_after_standard_prologue,
+    is_class_element, is_external_module, is_heritage_clause, is_identifier, is_json_source_file,
+    is_modifier, is_parameter_property_declaration, move_range_past_decorators, set_emit_flags,
+    skip_outer_expressions, skip_trivia, some, visit_each_child, visit_lexical_environment,
+    visit_nodes, AsDoubleDeref, ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
+    InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeExt, NodeFlags, NodeInterface,
+    NodeWrappered, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SourceFileLike,
+    SyntaxKind, TextRange, ThenAnd, TransformFlags, VisitResult,
 };
 
 use super::{ClassFacts, TransformTypeScript};
@@ -291,25 +293,224 @@ impl TransformTypeScript {
 
     pub(super) fn create_class_declaration_head_without_decorators(
         &self,
-        node: &Node, /*ClassExpression*/
+        node: &Node, /*ClassDeclaration*/
         name: Option<impl Borrow<Node /*Identifier*/>>,
         facts: ClassFacts,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_class_declaration = node.as_class_declaration();
+        let modifiers = (!(facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression)))
+            .then_and(|| {
+                visit_nodes(
+                    node.maybe_modifiers().as_deref(),
+                    Some(|node: &Node| self.modifier_visitor(node)),
+                    Some(is_modifier),
+                    None,
+                    None,
+                )
+            });
+
+        let class_declaration = self
+            .factory
+            .create_class_declaration(
+                Option::<Gc<NodeArray>>::None,
+                modifiers,
+                name.node_wrappered(),
+                Option::<Gc<NodeArray>>::None,
+                visit_nodes(
+                    node_as_class_declaration
+                        .maybe_heritage_clauses()
+                        .as_deref(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_heritage_clause),
+                    None,
+                    None,
+                ),
+                self.transform_class_members(node),
+            )
+            .wrap();
+
+        let mut emit_flags = get_emit_flags(node);
+        if facts.intersects(ClassFacts::HasStaticInitializedProperties) {
+            emit_flags |= EmitFlags::NoTrailingSourceMap;
+        }
+
+        class_declaration
+            .set_text_range(Some(node))
+            .set_original_node(Some(node.node_wrapper()))
+            .set_emit_flags(emit_flags)
     }
 
     pub(super) fn create_class_declaration_head_with_decorators(
         &self,
-        node: &Node, /*ClassExpression*/
+        node: &Node, /*ClassDeclaration*/
         name: Option<impl Borrow<Node /*Identifier*/>>,
     ) -> Gc<Node> {
-        unimplemented!()
+        let node_as_class_declaration = node.as_class_declaration();
+        let location = move_range_past_decorators(node);
+        let class_alias = self.get_class_alias_if_needed(node);
+
+        let decl_name = if self.language_version <= ScriptTarget::ES2015 {
+            self.factory
+                .get_internal_name(node, Some(false), Some(true))
+        } else {
+            self.factory.get_local_name(node, Some(false), Some(true))
+        };
+
+        let heritage_clauses = visit_nodes(
+            node_as_class_declaration
+                .maybe_heritage_clauses()
+                .as_deref(),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_heritage_clause),
+            None,
+            None,
+        );
+        let members = self.transform_class_members(node);
+        let class_expression = self
+            .factory
+            .create_class_expression(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                name.node_wrappered(),
+                Option::<Gc<NodeArray>>::None,
+                heritage_clauses,
+                members,
+            )
+            .wrap()
+            .set_original_node(Some(node.node_wrapper()))
+            .set_text_range(Some(&location.to_readonly_text_range()));
+
+        self.factory
+            .create_variable_statement(
+                Option::<Gc<NodeArray>>::None,
+                self.factory
+                    .create_variable_declaration_list(
+                        vec![self
+                            .factory
+                            .create_variable_declaration(
+                                Some(decl_name),
+                                None,
+                                None,
+                                Some(if let Some(class_alias) = class_alias {
+                                    self.factory
+                                        .create_assignment(class_alias, class_expression)
+                                        .wrap()
+                                } else {
+                                    class_expression
+                                }),
+                            )
+                            .wrap()],
+                        Some(NodeFlags::Let),
+                    )
+                    .wrap(),
+            )
+            .wrap()
+            .set_original_node(Some(node.node_wrapper()))
+            .set_text_range(Some(&location.to_readonly_text_range()))
+            .set_comment_range(node)
     }
 
     pub(super) fn visit_class_expression(
         &self,
         node: &Node, /*ClassExpression*/
     ) -> Gc<Node /*<Expression>*/> {
-        unimplemented!()
+        let node_as_class_expression = node.as_class_expression();
+        if !self.is_class_like_declaration_with_type_script_syntax(node) {
+            return visit_each_child(
+                Some(node),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+                Option::<fn(&Node) -> VisitResult>::None,
+                Option::<
+                    fn(
+                        Option<&Node>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                    ) -> Option<Gc<Node>>,
+                >::None,
+            )
+            .unwrap();
+        }
+
+        self.factory
+            .create_class_expression(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                node_as_class_expression.maybe_name(),
+                Option::<Gc<NodeArray>>::None,
+                visit_nodes(
+                    node_as_class_expression.maybe_heritage_clauses().as_deref(),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_heritage_clause),
+                    None,
+                    None,
+                ),
+                self.transform_class_members(node),
+            )
+            .wrap()
+            .set_original_node(Some(node.node_wrapper()))
+            .set_text_range(Some(node))
+    }
+
+    pub(super) fn transform_class_members(
+        &self,
+        node: &Node, /*ClassDeclaration | ClassExpression*/
+    ) -> Gc<NodeArray> {
+        let mut members: Vec<Gc<Node /*ClassElement*/>> = Default::default();
+        let constructor = get_first_constructor_with_body(node);
+        let parameters_with_property_assignments = constructor.as_ref().map(|constructor| {
+            constructor
+                .as_constructor_declaration()
+                .parameters()
+                .owned_iter()
+                .filter(|p| is_parameter_property_declaration(p, constructor))
+        });
+        if let Some(parameters_with_property_assignments) = parameters_with_property_assignments {
+            for parameter in parameters_with_property_assignments {
+                let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+                if is_identifier(&parameter_as_parameter_declaration.name()) {
+                    members.push(
+                        self.factory
+                            .create_property_declaration(
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                parameter_as_parameter_declaration.name(),
+                                None,
+                                None,
+                                None,
+                            )
+                            .set_original_node(Some(parameter)),
+                    );
+                }
+            }
+        }
+
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        add_range(
+            &mut members,
+            visit_nodes(
+                Some(&node_as_class_like_declaration.members()),
+                Some(|node: &Node| self.class_element_visitor(node)),
+                Some(is_class_element),
+                None,
+                None,
+            )
+            .as_double_deref(),
+            None,
+            None,
+        );
+        self.factory
+            .create_node_array(Some(members), None)
+            .set_text_range(Some(&*node_as_class_like_declaration.members()))
     }
 }

@@ -24,4 +24,11 @@ impl TransformTypeScript {
     ) {
         unimplemented!()
     }
+
+    pub(super) fn get_class_alias_if_needed(
+        &self,
+        node: &Node, /*ClassDeclaration*/
+    ) -> Option<Gc<Node>> {
+        unimplemented!()
+    }
 }
