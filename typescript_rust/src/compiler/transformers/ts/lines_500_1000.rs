@@ -1,19 +1,20 @@
 use std::borrow::Borrow;
 
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 
 use crate::{
     add_range, child_is_decorated, class_or_constructor_parameter_is_decorated, create_token_range,
     get_effective_base_type_node, get_emit_flags, get_first_constructor_with_body, get_properties,
     get_strict_option_value, has_syntactic_modifier, insert_statements_after_standard_prologue,
     is_class_element, is_external_module, is_heritage_clause, is_identifier, is_json_source_file,
-    is_modifier, is_parameter_property_declaration, move_range_past_decorators, set_emit_flags,
-    skip_outer_expressions, skip_trivia, some, visit_each_child, visit_lexical_environment,
-    visit_nodes, AsDoubleDeref, ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
+    is_modifier, is_parameter_property_declaration, is_static, move_range_past_decorators,
+    node_or_child_is_decorated, parameter_is_this_keyword, set_emit_flags, skip_outer_expressions,
+    skip_trivia, some, visit_each_child, visit_lexical_environment, visit_nodes, AsDoubleDeref,
+    ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
     InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeExt, NodeFlags, NodeInterface,
-    NodeWrappered, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SourceFileLike,
-    SyntaxKind, TextRange, ThenAnd, TransformFlags, VisitResult,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeFlags,
+    NodeInterface, NodeWrappered, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
+    SourceFileLike, SyntaxKind, TextRange, ThenAnd, TransformFlags, VisitResult,
 };
 
 use super::{ClassFacts, TransformTypeScript};
@@ -513,4 +514,98 @@ impl TransformTypeScript {
             .create_node_array(Some(members), None)
             .set_text_range(Some(&*node_as_class_like_declaration.members()))
     }
+
+    pub(super) fn get_decorated_class_elements<'self_and_node>(
+        &'self_and_node self,
+        node: &'self_and_node Node, /*ClassExpression | ClassDeclaration*/
+        is_static: bool,
+    ) -> impl Iterator<Item = Gc<Node /*ClassElement*/>> + 'self_and_node {
+        node.as_class_like_declaration()
+            .members()
+            .owned_iter()
+            .filter(move |m| {
+                if is_static {
+                    self.is_static_decorated_class_element(m, node)
+                } else {
+                    self.is_instance_decorated_class_element(m, node)
+                }
+            })
+    }
+
+    pub(super) fn is_static_decorated_class_element(
+        &self,
+        member: &Node, /*ClassElement*/
+        parent: &Node, /*ClassLikeDeclaration*/
+    ) -> bool {
+        self.is_decorated_class_element(member, true, parent)
+    }
+
+    pub(super) fn is_instance_decorated_class_element(
+        &self,
+        member: &Node, /*ClassElement*/
+        parent: &Node, /*ClassLikeDeclaration*/
+    ) -> bool {
+        self.is_decorated_class_element(member, false, parent)
+    }
+
+    pub(super) fn is_decorated_class_element(
+        &self,
+        member: &Node, /*ClassElement*/
+        is_static_element: bool,
+        parent: &Node, /*ClassLikeDeclaration*/
+    ) -> bool {
+        node_or_child_is_decorated(member, Some(parent), Option::<&Node>::None)
+            && is_static_element == is_static(member)
+    }
+
+    pub(super) fn get_decorators_of_parameters(
+        &self,
+        node: Option<impl Borrow<Node /*FunctionLikeDeclaration*/>>,
+    ) -> Option<Vec<Option<NodeArrayOrVec>>> {
+        let mut decorators: Option<Vec<Option<NodeArrayOrVec /*Decorator*/>>> = Default::default();
+        if let Some(node) = node {
+            let node: &Node = node.borrow();
+            let node_as_function_like_declaration = node.as_function_like_declaration();
+            let parameters = node_as_function_like_declaration.parameters();
+            let first_parameter_is_this =
+                !parameters.is_empty() && parameter_is_this_keyword(&parameters[0]);
+            let first_parameter_offset = if first_parameter_is_this { 1 } else { 0 };
+            let num_parameters = if first_parameter_is_this {
+                parameters.len() - 1
+            } else {
+                parameters.len()
+            };
+            for i in 0..num_parameters {
+                let parameter = &parameters[i + first_parameter_offset];
+                if decorators.is_some() || parameter.maybe_decorators().is_some() {
+                    decorators.get_or_insert_with(|| vec![None; num_parameters])[i] =
+                        parameter.maybe_decorators().map(Into::into);
+                }
+            }
+        }
+
+        decorators
+    }
+
+    pub(super) fn get_all_decorators_of_constructor(
+        &self,
+        node: &Node, /*ClassExpression | ClassDeclaration*/
+    ) -> Option<AllDecorators> {
+        let decorators = node.maybe_decorators();
+        let parameters = self.get_decorators_of_parameters(get_first_constructor_with_body(node));
+        if decorators.is_none() && parameters.is_none() {
+            return None;
+        }
+
+        Some(AllDecorators {
+            decorators: decorators.map(Into::into),
+            parameters,
+        })
+    }
+}
+
+#[derive(Trace, Finalize)]
+pub(super) struct AllDecorators {
+    pub decorators: Option<NodeArrayOrVec /*Decorator*/>,
+    pub parameters: Option<Vec<Option<NodeArrayOrVec /*Decorator*/>>>,
 }

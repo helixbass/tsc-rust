@@ -521,10 +521,10 @@ pub fn node_is_decorated<TParent: Borrow<Node>, TGrandparent: Borrow<Node>>(
     node.maybe_decorators().is_some() && node_can_be_decorated(node, parent, grandparent)
 }
 
-pub fn node_or_child_is_decorated<TParent: Borrow<Node> + Clone, TGrandparent: Borrow<Node>>(
+pub fn node_or_child_is_decorated(
     node: &Node,
-    parent: Option<TParent>,
-    grandparent: Option<TGrandparent>,
+    parent: Option<impl Borrow<Node> + Clone>,
+    grandparent: Option<impl Borrow<Node>>,
 ) -> bool {
     node_is_decorated(node, parent.clone(), grandparent) || child_is_decorated(node, parent)
 }

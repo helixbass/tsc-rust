@@ -197,11 +197,17 @@ impl NodeArrayExt for Gc<NodeArray> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum NodeArrayOrVec {
-    NodeArray(Gc<NodeArray>),
-    Vec(Vec<Gc<Node>>),
+mod _NodeArrayOrVecDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Clone, Debug, Trace, Finalize)]
+    pub enum NodeArrayOrVec {
+        NodeArray(Gc<NodeArray>),
+        Vec(Vec<Gc<Node>>),
+    }
 }
+pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
 
 impl From<Gc<NodeArray>> for NodeArrayOrVec {
     fn from(node_array: Gc<NodeArray>) -> Self {
