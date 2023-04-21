@@ -211,13 +211,13 @@ pub fn get_target_of_binding_or_assignment_element(
 
 pub fn get_elements_of_binding_or_assignment_pattern(
     name: &Node, /*BindingOrAssignmentPattern*/
-) -> Vec<Gc<Node /*BindingOrAssignmentElement*/>> {
+) -> impl Iterator<Item = Gc<Node /*BindingOrAssignmentElement*/>> {
     match name.kind() {
         SyntaxKind::ObjectBindingPattern
         | SyntaxKind::ArrayBindingPattern
-        | SyntaxKind::ArrayLiteralExpression => name.as_has_elements().elements().to_vec(),
+        | SyntaxKind::ArrayLiteralExpression => name.as_has_elements().elements().owned_iter(),
         SyntaxKind::ObjectLiteralExpression => {
-            name.as_object_literal_expression().properties.to_vec()
+            name.as_object_literal_expression().properties.owned_iter()
         }
         _ => panic!("Unexpected kind"),
     }
