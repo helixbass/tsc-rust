@@ -41,12 +41,12 @@ use crate::{
     EmitFileNames, EmitResult, Extension, FileIncludeKind, FileIncludeReason,
     FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
-    FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
+    FileReference, GetCanonicalFileName, IsEmpty, JsxEmit, ModuleKind, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
     Program, ProjectReference, ReadFileCallback, ReferencedFile, ResolvedConfigFileName,
     ResolvedModuleFull, ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget,
-    SymlinkCache, SyntaxKind, WriteFileCallback,
+    SymlinkCache, SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
 };
 
 impl Program {
@@ -1347,8 +1347,8 @@ impl Program {
                 )?;
                 let (source_file, index) = reference_info;
                 let references_syntax = first_defined(
-                    &get_ts_config_prop_array(Some(&*source_file), "references"),
-                    |property: &Gc<Node>, _| {
+                    get_ts_config_prop_array(Some(&*source_file), "references"),
+                    |property: Gc<Node>, _| {
                         property.as_has_initializer().maybe_initializer().filter(
                             |property_initializer| {
                                 is_array_literal_expression(property_initializer)
@@ -1558,7 +1558,7 @@ impl Program {
             let ref path_prop_initializer =
                 path_prop.as_has_initializer().maybe_initializer().unwrap();
             if is_object_literal_expression(path_prop_initializer) {
-                for key_props in &get_property_assignment(path_prop_initializer, key, None) {
+                for key_props in get_property_assignment(path_prop_initializer, key, None) {
                     let ref initializer =
                         key_props.as_has_initializer().maybe_initializer().unwrap();
                     if is_array_literal_expression(initializer) {
@@ -1617,7 +1617,10 @@ impl Program {
         }
     }
 
-    pub fn get_options_syntax_by_name(&self, name: &str) -> Option<Vec<Gc<Node>>> {
+    pub fn get_options_syntax_by_name<'name>(
+        &self,
+        name: &'name str,
+    ) -> Option<impl Iterator<Item = Gc<Node>> + 'name> {
         let compiler_options_object_literal_syntax =
             self.get_compiler_options_object_literal_syntax();
         compiler_options_object_literal_syntax.as_ref().map(
@@ -1627,8 +1630,8 @@ impl Program {
         )
     }
 
-    pub fn get_options_paths_syntax(&self) -> Vec<Gc<Node>> {
-        self.get_options_syntax_by_name("paths").unwrap_or_default()
+    pub fn get_options_paths_syntax(&self) -> impl Iterator<Item = Gc<Node>> {
+        self.get_options_syntax_by_name("paths").unwrap_or_empty()
     }
 
     pub fn get_options_syntax_by_value(&self, name: &str, value: &str) -> Option<Gc<Node>> {
@@ -1742,7 +1745,7 @@ impl Program {
         args: Option<Vec<String>>,
     ) -> bool {
         let props = get_property_assignment(object_literal, key1, key2);
-        for prop in &props {
+        for prop in props.clone() {
             self.program_diagnostics_mut().add(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     self.options.config_file.as_ref().unwrap(),
@@ -1757,7 +1760,7 @@ impl Program {
                 .into(),
             ));
         }
-        !props.is_empty()
+        !props.peekable().is_empty()
     }
 
     pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Gc<Diagnostic>) {

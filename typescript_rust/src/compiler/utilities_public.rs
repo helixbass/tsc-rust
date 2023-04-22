@@ -1,11 +1,12 @@
+use either_n::Either3;
 use gc::Gc;
 use regex::Regex;
 use serde_json;
 use std::borrow::{Borrow, Cow};
-use std::cmp;
 use std::collections::HashMap;
 use std::ops::BitOrAssign;
 use std::ptr;
+use std::{cmp, iter};
 
 use crate::{
     HasTypeArgumentsInterface, ReadonlyTextRange, StringOrNodeArray, TextSpan, __String,
@@ -761,7 +762,7 @@ pub(crate) fn get_assigned_name(node: &Node) -> Option<Gc<Node /*DeclarationName
 fn get_jsdoc_parameter_tags_worker(
     param: &Node, /*ParameterDeclaration*/
     no_cache: Option<bool>,
-) -> Vec<Gc<Node /*JSDocParameterTag*/>> {
+) -> impl Iterator<Item = Gc<Node /*JSDocParameterTag*/>> {
     let param_as_parameter_declaration = param.as_parameter_declaration();
     /*if param.name {*/
     if is_identifier(&*param_as_parameter_declaration.name()) {
@@ -770,19 +771,18 @@ fn get_jsdoc_parameter_tags_worker(
             .as_identifier()
             .escaped_text
             .clone();
-        return get_jsdoc_tags_worker(&param.parent(), no_cache)
-            .into_iter()
-            .filter(|tag| {
-                if !is_jsdoc_parameter_tag(&**tag) {
+        return Either3::One(
+            get_jsdoc_tags_worker(&param.parent(), no_cache).filter(move |tag| {
+                if !is_jsdoc_parameter_tag(tag) {
                     return false;
                 }
                 let tag_as_jsdoc_parameter_tag = tag.as_jsdoc_property_like_tag();
-                if !is_identifier(&*tag_as_jsdoc_parameter_tag.name) {
+                if !is_identifier(&tag_as_jsdoc_parameter_tag.name) {
                     return false;
                 }
                 tag_as_jsdoc_parameter_tag.name.as_identifier().escaped_text == name
-            })
-            .collect();
+            }),
+        );
     } else {
         let i = param
             .parent()
@@ -795,27 +795,27 @@ fn get_jsdoc_parameter_tags_worker(
             Some("Parameters should always be in their parent's parameter lists"),
         );
         let i = i.unwrap();
-        let param_tags: Vec<Gc<Node>> = get_jsdoc_tags_worker(&param.parent(), no_cache)
-            .into_iter()
-            .filter(|tag| is_jsdoc_parameter_tag(&**tag))
-            .collect();
-        if i < param_tags.len() {
-            return vec![param_tags[i].clone()];
+        let mut param_tags = get_jsdoc_tags_worker(&param.parent(), no_cache)
+            .filter(|tag| is_jsdoc_parameter_tag(tag));
+        if
+        /*i < paramTags.length*/
+        let Some(param_tags_i) = param_tags.nth(i) {
+            return Either3::Two(iter::once(param_tags_i));
         }
     }
     /*}*/
-    vec![]
+    Either3::Three(iter::empty())
 }
 
 pub fn get_jsdoc_parameter_tags(
     param: &Node, /*ParameterDeclaration*/
-) -> Vec<Gc<Node /*JSDocParameterTag*/>> {
+) -> impl Iterator<Item = Gc<Node /*JSDocParameterTag*/>> {
     get_jsdoc_parameter_tags_worker(param, Some(false))
 }
 
 pub(crate) fn get_jsdoc_parameter_tags_no_cache(
     param: &Node, /*ParameterDeclaration*/
-) -> Vec<Gc<Node /*JSDocParameterTag*/>> {
+) -> impl Iterator<Item = Gc<Node /*JSDocParameterTag*/>> {
     get_jsdoc_parameter_tags_worker(param, Some(true))
 }
 
@@ -955,10 +955,8 @@ pub fn get_jsdoc_type_tag(node: &Node) -> Option<Gc<Node /*JSDocTypeTag*/>> {
 pub fn get_jsdoc_type(node: &Node) -> Option<Gc<Node /*TypeNode*/>> {
     let mut tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
     if tag.is_none() && is_parameter(node) {
-        tag = find(&get_jsdoc_parameter_tags(node), |tag, _| {
-            tag.as_jsdoc_property_like_tag().type_expression.is_some()
-        })
-        .map(Clone::clone);
+        tag = get_jsdoc_parameter_tags(node)
+            .find(|tag| tag.as_jsdoc_property_like_tag().type_expression.is_some());
     }
 
     tag.and_then(|tag| tag.as_jsdoc_type_like_tag().maybe_type_expression().clone())
@@ -999,48 +997,55 @@ pub fn get_jsdoc_return_type(node: &Node) -> Option<Gc<Node /*TypeNode*/>> {
     None
 }
 
-fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Gc<Node /*JSDocTag*/>> {
-    let mut tags: Option<Vec<Gc<Node>>> = node.maybe_js_doc_cache().clone();
-    if tags.is_none() || no_cache.unwrap_or(false) {
+fn get_jsdoc_tags_worker(
+    node: &Node,
+    no_cache: Option<bool>,
+) -> impl DoubleEndedIterator<Item = Gc<Node /*JSDocTag*/>>
+       + ExactSizeIterator<Item = Gc<Node /*JSDocTag*/>> {
+    let mut tags = node.maybe_js_doc_cache();
+    if tags.is_none() || no_cache == Some(true) {
         let comments = get_jsdoc_comments_and_tags(node, no_cache);
         Debug_.assert(
             comments.len() < 2 || !Gc::ptr_eq(&comments[0], &comments[1]),
             None,
         );
-        tags = Some(flat_map(Some(comments), |j, _| {
-            if is_jsdoc(&*j) {
-                j.as_jsdoc()
-                    .tags
-                    .as_ref()
-                    .map_or(vec![], |tags| tags.iter().map(Clone::clone).collect())
-            } else {
-                vec![j]
-            }
-        }));
+        tags = Some(
+            flat_map(Some(comments), |j, _| {
+                if is_jsdoc(&*j) {
+                    j.as_jsdoc()
+                        .tags
+                        .as_ref()
+                        .map_or(vec![], |tags| tags.iter().map(Clone::clone).collect())
+                } else {
+                    vec![j]
+                }
+            })
+            .into(),
+        );
         if !no_cache.unwrap_or(false) {
             node.set_js_doc_cache(tags.clone());
         }
     }
-    tags.unwrap()
+    tags.unwrap().owned_iter()
 }
 
-pub fn get_jsdoc_tags(node: &Node) -> Vec<Gc<Node /*JSDocTag*/>> {
+pub fn get_jsdoc_tags(
+    node: &Node,
+) -> impl DoubleEndedIterator<Item = Gc<Node /*JSDocTag*/>>
+       + ExactSizeIterator<Item = Gc<Node /*JSDocTag*/>> {
     get_jsdoc_tags_worker(node, Some(false))
 }
 
-pub(crate) fn get_jsdoc_tags_no_cache(node: &Node) -> Vec<Gc<Node /*JSDocTag*/>> {
+pub(crate) fn get_jsdoc_tags_no_cache(node: &Node) -> impl Iterator<Item = Gc<Node /*JSDocTag*/>> {
     get_jsdoc_tags_worker(node, Some(true))
 }
 
-fn get_first_jsdoc_tag<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
+fn get_first_jsdoc_tag(
     node: &Node,
-    mut predicate: TPredicate,
+    mut predicate: impl FnMut(&Node /*JSDocTag*/) -> bool,
     no_cache: Option<bool>,
 ) -> Option<Gc<Node>> {
-    find(&get_jsdoc_tags_worker(node, no_cache), |element, _| {
-        predicate(element)
-    })
-    .map(Clone::clone)
+    get_jsdoc_tags_worker(node, no_cache).find(|element| predicate(element))
 }
 
 pub fn get_all_jsdoc_tags<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(

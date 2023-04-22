@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use super::ResolveCallContainingMessageChain;
 use crate::{
-    chain_diagnostic_messages, entity_name_to_string, find_last, for_each, get_declaration_of_kind,
+    chain_diagnostic_messages, entity_name_to_string, for_each, get_declaration_of_kind,
     get_effective_return_type_node, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, get_entity_name_from_type_node,
     get_first_constructor_with_body, get_first_identifier, get_host_signature_from_jsdoc,
@@ -531,10 +531,9 @@ impl TypeChecker {
         if get_parameter_symbol_from_jsdoc(node).is_none() {
             let decl = get_host_signature_from_jsdoc(node);
             if let Some(decl) = decl.as_ref() {
-                let i: Option<usize> = get_jsdoc_tags(decl)
-                    .iter()
+                let i = get_jsdoc_tags(decl)
                     .filter(|jsdoc_tag| is_jsdoc_parameter_tag(jsdoc_tag))
-                    .position(|jsdoc_tag| ptr::eq(&**jsdoc_tag, node));
+                    .position(|jsdoc_tag| ptr::eq(&*jsdoc_tag, node));
                 if matches!(
                     i,
                     Some(i) if {
@@ -564,11 +563,10 @@ impl TypeChecker {
                         );
                     }
                 } else if matches!(
-                    find_last(
-                        &*get_jsdoc_tags(decl),
-                        |jsdoc_tag: &Gc<Node>, _| is_jsdoc_parameter_tag(jsdoc_tag)
+                    get_jsdoc_tags(decl).rfind(
+                        |jsdoc_tag| is_jsdoc_parameter_tag(jsdoc_tag)
                     ),
-                    Some(jsdoc_tag) if ptr::eq(&**jsdoc_tag, node)
+                    Some(jsdoc_tag) if ptr::eq(&*jsdoc_tag, node)
                 ) && matches!(
                     node_as_jsdoc_property_like_tag.type_expression.as_ref().map(|node_type_expression| {
                         node_type_expression.as_jsdoc_type_expression().type_.clone()

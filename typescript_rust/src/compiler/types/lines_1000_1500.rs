@@ -148,7 +148,7 @@ mod _NodeArrayDeriveTraceScope {
         }
     }
 
-    #[derive(Trace, Finalize)]
+    #[derive(Clone, Trace, Finalize)]
     pub struct NodeArrayOwnedIter {
         node_array: Gc<NodeArray>,
         index: usize,

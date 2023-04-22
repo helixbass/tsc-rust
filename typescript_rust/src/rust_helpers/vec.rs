@@ -1,3 +1,6 @@
+use gc::{Finalize, Gc, Trace};
+use std::ops::Deref;
+
 use crate::add_range;
 
 pub trait VecExt {
@@ -32,5 +35,75 @@ impl<TItem: Clone> VecExtClone for Vec<TItem> {
 
     fn add_range(&mut self, from: Option<&[Self::Item]>, start: Option<isize>, end: Option<isize>) {
         add_range(self, from, start, end);
+    }
+}
+
+#[derive(Clone, Debug, Trace, Finalize)]
+pub struct GcVec<TItem: Trace + Finalize + 'static>(Gc<Vec<TItem>>);
+
+impl<TItem: Clone + Trace + Finalize + 'static> GcVec<TItem> {
+    pub fn owned_iter(&self) -> GcVecOwnedIter<TItem> {
+        self.clone().into()
+    }
+}
+
+impl<TItem: Trace + Finalize + 'static> Deref for GcVec<TItem> {
+    type Target = Vec<TItem>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<TItem: Trace + Finalize + 'static> From<Gc<Vec<TItem>>> for GcVec<TItem> {
+    fn from(value: Gc<Vec<TItem>>) -> Self {
+        Self(value)
+    }
+}
+
+impl<TItem: Trace + Finalize + 'static> From<Vec<TItem>> for GcVec<TItem> {
+    fn from(value: Vec<TItem>) -> Self {
+        Gc::new(value).into()
+    }
+}
+
+pub struct GcVecOwnedIter<TItem: Clone + Trace + Finalize + 'static> {
+    gc_vec: GcVec<TItem>,
+    index: usize,
+}
+
+impl<TItem: Clone + Trace + Finalize + 'static> Iterator for GcVecOwnedIter<TItem> {
+    type Item = TItem;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.gc_vec.len() {
+            None
+        } else {
+            let ret = self.gc_vec[self.index].clone();
+            self.index += 1;
+            Some(ret)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.gc_vec.len() - 1 - self.index;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<TItem: Clone + Trace + Finalize + 'static> DoubleEndedIterator for GcVecOwnedIter<TItem> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        unimplemented!()
+    }
+}
+
+impl<TItem: Clone + Trace + Finalize + 'static> ExactSizeIterator for GcVecOwnedIter<TItem> {}
+
+impl<TItem: Clone + Trace + Finalize> From<GcVec<TItem>> for GcVecOwnedIter<TItem> {
+    fn from(value: GcVec<TItem>) -> Self {
+        Self {
+            gc_vec: value,
+            index: 0,
+        }
     }
 }

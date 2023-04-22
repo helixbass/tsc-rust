@@ -8,19 +8,18 @@ use std::ptr;
 
 use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{
-    add_range, append, are_gc_slices_equal, are_rc_slices_equal, chain_diagnostic_messages,
-    create_symbol_table, find, get_check_flags, get_declaration_modifier_flags_from_symbol,
+    add_range, append, are_gc_slices_equal, chain_diagnostic_messages, create_symbol_table, find,
+    get_check_flags, get_declaration_modifier_flags_from_symbol,
     get_effective_type_parameter_declarations, get_immediately_invoked_function_expression,
-    get_jsdoc_parameter_tags, has_question_token, index_of_gc, index_of_rc,
+    get_jsdoc_parameter_tags, get_object_flags, has_question_token, index_of_gc,
     is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
-    is_property_declaration, length, maybe_append_if_unique_gc, maybe_append_if_unique_rc,
-    reduce_left, same_map, some, CheckFlags, Debug_, DiagnosticMessageChain,
-    HasInitializerInterface, HasTypeInterface, IndexInfo, ModifierFlags, ScriptTarget, Signature,
-    SignatureKind, SymbolId, SymbolTable, Ternary, TransientSymbolInterface, TypeFormatFlags,
-    TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface, __String, get_object_flags,
-    map, unescape_leading_underscores, Diagnostics, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    is_property_declaration, length, map, maybe_append_if_unique_gc, reduce_left, same_map, some,
+    unescape_leading_underscores, CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics,
+    HasInitializerInterface, HasTypeInterface, IndexInfo, ModifierFlags, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureKind, Symbol,
+    SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -782,7 +781,7 @@ impl TypeChecker {
     ) -> bool {
         is_in_js_file(Some(node)) && (
             matches!(node.as_parameter_declaration().maybe_type(), Some(type_) if type_.kind() == SyntaxKind::JSDocOptionalType) ||
-            get_jsdoc_parameter_tags(node).iter().any(|tag: &Gc<Node>| {
+            get_jsdoc_parameter_tags(node).any(|tag: Gc<Node>| {
                 let tag_as_jsdoc_property_like_tag = tag.as_jsdoc_property_like_tag();
                 let is_bracketed = tag_as_jsdoc_property_like_tag.is_bracketed;
                 let type_expression = tag_as_jsdoc_property_like_tag.type_expression.as_ref();

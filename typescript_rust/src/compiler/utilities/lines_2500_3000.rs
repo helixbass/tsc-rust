@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
+use itertools::Either;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -381,11 +382,11 @@ pub fn get_jsdoc_comments_and_tags(
             /*result = */
             add_range(
                 result.as_mut().unwrap(),
-                Some(&(if no_cache {
-                    get_jsdoc_parameter_tags_no_cache
+                Some(&if no_cache {
+                    get_jsdoc_parameter_tags_no_cache(node_present).collect::<Vec<_>>()
                 } else {
-                    get_jsdoc_parameter_tags
-                })(node_present)),
+                    get_jsdoc_parameter_tags(node_present).collect::<Vec<_>>()
+                }),
                 None,
                 None,
             );

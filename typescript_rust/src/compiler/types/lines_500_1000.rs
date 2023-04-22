@@ -7,12 +7,12 @@ use std::{cell::Cell, fmt};
 use crate::{
     set_comment_range_rc, set_emit_flags, set_original_node, set_source_map_range,
     set_text_range_end, set_text_range_pos, set_text_range_rc_node, start_on_new_line,
-    CaseOrDefaultClauseInterface, EmitFlags, HasArgumentsInterface, HasAssertClauseInterface,
-    HasChildrenInterface, HasDotDotDotTokenInterface, HasFileNameInterface,
-    HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
-    HasOldFileOfCurrentEmitInterface, HasTagNameInterface, HasTextsInterface, InferenceContext,
-    JSDocHeritageTagInterface, JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange,
-    SyntheticExpression, UnparsedSyntheticReference,
+    CaseOrDefaultClauseInterface, EmitFlags, GcVec, HasArgumentsInterface,
+    HasAssertClauseInterface, HasChildrenInterface, HasDotDotDotTokenInterface,
+    HasFileNameInterface, HasLeftAndRightInterface, HasMembersInterface,
+    HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface, HasTagNameInterface,
+    HasTextsInterface, InferenceContext, JSDocHeritageTagInterface, JsxOpeningLikeElementInterface,
+    SourceFileLike, SourceMapRange, SyntheticExpression, UnparsedSyntheticReference,
 };
 
 use super::{
@@ -218,8 +218,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Gc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Option<Vec<Gc<Node /*JSDoc*/>>>);
-    fn maybe_js_doc_cache(&self) -> GcCellRef<Option<Vec<Gc<Node /*JSDocTag*/>>>>;
-    fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Gc<Node /*JSDocTag*/>>>);
+    fn maybe_js_doc_cache(&self) -> Option<GcVec<Gc<Node /*JSDocTag*/>>>;
+    fn set_js_doc_cache(&self, js_doc_cache: Option<GcVec<Gc<Node /*JSDocTag*/>>>);
     // IncrementalElement
     fn maybe_intersects_change(&self) -> Option<bool>;
     fn set_intersects_change(&self, intersects_change: Option<bool>);
@@ -1727,7 +1727,7 @@ pub struct BaseNode {
     inference_context: GcCell<Option<Gc<InferenceContext>>>,
     flow_node: GcCell<Option<Gc<FlowNode>>>,
     js_doc: GcCell<Option<Vec<Gc<Node>>>>,
-    js_doc_cache: GcCell<Option<Vec<Gc<Node>>>>,
+    js_doc_cache: GcCell<Option<GcVec<Gc<Node>>>>,
     #[unsafe_ignore_trace]
     intersects_change: Cell<Option<bool>>,
 }
@@ -1983,11 +1983,11 @@ impl NodeInterface for BaseNode {
         *self.js_doc.borrow_mut() = js_doc;
     }
 
-    fn maybe_js_doc_cache(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
-        self.js_doc_cache.borrow()
+    fn maybe_js_doc_cache(&self) -> Option<GcVec<Gc<Node>>> {
+        self.js_doc_cache.borrow().clone()
     }
 
-    fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Gc<Node>>>) {
+    fn set_js_doc_cache(&self, js_doc_cache: Option<GcVec<Gc<Node>>>) {
         *self.js_doc_cache.borrow_mut() = js_doc_cache;
     }
 

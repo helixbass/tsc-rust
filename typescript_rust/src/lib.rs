@@ -698,7 +698,7 @@ pub use rust_helpers::iterator::{Empty, IsEmpty, PeekMoreExt};
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::{
     GetOrInsertDefault, MapOrDefault, Matches, NodeWrappered, NonEmpty, SymbolWrappered, ThenAnd,
-    TypeWrappered,
+    TypeWrappered, UnwrapOrEmpty,
 };
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
@@ -706,7 +706,7 @@ pub use rust_helpers::sys::{
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
 };
 pub use rust_helpers::uri::encode_uri;
-pub use rust_helpers::vec::{VecExt, VecExtClone};
+pub use rust_helpers::vec::{GcVec, GcVecOwnedIter, VecExt, VecExtClone};
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,

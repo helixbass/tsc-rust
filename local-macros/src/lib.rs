@@ -268,11 +268,11 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_js_doc(js_doc)
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>> {
                         self.#first_field_name.maybe_js_doc_cache()
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>>) {
                         self.#first_field_name.set_js_doc_cache(js_doc_cache)
                     }
 
@@ -818,13 +818,13 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_js_doc_cache()),*
                         }
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc_cache(js_doc_cache)),*
                         }

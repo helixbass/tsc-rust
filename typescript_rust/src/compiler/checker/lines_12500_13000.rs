@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
+use itertools::Either;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
@@ -16,14 +17,14 @@ use crate::{
     is_constructor_type_node, is_function_like, is_function_like_declaration, is_in_js_file,
     is_jsdoc_construct_signature, is_jsdoc_parameter_tag, is_jsdoc_signature,
     is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
-    is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map_defined,
-    maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment, some,
-    CheckFlags, Debug_, HasInitializerInterface, HasTypeInterface, IndexInfo,
-    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NodeArray, NodeCheckFlags,
-    ReadonlyTextRange, Signature, SignatureDeclarationInterface, SignatureFlags, SymbolTable,
-    TransientSymbolInterface, TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName,
-    UnionReduction, __String, map, Diagnostics, Node, NodeInterface, ObjectFlags, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map,
+    map_defined, maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment,
+    some, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
+    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, Signature, SignatureDeclarationInterface,
+    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,
 };
 
 impl TypeChecker {
@@ -245,14 +246,13 @@ impl TypeChecker {
         let last_param =
             last_or_undefined(&declaration.as_signature_declaration().parameters()).cloned();
         let last_param_tags = if let Some(last_param) = last_param.as_ref() {
-            get_jsdoc_parameter_tags(last_param)
+            Either::Left(get_jsdoc_parameter_tags(last_param))
         } else {
-            get_jsdoc_tags(declaration)
-                .into_iter()
-                .filter(|tag: &Gc<Node>| is_jsdoc_parameter_tag(tag))
-                .collect()
+            Either::Right(
+                get_jsdoc_tags(declaration).filter(|tag: &Gc<Node>| is_jsdoc_parameter_tag(tag)),
+            )
         };
-        let last_param_variadic_type = first_defined(&last_param_tags, |p: &Gc<Node>, _| {
+        let last_param_variadic_type = first_defined(last_param_tags, |p: Gc<Node>, _| {
             p.as_jsdoc_property_like_tag()
                 .type_expression
                 .as_ref()

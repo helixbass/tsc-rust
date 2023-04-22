@@ -1,9 +1,10 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::borrow::Borrow;
+use itertools::Either;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, iter};
 
 use crate::{
     find, find_ancestor, first_defined, get_first_constructor_with_body, get_text_of_property_name,
@@ -82,16 +83,16 @@ pub fn is_this_type_predicate(predicate: &TypePredicate) -> bool {
     predicate.kind == TypePredicateKind::This
 }
 
-pub fn get_property_assignment(
+pub fn get_property_assignment<'key_and_key2>(
     object_literal: &Node, /*ObjectLiteralExpression*/
-    key: &str,
-    key2: Option<&str>,
-) -> Vec<Gc<Node /*PropertyAssignment*/>> {
+    key: &'key_and_key2 str,
+    key2: Option<&'key_and_key2 str>,
+) -> impl Iterator<Item = Gc<Node /*PropertyAssignment*/>> + Clone + 'key_and_key2 {
     object_literal
         .as_object_literal_expression()
         .properties
-        .iter()
-        .filter(|property| {
+        .owned_iter()
+        .filter(move |property| {
             if property.kind() == SyntaxKind::PropertyAssignment {
                 let property_name = property.as_property_assignment().name();
                 let prop_name = get_text_of_property_name(&property_name);
@@ -99,8 +100,6 @@ pub fn get_property_assignment(
             }
             false
         })
-        .map(Clone::clone)
-        .collect()
 }
 
 pub fn get_property_array_element_value(
@@ -109,7 +108,7 @@ pub fn get_property_array_element_value(
     element_value: &str,
 ) -> Option<Gc<Node /*StringLiteral*/>> {
     first_defined(
-        &get_property_assignment(object_literal, prop_key, None),
+        get_property_assignment(object_literal, prop_key, None),
         |property, _| {
             let property_as_property_assignment = property.as_property_assignment();
             if is_array_literal_expression(
@@ -162,7 +161,7 @@ pub fn get_ts_config_prop_array_element_value<TTsConfigSourceFile: Borrow<Node>>
     element_value: &str,
 ) -> Option<Gc<Node /*StringLiteral*/>> {
     first_defined(
-        &get_ts_config_prop_array(ts_config_source_file, prop_key),
+        get_ts_config_prop_array(ts_config_source_file, prop_key),
         |property, _| {
             let property_as_property_assignment = property.as_property_assignment();
             if is_array_literal_expression(
@@ -187,14 +186,18 @@ pub fn get_ts_config_prop_array_element_value<TTsConfigSourceFile: Borrow<Node>>
     )
 }
 
-pub fn get_ts_config_prop_array<TTsConfigSourceFile: Borrow<Node>>(
-    ts_config_source_file: Option<TTsConfigSourceFile /*TsConfigSourceFile*/>,
-    prop_key: &str,
-) -> Vec<Gc<Node /*PropertyAssignment*/>> {
+pub fn get_ts_config_prop_array<'prop_key>(
+    ts_config_source_file: Option<impl Borrow<Node> /*TsConfigSourceFile*/>,
+    prop_key: &'prop_key str,
+) -> impl Iterator<Item = Gc<Node /*PropertyAssignment*/>> + 'prop_key {
     let json_object_literal = get_ts_config_object_literal_expression(ts_config_source_file);
     match json_object_literal {
-        Some(json_object_literal) => get_property_assignment(&json_object_literal, prop_key, None),
-        None => vec![],
+        Some(json_object_literal) => Either::Left(get_property_assignment(
+            &json_object_literal,
+            prop_key,
+            None,
+        )),
+        None => Either::Right(iter::empty()),
     }
 }
 
