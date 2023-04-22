@@ -52,8 +52,8 @@ impl TypeChecker {
         match_discriminant_properties: bool,
     ) -> Vec<Gc<Symbol>> {
         let properties = self.get_properties_of_type(target);
-        let mut ret = vec![];
-        for target_prop in &properties {
+        let mut ret: Vec<Gc<Symbol>> = vec![];
+        for ref target_prop in properties {
             if self.is_static_private_identifier_property(target_prop) {
                 continue;
             }

@@ -408,7 +408,7 @@ impl TypeChecker {
                 );
                 context.set_return_mapper(
                     if some(
-                        Some(&return_context.inferences()),
+                        Some(&**return_context.inferences()),
                         Some(|inference: &Gc<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),

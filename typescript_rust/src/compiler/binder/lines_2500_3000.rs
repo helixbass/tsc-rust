@@ -554,7 +554,9 @@ impl BinderType {
             let file_symbol = self.file().symbol();
             let mut global_exports = file_symbol.maybe_global_exports();
             if global_exports.is_none() {
-                *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                    Option::<&[Gc<Symbol>]>::None,
+                ))));
             }
             self.declare_symbol(
                 &mut global_exports.as_ref().unwrap().borrow_mut(),
@@ -841,8 +843,9 @@ impl BinderType {
                             let mut constructor_symbol_members =
                                 constructor_symbol.maybe_members_mut();
                             if constructor_symbol_members.is_none() {
-                                *constructor_symbol_members =
-                                    Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                                *constructor_symbol_members = Some(Gc::new(GcCell::new(
+                                    create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                                )));
                             }
                             let constructor_symbol_members =
                                 constructor_symbol_members.clone().unwrap();

@@ -252,13 +252,13 @@ impl TypeChecker {
     {
         type_.resolve(
             members.clone(),
-            vec![],
+            vec![].into(),
             call_signatures,
             construct_signatures,
             index_infos,
         );
         if !Gc::ptr_eq(&members, &self.empty_symbols()) {
-            type_.set_properties(self.get_named_members(&(*members).borrow()));
+            type_.set_properties(self.get_named_members(&(*members).borrow()).into());
         }
         // type_
     }
@@ -412,7 +412,7 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
                         {
                             if table.is_none() {
-                                table = Some(create_symbol_table(None));
+                                table = Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None));
                             }
                             table
                                 .as_mut()

@@ -325,15 +325,12 @@ impl TypeChecker {
             .or_else(|| self.find_most_overlappy_type(source, target))
     }
 
-    pub(super) fn discriminate_type_by_discriminable_items<
-        TRelated: FnMut(&Type, &Type) -> bool,
-        TDefaultValue: Borrow<Type>,
-    >(
+    pub(super) fn discriminate_type_by_discriminable_items(
         &self,
         target: &Type, /*UnionType*/
-        discriminators: &[(Box<dyn Fn() -> Gc<Type>>, __String)],
-        mut related: TRelated,
-        default_value: Option<TDefaultValue>,
+        discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> Gc<Type>>, __String)>,
+        mut related: impl FnMut(&Type, &Type) -> bool,
+        default_value: Option<impl Borrow<Type>>,
         skip_partial: Option<bool>,
     ) -> Option<Gc<Type>> {
         let target_as_union_type = target.as_union_type();
@@ -342,7 +339,7 @@ impl TypeChecker {
             .into_iter()
             .map(|_| Option::<bool>::None)
             .collect();
-        for (get_discriminating_type, property_name) in discriminators {
+        for (get_discriminating_type, ref property_name) in discriminators {
             let target_prop = self.get_union_or_intersection_property(target, property_name, None);
             if matches!(skip_partial, Some(true))
                 && matches!(
@@ -424,7 +421,7 @@ impl TypeChecker {
         target: &Type,
         is_comparing_jsx_attributes: bool,
     ) -> bool {
-        for prop in &self.get_properties_of_type(source) {
+        for ref prop in self.get_properties_of_type(source) {
             if self.is_known_property(target, prop.escaped_name(), is_comparing_jsx_attributes) {
                 return true;
             }

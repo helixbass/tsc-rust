@@ -19,8 +19,8 @@ use crate::{
     length, map, maybe_for_each_bool, node_is_synthesized, null_transformation_context,
     range_equals_gc, range_equals_rc, same_map, set_emit_flags, set_text_range, some, symbol_name,
     synthetic_factory, unescape_leading_underscores, visit_each_child, CheckFlags, Debug_,
-    ElementFlags, EmitFlags, HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode,
-    ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    ElementFlags, EmitFlags, HasTypeArgumentsInterface, InterfaceTypeInterface, IsEmpty,
+    KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
     NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
     SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, Type,
     TypeFlags, TypeId, TypeInterface, VisitResult,
@@ -1187,6 +1187,7 @@ impl NodeBuilder {
             && self
                 .type_checker
                 .get_properties_of_object_type(&property_type)
+                .peekable()
                 .is_empty()
             && !self.type_checker.is_readonly_symbol(property_symbol)
         {

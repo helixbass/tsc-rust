@@ -8,7 +8,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    concatenate, contains_gc, contains_rc, every, filter, find_index,
+    concatenate, contains_gc, contains_rc, either_concat, every, filter, find_index,
     get_declaration_modifier_flags_from_symbol, get_name_of_declaration, get_object_flags,
     index_of_gc, index_of_rc, is_computed_property_name, is_identifier, is_known_symbol,
     is_private_identifier, map, ordered_remove_item_at, reduce_left, replace_element, some,
@@ -726,30 +726,26 @@ impl TypeChecker {
         } else {
             None
         };
-        let property_types = map(
-            &self.get_properties_of_type(type_),
-            |prop: &Gc<Symbol>, _| self.get_literal_type_from_property(prop, include, None),
-        );
-        let index_key_types = map(
-            &self.get_index_infos_of_type(type_),
-            |info: &Gc<IndexInfo>, _| {
-                if !Gc::ptr_eq(info, &self.enum_number_index_info())
-                    && self.is_key_type_included(&info.key_type, include)
+        let property_types = self
+            .get_properties_of_type(type_)
+            .map(|ref prop| self.get_literal_type_from_property(prop, include, None));
+        let index_key_types = self.get_index_infos_of_type(type_).iter().map(|info| {
+            if !Gc::ptr_eq(info, &self.enum_number_index_info())
+                && self.is_key_type_included(&info.key_type, include)
+            {
+                if Gc::ptr_eq(&info.key_type, &self.string_type())
+                    && include.intersects(TypeFlags::Number)
                 {
-                    if Gc::ptr_eq(&info.key_type, &self.string_type())
-                        && include.intersects(TypeFlags::Number)
-                    {
-                        self.string_or_number_type()
-                    } else {
-                        info.key_type.clone()
-                    }
+                    self.string_or_number_type()
                 } else {
-                    self.never_type()
+                    info.key_type.clone()
                 }
-            },
-        );
+            } else {
+                self.never_type()
+            }
+        });
         self.get_union_type(
-            &concatenate(property_types, index_key_types),
+            either_concat(property_types, index_key_types),
             Some(UnionReduction::Literal),
             Option::<&Symbol>::None,
             None,

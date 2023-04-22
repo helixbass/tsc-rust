@@ -231,8 +231,9 @@ impl BinderType {
                             let mut file_js_global_augmentations =
                                 file.as_source_file().maybe_js_global_augmentations();
                             if file_js_global_augmentations.is_none() {
-                                *file_js_global_augmentations =
-                                    Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                                *file_js_global_augmentations = Some(Gc::new(GcCell::new(
+                                    create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                                )));
                             }
                             Some(self.declare_symbol(
                                 &mut file_js_global_augmentations.clone().unwrap().borrow_mut(),
@@ -286,15 +287,17 @@ impl BinderType {
             let symbol_table = if is_prototype_property {
                 let mut namespace_symbol_members = namespace_symbol.maybe_members_mut();
                 if namespace_symbol_members.is_none() {
-                    *namespace_symbol_members =
-                        Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *namespace_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
                 namespace_symbol_members
             } else {
                 let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
                 if namespace_symbol_exports.is_none() {
-                    *namespace_symbol_exports =
-                        Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *namespace_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
                 namespace_symbol_exports
             };
@@ -805,7 +808,9 @@ impl BinderType {
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
-                    *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
                 self.declare_symbol(
                     &mut container_locals.as_ref().unwrap().borrow_mut(),
@@ -828,7 +833,9 @@ impl BinderType {
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
-                    *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *container_locals = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
                 self.declare_symbol(
                     &mut container_locals.as_ref().unwrap().borrow_mut(),

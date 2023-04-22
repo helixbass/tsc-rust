@@ -47,39 +47,41 @@ impl TypeChecker {
                     self.get_properties_of_type(jsx_element_attrib_prop_interface_type)
                 },
             );
-        if let Some(properties_of_jsx_element_attrib_prop_interface) =
-            properties_of_jsx_element_attrib_prop_interface.as_ref()
-        {
-            if properties_of_jsx_element_attrib_prop_interface.is_empty() {
-                return Some("".to_owned());
-            } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
-                return Some(
-                    properties_of_jsx_element_attrib_prop_interface[0]
-                        .escaped_name()
-                        .to_owned(),
-                );
-            } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
-                let jsx_element_attrib_prop_interface_sym =
-                    jsx_element_attrib_prop_interface_sym.as_ref().unwrap();
-                if let Some(jsx_element_attrib_prop_interface_sym_declarations) =
-                    jsx_element_attrib_prop_interface_sym
-                        .maybe_declarations()
-                        .as_ref()
-                {
-                    self.error(
-                        jsx_element_attrib_prop_interface_sym_declarations
-                            .get(0)
-                            .cloned(),
-                        &Diagnostics::The_global_type_JSX_0_may_not_have_more_than_one_property,
-                        Some(vec![unescape_leading_underscores(
-                            name_of_attrib_prop_container,
-                        )
-                        .to_owned()]),
+        properties_of_jsx_element_attrib_prop_interface.and_then(
+            |properties_of_jsx_element_attrib_prop_interface| {
+                if properties_of_jsx_element_attrib_prop_interface.len() == 0 {
+                    return Some("".to_owned());
+                } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
+                    return Some(
+                        properties_of_jsx_element_attrib_prop_interface
+                            .next()
+                            .unwrap()
+                            .escaped_name()
+                            .to_owned(),
                     );
+                } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
+                    let jsx_element_attrib_prop_interface_sym =
+                        jsx_element_attrib_prop_interface_sym.as_ref().unwrap();
+                    if let Some(jsx_element_attrib_prop_interface_sym_declarations) =
+                        jsx_element_attrib_prop_interface_sym
+                            .maybe_declarations()
+                            .as_ref()
+                    {
+                        self.error(
+                            jsx_element_attrib_prop_interface_sym_declarations
+                                .get(0)
+                                .cloned(),
+                            &Diagnostics::The_global_type_JSX_0_may_not_have_more_than_one_property,
+                            Some(vec![unescape_leading_underscores(
+                                name_of_attrib_prop_container,
+                            )
+                            .to_owned()]),
+                        );
+                    }
                 }
-            }
-        }
-        None
+                None
+            },
+        )
     }
 
     pub(super) fn get_jsx_library_managed_attributes<TJsxNamespace: Borrow<Symbol>>(
@@ -348,7 +350,10 @@ impl TypeChecker {
         // }
     }
 
-    pub(super) fn get_jsx_intrinsic_tag_names_at(&self, location: &Node) -> Vec<Gc<Symbol>> {
+    pub(super) fn get_jsx_intrinsic_tag_names_at(
+        &self,
+        location: &Node,
+    ) -> impl Iterator<Item = Gc<Symbol>> {
         let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location));
         /*intrinsics ?*/
         self.get_properties_of_type(&intrinsics) /*: emptyArray*/

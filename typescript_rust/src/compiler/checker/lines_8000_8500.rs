@@ -786,7 +786,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(&source) {
             if !self.is_type_assignable_to(
                 &self.get_literal_type_from_property(

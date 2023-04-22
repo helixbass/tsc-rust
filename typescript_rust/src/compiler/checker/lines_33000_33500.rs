@@ -30,7 +30,7 @@ impl TypeChecker {
         right_type: &Type,
     ) {
         if kind == AssignmentDeclarationKind::ModuleExports {
-            for prop in &self.get_properties_of_object_type(right_type) {
+            for ref prop in self.get_properties_of_object_type(right_type) {
                 let prop_type = self.get_type_of_symbol(prop);
                 if matches!(
                     prop_type.maybe_symbol().as_ref(),

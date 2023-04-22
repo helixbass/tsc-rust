@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::{Finalize, Gc, Trace};
+use itertools::Either;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -17,10 +18,11 @@ use crate::{
     has_syntactic_modifier, is_binary_expression, is_constructor_declaration, is_identifier,
     is_in_js_file, is_parameter_property_declaration, is_property_declaration, is_static, length,
     maybe_filter, maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags,
-    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasInitializerInterface,
-    InterfaceTypeInterface, MemberOverrideStatus, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeInterface,
+    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap,
+    HasInitializerInterface, InterfaceTypeInterface, MemberOverrideStatus, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -428,7 +430,7 @@ impl TypeChecker {
         base_type: &Type, /*BaseType*/
     ) {
         let base_properties = self.get_properties_of_type(base_type);
-        'base_property_check: for base_property in &base_properties {
+        'base_property_check: for ref base_property in base_properties {
             let base = self.get_target_symbol(base_property);
 
             if base.flags().intersects(SymbolFlags::Prototype) {
@@ -664,17 +666,24 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_non_interhited_properties(
+    pub(super) fn get_non_interhited_properties<TProperties, TPropertiesItem>(
         &self,
         type_: &Type, /*InterfaceType*/
         base_types: &[Gc<Type /*BaseType*/>],
-        properties: &[Gc<Symbol>],
-    ) -> Vec<Gc<Symbol>> {
+        properties: TProperties,
+    ) -> impl Iterator<Item = Gc<Symbol>> + Clone
+    where
+        TProperties: IntoIterator<Item = TPropertiesItem> + Clone,
+        TPropertiesItem: Borrow<Gc<Symbol>>,
+        TProperties::IntoIter: Clone,
+    {
+        let properties = properties.into_iter();
         if length(Some(base_types)) == 0 {
-            return properties.to_owned();
+            return Either::Left(properties.map(|property| property.borrow().clone()));
         }
-        let mut seen: HashMap<__String, Gc<Symbol>> = HashMap::new();
-        for_each(properties, |p: &Gc<Symbol>, _| -> Option<()> {
+        let mut seen: HashMap<__String, Gc<Symbol>> = Default::default();
+        for_each(properties, |p, _| -> Option<()> {
+            let p = p.borrow();
             seen.insert(p.escaped_name().to_owned(), p.clone());
             None
         });
@@ -686,7 +695,7 @@ impl TypeChecker {
                 type_as_interface_type.maybe_this_type(),
                 None,
             ));
-            for prop in &properties {
+            for ref prop in properties {
                 let existing = seen.get(prop.escaped_name());
                 if matches!(
                     existing,
@@ -700,7 +709,7 @@ impl TypeChecker {
             }
         }
 
-        seen.into_values().collect()
+        Either::Right(GcHashMap::from(seen).owned_values())
     }
 
     pub(super) fn check_inherited_properties_are_identical(
@@ -739,7 +748,7 @@ impl TypeChecker {
                 type_as_interface_type.maybe_this_type(),
                 None,
             ));
-            for prop in &properties {
+            for ref prop in properties {
                 let existing = seen.get(prop.escaped_name());
                 match existing {
                     None => {

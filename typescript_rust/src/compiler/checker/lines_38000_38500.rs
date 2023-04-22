@@ -276,7 +276,7 @@ impl TypeChecker {
         if index_infos.is_empty() {
             return;
         }
-        for prop in &self.get_properties_of_object_type(type_) {
+        for ref prop in self.get_properties_of_object_type(type_) {
             if !(is_static_index == Some(true) && prop.flags().intersects(SymbolFlags::Prototype)) {
                 self.check_index_constraint_for_property(
                     type_,

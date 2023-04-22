@@ -337,7 +337,7 @@ impl TypeChecker {
         let properties = self.get_properties_of_type(left_type);
         // if (properties) {
         let right_as_private_identifier = right.as_private_identifier();
-        for_each(&properties, |symbol: &Gc<Symbol>, _| {
+        for_each(properties, |ref symbol: Gc<Symbol>, _| {
             let decl = symbol.maybe_value_declaration();
             if matches!(
                 decl.as_ref(),

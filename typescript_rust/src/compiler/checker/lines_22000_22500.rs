@@ -8,6 +8,7 @@ use std::iter::once;
 use std::ptr;
 
 use super::InferTypes;
+use crate::either_concat;
 use crate::IsEmpty;
 use crate::PeekMoreExt;
 use crate::{
@@ -210,23 +211,24 @@ impl InferTypes {
             ) {
                 return true;
             }
-            let prop_types = map(
-                &self.type_checker.get_properties_of_type(source),
-                |property: &Gc<Symbol>, _| self.type_checker.get_type_of_symbol(property),
-            );
-            let index_types = map(
-                &self.type_checker.get_index_infos_of_type(source),
-                |info: &Gc<IndexInfo>, _| {
+            let prop_types = self
+                .type_checker
+                .get_properties_of_type(source)
+                .map(|ref property| self.type_checker.get_type_of_symbol(property));
+            let index_types = self
+                .type_checker
+                .get_index_infos_of_type(source)
+                .iter()
+                .map(|info| {
                     if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
                         info.type_.clone()
                     } else {
                         self.type_checker.never_type()
                     }
-                },
-            );
+                });
             self.infer_from_types(
                 &self.type_checker.get_union_type(
-                    &concatenate(prop_types, index_types),
+                    either_concat(prop_types, index_types),
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -558,7 +560,7 @@ impl InferTypes {
 
     pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) {
         let properties = self.type_checker.get_properties_of_object_type(target);
-        for target_prop in &properties {
+        for ref target_prop in properties {
             let source_prop =
                 self.type_checker
                     .get_property_of_type_(source, target_prop.escaped_name(), None);
@@ -642,7 +644,7 @@ impl InferTypes {
         {
             for target_info in &index_infos {
                 let mut prop_types: Vec<Gc<Type>> = vec![];
-                for prop in &self.type_checker.get_properties_of_type(source) {
+                for ref prop in self.type_checker.get_properties_of_type(source) {
                     if self.type_checker.is_applicable_index_type(
                         &self.type_checker.get_literal_type_from_property(
                             prop,

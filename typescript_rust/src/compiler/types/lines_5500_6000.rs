@@ -17,7 +17,7 @@ use super::{
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
     TypePredicate,
 };
-use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String};
+use crate::{Debug_, GcVec, ObjectFlags, ScriptKind, TypeFlags, __String};
 use local_macros::{enum_unwrapped, type_type};
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -166,9 +166,9 @@ pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {
     fn members(&self) -> Gc<GcCell<SymbolTable>>;
-    fn properties(&self) -> GcCellRef<Vec<Gc<Symbol>>>;
-    fn properties_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>, Vec<Gc<Symbol>>>;
-    fn set_properties(&self, properties: Vec<Gc<Symbol>>);
+    fn properties(&self) -> GcVec<Gc<Symbol>>;
+    fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Symbol>>>, GcVec<Gc<Symbol>>>;
+    fn set_properties(&self, properties: GcVec<Gc<Symbol>>);
     fn call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
     fn set_call_signatures(&self, call_signatures: Vec<Gc<Signature>>);
     fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;

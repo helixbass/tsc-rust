@@ -245,7 +245,7 @@ impl TypeChecker {
                 ),
             );
 
-            let mut late_symbols = create_symbol_table(None);
+            let mut late_symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             let early_symbols_ref = early_symbols
                 .as_ref()
                 .map(|early_symbols| (**early_symbols).borrow());
@@ -536,7 +536,7 @@ impl TypeChecker {
                     base_type.clone()
                 };
                 let properties = self.get_properties_of_type(&instantiated_base_type);
-                self.add_inherited_members(&mut members.borrow_mut(), &properties);
+                self.add_inherited_members(&mut members.borrow_mut(), properties);
                 call_signatures = concatenate(
                     call_signatures,
                     self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Call),

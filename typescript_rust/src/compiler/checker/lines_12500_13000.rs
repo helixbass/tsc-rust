@@ -933,7 +933,8 @@ impl TypeChecker {
                 .into();
             type_.as_resolvable_type().resolve(
                 self.empty_symbols(),
-                vec![],
+                // TODO: seems doable to hav per-type "empty vec singletons" for GcVec?
+                vec![].into(),
                 if !is_constructor {
                     vec![signature.clone()]
                 } else {

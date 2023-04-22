@@ -78,10 +78,13 @@ pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
 
 // function hasEntries
 
-pub fn create_symbol_table(symbols: Option<&[Gc<Symbol>]>) -> SymbolTable {
+pub fn create_symbol_table(
+    symbols: Option<impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>>,
+) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
+            let symbol: &Gc<Symbol> = symbol.borrow();
             result.insert(symbol.escaped_name().to_owned(), symbol.clone());
         }
     }

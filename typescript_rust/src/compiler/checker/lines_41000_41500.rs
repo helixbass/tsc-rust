@@ -359,7 +359,7 @@ impl TypeChecker {
 
     pub(super) fn get_augmented_properties_of_type(&self, type_: &Type) -> Vec<Gc<Symbol>> {
         let ref type_ = self.get_apparent_type(type_);
-        let mut props_by_name = create_symbol_table(Some(&self.get_properties_of_type(type_)));
+        let mut props_by_name = create_symbol_table(Some(self.get_properties_of_type(type_)));
         let function_type = if !self
             .get_signatures_of_type(type_, SignatureKind::Call)
             .is_empty()
@@ -375,8 +375,8 @@ impl TypeChecker {
         };
         if let Some(function_type) = function_type.as_ref() {
             for_each(
-                &self.get_properties_of_type(function_type),
-                |p: &Gc<Symbol>, _| -> Option<()> {
+                self.get_properties_of_type(function_type),
+                |ref p: Gc<Symbol>, _| -> Option<()> {
                     if !props_by_name.contains_key(p.escaped_name()) {
                         props_by_name.insert(p.escaped_name().to_owned(), p.clone());
                     }

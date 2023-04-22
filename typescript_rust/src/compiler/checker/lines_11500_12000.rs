@@ -1,8 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::ptr;
+use itertools::Either;
 use std::rc::Rc;
+use std::{iter, ptr};
 
 use super::MappedTypeModifiers;
 use crate::{
@@ -250,15 +251,19 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn get_properties_of_object_type(&self, type_: &Type) -> Vec<Gc<Symbol>> {
+    pub(super) fn get_properties_of_object_type(
+        &self,
+        type_: &Type,
+    ) -> impl ExactSizeIterator<Item = Gc<Symbol>> + Clone {
         if type_.flags().intersects(TypeFlags::Object) {
-            return self
-                .resolve_structured_type_members(type_)
-                .as_resolved_type()
-                .properties()
-                .clone();
+            return Either::Left(
+                self.resolve_structured_type_members(type_)
+                    .as_resolved_type()
+                    .properties()
+                    .owned_iter(),
+            );
         }
-        vec![]
+        Either::Right(iter::empty())
     }
 
     pub(super) fn get_property_of_object_type(
@@ -284,13 +289,13 @@ impl TypeChecker {
     pub(super) fn get_properties_of_union_or_intersection_type(
         &self,
         type_: &Type, /*UnionOrIntersectionType*/
-    ) -> Vec<Gc<Symbol>> {
+    ) -> impl ExactSizeIterator<Item = Gc<Symbol>> + Clone {
         let type_as_union_or_intersection_type = type_.as_union_or_intersection_type_interface();
         if type_as_union_or_intersection_type
             .maybe_resolved_properties()
             .is_none()
         {
-            let mut members = create_symbol_table(None);
+            let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             for current in type_as_union_or_intersection_type.types() {
                 for prop in self.get_properties_of_type(current) {
                     if !members.contains_key(prop.escaped_name()) {
@@ -310,21 +315,24 @@ impl TypeChecker {
                     break;
                 }
             }
-            *type_as_union_or_intersection_type.maybe_resolved_properties() =
-                Some(self.get_named_members(&members));
+            *type_as_union_or_intersection_type.maybe_resolved_properties_mut() =
+                Some(self.get_named_members(&members).into());
         }
         type_as_union_or_intersection_type
             .maybe_resolved_properties()
-            .clone()
             .unwrap()
+            .owned_iter()
     }
 
-    pub(super) fn get_properties_of_type(&self, type_: &Type) -> Vec<Gc<Symbol>> {
+    pub(super) fn get_properties_of_type(
+        &self,
+        type_: &Type,
+    ) -> impl ExactSizeIterator<Item = Gc<Symbol>> + Clone {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            self.get_properties_of_union_or_intersection_type(&type_)
+            Either::Left(self.get_properties_of_union_or_intersection_type(&type_))
         } else {
-            self.get_properties_of_object_type(&type_)
+            Either::Right(self.get_properties_of_object_type(&type_))
         }
     }
 
@@ -381,7 +389,7 @@ impl TypeChecker {
             return self.get_augmented_properties_of_type(&union_type);
         }
 
-        let mut props = create_symbol_table(None);
+        let mut props = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for member_type in types {
             for augmented_property in self.get_augmented_properties_of_type(member_type) {
                 let escaped_name = augmented_property.escaped_name();

@@ -1056,8 +1056,8 @@ impl TypeChecker {
         type_: &Type,
         mut f: TCallback,
     ) -> SymbolTable {
-        let mut members = create_symbol_table(None);
-        for property in &self.get_properties_of_object_type(type_) {
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        for ref property in self.get_properties_of_object_type(type_) {
             let original = self.get_type_of_symbol(property);
             let updated = f(&original);
             members.insert(

@@ -116,7 +116,7 @@ impl TypeChecker {
     ) -> Option<Gc<Symbol>> {
         self.get_spelling_suggestion_for_name(
             name,
-            &self.get_properties_of_type(base_type),
+            self.get_properties_of_type(base_type),
             SymbolFlags::ClassMember,
         )
     }
@@ -361,7 +361,7 @@ impl TypeChecker {
     pub(super) fn get_spelling_suggestion_for_name(
         &self,
         name: &str,
-        symbols: &[Gc<Symbol>],
+        symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
         meaning: SymbolFlags,
     ) -> Option<Gc<Symbol>> {
         let get_candidate_name = |candidate: &Gc<Symbol>| {

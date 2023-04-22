@@ -228,7 +228,9 @@ impl SymbolTableToDeclarationStatements {
             (*self.symbol_table()).borrow().len() > 1
                 && export_equals.flags().intersects(SymbolFlags::Alias)
         }) {
-            self.set_symbol_table(Gc::new(GcCell::new(create_symbol_table(None))));
+            self.set_symbol_table(Gc::new(GcCell::new(create_symbol_table(
+                Option::<&[Gc<Symbol>]>::None,
+            ))));
             self.symbol_table()
                 .borrow_mut()
                 .insert(InternalSymbolName::ExportEquals.to_owned(), export_equals);
@@ -773,9 +775,11 @@ impl SymbolTableToDeclarationStatements {
                 .flags()
                 .intersects(SymbolFlags::ExportDoesNotSupportDefaultModifier)
                 || symbol.flags().intersects(SymbolFlags::Function)
-                    && length(Some(&self.type_checker.get_properties_of_type(
-                        &self.type_checker.get_type_of_symbol(symbol),
-                    ))) > 0)
+                    && self
+                        .type_checker
+                        .get_properties_of_type(&self.type_checker.get_type_of_symbol(symbol))
+                        .len()
+                        > 0)
             && !symbol.flags().intersects(SymbolFlags::Alias);
         let mut needs_export_declaration = !needs_post_export_default
             && !is_private

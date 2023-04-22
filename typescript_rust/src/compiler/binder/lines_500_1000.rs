@@ -167,7 +167,9 @@ impl BinderType {
             self.set_block_scope_container(Some(node.node_wrapper()));
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container()
-                    .set_locals(Some(Gc::new(GcCell::new(create_symbol_table(None)))));
+                    .set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    )))));
             }
             self.add_to_container_chain(&self.container());
         } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {

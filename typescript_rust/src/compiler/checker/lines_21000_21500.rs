@@ -163,8 +163,8 @@ impl TypeChecker {
         type_: &Type,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> Gc<Type> {
-        let mut members = create_symbol_table(None);
-        for prop in &self.get_properties_of_object_type(type_) {
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        for ref prop in self.get_properties_of_object_type(type_) {
             members.insert(
                 prop.escaped_name().to_owned(),
                 self.get_widened_property(prop, context.clone()),
@@ -320,7 +320,7 @@ impl TypeChecker {
                 }
             }
             if self.is_object_literal_type(type_) {
-                for p in &self.get_properties_of_object_type(type_) {
+                for ref p in self.get_properties_of_object_type(type_) {
                     let t = self.get_type_of_symbol(p);
                     if get_object_flags(&t).intersects(ObjectFlags::ContainsWideningType) {
                         if !self.report_widening_errors_in_type(&t) {
@@ -895,7 +895,7 @@ impl TypeChecker {
     }
 
     pub(super) fn create_empty_object_type_from_string_literal(&self, type_: &Type) -> Gc<Type> {
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         self.for_each_type(type_, |t: &Type| -> Option<()> {
             if !t.flags().intersects(TypeFlags::StringLiteral) {
                 return None;
@@ -966,12 +966,11 @@ impl TypeChecker {
     pub(super) fn is_partially_inferable_type(&self, type_: &Type) -> bool {
         !get_object_flags(type_).intersects(ObjectFlags::NonInferrableType)
             || self.is_object_literal_type(type_)
-                && some(
-                    Some(&self.get_properties_of_type(type_)),
-                    Some(|prop: &Gc<Symbol>| {
+                && self
+                    .get_properties_of_type(type_)
+                    .any(|ref prop: Gc<Symbol>| {
                         self.is_partially_inferable_type(&self.get_type_of_symbol(prop))
-                    }),
-                )
+                    })
             || self.is_tuple_type(type_)
                 && some(
                     Some(&self.get_type_arguments(type_)),
@@ -990,7 +989,7 @@ impl TypeChecker {
         if !(self
             .get_index_info_of_type_(source, &self.string_type())
             .is_some()
-            || !self.get_properties_of_type(source).is_empty()
+            || self.get_properties_of_type(source).len() != 0
                 && self.is_partially_inferable_type(source))
         {
             return None;

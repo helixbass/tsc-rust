@@ -128,7 +128,7 @@ impl TypeChecker {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> Gc<Type> {
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut string_index_info: Option<Gc<IndexInfo>> = None;
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
@@ -445,7 +445,7 @@ impl TypeChecker {
                         (**file_symbol_exports).borrow().clone(),
                     )));
                 }
-                let mut members = create_symbol_table(None);
+                let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 members.insert("exports".to_owned(), result);
                 return self.create_anonymous_type(
                     Some(symbol),

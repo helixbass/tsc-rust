@@ -260,12 +260,12 @@ impl SymbolTableToDeclarationStatements {
         } else {
             None
         };
-        let members = flat_map(
-            Some(&self.type_checker.get_properties_of_type(interface_type)),
-            |p: &Gc<Symbol>, _| {
+        let members = self
+            .type_checker
+            .get_properties_of_type(interface_type)
+            .flat_map(|p: &Gc<Symbol>, _| {
                 self.serialize_property_symbol_for_interface(p, base_type.as_deref())
-            },
-        );
+            });
         let call_signatures = self.serialize_signatures(
             SignatureKind::Call,
             interface_type,
@@ -311,7 +311,7 @@ impl SymbolTableToDeclarationStatements {
                                 index_signatures,
                                 construct_signatures,
                                 call_signatures,
-                                members,
+                                members.collect_vec(),
                             ]
                             .into_iter(),
                         ),
@@ -534,7 +534,6 @@ impl SymbolTableToDeclarationStatements {
                                 .get_properties_of_type(
                                     &self.type_checker.get_type_of_symbol(symbol),
                                 )
-                                .iter()
                                 .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
                                 .map(|p| -> Gc<Node> {
                                     let initialized_value = p
@@ -633,11 +632,16 @@ impl SymbolTableToDeclarationStatements {
                 Some(symbol_exports) if !(**symbol_exports).borrow().is_empty()
             ))
         {
-            let props = filter(
-                &self.type_checker.get_properties_of_type(type_),
-                |property: &Gc<Symbol>| self.is_namespace_member(property),
+            let props = self
+                .type_checker
+                .get_properties_of_type(type_)
+                .filter(|property| self.is_namespace_member(property));
+            self.serialize_as_namespace_declaration(
+                &props.collect_vec(),
+                local_name,
+                modifier_flags,
+                true,
             );
-            self.serialize_as_namespace_declaration(&props, local_name, modifier_flags, true);
         }
     }
 
@@ -994,9 +998,9 @@ impl SymbolTableToDeclarationStatements {
         let symbol_props = self.type_checker.get_non_interhited_properties(
             class_type,
             &base_types,
-            &self.type_checker.get_properties_of_type(class_type),
+            self.type_checker.get_properties_of_type(class_type),
         );
-        let public_symbol_props = filter(&symbol_props, |s: &Gc<Symbol>| {
+        let public_symbol_props = symbol_props.clone().filter(|s| {
             let value_decl = s.maybe_value_declaration();
             matches!(
                 value_decl.as_ref(),
@@ -1006,7 +1010,7 @@ impl SymbolTableToDeclarationStatements {
                 )
             )
         });
-        let has_private_identifier = symbol_props.iter().any(|s| {
+        let has_private_identifier = symbol_props.any(|s| {
             let value_decl = s.maybe_value_declaration();
             matches!(
                 value_decl.as_ref(),
@@ -1030,27 +1034,26 @@ impl SymbolTableToDeclarationStatements {
         } else {
             vec![]
         };
-        let public_properties = flat_map(Some(&public_symbol_props), |p: &Gc<Symbol>, _| {
+        let public_properties = public_symbol_props.flat_map(|ref p| {
             self.serialize_property_symbol_for_class().call(
                 p,
                 false,
                 base_types.get(0).as_double_deref(),
             )
         });
-        let static_members = flat_map(
-            Some(&filter(
-                &self.type_checker.get_properties_of_type(static_type),
-                |p: &Gc<Symbol>| {
-                    !p.flags().intersects(SymbolFlags::Prototype)
-                        && p.escaped_name() != "prototype"
-                        && !self.is_namespace_member(p)
-                },
-            )),
-            |p: &Gc<Symbol>, _| {
+        let static_members = self
+            .type_checker
+            .get_properties_of_type(static_type)
+            .filter(|p| {
+                !p.flags().intersects(SymbolFlags::Prototype)
+                    && p.escaped_name() != "prototype"
+                    && !self.is_namespace_member(p)
+            })
+            .flat_map(|ref p| {
                 self.serialize_property_symbol_for_class()
                     .call(p, true, Some(&**static_base_type))
-            },
-        );
+            })
+            .collect_vec();
         let is_non_constructable_class_like_in_js_file = !is_class
             && matches!(
                 symbol.maybe_value_declaration().as_ref(),
@@ -1106,7 +1109,7 @@ impl SymbolTableToDeclarationStatements {
                                     index_signatures,
                                     static_members,
                                     constructors,
-                                    public_properties,
+                                    public_properties.collect_vec(),
                                     private_properties,
                                 ]
                                 .into_iter(),

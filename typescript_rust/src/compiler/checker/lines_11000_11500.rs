@@ -468,7 +468,7 @@ impl TypeChecker {
                 vec![],
             );
             let members = self.create_instantiated_symbol_table(
-                &self.get_properties_of_object_type(&type_target),
+                self.get_properties_of_object_type(&type_target),
                 type_as_object_type.maybe_mapper().unwrap(),
                 false,
             );
@@ -550,7 +550,7 @@ impl TypeChecker {
                     members = members_new;
                     self.add_inherited_members(
                         &mut members.borrow_mut(),
-                        &self.get_properties_of_type(&base_constructor_type),
+                        self.get_properties_of_type(&base_constructor_type),
                     );
                 } else if Gc::ptr_eq(&base_constructor_type, &self.any_type()) {
                     base_constructor_index_info = Some(Gc::new(self.create_index_info(
@@ -702,7 +702,7 @@ impl TypeChecker {
         } else {
             vec![]
         };
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(&type_as_reverse_mapped_type.source) {
             let check_flags = CheckFlags::ReverseMapped
                 | if readonly_mask && self.is_readonly_symbol(&prop) {
@@ -853,7 +853,7 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_mapped_type_members(&self, type_: &Type /*MappedType*/) {
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         let type_as_mapped_type = type_.as_mapped_type();
         self.set_structured_type_members(

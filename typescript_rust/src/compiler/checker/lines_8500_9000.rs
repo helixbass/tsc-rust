@@ -986,7 +986,9 @@ impl TypeChecker {
         {
             return None;
         }
-        let exports = Gc::new(GcCell::new(create_symbol_table(None)));
+        let exports = Gc::new(GcCell::new(create_symbol_table(
+            Option::<&[Gc<Symbol>]>::None,
+        )));
         let mut decl = decl.node_wrapper();
         while is_binary_expression(&decl) || is_property_access_expression(&decl) {
             let s = self.get_symbol_of_node(&decl);
@@ -1124,7 +1126,7 @@ impl TypeChecker {
             && symbol.escaped_name() == InternalSymbolName::ExportEquals
         {
             let exported_type = self.resolve_structured_type_members(&type_);
-            let mut members = create_symbol_table(None);
+            let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             let exported_type_as_resolved_type = exported_type.as_resolved_type();
             copy_entries(
                 &*(*exported_type_as_resolved_type.members()).borrow(),
@@ -1134,8 +1136,9 @@ impl TypeChecker {
             if let Some(resolved_symbol) = resolved_symbol.as_ref() {
                 let mut resolved_symbol_exports = resolved_symbol.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
-                    *resolved_symbol_exports =
-                        Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *resolved_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
             }
             for (name, s) in &*(*resolved_symbol.as_deref().unwrap_or(symbol).exports()).borrow() {

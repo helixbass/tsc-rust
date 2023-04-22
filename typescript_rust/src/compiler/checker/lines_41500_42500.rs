@@ -1,9 +1,10 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::borrow::Borrow;
+use itertools::Either;
 use std::collections::HashMap;
 use std::ptr;
+use std::{borrow::Borrow, iter};
 
 use super::EmitResolverCreateResolver;
 use crate::{
@@ -27,7 +28,7 @@ use crate::{
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags,
     NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName, PragmaName, Signature,
     SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, UnwrapOrEmpty,
 };
 
 impl TypeChecker {
@@ -187,10 +188,10 @@ impl TypeChecker {
     pub(super) fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Gc<Symbol>> {
+    ) -> impl Iterator<Item = Gc<Symbol>> {
         let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
         if declaration.is_none() {
-            return vec![];
+            return Either::Right(iter::empty());
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration);
@@ -199,7 +200,7 @@ impl TypeChecker {
         } else {
             None
         }
-        .unwrap_or_else(|| vec![])
+        .unwrap_or_empty()
     }
 
     pub(super) fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags {

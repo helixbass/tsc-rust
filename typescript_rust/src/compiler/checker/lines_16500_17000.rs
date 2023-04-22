@@ -940,7 +940,7 @@ impl TypeChecker {
                 let result = self.create_object_type(ObjectFlags::Anonymous, type_.maybe_symbol());
                 result.resolve(
                     resolved_as_resolved_type.members(),
-                    resolved_as_resolved_type.properties().clone(),
+                    resolved_as_resolved_type.properties(),
                     vec![],
                     vec![],
                     vec![],

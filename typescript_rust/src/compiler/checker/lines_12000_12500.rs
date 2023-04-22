@@ -377,7 +377,7 @@ impl TypeChecker {
                             .maybe_property_cache_without_object_function_property_augment();
                     if property_cache_without_object_function_property_augment.is_none() {
                         *property_cache_without_object_function_property_augment =
-                            Some(create_symbol_table(None));
+                            Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None));
                     }
                     property_cache_without_object_function_property_augment
                         .as_mut()
@@ -387,7 +387,7 @@ impl TypeChecker {
                     let mut property_cache =
                         type_as_union_or_intersection_type.maybe_property_cache();
                     if property_cache.is_none() {
-                        *property_cache = Some(create_symbol_table(None));
+                        *property_cache = Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None));
                     }
                     property_cache
                         .as_mut()
@@ -438,10 +438,10 @@ impl TypeChecker {
                 type_as_intersection_type.set_object_flags(
                     type_as_intersection_type.object_flags()
                         | ObjectFlags::IsNeverIntersectionComputed
-                        | if some(
-                            Some(&self.get_properties_of_union_or_intersection_type(type_)),
-                            Some(|symbol: &Gc<Symbol>| self.is_never_reduced_property(symbol)),
-                        ) {
+                        | if self
+                            .get_properties_of_union_or_intersection_type(type_)
+                            .any(|ref symbol| self.is_never_reduced_property(symbol))
+                        {
                             ObjectFlags::IsNeverIntersection
                         } else {
                             ObjectFlags::None
@@ -508,11 +508,9 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Intersection)
             && get_object_flags(type_).intersects(ObjectFlags::IsNeverIntersection)
         {
-            let never_prop = find(
-                &self.get_properties_of_union_or_intersection_type(type_),
-                |property: &Gc<Symbol>, _| self.is_discriminant_with_never_type(property),
-            )
-            .map(Clone::clone);
+            let never_prop = self
+                .get_properties_of_union_or_intersection_type(type_)
+                .find(|property| self.is_discriminant_with_never_type(property));
             if let Some(never_prop) = never_prop {
                 return Some(
                     chain_diagnostic_messages(
@@ -525,11 +523,9 @@ impl TypeChecker {
                     )
                 );
             }
-            let private_prop = find(
-                &self.get_properties_of_union_or_intersection_type(type_),
-                |property: &Gc<Symbol>, _| self.is_conflicting_private_property(property),
-            )
-            .map(Clone::clone);
+            let private_prop = self
+                .get_properties_of_union_or_intersection_type(type_)
+                .find(|property| self.is_conflicting_private_property(property));
             if let Some(private_prop) = private_prop {
                 return Some(
                     chain_diagnostic_messages(

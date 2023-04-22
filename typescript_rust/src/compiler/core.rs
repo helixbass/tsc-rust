@@ -1,7 +1,7 @@
 use gc::{Finalize, Gc, Trace};
 use indexmap::IndexMap;
 use regex::{Captures, Regex};
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
@@ -12,7 +12,9 @@ use std::hash::Hash;
 use std::mem;
 use std::rc::Rc;
 
-use crate::{__String, text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
+use crate::{
+    __String, text_char_at_index, Comparison, Debug_, IsEmpty, SortedArray, SourceTextAsChars,
+};
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
     array.map_or(0, |array| array.len())
@@ -394,9 +396,14 @@ pub fn try_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) 
     false
 }
 
-pub fn some<TItem>(array: Option<&[TItem]>, predicate: Option<impl FnMut(&TItem) -> bool>) -> bool {
+pub fn some<'item, TItem: 'item>(
+    array: Option<impl IntoIterator<Item = &'item TItem>>,
+    predicate: Option<impl FnMut(&TItem) -> bool>,
+) -> bool {
     array.map_or(false, |array| {
-        predicate.map_or(!array.is_empty(), |predicate| array.iter().any(predicate))
+        predicate.map_or(!array.into_iter().peekable().is_empty(), |predicate| {
+            array.into_iter().any(predicate)
+        })
     })
 }
 
@@ -1456,14 +1463,10 @@ pub fn compare_booleans(a: bool, b: bool) -> Comparison {
     compare_values(Some(if a { 1 } else { 0 }), Some(if b { 1 } else { 0 }))
 }
 
-pub fn get_spelling_suggestion<
-    'candidates,
-    TCandidate,
-    TGetName: FnMut(&TCandidate) -> Option<String>,
->(
+pub fn get_spelling_suggestion<'candidates, TCandidate>(
     name: &str,
-    candidates: &'candidates [TCandidate],
-    mut get_name: TGetName,
+    candidates: impl IntoIterator<Item = &'candidates TCandidate>,
+    mut get_name: impl FnMut(&TCandidate) -> Option<String>,
 ) -> Option<&'candidates TCandidate> {
     let name_len_as_f64 = name.len() as f64;
     let maximum_length_difference = f64::min(2.0, (name_len_as_f64 * 0.34).floor());

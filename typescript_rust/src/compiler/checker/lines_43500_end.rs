@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::{Finalize, Gc, Trace};
+use itertools::Itertools;
 use std::{collections::HashMap, convert::TryInto};
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
@@ -903,22 +904,19 @@ impl TypeChecker {
             let source_properties = self.get_properties_of_type(source);
             // if (sourceProperties) {
             let source_properties_filtered =
-                self.find_discriminant_properties(&source_properties, target);
+                self.find_discriminant_properties(source_properties, target);
             if let Some(source_properties_filtered) = source_properties_filtered.as_ref() {
                 return self.discriminate_type_by_discriminable_items(
                     target,
-                    &*source_properties_filtered
-                        .into_iter()
-                        .map(|p: &Gc<Symbol>| {
-                            let p_clone = p.clone();
-                            let type_checker = self.rc_wrapper();
-                            (
-                                Box::new(move || type_checker.get_type_of_symbol(&p_clone))
-                                    as Box<dyn Fn() -> Gc<Type>>,
-                                p.escaped_name().to_owned(),
-                            )
-                        })
-                        .collect::<Vec<_>>(),
+                    source_properties_filtered.into_iter().map(|p| {
+                        let p_clone = p.clone();
+                        let type_checker = self.rc_wrapper();
+                        (
+                            Box::new(move || type_checker.get_type_of_symbol(&p_clone))
+                                as Box<dyn Fn() -> Gc<Type>>,
+                            p.escaped_name().to_owned(),
+                        )
+                    }),
                     |source: &Type, target: &Type| is_related_to(source, target) != Ternary::False,
                     Option::<&Type>::None,
                     skip_partial,
@@ -1165,7 +1163,9 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Declaration*/
     ) -> Vec<Gc<Symbol>> {
-        self.type_checker.get_properties_of_container_function(node)
+        self.type_checker
+            .get_properties_of_container_function(node)
+            .collect_vec()
     }
 
     fn create_type_of_declaration(

@@ -601,13 +601,17 @@ impl TypeChecker {
             {
                 let mut inferred_exports = inferred.maybe_exports_mut();
                 if inferred_exports.is_none() {
-                    *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
             }
             {
                 let mut inferred_members = inferred.maybe_members_mut();
                 if inferred_members.is_none() {
-                    *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
             }
             inferred.set_flags(inferred.flags() | (source.flags() & SymbolFlags::Class));

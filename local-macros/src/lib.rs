@@ -1505,7 +1505,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_members(members)
                     }
 
-                    fn maybe_properties(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         self.#first_field_name.maybe_properties()
                     }
 
@@ -1530,7 +1530,7 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
                         self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures, index_infos)
                     }
 
@@ -1547,15 +1547,15 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.members()
                     }
 
-                    fn properties(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties(&self) -> crate::GcVec<::gc::Gc<crate::Symbol>> {
                         self.#first_field_name.properties()
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>, ::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>, crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         self.#first_field_name.properties_mut()
                     }
 
-                    fn set_properties(&self, properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>) {
+                    fn set_properties(&self, properties: crate::GcVec<::gc::Gc<crate::Symbol>>) {
                         self.#first_field_name.set_properties(properties)
                     }
 
@@ -1618,8 +1618,12 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_property_cache_without_object_function_property_augment()
                     }
 
-                    fn maybe_resolved_properties(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         self.#first_field_name.maybe_resolved_properties()
+                    }
+
+                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>> {
+                        self.#first_field_name.maybe_resolved_properties_mut()
                     }
                 }
             }
@@ -2094,7 +2098,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_properties(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_properties()),*
                         }
@@ -2129,7 +2133,7 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures, index_infos)),*
                         }
@@ -2152,19 +2156,19 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn properties(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties(&self) -> crate::GcVec<::gc::Gc<crate::Symbol>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties()),*
                         }
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>, ::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>, crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties_mut()),*
                         }
                     }
 
-                    fn set_properties(&self, properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>) {
+                    fn set_properties(&self, properties: crate::GcVec<::gc::Gc<crate::Symbol>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_properties(properties)),*
                         }
@@ -2251,9 +2255,15 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_resolved_properties(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties()),*
+                        }
+                    }
+
+                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties_mut()),*
                         }
                     }
                 }

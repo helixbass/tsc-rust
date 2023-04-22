@@ -593,7 +593,9 @@ impl TypeChecker {
             if let Some(source_members) = source.maybe_members().as_ref() {
                 let mut target_members = target.maybe_members_mut();
                 if target_members.is_none() {
-                    *target_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *target_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
                 self.merge_symbol_table(
                     target_members.clone().unwrap(),
@@ -604,7 +606,9 @@ impl TypeChecker {
             if let Some(source_exports) = source.maybe_exports().as_ref() {
                 let mut target_exports = target.maybe_exports_mut();
                 if target_exports.is_none() {
-                    *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
                 self.merge_symbol_table(
                     target_exports.clone().unwrap(),
@@ -846,7 +850,9 @@ impl TypeChecker {
         if (*second).borrow().is_empty() {
             return Some(first);
         }
-        let combined = Gc::new(GcCell::new(create_symbol_table(None)));
+        let combined = Gc::new(GcCell::new(create_symbol_table(
+            Option::<&[Gc<Symbol>]>::None,
+        )));
         self.merge_symbol_table(combined.clone(), &(*first).borrow(), None);
         self.merge_symbol_table(combined.clone(), &(*second).borrow(), None);
         Some(combined)

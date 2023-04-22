@@ -67,6 +67,7 @@ impl<TItem: Trace + Finalize + 'static> From<Vec<TItem>> for GcVec<TItem> {
     }
 }
 
+#[derive(Clone)]
 pub struct GcVecOwnedIter<TItem: Clone + Trace + Finalize + 'static> {
     gc_vec: GcVec<TItem>,
     index: usize,

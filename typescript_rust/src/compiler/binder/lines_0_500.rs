@@ -808,7 +808,9 @@ impl BinderType {
         ) {
             let mut exports = symbol.maybe_exports_mut();
             if exports.is_none() {
-                *exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                *exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                    Option::<&[Gc<Symbol>]>::None,
+                ))));
             }
         }
 
@@ -820,7 +822,9 @@ impl BinderType {
         ) {
             let mut members = symbol.maybe_members_mut();
             if members.is_none() {
-                *members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                *members = Some(Gc::new(GcCell::new(create_symbol_table(
+                    Option::<&[Gc<Symbol>]>::None,
+                ))));
             }
         }
 

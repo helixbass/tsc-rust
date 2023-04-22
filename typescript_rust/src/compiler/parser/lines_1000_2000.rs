@@ -861,7 +861,7 @@ impl ParserType {
         }
 
         let suggestion: Option<String> =
-            get_spelling_suggestion(&expression_text, &viable_keyword_suggestions, |n| {
+            get_spelling_suggestion(&expression_text, &*viable_keyword_suggestions, |n| {
                 Some((*n).to_owned())
             })
             .map(|suggestion| (*suggestion).to_owned())

@@ -466,13 +466,14 @@ impl TypeChecker {
         includes
     }
 
-    pub(super) fn add_types_to_union<'types_item>(
+    pub(super) fn add_types_to_union(
         &self,
         type_set: &mut Vec<Gc<Type>>,
         mut includes: TypeFlags,
-        types: impl IntoIterator<Item = &'types_item Gc<Type>>,
+        types: impl IntoIterator<Item = impl Borrow<Gc<Type>>>,
     ) -> TypeFlags {
         for type_ in types {
+            let type_ = type_.borrow();
             includes = self.add_type_to_union(type_set, includes, type_);
         }
         includes
@@ -513,11 +514,8 @@ impl TypeChecker {
                         | TypeFlags::Intersection
                         | TypeFlags::InstantiableNonPrimitive,
                 ) {
-                    find(
-                        &*self.get_properties_of_type(&source),
-                        |p: &Gc<Symbol>, _| self.is_unit_type(&self.get_type_of_symbol(p)),
-                    )
-                    .map(Clone::clone)
+                    self.get_properties_of_type(&source)
+                        .find(|p| self.is_unit_type(&self.get_type_of_symbol(p)))
                 } else {
                     None
                 };
@@ -654,12 +652,13 @@ impl TypeChecker {
             && (type_.maybe_alias_symbol().is_some() || type_.as_union_type().origin.is_some())
     }
 
-    pub(super) fn add_named_unions<'types_item>(
+    pub(super) fn add_named_unions(
         &self,
         named_unions: &mut Vec<Gc<Type>>,
-        types: impl IntoIterator<Item = &'types_item Gc<Type>>,
+        types: impl IntoIterator<Item = impl Borrow<Gc<Type>>>,
     ) {
         for t in types {
+            let t: &Gc<Type> = t.borrow();
             if t.flags().intersects(TypeFlags::Union) {
                 let origin = t.as_union_type().origin.clone();
                 if t.maybe_alias_symbol().is_some()
@@ -694,7 +693,7 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_union_type<'types_item, TTypes>(
+    pub(super) fn get_union_type<TTypesItem, TTypes>(
         &self,
         types: TTypes,
         union_reduction: Option<UnionReduction>,
@@ -703,7 +702,8 @@ impl TypeChecker {
         origin: Option<impl Borrow<Type>>,
     ) -> Gc<Type>
     where
-        TTypes: IntoIterator<Item = &'types_item Gc<Type>>,
+        TTypesItem: Borrow<Gc<Type>>,
+        TTypes: IntoIterator<Item = TTypesItem>,
         TTypes::IntoIter: Clone,
     {
         let union_reduction = union_reduction.unwrap_or(UnionReduction::Literal);
@@ -713,7 +713,7 @@ impl TypeChecker {
             return self.never_type();
         }
         if types_peekmore.is_len_equal_to(1) {
-            return types.next().unwrap().clone();
+            return types.next().unwrap().borrow().clone();
         }
         let mut type_set: Vec<Gc<Type>> = vec![];
         let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, types.clone());

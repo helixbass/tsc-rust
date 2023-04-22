@@ -9,7 +9,6 @@ use std::ptr;
 use std::{cmp, iter};
 
 use crate::{
-    HasTypeArgumentsInterface, ReadonlyTextRange, StringOrNodeArray, TextSpan, __String,
     combine_paths, compare_diagnostics, contains, create_compiler_diagnostic,
     entity_name_to_string, every, find, flat_map, get_assignment_declaration_kind,
     get_directory_path, get_effective_modifier_flags,
@@ -32,11 +31,12 @@ use crate::{
     is_string_literal, is_type_literal_node, is_type_node_kind, is_type_reference_node,
     is_variable_declaration_list, is_variable_statement, is_white_space_like, modifier_to_flag,
     normalize_path, path_is_relative, set_localized_diagnostic_messages, set_ui_locale,
-    skip_outer_expressions, some, sort_and_deduplicate, AssignmentDeclarationKind, CharacterCodes,
-    CompilerOptions, Debug_, Diagnostic, Diagnostics, GeneratedIdentifierFlags,
+    skip_outer_expressions, some, sort_and_deduplicate, AssignmentDeclarationKind, CompilerOptions,
+    Debug_, Diagnostic, Diagnostics, GeneratedIdentifierFlags, HasTypeArgumentsInterface,
     HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, SortedArray, Symbol,
-    SymbolInterface, SyntaxKind, System, TextChangeRange,
+    NodeFlags, NodeInterface, OuterExpressionKinds, Push, ReadonlyTextRange, ScriptTarget,
+    SortedArray, StringOrNodeArray, Symbol, SymbolInterface, SyntaxKind, System, TextChangeRange,
+    TextSpan,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -822,40 +822,37 @@ pub(crate) fn get_jsdoc_parameter_tags_no_cache(
 fn get_jsdoc_type_parameter_tags_worker(
     param: &Node, /*TypeParameterDeclaration*/
     no_cache: Option<bool>,
-) -> Vec<Gc<Node /*JSDocTemplateTag*/>> {
+) -> impl Iterator<Item = Gc<Node /*JSDocTemplateTag*/>> {
     let name = param
         .as_type_parameter_declaration()
         .name()
         .as_identifier()
         .escaped_text
         .clone();
-    get_jsdoc_tags_worker(&param.parent(), no_cache)
-        .into_iter()
-        .filter(|tag| {
-            if !is_jsdoc_template_tag(&**tag) {
-                return false;
-            }
-            let tag_as_jsdoc_template_tag = tag.as_jsdoc_template_tag();
-            tag_as_jsdoc_template_tag.type_parameters.iter().any(|tp| {
-                tp.as_type_parameter_declaration()
-                    .name()
-                    .as_identifier()
-                    .escaped_text
-                    == name
-            })
+    get_jsdoc_tags_worker(&param.parent(), no_cache).filter(move |tag| {
+        if !is_jsdoc_template_tag(&**tag) {
+            return false;
+        }
+        let tag_as_jsdoc_template_tag = tag.as_jsdoc_template_tag();
+        tag_as_jsdoc_template_tag.type_parameters.iter().any(|tp| {
+            tp.as_type_parameter_declaration()
+                .name()
+                .as_identifier()
+                .escaped_text
+                == name
         })
-        .collect()
+    })
 }
 
 pub fn get_jsdoc_type_parameter_tags(
     param: &Node, /*TypeParameterDeclaration*/
-) -> Vec<Gc<Node /*JSDocTemplateTag*/>> {
+) -> impl Iterator<Item = Gc<Node /*JSDocTemplateTag*/>> {
     get_jsdoc_type_parameter_tags_worker(param, Some(false))
 }
 
 pub(crate) fn get_jsdoc_type_parameter_tags_no_cache(
     param: &Node, /*TypeParameterDeclaration*/
-) -> Vec<Gc<Node /*JSDocTemplateTag*/>> {
+) -> impl Iterator<Item = Gc<Node /*JSDocTemplateTag*/>> {
     get_jsdoc_type_parameter_tags_worker(param, Some(true))
 }
 

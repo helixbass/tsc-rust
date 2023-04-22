@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::{Gc, GcCell};
+use itertools::Itertools;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
@@ -150,7 +151,11 @@ impl TypeChecker {
         merged.set_flags(merged.flags() | SymbolFlags::ValueModule);
         let merged_exports = merged
             .maybe_exports_mut()
-            .get_or_insert_with(|| Gc::new(GcCell::new(create_symbol_table(None))))
+            .get_or_insert_with(|| {
+                Gc::new(GcCell::new(create_symbol_table(
+                    Option::<&[Gc<Symbol>]>::None,
+                )))
+            })
             .clone();
         for (name, s) in &*(*module_symbol.exports()).borrow() {
             if name == InternalSymbolName::ExportEquals {
@@ -334,7 +339,7 @@ impl TypeChecker {
             if self.should_treat_properties_of_external_module_as_exports(&type_) {
                 add_range(
                     &mut exports,
-                    Some(&*self.get_properties_of_type(&type_)),
+                    Some(&*self.get_properties_of_type(&type_).collect_vec()),
                     None,
                     None,
                 );
@@ -536,7 +541,7 @@ impl TypeChecker {
         let mut symbols = symbol_exports.clone();
         let export_stars = symbol_exports.get(InternalSymbolName::ExportStar);
         if let Some(export_stars) = export_stars {
-            let mut nested_symbols = create_symbol_table(None);
+            let mut nested_symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             let mut lookup_table = ExportCollisionTrackerTable::new();
             if let Some(export_stars_declarations) = export_stars.maybe_declarations().as_ref() {
                 for node in export_stars_declarations {

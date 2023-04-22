@@ -929,7 +929,7 @@ impl CheckTypeRelatedTo {
                     .flags()
                     .intersects(TypeFlags::Object | TypeFlags::Intersection)
                 && self.type_checker.is_weak_type(&target)
-                && (!self.type_checker.get_properties_of_type(&source).is_empty()
+                && (!self.type_checker.get_properties_of_type(&source).len() == 0
                     || self
                         .type_checker
                         .type_has_call_or_construct_signatures(&source));

@@ -236,11 +236,13 @@ impl TypeChecker {
             opening_like_element.as_jsx_opening_like_element();
         let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
         let mut all_attributes_table = if self.strict_null_checks {
-            Some(create_symbol_table(None))
+            Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None))
         } else {
             None
         };
-        let attributes_table = Gc::new(GcCell::new(create_symbol_table(None)));
+        let attributes_table = Gc::new(GcCell::new(create_symbol_table(
+            Option::<&[Gc<Symbol>]>::None,
+        )));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
         let mut type_to_intersect: Option<Gc<Type>> = None;
@@ -317,7 +319,8 @@ impl TypeChecker {
                         object_flags,
                         false,
                     );
-                    *attributes_table.borrow_mut() = create_symbol_table(None);
+                    *attributes_table.borrow_mut() =
+                        create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 }
                 let expr_type = self.get_reduced_type(&self.check_expression_cached(
                     &attribute_decl.as_jsx_spread_attribute().expression,
@@ -471,7 +474,7 @@ impl TypeChecker {
                         .maybe_value_declaration()
                         .unwrap()
                         .set_symbol(children_prop_symbol.clone());
-                    let mut child_prop_map = create_symbol_table(None);
+                    let mut child_prop_map = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                     child_prop_map.insert(
                         jsx_children_property_name.clone(),
                         children_prop_symbol.clone(),
@@ -575,7 +578,7 @@ impl TypeChecker {
         props: &SymbolTable,
         spread: &Node, /*SpreadAssignment | JsxSpreadAttribute*/
     ) {
-        for right in &self.get_properties_of_type(type_) {
+        for ref right in self.get_properties_of_type(type_) {
             if !right.flags().intersects(SymbolFlags::Optional) {
                 let left = props.get(right.escaped_name());
                 if let Some(left) = left {

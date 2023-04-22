@@ -147,7 +147,7 @@ impl TypeChecker {
         original_symbol: &Symbol,
         anonymous_symbol: Option<TAnonymousSymbol>,
     ) -> Gc<Type> {
-        let mut member_table = create_symbol_table(None);
+        let mut member_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let new_symbol: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Alias,

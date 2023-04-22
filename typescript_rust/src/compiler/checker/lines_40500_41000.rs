@@ -52,7 +52,7 @@ impl TypeChecker {
             return vec![];
         }
 
-        let mut symbols = create_symbol_table(None);
+        let mut symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut is_static_symbol = false;
 
         let mut location = Some(location.node_wrapper());

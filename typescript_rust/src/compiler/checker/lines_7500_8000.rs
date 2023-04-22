@@ -318,13 +318,11 @@ impl SymbolTableToDeclarationStatements {
             && !self
                 .type_checker
                 .get_properties_of_type(type_to_serialize)
-                .iter()
-                .any(|p| self.type_checker.is_late_bound_name(p.escaped_name()))
+                .any(|ref p| self.type_checker.is_late_bound_name(p.escaped_name()))
             && !self
                 .type_checker
                 .get_properties_of_type(type_to_serialize)
-                .iter()
-                .any(|p| {
+                .any(|ref p| {
                     some(
                         p.maybe_declarations().as_deref(),
                         Some(|d: &Gc<Node>| {
@@ -338,8 +336,7 @@ impl SymbolTableToDeclarationStatements {
             && self
                 .type_checker
                 .get_properties_of_type(type_to_serialize)
-                .iter()
-                .all(|p| {
+                .all(|ref p| {
                     is_identifier_text(
                         &symbol_name(p),
                         Some(self.type_checker.language_version),

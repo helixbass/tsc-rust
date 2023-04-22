@@ -536,7 +536,7 @@ pub fn create_type_checker(
         inline_level: Default::default(),
         current_node: Default::default(),
 
-        empty_symbols: Gc::new(GcCell::new(create_symbol_table(None))),
+        empty_symbols: Gc::new(GcCell::new(create_symbol_table(Option::<&[Gc<Symbol>]>::None))),
 
         compiler_options: compiler_options.clone(),
         language_version: get_emit_script_target(&compiler_options),
@@ -571,7 +571,7 @@ pub fn create_type_checker(
         emit_resolver: Default::default(),
         node_builder: Default::default(),
 
-        globals: Gc::new(GcCell::new(create_symbol_table(None))),
+        globals: Gc::new(GcCell::new(create_symbol_table(Option::<&[Gc<Symbol>]>::None))),
         undefined_symbol: Default::default(),
         global_this_symbol: Default::default(),
 
@@ -1160,8 +1160,9 @@ pub fn create_type_checker(
         InternalSymbolName::Type.to_owned(),
         None,
     );
-    *empty_type_literal_symbol.maybe_members_mut() =
-        Some(Gc::new(GcCell::new(create_symbol_table(None))));
+    *empty_type_literal_symbol.maybe_members_mut() = Some(Gc::new(GcCell::new(
+        create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+    )));
     type_checker.empty_type_literal_symbol = Some(empty_type_literal_symbol.into());
     type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(
         Some(type_checker.empty_type_literal_symbol()),

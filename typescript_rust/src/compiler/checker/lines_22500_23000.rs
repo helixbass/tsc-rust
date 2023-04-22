@@ -384,11 +384,12 @@ impl TypeChecker {
 
     pub(super) fn find_discriminant_properties(
         &self,
-        source_properties: &[Gc<Symbol>],
+        source_properties: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
         target: &Type,
     ) -> Option<Vec<Gc<Symbol>>> {
         let mut result: Option<Vec<Gc<Symbol>>> = None;
         for source_property in source_properties {
+            let source_property: &Gc<Symbol> = source_property.borrow();
             if self.is_discriminant_property(Some(target), source_property.escaped_name()) {
                 if result.is_some() {
                     result.as_mut().unwrap().push(source_property.clone());
@@ -466,7 +467,7 @@ impl TypeChecker {
                 if t.flags()
                     .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
                 {
-                    for_each(&self.get_properties_of_type(t), |p: &Gc<Symbol>, _| {
+                    for_each(self.get_properties_of_type(t), |ref p: Gc<Symbol>, _| {
                         if self.is_unit_type(&self.get_type_of_symbol(p)) {
                             Some(p.escaped_name().to_owned())
                         } else {

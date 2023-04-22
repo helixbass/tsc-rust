@@ -916,7 +916,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_anonymous_partial_type(&self, readonly: bool, type_: &Type) -> Gc<Type> {
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(type_) {
             if get_declaration_modifier_flags_from_symbol(&prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
@@ -1077,7 +1077,7 @@ impl TypeChecker {
             return self.get_intersection_type(&vec![left, right], Option::<&Symbol>::None, None);
         }
 
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut skipped_private_members: HashSet<__String> = HashSet::new();
         let index_infos = if Gc::ptr_eq(&left, &self.empty_object_type()) {
             self.get_index_infos_of_type(&right)
