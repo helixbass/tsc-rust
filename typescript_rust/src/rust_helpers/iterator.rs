@@ -48,12 +48,3 @@ where
         self.peek_nth(n).is_some() && self.peek_nth(n + 1).is_none()
     }
 }
-
-pub fn either_concat<TItem>(
-    a: impl IntoIterator<Item = TItem>,
-    b: impl IntoIterator<Item = TItem>,
-) -> impl Iterator<Item = TItem> {
-    let a = a.into_iter();
-    let b = b.into_iter();
-    a.map(Either::Left).chain(b.map(Either::Right))
-}

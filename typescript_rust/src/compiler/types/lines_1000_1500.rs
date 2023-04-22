@@ -129,6 +129,7 @@ mod _NodeArrayDeriveTraceScope {
         }
     }
 
+    #[derive(Clone)]
     pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Gc<Node>>);
 
     impl<'node_array> Iterator for NodeArrayIter<'node_array> {

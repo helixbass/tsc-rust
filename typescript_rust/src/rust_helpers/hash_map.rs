@@ -74,7 +74,7 @@ impl<
         } else {
             // TODO: is this expensive? Is there a way instead to hold eg a "live" `.values()`
             // iterator?
-            let ret = self.gc_hash_map.values().nth(self.index).clone().unwrap();
+            let ret = self.gc_hash_map.values().nth(self.index).cloned().unwrap();
             self.index += 1;
             Some(ret)
         }

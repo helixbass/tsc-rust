@@ -263,7 +263,7 @@ impl SymbolTableToDeclarationStatements {
         let members = self
             .type_checker
             .get_properties_of_type(interface_type)
-            .flat_map(|p: &Gc<Symbol>, _| {
+            .flat_map(|ref p| {
                 self.serialize_property_symbol_for_interface(p, base_type.as_deref())
             });
         let call_signatures = self.serialize_signatures(
@@ -995,7 +995,7 @@ impl SymbolTableToDeclarationStatements {
             }
             heritage_clauses
         };
-        let symbol_props = self.type_checker.get_non_interhited_properties(
+        let mut symbol_props = self.type_checker.get_non_interhited_properties(
             class_type,
             &base_types,
             self.type_checker.get_properties_of_type(class_type),

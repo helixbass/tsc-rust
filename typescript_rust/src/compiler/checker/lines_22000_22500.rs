@@ -8,15 +8,13 @@ use std::iter::once;
 use std::ptr;
 
 use super::InferTypes;
-use crate::either_concat;
 use crate::IsEmpty;
 use crate::PeekMoreExt;
 use crate::{
-    concatenate, every, find, flat_map, get_object_flags, map, same_map, some, DiagnosticMessage,
-    Diagnostics, ElementFlags, IndexInfo, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, Signature, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction,
+    every, find, flat_map, get_object_flags, some, DiagnosticMessage, Diagnostics, ElementFlags,
+    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
+    ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl InferTypes {
@@ -215,20 +213,17 @@ impl InferTypes {
                 .type_checker
                 .get_properties_of_type(source)
                 .map(|ref property| self.type_checker.get_type_of_symbol(property));
-            let index_types = self
-                .type_checker
-                .get_index_infos_of_type(source)
-                .iter()
-                .map(|info| {
-                    if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
-                        info.type_.clone()
-                    } else {
-                        self.type_checker.never_type()
-                    }
-                });
+            let index_infos = self.type_checker.get_index_infos_of_type(source);
+            let index_types = index_infos.iter().map(|info| {
+                if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
+                    info.type_.clone()
+                } else {
+                    self.type_checker.never_type()
+                }
+            });
             self.infer_from_types(
                 &self.type_checker.get_union_type(
-                    either_concat(prop_types, index_types),
+                    prop_types.chain(index_types),
                     None,
                     Option::<&Symbol>::None,
                     None,

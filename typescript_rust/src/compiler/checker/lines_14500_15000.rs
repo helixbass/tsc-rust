@@ -5,18 +5,16 @@ use indexmap::IndexMap;
 use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
-    concatenate, contains_gc, contains_rc, either_concat, every, filter, find_index,
-    get_declaration_modifier_flags_from_symbol, get_name_of_declaration, get_object_flags,
-    index_of_gc, index_of_rc, is_computed_property_name, is_identifier, is_known_symbol,
-    is_private_identifier, map, ordered_remove_item_at, reduce_left, replace_element, some,
-    symbol_name, unescape_leading_underscores, walk_up_parenthesized_types,
-    BaseUnionOrIntersectionType, Debug_, Diagnostics, IndexInfo, IndexType, InternalSymbolName,
-    IntersectionType, ModifierFlags, Node, NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    contains_gc, every, filter, find_index, get_declaration_modifier_flags_from_symbol,
+    get_name_of_declaration, get_object_flags, index_of_gc, is_computed_property_name,
+    is_identifier, is_known_symbol, is_private_identifier, map, ordered_remove_item_at,
+    reduce_left, replace_element, some, symbol_name, unescape_leading_underscores,
+    walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_, Diagnostics, IndexType,
+    InternalSymbolName, IntersectionType, ModifierFlags, Node, NodeInterface, ObjectFlags,
+    ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
+    TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -729,7 +727,8 @@ impl TypeChecker {
         let property_types = self
             .get_properties_of_type(type_)
             .map(|ref prop| self.get_literal_type_from_property(prop, include, None));
-        let index_key_types = self.get_index_infos_of_type(type_).iter().map(|info| {
+        let index_infos = self.get_index_infos_of_type(type_);
+        let index_key_types = index_infos.iter().map(|info| {
             if !Gc::ptr_eq(info, &self.enum_number_index_info())
                 && self.is_key_type_included(&info.key_type, include)
             {
@@ -745,7 +744,7 @@ impl TypeChecker {
             }
         });
         self.get_union_type(
-            either_concat(property_types, index_key_types),
+            property_types.chain(index_key_types),
             Some(UnionReduction::Literal),
             Option::<&Symbol>::None,
             None,

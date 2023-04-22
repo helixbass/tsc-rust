@@ -396,14 +396,24 @@ pub fn try_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) 
     false
 }
 
-pub fn some<'item, TItem: 'item>(
-    array: Option<impl IntoIterator<Item = &'item TItem>>,
+pub fn some<'item, TItem, TArray>(
+    array: Option<TArray>,
     predicate: Option<impl FnMut(&TItem) -> bool>,
-) -> bool {
+) -> bool
+where
+    TItem: 'item,
+    TArray: IntoIterator<Item = &'item TItem>,
+    TArray::IntoIter: Clone,
+{
     array.map_or(false, |array| {
-        predicate.map_or(!array.into_iter().peekable().is_empty(), |predicate| {
-            array.into_iter().any(predicate)
-        })
+        let mut array = array.into_iter();
+        predicate.map_or_else(
+            {
+                let array_clone = array.clone();
+                || !array_clone.peekable().is_empty()
+            },
+            |predicate| array.any(predicate),
+        )
     })
 }
 
@@ -1463,16 +1473,22 @@ pub fn compare_booleans(a: bool, b: bool) -> Comparison {
     compare_values(Some(if a { 1 } else { 0 }), Some(if b { 1 } else { 0 }))
 }
 
-pub fn get_spelling_suggestion<'candidates, TCandidate>(
+// TODO: it looked like all the `candidates` types are cheaply cloneable
+// so returning a cloned item was easier than messing more with how to try
+// and still return a reference (Option<&'candidates TCandidate>) when
+// `candidates` now needed to iterate over `impl Borrow<TCandidate>` (vs
+// only supporting iterating over references)
+pub fn get_spelling_suggestion<'candidates, TCandidate: Clone>(
     name: &str,
-    candidates: impl IntoIterator<Item = &'candidates TCandidate>,
+    candidates: impl IntoIterator<Item = impl Borrow<TCandidate>>,
     mut get_name: impl FnMut(&TCandidate) -> Option<String>,
-) -> Option<&'candidates TCandidate> {
+) -> Option<TCandidate> {
     let name_len_as_f64 = name.len() as f64;
     let maximum_length_difference = f64::min(2.0, (name_len_as_f64 * 0.34).floor());
     let mut best_distance = (name_len_as_f64 * 0.4).floor() + 1.0;
-    let mut best_candidate = None;
+    let mut best_candidate: Option<TCandidate> = None;
     for candidate in candidates {
+        let candidate: &TCandidate = candidate.borrow();
         let candidate_name = get_name(candidate);
         if let Some(candidate_name) = candidate_name {
             if (TryInto::<isize>::try_into(candidate_name.len()).unwrap()
@@ -1500,7 +1516,7 @@ pub fn get_spelling_suggestion<'candidates, TCandidate>(
 
                 Debug_.assert(distance < best_distance, None);
                 best_distance = distance;
-                best_candidate = Some(candidate);
+                best_candidate = Some(candidate.clone());
             }
         }
     }

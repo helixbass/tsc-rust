@@ -48,7 +48,7 @@ impl TypeChecker {
                 },
             );
         properties_of_jsx_element_attrib_prop_interface.and_then(
-            |properties_of_jsx_element_attrib_prop_interface| {
+            |mut properties_of_jsx_element_attrib_prop_interface| {
                 if properties_of_jsx_element_attrib_prop_interface.len() == 0 {
                     return Some("".to_owned());
                 } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {

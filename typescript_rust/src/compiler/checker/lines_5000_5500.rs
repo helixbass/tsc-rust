@@ -1,11 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use std::cell::RefCell;
 use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::ptr;
-use std::rc::Rc;
 
 use super::{
     get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext,

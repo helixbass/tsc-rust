@@ -695,7 +695,7 @@ pub use rust_helpers::debugging::{
 pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::hash_map::{GcHashMap, GcHashMapOwnedValues};
 pub use rust_helpers::io::io_error_from_name;
-pub use rust_helpers::iterator::{either_concat, Empty, IsEmpty, PeekMoreExt};
+pub use rust_helpers::iterator::{Empty, IsEmpty, PeekMoreExt};
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::{
     GetOrInsertDefault, MapOrDefault, Matches, NodeWrappered, NonEmpty, SymbolWrappered, ThenAnd,

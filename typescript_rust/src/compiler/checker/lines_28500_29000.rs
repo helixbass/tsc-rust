@@ -1,15 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
+use itertools::Either;
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{signature_has_literal_types, CheckMode, ResolveNameNameArg};
 use crate::{
-    capitalize, contains, filter, find, find_ancestor, get_assignment_target_kind, get_check_flags,
+    capitalize, contains, find, find_ancestor, get_assignment_target_kind, get_check_flags,
     get_containing_class, get_first_identifier, get_script_target_features,
     get_spelling_suggestion, has_effective_modifier, id_text, is_assignment_target,
     is_binding_pattern, is_call_or_new_expression, is_entity_name_expression,
@@ -20,9 +20,8 @@ use crate::{
     skip_parentheses, starts_with, symbol_name, try_get_property_access_or_identifier_to_string,
     unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags, Debug_, Diagnostics,
     ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Signature,
-    SignatureFlags, StrOrRcNode, StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
-    __String,
+    SignatureFlags, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -129,23 +128,30 @@ impl TypeChecker {
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
     ) -> Option<Gc<Symbol>> {
-        let mut props = self.get_properties_of_type(containing_type);
+        let props = self.get_properties_of_type(containing_type);
         let mut name = name.into();
         let name_inner_rc_node = match name.clone() {
             StrOrRcNode::RcNode(name) => Some(name),
             _ => None,
         };
+        let mut props_: Option<Either<_, _>> = None;
+        let mut did_set_props = false;
         if let Some(name_inner_rc_node) = name_inner_rc_node.as_ref() {
             let parent = name_inner_rc_node.parent();
             if is_property_access_expression(&parent) {
-                props = filter(&props, |prop: &Gc<Symbol>| {
+                did_set_props = true;
+                props_ = Some(Either::Right(props.clone().filter(move |prop| {
                     self.is_valid_property_access_for_completions_(&parent, containing_type, prop)
-                });
+                })));
             }
             name = StrOrRcNode::Str(id_text(name_inner_rc_node));
         }
+        if !did_set_props {
+            props_ = Some(Either::Left(props));
+        }
+        let props = props_.unwrap();
         let name = enum_unwrapped!(name, [StrOrRcNode, Str]);
-        self.get_spelling_suggestion_for_name(name, &props, SymbolFlags::Value)
+        self.get_spelling_suggestion_for_name(name, props, SymbolFlags::Value)
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<
@@ -161,19 +167,16 @@ impl TypeChecker {
             StrOrRcNode::Str(name) => *name,
             StrOrRcNode::RcNode(name) => id_text(name),
         };
-        let properties = self.get_properties_of_type(containing_type);
+        let mut properties = self.get_properties_of_type(containing_type);
         let jsx_specific = if str_name == "for" {
-            find(&properties, |x: &Gc<Symbol>, _| symbol_name(x) == "htmlFor").cloned()
+            properties.find(|x| symbol_name(x) == "htmlFor")
         } else if str_name == "class" {
-            find(&properties, |x: &Gc<Symbol>, _| {
-                symbol_name(x) == "className"
-            })
-            .cloned()
+            properties.find(|x| symbol_name(x) == "className")
         } else {
             None
         };
         jsx_specific.or_else(|| {
-            self.get_spelling_suggestion_for_name(&str_name, &properties, SymbolFlags::Value)
+            self.get_spelling_suggestion_for_name(&str_name, properties, SymbolFlags::Value)
         })
     }
 
@@ -355,7 +358,6 @@ impl TypeChecker {
             &candidates,
             |type_: &Gc<Type>| Some(type_.as_string_literal_type().value.clone()),
         )
-        .cloned()
     }
 
     pub(super) fn get_spelling_suggestion_for_name(
@@ -386,7 +388,7 @@ impl TypeChecker {
             None
         };
 
-        get_spelling_suggestion(name, symbols, get_candidate_name).cloned()
+        get_spelling_suggestion(name, symbols, get_candidate_name)
     }
 
     pub(super) fn mark_property_as_referenced<TNodeForCheckWriteOnly: Borrow<Node>>(

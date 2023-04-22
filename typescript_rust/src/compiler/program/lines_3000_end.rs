@@ -74,7 +74,7 @@ impl Program {
                     let unqualified_lib_name =
                         remove_suffix(remove_prefix(&lib_name, "lib."), ".d.ts");
                     let suggestion = libs.with(|libs_| {
-                        get_spelling_suggestion(unqualified_lib_name, libs_, |lib| {
+                        get_spelling_suggestion(unqualified_lib_name, libs_, |lib: &&str| {
                             Some((*lib).to_owned())
                         })
                         .map(|suggestion| (*suggestion).to_owned())

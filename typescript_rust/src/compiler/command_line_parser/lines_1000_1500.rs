@@ -583,12 +583,10 @@ pub(super) fn get_option_name(option: &CommandLineOption) -> &str {
     option.name()
 }
 
-pub(super) fn create_unknown_option_error<
-    TCreateDiagnostics: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
->(
+pub(super) fn create_unknown_option_error(
     unknown_option: &str,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
-    mut create_diagnostics: TCreateDiagnostics,
+    mut create_diagnostics: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
     unknown_option_error_text: Option<&str>,
 ) -> Gc<Diagnostic> {
     if let Some(diagnostics_alternate_mode) = diagnostics.maybe_alternate_mode() {
@@ -607,7 +605,7 @@ pub(super) fn create_unknown_option_error<
     let possible_option = get_spelling_suggestion(
         unknown_option,
         &diagnostics_option_declarations,
-        |candidate| Some(get_option_name(candidate).to_owned()),
+        |candidate: &Gc<CommandLineOption>| Some(get_option_name(candidate).to_owned()),
     );
     match possible_option {
         Some(possible_option) => create_diagnostics(
