@@ -1117,7 +1117,8 @@ fn write_configurations(
 ) -> String {
     let mut categorized_options: MultiMap<String, Gc<CommandLineOption>> = create_multi_map();
     option_declarations.with(|option_declarations_| {
-        for option in option_declarations_ {
+        // TODO: implement IntoIterator for &GcVec<T>?
+        for option in option_declarations_.iter() {
             let category = option.maybe_category();
 
             if is_allowed_option_for_output(compiler_options_map, option) {

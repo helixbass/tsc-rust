@@ -1,4 +1,5 @@
 use gc::Gc;
+use itertools::Itertools;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
@@ -15,20 +16,20 @@ use crate::{
     CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfBooleanType,
     CommandLineOptionOfListType, CommandLineOptionOfStringType, CommandLineOptionType,
     CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic, DiagnosticMessage,
-    Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind, ParsedCommandLine,
+    Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, ModuleKind, ParsedCommandLine,
     ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
 thread_local! {
-    pub static option_declarations: Vec<Gc<CommandLineOption>> =
+    pub static option_declarations: GcVec<Gc<CommandLineOption>>  =
         common_options_with_build.with(|common_options_with_build_| {
             command_options_without_build.with(|command_options_without_build_| {
                 common_options_with_build_
                     .iter()
                     .chain(command_options_without_build_.iter())
-                    .map(Clone::clone)
-                    .collect()
+                    .cloned()
+                    .collect_vec().into()
             })
         });
 }
@@ -201,20 +202,21 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static build_opts: Vec<Gc<CommandLineOption>> =
+    pub(crate) static build_opts: crate::GcVec<Gc<CommandLineOption>>  =
         common_options_with_build.with(|common_options_with_build_| {
             options_for_build.with(|options_for_build_| {
                 common_options_with_build_
                     .iter()
                     .chain(options_for_build_.iter())
-                    .map(Clone::clone)
-                    .collect()
+                    .cloned()
+                    .collect_vec()
+                    .into()
             })
         });
 }
 
 thread_local! {
-    pub(crate) static type_acquisition_declarations: Vec<Gc<CommandLineOption>> = vec![
+    pub(crate) static type_acquisition_declarations: GcVec<Gc<CommandLineOption>> = vec![
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "enableAutoDiscovery".to_string(),
@@ -378,7 +380,7 @@ thread_local! {
             transpile_option_value: None,
         })
         .into(),
-    ];
+    ].into();
 }
 
 pub struct OptionsNameMap {
@@ -604,7 +606,7 @@ pub(super) fn create_unknown_option_error(
     let diagnostics_option_declarations = diagnostics.option_declarations();
     let possible_option = get_spelling_suggestion(
         unknown_option,
-        &diagnostics_option_declarations,
+        &*diagnostics_option_declarations,
         |candidate: &Gc<CommandLineOption>| Some(get_option_name(candidate).to_owned()),
     );
     match possible_option {

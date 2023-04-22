@@ -23,7 +23,7 @@ use crate::{
     CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfListType,
     CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo,
+    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, GcVec,
     HasStatementsInterface, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
     OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
     ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
@@ -252,7 +252,7 @@ impl DidYouMeanOptionsDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
         Some(compiler_options_alternate_mode())
     }
 
-    fn option_declarations(&self) -> Vec<Gc<CommandLineOption>> {
+    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>> {
         option_declarations.with(|option_declarations_| option_declarations_.clone())
     }
 
@@ -370,7 +370,7 @@ impl DidYouMeanOptionsDiagnostics for BuildOptionsDidYouMeanDiagnostics {
         Some(build_options_alternate_mode())
     }
 
-    fn option_declarations(&self) -> Vec<Gc<CommandLineOption>> {
+    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>> {
         build_opts.with(|build_opts_| build_opts_.clone())
     }
 
@@ -682,7 +682,7 @@ impl DidYouMeanOptionsDiagnostics for TypeAcquisitionDidYouMeanDiagnostics {
         None
     }
 
-    fn option_declarations(&self) -> Vec<Gc<CommandLineOption>> {
+    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>> {
         type_acquisition_declarations
             .with(|type_acquisition_declarations_| type_acquisition_declarations_.clone())
     }
@@ -736,7 +736,7 @@ impl DidYouMeanOptionsDiagnostics for WatchOptionsDidYouMeanDiagnostics {
         None
     }
 
-    fn option_declarations(&self) -> Vec<Gc<CommandLineOption>> {
+    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>> {
         options_for_watch.with(|options_for_watch_| options_for_watch_.clone())
     }
 

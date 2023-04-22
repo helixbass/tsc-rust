@@ -2,14 +2,13 @@ use gc::Gc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::rc::Rc;
 
 use crate::{
     CommandLineOption, CommandLineOptionBase, CommandLineOptionMapTypeValue,
     CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType, CommandLineOptionOfListType,
     CommandLineOptionOfNumberType, CommandLineOptionOfStringType, CommandLineOptionType,
-    Diagnostics, ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind,
-    PollingWatchKind, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
+    Diagnostics, GcVec, ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind,
+    NewLineKind, PollingWatchKind, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
     WatchDirectoryKind, WatchFileKind,
 };
 
@@ -147,7 +146,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static options_for_watch: Vec<Gc<CommandLineOption>> = vec![
+    pub(crate) static options_for_watch: GcVec<Gc<CommandLineOption>> = vec![
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "watchFile".to_string(),
@@ -358,7 +357,7 @@ thread_local! {
             .into(),
         )
         .into(),
-    ];
+    ].into();
 }
 
 thread_local! {

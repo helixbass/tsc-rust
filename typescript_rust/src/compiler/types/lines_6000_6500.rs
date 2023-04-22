@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
-    hash_map_to_compiler_options, CompilerHost, Diagnostic, MapLike, Number, OptionsNameMap,
+    hash_map_to_compiler_options, CompilerHost, Diagnostic, GcVec, MapLike, Number, OptionsNameMap,
     ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
 };
 use local_macros::{command_line_option_type, enum_unwrapped};
@@ -2273,7 +2273,7 @@ pub struct AlternateModeDiagnostics {
 
 pub trait DidYouMeanOptionsDiagnostics {
     fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>>;
-    fn option_declarations(&self) -> Vec<Gc<CommandLineOption>>;
+    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>>;
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
 }
