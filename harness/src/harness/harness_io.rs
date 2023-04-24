@@ -707,7 +707,7 @@ pub mod Compiler {
                 .get_or_insert_with(|| {
                     let mut options_index_ = HashMap::new();
                     option_declarations.with(|option_declarations_| {
-                        for option in option_declarations_ {
+                        for option in &**option_declarations_ {
                             options_index_.insert(option.name().to_lowercase(), option.clone());
                         }
                     });
@@ -1493,13 +1493,16 @@ fn get_vary_by_star_setting_values(
     vary_by: &str,
 ) -> Option<HashMap<&'static str, CommandLineOptionMapTypeValueOrUsize>> {
     let option = option_declarations.with(|option_declarations_| {
-        for_each(option_declarations_, |decl: &Gc<CommandLineOption>, _| {
-            if equate_strings_case_insensitive(decl.name(), vary_by) {
-                Some(decl.clone())
-            } else {
-                None
-            }
-        })
+        for_each(
+            &**option_declarations_,
+            |decl: &Gc<CommandLineOption>, _| {
+                if equate_strings_case_insensitive(decl.name(), vary_by) {
+                    Some(decl.clone())
+                } else {
+                    None
+                }
+            },
+        )
     })?;
     if let CommandLineOptionType::Map(option_type) = option.type_() {
         return Some(HashMap::from_iter(
