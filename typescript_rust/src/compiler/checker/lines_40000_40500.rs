@@ -557,7 +557,7 @@ impl TypeChecker {
         match kind {
             UnusedKind::Local => self.compiler_options.no_unused_locals == Some(true),
             UnusedKind::Parameter => self.compiler_options.no_unused_parameters == Some(true),
-            _ => Debug_.assert_never(kind, None),
+            // _ => Debug_.assert_never(kind, None),
         }
     }
 

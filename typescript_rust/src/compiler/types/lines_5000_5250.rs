@@ -1,9 +1,8 @@
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use indexmap::IndexMap;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::Cell;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{

@@ -443,7 +443,7 @@ pub(super) fn get_cooked_text(
                 None,
             ));
         }
-        let mut raw_text_scanner_ref = raw_text_scanner_ref.as_mut().unwrap();
+        let raw_text_scanner_ref = raw_text_scanner_ref.as_mut().unwrap();
         match kind {
             SyntaxKind::NoSubstitutionTemplateLiteral => {
                 let text = format!("`{}`", raw_text);
@@ -703,9 +703,9 @@ impl From<String> for PseudoBigIntOrString {
 }
 
 pub fn create_unparsed_source_file(
-    text_or_input_files: impl Into<StringOrRcNode>,
-    map_path_or_type: Option<&str>,
-    map_text_or_strip_internal: Option<impl Into<StringOrBool>>,
+    _text_or_input_files: impl Into<StringOrRcNode>,
+    _map_path_or_type: Option<&str>,
+    _map_text_or_strip_internal: Option<impl Into<StringOrBool>>,
 ) -> Gc<Node /*UnparsedSource*/> {
     unimplemented!()
 }

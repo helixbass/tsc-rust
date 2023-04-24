@@ -652,8 +652,8 @@ impl TypeChecker {
         let mut target = target.type_wrapper();
         if ptr::eq(relation, &*self.identity_relation()) && source.id() > target.id() {
             let temp = source.clone();
-            let source = target.clone();
-            let target = temp;
+            source = target.clone();
+            target = temp;
         }
         let post_fix = if intersection_state != IntersectionState::None {
             format!(":{}", intersection_state.bits())

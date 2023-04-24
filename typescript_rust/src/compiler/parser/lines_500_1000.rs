@@ -716,7 +716,6 @@ impl ParserType {
                 None,
                 Option::<&JsonConversionNotifierDummy>::None,
             );
-            // TODO: these empty Rc<[T]>'s could be singleton-ized?
             result_as_source_file.set_referenced_files(Default::default());
             result_as_source_file.set_type_reference_directives(Default::default());
             result_as_source_file.set_lib_reference_directives(Default::default());

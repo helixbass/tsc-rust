@@ -2,7 +2,6 @@ use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, Trace};
 use serde::Serialize;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::io;
@@ -638,43 +637,49 @@ impl std::fmt::Debug for BuildInfo {
 }
 
 pub trait PrintHandlers: Trace + Finalize {
-    fn has_global_name(&self, name: &str) -> Option<bool> {
+    fn has_global_name(&self, _name: &str) -> Option<bool> {
         None
     }
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {}
+    fn on_emit_node(
+        &self,
+        _hint: EmitHint,
+        _node: &Node,
+        _emit_callback: &dyn Fn(EmitHint, &Node),
+    ) {
+    }
     fn is_on_emit_node_supported(&self) -> bool;
-    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
+    fn is_emit_notification_enabled(&self, _node: &Node) -> Option<bool> {
         None
     }
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Gc<Node>> {
+    fn substitute_node(&self, _hint: EmitHint, _node: &Node) -> Option<Gc<Node>> {
         None
     }
     fn is_substitute_node_supported(&self) -> bool;
     fn on_emit_source_map_of_node(
         &self,
-        hint: EmitHint,
-        node: &Node,
-        emit_callback: &dyn Fn(EmitHint, &Node),
+        _hint: EmitHint,
+        _node: &Node,
+        _emit_callback: &dyn Fn(EmitHint, &Node),
     ) {
     }
     fn on_emit_source_map_of_token(
         &self,
-        node: Option<&Node>,
-        token: SyntaxKind,
-        writer: &dyn Fn(&str),
-        pos: usize,
-        emit_callback: &dyn Fn(SyntaxKind, &dyn Fn(&str), usize) -> usize,
+        _node: Option<&Node>,
+        _token: SyntaxKind,
+        _writer: &dyn Fn(&str),
+        _pos: usize,
+        _emit_callback: &dyn Fn(SyntaxKind, &dyn Fn(&str), usize) -> usize,
     ) -> Option<usize> {
         None
     }
-    fn on_emit_source_map_of_position(&self, pos: usize) {}
-    fn on_set_source_file(&self, node: &Node /*SourceFile*/) {}
-    fn on_before_emit_node(&self, node: Option<&Node>) {}
-    fn on_after_emit_node(&self, node: Option<&Node>) {}
-    fn on_before_emit_node_array(&self, nodes: Option<&NodeArray>) {}
-    fn on_after_emit_node_array(&self, nodes: Option<&NodeArray>) {}
-    fn on_before_emit_token(&self, node: Option<&Node>) {}
-    fn on_after_emit_token(&self, node: Option<&Node>) {}
+    fn on_emit_source_map_of_position(&self, _pos: usize) {}
+    fn on_set_source_file(&self, _node: &Node /*SourceFile*/) {}
+    fn on_before_emit_node(&self, _node: Option<&Node>) {}
+    fn on_after_emit_node(&self, _node: Option<&Node>) {}
+    fn on_before_emit_node_array(&self, _nodes: Option<&NodeArray>) {}
+    fn on_after_emit_node_array(&self, _nodes: Option<&NodeArray>) {}
+    fn on_before_emit_token(&self, _node: Option<&Node>) {}
+    fn on_after_emit_token(&self, _node: Option<&Node>) {}
 }
 
 mod _PrinterOptionsDeriveTraceScope {
@@ -768,7 +773,7 @@ pub trait EmitTextWriter: SymbolWriter + Trace + Finalize {
     fn get_text_pos_with_write_line(&self) -> Option<usize> {
         None
     }
-    fn non_escaping_write(&self, text: &str) {}
+    fn non_escaping_write(&self, _text: &str) {}
     fn is_non_escaping_write_supported(&self) -> bool;
 }
 
@@ -778,14 +783,14 @@ pub trait ModuleSpecifierResolutionHost {
     }
     fn file_exists(&self, path: &str) -> bool;
     fn get_current_directory(&self) -> String;
-    fn directory_exists(&self, path: &str) -> Option<bool> {
+    fn directory_exists(&self, _path: &str) -> Option<bool> {
         None
     }
-    fn read_file(&self, path: &str) -> Option<io::Result<Option<String>>> {
+    fn read_file(&self, _path: &str) -> Option<io::Result<Option<String>>> {
         None
     }
     fn is_read_file_supported(&self) -> bool;
-    fn realpath(&self, path: &str) -> Option<String> {
+    fn realpath(&self, _path: &str) -> Option<String> {
         None
     }
     fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
@@ -800,8 +805,8 @@ pub trait ModuleSpecifierResolutionHost {
     fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool;
     fn get_nearest_ancestor_directory_with_package_json(
         &self,
-        file_name: &str,
-        root_dir: Option<&str>,
+        _file_name: &str,
+        _root_dir: Option<&str>,
     ) -> Option<String> {
         None
     }
@@ -852,9 +857,9 @@ pub trait ModuleSpecifierCache {
 pub trait SymbolTracker: Trace + Finalize {
     fn track_symbol(
         &self,
-        symbol: &Symbol,
-        enclosing_declaration: Option<Gc<Node>>,
-        meaning: SymbolFlags,
+        _symbol: &Symbol,
+        _enclosing_declaration: Option<Gc<Node>>,
+        _meaning: SymbolFlags,
     ) -> Option<bool> {
         None
     }
@@ -863,13 +868,13 @@ pub trait SymbolTracker: Trace + Finalize {
     fn reenable_track_symbol(&self);
     fn report_inaccessible_this_error(&self) {}
     fn is_report_inaccessible_this_error_supported(&self) -> bool;
-    fn report_private_in_base_of_class_expression(&self, property_name: &str) {}
+    fn report_private_in_base_of_class_expression(&self, _property_name: &str) {}
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool;
     fn report_inaccessible_unique_symbol_error(&self) {}
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool;
     fn report_cyclic_structure_error(&self) {}
     fn is_report_cyclic_structure_error_supported(&self) -> bool;
-    fn report_likely_unsafe_import_required_error(&self, specifier: &str) {}
+    fn report_likely_unsafe_import_required_error(&self, _specifier: &str) {}
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool;
     fn report_truncation_error(&self) {}
     fn module_resolver_host(
@@ -880,21 +885,21 @@ pub trait SymbolTracker: Trace + Finalize {
     fn is_module_resolver_host_supported(&self) -> bool;
     fn track_referenced_ambient_module(
         &self,
-        decl: &Node, /*ModuleDeclaration*/
-        symbol: &Symbol,
+        _decl: &Node, /*ModuleDeclaration*/
+        _symbol: &Symbol,
     ) {
     }
     fn is_track_referenced_ambient_module_supported(&self) -> bool;
-    fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {}
+    fn track_external_module_symbol_of_import_type_node(&self, _symbol: &Symbol) {}
     fn report_nonlocal_augmentation(
         &self,
-        containing_file: &Node, /*SourceFile*/
-        parent_symbol: &Symbol,
-        augmenting_symbol: &Symbol,
+        _containing_file: &Node, /*SourceFile*/
+        _parent_symbol: &Symbol,
+        _augmenting_symbol: &Symbol,
     ) {
     }
     fn is_report_nonlocal_augmentation_supported(&self) -> bool;
-    fn report_non_serializable_property(&self, property_name: &str) {}
+    fn report_non_serializable_property(&self, _property_name: &str) {}
     fn is_report_non_serializable_property_supported(&self) -> bool;
 }
 

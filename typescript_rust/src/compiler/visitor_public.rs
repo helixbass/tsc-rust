@@ -21,10 +21,9 @@ use crate::{
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
-    set_text_range_pos_end, single_or_undefined, with_factory, with_synthetic_factory,
-    ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
-    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    set_text_range_pos_end, single_or_undefined, with_factory, ClassLikeDeclarationInterface,
+    Debug_, FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
+    HasQuestionTokenInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, NonEmpty,
     ReadonlyTextRange, SignatureDeclarationInterface, SingleNodeOrVecNode, SyntaxKind,
@@ -147,12 +146,12 @@ pub fn visit_nodes(
 }
 
 pub fn visit_lexical_environment(
-    statements: &NodeArray, /*<Statement>*/
-    visitor: impl FnMut(&Node) -> VisitResult,
-    context: &(impl TransformationContext + ?Sized),
-    start: Option<isize>,
-    ensure_use_strict: Option<bool>,
-    nodes_visitor: Option<
+    _statements: &NodeArray, /*<Statement>*/
+    _visitor: impl FnMut(&Node) -> VisitResult,
+    _context: &(impl TransformationContext + ?Sized),
+    _start: Option<isize>,
+    _ensure_use_strict: Option<bool>,
+    _nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
             Option<&mut dyn FnMut(&Node) -> VisitResult>,
@@ -166,10 +165,10 @@ pub fn visit_lexical_environment(
 }
 
 pub fn visit_parameter_list(
-    nodes: Option<&NodeArray>,
-    visitor: impl FnMut(&Node) -> VisitResult,
-    context: &(impl TransformationContext + ?Sized),
-    mut nodes_visitor: Option<
+    _nodes: Option<&NodeArray>,
+    _visitor: impl FnMut(&Node) -> VisitResult,
+    _context: &(impl TransformationContext + ?Sized),
+    _nodes_visitor: Option<
         impl FnMut(
             Option<&NodeArray>,
             Option<&mut dyn FnMut(&Node) -> VisitResult>,
@@ -183,10 +182,10 @@ pub fn visit_parameter_list(
 }
 
 pub fn visit_function_body(
-    node: Option<&Node /*ConciseBody*/>,
-    visitor: impl FnMut(&Node) -> VisitResult,
-    context: &(impl TransformationContext + ?Sized),
-    mut node_visitor: Option<
+    _node: Option<&Node /*ConciseBody*/>,
+    _visitor: impl FnMut(&Node) -> VisitResult,
+    _context: &(impl TransformationContext + ?Sized),
+    _node_visitor: Option<
         impl FnMut(
             Option<&Node>,
             Option<&mut dyn FnMut(&Node) -> VisitResult>,

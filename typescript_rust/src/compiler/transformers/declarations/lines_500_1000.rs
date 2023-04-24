@@ -605,7 +605,8 @@ impl TransformDeclarations {
         while length(self.maybe_late_marked_statements().as_deref()) > 0 {
             let ref i = self.late_marked_statements_mut().remove(0);
             if !is_late_visibility_painted_statement(i) {
-                return Debug_.fail(Some(
+                /*return*/
+                Debug_.fail(Some(
                     &format!(
                         "Late replaced statement was found which is not handled by the declaration transformer!: {:?}",
                         i.kind()

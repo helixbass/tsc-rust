@@ -74,7 +74,9 @@ fn get_script_transformers(
     custom_transformers: Option<&CustomTransformers>,
     emit_only_dts_files: Option<bool>,
 ) -> Vec<TransformerFactory> {
-    return vec![];
+    if true {
+        return vec![];
+    }
     let emit_only_dts_files = emit_only_dts_files.unwrap_or(false);
     if emit_only_dts_files {
         return vec![];
@@ -311,25 +313,16 @@ pub fn transform_nodes(
     // returning the concrete type is fine?
     // ) -> Gc<Box<dyn TransformationResult>> {
 ) -> Gc<Box<TransformNodesTransformationResult>> {
-    let mut lexical_environment_variable_declarations: Option<Vec<Gc<Node>>> = None;
-    let mut lexical_environment_function_declarations: Option<Vec<Gc<Node>>> = None;
-    let mut lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
-    let mut lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
-    let mut emit_helpers: Option<Vec<Gc<EmitHelper>>> = None;
-    let state = TransformationState::Uninitialized;
-    let diagnostics: Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> = vec![];
-    let mut transformed: Vec<Gc<Node>> = vec![];
-
     let transformation_result = TransformNodesTransformationResult::new(
-        transformed,
-        state,
+        vec![],
+        TransformationState::Uninitialized,
         nodes.to_owned(),
-        lexical_environment_variable_declarations,
-        lexical_environment_function_declarations,
-        lexical_environment_variable_declarations_stack,
-        lexical_environment_function_declarations_stack,
-        emit_helpers,
-        diagnostics,
+        None,
+        None,
+        vec![],
+        vec![],
+        None,
+        vec![],
         transformers.to_owned(),
         allow_dts_files,
         options,
@@ -479,7 +472,7 @@ impl TransformNodesTransformationResult {
         *self._rc_wrapper.borrow_mut() = Some(rc);
     }
 
-    fn rc_wrapper(&self) -> Gc<Box<TransformNodesTransformationResult>> {
+    pub fn rc_wrapper(&self) -> Gc<Box<TransformNodesTransformationResult>> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
@@ -509,13 +502,6 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_statements(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.lexical_environment_statements.borrow_mut()
-    }
-
-    fn set_lexical_environment_statements(
-        &self,
-        lexical_environment_statements: Option<Vec<Gc<Node>>>,
-    ) {
-        *self.lexical_environment_statements.borrow_mut() = lexical_environment_statements;
     }
 
     fn lexical_environment_variable_declarations_stack(
@@ -1384,7 +1370,7 @@ impl TransformationContext for TransformationContextNull {
 
     fn override_on_substitute_node(
         &self,
-        overrider: &mut dyn FnMut(
+        _overrider: &mut dyn FnMut(
             Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
         )
             -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -1404,9 +1390,10 @@ impl TransformationContext for TransformationContextNull {
 
     fn override_on_emit_node(
         &self,
-        overrider: &mut dyn FnMut(
+        _overrider: &mut dyn FnMut(
             Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
-        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        )
+            -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) {
         unreachable!("maybe?")
     }

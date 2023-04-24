@@ -286,7 +286,7 @@ impl TypeChecker {
                 self.any_array_type()
             },
         );
-        if let Some(last_param_variadic_type) = last_param_variadic_type {
+        if last_param_variadic_type.is_some() {
             parameters.pop();
         };
         parameters.push(synthetic_args_symbol);
@@ -762,7 +762,7 @@ impl TypeChecker {
                 &self.get_return_type_of_signature(instantiated_signature.clone()),
             );
             if let Some(return_signature) = return_signature {
-                let mut new_return_signature = self.clone_signature(&return_signature);
+                let new_return_signature = self.clone_signature(&return_signature);
                 *new_return_signature.maybe_type_parameters_mut() =
                     Some(inferred_type_parameters.to_owned());
                 let new_instantiated_signature = self.clone_signature(&instantiated_signature);

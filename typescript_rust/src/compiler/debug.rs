@@ -85,7 +85,7 @@ impl DebugType {
         self.current_assertion_level() >= level
     }
 
-    fn should_assert_function(&self, level: AssertionLevel, name: AssertionKeys) -> bool {
+    fn should_assert_function(&self, level: AssertionLevel, _name: AssertionKeys) -> bool {
         if !self.should_assert(level) {
             // assertionCache[name] = { level, assertion: Debug[name] };
             // (Debug as any)[name] = noop;
@@ -162,7 +162,7 @@ impl DebugType {
         value.unwrap()
     }
 
-    pub fn assert_never<TValue>(&self, value: TValue, message: Option<&str>) -> ! {
+    pub fn assert_never<TValue>(&self, _value: TValue, message: Option<&str>) -> ! {
         let message = message.unwrap_or("Illegal value:");
         self.fail(Some(message));
     }
@@ -197,11 +197,11 @@ impl DebugType {
         format!("{:?}", kind)
     }
 
-    pub fn format_symbol_flags(&self, flags: Option<SymbolFlags>) -> String {
+    pub fn format_symbol_flags(&self, _flags: Option<SymbolFlags>) -> String {
         unimplemented!()
     }
 
-    pub fn attach_node_array_debug_info(&self, array: &NodeArray) {
+    pub fn attach_node_array_debug_info(&self, _array: &NodeArray) {
         // TODO: implement this?
     }
 

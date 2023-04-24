@@ -1110,7 +1110,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::InferKeyword, None, None);
         self.finish_node(
             self.factory()
-                .create_infer_type_node(self.parse_type_parameter().wrap()),
+                .create_infer_type_node(self.parse_type_parameter_of_infer_type().wrap()),
             pos,
             None,
         )

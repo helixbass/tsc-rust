@@ -2,11 +2,10 @@ use gc::{Finalize, Gc, Trace};
 
 use crate::{
     chain_bundle, compiler::factory::utilities_public::set_text_range_rc_node,
-    is_element_access_expression, is_expression, is_property_access_expression, set_text_range,
-    visit_each_child, visit_node, with_synthetic_factory, BaseNodeFactorySynthetic, Node,
-    NodeArray, NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    VisitResult,
+    is_element_access_expression, is_expression, is_property_access_expression, visit_each_child,
+    visit_node, BaseNodeFactorySynthetic, Node, NodeArray, NodeFactory, NodeInterface, SyntaxKind,
+    TransformFlags, TransformationContext, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 #[derive(Trace, Finalize)]

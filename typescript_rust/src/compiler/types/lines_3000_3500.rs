@@ -573,7 +573,7 @@ impl TextRange for SynthesizedComment {
         -1
     }
 
-    fn set_pos(&self, pos: isize) {
+    fn set_pos(&self, _pos: isize) {
         panic!("Shouldn't call set_pos() on a SynthesizedComment")
     }
 
@@ -581,7 +581,7 @@ impl TextRange for SynthesizedComment {
         -1
     }
 
-    fn set_end(&self, end: isize) {
+    fn set_end(&self, _end: isize) {
         panic!("Shouldn't call set_end() on a SynthesizedComment")
     }
 }
@@ -1192,7 +1192,7 @@ impl NamedDeclarationInterface for JSDocSignature {
         panic!("JSDocSignature doesn't have name")
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, _name: Gc<Node>) {
         panic!("Tried to set name of JSDocSignature")
     }
 }
@@ -1452,7 +1452,7 @@ impl FlowStart {
         Self {
             flags: Cell::new(flags),
             id: Default::default(),
-            node: Default::default(),
+            node: GcCell::new(node),
         }
     }
 }

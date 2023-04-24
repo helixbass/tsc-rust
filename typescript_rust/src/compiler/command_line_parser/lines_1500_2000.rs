@@ -550,8 +550,7 @@ pub struct ReadConfigFileReturn {
 
 pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> ReadConfigFileReturn {
     let json_source_file = parse_json_text(file_name, json_text);
-    let mut json_source_file_parse_diagnostics =
-        json_source_file.as_source_file().parse_diagnostics();
+    let json_source_file_parse_diagnostics = json_source_file.as_source_file().parse_diagnostics();
     let config = convert_config_file_to_object(
         &json_source_file,
         json_source_file_parse_diagnostics.clone(),
@@ -1235,29 +1234,29 @@ pub(crate) struct JsonConversionNotifierDummy {}
 impl JsonConversionNotifier for JsonConversionNotifierDummy {
     fn on_set_valid_option_key_value_in_parent(
         &self,
-        parent_option: &str,
-        option: &CommandLineOption,
-        value: Option<&serde_json::Value>,
+        _parent_option: &str,
+        _option: &CommandLineOption,
+        _value: Option<&serde_json::Value>,
     ) {
         unimplemented!()
     }
 
     fn on_set_valid_option_key_value_in_root(
         &self,
-        key: &str,
-        key_node: &Node, /*PropertyName*/
-        value: Option<&serde_json::Value>,
-        value_node: &Node, /*Expression*/
+        _key: &str,
+        _key_node: &Node, /*PropertyName*/
+        _value: Option<&serde_json::Value>,
+        _value_node: &Node, /*Expression*/
     ) {
         unimplemented!()
     }
 
     fn on_set_unknown_option_key_value_in_root(
         &self,
-        key: &str,
-        key_node: &Node, /*PropertyName*/
-        value: Option<&serde_json::Value>,
-        value_node: &Node, /*Expression*/
+        _key: &str,
+        _key_node: &Node, /*PropertyName*/
+        _value: Option<&serde_json::Value>,
+        _value_node: &Node, /*Expression*/
     ) {
         unimplemented!()
     }

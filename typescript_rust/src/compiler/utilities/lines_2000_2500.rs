@@ -14,9 +14,8 @@ use crate::{
     is_json_source_file, is_namespace_export, is_numeric_literal, is_object_literal_expression,
     is_property_access_expression, is_prototype_access, is_string_literal_like,
     is_string_or_numeric_literal_like, is_type_reference_node, is_variable_declaration,
-    is_variable_statement, is_void_expression, length, maybe_text_char_at_index,
-    AssignmentDeclarationKind, CharacterCodes, Debug_, HasInitializerInterface,
-    LiteralLikeNodeInterface, Node,
+    is_variable_statement, is_void_expression, length, AssignmentDeclarationKind, CharacterCodes,
+    Debug_, HasInitializerInterface, LiteralLikeNodeInterface, Node,
 };
 
 pub fn is_part_of_type_query(node: &Node) -> bool {
@@ -370,7 +369,7 @@ pub fn get_defaulted_expando_initializer(
     } else {
         None
     };
-    e.filter(|e| is_same_entity_name(name, &initializer.as_binary_expression().left))
+    e.filter(|_| is_same_entity_name(name, &initializer.as_binary_expression().left))
 }
 
 pub fn is_defaulted_expando_initializer(node: &Node /*BinaryExpression*/) -> bool {
@@ -767,7 +766,7 @@ pub fn set_value_declaration(symbol: &Symbol, node: &Node) {
     }
 }
 
-pub fn is_function_symbol<TSymbol: Borrow<Symbol>>(symbol: Option<TSymbol>) -> bool {
+pub fn is_function_symbol(symbol: Option<impl Borrow<Symbol>>) -> bool {
     if symbol.is_none() {
         return false;
     }

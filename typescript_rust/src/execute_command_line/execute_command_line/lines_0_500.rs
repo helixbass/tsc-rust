@@ -9,7 +9,7 @@ use super::{
     ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine,
 };
 use crate::{
-    combine_paths, compare_strings_case_insensitive, contains, contains_gc, contains_rc,
+    combine_paths, compare_strings_case_insensitive, contains, contains_gc,
     convert_to_options_with_absolute_paths, convert_to_tsconfig, create_compiler_diagnostic,
     create_diagnostic_reporter, file_extension_is, file_extension_is_one_of, filter,
     find_config_file, for_each, format_message, get_diagnostic_text, get_line_starts,
@@ -44,7 +44,6 @@ pub(super) fn count_nodes(program: &Program) -> HashMap<&'static str, usize> {
     for_each(&*program.get_source_files(), |file, _| {
         let key = get_count_key(program, file);
         let file_as_source_file = file.as_source_file();
-        let line_count = get_line_starts(file_as_source_file).len();
         counts.insert(
             key,
             *counts.get(key).unwrap() + file_as_source_file.node_count(),
@@ -448,7 +447,7 @@ pub(super) fn get_pretty_output(
     let mut remain_right = right;
     let right_character_number = terminal_width - left_align_of_right;
     while !remain_right.is_empty() {
-        let mut cur_left = "".to_owned();
+        let mut cur_left: String /*= ""*/;
         if is_first_line {
             cur_left = pad_left(left, right_align_of_left, None).into_owned();
             cur_left = pad_right(&cur_left, left_align_of_right).into_owned();

@@ -394,12 +394,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         BaseUnparsedNode::new(node, data)
     }
 
-    fn create_unparsed_prologue(&self, data: Option<String>) -> UnparsedPrologue {
+    pub fn create_unparsed_prologue(&self, data: Option<String>) -> UnparsedPrologue {
         let node = self.create_base_unparsed_node(SyntaxKind::UnparsedPrologue, data);
         UnparsedPrologue::new(node)
     }
 
-    fn create_unparsed_prepend(
+    pub fn create_unparsed_prepend(
         &self,
         data: Option<String>,
         texts: Vec<Gc<Node /*UnparsedTextLike*/>>,
@@ -408,7 +408,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         UnparsedPrepend::new(node, texts)
     }
 
-    fn create_unparsed_text_like(&self, data: Option<String>, internal: bool) -> UnparsedTextLike {
+    pub fn create_unparsed_text_like(
+        &self,
+        data: Option<String>,
+        internal: bool,
+    ) -> UnparsedTextLike {
         let node = self.create_base_unparsed_node(
             if internal {
                 SyntaxKind::UnparsedInternalText
@@ -437,14 +441,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
-    pub fn create_not_emitted_statement(&self, original: Gc<Node>) -> Gc<Node> {
+    pub fn create_not_emitted_statement(&self, _original: Gc<Node>) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn create_partially_emitted_expression(
         &self,
-        expression: Gc<Node /*Expression*/>,
-        original: Option<Gc<Node>>,
+        _expression: Gc<Node /*Expression*/>,
+        _original: Option<Gc<Node>>,
     ) -> PartiallyEmittedExpression {
         unimplemented!()
     }
@@ -474,7 +478,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_comma_list_expression(
         &self,
-        elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
+        _elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> CommaListExpression {
         unimplemented!()
     }
@@ -493,7 +497,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
-    pub fn create_end_of_declaration_marker(&self, original: Gc<Node>) -> Gc<Node> {
+    pub fn create_end_of_declaration_marker(&self, _original: Gc<Node>) -> Gc<Node> {
         unimplemented!()
     }
 
@@ -515,9 +519,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_immediately_invoked_arrow_function(
         &self,
-        statements: impl Into<NodeArrayOrVec>,
-        param: Option<Gc<Node /*ParameterDeclaration*/>>,
-        param_value: Option<Gc<Node /*Expression*/>>,
+        _statements: impl Into<NodeArrayOrVec>,
+        _param: Option<Gc<Node /*ParameterDeclaration*/>>,
+        _param_value: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
         unimplemented!()
     }
@@ -526,33 +530,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
-    pub fn create_export_default(&self, expression: Gc<Node /*Expression*/>) -> Gc<Node> {
+    pub fn create_export_default(&self, _expression: Gc<Node /*Expression*/>) -> Gc<Node> {
         unimplemented!()
     }
 
-    pub fn create_external_module_export(&self, export_name: Gc<Node /*Identifier*/>) -> Gc<Node> {
+    pub fn create_external_module_export(&self, _export_name: Gc<Node /*Identifier*/>) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn create_function_call_call(
         &self,
-        target: Gc<Node /*Expression*/>,
-        this_arg: Gc<Node /*Expression*/>,
-        arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
+        _target: Gc<Node /*Expression*/>,
+        _this_arg: Gc<Node /*Expression*/>,
+        _arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn create_global_method_call(
         &self,
-        global_object_name: String,
-        method_name: String,
-        arguments_list: Vec<Gc<Node /*Expression*/>>,
+        _global_object_name: String,
+        _method_name: String,
+        _arguments_list: Vec<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
         unimplemented!()
     }
 
-    fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
+    fn is_ignorable_paren(&self, _node: &Node /*Expression*/) -> bool {
         unimplemented!()
     }
 
@@ -563,7 +567,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         kinds: Option<OuterExpressionKinds>,
     ) -> Gc<Node /*Expression*/> {
         let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
-        if let Some(outer_expression) = outer_expression.filter(|outer_expression| {
+        if let Some(_outer_expression) = outer_expression.filter(|outer_expression| {
             let outer_expression = outer_expression.borrow();
             is_outer_expression(outer_expression, Some(kinds))
                 && !self.is_ignorable_paren(outer_expression)
@@ -575,50 +579,50 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn restore_enclosing_label(
         &self,
-        node: &Node, /*Statement*/
-        outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
-        after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
+        _node: &Node, /*Statement*/
+        _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        _after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
     ) -> Gc<Node /*Statement*/> {
         unimplemented!()
     }
 
-    pub fn inline_expressions(&self, expressions: &[Gc<Node /*Expression*/>]) -> Gc<Node> {
+    pub fn inline_expressions(&self, _expressions: &[Gc<Node /*Expression*/>]) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn get_internal_name(
         &self,
-        node: &Node, /*Declaration*/
-        allow_comments: Option<bool>,
-        allow_source_maps: Option<bool>,
+        _node: &Node, /*Declaration*/
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
     ) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn get_local_name(
         &self,
-        node: &Node, /*Declaration*/
-        allow_comments: Option<bool>,
-        allow_source_maps: Option<bool>,
+        _node: &Node, /*Declaration*/
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
     ) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn get_declaration_name(
         &self,
-        node: Option<impl Borrow<Node> /*Declaration*/>,
-        allow_comments: Option<bool>,
-        allow_source_maps: Option<bool>,
+        _node: Option<impl Borrow<Node> /*Declaration*/>,
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
         unimplemented!()
     }
 
     pub fn copy_prologue(
         &self,
-        source: &[Gc<Node /*Statement*/>],
-        target: &mut Vec<Gc<Node /*Statement*/>>,
-        ensure_use_strict: Option<bool>,
-        visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
+        _source: &[Gc<Node /*Statement*/>],
+        _target: &mut Vec<Gc<Node /*Statement*/>>,
+        _ensure_use_strict: Option<bool>,
+        _visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
     ) -> usize {
         unimplemented!()
     }

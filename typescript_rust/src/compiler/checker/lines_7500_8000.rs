@@ -5,7 +5,7 @@ use regex::Regex;
 
 use crate::{
     are_option_gcs_equal, get_declaration_modifier_flags_from_symbol,
-    get_export_assignment_expression, get_object_flags,
+    get_export_assignment_expression, get_factory, get_object_flags,
     get_property_assignment_alias_like_expression, get_selected_effective_modifier_flags,
     get_source_file_of_node, get_symbol_id, id_text, is_accessor, is_binary_expression,
     is_class_expression, is_entity_name_expression, is_export_assignment,
@@ -33,28 +33,26 @@ impl SymbolTableToDeclarationStatements {
         specifier: Option<impl Borrow<Node /*Expression*/>>,
     ) {
         self.add_result(
-            &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_
-                    .create_export_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        false,
-                        Some(
-                            factory_
-                                .create_named_exports(vec![factory_
-                                    .create_export_specifier(
-                                        false,
-                                        (local_name != target_name).then_some(target_name),
-                                        local_name,
-                                    )
-                                    .wrap()])
-                                .wrap(),
-                        ),
-                        specifier.node_wrappered(),
-                        None,
-                    )
-                    .wrap()
-            }),
+            &get_factory()
+                .create_export_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    false,
+                    Some(
+                        get_factory()
+                            .create_named_exports(vec![get_factory()
+                                .create_export_specifier(
+                                    false,
+                                    (local_name != target_name).then_some(target_name),
+                                    local_name,
+                                )
+                                .wrap()])
+                            .wrap(),
+                    ),
+                    specifier.node_wrappered(),
+                    None,
+                )
+                .wrap(),
             ModifierFlags::None,
         );
     }
@@ -115,22 +113,20 @@ impl SymbolTableToDeclarationStatements {
             // }
             self.context().tracker().disable_track_symbol();
             if is_export_assignment_compatible_symbol_name {
-                self.results_mut().push(with_synthetic_factory_and_factory(
-                    |synthetic_factory_, factory_| {
-                        factory_
-                            .create_export_assignment(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(is_export_equals),
-                                self.node_builder.symbol_to_expression_(
-                                    target,
-                                    &self.context(),
-                                    Some(SymbolFlags::All),
-                                ),
-                            )
-                            .wrap()
-                    },
-                ));
+                self.results_mut().push(
+                    get_factory()
+                        .create_export_assignment(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(is_export_equals),
+                            self.node_builder.symbol_to_expression_(
+                                target,
+                                &self.context(),
+                                Some(SymbolFlags::All),
+                            ),
+                        )
+                        .wrap(),
+                );
             } else {
                 if let Some(first) = first.as_ref().filter(|first| {
                     matches!(
@@ -139,7 +135,7 @@ impl SymbolTableToDeclarationStatements {
                     )
                 }) {
                     self.serialize_export_specifier(name, id_text(first), Option::<&Node>::None);
-                } else if let Some(expr) = expr.as_ref().filter(|expr| is_class_expression(expr)) {
+                } else if expr.as_ref().matches(|expr| is_class_expression(expr)) {
                     self.serialize_export_specifier(
                         name,
                         &self.get_internal_symbol_name(target, &symbol_name(target)),
@@ -148,28 +144,26 @@ impl SymbolTableToDeclarationStatements {
                 } else {
                     let var_name = self.get_unused_name(name, Some(symbol));
                     self.add_result(
-                        &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            factory_
-                                .create_import_equals_declaration(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
+                        &get_factory()
+                            .create_import_equals_declaration(
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                false,
+                                get_factory()
+                                    .create_identifier(
+                                        &var_name,
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                    )
+                                    .wrap(),
+                                self.node_builder.symbol_to_name(
+                                    target,
+                                    &self.context(),
+                                    Some(SymbolFlags::All),
                                     false,
-                                    factory_
-                                        .create_identifier(
-                                            &var_name,
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
-                                    self.node_builder.symbol_to_name(
-                                        target,
-                                        &self.context(),
-                                        Some(SymbolFlags::All),
-                                        false,
-                                    ),
-                                )
-                                .wrap()
-                        }),
+                                ),
+                            )
+                            .wrap(),
                         ModifierFlags::None,
                     );
                     self.serialize_export_specifier(name, &var_name, Option::<&Node>::None);
@@ -196,39 +190,33 @@ impl SymbolTableToDeclarationStatements {
                     },
                 );
             } else {
-                let statement =
-                    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_variable_statement(
-                                Option::<Gc<NodeArray>>::None,
-                                factory_
-                                    .create_variable_declaration_list(
-                                        vec![factory_
-                                            .create_variable_declaration(
-                                                Some(&*var_name),
-                                                None,
-                                                Some(
-                                                    self.node_builder
-                                                        .serialize_type_for_declaration(
-                                                            &self.context(),
-                                                            type_to_serialize,
-                                                            symbol,
-                                                            Some(&*self.enclosing_declaration),
-                                                            Some(&|symbol: &Symbol| {
-                                                                self.include_private_symbol(symbol);
-                                                            }),
-                                                            self.bundled,
-                                                        ),
-                                                ),
-                                                None,
-                                            )
-                                            .wrap()],
-                                        Some(NodeFlags::Const),
+                let statement = get_factory()
+                    .create_variable_statement(
+                        Option::<Gc<NodeArray>>::None,
+                        get_factory()
+                            .create_variable_declaration_list(
+                                vec![get_factory()
+                                    .create_variable_declaration(
+                                        Some(&*var_name),
+                                        None,
+                                        Some(self.node_builder.serialize_type_for_declaration(
+                                            &self.context(),
+                                            type_to_serialize,
+                                            symbol,
+                                            Some(&*self.enclosing_declaration),
+                                            Some(&|symbol: &Symbol| {
+                                                self.include_private_symbol(symbol);
+                                            }),
+                                            self.bundled,
+                                        )),
+                                        None,
                                     )
-                                    .wrap(),
+                                    .wrap()],
+                                Some(NodeFlags::Const),
                             )
-                            .wrap()
-                    });
+                            .wrap(),
+                    )
+                    .wrap();
                 self.add_result(
                     &statement,
                     if matches!(
@@ -245,24 +233,18 @@ impl SymbolTableToDeclarationStatements {
                 );
             }
             if is_export_assignment_compatible_symbol_name {
-                self.results_mut().push(with_synthetic_factory_and_factory(
-                    |synthetic_factory_, factory_| {
-                        factory_
-                            .create_export_assignment(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(is_export_equals),
-                                factory_
-                                    .create_identifier(
-                                        &var_name,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .wrap(),
-                            )
-                            .wrap()
-                    },
-                ));
+                self.results_mut().push(
+                    get_factory()
+                        .create_export_assignment(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(is_export_equals),
+                            get_factory()
+                                .create_identifier(&var_name, Option::<Gc<NodeArray>>::None, None)
+                                .wrap(),
+                        )
+                        .wrap(),
+                );
                 return true;
             } else if name != var_name {
                 self.serialize_export_specifier(name, &var_name, Option::<&Node>::None);
@@ -426,19 +408,17 @@ impl SymbolTableToDeclarationStatements {
             }
             if private_protected != ModifierFlags::None {
                 return vec![set_text_range_rc_node(
-                    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_constructor_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Some(
-                                    factory_
-                                        .create_modifiers_from_modifier_flags(private_protected),
-                                ),
-                                Some(vec![]),
-                                None,
-                            )
-                            .wrap()
-                    }),
+                    get_factory()
+                        .create_constructor_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Some(
+                                get_factory()
+                                    .create_modifiers_from_modifier_flags(private_protected),
+                            ),
+                            Some(vec![]),
+                            None,
+                        )
+                        .wrap(),
                     signatures[0].declaration.as_deref(),
                 )];
             }
@@ -501,40 +481,34 @@ impl SymbolTableToDeclarationStatements {
             return ref_;
         }
         let temp_name = self.get_unused_name(&format!("{root_name}_base"), Option::<&Symbol>::None);
-        let statement = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-            factory_
-                .create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
-                    factory_
-                        .create_variable_declaration_list(
-                            vec![factory_
-                                .create_variable_declaration(
-                                    Some(&*temp_name),
-                                    None,
-                                    self.node_builder.type_to_type_node_helper(
-                                        Some(static_type),
-                                        &self.context(),
-                                    ),
-                                    None,
-                                )
-                                .wrap()],
-                            Some(NodeFlags::Const),
-                        )
-                        .wrap(),
-                )
-                .wrap()
-        });
+        let statement = get_factory()
+            .create_variable_statement(
+                Option::<Gc<NodeArray>>::None,
+                get_factory()
+                    .create_variable_declaration_list(
+                        vec![get_factory()
+                            .create_variable_declaration(
+                                Some(&*temp_name),
+                                None,
+                                self.node_builder
+                                    .type_to_type_node_helper(Some(static_type), &self.context()),
+                                None,
+                            )
+                            .wrap()],
+                        Some(NodeFlags::Const),
+                    )
+                    .wrap(),
+            )
+            .wrap();
         self.add_result(&statement, ModifierFlags::None);
-        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-            factory_
-                .create_expression_with_type_arguments(
-                    factory_
-                        .create_identifier(&temp_name, Option::<Gc<NodeArray>>::None, None)
-                        .wrap(),
-                    Option::<Gc<NodeArray>>::None,
-                )
-                .wrap()
-        })
+        get_factory()
+            .create_expression_with_type_arguments(
+                get_factory()
+                    .create_identifier(&temp_name, Option::<Gc<NodeArray>>::None, None)
+                    .wrap(),
+                Option::<Gc<NodeArray>>::None,
+            )
+            .wrap()
     }
 
     pub(super) fn try_serialize_as_type_reference(
@@ -580,17 +554,15 @@ impl SymbolTableToDeclarationStatements {
             )
         }) {
             reference = Some(self.node_builder.symbol_to_expression_(
-                &t.symbol(),
+                t_symbol,
                 &self.context(),
                 Some(SymbolFlags::Type),
             ));
         }
         reference.map(|reference| {
-            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_
-                    .create_expression_with_type_arguments(reference, type_args)
-                    .wrap()
-            })
+            get_factory()
+                .create_expression_with_type_arguments(reference, type_args)
+                .wrap()
         })
     }
 
@@ -600,18 +572,16 @@ impl SymbolTableToDeclarationStatements {
             return ref_;
         }
         t.maybe_symbol().as_ref().map(|t_symbol| {
-            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_
-                    .create_expression_with_type_arguments(
-                        self.node_builder.symbol_to_expression_(
-                            t_symbol,
-                            &self.context(),
-                            Some(SymbolFlags::Type),
-                        ),
-                        Option::<Gc<NodeArray>>::None,
-                    )
-                    .wrap()
-            })
+            get_factory()
+                .create_expression_with_type_arguments(
+                    self.node_builder.symbol_to_expression_(
+                        t_symbol,
+                        &self.context(),
+                        Some(SymbolFlags::Type),
+                    ),
+                    Option::<Gc<NodeArray>>::None,
+                )
+                .wrap()
         })
     }
 
@@ -813,48 +783,45 @@ impl MakeSerializePropertySymbol {
             let mut result: Vec<Gc<Node /*AccessorDeclaration*/>> = Default::default();
             if p.flags().intersects(SymbolFlags::SetAccessor) {
                 result.push(set_text_range_rc_node(
-                    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_set_accessor_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Some(factory_.create_modifiers_from_modifier_flags(flag)),
-                                name.clone(),
-                                vec![factory_
-                                    .create_parameter_declaration(
-                                        Option::<Gc<NodeArray>>::None,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                        Some("arg"),
-                                        None,
-                                        if is_private {
-                                            None
-                                        } else {
-                                            Some(
-                                                self.node_builder.serialize_type_for_declaration(
-                                                    &self.context,
-                                                    &self.type_checker.get_type_of_symbol(p),
-                                                    p,
-                                                    Some(
-                                                        &*self
-                                                            .symbol_table_to_declaration_statements
-                                                            .enclosing_declaration,
-                                                    ),
-                                                    Some(&|symbol: &Symbol| {
-                                                        self.symbol_table_to_declaration_statements
-                                                            .include_private_symbol(symbol);
-                                                    }),
-                                                    self.symbol_table_to_declaration_statements
-                                                        .bundled,
+                    get_factory()
+                        .create_set_accessor_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Some(get_factory().create_modifiers_from_modifier_flags(flag)),
+                            name.clone(),
+                            vec![get_factory()
+                                .create_parameter_declaration(
+                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                    Some("arg"),
+                                    None,
+                                    if is_private {
+                                        None
+                                    } else {
+                                        Some(
+                                            self.node_builder.serialize_type_for_declaration(
+                                                &self.context,
+                                                &self.type_checker.get_type_of_symbol(p),
+                                                p,
+                                                Some(
+                                                    &*self
+                                                        .symbol_table_to_declaration_statements
+                                                        .enclosing_declaration,
                                                 ),
-                                            )
-                                        },
-                                        None,
-                                    )
-                                    .wrap()],
-                                None,
-                            )
-                            .wrap()
-                    }),
+                                                Some(&|symbol: &Symbol| {
+                                                    self.symbol_table_to_declaration_statements
+                                                        .include_private_symbol(symbol);
+                                                }),
+                                                self.symbol_table_to_declaration_statements.bundled,
+                                            ),
+                                        )
+                                    },
+                                    None,
+                                )
+                                .wrap()],
+                            None,
+                        )
+                        .wrap(),
                     p.maybe_declarations()
                         .as_ref()
                         .and_then(|p_declarations| {
@@ -870,38 +837,36 @@ impl MakeSerializePropertySymbol {
             if p.flags().intersects(SymbolFlags::GetAccessor) {
                 let is_private = modifier_flags.intersects(ModifierFlags::Private);
                 result.push(set_text_range_rc_node(
-                    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_get_accessor_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Some(factory_.create_modifiers_from_modifier_flags(flag)),
-                                name.clone(),
-                                vec![],
-                                if is_private {
-                                    None
-                                } else {
-                                    Some(
-                                        self.node_builder.serialize_type_for_declaration(
-                                            &self.context,
-                                            &self.type_checker.get_type_of_symbol(p),
-                                            p,
-                                            Some(
-                                                &*self
-                                                    .symbol_table_to_declaration_statements
-                                                    .enclosing_declaration,
-                                            ),
-                                            Some(&|symbol: &Symbol| {
-                                                self.symbol_table_to_declaration_statements
-                                                    .include_private_symbol(symbol);
-                                            }),
-                                            self.symbol_table_to_declaration_statements.bundled,
+                    get_factory()
+                        .create_get_accessor_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Some(get_factory().create_modifiers_from_modifier_flags(flag)),
+                            name.clone(),
+                            vec![],
+                            if is_private {
+                                None
+                            } else {
+                                Some(
+                                    self.node_builder.serialize_type_for_declaration(
+                                        &self.context,
+                                        &self.type_checker.get_type_of_symbol(p),
+                                        p,
+                                        Some(
+                                            &*self
+                                                .symbol_table_to_declaration_statements
+                                                .enclosing_declaration,
                                         ),
-                                    )
-                                },
-                                None,
-                            )
-                            .wrap()
-                    }),
+                                        Some(&|symbol: &Symbol| {
+                                            self.symbol_table_to_declaration_statements
+                                                .include_private_symbol(symbol);
+                                        }),
+                                        self.symbol_table_to_declaration_statements.bundled,
+                                    ),
+                                )
+                            },
+                            None,
+                        )
+                        .wrap(),
                     p.maybe_declarations()
                         .as_ref()
                         .and_then(|p_declarations| {
@@ -922,25 +887,21 @@ impl MakeSerializePropertySymbol {
             return vec![set_text_range_rc_node(
                 self.create_property.call(
                     None,
-                    Some(with_synthetic_factory_and_factory(
-                        |synthetic_factory_, factory_| {
-                            factory_
-                                .create_modifiers_from_modifier_flags(
-                                    if self.type_checker.is_readonly_symbol(p) {
-                                        ModifierFlags::Readonly
-                                    } else {
-                                        ModifierFlags::None
-                                    } | flag,
-                                )
-                                .into()
-                        },
-                    )),
+                    Some(
+                        get_factory()
+                            .create_modifiers_from_modifier_flags(
+                                if self.type_checker.is_readonly_symbol(p) {
+                                    ModifierFlags::Readonly
+                                } else {
+                                    ModifierFlags::None
+                                } | flag,
+                            )
+                            .into(),
+                    ),
                     name.clone().into(),
-                    p.flags().intersects(SymbolFlags::Optional).then(|| {
-                        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            factory_.create_token(SyntaxKind::QuestionToken).wrap()
-                        })
-                    }),
+                    p.flags()
+                        .intersects(SymbolFlags::Optional)
+                        .then(|| get_factory().create_token(SyntaxKind::QuestionToken).wrap()),
                     (!is_private).then(|| {
                         self.node_builder.serialize_type_for_declaration(
                             &self.context,
@@ -986,25 +947,21 @@ impl MakeSerializePropertySymbol {
                 return vec![set_text_range_rc_node(
                     self.create_property.call(
                         None,
-                        Some(with_synthetic_factory_and_factory(
-                            |synthetic_factory_, factory_| {
-                                factory_
-                                    .create_modifiers_from_modifier_flags(
-                                        if self.type_checker.is_readonly_symbol(p) {
-                                            ModifierFlags::Readonly
-                                        } else {
-                                            ModifierFlags::None
-                                        } | flag,
-                                    )
-                                    .into()
-                            },
-                        )),
+                        Some(
+                            get_factory()
+                                .create_modifiers_from_modifier_flags(
+                                    if self.type_checker.is_readonly_symbol(p) {
+                                        ModifierFlags::Readonly
+                                    } else {
+                                        ModifierFlags::None
+                                    } | flag,
+                                )
+                                .into(),
+                        ),
                         name.clone().into(),
-                        p.flags().intersects(SymbolFlags::Optional).then(|| {
-                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_.create_token(SyntaxKind::QuestionToken).wrap()
-                            })
-                        }),
+                        p.flags()
+                            .intersects(SymbolFlags::Optional)
+                            .then(|| get_factory().create_token(SyntaxKind::QuestionToken).wrap()),
                         None,
                         None,
                     ),
@@ -1038,16 +995,12 @@ impl MakeSerializePropertySymbol {
                     &self.context,
                     Some(SignatureToSignatureDeclarationOptions {
                         name: Some(name.clone()),
-                        question_token: p.flags().intersects(SymbolFlags::Optional).then(|| {
-                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_.create_token(SyntaxKind::QuestionToken).wrap()
-                            })
-                        }),
-                        modifiers: (flag != ModifierFlags::None).then(|| {
-                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_.create_modifiers_from_modifier_flags(flag)
-                            })
-                        }),
+                        question_token: p
+                            .flags()
+                            .intersects(SymbolFlags::Optional)
+                            .then(|| get_factory().create_token(SyntaxKind::QuestionToken).wrap()),
+                        modifiers: (flag != ModifierFlags::None)
+                            .then(|| get_factory().create_modifiers_from_modifier_flags(flag)),
                         private_symbol_visitor: Option::<fn(&Symbol)>::None,
                         bundled_imports: None,
                     }),

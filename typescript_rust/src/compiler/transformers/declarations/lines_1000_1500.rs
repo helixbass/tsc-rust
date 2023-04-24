@@ -24,7 +24,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SingleNodeOrVecNode, StringOrNumber, Symbol,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolInterface, SyntaxKind,
-    VisitResult, VisitResultInterface,
+    VisitResult, VisitResultInterface, get_parse_node_factory,
 };
 
 impl TransformDeclarations {
@@ -367,31 +367,29 @@ impl TransformDeclarations {
                     let clean_as_function_declaration = clean.as_function_declaration();
                     let props = self.resolver.get_properties_of_container_function(input);
                     let fakespace =
-                        with_parse_base_node_factory_and_factory(|base_factory, factory_| {
-                            factory_
-                                .create_module_declaration(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    clean_as_function_declaration.maybe_name().unwrap_or_else(
-                                        || {
-                                                self.factory
-                                                    .create_identifier(
-                                                        "_default",
-                                                        Option::<Gc<NodeArray>>::None,
-                                                        None,
-                                                    )
-                                                    .wrap()
-                                        },
-                                    ),
-                                    Some(
-                                        self.factory
-                                            .create_module_block(Some(vec![]))
-                                            .wrap()
-                                    ),
-                                    Some(NodeFlags::Namespace),
-                                )
-                                .wrap()
-                        });
+                        get_parse_node_factory()
+                            .create_module_declaration(
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                clean_as_function_declaration.maybe_name().unwrap_or_else(
+                                    || {
+                                            self.factory
+                                                .create_identifier(
+                                                    "_default",
+                                                    Option::<Gc<NodeArray>>::None,
+                                                    None,
+                                                )
+                                                .wrap()
+                                    },
+                                ),
+                                Some(
+                                    self.factory
+                                        .create_module_block(Some(vec![]))
+                                        .wrap()
+                                ),
+                                Some(NodeFlags::Namespace),
+                            )
+                            .wrap();
                     set_parent(&fakespace, self.maybe_enclosing_declaration());
                     fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(Some(
                         &props,

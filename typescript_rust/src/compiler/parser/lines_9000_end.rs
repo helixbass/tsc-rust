@@ -97,11 +97,7 @@ impl IncrementalParserSyntaxCursorCreated {
     }
 
     fn maybe_current(&self) -> Option<Gc<Node>> {
-        self.current.borrow().as_ref().map(|option| option.clone())
-    }
-
-    fn current(&self) -> Gc<Node> {
-        self.current.borrow().clone().unwrap()
+        self.current.borrow().clone()
     }
 
     fn set_current(&self, current: Option<Gc<Node>>) {
@@ -237,9 +233,8 @@ pub(crate) trait PragmaContext {
     fn maybe_module_name(&self) -> RefMut<Option<String>>;
 }
 
-pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
-    context: &TContext,
-    source_text: &str,
+pub(crate) fn process_comment_pragmas(
+    context: &impl PragmaContext,
     source_text_as_chars: &SourceTextAsChars,
 ) {
     let mut pragmas: Vec<PragmaPseudoMapEntry> = vec![];

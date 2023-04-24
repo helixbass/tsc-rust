@@ -1,7 +1,6 @@
 use gc::Gc;
 use itertools::Either;
 use std::ptr;
-use std::rc::Rc;
 use std::{borrow::Borrow, iter};
 
 use crate::{

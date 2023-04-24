@@ -52,7 +52,7 @@ impl Program {
 
     pub(super) fn get_lib_file_from_reference(
         &self,
-        ref_: &FileReference,
+        _ref_: &FileReference,
     ) -> Option<Gc<Node /*SourceFile*/>> {
         unimplemented!()
     }
@@ -217,9 +217,9 @@ impl Program {
 
     pub fn report_file_names_differ_only_in_casing_error(
         &self,
-        file_name: &str,
-        existing_file: &Node, /*SourceFile*/
-        reason: &FileIncludeReason,
+        _file_name: &str,
+        _existing_file: &Node, /*SourceFile*/
+        _reason: &FileIncludeReason,
     ) {
         unimplemented!()
     }
@@ -599,8 +599,8 @@ impl Program {
 
     pub fn get_project_reference_output_name(
         &self,
-        referenced_project: &ResolvedProjectReference,
-        file_name: &str,
+        _referenced_project: &ResolvedProjectReference,
+        _file_name: &str,
     ) -> String {
         unimplemented!()
     }
@@ -693,7 +693,7 @@ impl Program {
                                 {
                                     return got_common_source_directory.clone();
                                 }
-                                let got_common_source_directory =
+                                got_common_source_directory =
                                     Some(get_common_source_directory_of_config(
                                         &resolved_ref.command_line,
                                         !CompilerHost::use_case_sensitive_file_names(
@@ -743,7 +743,7 @@ impl Program {
 
     pub(super) fn get_resolved_project_reference_by_path(
         &self,
-        project_reference_path: &Path,
+        _project_reference_path: &Path,
     ) -> Option<Gc<ResolvedProjectReference>> {
         unimplemented!()
     }

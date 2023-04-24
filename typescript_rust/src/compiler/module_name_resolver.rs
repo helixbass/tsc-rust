@@ -398,6 +398,7 @@ fn read_package_json_types_version_paths(
     let best_version_key = &result.version;
     let best_version_paths = &result.paths;
     if !matches!(best_version_paths, serde_json::Value::Object(_)) {
+        #[allow(unreachable_code)]
         if state.trace_enabled {
             trace(
                 state.host,
@@ -463,7 +464,7 @@ pub fn get_effective_type_roots<
         return options.type_roots.clone();
     }
 
-    let mut current_directory: Option<String> = None;
+    let current_directory: Option<String>;
     if let Some(options_config_file_path) = options.config_file_path.as_ref() {
         current_directory = Some(get_directory_path(options_config_file_path));
     } else
@@ -1207,7 +1208,7 @@ impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
         self.directory_to_module_name_map.clear();
     }
 
-    fn update(&self, options: &CompilerOptions) {
+    fn update(&self, _options: &CompilerOptions) {
         unimplemented!()
     }
 }
@@ -1546,7 +1547,7 @@ impl PerDirectoryResolutionCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLook
         unimplemented!()
     }
 
-    fn update(&self, options: &CompilerOptions) {
+    fn update(&self, _options: &CompilerOptions) {
         unimplemented!()
     }
 }
@@ -1610,7 +1611,7 @@ pub fn resolve_module_name(
         .as_ref()
         .and_then(|per_folder_cache| per_folder_cache.get(module_name, resolution_mode));
 
-    if let Some(result) = result.as_ref() {
+    if result.is_some() {
         if trace_enabled {
             trace(
                 host,
@@ -1697,15 +1698,14 @@ pub fn resolve_module_name(
                     cache.as_deref(),
                     redirected_reference.clone(),
                 ));
-            }
-            _ => {
-                Debug_.fail(Some(&format!(
-                    "Unexpected moduleResolution: {:?}",
-                    module_resolution
-                )));
-            }
+            } // _ => {
+              //     Debug_.fail(Some(&format!(
+              //         "Unexpected moduleResolution: {:?}",
+              //         module_resolution
+              //     )));
+              // }
         }
-        if let Some(ref result_resolved_module) = result
+        if let Some(ref _result_resolved_module) = result
             .as_ref()
             .and_then(|result| result.resolved_module.clone())
         {
@@ -2590,7 +2590,7 @@ fn load_js_or_exact_ts_file_name(
         )
     {
         let result = try_file(candidate, only_record_failures, state);
-        return result.map(|result| PathAndExtension {
+        return result.map(|_| PathAndExtension {
             path: candidate.to_owned(),
             ext: for_each(
                 [Extension::Dts, Extension::Dcts, Extension::Dmts],
@@ -3261,12 +3261,12 @@ fn load_module_from_exports(
 }
 
 fn load_module_from_imports(
-    extensions: Extensions,
-    module_name: &str,
-    directory: &str,
-    state: &ModuleResolutionState,
-    cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    _extensions: Extensions,
+    _module_name: &str,
+    _directory: &str,
+    _state: &ModuleResolutionState,
+    _cache: Option<&ModuleResolutionCache>,
+    _redirected_reference: Option<&ResolvedProjectReference>,
 ) -> SearchResult<Resolved> {
     unimplemented!()
 }
@@ -3583,7 +3583,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
     }
 }
 
-pub(crate) fn is_applicable_versioned_types_key(conditions: &[String], key: &str) -> bool {
+pub(crate) fn is_applicable_versioned_types_key(_conditions: &[String], _key: &str) -> bool {
     unimplemented!()
 }
 

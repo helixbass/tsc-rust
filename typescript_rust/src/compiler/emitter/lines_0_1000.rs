@@ -1,4 +1,4 @@
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -19,17 +19,16 @@ use crate::{
     is_json_source_file, is_option_str_empty, is_source_file, is_source_file_not_json,
     last_or_undefined, length, no_emit_notification, no_emit_substitution, normalize_path,
     normalize_slashes, out_file, remove_file_extension, resolve_path, transform_nodes, version,
-    with_synthetic_factory_and_factory, write_file, BaseNodeFactorySynthetic, BuildInfo,
-    BundleBuildInfo, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
-    BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
-    DetachedCommentInfo, DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint,
-    EmitHost, EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter,
-    EmitTransformers, ExportedModulesFromDeclarationEmit, Extension, JsxEmit, ListFormat,
-    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
-    NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer,
-    PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,
-    SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange, TransformNodesTransformationResult,
-    TransformationResult, TransformerFactory,
+    write_file, BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo, BundleFileInfo,
+    BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind, Comparison,
+    CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo, DiagnosticCollection,
+    EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost, EmitHostWriteFileCallback,
+    EmitResolver, EmitResult, EmitTextWriter, EmitTransformers, ExportedModulesFromDeclarationEmit,
+    Extension, JsxEmit, ListFormat, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node,
+    NodeArray, NodeId, NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine,
+    PrintHandlers, Printer, PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost,
+    SourceMapEmitResult, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
+    TransformNodesTransformationResult, TransformationResult, TransformerFactory,
 };
 
 lazy_static! {

@@ -15,18 +15,18 @@ use crate::{
     get_referenced_file_location, get_regex_from_pattern, get_sys, is_reference_file_location,
     is_referenced_file, maybe_for_each, out_file, package_id_to_string,
     sort_and_deduplicate_diagnostics, target_option_declaration, text_substring, BuilderProgram,
-    CancellationToken, CancellationTokenDebuggable, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter,
-    CreateProgram, CustomTransformers, Debug_, Diagnostic, DiagnosticCategory, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
+    CancellationTokenDebuggable, CommandLineOptionInterface, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Debug_, Diagnostic,
+    DiagnosticCategory, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
     EmitAndSemanticDiagnosticsBuilderProgram, EmitResult, ExitStatus, ExtendedConfigCacheEntry,
     Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason,
     ForegroundColorEscapeSequences, FormatDiagnosticsHost, Matches, ModuleResolutionHost, Node,
     ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Program, ProgramHost,
     ProjectReference, ReferenceFileLocationOrSyntheticReferenceFileLocation,
     ReportEmitErrorSummary, ResolvedProjectReference, ScriptReferenceHost, SortedArray,
-    SourceFileLike, StringOrRcNode, System, TypeCheckerHost, WatchCompilerHost,
-    WatchCompilerHostOfConfigFile, WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
+    SourceFileLike, StringOrRcNode, System, WatchCompilerHost, WatchCompilerHostOfConfigFile,
+    WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
 };
 use local_macros::enum_unwrapped;
 
@@ -161,7 +161,7 @@ fn get_plain_diagnostic_following_new_lines(diagnostic: &Diagnostic, new_line: &
     }
 }
 
-pub fn get_locale_time_string(system: &dyn System) -> String {
+pub fn get_locale_time_string(_system: &dyn System) -> String {
     // TODO: how to mimic .toLocaleTimeString()?
     unimplemented!()
 }
@@ -951,9 +951,9 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
 }
 
 fn report_unrecoverable_diagnostic(
-    system: &dyn System,
-    report_diagnostic: &dyn DiagnosticReporter,
-    diagnostic: Gc<Diagnostic>,
+    _system: &dyn System,
+    _report_diagnostic: &dyn DiagnosticReporter,
+    _diagnostic: Gc<Diagnostic>,
 ) {
     unimplemented!()
 }
@@ -1011,7 +1011,7 @@ impl<TBuilderProgram: BuilderProgram> WatchHost
 impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
     for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
 {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
+    fn on_un_recoverable_config_file_diagnostic(&self, _diagnostic: Gc<Diagnostic>) {
         unimplemented!()
     }
 }
@@ -1029,6 +1029,6 @@ pub struct IncrementalCompilationOptions<'a> {
     pub system: Option<&'a dyn System>,
 }
 
-pub fn perform_incremental_compilation(input: IncrementalCompilationOptions) -> ExitStatus {
+pub fn perform_incremental_compilation(_input: IncrementalCompilationOptions) -> ExitStatus {
     unimplemented!()
 }

@@ -313,10 +313,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn signature_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn signature_to_string_(
         &self,
         signature: Gc<Signature>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
@@ -344,10 +344,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn signature_to_string_worker<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn signature_to_string_worker(
         &self,
         signature: Gc<Signature>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
         writer: Gc<Box<dyn EmitTextWriter>>,
@@ -379,7 +379,7 @@ impl TypeChecker {
             ),
             None,
         );
-        let mut printer = create_printer(
+        let printer = create_printer(
             PrinterOptionsBuilder::default()
                 .remove_comments(Some(true))
                 .omit_trailing_semicolon(Some(true))
@@ -439,7 +439,7 @@ impl TypeChecker {
             .remove_comments(Some(!ptr::eq(type_, &*self.unresolved_type())))
             .build()
             .unwrap();
-        let mut printer = create_printer(options, None);
+        let printer = create_printer(options, None);
         let source_file = enclosing_declaration.and_then(|enclosing_declaration| {
             maybe_get_source_file_of_node(Some(enclosing_declaration))
         });
@@ -752,7 +752,7 @@ impl NodeBuilder {
         type_: Option<impl Borrow<Type>>,
         context: &NodeBuilderContext,
     ) -> Option<Gc<Node>> {
-        if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token()
+        if let Some(_cancellation_token) = self.type_checker.maybe_cancellation_token()
         /*&& cancellationToken.throwIfCancellationRequested*/
         {
             // cancellationToken.throwIfCancellationRequested();
@@ -1434,9 +1434,9 @@ impl DefaultNodeBuilderContextSymbolTracker {
 impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn track_symbol(
         &self,
-        symbol: &Symbol,
-        enclosing_declaration: Option<Gc<Node>>,
-        meaning: SymbolFlags,
+        _symbol: &Symbol,
+        _enclosing_declaration: Option<Gc<Node>>,
+        _meaning: SymbolFlags,
     ) -> Option<bool> {
         Some(false)
     }

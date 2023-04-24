@@ -2048,7 +2048,7 @@ impl TypeChecker {
         }
         let result = result.unwrap();
 
-        if let Some(name_not_found_message) = name_not_found_message {
+        if name_not_found_message.is_some() {
             if let Some(property_with_invalid_initializer) =
                 property_with_invalid_initializer.as_ref()
             {

@@ -914,7 +914,10 @@ impl TypeChecker {
                         ) == Ternary::False
                     }
                 } {
-                    inferred_type = Some(instantiated_constraint.clone());
+                    #[allow(dead_code)]
+                    {
+                        inferred_type = Some(instantiated_constraint.clone());
+                    }
                     *inference.maybe_inferred_type_mut() = Some(instantiated_constraint);
                 }
             }

@@ -9,7 +9,7 @@ use crate::{
     add_related_info, are_option_gcs_equal, bind_source_file, concatenate,
     create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text,
     for_each_child_bool, for_each_entry_bool, get_all_accessor_declarations,
-    get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name,
+    get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name, get_factory,
     get_first_identifier, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
     is_ambient_module, is_binding_pattern, is_declaration, is_declaration_readonly,
     is_effective_external_module, is_entity_name, is_enum_const, is_expression,
@@ -277,7 +277,7 @@ impl TypeChecker {
         let type_name = type_name.as_ref().unwrap();
 
         let mut location = location.map(|location| location.borrow().node_wrapper());
-        if let Some(location_present) = location.as_ref() {
+        if location.is_some() {
             location = get_parse_tree_node(location.as_deref(), Option::<fn(&Node) -> bool>::None);
             if location.is_none() {
                 return TypeReferenceSerializationKind::Unknown;
@@ -425,9 +425,7 @@ impl TypeChecker {
             Some(|node: &Node| is_variable_like_or_accessor(node)),
         );
         if declaration.is_none() {
-            return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_token(SyntaxKind::AnyKeyword).wrap(),
-            ));
+            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration);
@@ -468,9 +466,7 @@ impl TypeChecker {
             Some(|node: &Node| is_function_like(Some(node))),
         );
         if signature_declaration.is_none() {
-            return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_token(SyntaxKind::AnyKeyword).wrap(),
-            ));
+            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
         }
         let signature_declaration = signature_declaration.as_ref().unwrap();
         let signature = self.get_signature_from_declaration_(signature_declaration);
@@ -491,9 +487,7 @@ impl TypeChecker {
     ) -> Option<Gc<Node /*TypeNode*/>> {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
-            return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_token(SyntaxKind::AnyKeyword).wrap(),
-            ));
+            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
         }
         let expr = expr.as_ref().unwrap();
         let ref type_ = self.get_widened_type(&self.get_regular_type_of_expression(expr));
@@ -602,9 +596,7 @@ impl TypeChecker {
                 |synthetic_factory, factory| factory.create_true().wrap(),
             ))
         } else if ptr::eq(type_, &*self.false_type()) {
-            Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_false().wrap(),
-            ))
+            Some(get_factory().create_false().wrap())
         } else {
             None
         };
@@ -612,25 +604,15 @@ impl TypeChecker {
             return enum_result;
         }
         match type_ {
-            Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
-                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                    factory.create_big_int_literal(type_.value.clone()).wrap()
-                })
-            }
-            Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
-                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                    factory
-                        .create_numeric_literal(type_.value.clone(), None)
-                        .wrap()
-                })
-            }
-            Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
-                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                    factory
-                        .create_string_literal(type_.value.clone(), None, None)
-                        .wrap()
-                })
-            }
+            Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => get_factory()
+                .create_big_int_literal(type_.value.clone())
+                .wrap(),
+            Type::LiteralType(LiteralType::NumberLiteralType(type_)) => get_factory()
+                .create_numeric_literal(type_.value.clone(), None)
+                .wrap(),
+            Type::LiteralType(LiteralType::StringLiteralType(type_)) => get_factory()
+                .create_string_literal(type_.value.clone(), None, None)
+                .wrap(),
             _ => unreachable!(),
         }
     }
@@ -1176,11 +1158,9 @@ impl TypeChecker {
     }
 
     pub(super) fn check_grammar_decorators(&self, node: &Node) -> bool {
-        let node_decorators = node.maybe_decorators();
-        if node_decorators.is_none() {
+        if node.maybe_decorators().is_none() {
             return false;
         }
-        let node_decorators = node_decorators.as_ref().unwrap();
         if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent()) {
             if node.kind() == SyntaxKind::MethodDeclaration
                 && !node_is_present(node.as_method_declaration().maybe_body())

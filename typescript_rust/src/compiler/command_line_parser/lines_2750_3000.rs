@@ -193,7 +193,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
                 serde_json::Value::Object(map) => map,
                 _ => panic!("Expected object"),
             };
-            let mut raw = match own_config.raw.as_mut().unwrap() {
+            let raw = match own_config.raw.as_mut().unwrap() {
                 serde_json::Value::Object(map) => map,
                 _ => panic!("Expected object"),
             };
@@ -201,7 +201,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
             let mut set_property_in_raw_if_not_undefined = |property_name: &str| {
                 let base_raw_property = base_raw.get(property_name);
                 if let Some(serde_json::Value::Array(base_raw_property)) = base_raw_property {
-                    let mut raw_property = raw.entry(property_name);
+                    let raw_property = raw.entry(property_name);
                     raw_property.or_insert_with(|| {
                         serde_json::Value::Array(map(base_raw_property, |path, _| {
                             let path = match path {
@@ -531,7 +531,7 @@ impl<'a, THost: ParseConfigHost> JsonConversionNotifier
     fn on_set_valid_option_key_value_in_root(
         &self,
         key: &str,
-        key_node: &Node, /*PropertyName*/
+        _key_node: &Node, /*PropertyName*/
         value: Option<&serde_json::Value>,
         value_node: &Node, /*Expression*/
     ) {
@@ -571,8 +571,8 @@ impl<'a, THost: ParseConfigHost> JsonConversionNotifier
         &self,
         key: &str,
         key_node: &Node, /*PropertyName*/
-        value: Option<&serde_json::Value>,
-        value_node: &Node, /*Expression*/
+        _value: Option<&serde_json::Value>,
+        _value_node: &Node, /*Expression*/
     ) {
         if key == "excludes" {
             self.errors.borrow_mut().push(Gc::new(

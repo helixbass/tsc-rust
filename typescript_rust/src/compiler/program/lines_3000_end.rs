@@ -1269,7 +1269,7 @@ impl Program {
         }
 
         let options_config_file = self.options.config_file.as_ref()?;
-        let mut config_file_node: Option<Gc<Node>> = None;
+        let config_file_node: Option<Gc<Node>>;
         let message: &DiagnosticMessage;
         match reason.kind() {
             FileIncludeKind::RootFile => {
@@ -1636,14 +1636,14 @@ impl Program {
         self.get_options_syntax_by_name("paths").unwrap_or_empty()
     }
 
-    pub fn get_options_syntax_by_value(&self, name: &str, value: &str) -> Option<Gc<Node>> {
+    pub fn get_options_syntax_by_value(&self, _name: &str, _value: &str) -> Option<Gc<Node>> {
         unimplemented!()
     }
 
     pub fn get_options_syntax_by_array_element_value(
         &self,
-        name: &str,
-        value: &str,
+        _name: &str,
+        _value: &str,
     ) -> Option<Gc<Node>> {
         unimplemented!()
     }
@@ -1674,12 +1674,12 @@ impl Program {
         self.create_diagnostic_for_option(false, option1, None, message, args);
     }
 
-    pub fn create_diagnostic_for_reference<TSourceFile: Borrow<Node>>(
+    pub fn create_diagnostic_for_reference(
         &self,
-        source_file: Option<TSourceFile /*JsonSourceFile*/>,
-        index: usize,
-        message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        _source_file: Option<impl Borrow<Node> /*JsonSourceFile*/>,
+        _index: usize,
+        _message: &DiagnosticMessage,
+        _args: Option<Vec<String>>,
     ) {
         unimplemented!()
     }
@@ -1995,14 +1995,14 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
         }
     }
 
-    fn handle_directory_could_be_symlink(&self, directory: &str) {
+    fn handle_directory_could_be_symlink(&self, _directory: &str) {
         unimplemented!()
     }
 
     fn file_or_directory_exists_using_source(
         &self,
-        file_or_directory: &str,
-        is_file: bool,
+        _file_or_directory: &str,
+        _is_file: bool,
     ) -> bool {
         unimplemented!()
     }
@@ -2097,22 +2097,22 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             .or_else(|| self.host_compiler_host.realpath_non_overridden(s))
     }
 
-    fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
+    fn read_file(&self, _file_name: &str) -> io::Result<Option<String>> {
         unreachable!()
     }
 
     fn write_file(
         &self,
-        file_name: &str,
-        data: &str,
-        write_byte_order_mark: bool,
-        on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        _file_name: &str,
+        _data: &str,
+        _write_byte_order_mark: bool,
+        _on_error: Option<&mut dyn FnMut(&str)>,
+        _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ) {
         unreachable!()
     }
 
-    fn create_directory(&self, directory: &str) {
+    fn create_directory(&self, _directory: &str) {
         unreachable!()
     }
 }
@@ -2229,17 +2229,17 @@ pub trait CompilerHostLike: Trace + Finalize {
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn read_directory(
         &self,
-        root_dir: &str,
-        extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: &[String],
-        depth: Option<usize>,
+        _root_dir: &str,
+        _extensions: &[&str],
+        _excludes: Option<&[String]>,
+        _includes: &[String],
+        _depth: Option<usize>,
     ) -> Option<Vec<String>> {
         None
     }
-    fn trace(&self, s: &str) {}
+    fn trace(&self, _s: &str) {}
     fn is_trace_supported(&self) -> bool;
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {}
+    fn on_un_recoverable_config_file_diagnostic(&self, _diagnostic: Gc<Diagnostic>) {}
 
     // These exist to allow "forwarding" CompilerHost -> CompilerHostLike -> DirectoryStructureHost
     fn is_read_directory_implemented(&self) -> bool;
@@ -2341,16 +2341,18 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         self.host.file_exists(path)
     }
 
-    fn read_file(&self, path: &str, encoding: Option<&str>) -> io::Result<Option<String>> {
+    fn read_file(&self, path: &str, _encoding: Option<&str>) -> io::Result<Option<String>> {
         self.host.read_file(path)
     }
 
     fn directory_exists(&self, path: &str) -> Option<bool> {
         self.host.directory_exists(path)
     }
+
     fn get_directories(&self, path: &str) -> Option<Vec<String>> {
         self.host.get_directories(path)
     }
+
     fn read_directory(
         &self,
         path: &str,
@@ -2362,6 +2364,7 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         self.host
             .read_directory(path, extensions, exclude, include.unwrap(), depth)
     }
+
     fn is_read_directory_implemented(&self) -> bool {
         self.host.is_read_directory_implemented()
     }

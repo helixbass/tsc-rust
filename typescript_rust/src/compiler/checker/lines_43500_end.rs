@@ -1069,7 +1069,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Identifier*/
     ) -> Option<Gc<Node /*Declaration*/>> {
-        self.get_referenced_import_declaration(node)
+        self.type_checker.get_referenced_import_declaration(node)
     }
 
     fn is_declaration_with_colliding_name(&self, node: &Node /*Declaration*/) -> bool {
@@ -1106,7 +1106,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_node_check_flags(&self, node_in: &Node) -> NodeCheckFlags {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
         node.as_ref().map_or(NodeCheckFlags::None, |node| {
-            self.type_checker.get_node_check_flags(node_in)
+            self.type_checker.get_node_check_flags(node)
         })
     }
 
@@ -1469,7 +1469,6 @@ impl EmitResolver for EmitResolverCreateResolver {
             ),
             Some("Non-sourcefile node passed into getDeclarationsForSourceFile"),
         );
-        let n = n.unwrap();
         let sym = self.type_checker.get_symbol_of_node(node);
         if sym.is_none() {
             return match node.maybe_locals().as_ref() {

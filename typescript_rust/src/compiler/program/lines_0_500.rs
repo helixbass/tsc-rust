@@ -70,7 +70,7 @@ pub(crate) fn compute_common_source_directory_of_filenames<
             common_path_components = Some(source_path_components);
             return None;
         }
-        let mut common_path_components = common_path_components.as_mut().unwrap();
+        let common_path_components = common_path_components.as_mut().unwrap();
 
         let n = cmp::min(common_path_components.len(), source_path_components.len());
         for i in 0..n {
@@ -429,9 +429,9 @@ impl CompilerHost for CompilerHostConcrete {
         file_name: &str,
         language_version: ScriptTarget,
         on_error: Option<&mut dyn FnMut(&str)>,
-        should_create_new_source_file: Option<bool>,
+        _should_create_new_source_file: Option<bool>,
     ) -> Option<Gc<Node /*SourceFile*/>> {
-        let mut text: Option<String> = None;
+        let text: Option<String>;
         // performance.mark("beforeIORead");
         match self.read_file(file_name) {
             Ok(value) => {
@@ -707,7 +707,8 @@ impl ChangeCompilerHostLikeToUseCacheOverrider {
         }
     }
 
-    fn read_file_with_cache(&self, file_name: &str) -> Option<String> {
+    #[allow(dead_code)]
+    pub fn read_file_with_cache(&self, file_name: &str) -> Option<String> {
         let key = self.to_path.call(file_name);
         {
             let read_file_cache = self.read_file_cache.borrow();
@@ -835,11 +836,11 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         self.host.create_directory_non_overridden(directory);
     }
 
-    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+    fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
         unreachable!()
     }
 
-    fn realpath(&self, s: &str) -> Option<String> {
+    fn realpath(&self, _s: &str) -> Option<String> {
         unreachable!()
     }
 }

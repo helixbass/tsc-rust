@@ -657,7 +657,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let tag_name: Gc<Node> = self.parse_jsdoc_identifier_name(None).wrap();
         let indent_text = self.skip_whitespace_or_asterisk();
 
-        let mut tag: Option<Node> = None;
+        let tag: Option<Node>;
         match &*tag_name.as_identifier().escaped_text {
             "author" => {
                 tag = Some(

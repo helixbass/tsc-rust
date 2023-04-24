@@ -2,7 +2,6 @@ use gc::Gc;
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,
@@ -377,7 +376,7 @@ pub fn contains_ignored_path(path: &str) -> bool {
     )
 }
 
-pub fn get_containing_node_array(node: &Node) -> Option<Gc<NodeArray>> {
+pub fn get_containing_node_array(_node: &Node) -> Option<Gc<NodeArray>> {
     unimplemented!()
 }
 

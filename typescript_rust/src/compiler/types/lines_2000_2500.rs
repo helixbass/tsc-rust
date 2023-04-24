@@ -1,7 +1,6 @@
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, Ref, RefCell};
-use std::rc::Rc;
 
 use super::{
     BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasElementsInterface,

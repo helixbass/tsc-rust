@@ -34,6 +34,7 @@ use crate::{
     ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
     TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    VecExt,
 };
 use local_macros::enum_unwrapped;
 
@@ -479,17 +480,15 @@ impl From<SyntheticReferenceFileLocation>
     }
 }
 
-pub(crate) fn get_referenced_file_location<
-    TGetSourceFileByPath: FnMut(&Path) -> Option<Gc<Node /*SourceFile*/>>,
->(
-    mut get_source_file_by_path: TGetSourceFileByPath,
+pub(crate) fn get_referenced_file_location(
+    mut get_source_file_by_path: impl FnMut(&Path) -> Option<Gc<Node /*SourceFile*/>>,
     ref_: &ReferencedFile,
 ) -> ReferenceFileLocationOrSyntheticReferenceFileLocation {
     let ref file = Debug_.check_defined(get_source_file_by_path(&ref_.file), None);
     let kind = ref_.kind;
     let index = ref_.index;
-    let mut pos: Option<isize> = None;
-    let mut end: Option<isize> = None;
+    let pos: Option<isize>;
+    let end: Option<isize>;
     let mut package_id: Option<PackageId> = None;
     let file_as_source_file = file.as_source_file();
     match kind {
@@ -573,8 +572,18 @@ pub(crate) fn get_referenced_file_location<
 pub fn get_config_file_parsing_diagnostics(
     config_file_parse_result: &ParsedCommandLine,
 ) -> Vec<Gc<Diagnostic>> {
-    // unimplemented!()
-    vec![]
+    if let Some(config_file_parse_result_options_config_file) =
+        config_file_parse_result.options.config_file.as_ref()
+    {
+        (*config_file_parse_result_options_config_file
+            .as_source_file()
+            .parse_diagnostics())
+        .borrow()
+        .clone()
+        .and_extend((*config_file_parse_result.errors).borrow().iter().cloned())
+    } else {
+        (*config_file_parse_result.errors).borrow().clone()
+    }
 }
 
 pub fn get_implied_node_format_for_file(
@@ -1077,13 +1086,13 @@ impl Program {
 
         Debug_.assert(self.maybe_missing_file_paths().is_some(), None);
 
-        if let Some(old_program) = self.maybe_old_program().as_ref() {
+        if let Some(_old_program) = self.maybe_old_program().as_ref() {
             if self.host().is_on_release_old_source_file_supported() {
                 unimplemented!()
             }
         }
 
-        if let Some(old_program) = self.maybe_old_program().as_ref() {
+        if let Some(_old_program) = self.maybe_old_program().as_ref() {
             if self.host().is_on_release_parsed_command_line_supported() {
                 unimplemented!()
             }
@@ -1627,7 +1636,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
         module_names: &[String],
         containing_file: &Node, /*SourceFile*/
         containing_file_name: &str,
-        reused_names: Option<&[String]>,
+        _reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
     ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
         load_with_mode_aware_cache(

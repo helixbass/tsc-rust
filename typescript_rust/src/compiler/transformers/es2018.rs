@@ -758,7 +758,6 @@ impl TransformES2018 {
     }
 
     fn visit_labeled_statement(&self, node: &Node /*LabeledStatement*/) -> VisitResult {
-        let node_as_labeled_statement = node.as_labeled_statement();
         if self
             .maybe_enclosing_function_flags()
             .matches(|enclosing_function_flags| {
@@ -1424,7 +1423,7 @@ impl TransformES2018 {
                     &**self.context,
                     FlattenLevel::ObjectRest,
                     Option::<&Node>::None,
-                    Some(self.exported_variable_statement()),
+                    Some(exported_variable_statement),
                     None,
                 )
                 .into(),
@@ -1589,9 +1588,8 @@ impl TransformES2018 {
         if is_variable_declaration_list(&initializer_without_parens)
             || is_assignment_pattern(&initializer_without_parens)
         {
-            let mut body_location: Option<Gc<Node /*TextRange*/>> = Default::default();
-            let mut statements_location: Option<ReadonlyTextRangeConcrete /*TextRange*/> =
-                Default::default();
+            let body_location: Option<Gc<Node /*TextRange*/>>;
+            let statements_location: Option<ReadonlyTextRangeConcrete /*TextRange*/>;
             let temp = self
                 .factory
                 .create_temp_variable(Option::<fn(&Node)>::None, None);

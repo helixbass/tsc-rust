@@ -6,9 +6,9 @@ use crate::{
     is_non_null_expression, is_private_identifier, is_string_or_numeric_literal_like,
     set_text_range_pos_width, skip_trivia, tag_names_are_equivalent,
     token_is_identifier_or_keyword, Debug_, Diagnostics, ElementAccessExpression, JsxAttributes,
-    JsxClosingElement, JsxClosingFragment, JsxExpression, JsxSpreadAttribute, JsxText, Node,
-    NodeArray, NodeFlags, NodeInterface, PropertyAccessExpression, ReadonlyTextRange, SyntaxKind,
-    TypeAssertion,
+    JsxClosingElement, JsxClosingFragment, JsxExpression, JsxSpreadAttribute, JsxText, Matches,
+    Node, NodeArray, NodeFlags, NodeInterface, PropertyAccessExpression, ReadonlyTextRange,
+    SyntaxKind, TypeAssertion,
 };
 
 impl ParserType {
@@ -63,16 +63,16 @@ impl ParserType {
             .parse_jsx_opening_or_self_closing_element_or_opening_fragment(in_expression_context);
         let result: Node;
         if opening.kind() == SyntaxKind::JsxOpeningElement {
-            let children = self.parse_jsx_children(&opening);
+            let mut children = self.parse_jsx_children(&opening);
             let closing_element: Gc<Node /*JsxClosingElement*/>;
 
             let opening_as_jsx_opening_element = opening.as_jsx_opening_element();
             let last_child = if children.is_empty() {
                 None
             } else {
-                Some(&children[children.len() - 1])
+                Some(children[children.len() - 1].clone())
             };
-            if let Some(last_child) = last_child.filter(|last_child| {
+            if let Some(last_child) = last_child.as_ref().filter(|last_child| {
                 if last_child.kind() != SyntaxKind::JsxElement {
                     return false;
                 }
@@ -125,10 +125,10 @@ impl ParserType {
                 );
 
                 let children_pos = children.pos();
-                let mut children = children.to_vec();
+                let mut children_vec = children.to_vec();
                 let children_len = children.len();
-                children[children_len - 1] = new_last.wrap();
-                let children = self.create_node_array(children, children_pos, Some(end), None);
+                children_vec[children_len - 1] = new_last.wrap();
+                children = self.create_node_array(children_vec, children_pos, Some(end), None);
                 closing_element = last_child_as_jsx_element.closing_element.clone();
             } else {
                 closing_element = self
@@ -140,8 +140,8 @@ impl ParserType {
                     &opening_as_jsx_opening_element.tag_name,
                     &closing_element_as_jsx_closing_element.tag_name,
                 ) {
-                    if let Some(opening_tag) = opening_tag.filter(|opening_tag| {
-                        is_jsx_opening_element(&opening_tag)
+                    if opening_tag.matches(|opening_tag| {
+                        is_jsx_opening_element(opening_tag)
                             && tag_names_are_equivalent(
                                 &closing_element_as_jsx_closing_element.tag_name,
                                 &opening_tag.as_jsx_opening_element().tag_name,
@@ -673,7 +673,7 @@ impl ParserType {
     ) -> Gc<Node /*MemberExpression*/> {
         loop {
             let mut question_dot_token = None;
-            let mut is_property_access = false;
+            let is_property_access: bool /* = false*/;
             if allow_optional_chain && self.is_start_of_optional_property_or_element_access_chain()
             {
                 question_dot_token =

@@ -273,7 +273,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             )
         }) {
             let pos = self.parser.get_node_pos();
-            let mut child: Option<Node> = None;
+            let mut child: Option<Node>;
             let mut children: Option<Vec<Gc<Node /*JSDocPropertyLikeTag*/>>> = None;
             while let Some(child) = {
                 child = self.parser.try_parse(|| {
@@ -820,7 +820,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         if !token_is_identifier_or_keyword(self.parser.token()) {
             return None;
         }
-        let mut type_name_or_namespace_name = self.parse_jsdoc_identifier_name(None);
+        let type_name_or_namespace_name = self.parse_jsdoc_identifier_name(None);
         if self.parser.parse_optional(SyntaxKind::DotToken) {
             let body = self.parse_jsdoc_type_name_with_namespace(Some(true));
             let js_doc_namespace_node = self.parser.factory().create_module_declaration(
@@ -1206,10 +1206,10 @@ impl IncrementalParserType {
 
     pub fn update_source_file(
         &self,
-        source_file: &Node, /*SourceFile*/
-        new_text: String,
-        text_change_range: TextChangeRange,
-        aggressive_checks: bool,
+        _source_file: &Node, /*SourceFile*/
+        _new_text: String,
+        _text_change_range: TextChangeRange,
+        _aggressive_checks: bool,
     ) -> Gc<Node /*SourceFile*/> {
         unimplemented!()
     }

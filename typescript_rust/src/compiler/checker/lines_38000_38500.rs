@@ -427,20 +427,16 @@ impl TypeChecker {
                 .clone()
                 .or_else(|| local_index_declaration.clone())
                 .or_else(|| {
-                    interface_declaration
-                        .clone()
-                        .filter(|interface_declaration| {
-                            !some(
-                                Some(&self.get_base_types(type_)),
-                                Some(|base: &Gc<Type>| {
-                                    self.get_index_info_of_type_(base, &check_info.key_type)
-                                        .is_some()
-                                        && self
-                                            .get_index_type_of_type_(base, &info.key_type)
-                                            .is_some()
-                                }),
-                            )
-                        })
+                    interface_declaration.clone().filter(|_| {
+                        !some(
+                            Some(&self.get_base_types(type_)),
+                            Some(|base: &Gc<Type>| {
+                                self.get_index_info_of_type_(base, &check_info.key_type)
+                                    .is_some()
+                                    && self.get_index_type_of_type_(base, &info.key_type).is_some()
+                            }),
+                        )
+                    })
                 });
             if error_node.is_some() && !self.is_type_assignable_to(&check_info.type_, &info.type_) {
                 self.error(

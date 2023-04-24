@@ -776,9 +776,9 @@ impl SourceFileLike for SourceFile {
 
     fn maybe_get_position_of_line_and_character(
         &self,
-        line: usize,
-        character: usize,
-        allow_edits: Option<bool>,
+        _line: usize,
+        _character: usize,
+        _allow_edits: Option<bool>,
     ) -> Option<usize> {
         None
     }
@@ -1296,9 +1296,9 @@ impl SourceFileLike for UnparsedSource {
 
     fn maybe_get_position_of_line_and_character(
         &self,
-        line: usize,
-        character: usize,
-        allow_edits: Option<bool>,
+        _line: usize,
+        _character: usize,
+        _allow_edits: Option<bool>,
     ) -> Option<usize> {
         unimplemented!()
     }
@@ -1432,7 +1432,7 @@ pub trait ParseConfigHost {
     fn file_exists(&self, path: &str) -> bool;
 
     fn read_file(&self, path: &str) -> io::Result<Option<String>>;
-    fn trace(&self, s: &str) {}
+    fn trace(&self, _s: &str) {}
     fn is_trace_supported(&self) -> bool;
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
 }

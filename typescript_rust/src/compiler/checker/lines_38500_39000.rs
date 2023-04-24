@@ -17,7 +17,7 @@ use crate::{
     is_in_js_file, is_parameter_property_declaration, is_property_declaration, is_static, length,
     maybe_filter, maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags,
     Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap,
-    HasInitializerInterface, InterfaceTypeInterface, MemberOverrideStatus, ModifierFlags,
+    HasInitializerInterface, InterfaceTypeInterface, Matches, MemberOverrideStatus, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
     SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
     Type, TypeChecker, TypeInterface,
@@ -129,15 +129,12 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_member_for_override_modifier<
-        TBaseWithThis: Borrow<Type>,
-        TErrorNode: Borrow<Node>,
-    >(
+    pub(super) fn check_member_for_override_modifier(
         &self,
         node: &Node,        /*ClassLikeDeclaration*/
         static_type: &Type, /*ObjectType*/
         base_static_type: &Type,
-        base_with_this: Option<TBaseWithThis>,
+        base_with_this: Option<impl Borrow<Type>>,
         type_: &Type, /*InterfaceType*/
         type_with_this: &Type,
         member_has_override_modifier: bool,
@@ -145,7 +142,7 @@ impl TypeChecker {
         member_is_static: bool,
         member_is_parameter_property: bool,
         member_name: &str,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
     ) -> MemberOverrideStatus {
         let is_js = is_in_js_file(Some(node));
         let node_in_ambient_context = node.flags().intersects(NodeFlags::Ambient);
@@ -169,12 +166,12 @@ impl TypeChecker {
 
             let base_class_name =
                 self.type_to_string_(base_with_this, Option::<&Node>::None, None, None);
-            if let Some(prop) = prop
+            if prop
                 .as_ref()
-                .filter(|_| base_prop.is_none() && member_has_override_modifier)
+                .matches(|_| base_prop.is_none() && member_has_override_modifier)
             {
                 unimplemented!()
-            } else if let (Some(prop), Some(base_prop_declarations)) = (
+            } else if let (Some(_prop), Some(base_prop_declarations)) = (
                 prop.as_ref(),
                 base_prop
                     .as_ref()

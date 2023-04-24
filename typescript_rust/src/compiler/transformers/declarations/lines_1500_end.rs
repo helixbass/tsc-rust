@@ -5,10 +5,10 @@ use gc::Gc;
 use super::TransformDeclarations;
 use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, flatten, for_each_bool,
-    get_effective_modifier_flags, get_parse_tree_node, has_effective_modifier, is_binding_pattern,
-    is_entity_name_expression, is_export_assignment, is_export_declaration, is_external_module,
-    is_internal_declaration, map_defined, some, visit_nodes, with_synthetic_factory,
-    with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
+    get_effective_modifier_flags, get_factory, get_parse_tree_node, has_effective_modifier,
+    is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
+    is_external_module, is_internal_declaration, map_defined, some, visit_nodes,
+    with_synthetic_factory, with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
     GetSymbolAccessibilityDiagnostic, HasTypeInterface, ModifierFlags, NamedDeclarationInterface,
     Node, NodeArray, NodeArrayOrVec, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
 };
@@ -43,7 +43,7 @@ impl TransformDeclarations {
         if nodes.is_empty() {
             return None;
         }
-        Some(with_synthetic_factory(|synthetic_factory_| {
+        Some(
             self.factory.update_variable_statement(
                 input,
                 Some(
@@ -54,8 +54,8 @@ impl TransformDeclarations {
                     &input_as_variable_statement.declaration_list,
                     nodes,
                 ),
-            )
-        }))
+            ),
+        )
     }
 
     pub(super) fn recreate_binding_pattern(
@@ -267,13 +267,11 @@ pub(super) fn mask_modifiers(
     modifier_mask: Option<ModifierFlags>,
     modifier_additions: Option<ModifierFlags>,
 ) -> Vec<Gc<Node /*Modifier*/>> {
-    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-        factory_.create_modifiers_from_modifier_flags(mask_modifier_flags(
-            node,
-            modifier_mask,
-            modifier_additions,
-        ))
-    })
+    get_factory().create_modifiers_from_modifier_flags(mask_modifier_flags(
+        node,
+        modifier_mask,
+        modifier_additions,
+    ))
 }
 
 pub(super) fn mask_modifier_flags(
