@@ -160,11 +160,11 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     module_name: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
-    referenced_files: RefCell<Option<Vec<FileReference>>>,
+    referenced_files: RefCell<Option<Rc<RefCell<Vec<FileReference>>>>>,
     #[unsafe_ignore_trace]
-    type_reference_directives: RefCell<Option<Vec<FileReference>>>,
+    type_reference_directives: RefCell<Option<Rc<RefCell<Vec<FileReference>>>>>,
     #[unsafe_ignore_trace]
-    lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
+    lib_reference_directives: RefCell<Option<Rc<RefCell<Vec<FileReference>>>>>,
     #[unsafe_ignore_trace]
     language_variant: Cell<LanguageVariant>,
     #[unsafe_ignore_trace]
@@ -313,8 +313,16 @@ impl SourceFile {
         }
     }
 
+    pub fn set_statements(&mut self, statements: Gc<NodeArray>) {
+        self.contents.statements = statements;
+    }
+
     pub fn end_of_file_token(&self) -> Gc<Node> {
         self.contents.end_of_file_token.clone()
+    }
+
+    pub fn set_end_of_file_token(&mut self, end_of_file_token: Gc<Node>) {
+        self.contents.end_of_file_token = end_of_file_token;
     }
 
     pub fn file_name(&self) -> Ref<String> {
@@ -416,45 +424,53 @@ impl SourceFile {
         self.contents.module_name.borrow_mut()
     }
 
-    pub fn maybe_referenced_files(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.contents.referenced_files.borrow()
+    pub fn maybe_referenced_files(&self) -> Option<Rc<RefCell<Vec<FileReference>>>> {
+        self.contents.referenced_files.borrow().clone()
     }
 
-    pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.contents.referenced_files.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub fn referenced_files(&self) -> Rc<RefCell<Vec<FileReference>>> {
+        self.contents.referenced_files.borrow().clone().unwrap()
     }
 
-    pub fn set_referenced_files(&self, referenced_files: Vec<FileReference>) {
+    pub fn set_referenced_files(&self, referenced_files: Rc<RefCell<Vec<FileReference>>>) {
         *self.contents.referenced_files.borrow_mut() = Some(referenced_files);
     }
 
-    pub fn maybe_type_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.contents.type_reference_directives.borrow()
+    pub fn maybe_type_reference_directives(&self) -> Option<Rc<RefCell<Vec<FileReference>>>> {
+        self.contents.type_reference_directives.borrow().clone()
     }
 
-    pub fn type_reference_directives(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.contents.type_reference_directives.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub fn type_reference_directives(&self) -> Rc<RefCell<Vec<FileReference>>> {
+        self.contents
+            .type_reference_directives
+            .borrow()
+            .clone()
+            .unwrap()
     }
 
-    pub fn set_type_reference_directives(&self, type_reference_directives: Vec<FileReference>) {
+    pub fn set_type_reference_directives(
+        &self,
+        type_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+    ) {
         *self.contents.type_reference_directives.borrow_mut() = Some(type_reference_directives);
     }
 
-    pub fn maybe_lib_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.contents.lib_reference_directives.borrow()
+    pub fn maybe_lib_reference_directives(&self) -> Option<Rc<RefCell<Vec<FileReference>>>> {
+        self.contents.lib_reference_directives.borrow().clone()
     }
 
-    pub fn lib_reference_directives(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.contents.lib_reference_directives.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub fn lib_reference_directives(&self) -> Rc<RefCell<Vec<FileReference>>> {
+        self.contents
+            .lib_reference_directives
+            .borrow()
+            .clone()
+            .unwrap()
     }
 
-    pub fn set_lib_reference_directives(&self, lib_reference_directives: Vec<FileReference>) {
+    pub fn set_lib_reference_directives(
+        &self,
+        lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+    ) {
         *self.contents.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
     }
 
@@ -781,15 +797,19 @@ impl PragmaContext for SourceFile {
         self.contents.check_js_directive.borrow_mut()
     }
 
-    fn maybe_referenced_files(&self) -> RefMut<Option<Vec<FileReference>>> {
+    fn maybe_referenced_files_mut(&self) -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>> {
         self.contents.referenced_files.borrow_mut()
     }
 
-    fn maybe_type_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
+    fn maybe_type_reference_directives_mut(
+        &self,
+    ) -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>> {
         self.contents.type_reference_directives.borrow_mut()
     }
 
-    fn maybe_lib_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
+    fn maybe_lib_reference_directives_mut(
+        &self,
+    ) -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>> {
         self.contents.lib_reference_directives.borrow_mut()
     }
 

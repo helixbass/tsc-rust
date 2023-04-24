@@ -55,7 +55,9 @@ impl Program {
         maybe_for_each(
             file_as_source_file
                 .maybe_lib_reference_directives()
-                .as_ref(),
+                .as_ref()
+                .map(|file_lib_reference_directives| (**file_lib_reference_directives).borrow())
+                .as_deref(),
             |lib_reference: &FileReference, index| -> Option<()> {
                 let lib_name = to_file_name_lower_case(&lib_reference.file_name);
                 let lib_file_name = lib_map.with(|lib_map_| lib_map_.get(&&*lib_name).copied());

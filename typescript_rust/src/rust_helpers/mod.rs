@@ -77,7 +77,7 @@ pub fn index_of_gc<TItem: Trace + Finalize>(slice: &[Gc<TItem>], item: &Gc<TItem
     index_of(slice, item, |a: &Gc<TItem>, b: &Gc<TItem>| Gc::ptr_eq(a, b))
 }
 
-pub fn are_option_rcs_equal<TItem>(a: Option<&Rc<TItem>>, b: Option<&Rc<TItem>>) -> bool {
+pub fn are_option_rcs_equal<TItem: ?Sized>(a: Option<&Rc<TItem>>, b: Option<&Rc<TItem>>) -> bool {
     match (a, b) {
         (None, None) => true,
         (Some(a), Some(b)) => Rc::ptr_eq(a, b),

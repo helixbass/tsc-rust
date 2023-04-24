@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    mem, ptr,
+    mem, ptr, rc::Rc,
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -665,10 +665,10 @@ impl TransformDeclarations {
                                             ).wrap()
                                         ],
                                         Some(true),
-                                        Some(vec![]),
-                                        Some(vec![]),
+                                        Some(Default::default()),
+                                        Some(Default::default()),
                                         Some(false),
-                                        Some(vec![]),
+                                        Some(Default::default()),
                                     )
                                 ;
                                 return Some(new_file);
@@ -695,10 +695,10 @@ impl TransformDeclarations {
                                         &updated
                                     ),
                                     Some(true),
-                                    Some(vec![]),
-                                    Some(vec![]),
+                                    Some(Default::default()),
+                                    Some(Default::default()),
                                     Some(false),
-                                    Some(vec![]),
+                                    Some(Default::default()),
                                 )
                             )
                         }
@@ -848,10 +848,10 @@ impl TransformDeclarations {
                 node,
                 combined_statements,
                 Some(true),
-                Some(references),
-                Some(self.get_file_references_for_used_type_references()),
+                Some(Rc::new(RefCell::new(references))),
+                Some(Rc::new(RefCell::new(self.get_file_references_for_used_type_references()))),
                 Some(node_as_source_file.has_no_default_lib()),
-                Some(self.get_lib_references()),
+                Some(Rc::new(RefCell::new(self.get_lib_references()))),
             )
         ;
         *updated
@@ -1007,6 +1007,8 @@ impl TransformDeclarations {
             source_file
                 .as_source_file()
                 .maybe_referenced_files()
+                .as_ref()
+                .map(|source_file_referenced_files| (**source_file_referenced_files).borrow())
                 .as_deref(),
             |f: &FileReference, _| -> Option<()> {
                 let elem = self.host.get_source_file_from_reference(source_file, f);
@@ -1024,34 +1026,39 @@ impl TransformDeclarations {
         source_file: &Node, /*SourceFile | UnparsedSource*/
         ret: &mut HashMap<String, bool>,
     ) {
-        let maybe_source_file_as_source_file_lib_reference_directives = match source_file.kind() {
-            SyntaxKind::SourceFile => Some(
-                source_file
-                    .as_source_file()
-                    .maybe_lib_reference_directives(),
-            ),
-            _ => None,
-        };
-        maybe_for_each(
-            // TODO: expose some trait for unifying this?
-            match source_file.kind() {
-                SyntaxKind::SourceFile => maybe_source_file_as_source_file_lib_reference_directives
-                    .as_ref()
-                    .unwrap()
-                    .as_deref(),
-                SyntaxKind::UnparsedSource => {
-                    Some(&*source_file.as_unparsed_source().lib_reference_directives)
-                }
-                _ => unreachable!(),
-            },
-            |ref_: &FileReference, _| -> Option<()> {
-                let lib = self.host.get_lib_file_from_reference(ref_);
-                if lib.is_some() {
-                    ret.insert(to_file_name_lower_case(&ref_.file_name), true);
-                }
-                None
-            },
-        );
+        // TODO: expose some trait for unifying this?
+        match source_file.kind() {
+            SyntaxKind::SourceFile => {
+                maybe_for_each(
+                    source_file
+                        .as_source_file()
+                        .maybe_lib_reference_directives()
+                        .as_ref()
+                        .map(|source_file_lib_reference_directives| (**source_file_lib_reference_directives).borrow())
+                        .as_deref(),
+                    |ref_: &FileReference, _| -> Option<()> {
+                        let lib = self.host.get_lib_file_from_reference(ref_);
+                        if lib.is_some() {
+                            ret.insert(to_file_name_lower_case(&ref_.file_name), true);
+                        }
+                        None
+                    },
+                );
+            }
+            SyntaxKind::UnparsedSource => {
+                maybe_for_each(
+                    Some(&source_file.as_unparsed_source().lib_reference_directives),
+                    |ref_: &FileReference, _| -> Option<()> {
+                        let lib = self.host.get_lib_file_from_reference(ref_);
+                        if lib.is_some() {
+                            ret.insert(to_file_name_lower_case(&ref_.file_name), true);
+                        }
+                        None
+                    },
+                );
+            }
+            _ => unreachable!(),
+        }
         // return ret;
     }
 

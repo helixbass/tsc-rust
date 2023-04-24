@@ -777,9 +777,9 @@ impl Printer {
         if node_as_source_file.is_declaration_file() {
             self.emit_triple_slash_directives(
                 node_as_source_file.has_no_default_lib(),
-                &node_as_source_file.referenced_files(),
-                &node_as_source_file.type_reference_directives(),
-                &node_as_source_file.lib_reference_directives(),
+                &(*node_as_source_file.referenced_files()).borrow(),
+                &(*node_as_source_file.type_reference_directives()).borrow(),
+                &(*node_as_source_file.lib_reference_directives()).borrow(),
             );
         }
     }

@@ -1039,7 +1039,7 @@ impl EmitResolverCreateResolver {
             .as_mut()
             .unwrap()
             .insert((&**file_as_source_file.path()).to_owned(), key.to_owned());
-        for file_reference in &*file_as_source_file.referenced_files() {
+        for file_reference in &*(*file_as_source_file.referenced_files()).borrow() {
             let file_name = &file_reference.file_name;
             let resolved_file =
                 resolve_tripleslash_reference(file_name, &file_as_source_file.file_name());

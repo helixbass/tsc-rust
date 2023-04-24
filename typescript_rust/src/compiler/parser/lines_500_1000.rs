@@ -716,9 +716,10 @@ impl ParserType {
                 None,
                 Option::<&JsonConversionNotifierDummy>::None,
             );
-            result_as_source_file.set_referenced_files(vec![]);
-            result_as_source_file.set_type_reference_directives(vec![]);
-            result_as_source_file.set_lib_reference_directives(vec![]);
+            // TODO: these empty Rc<[T]>'s could be singleton-ized?
+            result_as_source_file.set_referenced_files(Default::default());
+            result_as_source_file.set_type_reference_directives(Default::default());
+            result_as_source_file.set_lib_reference_directives(Default::default());
             result_as_source_file.set_amd_dependencies(vec![]);
             result_as_source_file.set_has_no_default_lib(false);
             result_as_source_file.set_pragmas(ReadonlyPragmaMap::new());

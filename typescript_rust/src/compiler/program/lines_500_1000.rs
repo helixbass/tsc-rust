@@ -527,11 +527,13 @@ pub(crate) fn get_referenced_file_location<
         }
         FileIncludeKind::ReferenceFile => {
             let file_referenced_files = file_as_source_file.referenced_files();
+            let file_referenced_files = (*file_referenced_files).borrow();
             pos = Some(file_referenced_files[index].pos());
             end = Some(file_referenced_files[index].end());
         }
         FileIncludeKind::TypeReferenceDirective => {
             let file_type_reference_directives = file_as_source_file.type_reference_directives();
+            let file_type_reference_directives = (*file_type_reference_directives).borrow();
             pos = Some(file_type_reference_directives[index].pos());
             end = Some(file_type_reference_directives[index].end());
             package_id = file_as_source_file
@@ -551,6 +553,7 @@ pub(crate) fn get_referenced_file_location<
         }
         FileIncludeKind::LibReferenceDirective => {
             let file_lib_reference_directives = file_as_source_file.lib_reference_directives();
+            let file_lib_reference_directives = (*file_lib_reference_directives).borrow();
             pos = Some(file_lib_reference_directives[index].pos());
             end = Some(file_lib_reference_directives[index].end());
         }

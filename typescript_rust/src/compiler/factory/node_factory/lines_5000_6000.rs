@@ -1,9 +1,9 @@
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
+use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    are_option_gcs_equal, every, has_node_array_changed, is_outer_expression,
+    are_option_gcs_equal, are_option_rcs_equal, every, has_node_array_changed, is_outer_expression,
     is_statement_or_block, set_original_node, single_or_undefined, BaseNodeFactory,
     BaseUnparsedNode, Bundle, CommaListExpression, Debug_, EnumMember, FileReference,
     HasInitializerInterface, HasStatementsInterface, InputFiles, LanguageVariant,
@@ -268,69 +268,92 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node
     }
 
+    pub fn clone_source_file_with_changes(
+        &self,
+        source: &Node, /*SourceFile*/
+        statements: NodeArrayOrVec,
+        is_declaration_file: bool,
+        referenced_files: Rc<RefCell<Vec<FileReference>>>,
+        type_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+        has_no_default_lib: bool,
+        lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+    ) -> Gc<Node> {
+        let source_as_source_file = source.as_source_file();
+        let mut node = source_as_source_file.clone();
+        node.set_pos(-1);
+        node.set_end(-1);
+        node.set_statements(self.create_node_array(Some(statements), None));
+        node.set_end_of_file_token(source_as_source_file.end_of_file_token());
+        node.set_is_declaration_file(is_declaration_file);
+        node.set_referenced_files(referenced_files);
+        node.set_type_reference_directives(type_reference_directives);
+        node.set_has_no_default_lib(has_no_default_lib);
+        node.set_lib_reference_directives(lib_reference_directives);
+        node.set_transform_flags(
+            propagate_children_flags(Some(&node.statements()))
+                | propagate_child_flags(Some(node.end_of_file_token())),
+        );
+        node.set_implied_node_format(source_as_source_file.maybe_implied_node_format());
+        node.wrap()
+    }
+
     pub fn update_source_file(
         &self,
         node: &Node, /*SourceFile*/
         statements: impl Into<NodeArrayOrVec>,
         is_declaration_file: Option<bool>,
-        referenced_files: Option<Vec<FileReference>>,
-        type_reference_directives: Option<Vec<FileReference>>,
+        referenced_files: Option<Rc<RefCell<Vec<FileReference>>>>,
+        type_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
         has_no_default_lib: Option<bool>,
-        lib_reference_directives: Option<Vec<FileReference>>,
-    ) -> Gc<Node /*SourceFile*/> {
-        unimplemented!();
-        // let node_as_source_file = node.as_source_file();
-        // let is_declaration_file = is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
-        // let referenced_files = referenced_files.or_else(||node_as_source_file.maybe_referenced_files().clone());
-        // let type_reference_directives = type_reference_directives.or_else(||node_as_source_file.maybe_type_reference_directives().clone());
-        // let has_no_default_lib = has_no_default_lib.unwrap_or_else(|| node_as_source_file.has_no_default_lib());
-        // let lib_reference_directives = lib_reference_directives.or_else(||node_as_source_file.maybe_lib_reference_directives().clone());
-        // let statements = statements.into();
-        // if has_node_array_changed(&node_as_source_file.statements(), &statements) ||
-        //     node_as_source_file.is_declaration_file() != is_declaration_file ||
-        //     !are_option_gcs_equal(
-        //         node_as_source_file.maybe_referenced_files().
-        //     ) ||
-        //     !Gc::ptr_eq(&node_as_source_file.name, &name)
-        //     || !are_option_gcs_equal(
-        //         node_as_source_file.initializer.as_ref(),
-        //         initializer.as_ref(),
-        //     )
-        // {
-        //     self.update(self.create_enum_member(name, initializer).wrap(), node)
-        // } else {
-        //     node.node_wrapper()
-        // }
-        // TODO
-        // let node_as_source_file = node.as_source_file();
-        // let is_declaration_file = is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
-        // let referenced_files = referenced_files.unwrap_or_else(|| node_as_source_file.referenced_files().clone());
-        // let type_reference_directives = type_reference_directives.unwrap_or_else(|| node_as_source_file.type_reference_directives().clone());
-        // let has_no_default_lib = has_no_default_lib.unwrap_or_else(|| node_as_source_file.has_no_default_lib());
-        // let lib_reference_directives = lib_reference_directives.unwrap_or_else(|| node_as_source_file.lib_reference_directives().clone());
-        // let statements = statements.into();
-        // let statements_as_vec = match statements.clone() {
-        //     NodeArrayOrVec::NodeArray(statements) => statements.to_vec(),
-        //     NodeArrayOrVec::Vec(statements) => statements,
-        // };
-        //     if !(node_as_source_file.statements.len() == statements_as_vec.len()
-        //         && node_as_source_file.statements.iter().enumerate().all(
-        //             |(index, node_statement)| Rc::ptr_eq(node_statement, &statements_as_vec[index]),
-        //         ))
-        // {
-        //     // self.update(
-        //     //     self.create_call_expression(
-        //     //         base_factory,
-        //     //         expression.node_wrapper(),
-        //     //         type_arguments.map(|type_arguments| type_arguments.to_vec()),
-        //     //         Some(arguments_array.to_vec()),
-        //     //     )
-        //     //     .into(),
-        //     //     node,
-        //     // )
-        // } else {
-        //     node.node_wrapper()
-        // }
+        lib_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
+    ) -> Gc<Node> {
+        let node_as_source_file = node.as_source_file();
+        let is_declaration_file =
+            is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
+        let referenced_files =
+            referenced_files.unwrap_or_else(|| node_as_source_file.referenced_files());
+        let type_reference_directives = type_reference_directives
+            .unwrap_or_else(|| node_as_source_file.type_reference_directives());
+        let has_no_default_lib =
+            has_no_default_lib.unwrap_or_else(|| node_as_source_file.has_no_default_lib());
+        let lib_reference_directives = lib_reference_directives
+            .unwrap_or_else(|| node_as_source_file.lib_reference_directives());
+        let statements = statements.into();
+        if has_node_array_changed(&node_as_source_file.statements(), &statements)
+            || node_as_source_file.is_declaration_file() != is_declaration_file
+            || !are_option_rcs_equal(
+                node_as_source_file.maybe_referenced_files().as_ref(),
+                Some(&referenced_files),
+            )
+            || !are_option_rcs_equal(
+                node_as_source_file
+                    .maybe_type_reference_directives()
+                    .as_ref(),
+                Some(&type_reference_directives),
+            )
+            || node_as_source_file.has_no_default_lib() != has_no_default_lib
+            || !are_option_rcs_equal(
+                node_as_source_file
+                    .maybe_lib_reference_directives()
+                    .as_ref(),
+                Some(&lib_reference_directives),
+            )
+        {
+            self.update(
+                self.clone_source_file_with_changes(
+                    node,
+                    statements,
+                    is_declaration_file,
+                    referenced_files,
+                    type_reference_directives,
+                    has_no_default_lib,
+                    lib_reference_directives,
+                ),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_bundle(

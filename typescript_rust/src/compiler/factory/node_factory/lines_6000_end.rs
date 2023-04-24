@@ -507,7 +507,7 @@ pub(super) fn propagate_property_name_flags_of_child(
     transform_flags | (node.transform_flags() & TransformFlags::PropertyNamePropagatingFlags)
 }
 
-pub(super) fn propagate_child_flags<TNode: Borrow<Node>>(child: Option<TNode>) -> TransformFlags {
+pub(super) fn propagate_child_flags(child: Option<impl Borrow<Node>>) -> TransformFlags {
     if child.is_none() {
         return TransformFlags::None;
     }

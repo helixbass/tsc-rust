@@ -751,7 +751,11 @@ impl Program {
     pub fn process_referenced_files(&self, file: &Node /*SourceFile*/, is_default_lib: bool) {
         let file_as_source_file = file.as_source_file();
         maybe_for_each(
-            file_as_source_file.maybe_referenced_files().as_ref(),
+            file_as_source_file
+                .maybe_referenced_files()
+                .as_ref()
+                .map(|file_referenced_files| (**file_referenced_files).borrow())
+                .as_deref(),
             |ref_: &FileReference, index| -> Option<()> {
                 self.process_source_file(
                     &resolve_tripleslash_reference(
@@ -776,14 +780,18 @@ impl Program {
         let file_as_source_file = file.as_source_file();
         let file_type_reference_directives = file_as_source_file.maybe_type_reference_directives();
         let type_directives = maybe_map(
-            file_type_reference_directives.as_ref(),
+            file_type_reference_directives
+                .as_ref()
+                .map(|file_type_reference_directives| (**file_type_reference_directives).borrow())
+                .as_deref(),
             |ref_: &FileReference, _| to_file_name_lower_case(&ref_.file_name),
         );
         if type_directives.is_none() {
             return;
         }
         let type_directives = type_directives.unwrap();
-        let file_type_reference_directives = file_type_reference_directives.as_ref().unwrap();
+        let file_type_reference_directives = file_type_reference_directives.unwrap();
+        let file_type_reference_directives = (*file_type_reference_directives).borrow();
 
         let resolutions = self
             .resolve_type_reference_directive_names_worker(&type_directives, file.node_wrapper());
