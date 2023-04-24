@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use itertools::Either;
 use std::collections::HashMap;

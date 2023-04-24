@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, Trace};
 use itertools::Itertools;
 use std::{collections::HashMap, convert::TryInto};

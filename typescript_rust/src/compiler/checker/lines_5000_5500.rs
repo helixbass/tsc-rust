@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::cmp;
 use std::collections::{HashMap, HashSet};
@@ -10,18 +8,17 @@ use super::{
     SignatureToSignatureDeclarationOptions,
 };
 use crate::{
-    contains_gc, contains_rc, count_where, factory, filter, first, get_check_flags,
+    contains_gc, count_where, factory, filter, first, get_check_flags,
     get_declaration_modifier_flags_from_symbol, get_name_of_declaration, get_object_flags,
     get_parse_tree_node, is_binary_expression, is_class_like, is_element_access_expression,
     is_identifier, is_import_type_node, is_property_access_entity_name_expression, is_static, last,
     length, map, maybe_for_each_bool, node_is_synthesized, null_transformation_context,
-    range_equals_gc, range_equals_rc, same_map, set_emit_flags, set_text_range, some, symbol_name,
-    synthetic_factory, unescape_leading_underscores, visit_each_child, CheckFlags, Debug_,
-    ElementFlags, EmitFlags, HasTypeArgumentsInterface, InterfaceTypeInterface, IsEmpty,
-    KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
-    NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, Type,
-    TypeFlags, TypeId, TypeInterface, VisitResult,
+    range_equals_gc, same_map, set_emit_flags, set_text_range, some, symbol_name,
+    unescape_leading_underscores, visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags,
+    HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node,
+    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
+    ObjectFlagsTypeInterface, PeekableExt, Signature, SignatureFlags, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1186,7 +1183,7 @@ impl NodeBuilder {
                 .type_checker
                 .get_properties_of_object_type(&property_type)
                 .peekable()
-                .is_empty()
+                .is_empty_()
             && !self.type_checker.is_readonly_symbol(property_symbol)
         {
             let signatures = self.type_checker.get_signatures_of_type(

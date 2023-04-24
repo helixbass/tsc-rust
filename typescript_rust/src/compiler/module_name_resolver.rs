@@ -20,11 +20,11 @@ use crate::{
     read_json, remove_file_extension, remove_prefix, sort, starts_with, string_contains, to_path,
     try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
     version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
-    Diagnostics, Extension, MapLike, Matches, ModuleKind, ModuleResolutionHost,
-    ModuleResolutionKind, PackageId, Path, PathAndParts, ResolvedModuleFull,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
-    StringOrBool, StringOrPattern, Version, VersionRange,
+    Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
+    PackageId, Path, PathAndParts, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
+    Version, VersionRange,
 };
 
 pub(crate) fn trace(

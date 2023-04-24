@@ -1,12 +1,10 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    is_identifier, set_text_range_pos, some, token_is_identifier_or_keyword, BindingElement, Block,
-    CaseBlock, CatchClause, DebuggerStatement, DefaultClause, DiagnosticMessage, Diagnostics, Node,
-    NodeArray, NodeFlags, NodeInterface, SwitchStatement, SyntaxKind, ThrowStatement, TryStatement,
+    is_identifier, set_text_range_pos, some, token_is_identifier_or_keyword, BindingElement,
+    CaseBlock, CatchClause, DefaultClause, DiagnosticMessage, Diagnostics, Node, NodeArray,
+    NodeFlags, NodeInterface, SyntaxKind,
 };
 
 impl ParserType {

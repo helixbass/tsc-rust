@@ -1,5 +1,4 @@
 use gc::{Finalize, Gc, Trace};
-use std::rc::Rc;
 
 use crate::{CompilerOptions, Node, Program};
 

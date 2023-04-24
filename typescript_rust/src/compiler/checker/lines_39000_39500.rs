@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::{borrow::Borrow, ptr};
 
@@ -942,6 +940,7 @@ impl TypeChecker {
                 let symbol = self.get_symbol_of_node(node);
                 if let Some(symbol) = symbol.as_ref() {
                     let mut report_error = !symbol.flags().intersects(SymbolFlags::Transient);
+                    #[allow(dead_code)]
                     if !report_error {
                         report_error = matches!(
                             symbol.maybe_parent().as_ref().and_then(|symbol_parent| {

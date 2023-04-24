@@ -3,10 +3,9 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node,
-    maybe_get_source_file_of_node, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, Node,
-    NodeInterface, ReadonlyTextRange, SnippetElement, SourceMapRange, StringOrNumber, SyntaxKind,
-    SynthesizedComment,
+    get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, BaseTextRange, Debug_,
+    EmitFlags, EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement,
+    SourceMapRange, StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
@@ -122,7 +121,7 @@ pub fn get_comment_range(node: &Node) -> BaseTextRange {
 pub fn set_comment_range(node: &Node, range: &impl ReadonlyTextRange /*TextRange*/)
 /*-> Gc<Node>*/
 {
-    // unimplemented!()
+    get_or_create_emit_node(node).borrow_mut().comment_range = Some(range.into());
 }
 
 pub fn set_comment_range_rc(
@@ -141,7 +140,7 @@ pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedC
 pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
 /*-> Gc<Node>*/
 {
-    unimplemented!()
+    get_or_create_emit_node(node).borrow_mut().leading_comments = comments;
 }
 
 pub fn set_synthetic_leading_comments_rc(
@@ -159,7 +158,20 @@ pub fn add_synthetic_leading_comment(
     has_trailing_new_line: Option<bool>,
 ) /*-> Gc<Node>*/
 {
-    unimplemented!()
+    let mut synthetic_leading_comments = get_synthetic_leading_comments(node);
+    if synthetic_leading_comments.is_none() {
+        synthetic_leading_comments = Some(Default::default());
+    }
+    synthetic_leading_comments
+        .as_mut()
+        .unwrap()
+        .push(Rc::new(SynthesizedComment {
+            kind,
+            has_trailing_new_line,
+            text: text.to_owned(),
+            has_leading_new_line: None,
+        }));
+    set_synthetic_leading_comments(node, synthetic_leading_comments);
 }
 
 pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
@@ -172,11 +184,11 @@ pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNu
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
 }
 
-pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Gc<Node> {
+pub fn add_emit_helper(_node: &Node, _helper: Gc<EmitHelper>) -> Gc<Node> {
     unimplemented!()
 }
 
-pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
+pub fn add_emit_helpers(_node: &Node, _helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
     unimplemented!()
 }
 

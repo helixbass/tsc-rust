@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -106,7 +104,7 @@ impl TypeChecker {
                 )
                 .wrap()
         });
-        let mut printer = create_printer(
+        let printer = create_printer(
             PrinterOptionsBuilder::default()
                 .remove_comments(Some(true))
                 .build()

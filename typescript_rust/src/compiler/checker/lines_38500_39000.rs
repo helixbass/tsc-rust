@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, Trace};
 use itertools::Either;
 use std::borrow::Borrow;
@@ -175,6 +173,7 @@ impl TypeChecker {
                 .as_ref()
                 .filter(|_| base_prop.is_none() && member_has_override_modifier)
             {
+                unimplemented!()
             } else if let (Some(prop), Some(base_prop_declarations)) = (
                 prop.as_ref(),
                 base_prop

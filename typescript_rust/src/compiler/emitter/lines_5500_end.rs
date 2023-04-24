@@ -1,9 +1,9 @@
 use bitflags::bitflags;
 use gc::Gc;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
-use std::{collections::HashMap, ptr};
 
 use super::{brackets, PipelinePhase};
 use crate::{
@@ -249,9 +249,9 @@ impl Printer {
         );
     }
 
-    pub(super) fn emit_detached_comments_and_update_comments_info<TRange: ReadonlyTextRange>(
+    pub(super) fn emit_detached_comments_and_update_comments_info(
         &self,
-        range: &TRange,
+        range: &impl ReadonlyTextRange,
     ) {
         let current_detached_comment_info = emit_detached_comments(
             &self.current_source_file().as_source_file().text_as_chars(),
@@ -269,6 +269,11 @@ impl Printer {
             &self.new_line,
             self.comments_disabled(),
         );
+        if let Some(current_detached_comment_info) = current_detached_comment_info {
+            self.maybe_detached_comments_info_mut()
+                .get_or_insert_with(|| Default::default())
+                .push(current_detached_comment_info);
+        }
     }
 
     pub(super) fn emit_comment(
@@ -290,10 +295,10 @@ impl Printer {
         write_comment_range(
             text,
             line_map,
-            &**self.writer(),
+            writer,
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
-            &self.new_line,
+            new_line,
         );
         self.emit_pos(comment_end);
     }

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
 use std::borrow::Borrow;

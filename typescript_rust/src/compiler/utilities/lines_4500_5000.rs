@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::cmp;
@@ -22,8 +20,8 @@ use crate::{
     is_pinned_comment, is_property_access_entity_name_expression, is_white_space_single_line, last,
     maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, synthetic_factory,
     text_char_at_index, text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange,
-    EmitTextWriter, ModifierFlags, ModifiersArray, Node, NodeFlags, NodeInterface,
-    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
+    DetachedCommentInfo, EmitTextWriter, ModifierFlags, ModifiersArray, Node, NodeFlags,
+    NodeInterface, ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Gc<Node /*TypeNode*/>> {
@@ -195,15 +193,12 @@ pub fn emit_comments<
         });
 }
 
-pub fn emit_detached_comments<
-    TWriteComment: FnMut(&SourceTextAsChars, &[usize], &dyn EmitTextWriter, isize, isize, &str),
-    TNode: ReadonlyTextRange,
->(
+pub fn emit_detached_comments(
     text: &SourceTextAsChars,
     line_map: &[usize],
     writer: &dyn EmitTextWriter,
-    mut write_comment: TWriteComment,
-    node: &TNode,
+    mut write_comment: impl FnMut(&SourceTextAsChars, &[usize], &dyn EmitTextWriter, isize, isize, &str),
+    node: &impl ReadonlyTextRange,
     new_line: &str,
     remove_comments: bool,
 ) -> Option<DetachedCommentInfo> {
@@ -283,11 +278,6 @@ pub fn emit_detached_comments<
     }
 
     current_detached_comment_info
-}
-
-pub struct DetachedCommentInfo {
-    pub node_pos: isize,
-    pub detached_comment_end_pos: isize,
 }
 
 pub fn write_comment_range(

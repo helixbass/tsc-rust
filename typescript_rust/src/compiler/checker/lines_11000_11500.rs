@@ -1,12 +1,8 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::cmp;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
@@ -15,7 +11,7 @@ use crate::{
     InternalSymbolName, Node, Number, ObjectTypeInterface, ResolvedTypeInterface, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, __String,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -517,8 +513,7 @@ impl TypeChecker {
         } else {
             let mut members = self.empty_symbols();
             let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
-            let symbol_exports = symbol.maybe_exports();
-            if let Some(symbol_exports) = symbol_exports.as_ref() {
+            if symbol.maybe_exports().is_some() {
                 members = self.get_exports_of_symbol(&symbol);
                 if Gc::ptr_eq(&symbol, &self.global_this_symbol()) {
                     let mut vars_only = SymbolTable::new();

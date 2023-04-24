@@ -16,8 +16,8 @@ use crate::{
     CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfBooleanType,
     CommandLineOptionOfListType, CommandLineOptionOfStringType, CommandLineOptionType,
     CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic, DiagnosticMessage,
-    Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, ModuleKind, ParsedCommandLine,
-    ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
+    Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, ModuleKind, ParsedCommandLineWithBaseOptions,
+    ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 

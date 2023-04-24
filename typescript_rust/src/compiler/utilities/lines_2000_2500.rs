@@ -1,9 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::ops::Deref;
-use std::rc::Rc;
 
 use crate::{
     get_jsdoc_type_tag, get_text_of_identifier_or_literal, is_effective_module_declaration,

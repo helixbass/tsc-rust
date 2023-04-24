@@ -1,6 +1,5 @@
 use gc::Gc;
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{ParseJSDocCommentWorker, PropertyLikeParse};
 use crate::{
@@ -8,10 +7,10 @@ use crate::{
     is_jsdoc_return_tag, is_jsdoc_type_tag, is_type_reference_node, last_or_undefined,
     node_is_missing, some, token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag,
     Debug_, DiagnosticMessage, Diagnostics, ExpressionWithTypeArguments, HasTypeArgumentsInterface,
-    Identifier, JSDocAugmentsTag, JSDocCallbackTag, JSDocImplementsTag, JSDocPropertyLikeTag,
-    JSDocSeeTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node,
-    NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind,
-    TextChangeRange, TypeParameterDeclaration,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocImplementsTag, JSDocPropertyLikeTag, JSDocSeeTag,
+    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node, NodeArray, NodeFlags,
+    NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind, TextChangeRange,
+    TypeParameterDeclaration,
 };
 
 impl<'parser> ParseJSDocCommentWorker<'parser> {

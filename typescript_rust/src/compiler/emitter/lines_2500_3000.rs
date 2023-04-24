@@ -1,13 +1,12 @@
 use gc::{Finalize, Gc, Trace};
 use std::cell::RefCell;
-use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::PipelinePhase;
 use crate::{
     cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node,
     is_binary_expression, is_block, is_expression, is_json_source_file, node_is_synthesized,
-    positions_are_on_same_line, skip_trivia, with_synthetic_factory, BaseNodeFactorySynthetic,
+    positions_are_on_same_line, skip_trivia, BaseNodeFactorySynthetic,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, CurrentParenthesizerRule, Debug_,
     EmitFlags, EmitHint, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     LeftOrRight, ListFormat, NamedDeclarationInterface, Node, NodeInterface, ParenthesizerRules,
@@ -134,7 +133,7 @@ impl Printer {
         &self,
         node: &Node, /*ParenthesizedExpression*/
     ) {
-        let open_paren_pos = self.emit_token_with_comment(
+        let _open_paren_pos = self.emit_token_with_comment(
             SyntaxKind::OpenParenToken,
             node.pos(),
             |text: &str| self.write_punctuation(text),
@@ -149,6 +148,14 @@ impl Printer {
         self.emit_expression(Some(&*node_as_parenthesized_expression.expression), None);
         self.write_line_separators_after(&node_as_parenthesized_expression.expression, node);
         self.decrease_indent_if(indented, None);
+        self.emit_token_with_comment(
+            SyntaxKind::CloseParenToken,
+            /*node.expression ?*/
+            node_as_parenthesized_expression.expression.end(), /*: openParenPos*/
+            |str_| self.write_punctuation(str_),
+            node,
+            None,
+        );
     }
 
     pub(super) fn emit_function_expression(&self, node: &Node /*FunctionExpression*/) {
@@ -832,11 +839,11 @@ impl Printer {
         self.write_trailing_semicolon();
     }
 
-    pub(super) fn emit_token_with_comment<TWriter: FnMut(&str)>(
+    pub(super) fn emit_token_with_comment(
         &self,
         token: SyntaxKind,
         mut pos: isize,
-        writer: TWriter,
+        writer: impl FnMut(&str),
         context_node: &Node,
         indent_leading: Option<bool>,
     ) -> isize {

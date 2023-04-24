@@ -1,9 +1,7 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -414,10 +412,6 @@ impl BinderType {
         *self.options.borrow_mut() = options;
     }
 
-    pub(super) fn language_version(&self) -> ScriptTarget {
-        self.language_version.get().unwrap()
-    }
-
     pub(super) fn maybe_language_version(&self) -> Option<ScriptTarget> {
         self.language_version.get()
     }
@@ -489,11 +483,7 @@ impl BinderType {
     }
 
     pub(super) fn maybe_last_container(&self) -> Option<Gc<Node>> {
-        self.last_container.borrow().as_ref().map(Clone::clone)
-    }
-
-    pub(super) fn last_container(&self) -> Gc<Node> {
-        self.last_container.borrow().as_ref().unwrap().clone()
+        self.last_container.borrow().clone()
     }
 
     pub(super) fn set_last_container(&self, last_container: Option<Gc<Node>>) {
@@ -502,14 +492,6 @@ impl BinderType {
 
     pub(super) fn maybe_delayed_type_aliases(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.delayed_type_aliases.borrow_mut()
-    }
-
-    pub(super) fn delayed_type_aliases(
-        &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Node>>>, Vec<Gc<Node>>> {
-        GcCellRefMut::map(self.delayed_type_aliases.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
     }
 
     pub(super) fn set_delayed_type_aliases(&self, delayed_type_aliases: Option<Vec<Gc<Node>>>) {
@@ -628,10 +610,6 @@ impl BinderType {
 
     pub(super) fn set_has_explicit_return(&self, has_explicit_return: Option<bool>) {
         self.has_explicit_return.set(has_explicit_return);
-    }
-
-    pub(super) fn maybe_emit_flags(&self) -> Option<NodeFlags> {
-        self.emit_flags.get()
     }
 
     pub(super) fn emit_flags(&self) -> NodeFlags {
@@ -971,10 +949,10 @@ impl BinderType {
         }
     }
 
-    pub(super) fn declare_symbol<TParent: Borrow<Symbol>>(
+    pub(super) fn declare_symbol(
         &self,
         symbol_table: &mut SymbolTable,
-        parent: Option<TParent>,
+        parent: Option<impl Borrow<Symbol>>,
         node: &Node, /*Declaration*/
         includes: SymbolFlags,
         excludes: SymbolFlags,
@@ -997,7 +975,7 @@ impl BinderType {
             self.get_declaration_name(node)
         };
 
-        let mut symbol: Option<Gc<Symbol>> = None;
+        let mut symbol: Option<Gc<Symbol>>;
         match name {
             None => {
                 symbol = Some(

@@ -1,17 +1,14 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::collections::HashSet;
-use std::rc::Rc;
 
 use super::{ParserType, SignatureFlags, Tristate};
 use crate::{
     get_binary_operator_precedence, is_assignment_operator, is_async_modifier,
     is_jsdoc_function_type, is_left_hand_side_expression, is_modifier_kind, node_is_present,
-    skip_trivia, some, token_to_string, ArrowFunction, AsDoubleDeref, AsExpression,
-    AwaitExpression, BinaryExpression, Debug_, DeleteExpression, Diagnostics, LanguageVariant,
-    Node, NodeArray, NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression,
-    ReadonlyTextRange, SyntaxKind, TypeOfExpression, VoidExpression, YieldExpression,
+    skip_trivia, some, token_to_string, AsDoubleDeref, AsExpression, AwaitExpression,
+    BinaryExpression, Debug_, DeleteExpression, Diagnostics, LanguageVariant, Node, NodeArray,
+    NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression, ReadonlyTextRange,
+    SyntaxKind, TypeOfExpression, VoidExpression, YieldExpression,
 };
 
 impl ParserType {

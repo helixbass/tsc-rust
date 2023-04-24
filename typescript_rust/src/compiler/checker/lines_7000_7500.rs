@@ -6,18 +6,18 @@ use itertools::Itertools;
 use crate::{
     are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table, filter,
     find_ancestor, flat_map, get_assignment_declaration_kind, get_effective_implements_type_nodes,
-    get_effective_modifier_flags, get_es_module_interop, get_name_of_declaration,
-    get_source_file_of_node, get_symbol_id, get_text_of_jsdoc_comment, has_syntactic_modifier,
-    id_text, is_ambient_module, is_binary_expression, is_class_declaration, is_class_expression,
-    is_class_like, is_entity_name_expression, is_enum_declaration, is_enum_member,
-    is_export_assignment, is_export_declaration, is_export_specifier, is_external_module_reference,
-    is_external_or_common_js_module, is_function_declaration, is_global_scope_augmentation,
-    is_identifier, is_import_equals_declaration, is_import_specifier, is_in_js_file,
-    is_interface_declaration, is_jsdoc_type_alias, is_jsdoc_type_expression, is_json_source_file,
-    is_module_declaration, is_named_declaration, is_namespace_export, is_parameter_declaration,
-    is_private_identifier, is_property_access_expression, is_shorthand_ambient_module_symbol,
-    is_source_file, is_static, is_string_literal_like, is_variable_declaration,
-    is_variable_statement, length, map, map_defined, maybe_first_defined,
+    get_effective_modifier_flags, get_es_module_interop, get_factory, get_name_of_declaration,
+    get_parse_node_factory, get_source_file_of_node, get_symbol_id, get_text_of_jsdoc_comment,
+    has_syntactic_modifier, id_text, is_ambient_module, is_binary_expression, is_class_declaration,
+    is_class_expression, is_class_like, is_entity_name_expression, is_enum_declaration,
+    is_enum_member, is_export_assignment, is_export_declaration, is_export_specifier,
+    is_external_module_reference, is_external_or_common_js_module, is_function_declaration,
+    is_global_scope_augmentation, is_identifier, is_import_equals_declaration, is_import_specifier,
+    is_in_js_file, is_interface_declaration, is_jsdoc_type_alias, is_jsdoc_type_expression,
+    is_json_source_file, is_module_declaration, is_named_declaration, is_namespace_export,
+    is_parameter_declaration, is_private_identifier, is_property_access_expression,
+    is_shorthand_ambient_module_symbol, is_source_file, is_static, is_string_literal_like,
+    is_variable_declaration, is_variable_statement, length, map, map_defined, maybe_first_defined,
     maybe_get_source_file_of_node, maybe_map, set_parent, set_synthetic_leading_comments_rc,
     set_text_range_rc_node, some, unescape_leading_underscores,
     with_parse_base_node_factory_and_factory, with_synthetic_factory_and_factory, AsDoubleDeref,
@@ -127,12 +127,10 @@ impl SymbolTableToDeclarationStatements {
                 new_modifier_flags |= ModifierFlags::Default;
             }
             if new_modifier_flags != ModifierFlags::None {
-                node = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                    factory_.update_modifiers(
-                        &node,
-                        new_modifier_flags | get_effective_modifier_flags(&node),
-                    )
-                });
+                node = get_factory().update_modifiers(
+                    &node,
+                    new_modifier_flags | get_effective_modifier_flags(&node),
+                );
             }
         }
         self.results_mut().push(node);
@@ -206,17 +204,15 @@ impl SymbolTableToDeclarationStatements {
             });
         self.add_result(
             &set_synthetic_leading_comments_rc(
-                with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                    factory_
-                        .create_type_alias_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            &*self.get_internal_symbol_name(symbol, symbol_name),
-                            type_param_decls,
-                            type_node,
-                        )
-                        .wrap()
-                }),
+                get_factory()
+                    .create_type_alias_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        &*self.get_internal_symbol_name(symbol, symbol_name),
+                        type_param_decls,
+                        type_node,
+                    )
+                    .wrap(),
                 Some(match comment_text {
                     None => vec![],
                     Some(comment_text) => vec![Rc::new(SynthesizedComment {
@@ -284,40 +280,34 @@ impl SymbolTableToDeclarationStatements {
         let heritage_clauses: Option<Vec<Gc<Node>>> = if base_types.is_empty() {
             None
         } else {
-            Some(vec![with_synthetic_factory_and_factory(
-                |synthetic_factory_, factory_| {
-                    factory_
-                        .create_heritage_clause(
-                            SyntaxKind::ExtendsKeyword,
-                            map_defined(Some(&base_types), |b: &Gc<Type>, _| {
-                                self.try_serialize_as_type_reference(b, SymbolFlags::Value)
-                            }),
-                        )
-                        .wrap()
-                },
-            )])
+            Some(vec![get_factory()
+                .create_heritage_clause(
+                    SyntaxKind::ExtendsKeyword,
+                    map_defined(Some(&base_types), |b: &Gc<Type>, _| {
+                        self.try_serialize_as_type_reference(b, SymbolFlags::Value)
+                    }),
+                )
+                .wrap()])
         };
         self.add_result(
-            &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_
-                    .create_interface_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        &*self.get_internal_symbol_name(symbol, symbol_name),
-                        type_param_decls,
-                        heritage_clauses,
-                        Itertools::concat(
-                            [
-                                index_signatures,
-                                construct_signatures,
-                                call_signatures,
-                                members.collect_vec(),
-                            ]
-                            .into_iter(),
-                        ),
-                    )
-                    .wrap()
-            }),
+            &get_factory()
+                .create_interface_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    &*self.get_internal_symbol_name(symbol, symbol_name),
+                    type_param_decls,
+                    heritage_clauses,
+                    Itertools::concat(
+                        [
+                            index_signatures,
+                            construct_signatures,
+                            call_signatures,
+                            members.collect_vec(),
+                        ]
+                        .into_iter(),
+                    ),
+                )
+                .wrap(),
             modifier_flags,
         );
     }
@@ -393,118 +383,106 @@ impl SymbolTableToDeclarationStatements {
             let containing_file =
                 maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
             let local_name = self.get_internal_symbol_name(symbol, symbol_name);
-            let ns_body = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_
-                    .create_module_block(Some(vec![factory_
-                        .create_export_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            false,
-                            Some(
-                                factory_
-                                    .create_named_exports(map_defined(
-                                        Some(&filter(&merged_members, |n: &Gc<Symbol>| {
-                                            n.escaped_name() != InternalSymbolName::ExportEquals
-                                        })),
-                                        |s: &Gc<Symbol>, _| -> Option<Gc<Node>> {
-                                            let name =
-                                                unescape_leading_underscores(s.escaped_name());
-                                            let local_name = self.get_internal_symbol_name(s, name);
-                                            let alias_decl =
-                                                s.maybe_declarations().is_some().then_and(|| {
-                                                    self.type_checker
-                                                        .get_declaration_of_alias_symbol(s)
-                                                });
-                                            if let Some(containing_file) =
-                                                containing_file.as_ref().filter(|containing_file| {
-                                                    if let Some(alias_decl) = alias_decl.as_ref() {
-                                                        !Gc::ptr_eq(
-                                                            *containing_file,
-                                                            &get_source_file_of_node(alias_decl),
-                                                        )
-                                                    } else {
-                                                        !some(
-                                                            s.maybe_declarations().as_deref(),
-                                                            Some(|d: &Gc<Node>| {
-                                                                Gc::ptr_eq(
-                                                                    &get_source_file_of_node(d),
-                                                                    *containing_file,
-                                                                )
-                                                            }),
-                                                        )
-                                                    }
-                                                })
-                                            {
-                                                self.context()
-                                                    .tracker()
-                                                    .report_nonlocal_augmentation(
-                                                        containing_file,
-                                                        symbol,
-                                                        s,
-                                                    );
-                                                return None;
-                                            }
-                                            let target =
-                                                alias_decl.as_ref().and_then(|alias_decl| {
-                                                    self.type_checker
-                                                        .get_target_of_alias_declaration(
-                                                            alias_decl,
-                                                            Some(true),
-                                                        )
-                                                });
-                                            self.include_private_symbol(
-                                                target.as_deref().unwrap_or(&**s),
-                                            );
-                                            let target_name = target.as_ref().map_or_else(
-                                                || local_name.clone(),
-                                                |target| {
-                                                    self.get_internal_symbol_name(
-                                                        target,
-                                                        unescape_leading_underscores(
-                                                            target.escaped_name(),
-                                                        ),
+            let ns_body = get_factory()
+                .create_module_block(Some(vec![get_factory()
+                    .create_export_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        false,
+                        Some(
+                            get_factory()
+                                .create_named_exports(map_defined(
+                                    Some(&filter(&merged_members, |n: &Gc<Symbol>| {
+                                        n.escaped_name() != InternalSymbolName::ExportEquals
+                                    })),
+                                    |s: &Gc<Symbol>, _| -> Option<Gc<Node>> {
+                                        let name = unescape_leading_underscores(s.escaped_name());
+                                        let local_name = self.get_internal_symbol_name(s, name);
+                                        let alias_decl =
+                                            s.maybe_declarations().is_some().then_and(|| {
+                                                self.type_checker.get_declaration_of_alias_symbol(s)
+                                            });
+                                        if let Some(containing_file) =
+                                            containing_file.as_ref().filter(|containing_file| {
+                                                if let Some(alias_decl) = alias_decl.as_ref() {
+                                                    !Gc::ptr_eq(
+                                                        *containing_file,
+                                                        &get_source_file_of_node(alias_decl),
                                                     )
-                                                },
+                                                } else {
+                                                    !some(
+                                                        s.maybe_declarations().as_deref(),
+                                                        Some(|d: &Gc<Node>| {
+                                                            Gc::ptr_eq(
+                                                                &get_source_file_of_node(d),
+                                                                *containing_file,
+                                                            )
+                                                        }),
+                                                    )
+                                                }
+                                            })
+                                        {
+                                            self.context().tracker().report_nonlocal_augmentation(
+                                                containing_file,
+                                                symbol,
+                                                s,
                                             );
-                                            Some(with_synthetic_factory_and_factory(
-                                                |synthetic_factory_, factory_| {
-                                                    factory_
-                                                        .create_export_specifier(
-                                                            false,
-                                                            if name == target_name {
-                                                                None
-                                                            } else {
-                                                                Some(&*target_name)
-                                                            },
-                                                            name,
-                                                        )
-                                                        .wrap()
-                                                },
-                                            ))
-                                        },
-                                    ))
-                                    .wrap(),
-                            ),
-                            None,
-                            None,
-                        )
-                        .wrap()]))
-                    .wrap()
-            });
-            self.add_result(
-                &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                    factory_
-                        .create_module_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            factory_
-                                .create_identifier(&local_name, Option::<Gc<NodeArray>>::None, None)
+                                            return None;
+                                        }
+                                        let target = alias_decl.as_ref().and_then(|alias_decl| {
+                                            self.type_checker.get_target_of_alias_declaration(
+                                                alias_decl,
+                                                Some(true),
+                                            )
+                                        });
+                                        self.include_private_symbol(
+                                            target.as_deref().unwrap_or(&**s),
+                                        );
+                                        let target_name = target.as_ref().map_or_else(
+                                            || local_name.clone(),
+                                            |target| {
+                                                self.get_internal_symbol_name(
+                                                    target,
+                                                    unescape_leading_underscores(
+                                                        target.escaped_name(),
+                                                    ),
+                                                )
+                                            },
+                                        );
+                                        Some(
+                                            get_factory()
+                                                .create_export_specifier(
+                                                    false,
+                                                    if name == target_name {
+                                                        None
+                                                    } else {
+                                                        Some(&*target_name)
+                                                    },
+                                                    name,
+                                                )
+                                                .wrap(),
+                                        )
+                                    },
+                                ))
                                 .wrap(),
-                            Some(ns_body),
-                            Some(NodeFlags::Namespace),
-                        )
-                        .wrap()
-                }),
+                        ),
+                        None,
+                        None,
+                    )
+                    .wrap()]))
+                .wrap();
+            self.add_result(
+                &get_factory()
+                    .create_module_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        get_factory()
+                            .create_identifier(&local_name, Option::<Gc<NodeArray>>::None, None)
+                            .wrap(),
+                        Some(ns_body),
+                        Some(NodeFlags::Namespace),
+                    )
+                    .wrap(),
                 ModifierFlags::None,
             );
         }
@@ -517,70 +495,62 @@ impl SymbolTableToDeclarationStatements {
         modifier_flags: ModifierFlags,
     ) {
         self.add_result(
-            &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_
-                    .create_enum_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Some(factory_.create_modifiers_from_modifier_flags(
-                            if self.type_checker.is_const_enum_symbol(symbol) {
-                                ModifierFlags::Const
-                            } else {
-                                ModifierFlags::None
-                            },
-                        )),
-                        &*self.get_internal_symbol_name(symbol, symbol_name),
-                        Some(
-                            self.type_checker
-                                .get_properties_of_type(
-                                    &self.type_checker.get_type_of_symbol(symbol),
-                                )
-                                .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
-                                .map(|p| -> Gc<Node> {
-                                    let initialized_value = p
-                                        .maybe_declarations()
-                                        .as_ref()
-                                        .and_then(|p_declarations| p_declarations.get(0).cloned())
-                                        .filter(|p_declarations_0| is_enum_member(p_declarations_0))
-                                        .as_ref()
-                                        .and_then(|p_declarations_0| {
-                                            self.type_checker.get_constant_value_(p_declarations_0)
-                                        });
-                                    with_synthetic_factory_and_factory(
-                                        |synthetic_factory_, factory_| {
-                                            factory_
-                                                .create_enum_member(
-                                                    unescape_leading_underscores(p.escaped_name()),
-                                                    initialized_value.map(|initialized_value| {
-                                                        match initialized_value {
-                                                            StringOrNumber::String(
-                                                                initialized_value,
-                                                            ) => factory_
-                                                                .create_string_literal(
-                                                                    initialized_value,
-                                                                    None,
-                                                                    None,
-                                                                )
-                                                                .wrap(),
-                                                            StringOrNumber::Number(
-                                                                initialized_value,
-                                                            ) => factory_
-                                                                .create_numeric_literal(
-                                                                    initialized_value,
-                                                                    None,
-                                                                )
-                                                                .wrap(),
-                                                        }
-                                                    }),
-                                                )
-                                                .wrap()
-                                        },
+            &get_factory()
+                .create_enum_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Some(get_factory().create_modifiers_from_modifier_flags(
+                        if self.type_checker.is_const_enum_symbol(symbol) {
+                            ModifierFlags::Const
+                        } else {
+                            ModifierFlags::None
+                        },
+                    )),
+                    &*self.get_internal_symbol_name(symbol, symbol_name),
+                    Some(
+                        self.type_checker
+                            .get_properties_of_type(&self.type_checker.get_type_of_symbol(symbol))
+                            .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
+                            .map(|p| -> Gc<Node> {
+                                let initialized_value = p
+                                    .maybe_declarations()
+                                    .as_ref()
+                                    .and_then(|p_declarations| p_declarations.get(0).cloned())
+                                    .filter(|p_declarations_0| is_enum_member(p_declarations_0))
+                                    .as_ref()
+                                    .and_then(|p_declarations_0| {
+                                        self.type_checker.get_constant_value_(p_declarations_0)
+                                    });
+                                get_factory()
+                                    .create_enum_member(
+                                        unescape_leading_underscores(p.escaped_name()),
+                                        initialized_value.map(|initialized_value| {
+                                            match initialized_value {
+                                                StringOrNumber::String(initialized_value) => {
+                                                    get_factory()
+                                                        .create_string_literal(
+                                                            initialized_value,
+                                                            None,
+                                                            None,
+                                                        )
+                                                        .wrap()
+                                                }
+                                                StringOrNumber::Number(initialized_value) => {
+                                                    get_factory()
+                                                        .create_numeric_literal(
+                                                            initialized_value,
+                                                            None,
+                                                        )
+                                                        .wrap()
+                                                }
+                                            }
+                                        }),
                                     )
-                                })
-                                .collect::<Vec<_>>(),
-                        ),
-                    )
-                    .wrap()
-            }),
+                                    .wrap()
+                            })
+                            .collect::<Vec<_>>(),
+                    ),
+                )
+                .wrap(),
             modifier_flags,
         );
     }
@@ -601,13 +571,11 @@ impl SymbolTableToDeclarationStatements {
                 SyntaxKind::FunctionDeclaration,
                 &self.context(),
                 Some(SignatureToSignatureDeclarationOptions {
-                    name: Some(with_synthetic_factory_and_factory(
-                        |synthetic_factory_, factory_| {
-                            factory_
-                                .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
-                                .wrap()
-                        },
-                    )),
+                    name: Some(
+                        get_factory()
+                            .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
+                            .wrap(),
+                    ),
                     private_symbol_visitor: Some(|symbol: &Symbol| {
                         self.include_private_symbol(symbol);
                     }),
@@ -706,30 +674,17 @@ impl SymbolTableToDeclarationStatements {
                 .get(&"local")
                 .cloned()
                 .unwrap_or_default();
-            let mut fakespace =
-                with_parse_base_node_factory_and_factory(|base_factory, parse_node_factory_| {
-                    parse_node_factory_
-                        .create_module_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_
-                                    .create_identifier(
-                                        local_name,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .wrap()
-                            }),
-                            Some(with_synthetic_factory_and_factory(
-                                |synthetic_factory_, factory_| {
-                                    factory_.create_module_block(Some(vec![])).wrap()
-                                },
-                            )),
-                            Some(NodeFlags::Namespace),
-                        )
-                        .wrap()
-                });
+            let mut fakespace = get_parse_node_factory()
+                .create_module_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    get_factory()
+                        .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
+                        .wrap(),
+                    Some(get_factory().create_module_block(Some(vec![])).wrap()),
+                    Some(NodeFlags::Namespace),
+                )
+                .wrap();
             set_parent(&fakespace, Some(&*self.enclosing_declaration));
             fakespace.set_locals(Some(Gc::new(GcCell::new(create_symbol_table(Some(props))))));
             if let Some(props_0_parent) = props[0].maybe_parent() {
@@ -760,34 +715,32 @@ impl SymbolTableToDeclarationStatements {
                     d_as_export_assignment.is_export_equals != Some(true)
                         && is_identifier(&d_as_export_assignment.expression)
                 } {
-                    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_export_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                false,
-                                Some(
-                                    factory_
-                                        .create_named_exports(vec![factory_
-                                            .create_export_specifier(
-                                                false,
-                                                Some(d.as_export_assignment().expression.clone()),
-                                                factory_
-                                                    .create_identifier(
-                                                        InternalSymbolName::Default,
-                                                        Option::<Gc<NodeArray>>::None,
-                                                        None,
-                                                    )
-                                                    .wrap(),
-                                            )
-                                            .wrap()])
-                                        .wrap(),
-                                ),
-                                None,
-                                None,
-                            )
-                            .wrap()
-                    })
+                    get_factory()
+                        .create_export_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            Some(
+                                get_factory()
+                                    .create_named_exports(vec![get_factory()
+                                        .create_export_specifier(
+                                            false,
+                                            Some(d.as_export_assignment().expression.clone()),
+                                            get_factory()
+                                                .create_identifier(
+                                                    InternalSymbolName::Default,
+                                                    Option::<Gc<NodeArray>>::None,
+                                                    None,
+                                                )
+                                                .wrap(),
+                                        )
+                                        .wrap()])
+                                    .wrap(),
+                            ),
+                            None,
+                            None,
+                        )
+                        .wrap()
                 } else {
                     d.clone()
                 }
@@ -802,19 +755,17 @@ impl SymbolTableToDeclarationStatements {
             } else {
                 default_replaced
             };
-            fakespace = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_.update_module_declaration(
-                    &fakespace,
-                    fakespace.maybe_decorators(),
-                    fakespace.maybe_modifiers(),
-                    fakespace.as_module_declaration().name.clone(),
-                    Some(
-                        factory_
-                            .create_module_block(Some(export_modifier_stripped))
-                            .wrap(),
-                    ),
-                )
-            });
+            fakespace = get_factory().update_module_declaration(
+                &fakespace,
+                fakespace.maybe_decorators(),
+                fakespace.maybe_modifiers(),
+                fakespace.as_module_declaration().name.clone(),
+                Some(
+                    get_factory()
+                        .create_module_block(Some(export_modifier_stripped))
+                        .wrap(),
+                ),
+            );
             self.add_result(&fakespace, modifier_flags);
         }
     }
@@ -860,42 +811,40 @@ impl SymbolTableToDeclarationStatements {
             }
             self.sanitize_jsdoc_implements_cleanup(
                 old_enclosing,
-                Some(with_synthetic_factory_and_factory(
-                    |synthetic_factory_, factory_| {
-                        factory_
-                            .create_expression_with_type_arguments(
-                                expr,
-                                maybe_map(
-                                    e_as_expression_with_type_arguments
-                                        .maybe_type_arguments()
-                                        .as_deref(),
-                                    |a: &Gc<Node>, _| {
-                                        self.node_builder
-                                            .serialize_existing_type_node(
-                                                &self.context(),
-                                                a,
-                                                Some(&|symbol: &Symbol| {
-                                                    self.include_private_symbol(symbol);
-                                                }),
-                                                self.bundled,
-                                            )
-                                            .unwrap_or_else(|| {
-                                                self.node_builder
-                                                    .type_to_type_node_helper(
-                                                        Some(
-                                                            self.type_checker
-                                                                .get_type_from_type_node_(a),
-                                                        ),
-                                                        &self.context(),
-                                                    )
-                                                    .unwrap()
-                                            })
-                                    },
-                                ),
-                            )
-                            .wrap()
-                    },
-                )),
+                Some(
+                    get_factory()
+                        .create_expression_with_type_arguments(
+                            expr,
+                            maybe_map(
+                                e_as_expression_with_type_arguments
+                                    .maybe_type_arguments()
+                                    .as_deref(),
+                                |a: &Gc<Node>, _| {
+                                    self.node_builder
+                                        .serialize_existing_type_node(
+                                            &self.context(),
+                                            a,
+                                            Some(&|symbol: &Symbol| {
+                                                self.include_private_symbol(symbol);
+                                            }),
+                                            self.bundled,
+                                        )
+                                        .unwrap_or_else(|| {
+                                            self.node_builder
+                                                .type_to_type_node_helper(
+                                                    Some(
+                                                        self.type_checker
+                                                            .get_type_from_type_node_(a),
+                                                    ),
+                                                    &self.context(),
+                                                )
+                                                .unwrap()
+                                        })
+                                },
+                            ),
+                        )
+                        .wrap(),
+                ),
             )
         });
         if result.len() == clauses.len() {
@@ -968,30 +917,26 @@ impl SymbolTableToDeclarationStatements {
         let heritage_clauses: Vec<Gc<Node>> = {
             let mut heritage_clauses = vec![];
             if !base_types.is_empty() {
-                heritage_clauses.push(with_synthetic_factory_and_factory(
-                    |synthetic_factory_, factory_| {
-                        factory_
-                            .create_heritage_clause(
-                                SyntaxKind::ExtendsKeyword,
-                                map(&base_types, |b: &Gc<Type>, _| {
-                                    self.serialize_base_type(b, static_base_type, local_name)
-                                }),
-                            )
-                            .wrap()
-                    },
-                ));
+                heritage_clauses.push(
+                    get_factory()
+                        .create_heritage_clause(
+                            SyntaxKind::ExtendsKeyword,
+                            map(&base_types, |b: &Gc<Type>, _| {
+                                self.serialize_base_type(b, static_base_type, local_name)
+                            }),
+                        )
+                        .wrap(),
+                );
             }
             if !implements_expressions.is_empty() {
-                heritage_clauses.push(with_synthetic_factory_and_factory(
-                    |synthetic_factory_, factory_| {
-                        factory_
-                            .create_heritage_clause(
-                                SyntaxKind::ImplementsKeyword,
-                                implements_expressions,
-                            )
-                            .wrap()
-                    },
-                ));
+                heritage_clauses.push(
+                    get_factory()
+                        .create_heritage_clause(
+                            SyntaxKind::ImplementsKeyword,
+                            implements_expressions,
+                        )
+                        .wrap(),
+                );
             }
             heritage_clauses
         };
@@ -1019,17 +964,13 @@ impl SymbolTableToDeclarationStatements {
             )
         });
         let private_properties: Vec<Gc<Node>> = if has_private_identifier {
-            vec![with_synthetic_factory_and_factory(
-                |synthetic_factory_, factory_| {
-                    factory_.create_property_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        factory_.create_private_identifier("#private").wrap(),
-                        None,
-                        None,
-                        None,
-                    )
-                },
+            vec![get_factory().create_property_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                get_factory().create_private_identifier("#private").wrap(),
+                None,
+                None,
+                None,
             )]
         } else {
             vec![]
@@ -1068,21 +1009,16 @@ impl SymbolTableToDeclarationStatements {
                 Option::<fn(&Gc<Signature>) -> bool>::None,
             );
         let constructors = if is_non_constructable_class_like_in_js_file {
-            vec![with_synthetic_factory_and_factory(
-                |synthetic_factory_, factory_| {
-                    factory_
-                        .create_constructor_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Some(
-                                factory_
-                                    .create_modifiers_from_modifier_flags(ModifierFlags::Private),
-                            ),
-                            Some(vec![]),
-                            None,
-                        )
-                        .wrap()
-                },
-            )]
+            vec![get_factory()
+                .create_constructor_declaration(
+                    Option::<Gc<NodeArray>>::None,
+                    Some(
+                        get_factory().create_modifiers_from_modifier_flags(ModifierFlags::Private),
+                    ),
+                    Some(vec![]),
+                    None,
+                )
+                .wrap()]
         } else {
             self.serialize_signatures(
                 SignatureKind::Construct,
@@ -1096,27 +1032,25 @@ impl SymbolTableToDeclarationStatements {
         self.context().set_enclosing_declaration(old_enclosing);
         self.add_result(
             &set_text_range_rc_node(
-                with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                    factory_
-                        .create_class_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
-                            Some(local_name),
-                            type_param_decls,
-                            Some(heritage_clauses),
-                            Itertools::concat(
-                                [
-                                    index_signatures,
-                                    static_members,
-                                    constructors,
-                                    public_properties.collect_vec(),
-                                    private_properties,
-                                ]
-                                .into_iter(),
-                            ),
-                        )
-                        .wrap()
-                }),
+                get_factory()
+                    .create_class_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        Option::<Gc<NodeArray>>::None,
+                        Some(local_name),
+                        type_param_decls,
+                        Some(heritage_clauses),
+                        Itertools::concat(
+                            [
+                                index_signatures,
+                                static_members,
+                                constructors,
+                                public_properties.collect_vec(),
+                                private_properties,
+                            ]
+                            .into_iter(),
+                        ),
+                    )
+                    .wrap(),
                 symbol
                     .maybe_declarations()
                     .as_ref()
@@ -1219,43 +1153,52 @@ impl SymbolTableToDeclarationStatements {
                     );
                     let property_name = node.as_binding_element().property_name.as_ref();
                     self.add_result(
-                        &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_.create_import_declaration(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    Some(
-                                        factory_.create_import_clause(
+                        &get_factory()
+                            .create_import_declaration(
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(
+                                    get_factory()
+                                        .create_import_clause(
                                             false,
                                             None,
-                                            Some(factory_.create_named_imports(
-                                                vec![
-                                                    factory_.create_import_specifier(
-                                                        false,
-                                                        property_name.filter(|property_name| is_identifier(property_name)).map(|property_name| {
-                                                            factory_.create_identifier(
+                                            Some(
+                                                get_factory()
+                                                    .create_named_imports(vec![get_factory()
+                                                        .create_import_specifier(
+                                                            false,
+                                                            property_name
+                                                                .filter(|property_name| {
+                                                                    is_identifier(property_name)
+                                                                })
+                                                                .map(|property_name| {
+                                                                    get_factory().create_identifier(
                                                                 id_text(property_name),
                                                                 Option::<Gc<NodeArray>>::None,
                                                                 None,
                                                             ).wrap()
-                                                        }),
-                                                        factory_.create_identifier(
-                                                            local_name,
-                                                            Option::<Gc<NodeArray>>::None,
-                                                            None,
-                                                        ).wrap()
-                                                    ).wrap()
-                                                ]
-                                            ).wrap()),
-                                        ).wrap(),
-                                    ),
-                                    factory_.create_string_literal(
-                                        specifier,
-                                        None, None,
-                                    ).wrap(),
-                                    None
-                                ).wrap()
-                        }),
-                        ModifierFlags::None
+                                                                }),
+                                                            get_factory()
+                                                                .create_identifier(
+                                                                    local_name,
+                                                                    Option::<Gc<NodeArray>>::None,
+                                                                    None,
+                                                                )
+                                                                .wrap(),
+                                                        )
+                                                        .wrap()])
+                                                    .wrap(),
+                                            ),
+                                        )
+                                        .wrap(),
+                                ),
+                                get_factory()
+                                    .create_string_literal(specifier, None, None)
+                                    .wrap(),
+                                None,
+                            )
+                            .wrap(),
+                        ModifierFlags::None,
                     );
                     break 'case;
                 }
@@ -1287,60 +1230,50 @@ impl SymbolTableToDeclarationStatements {
                     &node_as_variable_declaration.maybe_initializer().unwrap(),
                 ) {
                     let ref initializer = node_as_variable_declaration.maybe_initializer().unwrap();
-                    let unique_name =
-                        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            factory_.create_unique_name(local_name, None)
-                        });
+                    let unique_name = get_factory().create_unique_name(local_name, None);
                     let specifier = self.node_builder.get_specifier_for_module_symbol(
                         target.maybe_parent().as_ref().unwrap_or(target),
                         &self.context(),
                     );
                     self.add_result(
-                        &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            factory_
-                                .create_import_equals_declaration(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    false,
-                                    unique_name.clone(),
-                                    factory_
-                                        .create_external_module_reference(
-                                            factory_
-                                                .create_string_literal(specifier, None, None)
-                                                .wrap(),
-                                        )
-                                        .wrap(),
-                                )
-                                .wrap()
-                        }),
+                        &get_factory()
+                            .create_import_equals_declaration(
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                false,
+                                unique_name.clone(),
+                                get_factory()
+                                    .create_external_module_reference(
+                                        get_factory()
+                                            .create_string_literal(specifier, None, None)
+                                            .wrap(),
+                                    )
+                                    .wrap(),
+                            )
+                            .wrap(),
                         ModifierFlags::None,
                     );
                     self.add_result(
-                        &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            factory_
-                                .create_import_equals_declaration(
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    false,
-                                    factory_
-                                        .create_identifier(
-                                            local_name,
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .wrap(),
-                                    factory_
-                                        .create_qualified_name(
-                                            unique_name,
-                                            initializer
-                                                .as_property_access_expression()
-                                                .name
-                                                .clone(),
-                                        )
-                                        .wrap(),
-                                )
-                                .wrap()
-                        }),
+                        &get_factory()
+                            .create_import_equals_declaration(
+                                Option::<Gc<NodeArray>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                false,
+                                get_factory()
+                                    .create_identifier(
+                                        local_name,
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                    )
+                                    .wrap(),
+                                get_factory()
+                                    .create_qualified_name(
+                                        unique_name,
+                                        initializer.as_property_access_expression().name.clone(),
+                                    )
+                                    .wrap(),
+                            )
+                            .wrap(),
                         modifier_flags,
                     );
                 }
@@ -1357,46 +1290,39 @@ impl SymbolTableToDeclarationStatements {
                 let is_local_import = !target.flags().intersects(SymbolFlags::ValueModule)
                     && !is_variable_declaration(node);
                 self.add_result(
-                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_import_equals_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                false,
-                                factory_
-                                    .create_identifier(
-                                        local_name,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
+                    &get_factory()
+                        .create_import_equals_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            get_factory()
+                                .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
+                                .wrap(),
+                            if is_local_import {
+                                self.node_builder.symbol_to_name(
+                                    target,
+                                    &self.context(),
+                                    Some(SymbolFlags::All),
+                                    false,
+                                )
+                            } else {
+                                get_factory()
+                                    .create_external_module_reference(
+                                        get_factory()
+                                            .create_string_literal(
+                                                self.node_builder.get_specifier_for_module_symbol(
+                                                    target,
+                                                    &self.context(),
+                                                ),
+                                                None,
+                                                None,
+                                            )
+                                            .wrap(),
                                     )
-                                    .wrap(),
-                                if is_local_import {
-                                    self.node_builder.symbol_to_name(
-                                        target,
-                                        &self.context(),
-                                        Some(SymbolFlags::All),
-                                        false,
-                                    )
-                                } else {
-                                    factory_
-                                        .create_external_module_reference(
-                                            factory_
-                                                .create_string_literal(
-                                                    self.node_builder
-                                                        .get_specifier_for_module_symbol(
-                                                            target,
-                                                            &self.context(),
-                                                        ),
-                                                    None,
-                                                    None,
-                                                )
-                                                .wrap(),
-                                        )
-                                        .wrap()
-                                },
-                            )
-                            .wrap()
-                    }),
+                                    .wrap()
+                            },
+                        )
+                        .wrap(),
                     if is_local_import {
                         modifier_flags
                     } else {
@@ -1417,46 +1343,39 @@ impl SymbolTableToDeclarationStatements {
                 let is_local_import = !target.flags().intersects(SymbolFlags::ValueModule)
                     && !is_variable_declaration(node);
                 self.add_result(
-                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_import_equals_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                false,
-                                factory_
-                                    .create_identifier(
-                                        local_name,
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
+                    &get_factory()
+                        .create_import_equals_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            get_factory()
+                                .create_identifier(local_name, Option::<Gc<NodeArray>>::None, None)
+                                .wrap(),
+                            if is_local_import {
+                                self.node_builder.symbol_to_name(
+                                    target,
+                                    &self.context(),
+                                    Some(SymbolFlags::All),
+                                    false,
+                                )
+                            } else {
+                                get_factory()
+                                    .create_external_module_reference(
+                                        get_factory()
+                                            .create_string_literal(
+                                                self.node_builder.get_specifier_for_module_symbol(
+                                                    target,
+                                                    &self.context(),
+                                                ),
+                                                None,
+                                                None,
+                                            )
+                                            .wrap(),
                                     )
-                                    .wrap(),
-                                if is_local_import {
-                                    self.node_builder.symbol_to_name(
-                                        target,
-                                        &self.context(),
-                                        Some(SymbolFlags::All),
-                                        false,
-                                    )
-                                } else {
-                                    factory_
-                                        .create_external_module_reference(
-                                            factory_
-                                                .create_string_literal(
-                                                    self.node_builder
-                                                        .get_specifier_for_module_symbol(
-                                                            target,
-                                                            &self.context(),
-                                                        ),
-                                                    None,
-                                                    None,
-                                                )
-                                                .wrap(),
-                                        )
-                                        .wrap()
-                                },
-                            )
-                            .wrap()
-                    }),
+                                    .wrap()
+                            },
+                        )
+                        .wrap(),
                     if is_local_import {
                         modifier_flags
                     } else {
@@ -1466,86 +1385,116 @@ impl SymbolTableToDeclarationStatements {
             }
             SyntaxKind::NamespaceExportDeclaration => {
                 self.add_result(
-                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_namespace_export_declaration(id_text(
-                                &node.as_namespace_export_declaration().name(),
-                            ))
-                            .wrap()
-                    }),
+                    &get_factory()
+                        .create_namespace_export_declaration(id_text(
+                            &node.as_namespace_export_declaration().name(),
+                        ))
+                        .wrap(),
                     ModifierFlags::None,
                 );
             }
             SyntaxKind::ImportClause => {
                 self.add_result(
-                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_import_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(
-                                    factory_
-                                        .create_import_clause(
-                                            false,
-                                            Some(
-                                                factory_
-                                                    .create_identifier(
-                                                        local_name,
-                                                        Option::<Gc<NodeArray>>::None,
-                                                        None,
-                                                    )
-                                                    .wrap(),
-                                            ),
-                                            None,
-                                        )
-                                        .wrap(),
-                                ),
-                                factory_
-                                    .create_string_literal(
-                                        self.node_builder.get_specifier_for_module_symbol(
-                                            target.maybe_parent().as_ref().unwrap_or(target),
-                                            &self.context(),
+                    &get_factory()
+                        .create_import_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(
+                                get_factory()
+                                    .create_import_clause(
+                                        false,
+                                        Some(
+                                            get_factory()
+                                                .create_identifier(
+                                                    local_name,
+                                                    Option::<Gc<NodeArray>>::None,
+                                                    None,
+                                                )
+                                                .wrap(),
                                         ),
-                                        None,
                                         None,
                                     )
                                     .wrap(),
-                                None,
-                            )
-                            .wrap()
-                    }),
+                            ),
+                            get_factory()
+                                .create_string_literal(
+                                    self.node_builder.get_specifier_for_module_symbol(
+                                        target.maybe_parent().as_ref().unwrap_or(target),
+                                        &self.context(),
+                                    ),
+                                    None,
+                                    None,
+                                )
+                                .wrap(),
+                            None,
+                        )
+                        .wrap(),
                     ModifierFlags::None,
                 );
             }
             SyntaxKind::NamespaceImport => {
                 self.add_result(
-                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_import_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(
-                                    factory_
-                                        .create_import_clause(
-                                            false,
-                                            None,
-                                            Some(
-                                                factory_
-                                                    .create_namespace_import(
-                                                        factory_
-                                                            .create_identifier(
-                                                                local_name,
-                                                                Option::<Gc<NodeArray>>::None,
-                                                                None,
-                                                            )
-                                                            .wrap(),
-                                                    )
-                                                    .wrap(),
-                                            ),
-                                        )
-                                        .wrap(),
-                                ),
-                                factory_
+                    &get_factory()
+                        .create_import_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(
+                                get_factory()
+                                    .create_import_clause(
+                                        false,
+                                        None,
+                                        Some(
+                                            get_factory()
+                                                .create_namespace_import(
+                                                    get_factory()
+                                                        .create_identifier(
+                                                            local_name,
+                                                            Option::<Gc<NodeArray>>::None,
+                                                            None,
+                                                        )
+                                                        .wrap(),
+                                                )
+                                                .wrap(),
+                                        ),
+                                    )
+                                    .wrap(),
+                            ),
+                            get_factory()
+                                .create_string_literal(
+                                    self.node_builder
+                                        .get_specifier_for_module_symbol(target, &self.context()),
+                                    None,
+                                    None,
+                                )
+                                .wrap(),
+                            None,
+                        )
+                        .wrap(),
+                    ModifierFlags::None,
+                );
+            }
+            SyntaxKind::NamespaceExport => {
+                self.add_result(
+                    &get_factory()
+                        .create_export_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            false,
+                            Some(
+                                get_factory()
+                                    .create_namespace_export(
+                                        get_factory()
+                                            .create_identifier(
+                                                local_name,
+                                                Option::<Gc<NodeArray>>::None,
+                                                None,
+                                            )
+                                            .wrap(),
+                                    )
+                                    .wrap(),
+                            ),
+                            Some(
+                                get_factory()
                                     .create_string_literal(
                                         self.node_builder.get_specifier_for_module_symbol(
                                             target,
@@ -1555,103 +1504,65 @@ impl SymbolTableToDeclarationStatements {
                                         None,
                                     )
                                     .wrap(),
-                                None,
-                            )
-                            .wrap()
-                    }),
-                    ModifierFlags::None,
-                );
-            }
-            SyntaxKind::NamespaceExport => {
-                self.add_result(
-                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                        factory_
-                            .create_export_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                false,
-                                Some(
-                                    factory_
-                                        .create_namespace_export(
-                                            factory_
-                                                .create_identifier(
-                                                    local_name,
-                                                    Option::<Gc<NodeArray>>::None,
-                                                    None,
-                                                )
-                                                .wrap(),
-                                        )
-                                        .wrap(),
-                                ),
-                                Some(
-                                    factory_
-                                        .create_string_literal(
-                                            self.node_builder.get_specifier_for_module_symbol(
-                                                target,
-                                                &self.context(),
-                                            ),
-                                            None,
-                                            None,
-                                        )
-                                        .wrap(),
-                                ),
-                                None,
-                            )
-                            .wrap()
-                    }),
+                            ),
+                            None,
+                        )
+                        .wrap(),
                     ModifierFlags::None,
                 );
             }
             SyntaxKind::ImportSpecifier => {
                 self.add_result(
-                    &with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                            factory_.create_import_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                Some(
-                                    factory_
-                                        .create_import_clause(
-                                            false,
-                                            None,
-                                            Some(
-                                                factory_
-                                                    .create_named_imports(
-                                                        vec![
-                                                            factory_.create_import_specifier(
-                                                                false,
-                                                                (local_name != verbatim_target_name).then(|| {
-                                                                    factory_.create_identifier(
-                                                                        &verbatim_target_name,
-                                                                        Option::<Gc<NodeArray>>::None,
-                                                                        None,
-                                                                    ).wrap()
-                                                                }),
-                                                                factory_.create_identifier(
-                                                                    local_name,
-                                                                    Option::<Gc<NodeArray>>::None,
-                                                                    None,
-                                                                ).wrap()
+                    &get_factory()
+                        .create_import_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            Option::<Gc<NodeArray>>::None,
+                            Some(
+                                get_factory()
+                                    .create_import_clause(
+                                        false,
+                                        None,
+                                        Some(
+                                            get_factory()
+                                                .create_named_imports(vec![get_factory()
+                                                    .create_import_specifier(
+                                                        false,
+                                                        (local_name != verbatim_target_name).then(
+                                                            || {
+                                                                get_factory().create_identifier(
+                                                                &verbatim_target_name,
+                                                                Option::<Gc<NodeArray>>::None,
+                                                                None,
                                                             ).wrap()
-                                                        ]
+                                                            },
+                                                        ),
+                                                        get_factory()
+                                                            .create_identifier(
+                                                                local_name,
+                                                                Option::<Gc<NodeArray>>::None,
+                                                                None,
+                                                            )
+                                                            .wrap(),
                                                     )
-                                                    .wrap(),
-                                            ),
-                                        )
-                                        .wrap(),
-                                ),
-                                factory_
-                                    .create_string_literal(
-                                        self.node_builder.get_specifier_for_module_symbol(
-                                            target.maybe_parent().as_ref().unwrap_or(target),
-                                            &self.context(),
+                                                    .wrap()])
+                                                .wrap(),
                                         ),
-                                        None,
-                                        None,
                                     )
                                     .wrap(),
-                                None,
-                            ).wrap()
-                    }),
+                            ),
+                            get_factory()
+                                .create_string_literal(
+                                    self.node_builder.get_specifier_for_module_symbol(
+                                        target.maybe_parent().as_ref().unwrap_or(target),
+                                        &self.context(),
+                                    ),
+                                    None,
+                                    None,
+                                )
+                                .wrap(),
+                            None,
+                        )
+                        .wrap(),
                     ModifierFlags::None,
                 );
             }
@@ -1672,15 +1583,13 @@ impl SymbolTableToDeclarationStatements {
                         .as_ref()
                         .filter(|specifier| is_string_literal_like(specifier))
                         .map(|specifier| {
-                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_
-                                    .create_string_literal(
-                                        specifier.as_literal_like_node().text().clone(),
-                                        None,
-                                        None,
-                                    )
-                                    .wrap()
-                            })
+                            get_factory()
+                                .create_string_literal(
+                                    specifier.as_literal_like_node().text().clone(),
+                                    None,
+                                    None,
+                                )
+                                .wrap()
                         }),
                 );
             }

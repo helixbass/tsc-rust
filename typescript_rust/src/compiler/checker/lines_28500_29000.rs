@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use itertools::Either;
 use regex::Regex;
@@ -108,7 +106,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_suggested_symbol_for_nonexistent_class_member(
+    pub fn get_suggested_symbol_for_nonexistent_class_member(
         &self,
         name: &str,
         base_type: &Type,
@@ -281,7 +279,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_suggestion_for_nonexistent_export(
+    pub fn get_suggestion_for_nonexistent_export(
         &self,
         name: &Node, /*Identifier*/
         target_module: &Symbol,

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use peekmore::PeekMore;
 use std::borrow::Borrow;
@@ -10,8 +8,8 @@ use crate::{
     are_option_gcs_equal, compiler::utilities_public::is_expression_of_optional_chain_root,
     create_symbol_table, every, find, get_check_flags, get_object_flags, is_optional_chain,
     is_outermost_optional_chain, last, length, reduce_left_no_initial_value, some, CheckFlags,
-    Debug_, ElementFlags, InterfaceTypeInterface, IsEmpty, Node, NodeInterface, Number,
-    ObjectFlags, ObjectFlagsTypeInterface, PeekMoreExt, Signature, Symbol, SymbolFlags,
+    Debug_, ElementFlags, InterfaceTypeInterface, Node, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, PeekMoreExt, PeekableExt, Signature, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
@@ -214,7 +212,7 @@ impl TypeChecker {
             .filter(|t| !t.flags().intersects(TypeFlags::Nullable))
             .cloned()
             .peekable();
-        if !primary_types.is_empty() {
+        if !primary_types.is_empty_() {
             self.get_nullable_type(
                 &self.get_supertype_or_union(&primary_types.collect::<Vec<_>>()),
                 self.get_falsy_flags_of_types(types) & TypeFlags::Nullable,

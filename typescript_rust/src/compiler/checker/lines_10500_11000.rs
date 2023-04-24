@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -986,7 +984,7 @@ impl TypeChecker {
                                     Some(this_type),
                                 ));
                             }
-                            let mut s_not_wrapped =
+                            let s_not_wrapped =
                                 self.create_union_signature(signature, union_signatures);
                             *s_not_wrapped.maybe_this_parameter_mut() = this_parameter;
                             s = Gc::new(s_not_wrapped);

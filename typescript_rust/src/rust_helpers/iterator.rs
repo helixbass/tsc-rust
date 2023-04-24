@@ -15,15 +15,15 @@ where
     }
 }
 
-pub trait IsEmpty {
-    fn is_empty(&mut self) -> bool;
+pub trait PeekableExt {
+    fn is_empty_(&mut self) -> bool;
 }
 
-impl<I> IsEmpty for Peekable<I>
+impl<I> PeekableExt for Peekable<I>
 where
     I: Iterator,
 {
-    fn is_empty(&mut self) -> bool {
+    fn is_empty_(&mut self) -> bool {
         self.peek().is_none()
     }
 }

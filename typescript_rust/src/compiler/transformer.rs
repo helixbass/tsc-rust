@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell, RefMut};
@@ -12,18 +10,18 @@ use crate::{
     gc_cell_ref_unwrapped, get_emit_flags, get_emit_module_kind, get_emit_script_target,
     get_factory, get_jsx_transform_enabled, get_parse_tree_node, get_synthetic_factory, is_bundle,
     is_source_file, maybe_get_source_file_of_node, maybe_map, not_implemented, set_emit_flags,
-    some, synthetic_factory, transform_class_fields, transform_declarations,
-    transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
-    transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
-    transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
-    transform_system_module, transform_type_script, BaseNodeFactorySynthetic, CompilerOptions,
-    CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_, Diagnostic,
-    EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver,
-    EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags,
-    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerFactoryOrCustomTransformerFactory, TransformerInterface,
+    some, transform_class_fields, transform_declarations, transform_ecmascript_module,
+    transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
+    transform_es2020, transform_es2021, transform_es5, transform_esnext, transform_generators,
+    transform_jsx, transform_module, transform_node_module, transform_system_module,
+    transform_type_script, BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext,
+    CustomTransformer, CustomTransformers, Debug_, Diagnostic, EmitFlags, EmitHelper,
+    EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver, EmitTransformers,
+    LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface,
+    ScriptTarget, SyntaxKind, TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, TransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
+    TransformerInterface,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {

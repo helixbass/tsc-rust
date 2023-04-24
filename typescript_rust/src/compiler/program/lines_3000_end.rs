@@ -1,4 +1,4 @@
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -41,12 +41,12 @@ use crate::{
     EmitFileNames, EmitResult, Extension, FileIncludeKind, FileIncludeReason,
     FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
-    FileReference, GetCanonicalFileName, IsEmpty, JsxEmit, ModuleKind, ModuleResolutionHost,
+    FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
-    Program, ProjectReference, ReadFileCallback, ReferencedFile, ResolvedConfigFileName,
-    ResolvedModuleFull, ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget,
-    SymlinkCache, SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
+    PeekableExt, Program, ProjectReference, ReadFileCallback, ReferencedFile,
+    ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference, ScriptKind,
+    ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
 };
 
 impl Program {
@@ -1760,7 +1760,7 @@ impl Program {
                 .into(),
             ));
         }
-        !props.peekable().is_empty()
+        !props.peekable().is_empty_()
     }
 
     pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Gc<Diagnostic>) {

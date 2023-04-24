@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, Trace};
 use regex::{Captures, Regex};
 use std::cell::Cell;
@@ -703,7 +701,7 @@ impl CheckTypeRelatedTo {
                     None,
                 );
             }
-            let mut result = Ternary::False;
+            let mut result;
             if flags.intersects(TypeFlags::IndexedAccess) {
                 result = self.is_related_to(
                     &source.as_indexed_access_type().object_type,
@@ -998,7 +996,7 @@ impl CheckTypeRelatedTo {
                         .type_checker
                         .get_constraint_type_from_mapped_type(target_type);
                     let target_keys: Gc<Type>;
-                    if let Some(name_type) = name_type.as_ref().filter(|name_type| {
+                    if let Some(name_type) = name_type.as_ref().filter(|_| {
                         self.type_checker
                             .is_mapped_type_with_keyof_constraint_declaration(target_type)
                     }) {

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use fancy_regex::{Captures, Regex};
 use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;

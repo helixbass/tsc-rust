@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use itertools::Either;
 use peekmore::PeekMore;
@@ -8,8 +6,8 @@ use std::iter::once;
 use std::ptr;
 
 use super::InferTypes;
-use crate::IsEmpty;
 use crate::PeekMoreExt;
+use crate::PeekableExt;
 use crate::{
     every, find, flat_map, get_object_flags, some, DiagnosticMessage, Diagnostics, ElementFlags,
     InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
@@ -760,7 +758,7 @@ impl TypeChecker {
                 .clone()
                 .filter(|candidate| self.is_object_or_array_literal_type(candidate))
                 .peekable();
-            if !object_literals.is_empty() {
+            if !object_literals.is_empty_() {
                 let literals_type = self.get_union_type(
                     object_literals,
                     Some(UnionReduction::Subtype),

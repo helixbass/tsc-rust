@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{unsafe_empty_trace, Finalize, Trace};
 use std::cell::Cell;
 use std::ops::Deref;
@@ -135,8 +133,8 @@ impl TextRange for BaseTextRange {
     }
 }
 
-impl From<&Node> for BaseTextRange {
-    fn from(value: &Node) -> Self {
+impl<TReadonlyTextRange: ReadonlyTextRange> From<&TReadonlyTextRange> for BaseTextRange {
+    fn from(value: &TReadonlyTextRange) -> Self {
         Self::new(value.pos(), value.end())
     }
 }

@@ -1,3 +1,4 @@
+#![allow(non_upper_case_globals, non_snake_case)]
 #[macro_use]
 extern crate lazy_static;
 
@@ -19,17 +20,19 @@ use compiler::checker::{
     DuplicateInfoForFiles, DuplicateInfoForSymbol, IterationTypesResolver, TypeSystemEntity,
     TypeSystemPropertyName,
 };
+#[allow(unused_imports)]
 use compiler::command_line_parser::{
     build_opts, convert_to_object_worker, convert_to_options_with_absolute_paths,
-    convert_to_tsconfig, get_diagnostic_text, inverse_jsx_option_map, lib_map, libs,
-    module_resolution_option_declarations, options_affecting_program_structure, options_for_build,
-    options_for_watch, parse_build_command, source_file_affecting_compiler_options,
-    target_option_declaration, JsonConversionNotifier, JsonConversionNotifierDummy,
-    ParsedBuildCommand, StringOrRcDiagnostic,
+    convert_to_tsconfig, generate_tsconfig, get_diagnostic_text, inverse_jsx_option_map, lib_map,
+    libs, module_resolution_option_declarations, options_affecting_program_structure,
+    options_for_build, options_for_watch, parse_build_command,
+    source_file_affecting_compiler_options, target_option_declaration, JsonConversionNotifier,
+    JsonConversionNotifierDummy, ParsedBuildCommand, StringOrRcDiagnostic,
 };
 pub use compiler::command_line_parser::{
-    get_parsed_command_line_of_config_file, hash_map_to_compiler_options, option_declarations,
-    parse_command_line, parse_config_file_text_to_json, parse_custom_type_option,
+    get_compiler_options_diff_value, get_parsed_command_line_of_config_file,
+    hash_map_to_compiler_options, option_declarations, parse_command_line,
+    parse_config_file_text_to_json, parse_custom_type_option,
     parse_json_source_file_config_file_content, parse_list_type_option,
     ConfigFileDiagnosticsReporter, ConvertToTSConfigHost, DiagnosticReporter,
     ExtendedConfigCacheEntry, OptionsNameMap, ParseCommandLineWorkerDiagnostics,
@@ -196,12 +199,12 @@ pub use compiler::module_name_resolver::{
 pub use compiler::module_specifiers;
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively,
-    for_each_child_recursively_bool, for_each_child_returns, is_external_module,
-    parse_base_node_factory, parse_isolated_entity_name, parse_json_text, parse_node_factory,
-    with_parse_base_node_factory_and_factory, ForEachChildRecursivelyCallbackReturn,
-    IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface,
-    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType,
-    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
+    for_each_child_recursively_bool, for_each_child_returns, get_parse_node_factory,
+    is_external_module, parse_base_node_factory, parse_isolated_entity_name, parse_json_text,
+    parse_node_factory, with_parse_base_node_factory_and_factory,
+    ForEachChildRecursivelyCallbackReturn, IncrementalParser, IncrementalParserSyntaxCursor,
+    IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
+    IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
     is_declaration_file_name, is_jsdoc_like_text, process_comment_pragmas,
@@ -224,6 +227,7 @@ pub use compiler::path::{
     path_is_relative, reduce_path_components, remove_trailing_directory_separator, resolve_path,
     starts_with_directory, to_path, PathAndParts, StringOrBool,
 };
+#[allow(unused_imports)]
 use compiler::program::{
     change_compiler_host_like_to_use_cache, compute_common_source_directory_of_filenames,
     /*create_compiler_host_worker,*/ format_color_and_reset, get_mode_for_resolution_at_index,
@@ -240,6 +244,7 @@ pub use compiler::program::{
     ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
     EmitHostWriteFileCallback, FilesByNameValue, FormatDiagnosticsHost, ToPath,
 };
+#[allow(unused_imports)]
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position,
     compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,
@@ -637,6 +642,7 @@ pub use compiler::utilities_public::{
     unescape_leading_underscores, validate_locale_and_set_language,
     walk_up_binding_elements_and_patterns, FindAncestorCallbackReturn, StrOrNodeArray,
 };
+#[allow(unused_imports)]
 use compiler::utilities_public::{
     get_assigned_name, get_combined_node_flags_always_include_jsdoc,
     get_jsdoc_deprecated_tag_no_cache, get_jsdoc_parameter_tags_no_cache,
@@ -696,7 +702,7 @@ pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::hash_map::{GcHashMap, GcHashMapOwnedValues};
 pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::iterator::{
-    maybe_concat, maybe_concat_exact_size, Empty, IsEmpty, PeekMoreExt,
+    maybe_concat, maybe_concat_exact_size, Empty, PeekMoreExt, PeekableExt,
 };
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::{

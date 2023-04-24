@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -16,8 +14,8 @@ use crate::{
     is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
     is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
-    parse_base_node_factory, parse_node_factory, set_text_range, BaseNode, BaseNodeFactory,
-    BaseNodeFactoryConcrete, BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
+    parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
     HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface, InputFiles,
     InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,

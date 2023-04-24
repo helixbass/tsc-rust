@@ -1,18 +1,15 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{init_flow_node, ActiveLabel, BinderType};
 use crate::{
-    concatenate, is_binary_expression, is_dotted_name,
+    concatenate, for_each_bool, is_binary_expression, is_dotted_name,
     is_logical_or_coalescing_assignment_operator, is_optional_chain, is_outermost_optional_chain,
     is_parenthesized_expression, is_prefix_unary_expression, skip_parentheses,
     unused_label_is_error, Diagnostics, FlowArrayMutation, FlowAssignment, FlowCall, FlowFlags,
-    FlowNode, FlowNodeBase, FlowSwitchClause, HasInitializerInterface, SyntaxKind, __String,
-    for_each_bool, NamedDeclarationInterface, Node, NodeInterface,
+    FlowNode, FlowNodeBase, FlowSwitchClause, HasInitializerInterface, NamedDeclarationInterface,
+    Node, NodeInterface, SyntaxKind,
 };
 
 impl BinderType {

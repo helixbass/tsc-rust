@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 use indexmap::IndexMap;

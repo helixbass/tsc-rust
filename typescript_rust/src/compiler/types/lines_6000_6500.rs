@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{unsafe_empty_trace, Finalize, Gc, GcCell, Trace};
@@ -2454,7 +2452,6 @@ unsafe impl Trace for CommandLineOption {
 
 #[non_exhaustive]
 pub struct CharacterCodes;
-#[allow(non_upper_case_globals)]
 impl CharacterCodes {
     pub const null_character: char = '\u{0000}';
     pub const max_ascii_character: char = '\u{007f}';

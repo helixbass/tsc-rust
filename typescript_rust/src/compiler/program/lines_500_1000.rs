@@ -1,5 +1,5 @@
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::io;
@@ -19,7 +19,7 @@ use crate::{
     create_type_reference_directive_resolution_cache, extension_from_path,
     file_extension_is_one_of, for_each, get_automatic_type_directive_names, get_directory_path,
     get_emit_module_resolution_kind, get_package_scope_for_path, get_supported_extensions,
-    get_supported_extensions_with_json_if_resolve_json_module, get_sys, is_import_call,
+    get_supported_extensions_with_json_if_resolve_json_module, is_import_call,
     is_import_equals_declaration, is_logging, map_defined, maybe_for_each, options_have_changes,
     ref_mut_unwrapped, ref_unwrapped, resolve_module_name, resolve_type_reference_directive,
     skip_trivia, source_file_affecting_compiler_options, stable_sort, to_file_name_lower_case,

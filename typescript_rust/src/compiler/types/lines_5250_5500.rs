@@ -1,8 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -70,7 +68,7 @@ impl LiteralTypeInterface for BaseLiteralType {
         *self.fresh_type.borrow_mut() = Some(fresh_type);
     }
 
-    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Gc<Type> {
+    fn get_or_initialize_fresh_type(&self, _type_checker: &TypeChecker) -> Gc<Type> {
         panic!("Shouldn't call get_or_initialize_fresh_type() on base BaseLiteralType");
     }
 
@@ -1200,7 +1198,7 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
 
     fn set_object_type_without_abstract_construct_signatures(
         &self,
-        object_type_without_abstract_construct_signatures: Option<Gc<Type>>,
+        _object_type_without_abstract_construct_signatures: Option<Gc<Type>>,
     ) {
         panic!("Shouldn't call set_object_type_without_abstract_construct_signatures() on BaseUnionOrIntersectionType?")
     }

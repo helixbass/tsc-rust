@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell, RefMut};
 use std::cmp;
@@ -192,7 +190,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_big_int_string(&self, s: &str) -> bool {
-        let mut scanner = create_scanner(ScriptTarget::ESNext, false, None, None, None, None, None);
+        let scanner = create_scanner(ScriptTarget::ESNext, false, None, None, None, None, None);
         // TODO: if ErrorCallback was FnMut instead of Fn then using Cell here presumably wouldn't be necessary
         let success = Cell::new(true);
         let text = format!("{}n", s);

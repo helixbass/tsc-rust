@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};

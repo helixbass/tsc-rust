@@ -9,9 +9,8 @@ use std::rc::Rc;
 
 use super::TempFlags;
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, escape_jsx_attribute_string,
-    escape_non_ascii_string, escape_string, for_each, get_emit_flags,
-    get_lines_between_position_and_next_non_whitespace_character,
+    are_option_gcs_equal, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
+    for_each, get_emit_flags, get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
     get_source_text_of_node_from_source_file, get_starts_on_new_line, guess_indentation, id_text,

@@ -6,7 +6,6 @@ use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io;
-use std::rc::Rc;
 use std::time;
 use std::time::SystemTime;
 

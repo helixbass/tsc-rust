@@ -1,12 +1,10 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     are_option_gcs_equal, every, has_node_array_changed, is_outer_expression,
-    is_statement_or_block, set_original_node, single_or_undefined, BaseNode, BaseNodeFactory,
+    is_statement_or_block, set_original_node, single_or_undefined, BaseNodeFactory,
     BaseUnparsedNode, Bundle, CommaListExpression, Debug_, EnumMember, FileReference,
     HasInitializerInterface, HasStatementsInterface, InputFiles, LanguageVariant,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
@@ -28,7 +26,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Option::<Gc<NodeArray>>::None,
             Some(name),
         );
-        let mut node = PropertyAssignment::new(
+        let node = PropertyAssignment::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expression_for_disallowed_comma(&initializer),
@@ -98,7 +96,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Option::<Gc<NodeArray>>::None,
             Some(name),
         );
-        let mut node = ShorthandPropertyAssignment::new(
+        let node = ShorthandPropertyAssignment::new(
             node,
             object_assignment_initializer.map(|object_assignment_initializer| {
                 self.parenthesizer_rules()
@@ -174,7 +172,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Gc<Node /*Expression*/>,
     ) -> SpreadAssignment {
         let node = self.create_base_node(SyntaxKind::SpreadAssignment);
-        let mut node = SpreadAssignment::new(
+        let node = SpreadAssignment::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expression_for_disallowed_comma(&expression),
@@ -206,7 +204,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> EnumMember {
         let node = self.create_base_node(SyntaxKind::EnumMember);
-        let mut node = EnumMember::new(
+        let node = EnumMember::new(
             node,
             self.as_name(Some(name)).unwrap(),
             initializer.map(|initializer| {
@@ -280,6 +278,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         has_no_default_lib: Option<bool>,
         lib_reference_directives: Option<Vec<FileReference>>,
     ) -> Gc<Node /*SourceFile*/> {
+        unimplemented!();
+        // let node_as_source_file = node.as_source_file();
+        // let is_declaration_file = is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
+        // let referenced_files = referenced_files.or_else(||node_as_source_file.maybe_referenced_files().clone());
+        // let type_reference_directives = type_reference_directives.or_else(||node_as_source_file.maybe_type_reference_directives().clone());
+        // let has_no_default_lib = has_no_default_lib.unwrap_or_else(|| node_as_source_file.has_no_default_lib());
+        // let lib_reference_directives = lib_reference_directives.or_else(||node_as_source_file.maybe_lib_reference_directives().clone());
+        // let statements = statements.into();
+        // if has_node_array_changed(&node_as_source_file.statements(), &statements) ||
+        //     node_as_source_file.is_declaration_file() != is_declaration_file ||
+        //     !are_option_gcs_equal(
+        //         node_as_source_file.maybe_referenced_files().
+        //     ) ||
+        //     !Gc::ptr_eq(&node_as_source_file.name, &name)
+        //     || !are_option_gcs_equal(
+        //         node_as_source_file.initializer.as_ref(),
+        //         initializer.as_ref(),
+        //     )
+        // {
+        //     self.update(self.create_enum_member(name, initializer).wrap(), node)
+        // } else {
+        //     node.node_wrapper()
+        // }
         // TODO
         // let node_as_source_file = node.as_source_file();
         // let is_declaration_file = is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
@@ -310,7 +331,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         // } else {
         //     node.node_wrapper()
         // }
-        node.node_wrapper()
     }
 
     pub fn create_bundle(

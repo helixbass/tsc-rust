@@ -1,24 +1,19 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 use super::{init_flow_node, BinderType, ContainerFlags};
 use crate::{
-    contains_gc, contains_rc, create_symbol_table, for_each, for_each_child,
-    get_combined_modifier_flags, get_immediately_invoked_function_expression,
-    get_name_of_declaration, has_syntactic_modifier, is_ambient_module, is_assignment_expression,
-    is_binary_expression, is_declaration, is_destructuring_assignment, is_dotted_name,
-    is_element_access_expression, is_expression_of_optional_chain_root, is_in_js_file,
-    is_jsdoc_enum_tag, is_jsdoc_type_alias, is_module_declaration, is_non_null_expression,
-    is_nullish_coalesce, is_optional_chain, is_parenthesized_expression,
-    is_property_access_entity_name_expression, is_property_access_expression,
-    is_string_literal_like, is_string_or_numeric_literal_like, is_type_of_expression,
-    node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode, FlowNodeBase,
-    FlowReduceLabel, FlowStart, HasStatementsInterface, ModifierFlags, Node, NodeArray, NodeFlags,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    contains_gc, create_symbol_table, for_each, for_each_child, get_combined_modifier_flags,
+    get_immediately_invoked_function_expression, get_name_of_declaration, has_syntactic_modifier,
+    is_ambient_module, is_assignment_expression, is_binary_expression, is_declaration,
+    is_destructuring_assignment, is_dotted_name, is_element_access_expression,
+    is_expression_of_optional_chain_root, is_in_js_file, is_jsdoc_enum_tag, is_jsdoc_type_alias,
+    is_module_declaration, is_non_null_expression, is_nullish_coalesce, is_optional_chain,
+    is_parenthesized_expression, is_property_access_entity_name_expression,
+    is_property_access_expression, is_string_literal_like, is_string_or_numeric_literal_like,
+    is_type_of_expression, node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode,
+    FlowNodeBase, FlowReduceLabel, FlowStart, HasStatementsInterface, ModifierFlags, Node,
+    NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {

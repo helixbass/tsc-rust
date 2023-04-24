@@ -1,10 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{get_module_instance_state, BinderType, ModuleInstanceState};
 use crate::{
@@ -13,20 +9,20 @@ use crate::{
     get_element_or_property_access_name, get_expando_initializer, get_jsdoc_type_tag,
     get_leftmost_access_expression, get_name_of_declaration, get_name_or_argument,
     get_ranges_where, get_right_most_assigned_expression, has_dynamic_name, has_syntactic_modifier,
-    id_text, index_of, is_async_function, is_binary_expression,
-    is_bindable_object_define_property_call, is_bindable_static_name_expression, is_block,
-    is_call_expression, is_conditional_type_node, is_enum_const, is_enum_declaration,
-    is_function_declaration, is_function_symbol, is_in_js_file, is_jsdoc_template_tag,
+    id_text, index_of, is_assignment_expression, is_async_function, is_binary_expression,
+    is_bindable_object_define_property_call, is_bindable_static_name_expression,
+    is_binding_pattern, is_block, is_block_or_catch_scoped, is_call_expression,
+    is_conditional_type_node, is_enum_const, is_enum_declaration, is_exports_identifier,
+    is_function_declaration, is_function_symbol, is_identifier, is_in_js_file,
+    is_jsdoc_template_tag, is_module_exports_access_expression,
     is_object_literal_or_class_expression_method_or_accessor, is_parameter_declaration,
     is_parameter_property_declaration, is_private_identifier, is_property_access_expression,
-    is_prototype_access, is_require_call, is_require_variable_declaration, is_statement,
-    is_statement_but_not_declaration, is_variable_statement, maybe_is_function_like_declaration,
-    should_preserve_const_enums, slice_after, some, symbol_name, unreachable_code_is_error, Debug_,
-    Diagnostics, FlowFlags, FlowNodeBase, InternalSymbolName, ModifierFlags, NodeFlags, SyntaxKind,
-    __String, is_assignment_expression, is_binding_pattern, is_block_or_catch_scoped,
-    is_exports_identifier, is_identifier, is_module_exports_access_expression, is_source_file,
-    is_variable_declaration, set_parent, HasInitializerInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface,
+    is_prototype_access, is_require_call, is_require_variable_declaration, is_source_file,
+    is_statement, is_statement_but_not_declaration, is_variable_declaration, is_variable_statement,
+    maybe_is_function_like_declaration, set_parent, should_preserve_const_enums, slice_after, some,
+    symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags, FlowNodeBase,
+    HasInitializerInterface, InternalSymbolName, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {

@@ -1,16 +1,12 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_function_type_node, is_jsdoc_nullable_type, is_modifier_kind,
     set_text_range, some, token_is_identifier_or_keyword, token_to_string, DiagnosticMessage,
-    Diagnostics, ImportTypeNode, IndexSignatureDeclaration, InferTypeNode, KeywordTypeNode,
-    LiteralTypeNode, MappedTypeNode, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface,
-    ParameterDeclaration, ReadonlyTextRange, SyntaxKind, TupleTypeNode, TypeLiteralNode,
-    TypeOperatorNode, TypeParameterDeclaration, TypeQueryNode,
+    Diagnostics, ImportTypeNode, InferTypeNode, KeywordTypeNode, LiteralTypeNode, MappedTypeNode,
+    Node, NodeArray, NodeFlags, NodeInterface, ParameterDeclaration, ReadonlyTextRange, SyntaxKind,
+    TupleTypeNode, TypeLiteralNode, TypeOperatorNode, TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {

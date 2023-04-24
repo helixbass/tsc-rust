@@ -1,18 +1,12 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_async_modifier, is_class_member_modifier, is_keyword, is_modifier_kind,
     modifiers_to_flags, some, token_is_identifier_or_keyword, ArrayBindingPattern, AsDoubleDeref,
-    Block, ClassDeclaration, ClassExpression, ClassStaticBlockDeclaration, ConstructorDeclaration,
-    Debug_, Decorator, DiagnosticMessage, Diagnostics, FunctionDeclaration,
-    FunctionLikeDeclarationInterface, HasTypeInterface, HasTypeParametersInterface,
-    MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface,
-    ObjectBindingPattern, PropertyDeclaration, SyntaxKind, VariableDeclaration,
-    VariableDeclarationList,
+    Debug_, Decorator, DiagnosticMessage, Diagnostics, FunctionLikeDeclarationInterface,
+    HasTypeInterface, HasTypeParametersInterface, ModifierFlags, Node, NodeArray, NodeFlags,
+    NodeInterface, ObjectBindingPattern, SyntaxKind, VariableDeclarationList,
 };
 
 impl ParserType {

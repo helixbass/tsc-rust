@@ -1,10 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     declaration_name_to_string, entity_name_to_string, file_extension_is, find, find_ancestor,

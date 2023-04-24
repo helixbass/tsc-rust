@@ -16,9 +16,8 @@ use crate::{
     CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
     FileIncludeKind, FileIncludeReason, FileReference, ModuleResolutionKind, Node, NodeArray,
     NodeId, NodeIdOverride, NodeInterface, NodeSymbolOverride, PackageId, Path, Program,
-    ReadonlyTextRange, RedirectInfo, ReferencedFile, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile, SourceFileLike,
-    SourceOfProjectReferenceRedirect, Symbol, SyntaxKind,
+    RedirectInfo, ReferencedFile, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ScriptReferenceHost, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
 };
 
 impl Program {

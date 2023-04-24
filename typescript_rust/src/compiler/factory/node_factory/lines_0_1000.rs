@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCellRef, Trace};
 use std::{borrow::Borrow, cell::RefCell, ptr};

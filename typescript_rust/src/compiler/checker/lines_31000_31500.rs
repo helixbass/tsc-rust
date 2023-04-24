@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -618,7 +616,7 @@ impl TypeChecker {
         rest_parameter.escaped_name().to_owned()
     }
 
-    pub(super) fn get_parameter_identifier_name_at_position(
+    pub fn get_parameter_identifier_name_at_position(
         &self,
         signature: &Signature,
         pos: usize,

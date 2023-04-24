@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::ptr;
 use std::rc::Rc;
@@ -38,7 +36,7 @@ impl GetFlowTypeOfReference {
             &same_map(types, |type_: &Gc<Type>, _| {
                 self.type_checker.finalize_evolving_array_type(type_)
             }),
-            None,
+            Some(subtype_reduction),
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,

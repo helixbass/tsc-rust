@@ -1,12 +1,8 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::rc::Rc;
 
-use super::ParserType;
 use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
     CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, SourceTextAsChars, SyntaxKind,
@@ -114,6 +110,10 @@ thread_local! {
         NodeFactoryFlags::NoParenthesizerRules,
         get_parse_base_node_factory(),
     );
+}
+
+pub fn get_parse_node_factory() -> Gc<NodeFactory<ParseBaseNodeFactory>> {
+    parse_node_factory.with(|parse_node_factory_| parse_node_factory_.clone())
 }
 
 pub fn with_parse_base_node_factory_and_factory<TReturn>(

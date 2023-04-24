@@ -5,11 +5,11 @@ use std::{convert::TryInto, ptr};
 
 use crate::{
     add_emit_flags, append, compute_line_and_character_of_position, concatenate,
-    create_comment_directives_map, create_diagnostic_for_node,
-    create_diagnostic_for_node_in_source_file, create_diagnostic_for_range, create_file_diagnostic,
-    external_helpers_module_name_text, for_each_child_recursively, get_declaration_diagnostics,
-    get_external_module_name, get_jsx_implicit_import_base, get_jsx_runtime_import,
-    get_line_starts, get_text_of_identifier_or_literal, has_syntactic_modifier, is_ambient_module,
+    create_comment_directives_map, create_diagnostic_for_node_in_source_file,
+    create_diagnostic_for_range, create_file_diagnostic, external_helpers_module_name_text,
+    for_each_child_recursively, get_declaration_diagnostics, get_external_module_name,
+    get_jsx_implicit_import_base, get_jsx_runtime_import, get_line_starts,
+    get_text_of_identifier_or_literal, has_syntactic_modifier, is_ambient_module,
     is_any_import_or_re_export, is_check_js_enabled_for_file, is_external_module,
     is_external_module_name_relative, is_import_call, is_literal_import_type_node,
     is_module_declaration, is_require_call, is_source_file_js, is_string_literal,

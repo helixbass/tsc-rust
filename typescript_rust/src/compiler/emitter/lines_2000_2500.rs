@@ -1,5 +1,4 @@
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{
     ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule,
@@ -9,9 +8,9 @@ use super::{
     ParenthesizeMemberOfElementTypeCurrentParenthesizerRule,
 };
 use crate::{
-    for_each, get_constant_value, get_emit_flags, is_access_expression, is_finite,
+    for_each, get_constant_value, get_emit_flags, get_factory, is_access_expression, is_finite,
     is_json_source_file, is_numeric_literal, set_text_range_pos_end,
-    skip_partially_emitted_expressions, string_contains, token_to_string, with_synthetic_factory,
+    skip_partially_emitted_expressions, string_contains, token_to_string,
     with_synthetic_factory_and_factory, EmitFlags, EmitHint, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
     HasTypeInterface, HasTypeParametersInterface, ListFormat, NamedDeclarationInterface, Node,
@@ -792,10 +791,7 @@ impl Printer {
             .question_dot_token
             .clone()
             .unwrap_or_else(|| {
-                let token: Gc<Node> =
-                    with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                        factory.create_token(SyntaxKind::DotToken).wrap()
-                    });
+                let token: Gc<Node> = get_factory().create_token(SyntaxKind::DotToken).wrap();
                 set_text_range_pos_end(
                     &*token,
                     node_as_property_access_expression.expression.end(),

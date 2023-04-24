@@ -1,16 +1,15 @@
 use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule, PipelinePhase};
 use crate::{
     compare_emit_helpers, get_emit_helpers, get_external_helpers_module_name,
     has_recorded_external_helpers, is_source_file, is_template_literal_kind, is_unparsed_source,
-    stable_sort, with_synthetic_factory, BundleFileSection, BundleFileSectionKind, Debug_,
-    EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, HasTypeArgumentsInterface, ListFormat,
-    ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
-    SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
+    stable_sort, BundleFileSection, BundleFileSectionKind, Debug_, EmitHelper, EmitHelperBase,
+    EmitHelperText, EmitHint, HasTypeArgumentsInterface, ListFormat, ModuleKind,
+    NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange, SnippetElement,
+    SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
 };
 
 impl Printer {

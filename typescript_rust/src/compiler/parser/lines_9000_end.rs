@@ -1,6 +1,6 @@
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 use regex::{Captures, Regex};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;

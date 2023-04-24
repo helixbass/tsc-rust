@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use regex::Regex;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};

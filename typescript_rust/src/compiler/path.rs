@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use regex::Regex;
 use std::borrow::Cow;
 use std::cmp;

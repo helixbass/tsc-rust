@@ -1,18 +1,13 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{ParserType, ParsingContext};
 use crate::{
     add_related_info, create_detached_diagnostic, is_export_modifier, is_keyword,
     last_or_undefined, some, token_is_identifier_or_keyword, AssertClause, AssertEntry, Debug_,
-    DiagnosticRelatedInformationInterface, Diagnostics, EnumDeclaration, EnumMember,
-    ExportDeclaration, ExpressionWithTypeArguments, ExternalModuleReference, HeritageClause,
-    ImportClause, ImportEqualsDeclaration, InterfaceDeclaration, ModuleBlock, ModuleDeclaration,
-    NamespaceExport, NamespaceExportDeclaration, NamespaceImport, Node, NodeArray, NodeFlags,
-    NodeInterface, SyntaxKind, TypeAliasDeclaration,
+    DiagnosticRelatedInformationInterface, Diagnostics, ExpressionWithTypeArguments,
+    ExternalModuleReference, HeritageClause, ImportClause, ModuleBlock, NamespaceExport,
+    NamespaceImport, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
 };
 
 impl ParserType {

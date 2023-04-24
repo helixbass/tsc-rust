@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::RefCell;
 use std::cmp;

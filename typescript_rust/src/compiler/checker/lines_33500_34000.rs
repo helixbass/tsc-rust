@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -16,9 +14,9 @@ use crate::{
     is_parameter, is_parenthesized_expression, is_property_assignment,
     is_shorthand_property_assignment, is_spread_element, is_template_span, map,
     parse_pseudo_big_int, skip_parentheses, some, ContextFlags, Diagnostics, ElementFlags,
-    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, NamedDeclarationInterface,
-    Node, NodeFlags, NodeInterface, PseudoBigInt, SignatureKind, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Matches,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, PseudoBigInt, SignatureKind, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -322,17 +320,15 @@ impl TypeChecker {
                         let return_signature = return_type.as_ref().and_then(|return_type| {
                             self.get_single_call_or_construct_signature(return_type)
                         });
-                        if let Some(return_signature) =
-                            return_signature.as_ref().filter(|return_signature| {
-                                return_signature.maybe_type_parameters().is_none()
-                                    && !every(
-                                        &context.inferences(),
-                                        |inference: &Gc<InferenceInfo>, _| {
-                                            self.has_inference_candidates(inference)
-                                        },
-                                    )
-                            })
-                        {
+                        if return_signature.as_ref().matches(|return_signature| {
+                            return_signature.maybe_type_parameters().is_none()
+                                && !every(
+                                    &context.inferences(),
+                                    |inference: &Gc<InferenceInfo>, _| {
+                                        self.has_inference_candidates(inference)
+                                    },
+                                )
+                        }) {
                             let unique_type_parameters = self.get_unique_type_parameters(
                                 &context,
                                 signature.maybe_type_parameters().as_ref().unwrap(),

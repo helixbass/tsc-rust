@@ -1,6 +1,5 @@
 use gc::{Finalize, Gc, Trace};
 use std::marker::PhantomData;
-use std::rc::Rc;
 
 use crate::{
     cast, get_starts_on_new_line, is_array_binding_pattern, is_array_literal_expression,
@@ -268,57 +267,57 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
 {
     fn convert_to_function_block(
         &self,
-        node: &Node, /*ConciseBody*/
-        multi_line: Option<bool>,
+        _node: &Node, /*ConciseBody*/
+        _multi_line: Option<bool>,
     ) -> Gc<Node /*Block*/> {
         unimplemented!()
     }
 
     fn convert_to_function_expression(
         &self,
-        node: &Node, /*FunctionDeclaration*/
+        _node: &Node, /*FunctionDeclaration*/
     ) -> Gc<Node /*FunctionExpression*/> {
         unimplemented!()
     }
 
     fn convert_to_array_assignment_element(
         &self,
-        element: &Node, /*ArrayBindingOrAssignmentElement*/
+        _element: &Node, /*ArrayBindingOrAssignmentElement*/
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
 
     fn convert_to_object_assignment_element(
         &self,
-        element: &Node, /*ObjectBindingOrAssignmentElement*/
+        _element: &Node, /*ObjectBindingOrAssignmentElement*/
     ) -> Gc<Node /*ObjectLiteralElementLike*/> {
         unimplemented!()
     }
 
     fn convert_to_assignment_pattern(
         &self,
-        node: &Node, /*BindingOrAssignmentPattern*/
+        _node: &Node, /*BindingOrAssignmentPattern*/
     ) -> Gc<Node /*AssignmentPattern*/> {
         unimplemented!()
     }
 
     fn convert_to_object_assignment_pattern(
         &self,
-        node: &Node, /*ObjectBindingOrAssignmentPattern*/
+        _node: &Node, /*ObjectBindingOrAssignmentPattern*/
     ) -> Gc<Node /*ObjectLiteralExpression*/> {
         unimplemented!()
     }
 
     fn convert_to_array_assignment_pattern(
         &self,
-        node: &Node, /*ArrayBindingOrAssignmentPattern*/
+        _node: &Node, /*ArrayBindingOrAssignmentPattern*/
     ) -> Gc<Node /*ArrayLiteralExpression*/> {
         unimplemented!()
     }
 
     fn convert_to_assignment_element_target(
         &self,
-        node: &Node, /*BindingOrAssignmentElementTarget*/
+        _node: &Node, /*BindingOrAssignmentElementTarget*/
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }

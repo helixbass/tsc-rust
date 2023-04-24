@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -14,8 +12,8 @@ use crate::{
     is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains, synthetic_factory,
     unescape_leading_underscores, Debug_, Diagnostics, IndexInfo, JsxFlags, ModuleResolutionKind,
     NodeArray, PragmaName, SymbolFlags, SymbolTable, TransientSymbolInterface, __String,
-    get_object_flags, maybe_get_source_file_of_node, Node, NodeInterface, ObjectFlags, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    get_factory, get_object_flags, maybe_get_source_file_of_node, Node, NodeInterface, ObjectFlags,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -449,20 +447,16 @@ impl TypeChecker {
                             None,
                         )
                     });
-                    children_prop_symbol.set_value_declaration(synthetic_factory.with(
-                        |synthetic_factory_| {
-                            factory.with(|factory_| {
-                                factory_
-                                    .create_property_signature(
-                                        Option::<Gc<NodeArray>>::None,
-                                        unescape_leading_underscores(jsx_children_property_name),
-                                        None,
-                                        None,
-                                    )
-                                    .wrap()
-                            })
-                        },
-                    ));
+                    children_prop_symbol.set_value_declaration(
+                        get_factory()
+                            .create_property_signature(
+                                Option::<Gc<NodeArray>>::None,
+                                unescape_leading_underscores(jsx_children_property_name),
+                                None,
+                                None,
+                            )
+                            .wrap(),
+                    );
                     set_parent(
                         children_prop_symbol
                             .maybe_value_declaration()
@@ -659,7 +653,7 @@ impl TypeChecker {
 
                 let index_signature_type =
                     self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type());
-                if let Some(index_signature_type) = index_signature_type.as_ref() {
+                if index_signature_type.is_some() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
                     links.borrow_mut().resolved_symbol = Some(intrinsic_elements_type.symbol());
                     return intrinsic_elements_type.symbol();

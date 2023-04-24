@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use itertools::Itertools;
 use std::borrow::Borrow;
@@ -348,10 +346,10 @@ impl TypeChecker {
         exports
     }
 
-    pub(super) fn for_each_export_and_property_of_module<TCallback: FnMut(&Symbol, &__String)>(
+    pub fn for_each_export_and_property_of_module(
         &self,
         module_symbol: &Symbol,
-        mut cb: TCallback,
+        mut cb: impl FnMut(&Symbol, &__String),
     ) {
         let exports = self.get_exports_of_module_(module_symbol);
         for (key, symbol) in &*(*exports).borrow() {

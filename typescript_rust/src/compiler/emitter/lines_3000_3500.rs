@@ -1,5 +1,4 @@
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{
     ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule,
@@ -9,10 +8,10 @@ use super::{
 };
 use crate::{
     for_each, get_comment_range, get_emit_flags, is_block, is_let, is_module_declaration,
-    is_var_const, node_is_synthesized, range_is_on_single_line, with_synthetic_factory, EmitFlags,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, ListFormat, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, Printer, ReadonlyTextRange, SyntaxKind, TextRange,
+    is_var_const, node_is_synthesized, range_is_on_single_line, EmitFlags, HasInitializerInterface,
+    HasTypeInterface, HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
+    ListFormat, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Printer,
+    ReadonlyTextRange, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -874,7 +873,8 @@ impl Printer {
             None,
         );
         self.write_space();
-        next_pos = self.emit_token_with_comment(
+        /*nextPos =*/
+        self.emit_token_with_comment(
             SyntaxKind::NamespaceKeyword,
             next_pos,
             |text: &str| self.write_keyword(text),

@@ -13,7 +13,7 @@ use std::mem;
 use std::rc::Rc;
 
 use crate::{
-    __String, text_char_at_index, Comparison, Debug_, IsEmpty, SortedArray, SourceTextAsChars,
+    __String, text_char_at_index, Comparison, Debug_, PeekableExt, SortedArray, SourceTextAsChars,
 };
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
@@ -410,7 +410,7 @@ where
         predicate.map_or_else(
             {
                 let array_clone = array.clone();
-                || !array_clone.peekable().is_empty()
+                || !array_clone.peekable().is_empty_()
             },
             |predicate| array.any(predicate),
         )

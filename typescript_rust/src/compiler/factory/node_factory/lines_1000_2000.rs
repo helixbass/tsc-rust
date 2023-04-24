@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, Trace};
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};

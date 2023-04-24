@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
@@ -103,7 +101,7 @@ impl TypeChecker {
                 }
                 SyntaxKind::ClassExpression => {
                     let class_name = location_present.as_class_expression().maybe_name();
-                    if let Some(class_name) = class_name.as_ref() {
+                    if class_name.is_some() {
                         self.copy_symbol(symbols, &location_present.symbol(), meaning);
                     }
 
@@ -477,7 +475,7 @@ impl TypeChecker {
         let name = &name;
 
         if self.is_heritage_clause_element_identifier(name) {
-            let mut meaning = SymbolFlags::None;
+            let mut meaning;
             if name.parent().kind() == SyntaxKind::ExpressionWithTypeArguments {
                 meaning = SymbolFlags::Type;
 

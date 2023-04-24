@@ -7,8 +7,8 @@ use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, flatten, for_each_bool,
     get_effective_modifier_flags, get_parse_tree_node, has_effective_modifier, is_binding_pattern,
     is_entity_name_expression, is_export_assignment, is_export_declaration, is_external_module,
-    is_internal_declaration, length, map_defined, some, visit_nodes, with_synthetic_factory,
-    with_synthetic_factory_and_factory, AllAccessorDeclarations, AsDoubleDeref, Debug_,
+    is_internal_declaration, map_defined, some, visit_nodes, with_synthetic_factory,
+    with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
     GetSymbolAccessibilityDiagnostic, HasTypeInterface, ModifierFlags, NamedDeclarationInterface,
     Node, NodeArray, NodeArrayOrVec, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
 };

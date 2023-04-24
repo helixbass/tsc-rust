@@ -23,14 +23,13 @@ use crate::{
     set_emit_flags, set_original_node, set_text_range_node_array, set_text_range_rc_node,
     skip_parentheses, some, unwrap_innermost_statement_of_label, visit_each_child,
     visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
-    with_synthetic_factory, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags,
-    EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel, FunctionFlags,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
-    HasStatementsInterface, Matches, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt, NodeFactory, NodeFlags, NodeId,
-    NodeInterface, ProcessLevel, ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget,
-    SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext, VecExt,
-    VecExtClone, VisitResult, With,
+    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitResolver, FlattenLevel, FunctionFlags, FunctionLikeDeclarationInterface,
+    GeneratedIdentifierFlags, HasInitializerInterface, HasStatementsInterface, Matches,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec,
+    NodeCheckFlags, NodeExt, NodeFactory, NodeFlags, NodeId, NodeInterface, ProcessLevel,
+    ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface,
+    SyntaxKind, TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
 };
 
 use super::create_super_access_variable_statement;

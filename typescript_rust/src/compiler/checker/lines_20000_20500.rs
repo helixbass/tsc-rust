@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell};

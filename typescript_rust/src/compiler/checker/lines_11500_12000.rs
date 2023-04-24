@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use itertools::Either;
 use std::rc::Rc;
@@ -336,10 +334,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn for_each_property_of_type<TAction: FnMut(&Symbol, &__String)>(
+    pub(super) fn for_each_property_of_type(
         &self,
         type_: &Type,
-        mut action: TAction,
+        mut action: impl FnMut(&Symbol, &__String),
     ) {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::StructuredType) {
@@ -356,7 +354,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_type_invalid_due_to_union_discriminant(
+    pub fn is_type_invalid_due_to_union_discriminant(
         &self,
         contextual_type: &Type,
         obj: &Node, /*ObjectLiteralExpression | JsxAttributes*/
@@ -374,10 +372,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_all_possible_properties_of_types(
-        &self,
-        types: &[Gc<Type>],
-    ) -> Vec<Gc<Symbol>> {
+    pub fn get_all_possible_properties_of_types(&self, types: &[Gc<Type>]) -> Vec<Gc<Symbol>> {
         let union_type = self.get_union_type(
             types,
             None,

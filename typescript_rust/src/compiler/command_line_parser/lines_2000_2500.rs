@@ -1,7 +1,6 @@
 use fancy_regex::Regex;
 use gc::{Gc, GcCell};
 use serde::Serialize;
-use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
@@ -746,10 +745,10 @@ pub(crate) fn convert_to_tsconfig(
             use_case_sensitive_file_names: host.use_case_sensitive_file_names(),
         }),
     );
-    let watch_option_map = config_parse_result
+    let _watch_option_map = config_parse_result
         .watch_options
         .as_ref()
-        .map(|watch_options| serialize_watch_options(watch_options, None));
+        .map(|watch_options| serialize_watch_options(watch_options));
     let mut compiler_options: CompilerOptions = hash_map_to_compiler_options(&option_map);
     compiler_options.show_config = None;
     compiler_options.config_file = None;
@@ -830,7 +829,6 @@ pub(super) fn matches_specs(
 
 pub(super) struct MatchesSpecs {
     include_specs_is_some: bool,
-    patterns: Option<FileMatcherPatterns>,
     exclude_re: Option<Regex>,
     include_re: Option<Regex>,
 }
@@ -842,7 +840,7 @@ impl MatchesSpecs {
         exclude_specs: Option<&[String]>,
         host: &dyn ConvertToTSConfigHost,
     ) -> Self {
-        let mut patterns: Option<FileMatcherPatterns> = None;
+        let patterns: Option<FileMatcherPatterns>;
         let mut exclude_re: Option<Regex> = None;
         let mut include_re: Option<Regex> = None;
 
@@ -878,7 +876,6 @@ impl MatchesSpecs {
 
         Self {
             include_specs_is_some,
-            patterns,
             exclude_re,
             include_re,
         }
@@ -945,7 +942,6 @@ pub(super) fn serialize_compiler_options(
 
 pub(super) fn serialize_watch_options(
     options: &WatchOptions,
-    path_options: Option<SerializeOptionBaseObjectPathOptions>,
 ) -> HashMap<&'static str, CompilerOptionsValue> {
     serialize_option_base_object(options, &get_watch_options_name_map(), None)
 }
@@ -1082,6 +1078,7 @@ pub(super) fn get_serialized_compiler_option(
     serialize_compiler_options(&compiler_options, None)
 }
 
+#[allow(dead_code)]
 pub(crate) fn generate_tsconfig(
     options: &CompilerOptions,
     file_names: &[String],
@@ -1137,6 +1134,10 @@ fn write_configurations(
         if !entries.is_empty() {
             entries.push(WriteConfigurationsEntry::new("".to_owned(), None));
         }
+        entries.push(WriteConfigurationsEntry::new(
+            format!("/* {category} */"),
+            None,
+        ));
         for option in options {
             let option_name: String;
             if compiler_options_map.contains_key(option.name()) {

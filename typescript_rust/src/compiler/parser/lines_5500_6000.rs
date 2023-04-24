@@ -1,16 +1,12 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     add_related_info, create_detached_diagnostic, is_async_modifier, last_or_undefined, some,
-    ArrayLiteralExpression, AsDoubleDeref, Block, CaseClause, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, DoStatement, FunctionExpression,
-    IfStatement, Node, NodeArray, NodeFlags, NodeInterface, ObjectLiteralExpression,
-    ParenthesizedExpression, ReturnStatement, SyntaxKind, WhileStatement, WithStatement,
+    ArrayLiteralExpression, AsDoubleDeref, CaseClause, Debug_, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, Node, NodeArray, NodeFlags, NodeInterface,
+    ObjectLiteralExpression, SyntaxKind,
 };
 
 impl ParserType {

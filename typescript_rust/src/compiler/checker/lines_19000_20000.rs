@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use itertools::{Either, Itertools};
 use std::borrow::{Borrow, Cow};
@@ -215,7 +213,7 @@ impl CheckTypeRelatedTo {
         let mut source_discriminant_types: Vec<Vec<Gc<Type>>> =
             Vec::with_capacity(source_properties_filtered.len());
         let mut excluded_properties: HashSet<__String> = HashSet::new();
-        for (i, source_property) in source_properties_filtered.iter().enumerate() {
+        for source_property in source_properties_filtered.iter() {
             let source_property_type = self
                 .type_checker
                 .get_non_missing_type_of_symbol(source_property);

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use base64::{engine::general_purpose, Engine as _};
 use gc::Gc;
 use regex::{Captures, Regex};

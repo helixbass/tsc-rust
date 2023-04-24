@@ -16,7 +16,7 @@ use crate::{
     is_string_a_non_contextual_keyword, is_type_node, is_type_parameter_declaration, map,
     map_defined, maybe_concatenate, maybe_get_original_node_id, maybe_map, set_original_node,
     set_parent, some, unescape_leading_underscores, visit_node, visit_nodes,
-    with_parse_base_node_factory_and_factory, with_synthetic_factory, AsDoubleDeref,
+    with_parse_base_node_factory_and_factory, AsDoubleDeref,
     ClassLikeDeclarationInterface, Debug_, Diagnostics, GeneratedIdentifierFlags,
     GetSymbolAccessibilityDiagnostic, GetSymbolAccessibilityDiagnosticInterface,
     HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,

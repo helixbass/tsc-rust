@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use super::{
     char_size, code_point_at, comment_directive_reg_ex_multi_line,
     comment_directive_reg_ex_single_line, hex_digits_to_u32, is_code_point,

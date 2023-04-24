@@ -1,7 +1,4 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{ParserType, ParsingContext};
 use crate::{

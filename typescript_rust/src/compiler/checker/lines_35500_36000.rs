@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
