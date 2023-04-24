@@ -334,12 +334,12 @@ impl TypeChecker {
                     | SyntaxKind::FunctionExpression
                     | SyntaxKind::ArrowFunction => {
                         if let Some(context) = context {
-                            if !context.encountered_error.get()
+                            if !context.encountered_error()
                                 && !context
                                     .flags()
                                     .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
                             {
-                                context.encountered_error.set(true);
+                                context.set_encountered_error(true);
                             }
                         }
                         return if declaration.kind() == SyntaxKind::ClassExpression {

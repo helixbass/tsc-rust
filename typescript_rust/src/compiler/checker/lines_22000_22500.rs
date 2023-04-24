@@ -914,7 +914,7 @@ impl TypeChecker {
                         ) == Ternary::False
                     }
                 } {
-                    #[allow(dead_code)]
+                    #[allow(unused_assignments)]
                     {
                         inferred_type = Some(instantiated_constraint.clone());
                     }

@@ -242,6 +242,7 @@ pub fn update_source_file(
     new_source_file
 }
 
+#[allow(dead_code)]
 pub(crate) fn parse_isolated_jsdoc_comment(
     content: String,
     start: Option<usize>,
@@ -257,6 +258,7 @@ pub(crate) fn parse_isolated_jsdoc_comment(
     result
 }
 
+#[allow(dead_code)]
 pub(crate) fn parse_jsdoc_type_expression_for_tests(
     content: String,
     start: Option<usize>,
@@ -526,14 +528,6 @@ impl ParserType {
         self.js_doc_diagnostics.borrow_mut()
     }
 
-    pub(super) fn js_doc_diagnostics(
-        &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>, Vec<Gc<Diagnostic>>> {
-        GcCellRefMut::map(self.js_doc_diagnostics.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
-    }
-
     pub(super) fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Option<Vec<Gc<Diagnostic>>>) {
         *self.js_doc_diagnostics.borrow_mut() = js_doc_diagnostics;
     }
@@ -630,12 +624,6 @@ impl ParserType {
 
     pub(super) fn maybe_not_parenthesized_arrow(&self) -> RefMut<Option<HashSet<usize>>> {
         self.not_parenthesized_arrow.borrow_mut()
-    }
-
-    pub(super) fn not_parenthesized_arrow(&self) -> RefMut<HashSet<usize>> {
-        RefMut::map(self.not_parenthesized_arrow.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
     }
 
     pub(super) fn set_not_parenthesized_arrow(

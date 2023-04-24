@@ -583,7 +583,12 @@ impl TransformTypeScriptOnEmitNodeOverrider {
 }
 
 impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeOverrider {
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+    fn on_emit_node(
+        &self,
+        _hint: EmitHint,
+        _node: &Node,
+        _emit_callback: &dyn Fn(EmitHint, &Node),
+    ) {
         unimplemented!()
     }
 }
@@ -609,7 +614,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
 impl TransformationContextOnSubstituteNodeOverrider
     for TransformTypeScriptOnSubstituteNodeOverrider
 {
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
+    fn on_substitute_node(&self, _hint: EmitHint, _node: &Node) -> Gc<Node> {
         unimplemented!()
     }
 }

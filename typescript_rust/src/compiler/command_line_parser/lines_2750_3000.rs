@@ -78,6 +78,7 @@ pub(crate) fn can_json_report_no_input_files(raw: Option<&serde_json::Value>) ->
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn update_error_for_no_input_files(
     file_names: &[String],
     config_file_name: &str,

@@ -725,7 +725,7 @@ impl NodeBuilder {
         {
             context.tracker().report_truncation_error();
         }
-        if context.encountered_error.get() {
+        if context.encountered_error() {
             None
         } else {
             resulting_node
@@ -765,7 +765,7 @@ impl NodeBuilder {
                 .flags()
                 .intersects(NodeBuilderFlags::AllowEmptyUnionOrIntersection)
             {
-                context.encountered_error.set(true);
+                context.set_encountered_error(true);
                 return None;
             }
             context.increment_approximate_length_by(3);
@@ -1123,12 +1123,12 @@ impl NodeBuilder {
                 .flags()
                 .intersects(NodeBuilderFlags::InObjectTypeLiteral)
             {
-                if !context.encountered_error.get()
+                if !context.encountered_error()
                     && !context
                         .flags()
                         .intersects(NodeBuilderFlags::AllowThisInObjectLiteral)
                 {
-                    context.encountered_error.set(true);
+                    context.set_encountered_error(true);
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
                 context.tracker().report_inaccessible_unique_symbol_error();
@@ -1286,12 +1286,12 @@ impl NodeBuilder {
                     });
                 }
             }
-            if !context.encountered_error.get()
+            if !context.encountered_error()
                 && !context
                     .flags()
                     .intersects(NodeBuilderFlags::AllowEmptyUnionOrIntersection)
             {
-                context.encountered_error.set(true);
+                context.set_encountered_error(true);
             }
             return None;
         }

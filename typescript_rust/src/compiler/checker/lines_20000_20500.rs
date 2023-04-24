@@ -297,7 +297,7 @@ impl TypeChecker {
         self.maybe_type_of_kind(source, TypeFlags::Undefined) && self.contains_missing_type(target)
     }
 
-    pub(super) fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Gc<Symbol>> {
+    pub fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Gc<Symbol>> {
         self.get_properties_of_type(type_)
             .into_iter()
             .filter(|target_prop: &Gc<Symbol>| {
@@ -306,11 +306,11 @@ impl TypeChecker {
             .collect()
     }
 
-    pub(super) fn get_best_matching_type<TIsRelatedTo: Fn(&Type, &Type) -> Ternary>(
+    pub(super) fn get_best_matching_type(
         &self,
         source: &Type,
         target: &Type, /*UnionOrIntersectionType*/
-        is_related_to: Option<TIsRelatedTo>,
+        is_related_to: Option<impl Fn(&Type, &Type) -> Ternary>,
     ) -> Option<Gc<Type>> {
         let is_related_to = |source: &Type, target: &Type| match is_related_to.as_ref() {
             None => self.compare_types_assignable(source, target),

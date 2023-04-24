@@ -524,7 +524,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         elements: Option<impl Into<NodeArrayOrVec>>,
         has_trailing_comma: Option<bool>,
     ) -> Gc<NodeArray> {
-        let elements_is_none = elements.is_none();
         let elements = match elements {
             None => NodeArrayOrVec::Vec(vec![]),
             Some(elements) => elements.into(),
@@ -577,7 +576,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
     ) -> BaseNode {
-        let mut node = self.create_base_node(kind);
+        let node = self.create_base_node(kind);
         node.set_decorators(self.as_node_array(decorators));
         node.set_modifiers(self.as_node_array(modifiers));
         let flags = propagate_children_flags(node.maybe_decorators().as_deref())
@@ -604,7 +603,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> BaseNamedDeclaration {
         let node = self.create_base_declaration(kind, decorators, modifiers);
         let name = self.as_name(name);
-        let mut node = BaseNamedDeclaration::new(node, name.clone());
+        let node = BaseNamedDeclaration::new(node, name.clone());
 
         if let Some(name) = name {
             match node.kind() {
@@ -640,7 +639,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_parameters: Option<TTypeParameters>,
     ) -> BaseGenericNamedDeclaration {
         let node = self.create_base_named_declaration(kind, decorators, modifiers, name);
-        let mut node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
+        let node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
         let flags = propagate_children_flags(node.maybe_type_parameters().as_deref());
         node.add_transform_flags(flags);
         if node.maybe_type_parameters().is_some() {
@@ -673,7 +672,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             name,
             type_parameters,
         );
-        let mut node =
+        let node =
             BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
         node.add_transform_flags(
             propagate_children_flags(Some(&node.parameters()))
@@ -718,7 +717,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             type_,
         );
         let body_is_none = body.is_none();
-        let mut node = BaseFunctionLikeDeclaration::new(node, body);
+        let node = BaseFunctionLikeDeclaration::new(node, body);
         node.add_transform_flags(
             propagate_child_flags(node.maybe_body())
                 & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -772,7 +771,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             name,
             type_parameters,
         );
-        let mut node =
+        let node =
             BaseInterfaceOrClassLikeDeclaration::new(node, self.as_node_array(heritage_clauses));
         node.add_transform_flags(propagate_children_flags(
             node.maybe_heritage_clauses().as_deref(),
@@ -806,42 +805,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             type_parameters,
             heritage_clauses,
         );
-        let mut node =
-            ClassLikeDeclarationBase::new(node, self.create_node_array(Some(members), None));
+        let node = ClassLikeDeclarationBase::new(node, self.create_node_array(Some(members), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.members())));
         node
     }
 
-    pub(crate) fn create_base_binding_like_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub(crate) fn create_base_binding_like_declaration<'name>(
         &self,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
         initializer: Option<Gc<Node>>,
     ) -> BaseBindingLikeDeclaration {
         let node = self.create_base_named_declaration(kind, decorators, modifiers, name);
-        let mut node = BaseBindingLikeDeclaration::new(node, initializer);
+        let node = BaseBindingLikeDeclaration::new(node, initializer);
         node.add_transform_flags(propagate_child_flags(node.maybe_initializer()));
         node
     }
 
-    pub(crate) fn create_base_variable_like_declaration<
-        'name,
-        TDecorators: Into<NodeArrayOrVec>,
-        TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub(crate) fn create_base_variable_like_declaration<'name>(
         &self,
         kind: SyntaxKind,
-        decorators: Option<TDecorators>,
-        modifiers: Option<TModifiers>,
-        name: Option<TName>,
+        decorators: Option<impl Into<NodeArrayOrVec>>,
+        modifiers: Option<impl Into<NodeArrayOrVec>>,
+        name: Option<impl Into<StrOrRcNode<'name>>>,
         type_: Option<Gc<Node>>,
         initializer: Option<Gc<Node>>,
     ) -> BaseVariableLikeDeclaration {
@@ -853,7 +841,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             initializer,
         );
         let type_is_some = type_.is_some();
-        let mut node = BaseVariableLikeDeclaration::new(node, type_);
+        let node = BaseVariableLikeDeclaration::new(node, type_);
         node.add_transform_flags(propagate_child_flags(node.maybe_type()));
         if type_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -884,7 +872,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 StringOrNumber::Number(value) => value.to_string(),
             },
         );
-        let mut node = NumericLiteral::new(node, numeric_literal_flags);
+        let node = NumericLiteral::new(node, numeric_literal_flags);
         if numeric_literal_flags.intersects(TokenFlags::BinaryOrOctalSpecifier) {
             node.add_transform_flags(TransformFlags::ContainsES2015);
         }
@@ -905,7 +893,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 }
             },
         );
-        let mut node = BigIntLiteral::new(node);
+        let node = BigIntLiteral::new(node);
         node.add_transform_flags(TransformFlags::ContainsESNext);
         node
     }
@@ -925,7 +913,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         is_single_quote: Option<bool>,
         has_extended_unicode_escape: Option<bool>,
     ) -> StringLiteral {
-        let mut node = self.create_base_string_literal(text, is_single_quote);
+        let node = self.create_base_string_literal(text, is_single_quote);
         node.set_has_extended_unicode_escape(has_extended_unicode_escape);
         if matches!(has_extended_unicode_escape, Some(true)) {
             node.add_transform_flags(TransformFlags::ContainsES2015);
@@ -1010,7 +998,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
         original_keyword_kind: Option<SyntaxKind>,
     ) -> Identifier {
-        let mut node = self.create_base_identifier(text, original_keyword_kind);
+        let node = self.create_base_identifier(text, original_keyword_kind);
         if let Some(type_arguments) = type_arguments {
             *node.maybe_type_arguments_mut() =
                 Some(self.create_node_array(Some(type_arguments), None));
@@ -1043,8 +1031,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_temp_variable(
         &self,
-        record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
-        reserved_in_nested_scopes: Option<bool>,
+        _record_temp_variable: Option<impl FnMut(&Node /*Identifier*/)>,
+        _reserved_in_nested_scopes: Option<bool>,
     ) -> Gc<Node /*GeneratedIdentifier*/> {
         unimplemented!()
     }
@@ -1102,7 +1090,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self
             .base_factory
             .create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
-        let mut node = PrivateIdentifier::new(node, escape_leading_underscores(text).into_owned());
+        let node = PrivateIdentifier::new(node, escape_leading_underscores(text).into_owned());
         node.add_transform_flags(TransformFlags::ContainsClassFields);
         node
     }
@@ -1128,7 +1116,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             token != SyntaxKind::Identifier,
             Some("Invalid token. Use 'createIdentifier' to create identifiers"),
         );
-        let mut node = self.create_base_token(token);
+        let node = self.create_base_token(token);
         let mut transform_flags = TransformFlags::None;
         match token {
             SyntaxKind::AsyncKeyword => {

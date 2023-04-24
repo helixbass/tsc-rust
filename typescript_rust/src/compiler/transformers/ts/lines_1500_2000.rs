@@ -7,28 +7,28 @@ use super::TransformTypeScript;
 impl TransformTypeScript {
     pub(super) fn visit_heritage_clause(
         &self,
-        node: &Node, /*HeritageClause*/
+        _node: &Node, /*HeritageClause*/
     ) -> Option<Gc<Node /*HeritageClause*/>> {
         unimplemented!()
     }
 
     pub(super) fn visit_expression_with_type_arguments(
         &self,
-        node: &Node, /*ExpressionWithTypeArguments*/
+        _node: &Node, /*ExpressionWithTypeArguments*/
     ) -> Gc<Node /*ExpressionWithTypeArguments*/> {
         unimplemented!()
     }
 
     pub(super) fn visit_property_declaration(
         &self,
-        node: &Node, /*PropertyDeclaration*/
+        _node: &Node, /*PropertyDeclaration*/
     ) -> VisitResult /*<Node>*/ {
         unimplemented!()
     }
 
     pub(super) fn visit_constructor(
         &self,
-        node: &Node, /*ConstructorDeclaration*/
+        _node: &Node, /*ConstructorDeclaration*/
     ) -> VisitResult /*<Node>*/ {
         unimplemented!()
     }

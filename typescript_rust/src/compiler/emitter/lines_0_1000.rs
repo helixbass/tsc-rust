@@ -1332,6 +1332,13 @@ impl EmitResolver for NotImplementedResolver {
         unimplemented!()
     }
 
+    fn get_referenced_declaration_with_colliding_name(
+        &self,
+        _node: &Node, /*Identifier*/
+    ) -> Option<Gc<Node /*Declaration*/>> {
+        unimplemented!()
+    }
+
     fn is_declaration_with_colliding_name(&self, _node: &Node /*Declaration*/) -> bool {
         unimplemented!()
     }

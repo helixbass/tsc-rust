@@ -419,10 +419,7 @@ impl Scanner {
         }
     }
 
-    pub(crate) fn re_scan_jsx_attribute_value(
-        &self,
-        on_error: Option<ErrorCallback>,
-    ) -> SyntaxKind {
+    pub fn re_scan_jsx_attribute_value(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
         self.set_pos(self.start_pos());
         self.set_token_pos(self.start_pos());
         self.scan_jsx_attribute_value(on_error)
@@ -707,7 +704,7 @@ pub(super) fn code_point_at(s: &SourceTextAsChars, i: usize) -> char {
     s[i]
 }
 
-pub(super) fn char_size(ch: char) -> usize {
+pub(super) fn char_size(_ch: char) -> usize {
     1
 }
 

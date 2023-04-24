@@ -495,7 +495,7 @@ impl Program {
                     }
                 }
             }
-            let mut resolves_to_ambient_module_in_non_modified_file = false;
+            let resolves_to_ambient_module_in_non_modified_file: bool/* = false*/;
             if contains(
                 file_as_source_file.maybe_ambient_module_names().as_deref(),
                 module_name,
@@ -654,7 +654,7 @@ impl Program {
     pub(super) fn emit_build_info(
         &self,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> EmitResult {
         Debug_.assert(out_file(&self.options).non_empty().is_none(), None);
         // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
@@ -708,7 +708,7 @@ impl Program {
             == Some(true)
     }
 
-    pub fn is_source_file_default_library(&self, file: &Node /*SourceFile*/) -> bool {
+    pub fn is_source_file_default_library(&self, _file: &Node /*SourceFile*/) -> bool {
         unimplemented!()
     }
 
@@ -823,7 +823,7 @@ impl Program {
         source_file: &Node, /*SourceFile*/
         // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
         // refactor eg get_diagnostics_helper() to use closures instead?
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         let source_file_as_source_file = source_file.as_source_file();
         if is_source_file_js(source_file) {

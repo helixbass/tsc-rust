@@ -517,13 +517,6 @@ impl SourceFile {
         self.contents.common_js_module_indicator.borrow_mut()
     }
 
-    pub(crate) fn set_common_js_module_indicator(
-        &self,
-        common_js_module_indicator: Option<Gc<Node>>,
-    ) {
-        *self.contents.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
-    }
-
     pub(crate) fn maybe_js_global_augmentations(
         &self,
     ) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
@@ -1078,17 +1071,6 @@ enum InputFilesInitializedState {
     Uninitialized,
     InitializedWithReadFileCallback(InputFilesInitializedWithReadFileCallback),
     InitializedWithString(InputFilesInitializedWithString),
-}
-
-impl InputFilesInitializedState {
-    fn as_initialized_with_read_file_callback(&self) -> &InputFilesInitializedWithReadFileCallback {
-        if let Self::InitializedWithReadFileCallback(value) = self {
-            Some(value)
-        } else {
-            None
-        }
-        .unwrap()
-    }
 }
 
 impl Default for InputFilesInitializedState {
@@ -1646,6 +1628,7 @@ pub struct Program {
     pub(crate) common_source_directory: RefCell<Option<String>>,
     pub(crate) diagnostics_producing_type_checker: GcCell<Option<Gc<TypeChecker>>>,
     pub(crate) no_diagnostics_type_checker: GcCell<Option<Gc<TypeChecker>>>,
+    #[allow(dead_code)]
     #[unsafe_ignore_trace]
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]

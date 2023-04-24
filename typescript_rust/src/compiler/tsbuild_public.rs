@@ -62,22 +62,22 @@ pub struct SolutionBuilder<TBuilderProgram: BuilderProgram> {
 impl<TBuilderProgram: BuilderProgram> SolutionBuilder<TBuilderProgram> {
     pub fn build<TGetCustomTransformers: FnMut(&str) -> CustomTransformers>(
         &self,
-        project: Option<&str>,
-        cancellation_token: Option<Gc<Box<dyn CancellationToken>>>,
-        write_file: Option<&dyn WriteFileCallback>,
-        get_custom_transformers: Option<TGetCustomTransformers>,
+        _project: Option<&str>,
+        _cancellation_token: Option<Gc<Box<dyn CancellationToken>>>,
+        _write_file: Option<&dyn WriteFileCallback>,
+        _get_custom_transformers: Option<TGetCustomTransformers>,
     ) -> ExitStatus {
         unimplemented!()
     }
 
-    pub fn clean(&self, project: Option<&str>) -> ExitStatus {
+    pub fn clean(&self, _project: Option<&str>) -> ExitStatus {
         unimplemented!()
     }
 }
 
 pub fn create_builder_status_reporter(
-    system: &dyn System,
-    pretty: Option<bool>,
+    _system: &dyn System,
+    _pretty: Option<bool>,
 ) -> Gc<Box<dyn DiagnosticReporter>> {
     unimplemented!()
 }
@@ -86,11 +86,11 @@ pub fn create_solution_builder_host<
     TBuilderProgram: BuilderProgram,
     TCreateProgram: CreateProgram<TBuilderProgram>,
 >(
-    system: Option<&dyn System>,
-    create_program: Option<TCreateProgram>,
-    report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
-    report_solution_builder_status: Option<Gc<Box<dyn DiagnosticReporter>>>,
-    report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
+    _system: Option<&dyn System>,
+    _create_program: Option<TCreateProgram>,
+    _report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    _report_solution_builder_status: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    _report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
 ) -> SolutionBuilderHostConcrete<TBuilderProgram> {
     unimplemented!()
 }
@@ -121,11 +121,11 @@ pub fn create_solution_builder_with_watch_host<
     TBuilderProgram: BuilderProgram,
     TCreateProgram: CreateProgram<TBuilderProgram>,
 >(
-    system: Option<&dyn System>,
-    create_program: Option<TCreateProgram>,
-    report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
-    report_solution_builder_status: Option<Gc<Box<dyn DiagnosticReporter>>>,
-    report_watch_status: Option<Rc<dyn WatchStatusReporter>>,
+    _system: Option<&dyn System>,
+    _create_program: Option<TCreateProgram>,
+    _report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    _report_solution_builder_status: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    _report_watch_status: Option<Rc<dyn WatchStatusReporter>>,
 ) -> SolutionBuilderWithWatchHostConcrete<TBuilderProgram> {
     unimplemented!()
 }
@@ -161,9 +161,9 @@ pub fn create_solution_builder<
     TBuilderProgram: BuilderProgram,
     THost: SolutionBuilderHost<TBuilderProgram>,
 >(
-    host: &THost,
-    root_names: &[String],
-    default_options: &BuildOptions,
+    _host: &THost,
+    _root_names: &[String],
+    _default_options: &BuildOptions,
 ) -> SolutionBuilder<TBuilderProgram> {
     unimplemented!()
 }
@@ -172,10 +172,10 @@ pub fn create_solution_builder_with_watch<
     TBuilderProgram: BuilderProgram,
     THost: SolutionBuilderWithWatchHost<TBuilderProgram>,
 >(
-    host: &THost,
-    root_names: &[String],
-    default_options: &BuildOptions,
-    base_options: Option<&WatchOptions>,
+    _host: &THost,
+    _root_names: &[String],
+    _default_options: &BuildOptions,
+    _base_options: Option<&WatchOptions>,
 ) -> SolutionBuilder<TBuilderProgram> {
     unimplemented!()
 }

@@ -91,6 +91,7 @@ impl EmitTransformers {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) struct SourceMapEmitResult {
     pub input_source_file_names: Vec<String>,
     pub source_map: RawSourceMap,
@@ -114,6 +115,7 @@ impl ExitStatus {
         ExitStatus::ProjectReferenceCycle_OutputsSkipped;
 }
 
+#[allow(dead_code)]
 pub struct EmitResult {
     pub emit_skipped: bool,
     pub diagnostics: Vec<Gc<Diagnostic>>,
@@ -449,7 +451,7 @@ pub(crate) trait OutofbandVarianceMarkerHandler: Trace + Finalize {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum MemberOverrideStatus {
+pub enum MemberOverrideStatus {
     Ok,
     NeedsOverride,
     HasInvalidOverride,
@@ -676,6 +678,10 @@ pub trait EmitResolver: Trace + Finalize {
         prefix_locals: Option<bool>,
     ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>;
     fn get_referenced_import_declaration(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> Option<Gc<Node /*Declaration*/>>;
+    fn get_referenced_declaration_with_colliding_name(
         &self,
         node: &Node, /*Identifier*/
     ) -> Option<Gc<Node /*Declaration*/>>;

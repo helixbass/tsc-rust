@@ -291,6 +291,7 @@ pub fn parse_command_line<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
     .into_parsed_command_line()
 }
 
+#[allow(dead_code)]
 pub(crate) fn get_option_from_name(
     option_name: &str,
     allow_short: Option<bool>,
@@ -527,9 +528,9 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     ))
 }
 
-pub fn read_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
+pub fn read_config_file(
     file_name: &str,
-    read_file: TReadFile,
+    read_file: impl FnMut(&str) -> io::Result<Option<String>>,
 ) -> ReadConfigFileReturn {
     let text_or_diagnostic = try_read_file(file_name, read_file);
     match text_or_diagnostic {

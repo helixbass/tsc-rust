@@ -34,9 +34,9 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace 
 pub fn create_for_of_binding_statement<
     TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
 >(
-    factory: &NodeFactory<TBaseNodeFactory>,
-    node: &Node,        /*ForInitializer*/
-    bound_value: &Node, /*Expression*/
+    _factory: &NodeFactory<TBaseNodeFactory>,
+    _node: &Node,        /*ForInitializer*/
+    _bound_value: &Node, /*Expression*/
 ) -> Gc<Node /*Statement*/> {
     unimplemented!()
 }
@@ -296,7 +296,7 @@ pub fn is_module_name(node: &Node) -> bool {
     is_identifier(node) || is_string_literal(node)
 }
 
-pub fn is_binary_operator_token(node: &Node) -> bool {
+pub fn is_binary_operator_token(_node: &Node) -> bool {
     unimplemented!()
 }
 
@@ -384,7 +384,7 @@ fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(
     state_stack: &mut Vec<BinaryExpressionState>,
     node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
-    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
 ) -> usize {
     let prev_user_state = if stack_index > 0 {
@@ -417,8 +417,8 @@ fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
     state_stack: &mut Vec<BinaryExpressionState>,
     node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
-    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
-    outer_state: TMachine::TOuterState,
+    _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    _outer_state: TMachine::TOuterState,
 ) -> usize {
     Debug_.assert_equal(
         &state_stack[stack_index],
@@ -456,8 +456,8 @@ fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
     state_stack: &mut Vec<BinaryExpressionState>,
     node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
-    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
-    outer_state: TMachine::TOuterState,
+    _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    _outer_state: TMachine::TOuterState,
 ) -> usize {
     Debug_.assert_equal(
         &state_stack[stack_index],
@@ -487,8 +487,8 @@ fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
     state_stack: &mut Vec<BinaryExpressionState>,
     node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
-    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
-    outer_state: TMachine::TOuterState,
+    _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    _outer_state: TMachine::TOuterState,
 ) -> usize {
     Debug_.assert_equal(
         &state_stack[stack_index],
@@ -569,13 +569,13 @@ fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
 }
 
 fn binary_expression_state_done<TMachine: BinaryExpressionStateMachine>(
-    machine: &TMachine,
+    _machine: &TMachine,
     stack_index: usize,
     state_stack: &mut Vec<BinaryExpressionState>,
-    node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
-    user_state_stack: &mut Vec<Option<TMachine::TState>>,
-    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
-    outer_state: TMachine::TOuterState,
+    _node_stack: &mut Vec<Gc<Node /*BinaryExpression*/>>,
+    _user_state_stack: &mut Vec<Option<TMachine::TState>>,
+    _result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    _outer_state: TMachine::TOuterState,
 ) -> usize {
     Debug_.assert_equal(
         &state_stack[stack_index],
@@ -644,11 +644,16 @@ fn binary_expression_state_check_circularity(
     node: &Node, /*BinaryExpression*/
 ) {
     if Debug_.should_assert(AssertionLevel::Aggressive) {
-        while stack_index >= 0 {
+        loop
+        /*while stackIndex >= 0*/
+        {
             Debug_.assert(
                 !ptr::eq(&*node_stack[stack_index], node),
                 Some("Circular traversal detected."),
             );
+            if stack_index == 0 {
+                break;
+            }
             stack_index -= 1;
         }
     }
@@ -668,27 +673,27 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
 
     fn on_left(
         &self,
-        left: &Node, /*Expression*/
-        user_state: Self::TState,
-        node: &Node, /*BinaryExpression*/
+        _left: &Node, /*Expression*/
+        _user_state: Self::TState,
+        _node: &Node, /*BinaryExpression*/
     ) -> Option<Gc<Node /*BinaryExpression*/>> {
         panic!("Shouldn't call default on_left()")
     }
 
     fn on_operator(
         &self,
-        operator_token: &Node, /*BinaryOperatorToken*/
-        user_state: Self::TState,
-        node: &Node, /*BinaryExpression*/
+        _operator_token: &Node, /*BinaryOperatorToken*/
+        _user_state: Self::TState,
+        _node: &Node, /*BinaryExpression*/
     ) {
         panic!("Shouldn't call default on_operator()")
     }
 
     fn on_right(
         &self,
-        right: &Node, /*Expression*/
-        user_state: Self::TState,
-        node: &Node, /*BinaryExpression*/
+        _right: &Node, /*Expression*/
+        _user_state: Self::TState,
+        _node: &Node, /*BinaryExpression*/
     ) -> Option<Gc<Node /*BinaryExpression*/>> {
         panic!("Shouldn't call default on_left()")
     }
@@ -701,9 +706,9 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
 
     fn fold_state(
         &self,
-        user_state: Self::TState,
-        result: Self::TResult,
-        side: LeftOrRight,
+        _user_state: Self::TState,
+        _result: Self::TResult,
+        _side: LeftOrRight,
     ) -> Self::TState {
         panic!("Shouldn't call default fold_state()")
     }

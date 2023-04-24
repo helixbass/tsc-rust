@@ -331,14 +331,11 @@ pub fn range_end_is_on_same_line_as_range_start(
     )
 }
 
-pub fn get_lines_between_range_end_and_range_start<
-    TRange1: ReadonlyTextRange,
-    TRange2: ReadonlyTextRange,
->(
-    range1: &TRange1,
-    range2: &TRange2,
-    source_file: &Node, /*SourceFile*/
-    include_second_range_comments: bool,
+pub fn get_lines_between_range_end_and_range_start(
+    _range1: &impl ReadonlyTextRange,
+    _range2: &impl ReadonlyTextRange,
+    _source_file: &Node, /*SourceFile*/
+    _include_second_range_comments: bool,
 ) -> usize {
     unimplemented!()
 }
@@ -370,19 +367,19 @@ pub fn get_start_position_of_range(
 }
 
 pub fn get_lines_between_position_and_preceding_non_whitespace_character(
-    pos: isize,
-    stop_pos: isize,
-    source_file: &Node, /*SourceFile*/
-    include_comments: Option<bool>,
+    _pos: isize,
+    _stop_pos: isize,
+    _source_file: &Node, /*SourceFile*/
+    _include_comments: Option<bool>,
 ) -> usize {
     unimplemented!()
 }
 
 pub fn get_lines_between_position_and_next_non_whitespace_character(
-    pos: isize,
-    stop_pos: isize,
-    source_file: &Node, /*SourceFile*/
-    include_comments: Option<bool>,
+    _pos: isize,
+    _stop_pos: isize,
+    _source_file: &Node, /*SourceFile*/
+    _include_comments: Option<bool>,
 ) -> usize {
     unimplemented!()
 }
@@ -458,7 +455,7 @@ pub fn get_declaration_modifier_flags_from_symbol(
     ModifierFlags::None
 }
 
-pub fn get_combined_local_and_export_symbol_flags(symbol: &Symbol) -> SymbolFlags {
+pub fn get_combined_local_and_export_symbol_flags(_symbol: &Symbol) -> SymbolFlags {
     unimplemented!()
 }
 
@@ -643,7 +640,7 @@ pub fn is_access_expression(node: &Node) -> bool {
     )
 }
 
-pub fn is_bundle_file_text_like(section: &BundleFileSection) -> bool {
+pub fn is_bundle_file_text_like(_section: &BundleFileSection) -> bool {
     unimplemented!()
 }
 
@@ -847,7 +844,7 @@ pub fn attach_file_to_diagnostic(
     Debug_.assert_equal(&diagnostic.file_name, &*file_name, None, None);
     Debug_.assert_less_than_or_equal(diagnostic.start(), length);
     Debug_.assert_less_than_or_equal(diagnostic.start() + diagnostic.length(), length);
-    let mut diagnostic_with_location = DiagnosticWithLocation::new(BaseDiagnostic::new(
+    let diagnostic_with_location = DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
             diagnostic.category(),
             diagnostic.code(),

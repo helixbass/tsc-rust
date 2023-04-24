@@ -62,7 +62,7 @@ impl ReadonlyTextRange for ReadonlyTextRangeConcrete {
         self.pos
     }
 
-    fn set_pos(&self, pos: isize) {
+    fn set_pos(&self, _pos: isize) {
         unreachable!()
     }
 
@@ -70,7 +70,7 @@ impl ReadonlyTextRange for ReadonlyTextRangeConcrete {
         self.end
     }
 
-    fn set_end(&self, end: isize) {
+    fn set_end(&self, _end: isize) {
         unreachable!()
     }
 }

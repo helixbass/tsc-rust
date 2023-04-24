@@ -641,7 +641,7 @@ impl GetTypeParameterConstraintVisibilityError {
 impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVisibilityError {
     fn call(
         &self,
-        symbol_accessibility_result: &SymbolAccessibilityResult,
+        _symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
         match self.node.parent().kind() {
@@ -706,7 +706,7 @@ impl GetHeritageClauseVisibilityError {
 impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityError {
     fn call(
         &self,
-        symbol_accessibility_result: &SymbolAccessibilityResult,
+        _symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
         if is_class_declaration(&self.node.parent().parent()) {
@@ -755,7 +755,7 @@ impl GetImportEntityNameVisibilityError {
 impl GetSymbolAccessibilityDiagnosticInterface for GetImportEntityNameVisibilityError {
     fn call(
         &self,
-        symbol_accessibility_result: &SymbolAccessibilityResult,
+        _symbol_accessibility_result: &SymbolAccessibilityResult,
     ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
         Some(Gc::new(SymbolAccessibilityDiagnostic {
             diagnostic_message: &Diagnostics::Import_declaration_0_is_using_private_name_1,

@@ -464,7 +464,7 @@ impl TypeChecker {
         });
         let is_any_like = self.is_type_any(Some(&*apparent_type))
             || Gc::ptr_eq(&apparent_type, &self.silent_never_type());
-        let mut prop: Option<Gc<Symbol>>;
+        let prop: Option<Gc<Symbol>>;
         if is_private_identifier(right) {
             if self.language_version < ScriptTarget::ESNext {
                 if assignment_kind != AssignmentKind::None {

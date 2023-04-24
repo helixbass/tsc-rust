@@ -625,7 +625,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_ambient_modules(&self) -> Vec<Gc<Symbol>> {
+    pub fn get_ambient_modules(&self) -> Vec<Gc<Symbol>> {
         if self.ambient_modules_cache.borrow().is_none() {
             let mut ambient_modules_cache = self.ambient_modules_cache.borrow_mut();
             *ambient_modules_cache = Some(vec![]);
@@ -1070,6 +1070,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         node: &Node, /*Identifier*/
     ) -> Option<Gc<Node /*Declaration*/>> {
         self.type_checker.get_referenced_import_declaration(node)
+    }
+
+    fn get_referenced_declaration_with_colliding_name(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> Option<Gc<Node /*Declaration*/>> {
+        self.type_checker
+            .get_referenced_declaration_with_colliding_name(node)
     }
 
     fn is_declaration_with_colliding_name(&self, node: &Node /*Declaration*/) -> bool {

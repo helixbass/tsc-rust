@@ -309,7 +309,6 @@ impl ParserType {
         length: Option<usize>,
     ) -> Option<JSDoc> {
         let start = start.unwrap_or(0);
-        let content = self.source_text();
         let content_as_chars = self.source_text_as_chars();
         let end = match length {
             None => content_as_chars.len(),
@@ -324,7 +323,7 @@ impl ParserType {
         if !is_jsdoc_like_text(&content_as_chars, start) {
             return None;
         }
-        ParseJSDocCommentWorker::new(self, start, end, length, &content, &content_as_chars).call()
+        ParseJSDocCommentWorker::new(self, start, end, length, &content_as_chars).call()
     }
 }
 
@@ -333,7 +332,6 @@ pub(super) struct ParseJSDocCommentWorker<'parser> {
     pub(super) start: usize,
     pub(super) end: usize,
     pub(super) length: usize,
-    pub(super) content_str: &'parser str,
     pub(super) content: &'parser SourceTextAsChars,
     pub(super) tags: Option<Vec<Gc<Node /*JSDocTag*/>>>,
     pub(super) tags_pos: Option<isize>,
@@ -350,7 +348,6 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         end: usize,
         length: usize,
-        content_str: &'parser str,
         content: &'parser SourceTextAsChars,
     ) -> Self {
         Self {
@@ -358,7 +355,6 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             start,
             end,
             length,
-            content_str,
             content,
             tags: None,
             tags_pos: None,
@@ -368,22 +364,6 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             comments: RefCell::new(vec![]),
             parts: vec![],
         }
-    }
-
-    pub(super) fn tags(&mut self) -> &mut Vec<Gc<Node>> {
-        self.tags.as_mut().unwrap()
-    }
-
-    pub(super) fn tags_pos(&self) -> isize {
-        self.tags_pos.unwrap()
-    }
-
-    pub(super) fn tags_end(&self) -> isize {
-        self.tags_end.unwrap()
-    }
-
-    pub(super) fn link_end(&self) -> usize {
-        self.link_end.unwrap()
     }
 
     pub(super) fn comments(&self) -> RefMut<Vec<String>> {

@@ -350,7 +350,7 @@ pub fn flat_map_to_mutable<
     TCallback: FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
 >(
     array: Option<TCollection>,
-    mut mapfn: TCallback,
+    mapfn: TCallback,
 ) -> Vec<TReturn> {
     flat_map(array, mapfn)
 }
@@ -804,7 +804,7 @@ pub fn comparison_to_ordering(comparison: Comparison) -> Ordering {
 pub fn stable_sort_indices<TItem, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     indices: &mut Vec<usize>,
-    mut comparer: TComparer,
+    comparer: TComparer,
 ) {
     indices.sort_by(|x, y| {
         let by_comparer = comparer(&array[*x], &array[*y]);
@@ -1247,7 +1247,7 @@ mod _MultiMapDeriveTraceScope {
             comparer: TComparer,
         ) {
             {
-                let mut values = self.0.entry(key);
+                let values = self.0.entry(key);
                 match values {
                     Entry::Occupied(mut values) => {
                         unordered_remove_item(values.get_mut(), value, comparer);
@@ -1291,7 +1291,7 @@ pub fn create_multi_map<TKey: Trace + Finalize, TValue: Trace + Finalize>() -> M
     MultiMap(HashMap::new())
 }
 
-pub type UnderscoreEscapedMultiMap<TValue: Trace + Finalize> = MultiMap<__String, TValue>;
+pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
 
 pub fn create_underscore_escaped_multi_map<TValue: Trace + Finalize>(
 ) -> UnderscoreEscapedMultiMap<TValue> {
@@ -1326,7 +1326,7 @@ pub fn cast_present<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -
     Debug_.fail(Some("Invalid cast. The supplied value {:?} did not pass the test." /*'${Debug.getFunctionName(test)'*/));
 }
 
-fn identity<TValue>(x: TValue) -> TValue {
+pub fn identity<TValue>(x: TValue) -> TValue {
     x
 }
 

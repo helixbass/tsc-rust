@@ -55,9 +55,9 @@ pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> 
 }
 
 pub fn get_properties(
-    node: &Node, /*ClassExpression | ClassDeclaration*/
-    require_initializer: bool,
-    is_static: bool,
+    _node: &Node, /*ClassExpression | ClassDeclaration*/
+    _require_initializer: bool,
+    _is_static: bool,
 ) -> Vec<Gc<Node /*PropertyDeclaration*/>> {
     unimplemented!()
 }

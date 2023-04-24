@@ -336,6 +336,8 @@ pub fn unused_label_is_error(options: &CompilerOptions) -> bool {
     matches!(options.allow_unused_labels, Some(false))
 }
 
+// TODO: should remove these if unused (I don't remember what they were for)?
+#[allow(dead_code)]
 fn json_value_to_bool(value: Option<serde_json::Value>) -> Option<bool> {
     value.and_then(|value| match value {
         serde_json::Value::Null => None,
@@ -344,6 +346,7 @@ fn json_value_to_bool(value: Option<serde_json::Value>) -> Option<bool> {
     })
 }
 
+#[allow(dead_code)]
 fn json_value_to_string(value: Option<serde_json::Value>) -> Option<String> {
     value.and_then(|value| match value {
         serde_json::Value::Null => None,
@@ -352,6 +355,7 @@ fn json_value_to_string(value: Option<serde_json::Value>) -> Option<String> {
     })
 }
 
+#[allow(dead_code)]
 fn json_value_to_map_value<TReturn, TCallback: Fn(&CommandLineOptionMapTypeValue) -> TReturn>(
     value: Option<serde_json::Value>,
     option: &CommandLineOption,
@@ -367,6 +371,7 @@ fn json_value_to_map_value<TReturn, TCallback: Fn(&CommandLineOptionMapTypeValue
     })
 }
 
+#[allow(dead_code)]
 fn json_value_to_vec_string(value: Option<serde_json::Value>) -> Option<Vec<String>> {
     value.and_then(|value| match value {
         serde_json::Value::Null => None,
@@ -383,6 +388,7 @@ fn json_value_to_vec_string(value: Option<serde_json::Value>) -> Option<Vec<Stri
     })
 }
 
+#[allow(dead_code)]
 fn json_value_to_usize(value: Option<serde_json::Value>) -> Option<usize> {
     value.and_then(|value| match value {
         serde_json::Value::Null => None,
@@ -397,6 +403,7 @@ fn json_value_to_usize(value: Option<serde_json::Value>) -> Option<usize> {
     })
 }
 
+#[allow(dead_code)]
 fn json_value_to_map_like_vec_string(
     value: Option<serde_json::Value>,
 ) -> Option<MapLike<Vec<String>>> {
@@ -425,6 +432,7 @@ fn json_value_to_map_like_vec_string(
     })
 }
 
+#[allow(dead_code)]
 fn json_value_to_vec_plugin_import(value: Option<serde_json::Value>) -> Option<Vec<PluginImport>> {
     value.and_then(|value| match value {
         serde_json::Value::Null => None,
@@ -1939,7 +1947,7 @@ pub fn resolution_extension_is_ts_or_json(ext: Extension) -> bool {
     extension_is_ts(ext) || ext == Extension::Json
 }
 
-pub fn extension_from_path(path: &str) -> Extension {
+pub fn extension_from_path(_path: &str) -> Extension {
     unimplemented!()
 }
 

@@ -25,7 +25,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         multi_line: Option<bool>,
     ) -> AssertClause {
         let node = self.create_base_node(SyntaxKind::AssertClause);
-        let mut node = AssertClause::new(node, elements, multi_line);
+        let node = AssertClause::new(node, elements, multi_line);
         node.add_transform_flags(TransformFlags::ContainsESNext);
         node
     }
@@ -52,7 +52,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         value: Gc<Node /*StringLiteral*/>,
     ) -> AssertEntry {
         let node = self.create_base_node(SyntaxKind::AssertEntry);
-        let mut node = AssertEntry::new(node, name, value);
+        let node = AssertEntry::new(node, name, value);
         node.add_transform_flags(TransformFlags::ContainsESNext);
         node
     }
@@ -75,7 +75,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_namespace_import(&self, name: Gc<Node /*Identifier*/>) -> NamespaceImport {
         let node = self.create_base_node(SyntaxKind::NamespaceImport);
-        let mut node = NamespaceImport::new(node, name);
+        let node = NamespaceImport::new(node, name);
         node.add_transform_flags(propagate_child_flags(Some(&*node.name)));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -98,7 +98,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_namespace_export(&self, name: Gc<Node /*Identifier*/>) -> NamespaceExport {
         let node = self.create_base_node(SyntaxKind::NamespaceExport);
-        let mut node = NamespaceExport::new(node, name);
+        let node = NamespaceExport::new(node, name);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.name)) | TransformFlags::ContainsESNext,
         );
@@ -123,7 +123,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_named_imports(&self, elements: impl Into<NodeArrayOrVec>) -> NamedImports {
         let node = self.create_base_node(SyntaxKind::NamedImports);
-        let mut node = NamedImports::new(node, self.create_node_array(Some(elements), None));
+        let node = NamedImports::new(node, self.create_node_array(Some(elements), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -152,7 +152,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name: Gc<Node /*Identifier*/>,
     ) -> ImportSpecifier {
         let node = self.create_base_node(SyntaxKind::ImportSpecifier);
-        let mut node = ImportSpecifier::new(node, is_type_only, property_name, name);
+        let node = ImportSpecifier::new(node, is_type_only, property_name, name);
         node.add_transform_flags(
             propagate_child_flags(node.property_name.clone())
                 | propagate_child_flags(Some(&*node.name)),
@@ -197,7 +197,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ExportAssignment {
         let node =
             self.create_base_declaration(SyntaxKind::ExportAssignment, decorators, modifiers);
-        let mut node = ExportAssignment::new(
+        let node = ExportAssignment::new(
             node,
             is_export_equals,
             if matches!(is_export_equals, Some(true)) {
@@ -255,7 +255,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ExportDeclaration {
         let node =
             self.create_base_declaration(SyntaxKind::ExportDeclaration, decorators, modifiers);
-        let mut node = ExportDeclaration::new(
+        let node = ExportDeclaration::new(
             node,
             is_type_only,
             export_clause,
@@ -320,7 +320,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_named_exports(&self, elements: impl Into<NodeArrayOrVec>) -> NamedExports {
         let node = self.create_base_node(SyntaxKind::NamedExports);
-        let mut node = NamedExports::new(node, self.create_node_array(Some(elements), None));
+        let node = NamedExports::new(node, self.create_node_array(Some(elements), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -353,7 +353,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         /*Identifier*/
     ) -> ExportSpecifier {
         let node = self.create_base_node(SyntaxKind::ExportSpecifier);
-        let mut node = ExportSpecifier::new(
+        let node = ExportSpecifier::new(
             node,
             is_type_only,
             self.as_name(property_name),
@@ -409,7 +409,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Gc<Node /*Expression*/>,
     ) -> ExternalModuleReference {
         let node = self.create_base_node(SyntaxKind::ExternalModuleReference);
-        let mut node = ExternalModuleReference::new(node, expression);
+        let node = ExternalModuleReference::new(node, expression);
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -500,6 +500,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         )
     }
 
+    #[allow(dead_code)]
     fn get_default_tag_name(&self, node: &Node /*JSDocTag*/) -> Gc<Node /*Identifier*/> {
         let default_tag_name = get_default_tag_name_for_kind(node.kind());
         let node_as_jsdoc_tag = node.as_jsdoc_tag();
@@ -711,7 +712,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         right: Gc<Node /*Identifier*/>,
     ) -> JSDocMemberName {
         let node = self.create_base_node(SyntaxKind::JSDocMemberName);
-        let mut node = JSDocMemberName::new(node, left, right);
+        let node = JSDocMemberName::new(node, left, right);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.left)) | propagate_child_flags(Some(&*node.right)),
         );
@@ -816,7 +817,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         closing_element: Gc<Node /*JsxClosingElement*/>,
     ) -> JsxElement {
         let node = self.create_base_node(SyntaxKind::JsxElement);
-        let mut node = JsxElement::new(
+        let node = JsxElement::new(
             node,
             opening_element,
             self.create_node_array(Some(children), None),
@@ -861,7 +862,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         attributes: Gc<Node /*JsxAttributes*/>,
     ) -> JsxSelfClosingElement {
         let node = self.create_base_node(SyntaxKind::JsxSelfClosingElement);
-        let mut node = JsxSelfClosingElement::new(
+        let node = JsxSelfClosingElement::new(
             node,
             tag_name,
             self.as_node_array(type_arguments),
@@ -914,7 +915,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         attributes: Gc<Node /*JsxAttributes*/>,
     ) -> JsxOpeningElement {
         let node = self.create_base_node(SyntaxKind::JsxOpeningElement);
-        let mut node = JsxOpeningElement::new(
+        let node = JsxOpeningElement::new(
             node,
             tag_name,
             self.as_node_array(type_arguments),
@@ -965,7 +966,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         tag_name: Gc<Node /*JsxTagNameExpression*/>,
     ) -> JsxClosingElement {
         let node = self.create_base_node(SyntaxKind::JsxClosingElement);
-        let mut node = JsxClosingElement::new(node, tag_name);
+        let node = JsxClosingElement::new(node, tag_name);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag_name)) | TransformFlags::ContainsJsx,
         );
@@ -992,7 +993,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         closing_fragment: Gc<Node /*JsxClosingFragment*/>,
     ) -> JsxFragment {
         let node = self.create_base_node(SyntaxKind::JsxFragment);
-        let mut node = JsxFragment::new(
+        let node = JsxFragment::new(
             node,
             opening_fragment,
             self.create_node_array(Some(children), None),
@@ -1036,7 +1037,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         contains_only_trivia_white_spaces: Option<bool>,
     ) -> JsxText {
         let node = self.create_base_node(SyntaxKind::JsxText);
-        let mut node = JsxText::new(
+        let node = JsxText::new(
             node,
             text,
             contains_only_trivia_white_spaces.unwrap_or(false),
@@ -1068,14 +1069,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_jsx_opening_fragment(&self) -> JsxOpeningFragment {
         let node = self.create_base_node(SyntaxKind::JsxOpeningFragment);
-        let mut node = JsxOpeningFragment::new(node);
+        let node = JsxOpeningFragment::new(node);
         node.add_transform_flags(TransformFlags::ContainsJsx);
         node
     }
 
     pub fn create_jsx_jsx_closing_fragment(&self) -> JsxClosingFragment {
         let node = self.create_base_node(SyntaxKind::JsxClosingFragment);
-        let mut node = JsxClosingFragment::new(node);
+        let node = JsxClosingFragment::new(node);
         node.add_transform_flags(TransformFlags::ContainsJsx);
         node
     }
@@ -1086,7 +1087,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         initializer: Option<Gc<Node /*StringLiteral | JsxExpression*/>>,
     ) -> JsxAttribute {
         let node = self.create_base_node(SyntaxKind::JsxAttribute);
-        let mut node = JsxAttribute::new(node, name, initializer);
+        let node = JsxAttribute::new(node, name, initializer);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.name))
                 | propagate_child_flags(node.initializer.clone())
@@ -1116,7 +1117,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_jsx_attributes(&self, properties: impl Into<NodeArrayOrVec>) -> JsxAttributes {
         let node = self.create_base_node(SyntaxKind::JsxAttributes);
-        let mut node = JsxAttributes::new(node, self.create_node_array(Some(properties), None));
+        let node = JsxAttributes::new(node, self.create_node_array(Some(properties), None));
         node.add_transform_flags(
             propagate_children_flags(Some(&node.properties)) | TransformFlags::ContainsJsx,
         );
@@ -1142,7 +1143,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Gc<Node /*Expression*/>,
     ) -> JsxSpreadAttribute {
         let node = self.create_base_node(SyntaxKind::JsxSpreadAttribute);
-        let mut node = JsxSpreadAttribute::new(node, expression);
+        let node = JsxSpreadAttribute::new(node, expression);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsJsx,
         );
@@ -1168,7 +1169,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Option<Gc<Node /*Expression*/>>,
     ) -> JsxExpression {
         let node = self.create_base_node(SyntaxKind::JsxExpression);
-        let mut node = JsxExpression::new(node, dot_dot_dot_token, expression);
+        let node = JsxExpression::new(node, dot_dot_dot_token, expression);
         node.add_transform_flags(
             propagate_child_flags(node.dot_dot_dot_token.clone())
                 | propagate_child_flags(node.expression.clone())
@@ -1206,7 +1207,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         statements: impl Into<NodeArrayOrVec>,
     ) -> CaseClause {
         let node = self.create_base_node(SyntaxKind::CaseClause);
-        let mut node = CaseClause::new(
+        let node = CaseClause::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expression_for_disallowed_comma(&expression),
@@ -1238,7 +1239,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_default_clause(&self, statements: impl Into<NodeArrayOrVec>) -> DefaultClause {
         let node = self.create_base_node(SyntaxKind::DefaultClause);
-        let mut node = DefaultClause::new(node, self.create_node_array(Some(statements), None));
+        let node = DefaultClause::new(node, self.create_node_array(Some(statements), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
     }
@@ -1263,7 +1264,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         types: impl Into<NodeArrayOrVec>, /*<ExpressionWithTypeArguments>*/
     ) -> HeritageClause {
         let node = self.create_base_node(SyntaxKind::HeritageClause);
-        let mut node = HeritageClause::new(node, token, self.create_node_array(Some(types), None));
+        let node = HeritageClause::new(node, token, self.create_node_array(Some(types), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.types)));
         match token {
             SyntaxKind::ExtendsKeyword => {
@@ -1326,7 +1327,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 }
             });
         let variable_declaration_is_some = variable_declaration.is_some();
-        let mut node = CatchClause::new(node, variable_declaration, block);
+        let node = CatchClause::new(node, variable_declaration, block);
         node.add_transform_flags(
             propagate_child_flags(node.variable_declaration.clone())
                 | propagate_child_flags(Some(&*node.block)),

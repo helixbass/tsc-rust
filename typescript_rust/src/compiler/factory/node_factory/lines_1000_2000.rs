@@ -94,7 +94,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         right: impl Into<StrOrRcNode<'right>>,
     ) -> QualifiedName {
         let node = self.create_base_node(SyntaxKind::QualifiedName);
-        let mut node = QualifiedName::new(node, left, self.as_name(Some(right)).unwrap());
+        let node = QualifiedName::new(node, left, self.as_name(Some(right)).unwrap());
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.left)) | propagate_identifier_name_flags(&node.right),
         );
@@ -122,7 +122,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Gc<Node /*Expression*/>,
     ) -> ComputedPropertyName {
         let node = self.create_base_node(SyntaxKind::ComputedPropertyName);
-        let mut node = ComputedPropertyName::new(
+        let node = ComputedPropertyName::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expression_of_computed_property_name(&expression),
@@ -160,7 +160,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Option::<Gc<NodeArray>>::None,
             Some(name),
         );
-        let mut node = TypeParameterDeclaration::new(node, constraint, default_type);
+        let node = TypeParameterDeclaration::new(node, constraint, default_type);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -296,7 +296,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_decorator(&self, expression: Gc<Node /*Expression*/>) -> Decorator {
         let node = self.create_base_node(SyntaxKind::Decorator);
-        let mut node = Decorator::new(
+        let node = Decorator::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -335,7 +335,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             modifiers,
             Some(name),
         );
-        let mut node = PropertySignature::new(node, question_token, type_);
+        let node = PropertySignature::new(node, question_token, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -389,7 +389,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             initializer,
         );
         let question_or_exclamation_token_is_some = question_or_exclamation_token.is_some();
-        let mut node = PropertyDeclaration::new(
+        let node = PropertyDeclaration::new(
             node,
             question_or_exclamation_token
                 .clone()
@@ -504,7 +504,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             parameters,
             type_,
         );
-        let mut node = MethodSignature::new(node, question_token);
+        let node = MethodSignature::new(node, question_token);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -580,7 +580,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let question_token_is_some = question_token.is_some();
         node.asterisk_token = asterisk_token;
         node.question_token = question_token;
-        let mut node = MethodDeclaration::new(node);
+        let node = MethodDeclaration::new(node);
         node.add_transform_flags(
             propagate_child_flags(node.maybe_asterisk_token())
                 | propagate_child_flags(node.maybe_question_token())
@@ -681,7 +681,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Option::<Gc<Node>>::None,
             Option::<Gc<NodeArray>>::None,
         );
-        let mut node = ClassStaticBlockDeclaration::new(node, body.clone());
+        let node = ClassStaticBlockDeclaration::new(node, body.clone());
         node.add_transform_flags(
             propagate_child_flags(Some(&*body)) | TransformFlags::ContainsClassFields,
         );
@@ -729,7 +729,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             None,
             body,
         );
-        let mut node = ConstructorDeclaration::new(node);
+        let node = ConstructorDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsES2015);
         node
     }
@@ -893,7 +893,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let mut node = CallSignatureDeclaration::new(node);
+        let node = CallSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -943,7 +943,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let mut node = ConstructSignatureDeclaration::new(node);
+        let node = ConstructSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -996,7 +996,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let mut node = IndexSignatureDeclaration::new(node);
+        let node = IndexSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1045,7 +1045,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> TemplateLiteralTypeSpan {
         let node = self.create_base_node(SyntaxKind::TemplateLiteralTypeSpan);
-        let mut node = TemplateLiteralTypeSpan::new(node, type_, literal);
+        let node = TemplateLiteralTypeSpan::new(node, type_, literal);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1081,7 +1081,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_: Option<Gc<Node /*TypeNode*/>>,
     ) -> TypePredicateNode {
         let node = self.create_base_node(SyntaxKind::TypePredicate);
-        let mut node = TypePredicateNode::new(
+        let node = TypePredicateNode::new(
             node,
             asserts_modifier,
             self.as_name(Some(parameter_name)).unwrap(),
@@ -1121,7 +1121,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> TypeReferenceNode {
         let node = self.create_base_node(SyntaxKind::TypeReference);
-        let mut node = TypeReferenceNode::new(
+        let node = TypeReferenceNode::new(
             node,
             self.as_name(Some(type_name)).unwrap(),
             type_arguments.and_then(|type_arguments| {
@@ -1174,7 +1174,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let mut node = FunctionTypeNode::new(node);
+        let node = FunctionTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1222,7 +1222,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(parameters),
             type_,
         );
-        let mut node = ConstructorTypeNode::new(node);
+        let node = ConstructorTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1262,7 +1262,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_type_query_node(&self, expr_name: Gc<Node /*EntityName*/>) -> TypeQueryNode {
         let node = self.create_base_node(SyntaxKind::TypeQuery);
-        let mut node = TypeQueryNode::new(node, expr_name);
+        let node = TypeQueryNode::new(node, expr_name);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1285,7 +1285,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         members: Option<impl Into<NodeArrayOrVec>>,
     ) -> TypeLiteralNode {
         let node = self.create_base_node(SyntaxKind::TypeLiteral);
-        let mut node = TypeLiteralNode::new(node, self.create_node_array(members, None));
+        let node = TypeLiteralNode::new(node, self.create_node_array(members, None));
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1305,7 +1305,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_array_type_node(&self, element_type: Gc<Node /*TypeNode*/>) -> ArrayTypeNode {
         let node = self.create_base_node(SyntaxKind::ArrayType);
-        let mut node = ArrayTypeNode::new(
+        let node = ArrayTypeNode::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_element_type_of_array_type(&element_type),
@@ -1332,7 +1332,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         elements: Option<impl Into<NodeArrayOrVec>>,
     ) -> TupleTypeNode {
         let node = self.create_base_node(SyntaxKind::TupleType);
-        let mut node = TupleTypeNode::new(node, self.create_node_array(elements, None));
+        let node = TupleTypeNode::new(node, self.create_node_array(elements, None));
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1359,7 +1359,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_: Gc<Node /*TypeNode*/>,
     ) -> NamedTupleMember {
         let node = self.create_base_node(SyntaxKind::NamedTupleMember);
-        let mut node = NamedTupleMember::new(node, dot_dot_dot_token, name, question_token, type_);
+        let node = NamedTupleMember::new(node, dot_dot_dot_token, name, question_token, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1395,7 +1395,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_optional_type_node(&self, type_: Gc<Node /*TypeNode*/>) -> OptionalTypeNode {
         let node = self.create_base_node(SyntaxKind::OptionalType);
-        let mut node = OptionalTypeNode::new(
+        let node = OptionalTypeNode::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_element_type_of_array_type(&type_),
@@ -1419,7 +1419,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_rest_type_node(&self, type_: Gc<Node /*TypeNode*/>) -> RestTypeNode {
         let node = self.create_base_node(SyntaxKind::RestType);
-        let mut node = RestTypeNode::new(node, type_);
+        let node = RestTypeNode::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -1446,7 +1446,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let types = self
             .parenthesizer_rules()
             .parenthesize_constituent_types_of_union_or_intersection_type(types.into());
-        let mut node: Node = match kind {
+        let node: Node = match kind {
             SyntaxKind::UnionType => UnionTypeNode::new(node, types).into(),
             SyntaxKind::IntersectionType => IntersectionTypeNode::new(node, types).into(),
             _ => panic!("Expected UnionType or IntersectionType"),
@@ -1510,7 +1510,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         false_type: Gc<Node /*TypeNode*/>,
     ) -> ConditionalTypeNode {
         let node = self.create_base_node(SyntaxKind::ConditionalType);
-        let mut node = ConditionalTypeNode::new(
+        let node = ConditionalTypeNode::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_member_of_conditional_type(&check_type),

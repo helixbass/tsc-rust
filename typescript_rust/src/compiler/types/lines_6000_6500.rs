@@ -2440,7 +2440,7 @@ impl CommandLineOption {
                     _ => panic!("Expected object"),
                 }))
             }
-            Self::CommandLineOptionOfListType(list_type) => unimplemented!(),
+            Self::CommandLineOptionOfListType(_list_type) => unimplemented!(),
         }
     }
 }

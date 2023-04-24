@@ -717,6 +717,7 @@ impl TypeChecker {
             ) >= 0
     }
 
+    #[allow(dead_code)]
     pub(super) fn get_rest_type_of_signature(&self, signature: &Signature) -> Gc<Type> {
         self.try_get_rest_type_of_signature(signature)
             .unwrap_or_else(|| self.any_type())

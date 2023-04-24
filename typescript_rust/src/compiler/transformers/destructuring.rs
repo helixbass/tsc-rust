@@ -11,12 +11,12 @@ pub enum FlattenLevel {
 }
 
 pub fn flatten_destructuring_assignment<TCreateAssignmentCallbackLocation: ReadonlyTextRange>(
-    node: &Node, /*VariableDeclaration | DestructuringAssignment*/
-    visitor: Option<impl FnMut(&Node) -> VisitResult>,
-    context: &(impl TransformationContext + ?Sized),
-    level: FlattenLevel,
-    needs_value: Option<bool>,
-    create_assignment_callback: Option<
+    _node: &Node, /*VariableDeclaration | DestructuringAssignment*/
+    _visitor: Option<impl FnMut(&Node) -> VisitResult>,
+    _context: &(impl TransformationContext + ?Sized),
+    _level: FlattenLevel,
+    _needs_value: Option<bool>,
+    _create_assignment_callback: Option<
         impl FnMut(
             &Node, /*Identifier*/
             &Node, /*Expression*/
@@ -28,14 +28,14 @@ pub fn flatten_destructuring_assignment<TCreateAssignmentCallbackLocation: Reado
 }
 
 pub fn flatten_destructuring_binding(
-    node: &Node, /*VariableDeclaration | ParameterDeclaration*/
-    visitor: impl FnMut(&Node) -> VisitResult,
-    context: &(impl TransformationContext + ?Sized),
-    level: FlattenLevel,
-    rval: Option<impl Borrow<Node /*Expression*/>>,
+    _node: &Node, /*VariableDeclaration | ParameterDeclaration*/
+    _visitor: impl FnMut(&Node) -> VisitResult,
+    _context: &(impl TransformationContext + ?Sized),
+    _level: FlattenLevel,
+    _rval: Option<impl Borrow<Node /*Expression*/>>,
     hoist_temp_variables: Option<bool>,
-    skip_initializer: Option<bool>,
+    _skip_initializer: Option<bool>,
 ) -> Vec<Gc<Node /*VariableDeclaration*/>> {
-    let hoist_temp_variables = hoist_temp_variables.unwrap_or(false);
+    let _hoist_temp_variables = hoist_temp_variables.unwrap_or(false);
     unimplemented!()
 }

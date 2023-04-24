@@ -1385,7 +1385,7 @@ impl NodeBuilder {
                     != ModuleResolutionKind::Classic
                 && specifier.contains("/node_modules/")
             {
-                context.encountered_error.set(true);
+                context.set_encountered_error(true);
                 context
                     .tracker()
                     .report_likely_unsafe_import_required_error(&specifier);

@@ -337,7 +337,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_member_override_modifier_status(
+    pub fn get_member_override_modifier_status(
         &self,
         node: &Node,   /*ClassLikeDeclaration*/
         member: &Node, /*ClassElement*/

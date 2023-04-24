@@ -592,9 +592,7 @@ impl TypeChecker {
                 Some(tracker),
             )
         } else if ptr::eq(type_, &*self.true_type()) {
-            Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_true().wrap(),
-            ))
+            Some(get_factory().create_true().wrap())
         } else if ptr::eq(type_, &*self.false_type()) {
             Some(get_factory().create_false().wrap())
         } else {

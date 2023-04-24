@@ -768,7 +768,7 @@ impl TypeChecker {
 
         let can_use_super_expression =
             self.is_legal_usage_of_super_expression(is_call_expression, container.as_deref());
-        let mut node_check_flag;
+        let node_check_flag: NodeCheckFlags;
 
         if !can_use_super_expression {
             let current = find_ancestor(Some(node), |n: &Node| {

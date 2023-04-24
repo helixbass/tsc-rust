@@ -144,7 +144,7 @@ impl TypeChecker {
         object_flags: ObjectFlags,
         symbol: Option<TSymbol>,
     ) -> BaseObjectType {
-        let mut type_ = self.create_type(TypeFlags::Object);
+        let type_ = self.create_type(TypeFlags::Object);
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
@@ -167,7 +167,7 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
     ) -> TypeParameter {
-        let mut type_ = self.create_type(TypeFlags::TypeParameter);
+        let type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
             let symbol = symbol.borrow();
             type_.set_symbol(Some(symbol.symbol_wrapper()));

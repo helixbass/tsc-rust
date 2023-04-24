@@ -295,6 +295,7 @@ pub fn get_combined_modifier_flags(node: &Node /*Declaration*/) -> ModifierFlags
     get_combined_flags(node, get_effective_modifier_flags)
 }
 
+#[allow(dead_code)]
 pub(crate) fn get_combined_node_flags_always_include_jsdoc(
     node: &Node, /*Declaration*/
 ) -> ModifierFlags {
@@ -1033,6 +1034,7 @@ pub fn get_jsdoc_tags(
     get_jsdoc_tags_worker(node, Some(false))
 }
 
+#[allow(dead_code)]
 pub(crate) fn get_jsdoc_tags_no_cache(node: &Node) -> impl Iterator<Item = Gc<Node /*JSDocTag*/>> {
     get_jsdoc_tags_worker(node, Some(true))
 }
@@ -1319,6 +1321,7 @@ pub fn is_jsdoc_property_like_tag(node: &Node) -> bool {
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_node(node: &Node) -> bool {
     is_node_kind(node.kind())
 }
@@ -1484,6 +1487,7 @@ pub(crate) fn maybe_is_function_like_declaration(node: Option<&Node>) -> bool {
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_boolean_literal(node: &Node) -> bool {
     matches!(
         node.kind(),
@@ -1641,6 +1645,7 @@ pub(crate) fn is_declaration_binding_element(
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_binding_or_assigment_pattern(
     node: &Node, /*BindingOrAssignmentElementTarget*/
 ) -> bool {
@@ -1656,6 +1661,7 @@ pub(crate) fn is_object_binding_or_assigment_pattern(
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_object_binding_or_assignment_element(node: &Node) -> bool {
     matches!(
         node.kind(),
@@ -1771,6 +1777,7 @@ fn is_unary_expression_kind(kind: SyntaxKind) -> bool {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_unary_expression_with_write(expr: &Node) -> bool {
     match expr.kind() {
         SyntaxKind::PostfixUnaryExpression => true,
@@ -1807,6 +1814,7 @@ pub fn is_assertion_expression(node: &Node) -> bool {
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_not_emitted_or_partially_emitted_node(node: &Node) -> bool {
     is_not_emitted_statement(node) || is_partially_emitted_expression(node)
 }
@@ -1864,6 +1872,7 @@ pub(crate) fn is_concise_body(node: &Node) -> bool {
     is_block(node) || is_expression(node)
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_function_body(node: &Node) -> bool {
     is_block(node)
 }
@@ -1879,6 +1888,7 @@ pub(crate) fn is_module_body(node: &Node) -> bool {
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_namespace_body(node: &Node) -> bool {
     matches!(
         node.kind(),
@@ -1886,6 +1896,7 @@ pub(crate) fn is_namespace_body(node: &Node) -> bool {
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_jsdoc_namespace_body(node: &Node) -> bool {
     matches!(
         node.kind(),

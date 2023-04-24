@@ -303,12 +303,12 @@ impl NodeBuilder {
 
         if expects_identifier
             && chain.len() != 1
-            && !context.encountered_error.get()
+            && !context.encountered_error()
             && !context
                 .flags()
                 .intersects(NodeBuilderFlags::AllowQualifiedNameInPlaceOfIdentifier)
         {
-            context.encountered_error.set(true);
+            context.set_encountered_error(true);
         }
         self.create_entity_name_from_symbol_chain(context, &chain, chain.len() - 1)
     }

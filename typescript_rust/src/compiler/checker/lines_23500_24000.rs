@@ -281,7 +281,7 @@ impl GetFlowTypeOfReference {
                 }
                 shared_flow = Some(flow.clone());
             }
-            let mut type_: Option<FlowType>;
+            let type_: Option<FlowType>;
             if flags.intersects(FlowFlags::Assignment) {
                 type_ = self.get_type_at_flow_assignment(flow.clone());
                 if type_.is_none() {

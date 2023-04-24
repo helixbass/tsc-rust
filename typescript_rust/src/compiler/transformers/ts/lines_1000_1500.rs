@@ -73,31 +73,31 @@ impl TransformTypeScript {
 
     pub(super) fn get_all_decorators_of_method(
         &self,
-        method: &Node, /*MethodDeclaration*/
+        _method: &Node, /*MethodDeclaration*/
     ) -> Option<AllDecorators> {
         unimplemented!()
     }
 
     pub(super) fn get_all_decorators_of_property(
         &self,
-        property: &Node, /*PropertyDeclaration*/
+        _property: &Node, /*PropertyDeclaration*/
     ) -> Option<AllDecorators> {
         unimplemented!()
     }
 
     pub(super) fn add_class_element_decoration_statements(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
-        node: &Node, /*ClassDeclaration*/
-        is_static: bool,
+        _statements: &mut Vec<Gc<Node /*Statement*/>>,
+        _node: &Node, /*ClassDeclaration*/
+        _is_static: bool,
     ) {
         unimplemented!()
     }
 
     pub(super) fn add_constructor_decoration_statement(
         &self,
-        statements: &mut Vec<Gc<Node /*Statement*/>>,
-        node: &Node, /*ClassDeclaration*/
+        _statements: &mut Vec<Gc<Node /*Statement*/>>,
+        _node: &Node, /*ClassDeclaration*/
     ) {
         unimplemented!()
     }

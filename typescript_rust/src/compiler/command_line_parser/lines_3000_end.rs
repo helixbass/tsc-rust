@@ -776,6 +776,7 @@ pub(crate) fn get_file_names_from_config_specs(
     literal_files
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_excluded_file(
     path_to_check: &str,
     spec: &ConfigFileSpecs,
@@ -834,6 +835,7 @@ pub(super) fn invalid_dot_dot_after_recursive_wildcard(s: &str) -> bool {
     last_dot_index > wildcard_index
 }
 
+#[allow(dead_code)]
 pub(crate) fn matches_exclude(
     path_to_check: &str,
     exclude_specs: Option<&[String]>,
@@ -1114,6 +1116,7 @@ pub(super) fn remove_wildcard_files_with_lower_priority_extension(
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn convert_compiler_options_for_telemetry(
     opts: &CompilerOptions,
 ) -> HashMap<String, CompilerOptionsValue> {

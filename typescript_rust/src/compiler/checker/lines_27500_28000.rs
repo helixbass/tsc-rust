@@ -348,7 +348,7 @@ impl TypeChecker {
         // }
     }
 
-    pub(super) fn get_jsx_intrinsic_tag_names_at(
+    pub fn get_jsx_intrinsic_tag_names_at(
         &self,
         location: &Node,
     ) -> impl Iterator<Item = Gc<Symbol>> {

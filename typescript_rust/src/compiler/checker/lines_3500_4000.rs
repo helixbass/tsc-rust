@@ -324,10 +324,7 @@ impl TypeChecker {
         self.symbols_to_array(&(*self.get_exports_of_module_(module_symbol)).borrow())
     }
 
-    pub(super) fn get_exports_and_properties_of_module(
-        &self,
-        module_symbol: &Symbol,
-    ) -> Vec<Gc<Symbol>> {
+    pub fn get_exports_and_properties_of_module(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
         let mut exports = self.get_exports_of_module_as_array(module_symbol);
         let export_equals = self
             .resolve_external_module_symbol(Some(module_symbol), None)

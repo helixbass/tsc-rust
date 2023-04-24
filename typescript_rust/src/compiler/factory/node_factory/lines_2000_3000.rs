@@ -59,7 +59,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateLiteralTypeSpan>*/
     ) -> TemplateLiteralTypeNode {
         let node = self.create_base_node(SyntaxKind::TemplateLiteralType);
-        let mut node = TemplateLiteralTypeNode::new(
+        let node = TemplateLiteralTypeNode::new(
             node,
             head,
             self.create_node_array(Some(template_spans), None),
@@ -101,7 +101,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ImportTypeNode {
         let is_type_of = is_type_of.unwrap_or(false);
         let node = self.create_base_node(SyntaxKind::ImportType);
-        let mut node = ImportTypeNode::new(
+        let node = ImportTypeNode::new(
             node,
             argument,
             qualifier,
@@ -149,7 +149,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_parenthesized_type(&self, type_: Gc<Node /*TypeNode*/>) -> ParenthesizedTypeNode {
         let node = self.create_base_node(SyntaxKind::ParenthesizedType);
-        let mut node = ParenthesizedTypeNode::new(node, type_);
+        let node = ParenthesizedTypeNode::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -169,7 +169,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_this_type_node(&self) -> ThisTypeNode {
         let node = self.create_base_node(SyntaxKind::ThisType);
-        let mut node = ThisTypeNode::new(node);
+        let node = ThisTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -180,7 +180,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         type_: Gc<Node /*TypeNode*/>,
     ) -> TypeOperatorNode {
         let node = self.create_base_node(SyntaxKind::TypeOperator);
-        let mut node = TypeOperatorNode::new(
+        let node = TypeOperatorNode::new(
             node,
             operator,
             self.parenthesizer_rules()
@@ -213,7 +213,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         index_type: Gc<Node /*TypeNode*/>,
     ) -> IndexedAccessTypeNode {
         let node = self.create_base_node(SyntaxKind::IndexedAccessType);
-        let mut node = IndexedAccessTypeNode::new(
+        let node = IndexedAccessTypeNode::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_member_of_element_type(&object_type),
@@ -253,7 +253,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         members: Option<impl Into<NodeArrayOrVec> /*<TypeElement>*/>,
     ) -> MappedTypeNode {
         let node = self.create_base_node(SyntaxKind::MappedType);
-        let mut node = MappedTypeNode::new(
+        let node = MappedTypeNode::new(
             node,
             readonly_token,
             type_parameter,
@@ -314,7 +314,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         literal: Gc<Node /*LiteralTypeNode["literal"]*/>,
     ) -> LiteralTypeNode {
         let node = self.create_base_node(SyntaxKind::LiteralType);
-        let mut node = LiteralTypeNode::new(node, literal);
+        let node = LiteralTypeNode::new(node, literal);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
@@ -337,8 +337,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ObjectBindingPattern {
         let node = self.create_base_node(SyntaxKind::ObjectBindingPattern);
-        let mut node =
-            ObjectBindingPattern::new(node, self.create_node_array(Some(elements), None));
+        let node = ObjectBindingPattern::new(node, self.create_node_array(Some(elements), None));
         node.add_transform_flags(
             propagate_children_flags(Some(&node.elements))
                 | TransformFlags::ContainsES2015
@@ -374,7 +373,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         elements: impl Into<NodeArrayOrVec /*<BindingElement>*/>,
     ) -> ArrayBindingPattern {
         let node = self.create_base_node(SyntaxKind::ArrayBindingPattern);
-        let mut node = ArrayBindingPattern::new(node, self.create_node_array(Some(elements), None));
+        let node = ArrayBindingPattern::new(node, self.create_node_array(Some(elements), None));
         node.add_transform_flags(
             propagate_children_flags(Some(&node.elements))
                 | TransformFlags::ContainsES2015
@@ -415,7 +414,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             }),
         );
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
-        let mut node = BindingElement::new(node, self.as_name(property_name), dot_dot_dot_token);
+        let node = BindingElement::new(node, self.as_name(property_name), dot_dot_dot_token);
         node.add_transform_flags(
             propagate_child_flags(node.dot_dot_dot_token.clone()) | TransformFlags::ContainsES2015,
         );
@@ -492,7 +491,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 }
             }),
         );
-        let mut node = ArrayLiteralExpression::new(
+        let node = ArrayLiteralExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expressions_of_comma_delimited_list(elements_array.into()),
@@ -529,7 +528,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         multi_line: Option<bool>,
     ) -> ObjectLiteralExpression {
         let node = self.create_base_expression(SyntaxKind::ObjectLiteralExpression);
-        let mut node = ObjectLiteralExpression::new(
+        let node = ObjectLiteralExpression::new(
             node,
             self.create_node_array(properties, None),
             multi_line,
@@ -626,7 +625,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> PropertyAccessExpression {
         let node = self.create_base_expression(SyntaxKind::PropertyAccessExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
-        let mut node = PropertyAccessExpression::new(
+        let node = PropertyAccessExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -683,7 +682,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         index: impl Into<StringOrNumberOrBoolOrRcNode>,
     ) -> ElementAccessExpression {
         let node = self.create_base_expression(SyntaxKind::ElementAccessExpression);
-        let mut node = ElementAccessExpression::new(
+        let node = ElementAccessExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -741,7 +740,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ElementAccessExpression {
         let node = self.create_base_expression(SyntaxKind::ElementAccessExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
-        let mut node = ElementAccessExpression::new(
+        let node = ElementAccessExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -802,7 +801,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         arguments_array: Option<impl Into<NodeArrayOrVec /*<Expression>*/>>,
     ) -> CallExpression {
         let node = self.create_base_expression(SyntaxKind::CallExpression);
-        let mut node = CallExpression::new(
+        let node = CallExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -880,7 +879,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> CallExpression {
         let node = self.create_base_expression(SyntaxKind::CallExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
-        let mut node = CallExpression::new(
+        let node = CallExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&expression),
@@ -965,7 +964,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         >,
     ) -> NewExpression {
         let node = self.create_base_expression(SyntaxKind::NewExpression);
-        let mut node = NewExpression::new(
+        let node = NewExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expression_of_new(&expression),
@@ -1030,7 +1029,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         template: Gc<Node /*TemplateLiteral*/>,
     ) -> TaggedTemplateExpression {
         let node = self.create_base_expression(SyntaxKind::TaggedTemplateExpression);
-        let mut node = TaggedTemplateExpression::new(
+        let node = TaggedTemplateExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(&tag),
@@ -1087,7 +1086,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Gc<Node /*Expression*/>,
     ) -> TypeAssertion {
         let node = self.create_base_expression(SyntaxKind::TypeAssertionExpression);
-        let mut node = TypeAssertion::new(
+        let node = TypeAssertion::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
@@ -1122,7 +1121,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Gc<Node /*Expression*/>,
     ) -> ParenthesizedExpression {
         let node = self.create_base_expression(SyntaxKind::ParenthesizedExpression);
-        let mut node = ParenthesizedExpression::new(node, expression);
+        let node = ParenthesizedExpression::new(node, expression);
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
     }
@@ -1164,7 +1163,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some(body),
         );
         node.asterisk_token = asterisk_token;
-        let mut node = FunctionExpression::new(node);
+        let node = FunctionExpression::new(node);
         node.add_transform_flags(propagate_child_flags(node.maybe_asterisk_token()));
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1246,7 +1245,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         equals_greater_than_token: Option<Gc<Node /*EqualsGreaterThanToken*/>>,
         body: Gc<Node /*ConciseBody*/>,
     ) -> ArrowFunction {
-        let mut node = self.create_base_function_like_declaration(
+        let node = self.create_base_function_like_declaration(
             SyntaxKind::ArrowFunction,
             Option::<Gc<NodeArray>>::None,
             modifiers,
@@ -1259,7 +1258,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     .parenthesize_concise_body_of_arrow_function(&body),
             ),
         );
-        let mut node = ArrowFunction::new(
+        let node = ArrowFunction::new(
             node,
             equals_greater_than_token
                 .unwrap_or_else(|| self.create_token(SyntaxKind::EqualsGreaterThanToken).wrap()),
@@ -1327,7 +1326,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Gc<Node /*Expression*/>,
     ) -> DeleteExpression {
         let node = self.create_base_expression(SyntaxKind::DeleteExpression);
-        let mut node = DeleteExpression::new(
+        let node = DeleteExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
@@ -1354,7 +1353,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Gc<Node /*Expression*/>,
     ) -> TypeOfExpression {
         let node = self.create_base_expression(SyntaxKind::TypeOfExpression);
-        let mut node = TypeOfExpression::new(
+        let node = TypeOfExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
@@ -1378,7 +1377,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_void_expression(&self, expression: Gc<Node /*Expression*/>) -> VoidExpression {
         let node = self.create_base_expression(SyntaxKind::VoidExpression);
-        let mut node = VoidExpression::new(
+        let node = VoidExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
@@ -1402,7 +1401,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_await_expression(&self, expression: Gc<Node /*Expression*/>) -> AwaitExpression {
         let node = self.create_base_expression(SyntaxKind::AwaitExpression);
-        let mut node = AwaitExpression::new(
+        let node = AwaitExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(&expression),
@@ -1435,7 +1434,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         operand: Gc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         let node = self.create_base_expression(SyntaxKind::PrefixUnaryExpression);
-        let mut node = PrefixUnaryExpression::new(
+        let node = PrefixUnaryExpression::new(
             node,
             operator,
             self.parenthesizer_rules()
@@ -1480,7 +1479,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         operator: SyntaxKind,
     ) -> PostfixUnaryExpression {
         let node = self.create_base_expression(SyntaxKind::PostfixUnaryExpression);
-        let mut node = PostfixUnaryExpression::new(
+        let node = PostfixUnaryExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_postfix_unary(&operand),
@@ -1525,7 +1524,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_expression(SyntaxKind::BinaryExpression);
         let operator_token = self.as_token(operator.into());
         let operator_kind = operator_token.kind();
-        let mut node = BinaryExpression::new(
+        let node = BinaryExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_binary(operator_kind, &left),
@@ -1634,7 +1633,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         when_false: Gc<Node /*Expression*/>,
     ) -> ConditionalExpression {
         let node = self.create_base_expression(SyntaxKind::ConditionalExpression);
-        let mut node = ConditionalExpression::new(
+        let node = ConditionalExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_condition_of_conditional_expression(&condition),
@@ -1696,7 +1695,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         template_spans: impl Into<NodeArrayOrVec>, /*<TemplateSpan>*/
     ) -> TemplateExpression {
         let node = self.create_base_expression(SyntaxKind::TemplateExpression);
-        let mut node = TemplateExpression::new(
+        let node = TemplateExpression::new(
             node,
             head,
             self.create_node_array(Some(template_spans), None),
@@ -1785,7 +1784,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let template_flags = template_flags.unwrap_or(TokenFlags::None);
         let node = self.create_base_token(kind);
         let node = BaseLiteralLikeNode::new(node, text);
-        let mut node = TemplateLiteralLikeNode::new(
+        let node = TemplateLiteralLikeNode::new(
             node,
             raw_text,
             Some(template_flags & TokenFlags::TemplateLiteralLikeFlags),
@@ -1860,7 +1859,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         expression: Option<Gc<Node /*Expression*/>>,
     ) -> YieldExpression {
         let node = self.create_base_expression(SyntaxKind::YieldExpression);
-        let mut node = YieldExpression::new(
+        let node = YieldExpression::new(
             node,
             expression.map(|expression| {
                 self.parenthesizer_rules()
@@ -1904,7 +1903,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_spread_element(&self, expression: Gc<Node /*Expression*/>) -> SpreadElement {
         let node = self.create_base_expression(SyntaxKind::SpreadElement);
-        let mut node = SpreadElement::new(
+        let node = SpreadElement::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_expression_for_disallowed_comma(&expression),
@@ -1958,7 +1957,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             heritage_clauses,
             members,
         );
-        let mut node = ClassExpression::new(node);
+        let node = ClassExpression::new(node);
         node.add_transform_flags(TransformFlags::ContainsES2015);
         node
     }

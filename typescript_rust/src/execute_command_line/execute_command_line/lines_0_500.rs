@@ -23,11 +23,13 @@ use crate::{
     TypeCheckerHost,
 };
 
+#[allow(dead_code)]
 pub(super) struct Statistic {
     pub name: String,
     pub value: String,
 }
 
+#[allow(dead_code)]
 pub(super) fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
     let mut counts = get_counts_map();
     for_each(&*program.get_source_files(), |file, _| {
@@ -39,6 +41,7 @@ pub(super) fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
     counts
 }
 
+#[allow(dead_code)]
 pub(super) fn count_nodes(program: &Program) -> HashMap<&'static str, usize> {
     let mut counts = get_counts_map();
     for_each(&*program.get_source_files(), |file, _| {

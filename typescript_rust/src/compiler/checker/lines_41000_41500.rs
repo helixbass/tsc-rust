@@ -389,7 +389,7 @@ impl TypeChecker {
         type_has_call_or_construct_signatures(type_, self)
     }
 
-    pub(super) fn get_root_symbols(&self, symbol: &Symbol) -> Vec<Gc<Symbol>> {
+    pub fn get_root_symbols(&self, symbol: &Symbol) -> Vec<Gc<Symbol>> {
         let roots = self.get_immediate_root_symbols(symbol);
         if let Some(roots) = roots.as_ref() {
             flat_map(Some(roots), |root: &Gc<Symbol>, _| {
