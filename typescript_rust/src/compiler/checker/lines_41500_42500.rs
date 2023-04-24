@@ -896,7 +896,7 @@ impl TypeChecker {
             {
                 self.create_type_from_generic_global_type(
                     global_readonly_array_type,
-                    vec![self.any_type()],
+                    vec![self.any_type()].into(),
                 )
             } else {
                 self.any_array_type()

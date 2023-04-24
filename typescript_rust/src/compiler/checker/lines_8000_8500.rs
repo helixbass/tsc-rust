@@ -19,13 +19,14 @@ use crate::{
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
     parse_node_factory, push_if_unique_gc, set_parent, set_text_range, starts_with, symbol_name,
-    try_add_to_set, using_single_line_string_writer, walk_up_parenthesized_types, CharacterCodes,
-    CheckFlags, EmitHint, EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol,
-    SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
-    TypeSystemEntity, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    try_add_to_set, using_single_line_string_writer, walk_up_parenthesized_types, AsDoubleDeref,
+    CharacterCodes, CheckFlags, EmitHint, EmitTextWriter, InterfaceTypeInterface,
+    InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind,
+    TypeReferenceInterface, TypeSystemEntity, TypeSystemPropertyName,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -681,7 +682,7 @@ impl TypeChecker {
         if let Some(class_type_type_parameters) = class_type
             .as_interface_type()
             .maybe_type_parameters()
-            .as_deref()
+            .as_double_deref()
         {
             self.create_type_reference(
                 &class_type,
@@ -781,7 +782,7 @@ impl TypeChecker {
             let omit_type_alias = omit_type_alias.unwrap();
             return self.get_type_alias_instantiation(
                 &omit_type_alias,
-                Some(&vec![source, omit_key_type]),
+                Some(vec![source, omit_key_type].into()),
                 Option::<&Symbol>::None,
                 None,
             );

@@ -2,7 +2,6 @@
 
 use gc::Gc;
 use std::ptr;
-use std::rc::Rc;
 use std::{borrow::Borrow, collections::HashMap};
 
 use crate::{
@@ -11,13 +10,13 @@ use crate::{
     get_effective_type_parameter_declarations, get_interface_base_type_nodes, has_initializer,
     is_computed_property_name, is_element_access_expression, is_entity_name_expression,
     is_jsdoc_type_alias, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_static, is_string_literal_like, is_type_alias, node_is_missing, BaseInterfaceType,
-    CharacterCodes, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
+    is_static, is_string_literal_like, is_type_alias, node_is_missing, AsDoubleDeref,
+    BaseInterfaceType, Debug_, Diagnostics, EnumKind, GcVec, GenericableTypeInterface,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeReferenceInterface, TypeSystemPropertyName, UnionReduction, __String,
+    TypeReferenceInterface, TypeSystemPropertyName, UnionReduction,
 };
 
 impl TypeChecker {
@@ -30,7 +29,7 @@ impl TypeChecker {
             let type_arguments = self.get_type_arguments(type_);
             return !match (
                 outer_type_parameters[last].maybe_symbol(),
-                type_arguments[last].maybe_symbol(),
+                type_arguments.nth(last).unwrap().maybe_symbol(),
             ) {
                 (None, None) => true,
                 (Some(symbol_a), Some(symbol_b)) => Gc::ptr_eq(&symbol_a, &symbol_b),
@@ -212,12 +211,15 @@ impl TypeChecker {
                 this_type.is_this_type = Some(true);
                 BaseInterfaceType::new(
                     type_,
-                    Some(concatenate(
-                        outer_type_parameters.clone().unwrap_or_else(|| vec![]),
-                        local_type_parameters.clone().unwrap_or_else(|| vec![]),
-                    )),
-                    outer_type_parameters,
-                    local_type_parameters,
+                    Some(
+                        concatenate(
+                            outer_type_parameters.clone().unwrap_or_else(|| vec![]),
+                            local_type_parameters.clone().unwrap_or_else(|| vec![]),
+                        )
+                        .into(),
+                    ),
+                    outer_type_parameters.map(Into::into),
+                    local_type_parameters.map(Into::into),
                     Some(this_type.into()),
                 )
             } else {
@@ -236,14 +238,17 @@ impl TypeChecker {
             }
             let mut instantiations: HashMap<String, Gc<Type /*TypeReference*/>> = HashMap::new();
             instantiations.insert(
-                self.get_type_list_id(type_as_interface_type.maybe_type_parameters()),
+                self.get_type_list_id(
+                    type_as_interface_type
+                        .maybe_type_parameters()
+                        .as_double_deref(),
+                ),
                 type_.clone(),
             );
             type_as_interface_type.genericize(instantiations);
             type_as_interface_type.set_target(type_.clone());
-            *type_as_interface_type.maybe_resolved_type_arguments_mut() = type_as_interface_type
-                .maybe_type_parameters()
-                .map(ToOwned::to_owned);
+            *type_as_interface_type.maybe_resolved_type_arguments_mut() =
+                type_as_interface_type.maybe_type_parameters();
             original_links.borrow_mut().declared_type = Some(type_.clone());
             links.borrow_mut().declared_type = Some(type_.clone());
         }
@@ -284,15 +289,14 @@ impl TypeChecker {
             );
 
             if self.pop_type_resolution() {
-                let type_parameters =
-                    self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+                let type_parameters: Option<GcVec<_>> = self
+                    .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)
+                    .map(Into::into);
                 if let Some(type_parameters) = type_parameters {
                     let mut links = links.borrow_mut();
                     let mut instantiations: HashMap<String, Gc<Type>> = HashMap::new();
-                    instantiations.insert(
-                        self.get_type_list_id(Some(&*type_parameters)),
-                        type_.clone(),
-                    );
+                    instantiations
+                        .insert(self.get_type_list_id(Some(&type_parameters)), type_.clone());
                     links.type_parameters = Some(type_parameters);
                     links.instantiations = Some(instantiations);
                 }
@@ -686,8 +690,8 @@ impl TypeChecker {
             let members = self.get_members_of_symbol(&symbol);
             let members = (*members).borrow();
             type_as_interface_type.set_declared_properties(self.get_named_members(&*members));
-            type_as_interface_type.set_declared_call_signatures(vec![]);
-            type_as_interface_type.set_declared_construct_signatures(vec![]);
+            type_as_interface_type.set_declared_call_signatures(vec![].into());
+            type_as_interface_type.set_declared_construct_signatures(vec![].into());
             type_as_interface_type.set_declared_index_infos(vec![]);
 
             type_as_interface_type.set_declared_call_signatures(

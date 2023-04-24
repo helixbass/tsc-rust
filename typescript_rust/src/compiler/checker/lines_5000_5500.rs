@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
+use itertools::Itertools;
 use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::ptr;
@@ -579,7 +580,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type, /*TypeReference*/
     ) -> Option<Gc<Node>> {
-        let type_arguments = self.type_checker.get_type_arguments(type_);
+        let ref type_arguments = self.type_checker.get_type_arguments(type_).collect_vec();
         let type_as_type_reference = type_.as_type_reference_interface();
         let type_target = type_as_type_reference.target();
         if Gc::ptr_eq(&type_target, &self.type_checker.global_array_type())
@@ -782,7 +783,7 @@ impl NodeBuilder {
                 .maybe_outer_type_parameters();
             let mut i = 0;
             let mut result_type: Option<Gc<Node /*TypeReferenceNode | ImportTypeNode*/>> = None;
-            if let Some(outer_type_parameters) = outer_type_parameters {
+            if let Some(ref outer_type_parameters) = outer_type_parameters {
                 let length = outer_type_parameters.len();
                 while i < length {
                     let start = i;
@@ -1195,7 +1196,7 @@ impl NodeBuilder {
                 }),
                 SignatureKind::Call,
             );
-            for signature in &signatures {
+            for signature in &*signatures {
                 let method_declaration = self.signature_to_signature_declaration_helper(
                     signature.clone(),
                     SyntaxKind::MethodSignature,

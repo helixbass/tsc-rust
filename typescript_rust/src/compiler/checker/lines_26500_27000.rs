@@ -7,6 +7,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, IterationUse, JsxNames};
+use crate::GcVec;
 use crate::{
     concatenate, filter, get_enclosing_block_scope_container, get_jsdoc_enum_tag,
     get_strict_option_value, has_static_modifier, is_assignment_target, is_binary_expression,
@@ -39,10 +40,10 @@ impl TypeChecker {
                     .borrow()
                     .type_parameters
                     .clone();
-                if length(params.as_deref()) >= 2 {
+                if length(params.as_double_deref()) >= 2 {
                     let args = self.fill_missing_type_arguments(
-                        Some(vec![ctor_type, attributes_type.type_wrapper()]),
-                        params.as_deref(),
+                        Some(vec![ctor_type, attributes_type.type_wrapper()].into()),
+                        params,
                         2,
                         is_in_js_file(Some(context)),
                     );
@@ -61,7 +62,7 @@ impl TypeChecker {
             ) >= 2
             {
                 let args = self.fill_missing_type_arguments(
-                    Some(vec![ctor_type, attributes_type.type_wrapper()]),
+                    Some(vec![ctor_type, attributes_type.type_wrapper()].into()),
                     declared_managed_type
                         .as_interface_type()
                         .maybe_type_parameters(),
@@ -134,20 +135,21 @@ impl TypeChecker {
             let intrinsic_class_attribs =
                 self.get_jsx_type(&JsxNames::IntrinsicClassAttributes, Some(context));
             if !self.is_error_type(&intrinsic_class_attribs) {
-                let type_params = self
+                let type_params: Option<GcVec<_>> = self
                     .get_local_type_parameters_of_class_or_interface_or_type_alias(
                         &intrinsic_class_attribs.symbol(),
-                    );
+                    )
+                    .map(Into::into);
                 let host_class_type = self.get_return_type_of_signature(sig.clone());
                 apparent_attributes_type = self
                     .intersect_types(
-                        Some(if let Some(type_params) = type_params.as_ref() {
+                        Some(if let Some(type_params) = type_params {
                             self.create_type_reference(
                                 &intrinsic_class_attribs,
                                 self.fill_missing_type_arguments(
-                                    Some(vec![host_class_type]),
-                                    Some(type_params),
-                                    self.get_min_type_argument_count(Some(type_params)),
+                                    Some(vec![host_class_type].into()),
+                                    Some(type_params.clone()),
+                                    self.get_min_type_argument_count(Some(&type_params)),
                                     is_in_js_file(Some(context)),
                                 ),
                             )
@@ -185,8 +187,8 @@ impl TypeChecker {
                     } {
                         left
                     } else if self.compare_type_parameters_identical(
-                        left.as_ref().unwrap().maybe_type_parameters().as_deref(),
-                        right.maybe_type_parameters().as_deref(),
+                        left.as_ref().unwrap().maybe_type_parameters(),
+                        right.maybe_type_parameters(),
                     ) {
                         Some(self.combine_signatures_of_intersection_members(
                             left.clone().unwrap(),

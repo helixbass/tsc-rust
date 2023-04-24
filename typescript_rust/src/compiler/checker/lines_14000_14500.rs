@@ -11,10 +11,10 @@ use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
     ordered_remove_item_at, push_if_unique_gc, reduce_left, replace_element, same_map, some,
-    BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
-    Node, ObjectFlags, PeekMoreExt, Signature, Symbol, SymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
+    BaseUnionOrIntersectionType, Diagnostics, ElementFlags, GcVec, IntersectionType,
+    LiteralTypeInterface, Node, ObjectFlags, PeekMoreExt, Signature, Symbol, SymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, TypePredicate, TypePredicateKind,
+    TypeReferenceInterface, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
 };
 use local_macros::enum_unwrapped;
 
@@ -22,7 +22,7 @@ impl TypeChecker {
     pub(super) fn create_normalized_type_reference(
         &self,
         target: &Type, /*GenericType*/
-        type_arguments: Option<Vec<Gc<Type>>>,
+        type_arguments: Option<GcVec<Gc<Type>>>,
     ) -> Gc<Type> {
         if target
             .as_object_flags_type()

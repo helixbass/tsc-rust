@@ -762,7 +762,8 @@ impl NodeBuilder {
                     .as_type_reference_interface()
                     .target()
                     .as_interface_type_interface()
-                    .maybe_type_parameters(),
+                    .maybe_type_parameters()
+                    .as_double_deref(),
             )
     }
 

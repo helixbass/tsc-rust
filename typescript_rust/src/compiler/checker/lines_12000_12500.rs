@@ -14,7 +14,7 @@ use crate::{
     get_jsdoc_parameter_tags, get_object_flags, has_question_token, index_of_gc,
     is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
     is_property_declaration, length, map, maybe_append_if_unique_gc, reduce_left, same_map, some,
-    unescape_leading_underscores, CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics,
+    unescape_leading_underscores, CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics, GcVec,
     HasInitializerInterface, HasTypeInterface, IndexInfo, ModifierFlags, Node, NodeInterface,
     ObjectFlags, ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureKind, Symbol,
     SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Ternary,
@@ -595,20 +595,24 @@ impl TypeChecker {
         &self,
         type_: &Type,
         kind: SignatureKind,
-    ) -> Vec<Gc<Signature>> {
+    ) -> GcVec<Gc<Signature>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
             let resolved = self.resolve_structured_type_members(type_);
             let resolved_as_resolved_type = resolved.as_resolved_type();
             return if kind == SignatureKind::Call {
-                resolved_as_resolved_type.call_signatures().clone()
+                resolved_as_resolved_type.call_signatures()
             } else {
-                resolved_as_resolved_type.construct_signatures().clone()
+                resolved_as_resolved_type.construct_signatures()
             };
         }
-        vec![]
+        vec![].into()
     }
 
-    pub fn get_signatures_of_type(&self, type_: &Type, kind: SignatureKind) -> Vec<Gc<Signature>> {
+    pub fn get_signatures_of_type(
+        &self,
+        type_: &Type,
+        kind: SignatureKind,
+    ) -> GcVec<Gc<Signature>> {
         self.get_signatures_of_structured_type(&self.get_reduced_apparent_type(type_), kind)
     }
 

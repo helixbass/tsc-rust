@@ -473,11 +473,11 @@ impl TypeChecker {
                 false,
             );
             let call_signatures = self.instantiate_signatures(
-                &self.get_signatures_of_type(&type_target, SignatureKind::Call),
+                self.get_signatures_of_type(&type_target, SignatureKind::Call),
                 type_as_object_type.maybe_mapper().unwrap(),
             );
             let construct_signatures = self.instantiate_signatures(
-                &self.get_signatures_of_type(&type_target, SignatureKind::Construct),
+                self.get_signatures_of_type(&type_target, SignatureKind::Construct),
                 type_as_object_type.maybe_mapper().unwrap(),
             );
             let index_infos = self.instantiate_index_infos(
@@ -495,8 +495,8 @@ impl TypeChecker {
             self.set_structured_type_members(
                 type_as_object_type,
                 self.empty_symbols(),
-                vec![],
-                vec![],
+                vec![].into(),
+                vec![].into(),
                 vec![],
             );
             let members = self.get_members_of_symbol(&symbol);
@@ -534,8 +534,8 @@ impl TypeChecker {
             self.set_structured_type_members(
                 type_as_object_type,
                 members.clone(),
-                vec![],
-                vec![],
+                vec![].into(),
+                vec![].into(),
                 vec![],
             );
             if symbol.flags().intersects(SymbolFlags::Class) {
@@ -589,8 +589,8 @@ impl TypeChecker {
             self.set_structured_type_members(
                 type_as_object_type,
                 members.clone(),
-                vec![],
-                vec![],
+                vec![].into(),
+                vec![].into(),
                 index_infos,
             );
             if symbol
@@ -657,16 +657,22 @@ impl TypeChecker {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         self.instantiate_type(
             instantiable,
-            Some(Gc::new(self.create_type_mapper(
-                vec![
-                    type_as_indexed_access_type.index_type.clone(),
-                    type_as_indexed_access_type.object_type.clone(),
-                ],
-                Some(vec![
-                    self.get_number_literal_type(Number::new(0.0)),
-                    self.create_tuple_type(&[replacement.type_wrapper()], None, None, None),
-                ]),
-            ))),
+            Some(Gc::new(
+                self.create_type_mapper(
+                    vec![
+                        type_as_indexed_access_type.index_type.clone(),
+                        type_as_indexed_access_type.object_type.clone(),
+                    ]
+                    .into(),
+                    Some(
+                        vec![
+                            self.get_number_literal_type(Number::new(0.0)),
+                            self.create_tuple_type(&[replacement.type_wrapper()], None, None, None),
+                        ]
+                        .into(),
+                    ),
+                ),
+            )),
         )
     }
 

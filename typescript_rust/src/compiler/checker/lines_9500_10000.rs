@@ -3,7 +3,6 @@
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
-use std::rc::Rc;
 
 use super::signature_has_rest_parameter;
 use crate::{
@@ -14,13 +13,13 @@ use crate::{
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_object_flags, get_parameter_symbol_from_jsdoc, is_access_expression, is_binary_expression,
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
-    is_source_file, is_type_alias, length, maybe_append_if_unique_gc, maybe_append_if_unique_rc,
-    maybe_first_defined, maybe_map, maybe_same_map, resolving_empty_array, same_map, some,
-    AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
+    is_source_file, is_type_alias, length, maybe_append_if_unique_gc, maybe_first_defined,
+    maybe_map, maybe_same_map, resolving_empty_array, same_map, some, AsDoubleDeref,
+    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, GcVec,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface,
     ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypeSystemPropertyName,
+    TypeSystemPropertyName, UnwrapOrEmpty,
 };
 
 impl TypeChecker {
@@ -680,8 +679,10 @@ impl TypeChecker {
             |sig: &Gc<Signature>| {
                 (is_javascript
                     || type_arg_count
-                        >= self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref()))
-                    && type_arg_count <= length(sig.maybe_type_parameters().as_deref())
+                        >= self.get_min_type_argument_count(
+                            sig.maybe_type_parameters().as_double_deref(),
+                        ))
+                    && type_arg_count <= length(sig.maybe_type_parameters().as_double_deref())
             },
         )
     }
@@ -694,9 +695,11 @@ impl TypeChecker {
     ) -> Vec<Gc<Signature>> {
         let signatures =
             self.get_constructors_for_type_arguments(type_, type_argument_nodes, location);
-        let type_arguments = maybe_map(type_argument_nodes, |type_argument_node: &Gc<Node>, _| {
-            self.get_type_from_type_node_(type_argument_node)
-        });
+        let type_arguments: Option<GcVec<_>> =
+            maybe_map(type_argument_nodes, |type_argument_node: &Gc<Node>, _| {
+                self.get_type_from_type_node_(type_argument_node)
+            })
+            .map(Into::into);
         same_map(&signatures, |sig: &Gc<Signature>, _| {
             if some(
                 sig.maybe_type_parameters().as_deref(),
@@ -704,7 +707,7 @@ impl TypeChecker {
             ) {
                 self.get_signature_instantiation(
                     sig.clone(),
-                    type_arguments.as_deref(),
+                    type_arguments.clone(),
                     is_in_js_file(Some(location)),
                     None,
                 )
@@ -940,26 +943,33 @@ impl TypeChecker {
 
     pub(super) fn get_tuple_base_type(&self, type_: &Type /*TupleType*/) -> Gc<Type> {
         let type_as_tuple_type = type_.as_tuple_type();
-        let element_types = maybe_same_map(
-            type_as_tuple_type.maybe_type_parameters(),
-            |t: &Gc<Type>, i| {
-                if type_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic) {
-                    self.get_indexed_access_type(
-                        t,
-                        &self.number_type(),
-                        None,
-                        Option::<&Node>::None,
-                        Option::<&Symbol>::None,
-                        None,
-                    )
-                } else {
-                    t.type_wrapper()
-                }
-            },
-        );
+        let element_types =
+            type_as_tuple_type
+                .maybe_type_parameters()
+                .map(|type_type_parameters| {
+                    type_type_parameters
+                        .owned_iter()
+                        .enumerate()
+                        .map(|(i, ref t)| {
+                            if type_as_tuple_type.element_flags[i]
+                                .intersects(ElementFlags::Variadic)
+                            {
+                                self.get_indexed_access_type(
+                                    t,
+                                    &self.number_type(),
+                                    None,
+                                    Option::<&Node>::None,
+                                    Option::<&Symbol>::None,
+                                    None,
+                                )
+                            } else {
+                                t.clone()
+                            }
+                        })
+                });
         self.create_array_type(
             &self.get_union_type(
-                &element_types.unwrap_or_else(|| vec![]),
+                element_types.unwrap_or_empty(),
                 None,
                 Option::<&Symbol>::None,
                 None,

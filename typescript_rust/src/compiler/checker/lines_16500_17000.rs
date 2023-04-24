@@ -508,9 +508,9 @@ impl TypeChecker {
         self.maybe_instantiate_type(Some(type_), mapper).unwrap()
     }
 
-    pub(super) fn maybe_instantiate_type<TType: Borrow<Type>>(
+    pub(super) fn maybe_instantiate_type(
         &self,
-        type_: Option<TType>,
+        type_: Option<impl Borrow<Type>>,
         mapper: Option<Gc<TypeMapper>>,
     ) -> Option<Gc<Type>> {
         match (type_.as_ref(), mapper) {
@@ -524,11 +524,11 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn instantiate_type_with_alias<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn instantiate_type_with_alias(
         &self,
         type_: &Type,
         mapper: Gc<TypeMapper>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
         if !self.could_contain_type_variables(type_) {
@@ -552,11 +552,11 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn instantiate_type_worker<TSymbol: Borrow<Symbol>>(
+    pub(super) fn instantiate_type_worker(
         &self,
         type_: &Type,
         mapper: Gc<TypeMapper>,
-        alias_symbol: Option<TSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
         let flags = type_.flags();
@@ -574,10 +574,12 @@ impl TypeChecker {
                     let type_as_type_reference = type_.as_type_reference_interface();
                     let resolved_type_arguments =
                         type_as_type_reference.maybe_resolved_type_arguments();
-                    let resolved_type_arguments = resolved_type_arguments.as_deref();
                     let new_type_arguments =
-                        self.instantiate_types(resolved_type_arguments, Some(mapper));
-                    return if !match (resolved_type_arguments, new_type_arguments.as_deref()) {
+                        self.instantiate_types(resolved_type_arguments.clone(), Some(mapper));
+                    return if !match (
+                        resolved_type_arguments.as_ref(),
+                        new_type_arguments.as_deref(),
+                    ) {
                         (None, None) => true,
                         (Some(resolved_type_arguments), Some(new_type_arguments)) => {
                             are_gc_slices_equal(new_type_arguments, resolved_type_arguments)

@@ -7,19 +7,19 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find_index, is_constructor_declaration, is_function_expression, is_node_descendant_of,
+    find_index, get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc,
+    get_symbol_id, get_this_container, is_binary_expression, is_class_like,
+    is_constructor_declaration, is_function_expression, is_node_descendant_of,
     is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
-    is_valid_es_symbol_declaration, map, maybe_add_range, maybe_filter, pseudo_big_int_to_string,
-    some, AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics,
-    FunctionLikeDeclarationInterface, IndexInfo, InferenceContext, InferenceInfo,
-    InterfaceTypeInterface, IntrinsicType, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
-    Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
-    TypeReferenceInterface, UniqueESSymbolType, __String, get_assignment_declaration_kind,
-    get_check_flags, get_host_signature_from_jsdoc, get_symbol_id, get_this_container,
-    is_binary_expression, is_class_like, maybe_is_class_like,
+    is_valid_es_symbol_declaration, map, maybe_add_range, maybe_filter, maybe_is_class_like,
+    pseudo_big_int_to_string, some, AsDoubleDeref, AssignmentDeclarationKind, BaseLiteralType,
+    BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface, GcVec, IndexInfo,
+    InferenceContext, InferenceInfo, InterfaceTypeInterface, IntrinsicType, LiteralTypeInterface,
+    Node, NodeFlags, NodeInterface, Number, NumberLiteralType, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectTypeInterface, PseudoBigInt, Signature, SignatureFlags,
+    StringLiteralType, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeMapperCallback, TypePredicate, TypeReferenceInterface, UniqueESSymbolType, __String,
 };
 use local_macros::enum_unwrapped;
 
@@ -600,15 +600,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn instantiate_list<
-        TItem: Trace + Finalize,
-        TInstantiator: FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
-    >(
+    pub(super) fn instantiate_list<TItem: Trace + Finalize>(
         &self,
-        items: Option<&[Gc<TItem>]>,
+        items: Option<GcVec<Gc<TItem>>>,
         mapper: Option<Gc<TypeMapper>>,
-        mut instantiator: TInstantiator,
-    ) -> Option<Vec<Gc<TItem>>> {
+        mut instantiator: impl FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
+    ) -> Option<GcVec<Gc<TItem>>> {
         let items = items?;
         if !items.is_empty() {
             let mut i = 0;
@@ -627,20 +624,20 @@ impl TypeChecker {
                         result.push(instantiator(&items[i], mapper.clone()));
                         i += 1;
                     }
-                    return Some(result);
+                    return Some(result.into());
                 }
 
                 i += 1;
             }
         }
-        Some(items.to_owned())
+        Some(items.clone())
     }
 
     pub(super) fn instantiate_types(
         &self,
-        types: Option<&[Gc<Type>]>,
+        types: Option<GcVec<Gc<Type>>>,
         mapper: Option<Gc<TypeMapper>>,
-    ) -> Option<Vec<Gc<Type>>> {
+    ) -> Option<GcVec<Gc<Type>>> {
         self.instantiate_list(types, mapper, |type_: &Gc<Type>, mapper| {
             self.instantiate_type(type_, mapper)
         })
@@ -648,9 +645,9 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signatures(
         &self,
-        signatures: &[Gc<Signature>],
+        signatures: GcVec<Gc<Signature>>,
         mapper: Gc<TypeMapper>,
-    ) -> Vec<Gc<Signature>> {
+    ) -> GcVec<Gc<Signature>> {
         self.instantiate_list(
             Some(signatures),
             Some(mapper),
@@ -678,8 +675,8 @@ impl TypeChecker {
 
     pub(super) fn create_type_mapper(
         &self,
-        sources: Vec<Gc<Type /*TypeParameter*/>>,
-        targets: Option<Vec<Gc<Type>>>,
+        sources: GcVec<Gc<Type /*TypeParameter*/>>,
+        targets: Option<GcVec<Gc<Type>>>,
     ) -> TypeMapper {
         if sources.len() == 1 {
             self.make_unary_type_mapper(
@@ -731,8 +728,8 @@ impl TypeChecker {
 
     pub(super) fn make_array_type_mapper(
         &self,
-        sources: Vec<Gc<Type /*TypeParameter*/>>,
-        targets: Option<Vec<Gc<Type>>>,
+        sources: GcVec<Gc<Type /*TypeParameter*/>>,
+        targets: Option<GcVec<Gc<Type>>>,
     ) -> TypeMapper {
         TypeMapper::new_array(sources, targets)
     }
@@ -762,7 +759,7 @@ impl TypeChecker {
 
     pub(super) fn create_type_eraser(
         &self,
-        sources: Vec<Gc<Type /*TypeParameter*/>>,
+        sources: GcVec<Gc<Type /*TypeParameter*/>>,
     ) -> TypeMapper {
         self.create_type_mapper(sources, None)
     }
@@ -880,13 +877,15 @@ impl TypeChecker {
         erase_type_parameters: Option<bool>,
     ) -> Signature {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
-        let mut fresh_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
+        let mut fresh_type_parameters: Option<GcVec<Gc<Type /*TypeParameter*/>>> = None;
         if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
             if !erase_type_parameters {
-                fresh_type_parameters =
-                    Some(map(&signature_type_parameters, |type_parameter, _| {
+                fresh_type_parameters = Some(
+                    map(&*signature_type_parameters, |type_parameter, _| {
                         self.clone_type_parameter(&type_parameter)
-                    }));
+                    })
+                    .into(),
+                );
                 mapper = self.combine_type_mappers(
                     Some(Gc::new(self.create_type_mapper(
                         signature_type_parameters,
@@ -894,7 +893,7 @@ impl TypeChecker {
                     ))),
                     mapper,
                 );
-                for tp in fresh_type_parameters.as_ref().unwrap() {
+                for tp in fresh_type_parameters.as_deref().unwrap() {
                     tp.as_type_parameter().set_mapper(mapper.clone());
                 }
             }
@@ -1016,7 +1015,11 @@ impl TypeChecker {
                     None,
                 );
             }
-            type_parameters = Some(outer_type_parameters.unwrap_or_else(|| vec![]));
+            type_parameters = Some(
+                outer_type_parameters
+                    .map(Into::into)
+                    .unwrap_or_else(|| vec![].into()),
+            );
             let all_declarations = if type_as_object_type
                 .object_flags()
                 .intersects(ObjectFlags::Reference)
@@ -1032,12 +1035,13 @@ impl TypeChecker {
                 || target.symbol().flags().intersects(SymbolFlags::TypeLiteral))
                 && target.maybe_alias_type_arguments().is_none()
             {
-                maybe_filter(type_parameters.as_deref(), |tp: &Gc<Type>| {
+                maybe_filter(type_parameters.as_double_deref(), |tp: &Gc<Type>| {
                     some(
                         Some(&*all_declarations),
                         Some(|d: &Gc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
                     )
                 })
+                .map(Into::into)
             } else {
                 type_parameters
             };
@@ -1047,9 +1051,10 @@ impl TypeChecker {
         if !type_parameters.is_empty() {
             let combined_mapper =
                 self.combine_type_mappers(type_as_object_type.maybe_mapper(), mapper.clone());
-            let type_arguments = map(&type_parameters, |t: &Gc<Type>, _| {
+            let type_arguments: GcVec<_> = map(&*type_parameters, |t: &Gc<Type>, _| {
                 self.get_mapped_type(t, &combined_mapper)
-            });
+            })
+            .into();
             let alias_symbol =
                 alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
             let new_alias_symbol = alias_symbol
@@ -1062,7 +1067,7 @@ impl TypeChecker {
             };
             let id = format!(
                 "{}{}",
-                self.get_type_list_id(Some(&*type_arguments)),
+                self.get_type_list_id(Some(&type_arguments)),
                 self.get_alias_id(
                     new_alias_symbol.as_deref(),
                     new_alias_type_arguments.as_deref()

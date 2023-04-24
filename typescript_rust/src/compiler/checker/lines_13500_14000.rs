@@ -12,7 +12,7 @@ use crate::{
     __String, count_where, create_symbol_table, find, is_assertion_expression,
     is_const_type_reference, is_this_identifier, is_type_alias_declaration, is_type_operator_node,
     length, map, maybe_map, some, symbol_name, AsDoubleDeref, BaseInterfaceType, CheckFlags,
-    DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface,
+    DiagnosticMessage, Diagnostics, ElementFlags, GcVec, GenericableTypeInterface,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     Node, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, TupleType, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -138,7 +138,8 @@ impl TypeChecker {
         if length(
             type_
                 .maybe_as_interface_type()
-                .and_then(|type_| type_.maybe_type_parameters()),
+                .and_then(|type_| type_.maybe_type_parameters())
+                .as_double_deref(),
         ) != arity
         {
             self.error(
@@ -225,7 +226,7 @@ impl TypeChecker {
                 (*self.get_symbol_links(symbol))
                     .borrow()
                     .type_parameters
-                    .as_deref(),
+                    .as_double_deref(),
             ) != arity
             {
                 let symbol_declarations = symbol.maybe_declarations();
@@ -650,7 +651,7 @@ impl TypeChecker {
     pub(super) fn create_type_from_generic_global_type(
         &self,
         generic_global_type: &Type, /*GenericType*/
-        type_arguments: Vec<Gc<Type>>,
+        type_arguments: GcVec<Gc<Type>>,
     ) -> Gc<Type /*ObjectType*/> {
         if !ptr::eq(generic_global_type, &*self.empty_generic_type()) {
             self.create_type_reference(generic_global_type, Some(type_arguments))
@@ -662,14 +663,14 @@ impl TypeChecker {
     pub(super) fn create_typed_property_descriptor_type(&self, property_type: &Type) -> Gc<Type> {
         self.create_type_from_generic_global_type(
             &self.get_global_typed_property_descriptor_type(),
-            vec![property_type.type_wrapper()],
+            vec![property_type.type_wrapper()].into(),
         )
     }
 
     pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> Gc<Type> {
         self.create_type_from_generic_global_type(
             &self.get_global_iterable_type(true),
-            vec![iterated_type.type_wrapper()],
+            vec![iterated_type.type_wrapper()].into(),
         )
     }
 
@@ -684,7 +685,7 @@ impl TypeChecker {
             } else {
                 self.global_array_type()
             },
-            vec![element_type.type_wrapper()],
+            vec![element_type.type_wrapper()].into(),
         )
     }
 
@@ -887,13 +888,15 @@ impl TypeChecker {
                     },
                 );
             } else {
-                let element_types = if node.kind() == SyntaxKind::ArrayType {
+                let element_types: GcVec<_> = if node.kind() == SyntaxKind::ArrayType {
                     vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)]
+                        .into()
                 } else {
                     map(
                         &node.as_tuple_type_node().elements,
                         |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
                     )
+                    .into()
                 };
                 links.borrow_mut().resolved_type =
                     Some(self.create_normalized_type_reference(&target, Some(element_types)));
@@ -926,7 +929,11 @@ impl TypeChecker {
         if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
             self.empty_object_type()
         } else if !element_types.is_empty() {
-            self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))
+            self.create_normalized_type_reference(
+                &tuple_target,
+                // TODO: pass element_types as a GcVec<Gc<Type>> instead?
+                Some(element_types.to_owned().into()),
+            )
         } else {
             tuple_target
         }
@@ -1074,6 +1081,7 @@ impl TypeChecker {
         let mut this_type = self.create_type_parameter(Option::<&Symbol>::None);
         this_type.is_this_type = Some(true);
         let this_type: Gc<Type> = this_type.into();
+        let type_parameters: Option<GcVec<Gc<Type>>> = type_parameters.map(Into::into);
         let type_ = BaseInterfaceType::new(
             type_,
             type_parameters.clone(),
@@ -1095,7 +1103,7 @@ impl TypeChecker {
         this_type.as_type_parameter().set_constraint(type_.clone());
         let mut instantiations = HashMap::new();
         instantiations.insert(
-            self.get_type_list_id(type_parameters.as_deref()),
+            self.get_type_list_id(type_parameters.as_double_deref()),
             type_.clone(),
         );
         let type_as_interface_type = type_.as_interface_type();

@@ -248,9 +248,9 @@ pub fn filter_iter<TItem, TArray: IntoIterator<Item = TItem>, TCallback: FnMut(&
     array.into_iter().filter(predicate)
 }
 
-pub fn maybe_filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+pub fn maybe_filter<TItem: Clone>(
     array: Option<&[TItem]>,
-    predicate: TCallback,
+    predicate: impl FnMut(&TItem) -> bool,
 ) -> Option<Vec<TItem>> {
     array.map(|array| filter(array, predicate))
 }

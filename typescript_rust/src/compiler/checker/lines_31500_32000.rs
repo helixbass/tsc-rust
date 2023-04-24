@@ -538,8 +538,10 @@ impl TypeChecker {
                 && self.is_type_assignable_to(&iterable_iterator_next_type, &next_type)
             {
                 if !Gc::ptr_eq(&global_type, &self.empty_generic_type()) {
-                    return self
-                        .create_type_from_generic_global_type(&global_type, vec![yield_type]);
+                    return self.create_type_from_generic_global_type(
+                        &global_type,
+                        vec![yield_type].into(),
+                    );
                 }
 
                 (resolver.get_global_iterable_iterator_type)(self, true);
@@ -552,7 +554,7 @@ impl TypeChecker {
 
         self.create_type_from_generic_global_type(
             &global_generator_type,
-            vec![yield_type, return_type, next_type],
+            vec![yield_type, return_type, next_type].into(),
         )
     }
 

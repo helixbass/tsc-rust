@@ -12,11 +12,11 @@ use crate::{
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
     is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
     node_is_present, push_if_unique_gc, some, BaseInterfaceType, BaseIntrinsicType, BaseObjectType,
-    BaseType, CharacterCodes, FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName,
-    Node, NodeInterface, ObjectFlags, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
-    SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeParameter,
+    BaseType, CharacterCodes, FunctionLikeDeclarationInterface, GcVec, IndexInfo,
+    InternalSymbolName, Node, NodeInterface, ObjectFlags, ResolvableTypeInterface,
+    ResolvedTypeInterface, Signature, SignatureFlags, Symbol, SymbolAccessibility,
+    SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {
@@ -239,14 +239,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn set_structured_type_members<
-        TType: ResolvableTypeInterface + ResolvedTypeInterface,
-    >(
+    pub(super) fn set_structured_type_members(
         &self,
-        type_: &TType,
+        type_: &(impl ResolvableTypeInterface + ResolvedTypeInterface),
         members: Gc<GcCell<SymbolTable>>,
-        call_signatures: Vec<Gc<Signature>>,
-        construct_signatures: Vec<Gc<Signature>>,
+        call_signatures: GcVec<Gc<Signature>>,
+        construct_signatures: GcVec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
     ) /*-> BaseObjectType*/
     {

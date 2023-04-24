@@ -17,9 +17,9 @@ use crate::{
     is_module_block, is_module_declaration, is_named_tuple_member,
     is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
     is_super_call, is_type_reference_type, map, maybe_for_each, maybe_map, node_is_missing,
-    node_is_present, some, symbol_name, try_cast, unescape_leading_underscores,
+    node_is_present, some, symbol_name, try_cast, unescape_leading_underscores, AsDoubleDeref,
     DiagnosticRelatedInformation, Diagnostics, ElementFlags, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags,
+    GcVec, HasInitializerInterface, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags,
     NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper,
@@ -257,15 +257,16 @@ impl TypeChecker {
     pub(super) fn get_effective_type_arguments(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
-    ) -> Vec<Gc<Type>> {
+        type_parameters: Option<GcVec<Gc<Type /*TypeParameter*/>>>,
+    ) -> GcVec<Gc<Type>> {
         self.fill_missing_type_arguments(
             maybe_map(
                 node.as_has_type_arguments().maybe_type_arguments().as_ref(),
                 |type_argument, _| self.get_type_from_type_node_(type_argument),
-            ),
-            type_parameters,
-            self.get_min_type_argument_count(type_parameters),
+            )
+            .map(Into::into),
+            type_parameters.clone(),
+            self.get_min_type_argument_count(type_parameters.as_double_deref()),
             is_in_js_file(Some(node)),
         )
         .unwrap()
@@ -274,9 +275,9 @@ impl TypeChecker {
     pub(super) fn check_type_argument_constraints(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: &[Gc<Type /*TypeParameter*/>],
+        type_parameters: GcVec<Gc<Type /*TypeParameter*/>>,
     ) -> bool {
-        let mut type_arguments: Option<Vec<Gc<Type>>> = None;
+        let mut type_arguments: Option<GcVec<Gc<Type>>> = None;
         let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut result = true;
         for i in 0..type_parameters.len() {
@@ -286,7 +287,7 @@ impl TypeChecker {
                     type_arguments =
                         Some(self.get_effective_type_arguments(node, Some(type_parameters)));
                     mapper = Some(Gc::new(self.create_type_mapper(
-                        type_parameters.to_owned(),
+                        type_parameters.to_owned().into(),
                         type_arguments.clone(),
                     )));
                 }
@@ -312,7 +313,7 @@ impl TypeChecker {
     pub(super) fn get_type_parameters_for_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-    ) -> Option<Vec<Gc<Type>>> {
+    ) -> Option<GcVec<Gc<Type>>> {
         let type_ = self.get_type_from_type_reference(node);
         if !self.is_error_type(&type_) {
             let symbol = (*self.get_node_links(node))
@@ -335,7 +336,7 @@ impl TypeChecker {
                             .target()
                             .as_interface_type_interface()
                             .maybe_local_type_parameters()
-                            .map(ToOwned::to_owned)
+                            .clone()
                     } else {
                         None
                     }
@@ -385,7 +386,7 @@ impl TypeChecker {
                 && self.produce_diagnostics
             {
                 let type_parameters = self.get_type_parameters_for_type_reference(node);
-                if let Some(type_parameters) = type_parameters.as_ref() {
+                if let Some(type_parameters) = type_parameters {
                     self.check_type_argument_constraints(node, type_parameters);
                 }
             }
@@ -443,15 +444,23 @@ impl TypeChecker {
                 .position(|type_argument| ptr::eq(&**type_argument, node))
                 .unwrap()],
         )?;
-        Some(self.instantiate_type(
-            &constraint,
-            Some(Gc::new(self.create_type_mapper(
-                type_parameters.clone(),
-                Some(
-                    self.get_effective_type_arguments(&type_reference_node, Some(&type_parameters)),
-                ),
-            ))),
-        ))
+        Some(
+            self.instantiate_type(
+                &constraint,
+                Some(Gc::new(
+                    self.create_type_mapper(
+                        type_parameters.clone(),
+                        Some(
+                            self.get_effective_type_arguments(
+                                &type_reference_node,
+                                Some(type_parameters),
+                            )
+                            .into(),
+                        ),
+                    ),
+                )),
+            ),
+        )
     }
 
     pub(super) fn check_type_query(&self, node: &Node /*TypeQueryNode*/) {

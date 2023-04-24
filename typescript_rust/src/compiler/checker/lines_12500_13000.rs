@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use gc::Gc;
-use itertools::Either;
+use itertools::{Either, Itertools};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
@@ -19,35 +19,35 @@ use crate::{
     is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
     is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map,
     map_defined, maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment,
-    some, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
-    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, Signature, SignatureDeclarationInterface,
-    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,
+    some, AsDoubleDeref, CheckFlags, Debug_, Diagnostics, GcVec, HasInitializerInterface,
+    HasTypeInterface, IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node,
+    NodeArray, NodeCheckFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, Signature,
+    SignatureDeclarationInterface, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,
 };
 
 impl TypeChecker {
     pub(super) fn fill_missing_type_arguments(
         &self,
-        type_arguments: Option<Vec<Gc<Type>>>,
-        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+        type_arguments: Option<GcVec<Gc<Type>>>,
+        type_parameters: Option<GcVec<Gc<Type /*TypeParameter*/>>>,
         min_type_argument_count: usize,
         is_java_script_implicit_any: bool,
-    ) -> Option<Vec<Gc<Type>>> {
-        let num_type_parameters = length(type_parameters);
+    ) -> Option<GcVec<Gc<Type>>> {
+        let num_type_parameters = length(type_parameters.as_double_deref());
         if num_type_parameters == 0 {
-            return Some(vec![]);
+            return Some(vec![].into());
         }
         let type_parameters = type_parameters.unwrap();
-        let num_type_arguments = length(type_arguments.as_deref());
+        let num_type_arguments = length(type_arguments.as_double_deref());
         if is_java_script_implicit_any
             || num_type_arguments >= min_type_argument_count
                 && num_type_arguments <= num_type_parameters
         {
             let mut result = type_arguments
                 .as_ref()
-                .map_or_else(|| vec![], |type_arguments| type_arguments.clone());
+                .map_or_else(|| vec![], |type_arguments| type_arguments.to_vec());
             for _i in num_type_arguments..num_type_parameters {
                 result.push(self.error_type());
             }
@@ -67,8 +67,8 @@ impl TypeChecker {
                     self.instantiate_type(
                         &default_type,
                         Some(Gc::new(self.create_type_mapper(
-                            type_parameters.to_owned(),
-                            Some(result.clone()),
+                            type_parameters.clone(),
+                            Some(result.clone().into()),
                         ))),
                     )
                 } else {
@@ -76,9 +76,9 @@ impl TypeChecker {
                 };
             }
             result.truncate(type_parameters.len());
-            return Some(result);
+            return Some(result.into());
         }
-        type_arguments.map(|type_arguments| type_arguments.clone())
+        type_arguments
     }
 
     pub(super) fn get_signature_from_declaration_(
@@ -200,11 +200,10 @@ impl TypeChecker {
                 None
             };
             let type_parameters = match class_type {
-                Some(class_type) => class_type
-                    .as_interface_type()
-                    .maybe_local_type_parameters()
-                    .map(ToOwned::to_owned),
-                None => self.get_type_parameters_from_declaration(declaration),
+                Some(class_type) => class_type.as_interface_type().maybe_local_type_parameters(),
+                None => self
+                    .get_type_parameters_from_declaration(declaration)
+                    .map(Into::into),
             };
             if has_rest_parameter(declaration)
                 || is_in_js_file(Some(declaration))
@@ -390,18 +389,18 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_signatures_of_symbol<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_signatures_of_symbol(
         &self,
-        symbol: Option<TSymbol>,
-    ) -> Vec<Gc<Signature>> {
+        symbol: Option<impl Borrow<Symbol>>,
+    ) -> GcVec<Gc<Signature>> {
         if symbol.is_none() {
-            return vec![];
+            return vec![].into();
         }
         let symbol = symbol.unwrap();
         let symbol = symbol.borrow();
         let symbol_declarations = symbol.maybe_declarations();
         if symbol_declarations.is_none() {
-            return vec![];
+            return vec![].into();
         }
         let symbol_declarations = symbol_declarations.as_ref().unwrap();
         let mut result: Vec<Gc<Signature>> = vec![];
@@ -425,7 +424,7 @@ impl TypeChecker {
             }
             result.push(self.get_signature_from_declaration_(decl));
         }
-        result
+        result.into()
     }
 
     pub(super) fn resolve_external_module_type_by_literal(
@@ -744,20 +743,21 @@ impl TypeChecker {
     pub(super) fn get_signature_instantiation(
         &self,
         signature: Gc<Signature>,
-        type_arguments: Option<&[Gc<Type>]>,
+        type_arguments: Option<GcVec<Gc<Type>>>,
         is_javascript: bool,
-        inferred_type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+        inferred_type_parameters: Option<GcVec<Gc<Type /*TypeParameter*/>>>,
     ) -> Gc<Signature> {
         let instantiated_signature = self
             .get_signature_instantiation_without_filling_in_type_arguments(
                 signature.clone(),
                 self.fill_missing_type_arguments(
-                    type_arguments.map(ToOwned::to_owned),
-                    signature.maybe_type_parameters().as_deref(),
-                    self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref()),
+                    type_arguments,
+                    signature.maybe_type_parameters(),
+                    self.get_min_type_argument_count(
+                        signature.maybe_type_parameters().as_double_deref(),
+                    ),
                     is_javascript,
-                )
-                .as_deref(),
+                ),
             );
         if let Some(inferred_type_parameters) = inferred_type_parameters {
             let return_signature = self.get_single_call_or_construct_signature(
@@ -765,8 +765,7 @@ impl TypeChecker {
             );
             if let Some(return_signature) = return_signature {
                 let mut new_return_signature = self.clone_signature(&return_signature);
-                *new_return_signature.maybe_type_parameters_mut() =
-                    Some(inferred_type_parameters.to_owned());
+                *new_return_signature.maybe_type_parameters_mut() = Some(inferred_type_parameters);
                 let new_instantiated_signature = self.clone_signature(&instantiated_signature);
                 *new_instantiated_signature.maybe_resolved_return_type_mut() =
                     Some(self.get_or_create_type_from_signature(Gc::new(new_return_signature)));
@@ -779,15 +778,15 @@ impl TypeChecker {
     pub(super) fn get_signature_instantiation_without_filling_in_type_arguments(
         &self,
         signature: Gc<Signature>,
-        type_arguments: Option<&[Gc<Type>]>,
+        type_arguments: Option<GcVec<Gc<Type>>>,
     ) -> Gc<Signature> {
         if signature.maybe_instantiations().is_none() {
             *signature.maybe_instantiations() = Some(HashMap::new());
         }
         let mut instantiations = signature.maybe_instantiations();
         let instantiations = instantiations.as_mut().unwrap();
-        let id = self.get_type_list_id(type_arguments);
-        let mut instantiation = instantiations.get(&id).map(Clone::clone);
+        let id = self.get_type_list_id(type_arguments.as_double_deref());
+        let mut instantiation = instantiations.get(&id).cloned();
         if instantiation.is_none() {
             instantiation = Some(Gc::new(
                 self.create_signature_instantiation(signature.clone(), type_arguments),
@@ -800,7 +799,7 @@ impl TypeChecker {
     pub(super) fn create_signature_instantiation(
         &self,
         signature: Gc<Signature>,
-        type_arguments: Option<&[Gc<Type>]>,
+        type_arguments: Option<GcVec<Gc<Type>>>,
     ) -> Signature {
         self.instantiate_signature(
             signature.clone(),
@@ -812,11 +811,11 @@ impl TypeChecker {
     pub(super) fn create_signature_type_mapper(
         &self,
         signature: &Signature,
-        type_arguments: Option<&[Gc<Type>]>,
+        type_arguments: Option<GcVec<Gc<Type>>>,
     ) -> TypeMapper {
         self.create_type_mapper(
             signature.maybe_type_parameters().clone().unwrap(),
-            type_arguments.map(ToOwned::to_owned),
+            type_arguments,
         )
     }
 
@@ -865,7 +864,7 @@ impl TypeChecker {
                         .unwrap_or_else(|| tp.clone())
                 },
             )
-            .as_deref(),
+            .map(Into::into),
             is_in_js_file(signature.declaration.as_deref()),
             None,
         )
@@ -880,27 +879,36 @@ impl TypeChecker {
                 return signature_base_signature_cache;
             }
             let type_eraser = Gc::new(self.create_type_eraser(type_parameters.clone()));
-            let base_constraint_mapper = Gc::new(self.create_type_mapper(
-                type_parameters.clone(),
-                Some(map(type_parameters, |tp: &Gc<Type>, _| {
-                    self.get_constraint_of_type_parameter(tp)
+            let base_constraint_mapper = Gc::new(
+                self.create_type_mapper(
+                    type_parameters.clone(),
+                    Some(
+                        type_parameters
+                            .owned_iter()
+                            .map(|ref tp| {
+                                self.get_constraint_of_type_parameter(tp)
+                                    .unwrap_or_else(|| self.unknown_type())
+                            })
+                            .collect_vec()
+                            .into(),
+                    ),
+                ),
+            );
+            let mut base_constraints: GcVec<Gc<Type>> = type_parameters
+                .owned_iter()
+                .map(|ref tp| {
+                    self.maybe_instantiate_type(Some(&**tp), Some(base_constraint_mapper.clone()))
                         .unwrap_or_else(|| self.unknown_type())
-                })),
-            ));
-            let mut base_constraints: Vec<Gc<Type>> = map(type_parameters, |tp: &Gc<Type>, _| {
-                self.maybe_instantiate_type(Some(&**tp), Some(base_constraint_mapper.clone()))
-                    .unwrap_or_else(|| self.unknown_type())
-            });
+                })
+                .collect_vec()
+                .into();
             for _i in 0..type_parameters.len() - 1 {
                 base_constraints = self
-                    .instantiate_types(
-                        Some(&base_constraints),
-                        Some(base_constraint_mapper.clone()),
-                    )
+                    .instantiate_types(Some(base_constraints), Some(base_constraint_mapper.clone()))
                     .unwrap();
             }
             base_constraints = self
-                .instantiate_types(Some(&base_constraints), Some(type_eraser))
+                .instantiate_types(Some(base_constraints), Some(type_eraser))
                 .unwrap();
             let ret = Gc::new(self.instantiate_signature(
                 signature.clone(),

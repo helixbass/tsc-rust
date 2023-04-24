@@ -16,7 +16,7 @@ use super::{
     TypeFlags, TypeMapper, __String,
 };
 use crate::{
-    CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
+    CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, GcVec, IndexInfo,
     IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
     PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
     TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags,
@@ -1184,7 +1184,7 @@ pub struct SymbolLinks {
     pub name_type: Option<Gc<Type>>,
     pub unique_es_symbol_type: Option<Gc<Type>>,
     pub declared_type: Option<Gc<Type>>,
-    pub type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
+    pub type_parameters: Option<GcVec<Gc<Type /*TypeParameter*/>>>,
     pub instantiations: Option<HashMap<String, Gc<Type>>>,
     pub inferred_class_symbol: Option<HashMap<SymbolId, Gc<Symbol /*TransientSymbol*/>>>,
     pub mapper: Option<Gc<TypeMapper>>,

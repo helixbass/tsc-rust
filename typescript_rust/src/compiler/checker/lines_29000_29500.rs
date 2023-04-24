@@ -650,13 +650,16 @@ impl TypeChecker {
         head_message: Option<&'static DiagnosticMessage>,
     ) -> Option<Vec<Gc<Type>>> {
         let is_javascript = is_in_js_file(signature.declaration.as_deref());
-        let type_parameters = signature.maybe_type_parameters().clone().unwrap();
+        let type_parameters = signature.maybe_type_parameters().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
-                Some(map(type_argument_nodes, |node: &Gc<Node>, _| {
-                    self.get_type_from_type_node_(node)
-                })),
-                Some(&type_parameters),
+                Some(
+                    map(type_argument_nodes, |node: &Gc<Node>, _| {
+                        self.get_type_from_type_node_(node)
+                    })
+                    .into(),
+                ),
+                Some(type_parameters.clone()),
                 self.get_min_type_argument_count(Some(&type_parameters)),
                 is_javascript,
             )

@@ -149,7 +149,7 @@ impl SymbolTableToDeclarationStatements {
             .borrow()
             .type_parameters
             .clone();
-        let type_param_decls = maybe_map(type_params.as_ref(), |p: &Gc<Type>, _| {
+        let type_param_decls = maybe_map(type_params.as_deref(), |p: &Gc<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
         });

@@ -17,9 +17,10 @@ use super::{
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, UniqueESSymbolType,
 };
 use crate::{
-    BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
-    InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, NodeId,
-    NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface,
+    BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GcVec,
+    GenericTypeInterface, InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags,
+    Node, NodeId, NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber,
+    TypeReferenceInterface,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -180,7 +181,7 @@ pub struct NodeLinks {
     pub context_free_type: Option<Gc<Type>>,
     pub deferred_nodes: Option<IndexMap<NodeId, Gc<Node>>>,
     pub captured_block_scope_bindings: Option<Vec<Gc<Symbol>>>,
-    pub outer_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
+    pub outer_type_parameters: Option<GcVec<Gc<Type /*TypeParameter*/>>>,
     pub is_exhaustive: Option<bool>,
     pub skip_direct_inference: Option<bool /*true*/>,
     pub declaration_requires_scope_change: Option<bool>,
@@ -550,8 +551,8 @@ pub trait TypeInterface {
     fn maybe_pattern(&self) -> GcCellRefMut<Option<Gc<Node /*DestructuringPattern*/>>>;
     fn maybe_alias_symbol(&self) -> Option<Gc<Symbol>>;
     fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Gc<Symbol>>>;
-    fn maybe_alias_type_arguments(&self) -> Option<Vec<Gc<Type>>>;
-    fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>>;
+    fn maybe_alias_type_arguments(&self) -> Option<GcVec<Gc<Type>>>;
+    fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Type>>>>;
     fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool>;
     fn set_alias_type_arguments_contains_marker(
         &self,
@@ -605,7 +606,7 @@ pub struct BaseType {
     symbol: GcCell<Option<Gc<Symbol>>>,
     pattern: GcCell<Option<Gc<Node>>>,
     alias_symbol: GcCell<Option<Gc<Symbol>>>,
-    alias_type_arguments: GcCell<Option<Vec<Gc<Type>>>>,
+    alias_type_arguments: GcCell<Option<GcVec<Gc<Type>>>>,
     #[unsafe_ignore_trace]
     alias_type_arguments_contains_marker: Cell<Option<bool>>,
     permissive_instantiation: GcCell<Option<Gc<Type>>>,
@@ -636,33 +637,33 @@ pub struct BaseType {
 impl BaseType {
     pub fn new(flags: TypeFlags) -> Self {
         Self {
-            _type_wrapper: GcCell::new(None),
+            _type_wrapper: Default::default(),
             flags: Cell::new(flags),
             id: None,
-            symbol: GcCell::new(None),
-            pattern: GcCell::new(None),
-            alias_symbol: GcCell::new(None),
-            alias_type_arguments: GcCell::new(None),
-            alias_type_arguments_contains_marker: Cell::new(None),
-            permissive_instantiation: GcCell::new(None),
-            restrictive_instantiation: GcCell::new(None),
-            immediate_base_constraint: GcCell::new(None),
-            widened: GcCell::new(None),
-            resolved_base_constraint: GcCell::new(None),
-            resolved_index_type: GcCell::new(None),
-            resolved_string_index_type: GcCell::new(None),
-            synthetic_type: GcCell::new(None),
-            default_only_type: GcCell::new(None),
-            promise_type_of_promise_constructor: GcCell::new(None),
-            promised_type_of_promise: GcCell::new(None),
-            awaited_type_of_type: GcCell::new(None),
-            iteration_types_of_generator_return_type: GcCell::new(None),
-            iteration_types_of_async_generator_return_type: GcCell::new(None),
-            iteration_types_of_iterable: GcCell::new(None),
-            iteration_types_of_iterator: GcCell::new(None),
-            iteration_types_of_async_iterable: GcCell::new(None),
-            iteration_types_of_async_iterator: GcCell::new(None),
-            iteration_types_of_iterator_result: GcCell::new(None),
+            symbol: Default::default(),
+            pattern: Default::default(),
+            alias_symbol: Default::default(),
+            alias_type_arguments: Default::default(),
+            alias_type_arguments_contains_marker: Default::default(),
+            permissive_instantiation: Default::default(),
+            restrictive_instantiation: Default::default(),
+            immediate_base_constraint: Default::default(),
+            widened: Default::default(),
+            resolved_base_constraint: Default::default(),
+            resolved_index_type: Default::default(),
+            resolved_string_index_type: Default::default(),
+            synthetic_type: Default::default(),
+            default_only_type: Default::default(),
+            promise_type_of_promise_constructor: Default::default(),
+            promised_type_of_promise: Default::default(),
+            awaited_type_of_type: Default::default(),
+            iteration_types_of_generator_return_type: Default::default(),
+            iteration_types_of_async_generator_return_type: Default::default(),
+            iteration_types_of_iterable: Default::default(),
+            iteration_types_of_iterator: Default::default(),
+            iteration_types_of_async_iterable: Default::default(),
+            iteration_types_of_async_iterator: Default::default(),
+            iteration_types_of_iterator_result: Default::default(),
         }
     }
 }
@@ -712,11 +713,11 @@ impl TypeInterface for BaseType {
         self.alias_symbol.borrow_mut()
     }
 
-    fn maybe_alias_type_arguments(&self) -> Option<Vec<Gc<Type>>> {
+    fn maybe_alias_type_arguments(&self) -> Option<GcVec<Gc<Type>>> {
         self.alias_type_arguments.borrow().clone()
     }
 
-    fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Type>>>> {
         self.alias_type_arguments.borrow_mut()
     }
 

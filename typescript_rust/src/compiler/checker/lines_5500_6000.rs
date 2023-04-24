@@ -284,7 +284,7 @@ impl NodeBuilder {
                     passed_if_condition = true;
                     type_arguments = Some(
                         signature_target_type_parameters
-                            .into_iter()
+                            .iter()
                             .map(|parameter| {
                                 self.type_to_type_node_helper(
                                     Some(self.type_checker.instantiate_type(
@@ -307,8 +307,8 @@ impl NodeBuilder {
                     .as_ref()
                     .map(|signature_type_parameters| {
                         signature_type_parameters
-                            .into_iter()
-                            .map(|parameter| {
+                            .iter()
+                            .map(|ref parameter| {
                                 self.type_parameter_to_declaration_(parameter, context, None)
                             })
                             .collect()

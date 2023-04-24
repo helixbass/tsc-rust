@@ -169,10 +169,10 @@ pub trait ResolvedTypeInterface:
     fn properties(&self) -> GcVec<Gc<Symbol>>;
     fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Symbol>>>, GcVec<Gc<Symbol>>>;
     fn set_properties(&self, properties: GcVec<Gc<Symbol>>);
-    fn call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
-    fn set_call_signatures(&self, call_signatures: Vec<Gc<Signature>>);
-    fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
-    fn set_construct_signatures(&self, construct_signatures: Vec<Gc<Signature>>);
+    fn call_signatures(&self) -> GcVec<Gc<Signature>>;
+    fn set_call_signatures(&self, call_signatures: GcVec<Gc<Signature>>);
+    fn construct_signatures(&self) -> GcVec<Gc<Signature>>;
+    fn set_construct_signatures(&self, construct_signatures: GcVec<Gc<Signature>>);
     fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>>;
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Gc<Type>>;
     fn set_object_type_without_abstract_construct_signatures(
@@ -578,7 +578,7 @@ pub struct Signature {
     #[unsafe_ignore_trace]
     pub flags: SignatureFlags,
     pub declaration: Option<Gc<Node /*SignatureDeclaration | JSDocSignature*/>>,
-    type_parameters: GcCell<Option<Vec<Gc<Type /*TypeParameter*/>>>>,
+    type_parameters: GcCell<Option<GcVec<Gc<Type /*TypeParameter*/>>>>,
     parameters: Option<Vec<Gc<Symbol>>>,
     this_parameter: GcCell<Option<Gc<Symbol>>>,
     resolved_return_type: GcCell<Option<Gc<Type>>>,
@@ -624,11 +624,11 @@ impl Signature {
         }
     }
 
-    pub fn maybe_type_parameters(&self) -> GcCellRef<Option<Vec<Gc<Type>>>> {
-        self.type_parameters.borrow()
+    pub fn maybe_type_parameters(&self) -> Option<GcVec<Gc<Type>>> {
+        self.type_parameters.borrow().clone()
     }
 
-    pub fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
+    pub fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Type>>>> {
         self.type_parameters.borrow_mut()
     }
 
@@ -767,8 +767,8 @@ pub struct TypeMapperSimple {
 
 #[derive(Clone, Debug, Finalize, Trace)]
 pub struct TypeMapperArray {
-    pub sources: Vec<Gc<Type>>,
-    pub targets: Option<Vec<Gc<Type>>>,
+    pub sources: GcVec<Gc<Type>>,
+    pub targets: Option<GcVec<Gc<Type>>>,
 }
 
 pub trait TypeMapperCallback: Trace + Finalize {
@@ -798,7 +798,7 @@ impl TypeMapper {
         Self::Simple(TypeMapperSimple { source, target })
     }
 
-    pub fn new_array(sources: Vec<Gc<Type>>, targets: Option<Vec<Gc<Type>>>) -> Self {
+    pub fn new_array(sources: GcVec<Gc<Type>>, targets: Option<GcVec<Gc<Type>>>) -> Self {
         Self::Array(TypeMapperArray { sources, targets })
     }
 
