@@ -362,10 +362,8 @@ pub mod collections {
     // TODO: did this to avoid a compiler overflow trying to resolve traits
     unsafe impl<TValue: Trace + Finalize + 'static> Trace for Metadata<TValue> {
         gc::custom_trace!(this, {
-            unsafe {
-                mark(&this._parent);
-                mark(&this._map);
-            }
+            mark(&this._parent);
+            mark(&this._map);
         });
     }
     impl<TValue: Trace + Finalize + 'static> Finalize for Metadata<TValue> {}

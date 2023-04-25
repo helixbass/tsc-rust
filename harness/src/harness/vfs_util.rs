@@ -436,7 +436,7 @@ pub mod vfs {
             );
         }
 
-        pub fn rimraf_sync(&self, path: &str) {
+        pub fn rimraf_sync(&self, _path: &str) {
             unimplemented!()
         }
 
@@ -484,7 +484,7 @@ pub mod vfs {
             )
         }
 
-        pub fn utimes_sync(&self, path: &str, atime: SystemTime, mtime: SystemTime) {
+        pub fn utimes_sync(&self, _path: &str, _atime: SystemTime, _mtime: SystemTime) {
             unimplemented!()
         }
 
@@ -575,11 +575,11 @@ pub mod vfs {
             );
         }
 
-        pub fn link_sync(&self, oldpath: &str, newpath: &str) {
+        pub fn link_sync(&self, _oldpath: &str, _newpath: &str) {
             unimplemented!()
         }
 
-        pub fn unlink_sync(&self, path: &str) {
+        pub fn unlink_sync(&self, _path: &str) {
             unimplemented!()
         }
 
@@ -1523,6 +1523,26 @@ pub mod vfs {
 
         pub fn is_directory(&self) -> bool {
             self.mode & S_IFMT == S_IFDIR
+        }
+
+        pub fn is_symbolic_link(&self) -> bool {
+            self.mode & S_IFMT == S_IFLNK
+        }
+
+        pub fn is_block_device(&self) -> bool {
+            self.mode & S_IFMT == S_IFBLK
+        }
+
+        pub fn is_character_device(&self) -> bool {
+            self.mode & S_IFMT == S_IFCHR
+        }
+
+        pub fn is_fifo(&self) -> bool {
+            self.mode & S_IFMT == S_IFIFO
+        }
+
+        pub fn is_socket(&self) -> bool {
+            self.mode & S_IFMT == S_IFSOCK
         }
     }
 

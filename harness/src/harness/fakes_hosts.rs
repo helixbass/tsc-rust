@@ -1,7 +1,7 @@
 pub mod fakes {
     use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
     use std::borrow::Cow;
-    use std::cell::{Cell, Ref, RefCell};
+    use std::cell::{Cell, RefCell};
     use std::collections::HashMap;
     use std::io;
     use std::mem;
@@ -220,7 +220,7 @@ pub mod fakes {
             )
         }
 
-        fn exit(&self, exit_code: Option<ExitStatus>) -> ! {
+        fn exit(&self, _exit_code: Option<ExitStatus>) -> ! {
             // this.exitCode = exitCode;
             // throw processExitSentinel;
             panic!("System exit");
@@ -306,10 +306,10 @@ pub mod fakes {
 
         fn watch_file(
             &self,
-            path: &str,
-            callback: FileWatcherCallback,
-            polling_interval: Option<u32>,
-            options: Option<&WatchOptions>,
+            _path: &str,
+            _callback: FileWatcherCallback,
+            _polling_interval: Option<u32>,
+            _options: Option<&WatchOptions>,
             // TODO: shouldn't this return type be Option<...> (same with watch_directory())?
         ) -> Rc<dyn FileWatcher> {
             unreachable!()
@@ -321,10 +321,10 @@ pub mod fakes {
 
         fn watch_directory(
             &self,
-            path: &str,
-            callback: DirectoryWatcherCallback,
-            recursive: Option<bool>,
-            options: Option<&WatchOptions>,
+            _path: &str,
+            _callback: DirectoryWatcherCallback,
+            _recursive: Option<bool>,
+            _options: Option<&WatchOptions>,
         ) -> Rc<dyn FileWatcher> {
             unreachable!()
         }
@@ -587,14 +587,15 @@ pub mod fakes {
             file_name: &str,
             content: &str,
             write_byte_order_mark: bool,
-            on_error: Option<&mut dyn FnMut(&str)>,
-            source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
         ) {
             let mut content = content.to_owned();
             if write_byte_order_mark {
                 content = Utils::add_utf8_byte_order_mark(content);
             }
-            self.sys.write_file(file_name, &content, None);
+            // TODO: is this correct to ignore here?
+            let _ = self.sys.write_file(file_name, &content, None);
 
             let mut document = documents::TextDocument::new(file_name.to_owned(), content, None);
             document
@@ -650,8 +651,8 @@ pub mod fakes {
             &self,
             file_name: &str,
             language_version: ScriptTarget,
-            on_error: Option<&mut dyn FnMut(&str)>,
-            should_create_new_source_file: Option<bool>,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _should_create_new_source_file: Option<bool>,
         ) -> Option<Gc<Node /*SourceFile*/>> {
             let canonical_file_name = self.get_canonical_file_name(&vpath::resolve(
                 &typescript_rust::CompilerHost::get_current_directory(self),
@@ -767,7 +768,7 @@ pub mod fakes {
 
         fn set_overriding_create_directory(
             &self,
-            overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }

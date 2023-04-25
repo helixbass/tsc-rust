@@ -9,7 +9,7 @@ pub mod compiler {
         get_pre_emit_diagnostics, is_option_str_empty, length, some, Comparison, CompilerOptions,
         CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticMessage,
         DiagnosticRelatedInformation, EmitResult, Extension, ModuleKind, NewLineKind, Node,
-        Program, ScriptTarget, SourceFileLike,
+        NonEmpty, Program, ScriptTarget, SourceFileLike,
     };
 
     use crate::{
@@ -285,7 +285,7 @@ pub mod compiler {
                 } else {
                     self.options.out_dir.as_deref()
                 };
-                if let Some(out_dir) = out_dir.filter(|out_dir| !out_dir.is_empty()) {
+                if out_dir.is_non_empty() {
                     let common = self.common_source_directory();
                     if !common.is_empty() {
                         path = vpath::relative(

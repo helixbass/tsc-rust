@@ -1,3 +1,4 @@
+#![allow(non_upper_case_globals, non_snake_case)]
 use gc::Gc;
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -8,7 +9,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use std::rc::Rc;
 
 use typescript_rust::{
     create_compiler_host_worker, create_program, format_diagnostics,
@@ -5655,7 +5655,7 @@ fn get_command_line_option(name: &str) -> Option<Gc<CommandLineOption>> {
             .get_or_insert_with(|| {
                 let mut options_index_ = HashMap::new();
                 option_declarations.with(|option_declarations_| {
-                    for option in option_declarations_ {
+                    for option in &**option_declarations_ {
                         options_index_.insert(option.name().to_lowercase(), option.clone());
                     }
                 });

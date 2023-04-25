@@ -50,8 +50,8 @@ pub trait ServerHost: System {
     ) -> TimeoutId /*any*/;
     fn clear_immediate(&self, timeout_id: TimeoutId);
     fn gc(&self) {}
-    fn trace(&self, s: &str) {}
-    fn require(&self, initial_path: &str, module_name: &str) -> Option<RequireResult> {
+    fn trace(&self, _s: &str) {}
+    fn require(&self, _initial_path: &str, _module_name: &str) -> Option<RequireResult> {
         None
     }
 }

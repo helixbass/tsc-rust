@@ -1,3 +1,4 @@
+#![allow(non_upper_case_globals, non_snake_case)]
 #[macro_use]
 extern crate lazy_static;
 

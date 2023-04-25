@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path as StdPath;
 
 use harness::{
-    after, before, compiler, describe, get_file_based_test_configuration_description,
+    compiler, describe, get_file_based_test_configuration_description,
     get_file_based_test_configurations, it, vpath, with_io, Compiler, EnumerateFilesOptions,
     FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub, StringOrFileBasedTest,
     TestCaseParser, TestRunnerKind, IO,
@@ -162,7 +162,7 @@ impl CompilerBaselineRunner {
     }
 
     fn parse_options(&self) {
-        if let Some(options) = self.options.as_ref().filter(|options| !options.is_empty()) {
+        if let Some(_options) = self.options.as_ref().filter(|options| !options.is_empty()) {
             unimplemented!()
         }
     }
@@ -215,6 +215,7 @@ impl RunnerBaseSub for CompilerBaselineRunner {
     }
 }
 
+#[allow(dead_code)]
 struct CompilerTest {
     file_name: String,
     just_name: String,

@@ -251,6 +251,7 @@ pub fn get_light_mode() -> bool {
     light_mode_.with(|light_mode| light_mode.get())
 }
 
+#[allow(dead_code)]
 pub fn set_light_mode(flag: bool) {
     light_mode_.with(|light_mode| {
         light_mode.set(flag);
@@ -277,7 +278,7 @@ pub mod Compiler {
         CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
         CompilerOptionsValue, Diagnostic, DiagnosticInterface,
         DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost, NewLineKind,
-        Number, StringOrDiagnosticMessage, TextSpan,
+        StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
@@ -1831,16 +1832,16 @@ pub mod TestCaseParser {
 
         fn read_directory(
             &self,
-            root_dir: &str,
-            extensions: &[&str],
-            excludes: Option<&[String]>,
-            includes: &[String],
-            depth: Option<usize>,
+            _root_dir: &str,
+            _extensions: &[&str],
+            _excludes: Option<&[String]>,
+            _includes: &[String],
+            _depth: Option<usize>,
         ) -> Vec<String> {
             vec![]
         }
 
-        fn file_exists(&self, path: &str) -> bool {
+        fn file_exists(&self, _path: &str) -> bool {
             true
         }
 
