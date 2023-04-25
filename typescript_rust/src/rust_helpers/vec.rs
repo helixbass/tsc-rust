@@ -87,8 +87,12 @@ impl<TItem: Clone + Trace + Finalize + 'static> Iterator for GcVecOwnedIter<TIte
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.gc_vec.len() - 1 - self.index;
-        (remaining, Some(remaining))
+        if self.index >= self.gc_vec.len() {
+            (0, Some(0))
+        } else {
+            let remaining = self.gc_vec.len() - 1 - self.index;
+            (remaining, Some(remaining))
+        }
     }
 }
 

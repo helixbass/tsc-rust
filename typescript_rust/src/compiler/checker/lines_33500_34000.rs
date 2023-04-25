@@ -205,11 +205,11 @@ impl TypeChecker {
                 && self.is_const_context(&parent.parent())
     }
 
-    pub(super) fn check_expression_for_mutable_location<TContextualType: Borrow<Type>>(
+    pub(super) fn check_expression_for_mutable_location(
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-        contextual_type: Option<TContextualType>,
+        contextual_type: Option<impl Borrow<Type>>,
         force_tuple: Option<bool>,
     ) -> Gc<Type> {
         let type_ = self.check_expression(node, check_mode, force_tuple);

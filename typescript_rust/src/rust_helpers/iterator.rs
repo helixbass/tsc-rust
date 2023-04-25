@@ -41,11 +41,15 @@ where
     I: Iterator,
 {
     fn is_len_greater_than(&mut self, n: usize) -> bool {
-        self.peek_nth(n + 1).is_some()
+        self.peek_nth(n).is_some()
     }
 
     fn is_len_equal_to(&mut self, n: usize) -> bool {
-        self.peek_nth(n).is_some() && self.peek_nth(n + 1).is_none()
+        (if n == 0 {
+            true
+        } else {
+            self.peek_nth(n - 1).is_some()
+        }) && self.peek_nth(n).is_none()
     }
 }
 

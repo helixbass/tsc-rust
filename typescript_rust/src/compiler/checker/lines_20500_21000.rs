@@ -522,12 +522,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_widened_literal_like_type_for_contextual_type<
-        TContextualType: Borrow<Type>,
-    >(
+    pub(super) fn get_widened_literal_like_type_for_contextual_type(
         &self,
         type_: &Type,
-        contextual_type: Option<TContextualType>,
+        contextual_type: Option<impl Borrow<Type>>,
     ) -> Gc<Type> {
         let mut type_ = type_.type_wrapper();
         if !self.is_literal_of_contextual_type(&type_, contextual_type) {
