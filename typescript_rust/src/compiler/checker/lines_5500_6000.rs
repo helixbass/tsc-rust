@@ -581,7 +581,7 @@ impl NodeBuilder {
                             }),
                     ),
                     type_parameters,
-                    parameters,
+                    Some(parameters),
                     return_type_node,
                     get_factory().create_block(vec![], None).wrap(),
                 )

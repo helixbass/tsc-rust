@@ -980,8 +980,10 @@ dependencies = [
  "clap",
  "gc",
  "harness",
+ "itertools",
  "lazy_static",
  "regex",
+ "speculoos",
  "tokio",
  "typescript_rust",
 ]
@@ -1049,7 +1051,6 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "speculoos",
  "uri_encode",
 ]
 

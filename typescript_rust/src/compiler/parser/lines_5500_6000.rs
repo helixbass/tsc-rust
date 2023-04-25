@@ -382,7 +382,7 @@ impl ParserType {
             asterisk_token,
             name,
             type_parameters,
-            parameters,
+            Some(parameters),
             type_,
             body,
         );

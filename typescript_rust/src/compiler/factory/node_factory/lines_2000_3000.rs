@@ -1148,7 +1148,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         asterisk_token: Option<Gc<Node>>,
         name: Option<impl Into<StrOrRcNode<'name>>>,
         type_parameters: Option<impl Into<NodeArrayOrVec>>,
-        parameters: impl Into<NodeArrayOrVec>,
+        parameters: Option<impl Into<NodeArrayOrVec>>,
         type_: Option<Gc<Node>>,
         body: Gc<Node>,
     ) -> FunctionExpression {
@@ -1158,7 +1158,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             modifiers,
             name,
             type_parameters,
-            Some(parameters),
+            parameters,
             type_,
             Some(body),
         );
@@ -1224,7 +1224,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                     asterisk_token,
                     name,
                     type_parameters,
-                    parameters,
+                    Some(parameters),
                     type_,
                     body,
                 )

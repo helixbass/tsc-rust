@@ -73,7 +73,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                     .maybe_type_parameters()
                     .as_ref()
                     .map(Clone::clone),
-                node_as_function_declaration.parameters().clone(),
+                Some(node_as_function_declaration.parameters().clone()),
                 node_as_function_declaration.maybe_type(),
                 node_as_function_declaration.maybe_body().unwrap(),
             )

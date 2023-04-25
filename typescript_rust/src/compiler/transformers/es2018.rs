@@ -2405,7 +2405,7 @@ impl TransformES2018 {
                                         .get_generated_name_for_node(Some(node_name), None)
                                 }),
                             Option::<Gc<NodeArray>>::None,
-                            vec![],
+                            Some(vec![]),
                             None,
                             self.factory.update_block(
                                 &node_as_function_like_declaration.maybe_body().unwrap(),

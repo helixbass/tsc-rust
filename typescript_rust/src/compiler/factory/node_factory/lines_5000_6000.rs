@@ -3,15 +3,17 @@ use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, every, has_node_array_changed, is_outer_expression,
-    is_statement_or_block, set_original_node, single_or_undefined, BaseNodeFactory,
-    BaseUnparsedNode, Bundle, CommaListExpression, Debug_, EnumMember, FileReference,
-    HasInitializerInterface, HasStatementsInterface, InputFiles, LanguageVariant, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, OuterExpressionKinds, PartiallyEmittedExpression, PropertyAssignment,
-    ReadonlyTextRange, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
-    SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags, Type,
-    UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
+    are_option_gcs_equal, are_option_rcs_equal, every, has_node_array_changed,
+    is_binary_expression, is_comma_list_expression, is_comma_token, is_outer_expression,
+    is_parse_tree_node, is_statement_or_block, node_is_synthesized, same_flat_map_rc_node,
+    set_original_node, single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle,
+    CommaListExpression, Debug_, EnumMember, FileReference, HasInitializerInterface,
+    HasStatementsInterface, InputFiles, LanguageVariant, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
+    PartiallyEmittedExpression, PropertyAssignment, ReadonlyTextRange, ScriptKind, ScriptTarget,
+    ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
+    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
@@ -485,11 +487,52 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
     }
 
+    fn flatten_comma_elements(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> SingleOrVec<Gc<Node /*Expression*/>> {
+        if node_is_synthesized(node)
+            && !is_parse_tree_node(node)
+            && node.maybe_original().is_none()
+            && node.maybe_emit_node().is_none()
+            && node.maybe_id().is_none()
+        {
+            if is_comma_list_expression(node) {
+                return node.as_comma_list_expression().elements.to_vec().into();
+            }
+            if is_binary_expression(node) {
+                let node_as_binary_expression = node.as_binary_expression();
+                if is_comma_token(&node_as_binary_expression.operator_token) {
+                    return vec![
+                        node_as_binary_expression.left.clone(),
+                        node_as_binary_expression.right.clone(),
+                    ]
+                    .into();
+                }
+            }
+        }
+        node.node_wrapper().into()
+    }
+
     pub fn create_comma_list_expression(
         &self,
-        _elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
+        elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> CommaListExpression {
-        unimplemented!()
+        let elements = elements.into();
+        let node = self.create_base_node(SyntaxKind::CommaListExpression);
+        let node = CommaListExpression::new(
+            node,
+            self.create_node_array(
+                Some(same_flat_map_rc_node(elements, |element: &Gc<Node>, _| {
+                    self.flatten_comma_elements(element)
+                })),
+                None,
+            ),
+        );
+        node.set_transform_flags(
+            node.transform_flags() | propagate_children_flags(Some(&node.elements)),
+        );
+        node
     }
 
     pub fn update_comma_list_expression(

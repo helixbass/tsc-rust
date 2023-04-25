@@ -13,7 +13,8 @@ use std::mem;
 use std::rc::Rc;
 
 use crate::{
-    __String, text_char_at_index, Comparison, Debug_, PeekableExt, SortedArray, SourceTextAsChars,
+    __String, text_char_at_index, Comparison, Debug_, Node, NodeArrayOrVec, PeekableExt,
+    SortedArray, SourceTextAsChars,
 };
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
@@ -353,6 +354,52 @@ pub fn flat_map_to_mutable<
     mapfn: TCallback,
 ) -> Vec<TReturn> {
     flat_map(array, mapfn)
+}
+
+pub fn same_flat_map_rc_node(
+    array: NodeArrayOrVec,
+    mut mapfn: impl FnMut(&Gc<Node>, usize) -> SingleOrVec<Gc<Node>>,
+) -> NodeArrayOrVec {
+    let mut result: Option<Vec<Gc<Node>>> = Default::default();
+    // if (array) {
+    for (i, item) in array.iter().enumerate() {
+        let mapped = mapfn(item, i);
+        if result.is_some()
+            || match &mapped {
+                SingleOrVec::Single(mapped) => !Gc::ptr_eq(item, mapped),
+                SingleOrVec::Vec(_) => true,
+            }
+        {
+            let result = result.get_or_insert_with(|| array[..i].to_owned());
+            match mapped {
+                SingleOrVec::Vec(mapped) => {
+                    add_range(result, Some(&mapped), None, None);
+                }
+                SingleOrVec::Single(mapped) => {
+                    result.push(mapped);
+                }
+            }
+        }
+    }
+    // }
+    result.map_or(array, Into::into)
+}
+
+pub enum SingleOrVec<TItem> {
+    Single(TItem),
+    Vec(Vec<TItem>),
+}
+
+impl<TItem> From<TItem> for SingleOrVec<TItem> {
+    fn from(value: TItem) -> Self {
+        Self::Single(value)
+    }
+}
+
+impl<TItem> From<Vec<TItem>> for SingleOrVec<TItem> {
+    fn from(value: Vec<TItem>) -> Self {
+        Self::Vec(value)
+    }
 }
 
 pub fn map_defined<TCollection: IntoIterator, TReturn>(
