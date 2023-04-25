@@ -164,7 +164,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.parent()
                     }
 
-                    fn set_parent(&self, parent: ::gc::Gc<crate::Node>) {
+                    fn set_parent(&self, parent: ::std::option::Option<::gc::Gc<crate::Node>>) {
                         self.#first_field_name.set_parent(parent)
                     }
 
@@ -662,7 +662,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_parent(&self, parent: ::gc::Gc<crate::Node>) {
+                    fn set_parent(&self, parent: ::std::option::Option<::gc::Gc<crate::Node>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_parent(parent)),*
                         }

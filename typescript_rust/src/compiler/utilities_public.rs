@@ -412,9 +412,10 @@ pub fn get_original_node(
 ) -> Option<Gc<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
 
-    if let Some(node_present) = node.clone() {
+    if let Some(mut node_present) = node.as_ref() {
         while let Some(node_original) = node_present.maybe_original() {
             node = Some(node_original);
+            node_present = node.as_ref().unwrap();
         }
     }
 

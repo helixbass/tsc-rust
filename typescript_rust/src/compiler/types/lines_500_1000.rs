@@ -190,7 +190,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_id_override(&self, id_override: Gc<Box<dyn NodeIdOverride>>);
     fn maybe_parent(&self) -> Option<Gc<Node>>;
     fn parent(&self) -> Gc<Node>;
-    fn set_parent(&self, parent: Gc<Node>);
+    fn set_parent(&self, parent: Option<Gc<Node>>);
     fn maybe_original(&self) -> Option<Gc<Node>>;
     fn set_original(&self, original: Option<Gc<Node>>);
     fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
@@ -1867,8 +1867,8 @@ impl NodeInterface for BaseNode {
         self.parent.borrow().clone().unwrap()
     }
 
-    fn set_parent(&self, parent: Gc<Node>) {
-        *self.parent.borrow_mut() = Some(parent);
+    fn set_parent(&self, parent: Option<Gc<Node>>) {
+        *self.parent.borrow_mut() = parent;
     }
 
     fn maybe_original(&self) -> Option<Gc<Node>> {

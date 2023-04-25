@@ -234,7 +234,7 @@ pub fn set_node_flags(node: Option<impl Borrow<Node>>, new_flags: NodeFlags) -> 
 pub fn set_parent(child: &Node, parent: Option<impl Borrow<Node>>) -> &Node {
     if let Some(parent) = parent {
         let parent = parent.borrow();
-        child.set_parent(parent.node_wrapper());
+        child.set_parent(Some(parent.node_wrapper()));
     }
     child
 }
@@ -246,7 +246,7 @@ pub fn maybe_set_parent<TChild: Borrow<Node>>(
     if let Some(child) = child.as_ref() {
         let child = child.borrow();
         if let Some(parent) = parent {
-            child.set_parent(parent.clone());
+            child.set_parent(Some(parent.clone()));
         }
     }
     child

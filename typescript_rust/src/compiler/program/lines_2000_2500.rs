@@ -977,7 +977,7 @@ impl Program {
                     || file.as_source_file().is_declaration_file())
             {
                 let node_name = node.as_named_declaration().name();
-                node_name.set_parent(node.node_wrapper());
+                node_name.set_parent(Some(node.node_wrapper()));
                 let name_text = get_text_of_identifier_or_literal(&node_name);
                 if is_external_module_file
                     || (in_ambient_module && !is_external_module_name_relative(&name_text))
