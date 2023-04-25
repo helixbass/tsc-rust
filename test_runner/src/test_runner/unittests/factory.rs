@@ -224,4 +224,48 @@ mod tests {
             );
         }
     }
+
+    mod create_binary_expression {
+        use super::*;
+
+        #[test]
+        fn test_parenthesizes_arrow_function_in_rhs_if_necessary() {
+            let factory = get_factory();
+            let lhs = factory
+                .create_identifier("foo", Option::<Gc<NodeArray>>::None, None)
+                .wrap();
+            let rhs = factory
+                .create_arrow_function(
+                    Option::<Gc<NodeArray>>::None,
+                    Option::<Gc<NodeArray>>::None,
+                    vec![],
+                    None,
+                    None,
+                    factory.create_block(vec![], None).wrap(),
+                )
+                .wrap();
+            let check_rhs = |operator: SyntaxKind /*BinaryOperator*/, expect_parens: bool| {
+                let node = factory.create_binary_expression(lhs.clone(), operator, rhs.clone());
+                assert_syntax_kind(
+                    &node.right,
+                    if expect_parens {
+                        SyntaxKind::ParenthesizedExpression
+                    } else {
+                        SyntaxKind::ArrowFunction
+                    },
+                );
+            };
+
+            check_rhs(SyntaxKind::CommaToken, false);
+            check_rhs(SyntaxKind::EqualsToken, false);
+            check_rhs(SyntaxKind::PlusEqualsToken, false);
+            check_rhs(SyntaxKind::BarBarToken, true);
+            check_rhs(SyntaxKind::AmpersandAmpersandToken, true);
+            check_rhs(SyntaxKind::QuestionQuestionToken, true);
+            check_rhs(SyntaxKind::EqualsEqualsToken, true);
+            check_rhs(SyntaxKind::BarBarEqualsToken, false);
+            check_rhs(SyntaxKind::AmpersandAmpersandEqualsToken, false);
+            check_rhs(SyntaxKind::QuestionQuestionEqualsToken, false);
+        }
+    }
 }
