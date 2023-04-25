@@ -289,6 +289,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.set_transform_flags(TransformFlags::None);
         node.set_original(None);
         node.set_emit_node(None);
+        self.base_factory.update_cloned_node(&node);
 
         node.set_statements(self.create_node_array(Some(statements), None));
         node.set_end_of_file_token(source_as_source_file.end_of_file_token());
@@ -520,6 +521,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         clone.set_id(0);
         clone.set_modifier_flags_cache(ModifierFlags::None);
         clone.set_parent(None);
+        self.base_factory.update_cloned_node(&*clone);
 
         clone.set_flags(clone.flags() | (node.flags() & !NodeFlags::Synthesized));
         clone.set_transform_flags(node.transform_flags());

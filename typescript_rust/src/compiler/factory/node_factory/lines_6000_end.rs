@@ -596,8 +596,12 @@ thread_local! {
     pub(super) static base_factory_static: BaseNodeFactoryConcrete = create_base_node_factory();
 }
 
-pub(super) fn make_synthetic(node: BaseNode) -> BaseNode {
+pub(super) fn make_synthetic_ref(node: &impl NodeInterface) {
     node.set_flags(node.flags() | NodeFlags::Synthesized);
+}
+
+pub(super) fn make_synthetic(node: BaseNode) -> BaseNode {
+    make_synthetic_ref(&node);
     node
 }
 
@@ -673,6 +677,10 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
         make_synthetic(base_factory_static.with(|base_factory| base_factory.create_base_node(kind)))
+    }
+
+    fn update_cloned_node<TNode: NodeInterface>(&self, node: &TNode) {
+        make_synthetic_ref(node);
     }
 }
 
