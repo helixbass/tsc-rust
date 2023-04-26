@@ -981,6 +981,7 @@ dependencies = [
  "derive_builder",
  "gc",
  "harness",
+ "indexmap",
  "itertools",
  "lazy_static",
  "once_cell",

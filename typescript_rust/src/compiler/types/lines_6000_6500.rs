@@ -134,6 +134,10 @@ impl CompilerOptionsValue {
         enum_unwrapped!(self, [CompilerOptionsValue, Bool]).clone()
     }
 
+    pub fn as_option_string(&self) -> Option<&String> {
+        enum_unwrapped!(self, [CompilerOptionsValue, String]).as_ref()
+    }
+
     pub fn into_option_bool(self) -> Option<bool> {
         enum_unwrapped!(self, [CompilerOptionsValue, Bool])
     }
@@ -1859,7 +1863,8 @@ pub fn maybe_extend_compiler_options(
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Builder, Clone, Debug, Default, Eq, PartialEq)]
+#[builder(default, setter(into, strip_option))]
 pub struct WatchOptions {
     pub watch_file: Option<WatchFileKind>,
     pub watch_directory: Option<WatchDirectoryKind>,
@@ -2140,6 +2145,60 @@ pub enum CommandLineOptionMapTypeValue {
     PollingWatchKind(PollingWatchKind),
 }
 
+impl From<ScriptTarget> for CommandLineOptionMapTypeValue {
+    fn from(value: ScriptTarget) -> Self {
+        Self::ScriptTarget(value)
+    }
+}
+
+impl From<ModuleKind> for CommandLineOptionMapTypeValue {
+    fn from(value: ModuleKind) -> Self {
+        Self::ModuleKind(value)
+    }
+}
+
+impl From<JsxEmit> for CommandLineOptionMapTypeValue {
+    fn from(value: JsxEmit) -> Self {
+        Self::JsxEmit(value)
+    }
+}
+
+impl From<ImportsNotUsedAsValues> for CommandLineOptionMapTypeValue {
+    fn from(value: ImportsNotUsedAsValues) -> Self {
+        Self::ImportsNotUsedAsValues(value)
+    }
+}
+
+impl From<ModuleResolutionKind> for CommandLineOptionMapTypeValue {
+    fn from(value: ModuleResolutionKind) -> Self {
+        Self::ModuleResolutionKind(value)
+    }
+}
+
+impl From<NewLineKind> for CommandLineOptionMapTypeValue {
+    fn from(value: NewLineKind) -> Self {
+        Self::NewLineKind(value)
+    }
+}
+
+impl From<WatchFileKind> for CommandLineOptionMapTypeValue {
+    fn from(value: WatchFileKind) -> Self {
+        Self::WatchFileKind(value)
+    }
+}
+
+impl From<WatchDirectoryKind> for CommandLineOptionMapTypeValue {
+    fn from(value: WatchDirectoryKind) -> Self {
+        Self::WatchDirectoryKind(value)
+    }
+}
+
+impl From<PollingWatchKind> for CommandLineOptionMapTypeValue {
+    fn from(value: PollingWatchKind) -> Self {
+        Self::PollingWatchKind(value)
+    }
+}
+
 impl CommandLineOptionMapTypeValue {
     pub fn as_compiler_options_value(&self) -> CompilerOptionsValue {
         match self {
@@ -2235,29 +2294,38 @@ pub trait CommandLineOptionInterface {
     fn maybe_extra_validation(
         &self,
     ) -> Option<
-        fn(Option<&serde_json::Value>) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        Rc<
+            dyn Fn(
+                Option<&serde_json::Value>,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
     >;
     fn maybe_extra_validation_compiler_options_value(
         &self,
     ) -> Option<
-        fn(&CompilerOptionsValue) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        Rc<
+            dyn Fn(
+                &CompilerOptionsValue,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
     >;
 }
 
 #[derive(Builder)]
-#[builder(setter(into, strip_option))]
+#[builder(setter(strip_option))]
 pub struct CommandLineOptionBase {
     #[builder(setter(skip), default)]
     pub _command_line_option_wrapper: RefCell<Option<Gc<CommandLineOption>>>,
+    #[builder(setter(into))]
     pub name: String,
     pub type_: CommandLineOptionType,
     #[builder(default)]
     pub is_file_path: Option<bool>,
-    #[builder(default)]
+    #[builder(setter(into), default)]
     pub short_name: Option<String>,
     #[builder(default)]
     pub description: Option<&'static DiagnosticMessage>,
-    #[builder(default)]
+    #[builder(setter(into), default)]
     pub default_value_description: Option<StringOrDiagnosticMessage>,
     #[builder(default)]
     pub param_type: Option<&'static DiagnosticMessage>,
@@ -2285,7 +2353,22 @@ pub struct CommandLineOptionBase {
     pub affects_program_structure: Option<bool>,
     #[builder(default)]
     pub transpile_option_value: Option<Option<bool>>,
-    // extra_validation: Option<Box<dyn Fn(CompilerOptionsValue) -> (DiagnosticMessage, Vec<String>)>>,
+    #[builder(default)]
+    pub extra_validation: Option<
+        Rc<
+            dyn Fn(
+                Option<&serde_json::Value>,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
+    >,
+    #[builder(default)]
+    pub extra_validation_compiler_options_value: Option<
+        Rc<
+            dyn Fn(
+                &CompilerOptionsValue,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
+    >,
 }
 
 impl CommandLineOptionInterface for CommandLineOptionBase {
@@ -2376,17 +2459,25 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
     fn maybe_extra_validation(
         &self,
     ) -> Option<
-        fn(Option<&serde_json::Value>) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        Rc<
+            dyn Fn(
+                Option<&serde_json::Value>,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
     > {
-        None
+        self.extra_validation.clone()
     }
 
     fn maybe_extra_validation_compiler_options_value(
         &self,
     ) -> Option<
-        fn(&CompilerOptionsValue) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        Rc<
+            dyn Fn(
+                &CompilerOptionsValue,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
     > {
-        None
+        self.extra_validation_compiler_options_value.clone()
     }
 }
 

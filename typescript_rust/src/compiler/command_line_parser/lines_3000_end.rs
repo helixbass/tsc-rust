@@ -882,11 +882,11 @@ pub(super) fn matches_exclude_worker(
             .unwrap()
 }
 
-pub(super) fn validate_specs<TJsonSourceFile: Borrow<Node> + Clone>(
+pub(super) fn validate_specs(
     specs: &[String],
     errors: &mut Vec<Gc<Diagnostic>>,
     disallow_trailing_recursion: bool,
-    json_source_file: Option<TJsonSourceFile /*TsConfigSourceFile*/>,
+    json_source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
     spec_key: &str,
 ) -> Vec<String> {
     specs
@@ -905,7 +905,7 @@ pub(super) fn validate_specs<TJsonSourceFile: Borrow<Node> + Clone>(
             }
             diag_is_none
         })
-        .map(Clone::clone)
+        .cloned()
         .collect()
 }
 

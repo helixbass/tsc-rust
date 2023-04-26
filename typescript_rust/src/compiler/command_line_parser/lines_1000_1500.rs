@@ -13,11 +13,11 @@ use super::{
 use crate::{
     create_compiler_diagnostic, for_each, get_spelling_suggestion, starts_with, trim_string,
     AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
-    CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfBooleanType,
-    CommandLineOptionOfListType, CommandLineOptionOfStringType, CommandLineOptionType,
-    CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic, DiagnosticMessage,
-    Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, ModuleKind, ParsedCommandLineWithBaseOptions,
-    ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
+    CommandLineOptionBase, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
+    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
+    Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, ModuleKind,
+    ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -106,98 +106,37 @@ thread_local! {
 
 thread_local! {
     pub(crate) static options_for_build: Vec<Gc<CommandLineOption>> = vec![
-        CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "verbose".to_string(),
-            type_: CommandLineOptionType::Boolean,
-            is_file_path: None,
-            short_name: Some("v".to_owned()),
-            description: Some(&Diagnostics::Enable_verbose_logging),
-            default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: Some(&Diagnostics::Command_line_Options),
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        })
-        .into(),
-        CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "dry".to_string(),
-            type_: CommandLineOptionType::Boolean,
-            is_file_path: None,
-            short_name: Some("d".to_owned()),
-            description: Some(&Diagnostics::Show_what_would_be_built_or_deleted_if_specified_with_clean),
-            default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: Some(&Diagnostics::Command_line_Options),
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        })
-        .into(),
-        CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "force".to_string(),
-            type_: CommandLineOptionType::Boolean,
-            is_file_path: None,
-            short_name: Some("f".to_owned()),
-            description: Some(&Diagnostics::Build_all_projects_including_those_that_appear_to_be_up_to_date),
-            default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: Some(&Diagnostics::Command_line_Options),
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        })
-        .into(),
-        CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "clean".to_string(),
-            type_: CommandLineOptionType::Boolean,
-            is_file_path: None,
-            short_name: None,
-            description: Some(&Diagnostics::Delete_the_outputs_of_all_projects),
-            default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: Some(&Diagnostics::Command_line_Options),
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        })
-        .into(),
+        CommandLineOptionBaseBuilder::default()
+            .name("verbose")
+            .type_(CommandLineOptionType::Boolean)
+            .short_name("v")
+            .description(&Diagnostics::Enable_verbose_logging)
+            .default_value_description("false".to_owned())
+            .category(&Diagnostics::Command_line_Options)
+            .build().unwrap().try_into().unwrap(),
+        CommandLineOptionBaseBuilder::default()
+            .name("dry")
+            .type_(CommandLineOptionType::Boolean)
+            .short_name("d")
+            .description(&Diagnostics::Show_what_would_be_built_or_deleted_if_specified_with_clean)
+            .default_value_description("false".to_owned())
+            .category(&Diagnostics::Command_line_Options)
+            .build().unwrap().try_into().unwrap(),
+        CommandLineOptionBaseBuilder::default()
+            .name("force")
+            .type_(CommandLineOptionType::Boolean)
+            .short_name("f")
+            .description(&Diagnostics::Build_all_projects_including_those_that_appear_to_be_up_to_date)
+            .default_value_description("false".to_owned())
+            .category(&Diagnostics::Command_line_Options)
+            .build().unwrap().try_into().unwrap(),
+        CommandLineOptionBaseBuilder::default()
+            .name("clean".to_string())
+            .type_(CommandLineOptionType::Boolean)
+            .description(&Diagnostics::Delete_the_outputs_of_all_projects)
+            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+            .category(&Diagnostics::Command_line_Options)
+            .build().unwrap().try_into().unwrap(),
     ];
 }
 
@@ -217,169 +156,41 @@ thread_local! {
 
 thread_local! {
     pub(crate) static type_acquisition_declarations: GcVec<Gc<CommandLineOption>> = vec![
-        CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "enableAutoDiscovery".to_string(),
-            type_: CommandLineOptionType::Boolean,
-            is_file_path: None,
-            short_name: None,
-            description: None,
-            default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: None,
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        })
-        .into(),
-        CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "enable".to_string(),
-            type_: CommandLineOptionType::Boolean,
-            is_file_path: None,
-            short_name: None,
-            description: None,
-            default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: None,
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        })
-        .into(),
-        CommandLineOptionOfListType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "include".to_string(),
-            type_: CommandLineOptionType::List,
-            is_file_path: None,
-            short_name: None,
-            description: None,
-            default_value_description: None,
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: None,
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        },
-            CommandLineOptionOfStringType::new(CommandLineOptionBase {
-                _command_line_option_wrapper: RefCell::new(None),
-                name: "include".to_string(),
-                type_: CommandLineOptionType::String,
-                is_file_path: None,
-                short_name: None,
-                description: None,
-                default_value_description: None,
-                param_type: None,
-                is_tsconfig_only: None,
-                is_command_line_only: None,
-                show_in_simplified_help_view: None,
-                category: None,
-                strict_flag: None,
-                affects_source_file: None,
-                affects_module_resolution: None,
-                affects_bind_diagnostics: None,
-                affects_semantic_diagnostics: None,
-                affects_emit: None,
-                affects_program_structure: None,
-                transpile_option_value: None,
-            })
-            .into(),
+        CommandLineOptionBaseBuilder::default()
+                .name("enableAutoDiscovery".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .build().unwrap().try_into().unwrap(),
+        CommandLineOptionBaseBuilder::default()
+            .name("enable".to_string())
+            .type_(CommandLineOptionType::Boolean)
+            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+            .build().unwrap().try_into().unwrap(),
+        CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
+            .name("include".to_string())
+            .type_(CommandLineOptionType::List)
+            .build().unwrap(),
+        CommandLineOptionBaseBuilder::default()
+        .name("include".to_string())
+        .type_(CommandLineOptionType::String)
+            .build().unwrap().try_into().unwrap(),
         )
         .into(),
-        CommandLineOptionOfListType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "exclude".to_string(),
-            type_: CommandLineOptionType::List,
-            is_file_path: None,
-            short_name: None,
-            description: None,
-            default_value_description: None,
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: None,
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        },
-            CommandLineOptionOfStringType::new(CommandLineOptionBase {
-                _command_line_option_wrapper: RefCell::new(None),
-                name: "exclude".to_string(),
-                type_: CommandLineOptionType::String,
-                is_file_path: None,
-                short_name: None,
-                description: None,
-                default_value_description: None,
-                param_type: None,
-                is_tsconfig_only: None,
-                is_command_line_only: None,
-                show_in_simplified_help_view: None,
-                category: None,
-                strict_flag: None,
-                affects_source_file: None,
-                affects_module_resolution: None,
-                affects_bind_diagnostics: None,
-                affects_semantic_diagnostics: None,
-                affects_emit: None,
-                affects_program_structure: None,
-                transpile_option_value: None,
-            })
-            .into(),
+        CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
+            .name("exclude".to_string())
+            .type_(CommandLineOptionType::List)
+            .build().unwrap(),
+        CommandLineOptionBaseBuilder::default()
+                .name("exclude".to_string())
+                .type_(CommandLineOptionType::String)
+            .build().unwrap().try_into().unwrap(),
         )
         .into(),
-        CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
-            _command_line_option_wrapper: RefCell::new(None),
-            name: "disableFilenameBasedTypeAcquisition".to_string(),
-            type_: CommandLineOptionType::Boolean,
-            is_file_path: None,
-            short_name: None,
-            description: None,
-            default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
-            param_type: None,
-            is_tsconfig_only: None,
-            is_command_line_only: None,
-            show_in_simplified_help_view: None,
-            category: None,
-            strict_flag: None,
-            affects_source_file: None,
-            affects_module_resolution: None,
-            affects_bind_diagnostics: None,
-            affects_semantic_diagnostics: None,
-            affects_emit: None,
-            affects_program_structure: None,
-            transpile_option_value: None,
-        })
-        .into(),
+        CommandLineOptionBaseBuilder::default()
+            .name("disableFilenameBasedTypeAcquisition".to_string())
+            .type_(CommandLineOptionType::Boolean)
+            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+            .build().unwrap().try_into().unwrap(),
     ].into();
 }
 

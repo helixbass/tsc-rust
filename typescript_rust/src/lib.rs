@@ -437,8 +437,8 @@ pub use compiler::types::{
     UnparsedSyntheticReference, UnparsedTextLike, UserPreferences, UserPreferencesBuilder,
     VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
     VariableStatement, VarianceFlags, VisitResult, VisitResultInterface, VoidExpression,
-    WatchDirectoryFlags, WatchDirectoryKind, WatchFileKind, WatchOptions, WhileStatement,
-    WithStatement, WriteFileCallback, YieldExpression, __String,
+    WatchDirectoryFlags, WatchDirectoryKind, WatchFileKind, WatchOptions, WatchOptionsBuilder,
+    WhileStatement, WithStatement, WriteFileCallback, YieldExpression, __String,
 };
 use compiler::types::{
     AccessFlags, BundleBuildInfo, CommentDirectivesMap, EmitNode,

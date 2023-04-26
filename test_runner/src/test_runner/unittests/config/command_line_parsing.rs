@@ -806,11 +806,12 @@ mod parse_command_line {
 
     mod parses_command_line_null_for_tsconfig_only_option {
         use derive_builder::Builder;
+        use indexmap::IndexMap;
         use typescript_rust::{
             create_option_name_map, format_string_from_args, AlternateModeDiagnostics,
             CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionType,
-            DiagnosticMessage, DidYouMeanOptionsDiagnostics, GcVec, NonEmpty, OptionsNameMap,
-            VecExt,
+            DiagnosticMessage, DidYouMeanOptionsDiagnostics, GcVec, ModuleResolutionKind, NonEmpty,
+            OptionsNameMap, VecExt,
         };
 
         use super::*;
@@ -1100,6 +1101,236 @@ mod parse_command_line {
                         .build().unwrap()
                 );
             }
+        }
+
+        #[test]
+        fn test_option_of_type_object() {
+            verify_null(
+                VerifyNullBuilder::default()
+                    .option_name("paths")
+                    .diagnostic_message(&*Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line)
+                    .build().unwrap()
+            );
+        }
+
+        #[test]
+        fn test_option_of_type_list() {
+            verify_null(
+                VerifyNullBuilder::default()
+                    .option_name("rootDirs")
+                    .non_null_value("abc,xyz")
+                    .diagnostic_message(&*Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line)
+                    .build().unwrap()
+            );
+        }
+
+        #[test]
+        fn test_option_of_type_string() {
+            verify_null_non_included_option(VerifyNullNonIncludedOption {
+                type_: CommandLineOptionType::String,
+                non_null_value: Some("hello".to_owned()),
+            });
+        }
+
+        #[test]
+        fn test_option_of_type_number() {
+            verify_null_non_included_option(VerifyNullNonIncludedOption {
+                type_: CommandLineOptionType::Number,
+                non_null_value: Some("10".to_owned()),
+            });
+        }
+
+        #[test]
+        fn test_option_of_type_map_number_string() {
+            verify_null_non_included_option(VerifyNullNonIncludedOption {
+                type_: CommandLineOptionType::Map(IndexMap::from_iter([
+                    ("node", ModuleResolutionKind::NodeJs.into()),
+                    ("classic", ModuleResolutionKind::Classic.into()),
+                ])),
+                non_null_value: Some("node".to_owned()),
+            });
+        }
+    }
+
+    #[test]
+    fn test_allows_tsconfig_only_option_to_be_set_to_null() {
+        assert_parse_result(
+            ["--composite", "null", "-tsBuildInfoFile", "null", "0.ts"],
+            ParsedCommandLineBuilder::default()
+                .file_names(["0.ts".to_owned()])
+                .options(CompilerOptionsBuilder::default().build().unwrap())
+                .build()
+                .unwrap(),
+            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+        );
+    }
+
+    mod watch_options {
+        use typescript_rust::{
+            PollingWatchKind, WatchDirectoryKind, WatchFileKind, WatchOptions, WatchOptionsBuilder,
+        };
+
+        use super::*;
+
+        #[test]
+        fn test_parse_watch_file() {
+            assert_parse_result(
+                ["--watchFile", "UseFsEvents", "0.ts"],
+                ParsedCommandLineBuilder::default()
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(
+                        WatchOptionsBuilder::default()
+                            .watch_file(WatchFileKind::UseFsEvents)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
+        }
+
+        #[test]
+        fn test_parse_watch_directory() {
+            assert_parse_result(
+                ["--watchDirectory", "FixedPollingInterval", "0.ts"],
+                ParsedCommandLineBuilder::default()
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(
+                        WatchOptionsBuilder::default()
+                            .watch_directory(WatchDirectoryKind::FixedPollingInterval)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
+        }
+
+        #[test]
+        fn test_parse_fallback_polling() {
+            assert_parse_result(
+                ["--fallbackPolling", "PriorityInterval", "0.ts"],
+                ParsedCommandLineBuilder::default()
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(
+                        WatchOptionsBuilder::default()
+                            .fallback_polling(PollingWatchKind::PriorityInterval)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
+        }
+
+        #[test]
+        fn test_parse_synchronous_watch_directory() {
+            assert_parse_result(
+                ["--synchronousWatchDirectory", "0.ts"],
+                ParsedCommandLineBuilder::default()
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(
+                        WatchOptionsBuilder::default()
+                            .synchronous_watch_directory(true)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
+        }
+
+        #[test]
+        fn test_errors_on_missing_argument_to_fallback_polling() {
+            assert_parse_result(
+                ["0.ts", "--fallbackPolling"],
+                ParsedCommandLineBuilder::default()
+                    .errors([
+                        Gc::new(
+                            BaseDiagnostic::new(
+                                BaseDiagnosticRelatedInformationBuilder::default()
+                                    .message_text("Watch option 'fallbackPolling' requires a value of type string.".to_owned())
+                                    .category(Diagnostics::Watch_option_0_requires_a_value_of_type_1.category)
+                                    .code(Diagnostics::Watch_option_0_requires_a_value_of_type_1.code)
+                                    .build()
+                                    .unwrap(),
+                                None,
+                            )
+                            .into(),
+                        ),
+                        Gc::new(
+                            BaseDiagnostic::new(
+                                BaseDiagnosticRelatedInformationBuilder::default()
+                                    .message_text("Argument for '--fallbackPolling' option must be: 'fixedinterval', 'priorityinterval', 'dynamicpriority', 'fixedchunksize'.".to_owned())
+                                    .category(Diagnostics::Argument_for_0_option_must_be_Colon_1.category)
+                                    .code(Diagnostics::Argument_for_0_option_must_be_Colon_1.code)
+                                    .build()
+                                    .unwrap(),
+                                None,
+                            )
+                            .into(),
+                        ),
+                    ])
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(WatchOptions::default())
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
+        }
+
+        #[test]
+        fn test_parse_exclude_directories() {
+            assert_parse_result(
+                ["--excludeDirectories", "**/temp", "0.ts"],
+                ParsedCommandLineBuilder::default()
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(
+                        WatchOptionsBuilder::default()
+                            .exclude_directories(["**/temp".to_owned()])
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
+        }
+
+        #[test]
+        fn test_errors_on_invalid_exclude_directories() {
+            assert_parse_result(
+                ["--excludeDirectories", "**/../*", "0.ts"],
+                ParsedCommandLineBuilder::default()
+                    .errors([
+                        Gc::new(
+                            BaseDiagnostic::new(
+                                BaseDiagnosticRelatedInformationBuilder::default()
+                                    .message_text("File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../*'.".to_owned())
+                                    .category(Diagnostics::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0.category)
+                                    .code(Diagnostics::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0.code)
+                                    .build()
+                                    .unwrap(),
+                                None,
+                            )
+                            .into(),
+                        ),
+                    ])
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(
+                        WatchOptionsBuilder::default()
+                            .exclude_directories([])
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
         }
     }
 }
