@@ -982,6 +982,7 @@ dependencies = [
  "harness",
  "itertools",
  "lazy_static",
+ "once_cell",
  "regex",
  "speculoos",
  "tokio",
