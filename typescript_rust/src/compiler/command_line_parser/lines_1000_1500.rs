@@ -388,9 +388,7 @@ pub struct OptionsNameMap {
     pub short_option_names: HashMap<String, String>,
 }
 
-pub(crate) fn create_option_name_map(
-    option_declarations_: &[Gc<CommandLineOption>],
-) -> OptionsNameMap {
+pub fn create_option_name_map(option_declarations_: &[Gc<CommandLineOption>]) -> OptionsNameMap {
     let mut options_name_map = HashMap::new();
     let mut short_option_names = HashMap::new();
     for_each(option_declarations_, |option, _| {

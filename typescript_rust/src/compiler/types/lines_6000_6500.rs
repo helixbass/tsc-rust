@@ -2164,7 +2164,7 @@ impl CommandLineOptionMapTypeValue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum CommandLineOptionType {
     String,
     Number,
@@ -2191,10 +2191,22 @@ impl CommandLineOptionType {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum StringOrDiagnosticMessage {
     String(String),
     DiagnosticMessage(&'static DiagnosticMessage),
+}
+
+impl From<String> for StringOrDiagnosticMessage {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<&'static DiagnosticMessage> for StringOrDiagnosticMessage {
+    fn from(value: &'static DiagnosticMessage) -> Self {
+        Self::DiagnosticMessage(value)
+    }
 }
 
 pub trait CommandLineOptionInterface {
@@ -2232,26 +2244,46 @@ pub trait CommandLineOptionInterface {
     >;
 }
 
+#[derive(Builder)]
+#[builder(setter(into, strip_option))]
 pub struct CommandLineOptionBase {
+    #[builder(setter(skip), default)]
     pub _command_line_option_wrapper: RefCell<Option<Gc<CommandLineOption>>>,
     pub name: String,
     pub type_: CommandLineOptionType,
+    #[builder(default)]
     pub is_file_path: Option<bool>,
+    #[builder(default)]
     pub short_name: Option<String>,
+    #[builder(default)]
     pub description: Option<&'static DiagnosticMessage>,
+    #[builder(default)]
     pub default_value_description: Option<StringOrDiagnosticMessage>,
+    #[builder(default)]
     pub param_type: Option<&'static DiagnosticMessage>,
+    #[builder(default)]
     pub is_tsconfig_only: Option<bool>,
+    #[builder(default)]
     pub is_command_line_only: Option<bool>,
+    #[builder(default)]
     pub show_in_simplified_help_view: Option<bool>,
+    #[builder(default)]
     pub category: Option<&'static DiagnosticMessage>,
+    #[builder(default)]
     pub strict_flag: Option<bool>,
+    #[builder(default)]
     pub affects_source_file: Option<bool>,
+    #[builder(default)]
     pub affects_module_resolution: Option<bool>,
+    #[builder(default)]
     pub affects_bind_diagnostics: Option<bool>,
+    #[builder(default)]
     pub affects_semantic_diagnostics: Option<bool>,
+    #[builder(default)]
     pub affects_emit: Option<bool>,
+    #[builder(default)]
     pub affects_program_structure: Option<bool>,
+    #[builder(default)]
     pub transpile_option_value: Option<Option<bool>>,
     // extra_validation: Option<Box<dyn Fn(CompilerOptionsValue) -> (DiagnosticMessage, Vec<String>)>>,
 }
@@ -2587,6 +2619,20 @@ impl CommandLineOption {
                 }))
             }
             Self::CommandLineOptionOfListType(_list_type) => unimplemented!(),
+        }
+    }
+}
+
+impl TryFrom<CommandLineOptionBase> for Gc<CommandLineOption> {
+    type Error = &'static str;
+
+    fn try_from(value: CommandLineOptionBase) -> Result<Self, Self::Error> {
+        match &value.type_ {
+            CommandLineOptionType::Map(_) => Ok(CommandLineOptionOfCustomType::new(value).into()),
+            CommandLineOptionType::String => Ok(CommandLineOptionOfStringType::new(value).into()),
+            CommandLineOptionType::Number => Ok(CommandLineOptionOfNumberType::new(value).into()),
+            CommandLineOptionType::Boolean => Ok(CommandLineOptionOfBooleanType::new(value).into()),
+            _ => Err("Didn't pass a simple CommandLineOptionType"),
         }
     }
 }

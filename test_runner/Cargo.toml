@@ -18,6 +18,7 @@ tokio = { version = "1.23.0", features = ["full"] }
 gc = { git = "https://github.com/helixbass/rust-gc", rev = "2214d68", features = ["derive", "serde"] }
 itertools = "0.10.5"
 once_cell = "1.17.1"
+derive_builder = "0.10.2"
 
 [dev-dependencies]
 speculoos = "0.11.0"
