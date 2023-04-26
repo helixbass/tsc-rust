@@ -1,5 +1,6 @@
 use fancy_regex::Regex;
 use gc::{Gc, GcCell};
+use indexmap::IndexMap;
 use serde::Serialize;
 use std::cmp;
 use std::collections::HashMap;
@@ -901,7 +902,7 @@ impl MatchesSpecs {
 
 pub(super) fn get_custom_type_map_of_command_line_option(
     option_definition: &CommandLineOption,
-) -> Option<&HashMap<&'static str, CommandLineOptionMapTypeValue>> {
+) -> Option<&IndexMap<&'static str, CommandLineOptionMapTypeValue>> {
     match option_definition.type_() {
         CommandLineOptionType::String
         | CommandLineOptionType::Number
@@ -918,7 +919,7 @@ pub(super) fn get_custom_type_map_of_command_line_option(
 
 pub(super) fn get_name_of_compiler_option_value(
     value: &CompilerOptionsValue,
-    custom_type_map: &HashMap<&'static str, CommandLineOptionMapTypeValue>,
+    custom_type_map: &IndexMap<&'static str, CommandLineOptionMapTypeValue>,
 ) -> Option<&'static str> {
     for (key, map_value) in custom_type_map {
         if &map_value.as_compiler_options_value() == value {

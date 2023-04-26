@@ -40,8 +40,8 @@ impl NodeServicesInterface for Node {
 
 pub fn get_default_compiler_options() -> CompilerOptions {
     CompilerOptionsBuilder::default()
-        .target(Some(ScriptTarget::ES5))
-        .jsx(Some(JsxEmit::Preserve))
+        .target(ScriptTarget::ES5)
+        .jsx(JsxEmit::Preserve)
         .build()
         .unwrap()
 }

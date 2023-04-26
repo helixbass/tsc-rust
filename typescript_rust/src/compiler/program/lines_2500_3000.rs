@@ -966,7 +966,7 @@ impl Program {
             &resolve_from,
             Gc::new(
                 CompilerOptionsBuilder::default()
-                    .module_resolution(Some(ModuleResolutionKind::NodeJs))
+                    .module_resolution(ModuleResolutionKind::NodeJs)
                     .build()
                     .unwrap(),
             ),

@@ -202,9 +202,10 @@ pub(super) fn parse_option_value(
                     i += 1;
                 }
                 CommandLineOptionType::List => {
-                    let result = CompilerOptionsValue::VecString(Some(
-                        parse_list_type_option(opt, args.get(i).map(|arg| &**arg), errors)
-                            .unwrap_or_else(|| vec![]),
+                    let result = CompilerOptionsValue::VecString(parse_list_type_option(
+                        opt,
+                        args.get(i).map(|arg| &**arg),
+                        errors,
                     ));
                     let result_is_some = result.is_some();
                     options.insert(opt.name().to_owned(), result.or_empty_vec());
@@ -298,8 +299,8 @@ pub(crate) fn get_option_from_name(
     get_option_declaration_from_name(get_options_name_map, option_name, allow_short)
 }
 
-pub(super) fn get_option_declaration_from_name<TGetOptionNameMap: FnMut() -> Rc<OptionsNameMap>>(
-    mut get_option_name_map: TGetOptionNameMap,
+pub(super) fn get_option_declaration_from_name(
+    mut get_option_name_map: impl FnMut() -> Rc<OptionsNameMap>,
     option_name: &str,
     allow_short: Option<bool>,
 ) -> Option<Gc<CommandLineOption>> {

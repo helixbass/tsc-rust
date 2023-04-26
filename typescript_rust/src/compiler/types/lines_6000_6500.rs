@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{unsafe_empty_trace, Finalize, Gc, GcCell, Trace};
+use indexmap::IndexMap;
 use serde::Serialize;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
@@ -386,7 +387,7 @@ mod _CompilerOptionsDeriveTraceScope {
     use local_macros::Trace;
 
     #[derive(Builder, Clone, Debug, Default, Serialize, Trace, Finalize)]
-    #[builder(default)]
+    #[builder(setter(into, strip_option), default)]
     pub struct CompilerOptions {
         pub all: Option<bool>,
         pub allow_js: Option<bool>,
@@ -2170,7 +2171,7 @@ pub enum CommandLineOptionType {
     Boolean,
     Object,
     List,
-    Map(HashMap<&'static str, CommandLineOptionMapTypeValue /*number | string*/>),
+    Map(IndexMap<&'static str, CommandLineOptionMapTypeValue /*number | string*/>),
 }
 
 impl CommandLineOptionType {
@@ -2185,7 +2186,7 @@ impl CommandLineOptionType {
         }
     }
 
-    pub fn as_map(&self) -> &HashMap<&'static str, CommandLineOptionMapTypeValue> {
+    pub fn as_map(&self) -> &IndexMap<&'static str, CommandLineOptionMapTypeValue> {
         enum_unwrapped!(self, [CommandLineOptionType, Map])
     }
 }

@@ -1326,7 +1326,7 @@ fn try_get_any_file_from_path(
     let extensions = flatten(&get_supported_extensions(
         Some(
             &CompilerOptionsBuilder::default()
-                .allow_js(Some(true))
+                .allow_js(true)
                 .build()
                 .unwrap(),
         ),

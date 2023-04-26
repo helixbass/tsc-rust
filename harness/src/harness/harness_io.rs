@@ -810,7 +810,7 @@ pub mod Compiler {
             } else {
                 CompilerOptionsAndHarnessOptions {
                     compiler_options: CompilerOptionsBuilder::default()
-                        .no_resolve(Some(false))
+                        .no_resolve(false)
                         .build()
                         .unwrap(),
                     harness_options: Default::default(),

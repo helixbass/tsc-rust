@@ -439,12 +439,12 @@ pub(super) fn compiler_options_alternate_mode() -> Rc<AlternateModeDiagnostics> 
 thread_local! {
     pub(crate) static default_init_compiler_options: Gc<CompilerOptions> =
         Gc::new(CompilerOptionsBuilder::default()
-            .module(Some(ModuleKind::CommonJS))
-            .target(Some(ScriptTarget::ES2016))
-            .strict(Some(true))
-            .es_module_interop(Some(true))
-            .force_consistent_casing_in_file_names(Some(true))
-            .skip_lib_check(Some(true))
+            .module(ModuleKind::CommonJS)
+            .target(ScriptTarget::ES2016)
+            .strict(true)
+            .es_module_interop(true)
+            .force_consistent_casing_in_file_names(true)
+            .skip_lib_check(true)
             .build().unwrap());
 }
 
@@ -1262,13 +1262,13 @@ pub fn parse_command_line_worker(
     }
 }
 
-pub(super) fn parse_strings<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
+pub(super) fn parse_strings(
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut HashMap<String, CompilerOptionsValue>,
     errors: &mut Vec<Gc<Diagnostic>>,
     watch_options: &RefCell<Option<HashMap<String, CompilerOptionsValue>>>,
-    read_file: Option<&TReadFile>,
+    read_file: Option<&impl Fn(&str) -> io::Result<Option<String>>>,
     args: &[String],
 ) {
     let mut i = 0;
