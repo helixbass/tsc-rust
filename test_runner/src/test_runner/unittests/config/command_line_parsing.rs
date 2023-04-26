@@ -1332,5 +1332,55 @@ mod parse_command_line {
                 Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
             );
         }
+
+        #[test]
+        fn test_parse_exclude_files() {
+            assert_parse_result(
+                ["--excludeFiles", "**/temp/*.ts", "0.ts"],
+                ParsedCommandLineBuilder::default()
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(
+                        WatchOptionsBuilder::default()
+                            .exclude_files(["**/temp/*.ts".to_owned()])
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
+        }
+
+        #[test]
+        fn test_errors_on_invalid_exclude_files() {
+            assert_parse_result(
+                ["--excludeFiles", "**/../*", "0.ts"],
+                ParsedCommandLineBuilder::default()
+                    .errors([
+                        Gc::new(
+                            BaseDiagnostic::new(
+                                BaseDiagnosticRelatedInformationBuilder::default()
+                                    .message_text("File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../*'.".to_owned())
+                                    .category(Diagnostics::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0.category)
+                                    .code(Diagnostics::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0.code)
+                                    .build()
+                                    .unwrap(),
+                                None,
+                            )
+                            .into(),
+                        ),
+                    ])
+                    .file_names(["0.ts".to_owned()])
+                    .watch_options(
+                        WatchOptionsBuilder::default()
+                            .exclude_files([])
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            );
+        }
     }
 }
