@@ -232,8 +232,7 @@ thread_local! {
     static compiler_options_did_you_mean_diagnostics_: Rc<dyn ParseCommandLineWorkerDiagnostics> = Rc::new(CompilerOptionsDidYouMeanDiagnostics::new());
 }
 
-pub(crate) fn compiler_options_did_you_mean_diagnostics(
-) -> Rc<dyn ParseCommandLineWorkerDiagnostics> {
+pub fn compiler_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLineWorkerDiagnostics> {
     compiler_options_did_you_mean_diagnostics_.with(|compiler_options_did_you_mean_diagnostics| {
         compiler_options_did_you_mean_diagnostics.clone()
     })

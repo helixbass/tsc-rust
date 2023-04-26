@@ -10,8 +10,8 @@ use std::rc::Rc;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
-    hash_map_to_compiler_options, CompilerHost, Diagnostic, GcVec, MapLike, Number, OptionsNameMap,
-    ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
+    are_option_gcs_equal, hash_map_to_compiler_options, CompilerHost, Diagnostic, GcVec, MapLike,
+    Number, OptionsNameMap, ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
 };
 use local_macros::{command_line_option_type, enum_unwrapped};
 
@@ -1443,7 +1443,137 @@ mod _CompilerOptionsDeriveTraceScope {
             result
         }
     }
+
+    impl Eq for CompilerOptions {}
+
+    impl PartialEq for CompilerOptions {
+        fn eq(&self, other: &Self) -> bool {
+            self.all == other.all
+                && self.allow_js == other.allow_js
+                && self.allow_non_ts_extensions == other.allow_non_ts_extensions
+                && self.allow_synthetic_default_imports == other.allow_synthetic_default_imports
+                && self.allow_umd_global_access == other.allow_umd_global_access
+                && self.allow_unreachable_code == other.allow_unreachable_code
+                && self.allow_unused_labels == other.allow_unused_labels
+                && self.always_strict == other.always_strict
+                && self.base_url == other.base_url
+                && self.build == other.build
+                && self.charset == other.charset
+                && self.check_js == other.check_js
+                && self.config_file_path == other.config_file_path
+                && are_option_gcs_equal(self.config_file.as_ref(), other.config_file.as_ref())
+                && self.declaration == other.declaration
+                && self.declaration_map == other.declaration_map
+                && self.emit_declaration_only == other.emit_declaration_only
+                && self.declaration_dir == other.declaration_dir
+                && self.diagnostics == other.diagnostics
+                && self.extended_diagnostics == other.extended_diagnostics
+                && self.disable_size_limit == other.disable_size_limit
+                && self.disable_source_of_project_reference_redirect
+                    == other.disable_source_of_project_reference_redirect
+                && self.disable_solution_searching == other.disable_solution_searching
+                && self.disable_referenced_project_load == other.disable_referenced_project_load
+                && self.downlevel_iteration == other.downlevel_iteration
+                && self.emit_bom == other.emit_bom
+                && self.emit_decorator_metadata == other.emit_decorator_metadata
+                && self.exact_optional_property_types == other.exact_optional_property_types
+                && self.experimental_decorators == other.experimental_decorators
+                && self.force_consistent_casing_in_file_names
+                    == other.force_consistent_casing_in_file_names
+                && self.generate_cpu_profile == other.generate_cpu_profile
+                && self.generate_trace == other.generate_trace
+                && self.help == other.help
+                && self.import_helpers == other.import_helpers
+                && self.imports_not_used_as_values == other.imports_not_used_as_values
+                && self.init == other.init
+                && self.inline_source_map == other.inline_source_map
+                && self.inline_sources == other.inline_sources
+                && self.isolated_modules == other.isolated_modules
+                && self.jsx == other.jsx
+                && self.keyof_strings_only == other.keyof_strings_only
+                && self.lib == other.lib
+                && self.list_emitted_files == other.list_emitted_files
+                && self.list_files == other.list_files
+                && self.explain_files == other.explain_files
+                && self.list_files_only == other.list_files_only
+                && self.locale == other.locale
+                && self.map_root == other.map_root
+                && self.max_node_module_js_depth == other.max_node_module_js_depth
+                && self.module == other.module
+                && self.module_resolution == other.module_resolution
+                && self.new_line == other.new_line
+                && self.no_emit == other.no_emit
+                && self.no_emit_for_js_files == other.no_emit_for_js_files
+                && self.no_emit_helpers == other.no_emit_helpers
+                && self.no_emit_on_error == other.no_emit_on_error
+                && self.no_error_truncation == other.no_error_truncation
+                && self.no_fallthrough_cases_in_switch == other.no_fallthrough_cases_in_switch
+                && self.no_implicit_any == other.no_implicit_any
+                && self.no_implicit_returns == other.no_implicit_returns
+                && self.no_implicit_this == other.no_implicit_this
+                && self.no_strict_generic_checks == other.no_strict_generic_checks
+                && self.no_unused_locals == other.no_unused_locals
+                && self.no_unused_parameters == other.no_unused_parameters
+                && self.no_implicit_use_strict == other.no_implicit_use_strict
+                && self.no_property_access_from_index_signature
+                    == other.no_property_access_from_index_signature
+                && self.assume_changes_only_affect_direct_dependencies
+                    == other.assume_changes_only_affect_direct_dependencies
+                && self.no_lib == other.no_lib
+                && self.no_resolve == other.no_resolve
+                && self.no_unchecked_indexed_access == other.no_unchecked_indexed_access
+                && self.out == other.out
+                && self.out_dir == other.out_dir
+                && self.out_file == other.out_file
+                && self.paths == other.paths
+                && self.paths_base_path == other.paths_base_path
+                && self.plugins == other.plugins
+                && self.preserve_const_enums == other.preserve_const_enums
+                && self.no_implicit_override == other.no_implicit_override
+                && self.preserve_symlinks == other.preserve_symlinks
+                && self.preserve_value_imports == other.preserve_value_imports
+                && self.preserve_watch_output == other.preserve_watch_output
+                && self.project == other.project
+                && self.pretty == other.pretty
+                && self.react_namespace == other.react_namespace
+                && self.jsx_factory == other.jsx_factory
+                && self.jsx_fragment_factory == other.jsx_fragment_factory
+                && self.jsx_import_source == other.jsx_import_source
+                && self.composite == other.composite
+                && self.incremental == other.incremental
+                && self.ts_build_info_file == other.ts_build_info_file
+                && self.remove_comments == other.remove_comments
+                && self.root_dir == other.root_dir
+                && self.root_dirs == other.root_dirs
+                && self.skip_lib_check == other.skip_lib_check
+                && self.skip_default_lib_check == other.skip_default_lib_check
+                && self.source_map == other.source_map
+                && self.source_root == other.source_root
+                && self.strict == other.strict
+                && self.strict_function_types == other.strict_function_types
+                && self.strict_bind_call_apply == other.strict_bind_call_apply
+                && self.strict_null_checks == other.strict_null_checks
+                && self.strict_property_initialization == other.strict_property_initialization
+                && self.strip_internal == other.strip_internal
+                && self.suppress_excess_property_errors == other.suppress_excess_property_errors
+                && self.suppress_implicit_any_index_errors
+                    == other.suppress_implicit_any_index_errors
+                && self.suppress_output_path_check == other.suppress_output_path_check
+                && self.target == other.target
+                && self.trace_resolution == other.trace_resolution
+                && self.use_unknown_in_catch_variables == other.use_unknown_in_catch_variables
+                && self.resolve_json_module == other.resolve_json_module
+                && self.types == other.types
+                && self.type_roots == other.type_roots
+                && self.version == other.version
+                && self.watch == other.watch
+                && self.es_module_interop == other.es_module_interop
+                && self.show_config == other.show_config
+                && self.use_define_for_class_fields == other.use_define_for_class_fields
+        }
+    }
 }
+
 pub use _CompilerOptionsDeriveTraceScope::{CompilerOptions, CompilerOptionsBuilder};
 
 pub trait ToHashMapOfCompilerOptionsValues {

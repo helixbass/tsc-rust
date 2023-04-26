@@ -1226,10 +1226,10 @@ pub(super) fn hash_map_to_watch_options(
     watch_options
 }
 
-pub(super) fn parse_command_line_worker<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
+pub fn parse_command_line_worker(
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     command_line: &[String],
-    read_file: Option<TReadFile>,
+    read_file: Option<impl Fn(&str) -> io::Result<Option<String>>>,
 ) -> ParsedCommandLineWithBaseOptions {
     let mut options: HashMap<String, CompilerOptionsValue> = HashMap::new();
     let watch_options: RefCell<Option<HashMap<String, CompilerOptionsValue>>> = RefCell::new(None);
