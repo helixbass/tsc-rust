@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use serde::Serialize;
 use std::borrow::Cow;
@@ -1153,7 +1154,7 @@ impl PartialEq for DiagnosticMessage {
 
 impl Eq for DiagnosticMessage {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiagnosticMessageChain {
     pub message_text: String,
     pub category: DiagnosticCategory,
@@ -1621,14 +1622,18 @@ impl From<Diagnostic> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Builder, Clone, Debug, Trace, Finalize)]
+#[builder(setter(into, strip_option))]
 pub struct BaseDiagnosticRelatedInformation {
     #[unsafe_ignore_trace]
     category: Cell<DiagnosticCategory>,
     code: u32,
+    #[builder(default)]
     file: Option<Gc<Node /*SourceFile*/>>,
+    #[builder(default)]
     #[unsafe_ignore_trace]
     start: Cell<Option<isize>>,
+    #[builder(default)]
     #[unsafe_ignore_trace]
     length: Cell<Option<isize>>,
     #[unsafe_ignore_trace]
@@ -1636,13 +1641,13 @@ pub struct BaseDiagnosticRelatedInformation {
 }
 
 impl BaseDiagnosticRelatedInformation {
-    pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
+    pub fn new(
         category: DiagnosticCategory,
         code: u32,
         file: Option<Gc<Node>>,
         start: Option<isize>,
         length: Option<isize>,
-        message_text: TDiagnosticMessageText,
+        message_text: impl Into<DiagnosticMessageText>,
     ) -> Self {
         Self {
             category: Cell::new(category),

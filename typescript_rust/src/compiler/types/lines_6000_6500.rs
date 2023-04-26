@@ -1858,7 +1858,7 @@ pub fn maybe_extend_compiler_options(
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct WatchOptions {
     pub watch_file: Option<WatchFileKind>,
     pub watch_directory: Option<WatchDirectoryKind>,
@@ -2047,23 +2047,38 @@ impl ParsedCommandLineWithBaseOptions {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
-pub struct ParsedCommandLine {
-    pub options: Gc<CompilerOptions>,
-    #[unsafe_ignore_trace]
-    pub type_acquisition: Option<Rc<TypeAcquisition>>,
-    pub file_names: Vec<String>,
-    #[unsafe_ignore_trace]
-    pub project_references: Option<Vec<Rc<ProjectReference>>>,
-    #[unsafe_ignore_trace]
-    pub watch_options: Option<Rc<WatchOptions>>,
-    #[unsafe_ignore_trace]
-    pub raw: Option<serde_json::Value>,
-    pub errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
-    #[unsafe_ignore_trace]
-    pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
-    pub compile_on_save: Option<bool>,
+mod _ParsedCommandLineDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Builder, Debug, Default, Trace, Finalize)]
+    #[builder(default, setter(into, strip_option))]
+    pub struct ParsedCommandLine {
+        pub options: Gc<CompilerOptions>,
+        #[unsafe_ignore_trace]
+        pub type_acquisition: Option<Rc<TypeAcquisition>>,
+        pub file_names: Vec<String>,
+        #[unsafe_ignore_trace]
+        pub project_references: Option<Vec<Rc<ProjectReference>>>,
+        #[unsafe_ignore_trace]
+        pub watch_options: Option<Rc<WatchOptions>>,
+        #[unsafe_ignore_trace]
+        pub raw: Option<serde_json::Value>,
+        #[builder(setter(custom))]
+        pub errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+        #[unsafe_ignore_trace]
+        pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
+        pub compile_on_save: Option<bool>,
+    }
+
+    impl ParsedCommandLineBuilder {
+        pub fn errors(&mut self, value: impl Into<Vec<Gc<Diagnostic>>>) -> &mut Self {
+            self.errors = Some(Gc::new(GcCell::new(value.into())));
+            self
+        }
+    }
 }
+pub use _ParsedCommandLineDeriveTraceScope::{ParsedCommandLine, ParsedCommandLineBuilder};
 
 bitflags! {
     pub struct WatchDirectoryFlags: u32 {
