@@ -4,6 +4,7 @@ use std::{collections::HashMap, io, rc::Rc};
 
 use derive_builder::Builder;
 use gc::{Finalize, Gc, Trace};
+use itertools::Itertools;
 use speculoos::prelude::*;
 use typescript_rust::{
     extension_from_path, get_directory_path, ModuleResolutionHost, ModuleResolutionHostOverrider,
@@ -57,7 +58,7 @@ pub fn check_resolved_module(
 pub fn check_resolved_module_with_failed_lookup_locations(
     actual: &ResolvedModuleWithFailedLookupLocations,
     expected_resolved_module: &ResolvedModuleFull,
-    expected_failed_lookup_locations: &[String],
+    expected_failed_lookup_locations: &[&str],
 ) {
     asserting("module should be resolved")
         .that(&actual.resolved_module)
@@ -72,7 +73,12 @@ pub fn check_resolved_module_with_failed_lookup_locations(
         actual.failed_lookup_locations().len(),
     ))
     .that(&*actual.failed_lookup_locations())
-    .is_equal_to(expected_failed_lookup_locations.to_owned());
+    .is_equal_to(
+        expected_failed_lookup_locations
+            .into_iter()
+            .map(|value| (*value).to_owned())
+            .collect_vec(),
+    );
 }
 
 pub fn create_resolved_module(
@@ -329,7 +335,7 @@ mod node_module_resolution_relative_paths {
     use once_cell::sync::Lazy;
     use typescript_rust::{
         combine_paths, get_root_length, node_module_name_resolver, normalize_path,
-        supported_ts_extensions_flat, Extension,
+        supported_ts_extensions, supported_ts_extensions_flat, Extension,
     };
 
     use super::*;
@@ -415,5 +421,225 @@ mod node_module_resolution_relative_paths {
     #[test]
     fn test_module_name_that_starts_with_dot_slash_resolved_as_relative_file_name() {
         test_load_as_file("/foo/bar/baz.ts", "/foo/bar/foo", "./foo");
+    }
+
+    #[test]
+    fn test_module_name_that_starts_with_dot_dot_slash_resolved_as_relative_file_name() {
+        test_load_as_file("/foo/bar/baz.ts", "/foo/foo", "../foo");
+    }
+
+    #[test]
+    fn test_module_name_that_starts_with_slash_script_extension_resolved_as_relative_file_name() {
+        test_load_as_file("/foo/bar/baz.ts", "/foo", "/foo");
+    }
+
+    #[test]
+    fn test_module_name_that_starts_with_c_colon_slash_script_extension_resolved_as_relative_file_name(
+    ) {
+        test_load_as_file("c:/foo/bar/baz.ts", "c:/foo", "c:/foo");
+    }
+
+    fn test_loading_from_package_json(
+        containing_file_name: &str,
+        package_json_file_name: &str,
+        field_ref: &str,
+        module_file_name: &str,
+        module_name: &str,
+    ) {
+        let test = |has_directory_exists: bool| {
+            let containing_file = FileBuilder::default()
+                .name(containing_file_name)
+                .build()
+                .unwrap();
+            let package_json = FileBuilder::default()
+                .name(package_json_file_name)
+                .content(
+                    serde_json::to_string::<HashMap<String, String>>(&HashMap::from_iter([(
+                        "typings".to_owned(),
+                        field_ref.to_owned(),
+                    )]))
+                    .unwrap(),
+                )
+                .build()
+                .unwrap();
+            let module_file = FileBuilder::default()
+                .name(module_file_name)
+                .build()
+                .unwrap();
+            let resolution = node_module_name_resolver(
+                module_name,
+                &containing_file.name,
+                Default::default(),
+                &*create_module_resolution_host(
+                    has_directory_exists,
+                    vec![
+                        containing_file.clone(),
+                        package_json.clone(),
+                        module_file.clone(),
+                    ],
+                ),
+                None,
+                None,
+                None,
+            );
+            check_resolved_module(
+                resolution.resolved_module.as_deref(),
+                Some(&create_resolved_module(&module_file.name, None)),
+            );
+            assert_that(&*resolution.failed_lookup_locations())
+                .has_length(supported_ts_extensions[0].len());
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_module_name_as_directory_load_from_typings() {
+        test_loading_from_package_json(
+            "/a/b/c/d.ts",
+            "/a/b/c/bar/package.json",
+            "c/d/e.d.ts",
+            "/a/b/c/bar/c/d/e.d.ts",
+            "./bar",
+        );
+        test_loading_from_package_json(
+            "/a/b/c/d.ts",
+            "/a/bar/package.json",
+            "e.d.ts",
+            "/a/bar/e.d.ts",
+            "../../bar",
+        );
+        test_loading_from_package_json(
+            "/a/b/c/d.ts",
+            "/bar/package.json",
+            "e.d.ts",
+            "/bar/e.d.ts",
+            "/bar",
+        );
+        test_loading_from_package_json(
+            "c:/a/b/c/d.ts",
+            "c:/bar/package.json",
+            "e.d.ts",
+            "c:/bar/e.d.ts",
+            "c:/bar",
+        );
+    }
+
+    fn test_typings_ignored(typings: impl Into<Option<serde_json::Value>>) {
+        let typings = typings.into();
+        let test = |has_directory_exists: bool| {
+            let containing_file = FileBuilder::default().name("/a/b.ts").build().unwrap();
+            let package_json = FileBuilder::default()
+                .name("/node_modules/b/package.json")
+                .content(
+                    match &typings {
+                        Some(typings) => serde_json::json!({
+                            "typings": typings,
+                        }),
+                        None => serde_json::json!({}),
+                    }
+                    .to_string(),
+                )
+                .build()
+                .unwrap();
+            let module_file = FileBuilder::default().name("/a/b.d.ts").build().unwrap();
+
+            let index_path = "/node_modules/b/index.d.ts";
+            let index_file = FileBuilder::default().name(index_path).build().unwrap();
+
+            let resolution = node_module_name_resolver(
+                "b",
+                &containing_file.name,
+                Default::default(),
+                &*create_module_resolution_host(
+                    has_directory_exists,
+                    vec![
+                        containing_file.clone(),
+                        package_json.clone(),
+                        module_file.clone(),
+                        index_file.clone(),
+                    ],
+                ),
+                None,
+                None,
+                None,
+            );
+
+            check_resolved_module(
+                resolution.resolved_module.as_deref(),
+                Some(&create_resolved_module(index_path, Some(true))),
+            );
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_module_name_as_directory_handle_invalid_typings() {
+        test_typings_ignored(serde_json::json!(["a", "b"]));
+        test_typings_ignored(serde_json::json!({"a": "b"}));
+        test_typings_ignored(serde_json::json!(true));
+        test_typings_ignored(serde_json::json!(null));
+        test_typings_ignored(None);
+    }
+
+    #[test]
+    fn test_module_name_as_directory_load_index_d_ts() {
+        let test = |has_directory_exists: bool| {
+            let containing_file = FileBuilder::default().name("/a/b/c.ts").build().unwrap();
+            let package_json = FileBuilder::default()
+                .name("/a/b/foo/package.json")
+                .content(
+                    serde_json::json!({
+                        "main": "/c/d"
+                    })
+                    .to_string(),
+                )
+                .build()
+                .unwrap();
+            let index_file = FileBuilder::default()
+                .name("/a/b/foo/index.d.ts")
+                .build()
+                .unwrap();
+            let resolution = node_module_name_resolver(
+                "./foo",
+                &containing_file.name,
+                Default::default(),
+                &*create_module_resolution_host(
+                    has_directory_exists,
+                    vec![
+                        containing_file.clone(),
+                        package_json.clone(),
+                        index_file.clone(),
+                    ],
+                ),
+                None,
+                None,
+                None,
+            );
+            check_resolved_module_with_failed_lookup_locations(
+                &resolution,
+                &create_resolved_module(&index_file.name, None),
+                &[
+                    "/a/b/foo.ts",
+                    "/a/b/foo.tsx",
+                    "/a/b/foo.d.ts",
+                    "/c/d",
+                    "/c/d.ts",
+                    "/c/d.tsx",
+                    "/c/d.d.ts",
+                    "/c/d/index.ts",
+                    "/c/d/index.tsx",
+                    "/c/d/index.d.ts",
+                    "/a/b/foo/index.ts",
+                    "/a/b/foo/index.tsx",
+                ],
+            );
+        };
+
+        test(false);
+        test(true);
     }
 }

@@ -615,7 +615,7 @@ pub use compiler::utilities::{
     set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width, set_value_declaration,
     should_preserve_const_enums, skip_parentheses, skip_type_checking, slice_after,
     source_file_may_be_emitted, strip_quotes, supported_js_extensions_flat,
-    supported_ts_extensions_flat, try_extract_ts_extension,
+    supported_ts_extensions, supported_ts_extensions_flat, try_extract_ts_extension,
     try_get_class_implementing_or_extending_expression_with_type_arguments,
     try_get_extension_from_path, try_get_import_from_module_specifier,
     try_get_module_specifier_from_declaration, try_get_property_access_or_identifier_to_string,
