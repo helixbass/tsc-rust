@@ -5,6 +5,14 @@ use crate::{Node, VisitResult};
 use super::TransformTypeScript;
 
 impl TransformTypeScript {
+    pub(super) fn get_expression_for_property_name(
+        &self,
+        member: &Node, /*ClassElement | EnumMember*/
+        generate_name_for_computed_property_name: bool,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub(super) fn visit_heritage_clause(
         &self,
         _node: &Node, /*HeritageClause*/

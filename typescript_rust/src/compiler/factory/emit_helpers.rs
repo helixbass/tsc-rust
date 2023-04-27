@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
 
 use crate::{Comparison, EmitHelper, Node, TransformationContext};
@@ -8,6 +10,16 @@ use crate::{Comparison, EmitHelper, Node, TransformationContext};
 pub struct EmitHelperFactory {}
 
 impl EmitHelperFactory {
+    pub fn create_decorate_helper(
+        &self,
+        decorator_expressions: &[Gc<Node /*Expression*/>],
+        target: &Node, /*Expression*/
+        member_name: Option<impl Borrow<Node /*Expression*/>>,
+        descriptor: Option<impl Borrow<Node /*Expression*/>>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_assign_helper(
         &self,
         _attributes_segments: &[Gc<Node /*Expression*/>],

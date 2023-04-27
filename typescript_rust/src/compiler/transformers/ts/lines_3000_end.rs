@@ -1,6 +1,6 @@
 use gc::Gc;
 
-use crate::Node;
+use crate::{Node, NodeInterface};
 
 use super::TransformTypeScript;
 
@@ -17,6 +17,10 @@ impl TransformTypeScript {
         unimplemented!()
     }
 
+    pub(super) fn expression_to_statement(&self, expression: Gc<Node /*Expression*/>) -> Gc<Node> {
+        self.factory.create_expression_statement(expression).wrap()
+    }
+
     pub(super) fn add_export_member_assignment(
         &self,
         _statements: &mut Vec<Gc<Node /*Statement*/>>,
@@ -29,6 +33,14 @@ impl TransformTypeScript {
         &self,
         _node: &Node, /*ClassDeclaration*/
     ) -> Option<Gc<Node>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_class_member_prefix(
+        &self,
+        _node: &Node,   /*ClassExpression | ClassDeclaration*/
+        _member: &Node, /*ClassElement*/
+    ) -> Gc<Node> {
         unimplemented!()
     }
 }
