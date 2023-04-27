@@ -1947,8 +1947,9 @@ pub fn resolution_extension_is_ts_or_json(ext: Extension) -> bool {
     extension_is_ts(ext) || ext == Extension::Json
 }
 
-pub fn extension_from_path(_path: &str) -> Extension {
-    unimplemented!()
+pub fn extension_from_path(path: &str) -> Extension {
+    let ext = try_get_extension_from_path(path);
+    ext.unwrap_or_else(|| Debug_.fail(Some(&format!("File {path} has unknown extension."))))
 }
 
 pub fn try_get_extension_from_path(path: &str) -> Option<Extension> {

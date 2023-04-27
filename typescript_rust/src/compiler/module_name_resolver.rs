@@ -132,13 +132,12 @@ fn create_resolved_module_with_failed_lookup_locations(
 ) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     if let Some(result_from_cache) = result_from_cache {
         result_from_cache
-            .failed_lookup_locations
-            .borrow_mut()
+            .failed_lookup_locations_mut()
             .append(&mut failed_lookup_locations);
         return result_from_cache;
     }
-    Gc::new(ResolvedModuleWithFailedLookupLocations {
-        resolved_module: resolved.map(|resolved| {
+    Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+        resolved.map(|resolved| {
             let Resolved {
                 path: resolved_path,
                 extension: resolved_extension,
@@ -160,8 +159,8 @@ fn create_resolved_module_with_failed_lookup_locations(
                 package_id: resolved_package_id,
             })
         }),
-        failed_lookup_locations: RefCell::new(failed_lookup_locations),
-    })
+        failed_lookup_locations,
+    ))
 }
 
 pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {

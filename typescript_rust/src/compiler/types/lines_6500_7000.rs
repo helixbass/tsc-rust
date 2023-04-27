@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCellRef, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -176,13 +177,18 @@ pub trait ModuleResolutionHostOverrider: Trace + Finalize {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Builder, Clone, Debug, Trace, Finalize)]
+#[builder(setter(into, strip_option))]
 pub struct ResolvedModuleFull {
     pub resolved_file_name: String,
+    #[builder(default)]
     pub is_external_library_import: Option<bool>,
+    #[builder(default)]
     pub original_path: Option<String>,
+    #[builder(default)]
     #[unsafe_ignore_trace]
     pub extension: Option<Extension>,
+    #[builder(default)]
     #[unsafe_ignore_trace]
     pub package_id: Option<PackageId>,
 }
@@ -274,7 +280,27 @@ impl AsRef<str> for Extension {
 pub struct ResolvedModuleWithFailedLookupLocations {
     pub resolved_module: Option<Gc<ResolvedModuleFull>>,
     #[unsafe_ignore_trace]
-    pub failed_lookup_locations: RefCell<Vec<String>>,
+    failed_lookup_locations: RefCell<Vec<String>>,
+}
+
+impl ResolvedModuleWithFailedLookupLocations {
+    pub fn new(
+        resolved_module: Option<Gc<ResolvedModuleFull>>,
+        failed_lookup_locations: Vec<String>,
+    ) -> Self {
+        Self {
+            resolved_module,
+            failed_lookup_locations: RefCell::new(failed_lookup_locations),
+        }
+    }
+
+    pub fn failed_lookup_locations(&self) -> Ref<Vec<String>> {
+        self.failed_lookup_locations.borrow()
+    }
+
+    pub fn failed_lookup_locations_mut(&self) -> RefMut<Vec<String>> {
+        self.failed_lookup_locations.borrow_mut()
+    }
 }
 
 #[derive(Debug, Trace, Finalize)]
