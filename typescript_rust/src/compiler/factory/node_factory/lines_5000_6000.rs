@@ -594,6 +594,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn create_type_check(
+        &self,
+        _value: Gc<Node /*Expression*/>,
+        _tag: &str, /*TypeOfTag*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_function_call_call(
         &self,
         _target: Gc<Node /*Expression*/>,

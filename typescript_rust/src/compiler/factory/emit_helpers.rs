@@ -20,6 +20,22 @@ impl EmitHelperFactory {
         unimplemented!()
     }
 
+    pub fn create_metadata_helper(
+        &self,
+        _metadata_key: &str,
+        _metadata_value: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_param_helper(
+        &self,
+        _expression: Gc<Node /*Expression*/>,
+        _parameter_offset: usize,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_assign_helper(
         &self,
         _attributes_segments: &[Gc<Node /*Expression*/>],

@@ -1,4 +1,4 @@
-use std::{cell::Cell, mem, ptr, rc::Rc};
+use std::{cell::Cell, collections::HashMap, mem, ptr, rc::Rc};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
@@ -8,13 +8,14 @@ use crate::{
     get_emit_script_target, get_parse_tree_node, get_strict_option_value, has_syntactic_modifier,
     is_class_declaration, is_statement, map_defined, modifier_to_flag, visit_each_child,
     BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitHelperFactory, EmitHint, EmitResolver,
-    Matches, ModifierFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeInterface, ScriptTarget,
-    SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VisitResult,
+    Matches, ModifierFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeId, NodeInterface,
+    ScriptTarget, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    UnderscoreEscapedMap, VisitResult,
 };
 
-pub(super) const USE_MEM_TYPE_METADATA_FORMAT: bool = false;
+pub(super) const USE_NEW_TYPE_METADATA_FORMAT: bool = false;
 
 bitflags! {
     #[derive(Default)]
@@ -70,7 +71,7 @@ pub(super) struct TransformTypeScript {
     pub(super) current_class_has_parameter_properties: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<TypeScriptSubstitutionFlags>,
-    pub(super) class_aliases: GcCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
+    pub(super) class_aliases: GcCell<Option<HashMap<NodeId, Gc<Node /*Identifier*/>>>>,
     #[unsafe_ignore_trace]
     pub(super) applicable_substitutions: Cell<TypeScriptSubstitutionFlags>,
 }
@@ -176,6 +177,10 @@ impl TransformTypeScript {
     ) {
         self.current_class_has_parameter_properties
             .set(current_class_has_parameter_properties);
+    }
+
+    pub(super) fn maybe_class_aliases(&self) -> GcCellRef<Option<HashMap<NodeId, Gc<Node>>>> {
+        self.class_aliases.borrow()
     }
 
     pub(super) fn emit_helpers(&self) -> Rc<EmitHelperFactory> {
