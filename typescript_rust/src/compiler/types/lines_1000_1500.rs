@@ -10,7 +10,7 @@ use super::{
     ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
 use crate::set_text_range_node_array;
-use local_macros::ast_type;
+use local_macros::{ast_type, enum_unwrapped};
 
 mod _NodeArrayDeriveTraceScope {
     use std::slice;
@@ -204,6 +204,12 @@ mod _NodeArrayOrVecDeriveTraceScope {
     pub enum NodeArrayOrVec {
         NodeArray(Gc<NodeArray>),
         Vec(Vec<Gc<Node>>),
+    }
+
+    impl NodeArrayOrVec {
+        pub fn as_vec_owned(self) -> Vec<Gc<Node>> {
+            enum_unwrapped!(self, [NodeArrayOrVec, Vec])
+        }
     }
 }
 pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;

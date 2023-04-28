@@ -94,8 +94,8 @@ pub use compiler::factory::emit_node::{
     add_emit_flags, add_emit_helper, add_emit_helpers, add_synthetic_leading_comment,
     dispose_emit_nodes, get_comment_range, get_constant_value, get_emit_helpers,
     get_source_map_range, get_synthetic_leading_comments, get_synthetic_trailing_comments,
-    set_comment_range, set_comment_range_rc, set_emit_flags, set_source_map_range,
-    set_synthetic_leading_comments, set_synthetic_leading_comments_rc,
+    remove_all_comments, set_comment_range, set_comment_range_rc, set_emit_flags,
+    set_source_map_range, set_synthetic_leading_comments, set_synthetic_leading_comments_rc,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,
@@ -292,8 +292,8 @@ pub use compiler::transformers::tagged_template::{
     process_tagged_template_expression, ProcessLevel,
 };
 pub use compiler::transformers::utilities::{
-    chain_bundle, get_original_node_id, get_properties, is_simple_inlineable_expression,
-    maybe_get_original_node_id,
+    add_prologue_directives_and_initial_super_call, chain_bundle, get_original_node_id,
+    get_properties, is_simple_inlineable_expression, maybe_get_original_node_id,
 };
 pub use compiler::transformers::{
     is_internal_declaration, transform_class_fields, transform_declarations,
@@ -602,7 +602,7 @@ pub use compiler::utilities::{
     is_variable_like, is_variable_like_or_accessor, is_watch_set, is_write_access,
     is_write_only_access, make_identifier_from_module_name, match_files, match_pattern_or_exact,
     maybe_get_source_file_of_node, maybe_set_parent, min_and_max, modifier_to_flag,
-    modifiers_to_flags, module_resolution_is_equal_to, move_range_past_decorators,
+    modifiers_to_flags, module_resolution_is_equal_to, move_range_past_decorators, move_range_pos,
     no_truncation_maximum_truncation_length, node_can_be_decorated, node_is_decorated,
     node_is_missing, node_is_present, node_is_synthesized, node_or_child_is_decorated,
     node_pos_to_string, node_starts_new_lexical_environment, object_allocator,

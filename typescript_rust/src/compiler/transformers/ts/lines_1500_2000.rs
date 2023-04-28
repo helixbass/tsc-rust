@@ -1,17 +1,21 @@
 use std::ptr;
 
 use gc::Gc;
+use itertools::Itertools;
 
 use crate::{
-    find_ancestor, get_parse_node_factory, get_parse_tree_node, has_static_modifier,
-    has_syntactic_modifier, id_text, is_computed_property_name, is_conditional_type_node,
-    is_expression, is_identifier, is_left_hand_side_expression, is_modifier, is_private_identifier,
-    is_property_name, is_simple_inlineable_expression, move_range_past_decorators, node_is_missing,
-    set_comment_range, set_source_map_range, skip_partially_emitted_expressions, visit_each_child,
-    visit_node, visit_nodes, visit_parameter_list, AsDoubleDeref, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, Matches, ModifierFlags, Node, NodeArray, NodeExt, NodeFlags,
-    NodeInterface, NonEmpty, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
-    TypeReferenceSerializationKind, VisitResult,
+    add_prologue_directives_and_initial_super_call, add_range, find_ancestor,
+    get_parse_node_factory, get_parse_tree_node, has_static_modifier, has_syntactic_modifier,
+    id_text, is_computed_property_name, is_conditional_type_node, is_expression, is_identifier,
+    is_left_hand_side_expression, is_modifier, is_parameter_property_declaration,
+    is_private_identifier, is_property_name, is_simple_inlineable_expression, is_statement,
+    move_range_past_decorators, move_range_pos, node_is_missing, set_comment_range,
+    set_source_map_range, skip_partially_emitted_expressions, visit_each_child,
+    visit_function_body, visit_node, visit_nodes, visit_parameter_list, AsDoubleDeref, EmitFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, Matches, ModifierFlags, Node,
+    NodeArray, NodeArrayExt, NodeExt, NodeFlags, NodeInterface, NonEmpty, PeekableExt,
+    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TypeReferenceSerializationKind,
+    VisitResult,
 };
 
 use super::TransformTypeScript;
@@ -524,6 +528,136 @@ impl TransformTypeScript {
         body: &Node,        /*Block*/
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> Gc<Node> {
-        unimplemented!()
+        let body_as_block = body.as_block();
+        let parameters_with_property_assignments = /*constructor &&*/ constructor.as_constructor_declaration().parameters().owned_iter().filter(|p| {
+            is_parameter_property_declaration(p, constructor)
+        });
+        if parameters_with_property_assignments
+            .clone()
+            .peekable()
+            .is_empty_()
+        {
+            return visit_function_body(
+                Some(body),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&Node>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                    ) -> Option<Gc<Node>>,
+                >::None,
+            )
+            .unwrap();
+        }
+
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        let index_of_first_statement: usize/* = 0*/;
+
+        self.context.resume_lexical_environment();
+
+        index_of_first_statement = add_prologue_directives_and_initial_super_call(
+            &self.factory,
+            constructor,
+            &mut statements,
+            |node: &Node| self.visitor(node),
+        );
+
+        add_range(
+            &mut statements,
+            Some(
+                &parameters_with_property_assignments
+                    .map(|ref parameter| {
+                        self.transform_parameter_with_property_assignment(parameter)
+                            .unwrap()
+                    })
+                    .collect_vec(),
+            ),
+            None,
+            None,
+        );
+
+        add_range(
+            &mut statements,
+            visit_nodes(
+                Some(&body_as_block.statements),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_statement),
+                Some(index_of_first_statement),
+                None,
+            )
+            .as_double_deref(),
+            None,
+            None,
+        );
+
+        statements = self
+            .factory
+            .merge_lexical_environment(
+                statements,
+                self.context.end_lexical_environment().as_deref(),
+            )
+            .as_vec_owned();
+        self.factory
+            .create_block(
+                self.factory
+                    .create_node_array(Some(statements), None)
+                    .set_text_range(Some(&*body_as_block.statements)),
+                Some(true),
+            )
+            .wrap()
+            .set_text_range(Some(body))
+            .set_original_node(Some(body.node_wrapper()))
+    }
+
+    pub(super) fn transform_parameter_with_property_assignment(
+        &self,
+        node: &Node, /*ParameterPropertyDeclaration*/
+    ) -> Option<Gc<Node>> {
+        let ref name = node.as_named_declaration().name();
+        if !is_identifier(name) {
+            return None;
+        }
+
+        let property_name = self
+            .factory
+            .clone_node(name)
+            .set_text_range(Some(&**name))
+            .and_set_parent(name.maybe_parent())
+            .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoSourceMap);
+
+        let local_name = self
+            .factory
+            .clone_node(name)
+            .set_text_range(Some(&**name))
+            .and_set_parent(name.maybe_parent())
+            .set_emit_flags(EmitFlags::NoComments);
+
+        Some(
+            self.factory
+                .create_expression_statement(
+                    self.factory
+                        .create_assignment(
+                            self.factory
+                                .create_property_access_expression(
+                                    self.factory.create_this().wrap(),
+                                    property_name,
+                                )
+                                .wrap()
+                                .set_text_range(
+                                    node.as_named_declaration().maybe_name().as_deref(),
+                                ),
+                            local_name,
+                        )
+                        .wrap(),
+                )
+                .wrap()
+                .set_original_node(Some(node.node_wrapper()))
+                .set_text_range(Some(&move_range_pos(node, -1).into_readonly_text_range()))
+                .remove_all_comments()
+                .start_on_new_line(),
+        )
     }
 }

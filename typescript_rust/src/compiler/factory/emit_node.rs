@@ -75,6 +75,10 @@ pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>)
     }
 }
 
+pub fn remove_all_comments<TNode: Borrow<Node>>(_node: TNode) -> TNode {
+    unimplemented!()
+}
+
 pub fn set_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
     get_or_create_emit_node(node.borrow()).borrow_mut().flags = Some(emit_flags);
     node

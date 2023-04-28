@@ -700,4 +700,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             .cloned()
             .unwrap_or_else(|| self.create_block(nodes.to_owned(), None).wrap())
     }
+
+    pub fn merge_lexical_environment(
+        &self,
+        _statements: impl Into<NodeArrayOrVec>,
+        _declarations: Option<&[Gc<Node /*Statement*/>]>,
+    ) -> NodeArrayOrVec {
+        unimplemented!()
+    }
 }

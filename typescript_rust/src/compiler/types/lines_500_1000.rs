@@ -3,9 +3,9 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::{cell::Cell, fmt};
 
 use crate::{
-    set_comment_range_rc, set_emit_flags, set_original_node, set_source_map_range,
-    set_text_range_end, set_text_range_pos, set_text_range_rc_node, start_on_new_line,
-    CaseOrDefaultClauseInterface, EmitFlags, GcVec, HasArgumentsInterface,
+    remove_all_comments, set_comment_range_rc, set_emit_flags, set_original_node,
+    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_rc_node,
+    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, GcVec, HasArgumentsInterface,
     HasAssertClauseInterface, HasChildrenInterface, HasDotDotDotTokenInterface,
     HasFileNameInterface, HasLeftAndRightInterface, HasMembersInterface,
     HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface, HasTagNameInterface,
@@ -2065,6 +2065,7 @@ pub trait NodeExt {
     fn start_on_new_line(self) -> Self;
     fn and_set_parent(self, parent: Option<Gc<Node>>) -> Self;
     fn and_set_original(self, original: Option<Gc<Node>>) -> Self;
+    fn remove_all_comments(self) -> Self;
 }
 
 impl NodeExt for Gc<Node> {
@@ -2109,6 +2110,11 @@ impl NodeExt for Gc<Node> {
 
     fn and_set_original(self, original: Option<Gc<Node>>) -> Self {
         self.set_original(original);
+        self
+    }
+
+    fn remove_all_comments(self) -> Self {
+        remove_all_comments(&*self);
         self
     }
 }
