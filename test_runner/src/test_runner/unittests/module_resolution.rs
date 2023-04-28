@@ -1131,3 +1131,51 @@ mod node_module_resolution_non_relative_paths {
         ));
     }
 }
+
+mod relative_imports {
+    use typescript_rust::{
+        create_program, CompilerHost, CompilerOptionsBuilder, CreateProgramOptionsBuilder,
+        ModuleKind, Owned,
+    };
+
+    use super::*;
+
+    fn test(
+        files: &HashMap<&str, &str>,
+        current_directory: &str,
+        root_files: &[&str],
+        expected_files_count: usize,
+        relative_names_to_check: &[&str],
+    ) {
+        let options = Gc::new(
+            CompilerOptionsBuilder::default()
+                .module(ModuleKind::CommonJS)
+                .build()
+                .unwrap(),
+        );
+        let host: Gc<Box<dyn CompilerHost>> = unimplemented!();
+
+        let program = create_program(
+            CreateProgramOptionsBuilder::default()
+                .root_names(root_files.owned())
+                .options(options)
+                .host(host)
+                .build()
+                .unwrap(),
+        );
+        // pub struct CreateProgramOptions {
+        // #[unsafe_ignore_trace]
+        // pub root_names: Vec<String>,
+        // pub options: Gc<CompilerOptions>,
+        // #[builder(default)]
+        // #[unsafe_ignore_trace]
+        // pub project_references: Option<Vec<Rc<ProjectReference>>>,
+        // #[builder(default)]
+        // pub host: Option<Gc<Box<dyn CompilerHost>>>,
+        // #[builder(default)]
+        // pub old_program: Option<Gc<Box<Program>>>,
+        // #[builder(default)]
+        // pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
+        // );
+    }
+}

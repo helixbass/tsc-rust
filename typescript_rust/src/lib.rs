@@ -336,11 +336,12 @@ pub use compiler::types::{
     CompilerOptionsValue, ComputedPropertyName, ConditionalExpression, ConditionalRoot,
     ConditionalType, ConditionalTypeNode, ConfigFileSpecs, ConstructSignatureDeclaration,
     ConstructorDeclaration, ConstructorTypeNode, ContextFlags, ContinueStatement,
-    CoreTransformationContext, CreateProgramOptions, CurrentParenthesizerRule, CustomTransformer,
-    CustomTransformerFactory, CustomTransformerFactoryInterface, CustomTransformerInterface,
-    CustomTransformers, DebuggerStatement, Decorator, DefaultClause, DeleteExpression,
-    DetachedCommentInfo, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    CoreTransformationContext, CreateProgramOptions, CreateProgramOptionsBuilder,
+    CurrentParenthesizerRule, CustomTransformer, CustomTransformerFactory,
+    CustomTransformerFactoryInterface, CustomTransformerInterface, CustomTransformers,
+    DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DetachedCommentInfo, Diagnostic,
+    DiagnosticCategory, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     DidYouMeanOptionsDiagnostics, DoStatement, ElementAccessExpression, ElementFlags, EmitFlags,
     EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, EmitHost, EmitResolver, EmitResult,
@@ -733,7 +734,7 @@ pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::hash_map::{GcHashMap, GcHashMapOwnedValues};
 pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::iterator::{
-    maybe_concat, maybe_concat_exact_size, Empty, PeekMoreExt, PeekableExt,
+    maybe_concat, maybe_concat_exact_size, Empty, Owned, PeekMoreExt, PeekableExt,
 };
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::{

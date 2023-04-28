@@ -529,9 +529,15 @@ impl TransformTypeScript {
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> Gc<Node> {
         let body_as_block = body.as_block();
-        let parameters_with_property_assignments = /*constructor &&*/ constructor.as_constructor_declaration().parameters().owned_iter().filter(|p| {
-            is_parameter_property_declaration(p, constructor)
-        });
+        let parameters_with_property_assignments =
+            /*constructor &&*/
+            constructor
+                .as_constructor_declaration()
+                .parameters()
+                .owned_iter()
+                .filter(|p| {
+                    is_parameter_property_declaration(p, constructor)
+                });
         if parameters_with_property_assignments
             .clone()
             .peekable()
