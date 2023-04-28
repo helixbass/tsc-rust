@@ -1133,15 +1133,17 @@ mod node_module_resolution_non_relative_paths {
 }
 
 mod relative_imports {
+    use harness::Compiler;
     use typescript_rust::{
-        create_program, CompilerHost, CompilerOptionsBuilder, CreateProgramOptionsBuilder,
-        ModuleKind, Owned,
+        combine_paths, create_program, create_source_file, normalize_path, not_implemented,
+        CompilerHost, CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder,
+        ModuleKind, Node, Owned, ScriptReferenceHost, ScriptTarget,
     };
 
     use super::*;
 
     fn test(
-        files: &HashMap<&str, &str>,
+        files: &HashMap<String, String>,
         current_directory: &str,
         root_files: &[&str],
         expected_files_count: usize,
@@ -1153,7 +1155,8 @@ mod relative_imports {
                 .build()
                 .unwrap(),
         );
-        let host: Gc<Box<dyn CompilerHost>> = unimplemented!();
+        let host: Gc<Box<dyn CompilerHost>> =
+            RelativeImportsCompilerHost::new(current_directory.to_owned(), files.clone());
 
         let program = create_program(
             CreateProgramOptionsBuilder::default()
@@ -1163,19 +1166,263 @@ mod relative_imports {
                 .build()
                 .unwrap(),
         );
-        // pub struct CreateProgramOptions {
-        // #[unsafe_ignore_trace]
-        // pub root_names: Vec<String>,
-        // pub options: Gc<CompilerOptions>,
-        // #[builder(default)]
-        // #[unsafe_ignore_trace]
-        // pub project_references: Option<Vec<Rc<ProjectReference>>>,
-        // #[builder(default)]
-        // pub host: Option<Gc<Box<dyn CompilerHost>>>,
-        // #[builder(default)]
-        // pub old_program: Option<Gc<Box<Program>>>,
-        // #[builder(default)]
-        // pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
-        // );
+
+        assert_that(&*program.get_source_files()).has_length(expected_files_count);
+        let syntactic_diagnostics = program.get_syntactic_diagnostics(None, None);
+        asserting(&format!(
+            "expect no syntactic diagnostics, got: {:?}",
+            Compiler::minimal_diagnostics_to_string(&syntactic_diagnostics, None,)
+        ))
+        .that(&syntactic_diagnostics)
+        .is_empty();
+        let semantic_diagnostics = program.get_semantic_diagnostics(None, None);
+        asserting(&format!(
+            "expect no semantic diagnostics, got: {:?}",
+            Compiler::minimal_diagnostics_to_string(&semantic_diagnostics, None,)
+        ))
+        .that(&semantic_diagnostics)
+        .is_empty();
+
+        for relative_file_name in relative_names_to_check {
+            asserting("expected to get file by relative name, got undefined")
+                .that(&program.get_source_file(relative_file_name))
+                .is_some();
+        }
+    }
+
+    #[derive(Trace, Finalize)]
+    struct RelativeImportsCompilerHost {
+        current_directory: String,
+        files: HashMap<String, String>,
+    }
+
+    impl RelativeImportsCompilerHost {
+        pub fn new(
+            current_directory: String,
+            files: HashMap<String, String>,
+        ) -> Gc<Box<dyn CompilerHost>> {
+            Gc::new(Box::new(Self {
+                current_directory,
+                files,
+            }))
+        }
+    }
+
+    impl CompilerHost for RelativeImportsCompilerHost {
+        fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+            self
+        }
+
+        fn get_source_file(
+            &self,
+            file_name: &str,
+            language_version: ScriptTarget,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _should_create_new_source_file: Option<bool>,
+        ) -> Option<Gc<Node /*SourceFile*/>> {
+            let ref path =
+                normalize_path(&combine_paths(&self.current_directory, &[Some(file_name)]));
+            let file = self.files.get(path);
+            file.map(|file| {
+                create_source_file(file_name, file.clone(), language_version, None, None)
+            })
+        }
+
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
+            "lib.d.ts".to_owned()
+        }
+
+        fn write_file(
+            &self,
+            _file_name: &str,
+            _data: &str,
+            _write_byte_order_mark: bool,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        ) {
+            not_implemented()
+        }
+
+        fn write_file_non_overridden(
+            &self,
+            _file_name: &str,
+            _data: &str,
+            _write_byte_order_mark: bool,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_write_file_supported(&self) -> bool {
+            true
+        }
+
+        fn set_overriding_write_file(
+            &self,
+            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn get_current_directory(&self) -> String {
+            self.current_directory.clone()
+        }
+
+        fn get_canonical_file_name(&self, file_name: &str) -> String {
+            file_name.to_lowercase()
+        }
+
+        fn get_new_line(&self) -> String {
+            "\r\n".to_owned()
+        }
+
+        fn use_case_sensitive_file_names(&self) -> bool {
+            false
+        }
+
+        fn is_read_directory_implemented(&self) -> bool {
+            false
+        }
+
+        fn is_resolve_module_names_supported(&self) -> bool {
+            false
+        }
+
+        fn is_resolve_type_reference_directives_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_old_source_file_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_parsed_command_line_supported(&self) -> bool {
+            false
+        }
+
+        fn is_create_directory_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_create_directory(
+            &self,
+            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+    }
+
+    impl ModuleResolutionHost for RelativeImportsCompilerHost {
+        fn is_get_directories_supported(&self) -> bool {
+            true
+        }
+
+        fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
+            Some(Default::default())
+        }
+
+        fn set_overriding_get_directories(
+            &self,
+            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn file_exists(&self, file_name: &str) -> bool {
+            let ref path =
+                normalize_path(&combine_paths(&self.current_directory, &[Some(file_name)]));
+            self.files.contains_key(path)
+        }
+
+        fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
+            unreachable!()
+        }
+
+        fn set_overriding_file_exists(
+            &self,
+            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file(&self, _file_name: &str) -> io::Result<Option<String>> {
+            not_implemented()
+        }
+
+        fn set_overriding_read_file(
+            &self,
+            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file_non_overridden(&self, _file_name: &str) -> io::Result<Option<String>> {
+            unreachable!()
+        }
+
+        fn is_trace_supported(&self) -> bool {
+            false
+        }
+
+        fn is_directory_exists_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_directory_exists(
+            &self,
+            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_realpath_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_realpath(
+            &self,
+            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    fn test_should_find_all_modules() {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                (
+                    "/a/b/c/first/shared.ts",
+                    "
+class A {}
+export = A",
+                ),
+                (
+                    "/a/b/c/first/second/class_a.ts",
+                    "
+import Shared = require('../shared');
+import C = require('../../third/class_c');
+class B {}
+export = B;",
+                ),
+                (
+                    "/a/b/c/third/class_c.ts",
+                    "
+import Shared = require('../first/shared');
+class C {}
+export = C;
+                ",
+                ),
+            ]
+            .owned(),
+        );
+        test(
+            &files,
+            "/a/b/c/first/second",
+            &["class_a.ts"],
+            3,
+            &["../../../c/third/class_c.ts"],
+        );
     }
 }

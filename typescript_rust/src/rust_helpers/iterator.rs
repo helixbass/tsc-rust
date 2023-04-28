@@ -134,6 +134,18 @@ where
     }
 }
 
+impl<A, B> ToOwnedNonTrivial for (A, B)
+where
+    A: ToOwnedNonTrivial,
+    B: ToOwnedNonTrivial,
+{
+    type Owned = (A::Owned, B::Owned);
+
+    fn to_owned_non_trivial(&self) -> Self::Owned {
+        (self.0.to_owned_non_trivial(), self.1.to_owned_non_trivial())
+    }
+}
+
 pub trait Owned {
     type TargetItem;
 
@@ -153,99 +165,3 @@ where
             .collect()
     }
 }
-
-// pub trait Owned {
-//     fn owned<TResolvedAsImplToOwnedNonTrivial: ToOwnedNonTrivial<Owned = TTargetItem>, TTargetItem: Borrow<TResolvedAsImplToOwnedNonTrivial>>(self) -> Vec<TTargetItem>;
-// }
-
-// impl<TIntoIter> Owned for TIntoIter
-//     where TIntoIter: IntoIterator {
-//     fn owned<TResolvedAsImplToOwnedNonTrivial: ToOwnedNonTrivial<Owned = TTargetItem>, TTargetItem: Borrow<TResolvedAsImplToOwnedNonTrivial>>(self) -> Vec<TTargetItem> {
-//     }
-// }
-
-// pub trait Owned {
-//     type TargetItem;
-
-//     // fn owned<TResolvedAsImplToOwnedNonTrivial: ToOwnedNonTrivial<Owned = Self::TargetItem>>(
-//     fn owned(self) -> Vec<Self::TargetItem>;
-// }
-
-// impl<'any, TSourceIntoIter, TSourceItem> Owned for TSourceIntoIter
-// where
-//     TSourceIntoIter: IntoIterator<Item = TSourceItem>,
-//     TSourceItem: AsRef<str>,
-// {
-//     type TargetItem = String;
-
-//     fn owned(self) -> Vec<Self::TargetItem> {
-//         self.into_iter()
-//             .map(|item| item.as_ref().to_owned())
-//             .collect()
-//     }
-// }
-
-// impl<'any, TSourceIntoIter> Owned for TSourceIntoIter
-// where
-//     TSourceIntoIter: IntoIterator<Item = &'any Path>,
-// {
-//     type TargetItem = PathBuf;
-
-//     fn owned(self) -> Vec<Self::TargetItem> {
-//         self.into_iter().map(|item| item.to_owned()).collect()
-//     }
-// }
-
-// impl<'any, 'any2, TSourceIntoIter> Owned for TSourceIntoIter
-// where
-//     TSourceIntoIter: IntoIterator<Item = &'any &'any2 str>,
-// {
-//     type TargetItem = String;
-
-//     fn owned(self) -> Vec<Self::TargetItem> {
-//         self.into_iter().map(|item| item.to_owned()).collect()
-//     }
-// }
-
-// impl<TSourceItem, TSourceItemResolvedAsImplToOwnedNonTrivial, TTargetItem, TSourceIntoIter> Owned
-//     for TSourceIntoIter
-// where
-//     TSourceIntoIter: IntoIterator<Item = TSourceItem>,
-//     TSourceItem: AsRef<TSourceItemResolvedAsImplToOwnedNonTrivial>,
-//     TTargetItem: Borrow<TSourceItemResolvedAsImplToOwnedNonTrivial>,
-//     // TSourceItemResolvedAsImplToOwnedNonTrivial: ToOwnedNonTrivial<Owned = TTargetItem>,
-// {
-//     // type ResolvedAsImplToOwnedNonTrivial = TSourceItemResolvedAsImplToOwnedNonTrivial;
-//     type TargetItem = TTargetItem;
-
-//     fn owned<TResolvedAsImplToOwnedNonTrivial>(self) -> Vec<TTargetItem> {
-//         self.into_iter()
-//             .map(|item| item.as_ref().to_owned_non_trivial())
-//             .collect()
-//     }
-// }
-
-// impl<'any, TSourceItem, TTargetItem, TSourceIntoIter> Owned for TSourceIntoIter
-// where
-//     TSourceIntoIter: IntoIterator<Item = &'any TSourceItem>,
-//     TTargetItem: Borrow<TSourceItem>,
-//     TSourceItem: ToOwned<Owned = TTargetItem> + 'any,
-// {
-//     type Target = Vec<TTargetItem>;
-
-//     fn owned(self) -> Vec<TTargetItem> {
-//         self.into_iter().map(|item| item.to_owned()).collect()
-//     }
-// }
-
-// impl<'any, TSourceItem, TTargetItem> Owned for [&'any TSourceItem]
-// where
-//     TTargetItem: Borrow<TSourceItem>,
-//     TSourceItem: ToOwned<Owned = TTargetItem> + 'any + ?Sized,
-// {
-//     type Target = Vec<TTargetItem>;
-
-//     fn owned(&self) -> Vec<TTargetItem> {
-//         self.iter().map(|item| (*item).to_owned()).collect()
-//     }
-// }
