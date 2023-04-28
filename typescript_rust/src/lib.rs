@@ -198,7 +198,8 @@ pub use compiler::module_name_resolver::{
     create_module_resolution_cache, create_type_reference_directive_resolution_cache,
     get_automatic_type_directive_names, node_module_name_resolver, resolve_module_name,
     resolve_type_reference_directive, GetCanonicalFileName, ModeAwareCache, ModuleResolutionCache,
-    PackageJsonInfoCache, TypeReferenceDirectiveResolutionCache,
+    NonRelativeModuleNameResolutionCache, PackageJsonInfoCache,
+    TypeReferenceDirectiveResolutionCache,
 };
 pub use compiler::module_specifiers;
 pub use compiler::parser::{
@@ -291,7 +292,8 @@ pub use compiler::transformers::tagged_template::{
     process_tagged_template_expression, ProcessLevel,
 };
 pub use compiler::transformers::utilities::{
-    chain_bundle, get_original_node_id, get_properties, maybe_get_original_node_id,
+    chain_bundle, get_original_node_id, get_properties, is_simple_inlineable_expression,
+    maybe_get_original_node_id,
 };
 pub use compiler::transformers::{
     is_internal_declaration, transform_class_fields, transform_declarations,

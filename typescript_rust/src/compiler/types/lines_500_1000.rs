@@ -2063,6 +2063,8 @@ pub trait NodeExt {
     fn set_comment_range(self, range: &impl ReadonlyTextRange) -> Self;
     fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self;
     fn start_on_new_line(self) -> Self;
+    fn and_set_parent(self, parent: Option<Gc<Node>>) -> Self;
+    fn and_set_original(self, original: Option<Gc<Node>>) -> Self;
 }
 
 impl NodeExt for Gc<Node> {
@@ -2098,6 +2100,16 @@ impl NodeExt for Gc<Node> {
 
     fn start_on_new_line(self) -> Self {
         start_on_new_line(self)
+    }
+
+    fn and_set_parent(self, parent: Option<Gc<Node>>) -> Self {
+        self.set_parent(parent);
+        self
+    }
+
+    fn and_set_original(self, original: Option<Gc<Node>>) -> Self {
+        self.set_original(original);
+        self
     }
 }
 

@@ -643,3 +643,491 @@ mod node_module_resolution_relative_paths {
         test(true);
     }
 }
+
+mod node_module_resolution_non_relative_paths {
+    use super::*;
+
+    use typescript_rust::{
+        create_module_resolution_cache, node_module_name_resolver, resolve_module_name,
+        CompilerOptionsBuilder, Extension, GetCanonicalFileName, ModuleResolutionKind,
+        NonRelativeModuleNameResolutionCache,
+    };
+
+    #[test]
+    fn test_computes_correct_common_prefix_for_module_name_cache() {
+        let resolution_cache = create_module_resolution_cache(
+            "/",
+            Gc::new(Box::new(GetCanonicalFileNameNoop)),
+            None,
+            None,
+            None,
+        );
+        let mut cache = resolution_cache.get_or_create_cache_for_module_name("a", None, None);
+        cache.set(
+            "/sub",
+            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+                Some(Gc::new(
+                    ResolvedModuleFullBuilder::default()
+                        .resolved_file_name("/sub/node_modules/a/index.ts")
+                        .is_external_library_import(true)
+                        .extension(Extension::Ts)
+                        .build()
+                        .unwrap(),
+                )),
+                Default::default(),
+            )),
+        );
+        assert_that(&cache.get("/sub")).is_some();
+        assert_that(&cache.get("/")).is_none();
+
+        cache = resolution_cache.get_or_create_cache_for_module_name("b", None, None);
+        cache.set(
+            "/sub/dir/foo",
+            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+                Some(Gc::new(
+                    ResolvedModuleFullBuilder::default()
+                        .resolved_file_name("/sub/directory/node_modules/b/index.ts")
+                        .is_external_library_import(true)
+                        .extension(Extension::Ts)
+                        .build()
+                        .unwrap(),
+                )),
+                Default::default(),
+            )),
+        );
+        assert_that(&cache.get("/sub/dir/foo")).is_some();
+        assert_that(&cache.get("/sub/dir")).is_some();
+        assert_that(&cache.get("/sub")).is_some();
+        assert_that(&cache.get("/")).is_none();
+
+        cache = resolution_cache.get_or_create_cache_for_module_name("c", None, None);
+        cache.set(
+            "/foo/bar",
+            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+                Some(Gc::new(
+                    ResolvedModuleFullBuilder::default()
+                        .resolved_file_name("/bar/node_modules/c/index.ts")
+                        .is_external_library_import(true)
+                        .extension(Extension::Ts)
+                        .build()
+                        .unwrap(),
+                )),
+                Default::default(),
+            )),
+        );
+        assert_that(&cache.get("/foo/bar")).is_some();
+        assert_that(&cache.get("/foo")).is_some();
+        assert_that(&cache.get("/")).is_some();
+
+        cache = resolution_cache.get_or_create_cache_for_module_name("d", None, None);
+        cache.set(
+            "/foo",
+            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+                Some(Gc::new(
+                    ResolvedModuleFullBuilder::default()
+                        .resolved_file_name("/foo/index.ts")
+                        .is_external_library_import(true)
+                        .extension(Extension::Ts)
+                        .build()
+                        .unwrap(),
+                )),
+                Default::default(),
+            )),
+        );
+        assert_that(&cache.get("/foo")).is_some();
+        assert_that(&cache.get("/")).is_none();
+
+        cache = resolution_cache.get_or_create_cache_for_module_name("e", None, None);
+        cache.set(
+            "c:/foo",
+            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+                Some(Gc::new(
+                    ResolvedModuleFullBuilder::default()
+                        .resolved_file_name("d:/bar/node_modules/e/index.ts")
+                        .is_external_library_import(true)
+                        .extension(Extension::Ts)
+                        .build()
+                        .unwrap(),
+                )),
+                Default::default(),
+            )),
+        );
+        assert_that(&cache.get("c:/foo")).is_some();
+        assert_that(&cache.get("c:/")).is_some();
+        assert_that(&cache.get("d:/")).is_none();
+
+        cache = resolution_cache.get_or_create_cache_for_module_name("f", None, None);
+        cache.set(
+            "/foo/bar/baz",
+            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+                None,
+                Default::default(),
+            )),
+        );
+        assert_that(&cache.get("/foo/bar/baz")).is_some();
+        assert_that(&cache.get("/foo/bar")).is_some();
+        assert_that(&cache.get("/foo")).is_some();
+        assert_that!(&cache.get("/")).is_some();
+    }
+
+    #[derive(Trace, Finalize)]
+    struct GetCanonicalFileNameNoop;
+
+    impl GetCanonicalFileName for GetCanonicalFileNameNoop {
+        fn call(&self, file_name: &str) -> String {
+            file_name.to_owned()
+        }
+    }
+
+    #[test]
+    fn test_load_module_as_file_ts_files_not_loaded() {
+        let test = |has_directory_exists: bool| {
+            let containing_file = FileBuilder::default()
+                .name("/a/b/c/d/e.ts")
+                .build()
+                .unwrap();
+            let module_file = FileBuilder::default()
+                .name("/a/b/node_modules/foo.ts")
+                .build()
+                .unwrap();
+            let resolution = node_module_name_resolver(
+                "foo",
+                &containing_file.name,
+                Default::default(),
+                &*create_module_resolution_host(
+                    has_directory_exists,
+                    vec![containing_file.clone(), module_file.clone()],
+                ),
+                None,
+                None,
+                None,
+            );
+            check_resolved_module_with_failed_lookup_locations(
+                &resolution,
+                &create_resolved_module(&module_file.name, Some(true)),
+                &[
+                    "/a/b/c/d/node_modules/foo/package.json",
+                    "/a/b/c/d/node_modules/foo.ts",
+                    "/a/b/c/d/node_modules/foo.tsx",
+                    "/a/b/c/d/node_modules/foo.d.ts",
+                    "/a/b/c/d/node_modules/foo/index.ts",
+                    "/a/b/c/d/node_modules/foo/index.tsx",
+                    "/a/b/c/d/node_modules/foo/index.d.ts",
+                    "/a/b/c/d/node_modules/@types/foo/package.json",
+                    "/a/b/c/d/node_modules/@types/foo.d.ts",
+                    "/a/b/c/d/node_modules/@types/foo/index.d.ts",
+                    "/a/b/c/node_modules/foo/package.json",
+                    "/a/b/c/node_modules/foo.ts",
+                    "/a/b/c/node_modules/foo.tsx",
+                    "/a/b/c/node_modules/foo.d.ts",
+                    "/a/b/c/node_modules/foo/index.ts",
+                    "/a/b/c/node_modules/foo/index.tsx",
+                    "/a/b/c/node_modules/foo/index.d.ts",
+                    "/a/b/c/node_modules/@types/foo/package.json",
+                    "/a/b/c/node_modules/@types/foo.d.ts",
+                    "/a/b/c/node_modules/@types/foo/index.d.ts",
+                    "/a/b/node_modules/foo/package.json",
+                ],
+            );
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_load_module_as_file() {
+        let test = |has_directory_exists: bool| {
+            let containing_file = FileBuilder::default()
+                .name("/a/b/c/d/e.ts")
+                .build()
+                .unwrap();
+            let module_file = FileBuilder::default()
+                .name("/a/b/node_modules/foo.ts")
+                .build()
+                .unwrap();
+            let resolution = node_module_name_resolver(
+                "foo",
+                &containing_file.name,
+                Default::default(),
+                &*create_module_resolution_host(
+                    has_directory_exists,
+                    vec![containing_file.clone(), module_file.clone()],
+                ),
+                None,
+                None,
+                None,
+            );
+            check_resolved_module(
+                resolution.resolved_module.as_deref(),
+                Some(&create_resolved_module(&module_file.name, Some(true))),
+            );
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_load_module_as_directory() {
+        let test = |has_directory_exists: bool| {
+            let containing_file = FileBuilder::default()
+                .name("/a/node_modules/b/c/node_modules/d/e.ts")
+                .build()
+                .unwrap();
+            let module_file = FileBuilder::default()
+                .name("/a/node_modules/foo/index.d.ts")
+                .build()
+                .unwrap();
+            let resolution = node_module_name_resolver(
+                "foo",
+                &containing_file.name,
+                Default::default(),
+                &*create_module_resolution_host(
+                    has_directory_exists,
+                    vec![containing_file.clone(), module_file.clone()],
+                ),
+                None,
+                None,
+                None,
+            );
+            check_resolved_module_with_failed_lookup_locations(
+                &resolution,
+                &create_resolved_module(&module_file.name, Some(true)),
+                &[
+                    "/a/node_modules/b/c/node_modules/d/node_modules/foo/package.json",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/foo.ts",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/foo.tsx",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/foo.d.ts",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/foo/index.ts",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/foo/index.tsx",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/foo/index.d.ts",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/@types/foo/package.json",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/@types/foo.d.ts",
+                    "/a/node_modules/b/c/node_modules/d/node_modules/@types/foo/index.d.ts",
+                    "/a/node_modules/b/c/node_modules/foo/package.json",
+                    "/a/node_modules/b/c/node_modules/foo.ts",
+                    "/a/node_modules/b/c/node_modules/foo.tsx",
+                    "/a/node_modules/b/c/node_modules/foo.d.ts",
+                    "/a/node_modules/b/c/node_modules/foo/index.ts",
+                    "/a/node_modules/b/c/node_modules/foo/index.tsx",
+                    "/a/node_modules/b/c/node_modules/foo/index.d.ts",
+                    "/a/node_modules/b/c/node_modules/@types/foo/package.json",
+                    "/a/node_modules/b/c/node_modules/@types/foo.d.ts",
+                    "/a/node_modules/b/c/node_modules/@types/foo/index.d.ts",
+                    "/a/node_modules/b/node_modules/foo/package.json",
+                    "/a/node_modules/b/node_modules/foo.ts",
+                    "/a/node_modules/b/node_modules/foo.tsx",
+                    "/a/node_modules/b/node_modules/foo.d.ts",
+                    "/a/node_modules/b/node_modules/foo/index.ts",
+                    "/a/node_modules/b/node_modules/foo/index.tsx",
+                    "/a/node_modules/b/node_modules/foo/index.d.ts",
+                    "/a/node_modules/b/node_modules/@types/foo/package.json",
+                    "/a/node_modules/b/node_modules/@types/foo.d.ts",
+                    "/a/node_modules/b/node_modules/@types/foo/index.d.ts",
+                    "/a/node_modules/foo/package.json",
+                    "/a/node_modules/foo.ts",
+                    "/a/node_modules/foo.tsx",
+                    "/a/node_modules/foo.d.ts",
+                    "/a/node_modules/foo/index.ts",
+                    "/a/node_modules/foo/index.tsx",
+                ],
+            );
+        };
+
+        test(false);
+        test(true);
+    }
+
+    fn test_preserve_symlinks(preserve_symlinks: bool) {
+        let real_file_name = "/linked/index.d.ts";
+        let symlink_file_name = "/app/node_modules/linked/index.d.ts";
+        let host = create_module_resolution_host(
+            true,
+            vec![
+                FileBuilder::default()
+                    .name(real_file_name)
+                    .symlinks([symlink_file_name.to_owned()])
+                    .build()
+                    .unwrap(),
+                FileBuilder::default()
+                    .name("/app/node_modules/linked/package.json")
+                    .content("{\"version\": \"0.0.0\", \"main\": \"./index\"}")
+                    .build()
+                    .unwrap(),
+            ],
+        );
+        let resolution = node_module_name_resolver(
+            "linked",
+            "/app/app.ts",
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .preserve_symlinks(preserve_symlinks)
+                    .build()
+                    .unwrap(),
+            ),
+            &*host,
+            None,
+            None,
+            None,
+        );
+        let resolved_file_name = if preserve_symlinks {
+            symlink_file_name
+        } else {
+            real_file_name
+        };
+        check_resolved_module(
+            resolution.resolved_module.as_deref(),
+            Some(&create_resolved_module(resolved_file_name, Some(true))),
+        );
+    }
+
+    #[test]
+    fn test_preserve_symlinks_false() {
+        test_preserve_symlinks(false);
+    }
+
+    #[test]
+    fn test_preserve_symlinks_true() {
+        test_preserve_symlinks(true);
+    }
+
+    #[test]
+    fn test_uses_original_path_for_caching() {
+        let host = create_module_resolution_host(
+            true,
+            vec![
+                FileBuilder::default()
+                    .name("/modules/a.ts")
+                    .symlinks(["/sub/node_modules/a/index.ts".to_owned()])
+                    .build()
+                    .unwrap(),
+                FileBuilder::default()
+                    .name("/sub/node_modules/a/package.json")
+                    .content("{\"version\": \"0.0.0\", \"main\": \"./index\"}")
+                    .build()
+                    .unwrap(),
+            ],
+        );
+        let compiler_options = Gc::new(
+            CompilerOptionsBuilder::default()
+                .module_resolution(ModuleResolutionKind::NodeJs)
+                .build()
+                .unwrap(),
+        );
+        let cache = Gc::new(create_module_resolution_cache(
+            "/",
+            Gc::new(Box::new(GetCanonicalFileNameNoop)),
+            None,
+            None,
+            None,
+        ));
+        let mut resolution = resolve_module_name(
+            "a",
+            "/sub/dir/foo.ts",
+            compiler_options.clone(),
+            &*host,
+            Some(cache.clone()),
+            None,
+            None,
+        );
+        check_resolved_module(
+            resolution.resolved_module.as_deref(),
+            Some(&create_resolved_module("/modules/a.ts", Some(true))),
+        );
+
+        resolution = resolve_module_name(
+            "a",
+            "/sub/foo.ts",
+            compiler_options.clone(),
+            &*host,
+            Some(cache.clone()),
+            None,
+            None,
+        );
+        check_resolved_module(
+            resolution.resolved_module.as_deref(),
+            Some(&create_resolved_module("/modules/a.ts", Some(true))),
+        );
+
+        resolution = resolve_module_name(
+            "a",
+            "/foo.ts",
+            compiler_options.clone(),
+            &*host,
+            Some(cache.clone()),
+            None,
+            None,
+        );
+        asserting("lookup in parent directory doesn't hit the cache")
+            .that(&resolution.resolved_module)
+            .is_none();
+    }
+
+    fn check_resolution(resolution: &ResolvedModuleWithFailedLookupLocations) {
+        check_resolved_module(
+            resolution.resolved_module.as_deref(),
+            Some(&create_resolved_module("/linked/index.d.ts", Some(true))),
+        );
+        assert_that(
+            &resolution
+                .resolved_module
+                .as_ref()
+                .unwrap()
+                .original_path
+                .as_deref(),
+        )
+        .is_some()
+        .is_equal_to("/app/node_modules/linked/index.d.ts");
+    }
+
+    #[test]
+    fn test_preserves_original_path_on_cache_hit() {
+        let host = create_module_resolution_host(
+            true,
+            vec![
+                FileBuilder::default()
+                    .name("/linked/index.d.ts")
+                    .symlinks(["/app/node_modules/linked/index.d.ts".to_owned()])
+                    .build()
+                    .unwrap(),
+                FileBuilder::default()
+                    .name("/app/node_modules/linked/package.json")
+                    .content("{\"version\": \"0.0.0\", \"main\": \"./index\"}")
+                    .build()
+                    .unwrap(),
+            ],
+        );
+        let cache = Gc::new(create_module_resolution_cache(
+            "/",
+            Gc::new(Box::new(GetCanonicalFileNameNoop)),
+            None,
+            None,
+            None,
+        ));
+        let compiler_options = Gc::new(
+            CompilerOptionsBuilder::default()
+                .module_resolution(ModuleResolutionKind::NodeJs)
+                .build()
+                .unwrap(),
+        );
+        check_resolution(&resolve_module_name(
+            "linked",
+            "/app/src/app.ts",
+            compiler_options.clone(),
+            &*host,
+            Some(cache.clone()),
+            None,
+            None,
+        ));
+        check_resolution(&resolve_module_name(
+            "linked",
+            "/app/lib/main.ts",
+            compiler_options.clone(),
+            &*host,
+            Some(cache.clone()),
+            None,
+            None,
+        ));
+    }
+}

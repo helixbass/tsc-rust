@@ -3,7 +3,7 @@ use std::{borrow::Borrow, iter};
 use gc::Gc;
 use itertools::Either;
 
-use crate::{Node, NodeInterface, Symbol, SymbolInterface, Type, TypeInterface};
+use crate::{Node, NodeArray, NodeInterface, Symbol, SymbolInterface, Type, TypeInterface};
 
 pub trait NonEmpty {
     fn non_empty(self) -> Self;
@@ -50,7 +50,27 @@ impl<TItem> NonEmpty for Option<&[TItem]> {
     }
 }
 
+impl<TItem> NonEmpty for Option<&Vec<TItem>> {
+    fn non_empty(self) -> Self {
+        self.filter(|value| !value.is_empty())
+    }
+
+    fn is_non_empty(self) -> bool {
+        self.non_empty().is_some()
+    }
+}
+
 impl<TItem> NonEmpty for Option<Vec<TItem>> {
+    fn non_empty(self) -> Self {
+        self.filter(|value| !value.is_empty())
+    }
+
+    fn is_non_empty(self) -> bool {
+        self.non_empty().is_some()
+    }
+}
+
+impl NonEmpty for Option<Gc<NodeArray>> {
     fn non_empty(self) -> Self {
         self.filter(|value| !value.is_empty())
     }

@@ -12,10 +12,10 @@ pub struct EmitHelperFactory {}
 impl EmitHelperFactory {
     pub fn create_decorate_helper(
         &self,
-        decorator_expressions: &[Gc<Node /*Expression*/>],
-        target: &Node, /*Expression*/
-        member_name: Option<impl Borrow<Node /*Expression*/>>,
-        descriptor: Option<impl Borrow<Node /*Expression*/>>,
+        _decorator_expressions: &[Gc<Node /*Expression*/>],
+        _target: &Node, /*Expression*/
+        _member_name: Option<impl Borrow<Node /*Expression*/>>,
+        _descriptor: Option<impl Borrow<Node /*Expression*/>>,
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }

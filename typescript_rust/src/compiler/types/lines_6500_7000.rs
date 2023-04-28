@@ -276,7 +276,7 @@ impl AsRef<str> for Extension {
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Debug, Trace, Finalize)]
 pub struct ResolvedModuleWithFailedLookupLocations {
     pub resolved_module: Option<Gc<ResolvedModuleFull>>,
     #[unsafe_ignore_trace]
