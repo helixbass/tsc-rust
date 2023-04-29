@@ -1457,11 +1457,11 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         combine_paths, create_get_canonical_file_name, create_program, create_source_file,
         normalize_path, not_implemented, sort_and_deduplicate_diagnostics, CompilerHost,
         CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder, Diagnostic,
-        ModuleKind, Node, Owned, Program, ScriptTarget, VecExt,
+        DiagnosticInterface, Diagnostics, ModuleKind, Node, Owned, Program, ScriptTarget, VecExt,
     };
 
     use super::*;
-    use crate::GcSlicesAreEqual;
+    use crate::{get_diagnostic_message_chain, get_diagnostic_of_file_from_program};
 
     thread_local! {
         static library: OnceCell<Gc<Node /*SourceFile*/>> = Default::default();
@@ -1504,9 +1504,9 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                 .and_extend(Vec::<_>::from(program.get_options_diagnostics(None))),
         )
         .into();
-        assert_that(&diagnostics).gc_slices_are_equal(&sort_and_deduplicate_diagnostics(
+        assert_that(&diagnostics).is_equal_to(Vec::<_>::from(sort_and_deduplicate_diagnostics(
             &expected_diagnostics(&program),
-        ));
+        )));
     }
 
     #[derive(Trace, Finalize)]
@@ -1754,6 +1754,66 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             false,
             &["c.ts", "/a/b/d.ts"],
             |_| vec![],
+        );
+    }
+
+    #[test]
+    fn test_should_fail_when_two_files_used_in_program_differ_only_in_casing_tripleslash_references(
+    ) {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("/a/b/c.ts", r#"/// <reference path="D.ts"/>"#),
+                ("/a/b/d.ts", "var x"),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::AMD)
+                    .force_consistent_casing_in_file_names(true)
+                    .build()
+                    .unwrap(),
+            ),
+            "/a/b",
+            false,
+            &["c.ts", "d.ts"],
+            |program: &Program| {
+                vec![{
+                    let diagnostic = get_diagnostic_of_file_from_program(
+                        program,
+                        "c.ts",
+                        r#"/// <reference path="D.ts"/>"#.find("D.ts").unwrap().try_into().unwrap(),
+                        "D.ts".len().try_into().unwrap(),
+                        get_diagnostic_message_chain(
+                            &Diagnostics::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+                            ["D.ts", "d.ts"].owned(),
+                            vec![
+                                get_diagnostic_message_chain(
+                                    &Diagnostics::The_file_is_in_the_program_because_Colon,
+                                    vec![],
+                                    vec![
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Referenced_via_0_from_file_1,
+                                            ["D.ts", "c.ts"].owned(),
+                                            None,
+                                        ),
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Root_file_specified_for_compilation,
+                                            None,
+                                            None,
+                                        ),
+                                    ]
+                                )
+                            ],
+                        ),
+                        None,
+                    );
+                    *diagnostic.maybe_related_information_mut() = None;
+                    diagnostic
+                }]
+            },
         );
     }
 }

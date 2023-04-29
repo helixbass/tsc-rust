@@ -1058,9 +1058,9 @@ impl Program {
         }
     }
 
-    pub fn create_diagnostic_explaining_file<TFile: Borrow<Node>>(
+    pub fn create_diagnostic_explaining_file(
         &self,
-        file: Option<TFile>,
+        file: Option<impl Borrow<Node>>,
         mut file_processing_reason: Option<&FileIncludeReason>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
@@ -1185,10 +1185,7 @@ impl Program {
         }
         if matches!(
             *file_processing_reason,
-            Some(file_processing_reason) if ptr::eq(
-                reason,
-                file_processing_reason
-            )
+            Some(file_processing_reason) if reason == file_processing_reason
         ) {
             *file_processing_reason = None
         }

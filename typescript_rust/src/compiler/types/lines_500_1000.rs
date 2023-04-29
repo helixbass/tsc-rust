@@ -1693,7 +1693,7 @@ impl Node {
     }
 }
 
-#[derive(Debug, Finalize, Trace)]
+#[derive(Finalize, Trace)]
 pub struct BaseNode {
     _node_wrapper: GcCell<Option<Gc<Node>>>,
     _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
@@ -1728,6 +1728,38 @@ pub struct BaseNode {
     js_doc_cache: GcCell<Option<GcVec<Gc<Node>>>>,
     #[unsafe_ignore_trace]
     intersects_change: Cell<Option<bool>>,
+}
+
+impl fmt::Debug for BaseNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BaseNode")
+            // .field("_node_wrapper", &self._node_wrapper)
+            // .field("_id_override", &self._id_override)
+            // .field("_symbol_override", &self._symbol_override)
+            .field("kind", &self.kind)
+            .field("flags", &self.flags)
+            // .field("modifier_flags_cache", &self.modifier_flags_cache)
+            .field("transform_flags", &self.transform_flags)
+            // .field("decorators", &self.decorators)
+            // .field("modifiers", &self.modifiers)
+            .field("id", &self.id)
+            // .field("parent", &self.parent)
+            // .field("original", &self.original)
+            .field("pos", &self.pos)
+            .field("end", &self.end)
+            // .field("symbol", &self.symbol)
+            // .field("locals", &self.locals)
+            // .field("next_container", &self.next_container)
+            // .field("local_symbol", &self.local_symbol)
+            // .field("emit_node", &self.emit_node)
+            // .field("contextual_type", &self.contextual_type)
+            // .field("inference_context", &self.inference_context)
+            // .field("flow_node", &self.flow_node)
+            // .field("js_doc", &self.js_doc)
+            // .field("js_doc_cache", &self.js_doc_cache)
+            // .field("intersects_change", &self.intersects_change)
+            .finish()
+    }
 }
 
 impl BaseNode {

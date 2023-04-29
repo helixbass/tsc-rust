@@ -756,7 +756,7 @@ impl TypeChecker {
                 self.error_or_suggestion(
                     self.no_implicit_any,
                     setter,
-                    Diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation.clone().into(),
+                    &*Diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
                     Some(vec![
                         self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
                     ])
@@ -769,7 +769,7 @@ impl TypeChecker {
                 self.error_or_suggestion(
                     self.no_implicit_any,
                     getter,
-                    Diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation.clone().into(),
+                    &*Diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
                     Some(vec![
                         self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
                     ])

@@ -78,7 +78,7 @@ impl TypeChecker {
                     module_reference.to_owned(),
                     resolved_file_name.clone()
                 ])
-            ).into(),
+            ),
             None
         );
     }

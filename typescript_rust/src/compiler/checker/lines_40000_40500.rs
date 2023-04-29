@@ -79,7 +79,7 @@ impl TypeChecker {
             self.error_or_suggestion(
                 self.compiler_options.allow_unreachable_code == Some(false),
                 node,
-                Diagnostics::Unreachable_code_detected.clone().into(),
+                &*Diagnostics::Unreachable_code_detected,
                 None,
             );
         }

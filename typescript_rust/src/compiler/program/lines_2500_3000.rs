@@ -12,8 +12,8 @@ use crate::{
     get_normalized_absolute_path_without_root, get_output_declaration_file_name, has_extension,
     has_js_file_extension, has_jsdoc_nodes, is_declaration_file_name, maybe_for_each, maybe_map,
     node_modules_path_part, out_file, package_id_to_string, resolve_module_name,
-    set_resolved_type_reference_directive, string_contains, to_file_name_lower_case, AsDoubleDeref,
-    CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
+    set_resolved_type_reference_directive, some, string_contains, to_file_name_lower_case,
+    AsDoubleDeref, CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
     FileIncludeKind, FileIncludeReason, FileReference, ModuleResolutionKind, Node, NodeArray,
     NodeId, NodeIdOverride, NodeInterface, NodeSymbolOverride, PackageId, Path, Program,
     RedirectInfo, ReferencedFile, ResolvedProjectReference, ResolvedTypeReferenceDirective,
@@ -217,11 +217,39 @@ impl Program {
 
     pub fn report_file_names_differ_only_in_casing_error(
         &self,
-        _file_name: &str,
-        _existing_file: &Node, /*SourceFile*/
-        _reason: &FileIncludeReason,
+        file_name: &str,
+        existing_file: &Node, /*SourceFile*/
+        reason: &FileIncludeReason,
     ) {
-        unimplemented!()
+        let existing_file_as_source_file = existing_file.as_source_file();
+        let has_existing_reason_to_report_error_on = !is_referenced_file(Some(reason))
+            && some(
+                self.file_reasons()
+                    .get(&*existing_file_as_source_file.path())
+                    .as_deref(),
+                Some(|reason: &FileIncludeReason| is_referenced_file(Some(reason))),
+            );
+        if has_existing_reason_to_report_error_on {
+            self.add_file_preprocessing_file_explaining_diagnostic(
+                Some(existing_file),
+                reason,
+                &Diagnostics::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+                Some(vec![
+                    existing_file_as_source_file.file_name().clone(),
+                    file_name.to_owned(),
+                ]),
+            );
+        } else {
+            self.add_file_preprocessing_file_explaining_diagnostic(
+                Some(existing_file),
+                reason,
+                &Diagnostics::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
+                Some(vec![
+                    file_name.to_owned(),
+                    existing_file_as_source_file.file_name().clone(),
+                ]),
+            );
+        }
     }
 
     pub fn create_redirect_source_file(

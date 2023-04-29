@@ -4,3 +4,4 @@ pub mod config;
 pub mod factory;
 pub mod module_resolution;
 pub mod paths;
+pub mod tsc_watch;

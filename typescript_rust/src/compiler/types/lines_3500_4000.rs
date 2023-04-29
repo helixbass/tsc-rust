@@ -1473,28 +1473,28 @@ pub enum FileIncludeKind {
     AutomaticTypeDirectiveFile,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct RootFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.RootFile*/
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct LibFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.LibFile*/
     pub index: Option<usize>,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct ProjectReferenceFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*ProjectReferenceFileKind*/
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct ReferencedFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*ReferencedFileKind*/
@@ -1503,7 +1503,7 @@ pub struct ReferencedFile {
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct AutomaticTypeDirectiveFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.AutomaticTypeDirectiveFile*/
@@ -1512,7 +1512,7 @@ pub struct AutomaticTypeDirectiveFile {
     pub package_id: Option<PackageId>,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub enum FileIncludeReason {
     RootFile(RootFile),
     LibFile(LibFile),

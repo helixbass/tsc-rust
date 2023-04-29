@@ -18,7 +18,7 @@ mod _NodeArrayDeriveTraceScope {
     use super::*;
     use local_macros::Trace;
 
-    #[derive(Clone, Debug, Trace, Finalize)]
+    #[derive(Clone, Trace, Finalize)]
     pub struct NodeArray {
         _rc_wrapper: GcCell<Option<Gc<NodeArray>>>,
         _nodes: Vec<Gc<Node>>,
@@ -31,6 +31,20 @@ mod _NodeArrayDeriveTraceScope {
         transform_flags: Cell<Option<TransformFlags>>,
         #[unsafe_ignore_trace]
         is_missing_list: Cell<bool>,
+    }
+
+    impl std::fmt::Debug for NodeArray {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("NodeArray")
+                // .field("_rc_wrapper", &self._rc_wrapper)
+                .field("_nodes", &self._nodes)
+                .field("pos", &self.pos)
+                .field("end", &self.end)
+                .field("has_trailing_comma", &self.has_trailing_comma)
+                .field("transform_flags", &self.transform_flags)
+                .field("is_missing_list", &self.is_missing_list)
+                .finish()
+        }
     }
 
     impl NodeArray {

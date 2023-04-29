@@ -317,9 +317,10 @@ impl TypeChecker {
         &self,
         is_error: bool,
         location: &Node,
-        message: DiagnosticMessageOrDiagnosticMessageChain,
+        message: impl Into<DiagnosticMessageOrDiagnosticMessageChain>,
         args: Option<Vec<String>>,
     ) {
+        let message = message.into();
         if location.pos() < 0 || location.end() < 0 {
             if !is_error {
                 return;
@@ -2112,7 +2113,7 @@ impl TypeChecker {
                     self.error_or_suggestion(
                         !matches!(self.compiler_options.allow_umd_global_access, Some(true)),
                         error_location.as_deref().unwrap(),
-                        Diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead.clone().into(),
+                        &*Diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead,
                         Some(vec![unescape_leading_underscores(name).to_owned()])
                     );
                 }
@@ -2181,13 +2182,29 @@ impl TypeChecker {
     }
 }
 
-pub(super) enum DiagnosticMessageOrDiagnosticMessageChain {
-    DiagnosticMessage(DiagnosticMessage),
+pub enum DiagnosticMessageOrDiagnosticMessageChain {
+    DiagnosticMessage(&'static DiagnosticMessage),
     DiagnosticMessageChain(DiagnosticMessageChain),
 }
 
-impl From<DiagnosticMessage> for DiagnosticMessageOrDiagnosticMessageChain {
-    fn from(value: DiagnosticMessage) -> Self {
+impl DiagnosticMessageOrDiagnosticMessageChain {
+    pub fn category(&self) -> DiagnosticCategory {
+        match self {
+            Self::DiagnosticMessage(value) => value.category,
+            Self::DiagnosticMessageChain(value) => value.category,
+        }
+    }
+
+    pub fn code(&self) -> u32 {
+        match self {
+            Self::DiagnosticMessage(value) => value.code,
+            Self::DiagnosticMessageChain(value) => value.code,
+        }
+    }
+}
+
+impl From<&'static DiagnosticMessage> for DiagnosticMessageOrDiagnosticMessageChain {
+    fn from(value: &'static DiagnosticMessage) -> Self {
         Self::DiagnosticMessage(value)
     }
 }

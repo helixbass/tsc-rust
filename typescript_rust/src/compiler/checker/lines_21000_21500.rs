@@ -442,9 +442,7 @@ impl TypeChecker {
                     self.error_or_suggestion(
                         self.no_implicit_any,
                         declaration,
-                        Diagnostics::Parameter_has_a_name_but_no_type_Did_you_mean_0_Colon_1
-                            .clone()
-                            .into(),
+                        &*Diagnostics::Parameter_has_a_name_but_no_type_Did_you_mean_0_Colon_1,
                         Some(vec![new_name, type_name]),
                     );
                     return;
@@ -540,8 +538,7 @@ impl TypeChecker {
         self.error_or_suggestion(
             self.no_implicit_any,
             declaration,
-            // TODO: should this type contain &'static DiagnosticMessage instead of DiagnosticMessage?
-            diagnostic.clone().into(),
+            diagnostic,
             Some(vec![
                 declaration_name_to_string(get_name_of_declaration(Some(declaration))).into_owned(),
                 type_as_string,

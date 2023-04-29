@@ -205,7 +205,7 @@ impl Cloneable for ResolvedModuleFull {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PackageId {
     pub name: String,
     pub sub_module_name: String,
