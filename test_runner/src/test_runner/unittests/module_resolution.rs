@@ -2101,4 +2101,652 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             },
         );
     }
+
+    #[test]
+    fn test_should_fail_when_module_name_in_require_calls_has_inconsistent_casing_and_current_directory_has_uppercase_chars(
+    ) {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("/a/B/c/moduleA.ts", r#"import a = require("./ModuleC")"#),
+                ("/a/B/c/moduleB.ts", r#"import a = require("./moduleC")"#),
+                ("/a/B/c/moduleC.ts", "export var x"),
+                (
+                    "/a/B/c/moduleD.ts",
+                    r#"
+import a = require("./moduleA");
+import b = require("./moduleB");
+                "#,
+                ),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::CommonJS)
+                    .force_consistent_casing_in_file_names(true)
+                    .build()
+                    .unwrap(),
+            ),
+            "/a/B/c",
+            false,
+            &["moduleD.ts"],
+            |program: &Program| {
+                vec![{
+                    let diagnostic = get_diagnostic_of_file_from_program(
+                        program,
+                        "moduleB.ts",
+                        r#"import a = require("./moduleC")"#.find(r#""./moduleC""#).unwrap().try_into().unwrap(),
+                        r#""./moduleC""#.len().try_into().unwrap(),
+                        get_diagnostic_message_chain(
+                            &Diagnostics::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
+                            ["/a/B/c/moduleC.ts", "/a/B/c/ModuleC.ts"].owned(),
+                            vec![
+                                get_diagnostic_message_chain(
+                                    &Diagnostics::The_file_is_in_the_program_because_Colon,
+                                    vec![],
+                                    vec![
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Imported_via_0_from_file_1,
+                                            [r#""./ModuleC""#, "/a/B/c/moduleA.ts"].owned(),
+                                            None,
+                                        ),
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Imported_via_0_from_file_1,
+                                            [r#""./moduleC""#, "/a/B/c/moduleB.ts"].owned(),
+                                            None,
+                                        ),
+                                    ]
+                                )
+                            ],
+                        ),
+                        None,
+                    );
+                    *diagnostic.maybe_related_information_mut() = Some(vec![
+                        Gc::new((*get_diagnostic_of_file_from_program(
+                            program,
+                            "moduleA.ts",
+                            r#"import a = require("./ModuleC")"#.find(r#""./ModuleC""#).unwrap().try_into().unwrap(),
+                            r#""./ModuleC""#.len().try_into().unwrap(),
+                            &*Diagnostics::File_is_included_via_import_here,
+                            None,
+                        )).clone().into())
+                        // reportsUnnecessary: undefined,
+                        // reportsDeprecated: undefined,
+                    ]);
+                    diagnostic
+                }]
+            },
+        );
+    }
+
+    #[test]
+    fn test_should_not_fail_when_module_name_in_require_calls_has_consistent_casing_and_current_directory_has_uppercase_chars(
+    ) {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("/a/B/c/moduleA.ts", r#"import a = require("./moduleC")"#),
+                ("/a/B/c/moduleB.ts", r#"import a = require("./moduleC")"#),
+                ("/a/B/c/moduleC.ts", "export var x"),
+                (
+                    "/a/B/c/moduleD.ts",
+                    r#"
+import a = require("./moduleA");
+import b = require("./moduleB");
+                "#,
+                ),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::CommonJS)
+                    .force_consistent_casing_in_file_names(true)
+                    .build()
+                    .unwrap(),
+            ),
+            "/a/B/c",
+            false,
+            &["moduleD.ts"],
+            |_| vec![],
+        );
+    }
+
+    #[test]
+    fn test_should_succeed_when_the_two_files_in_program_differ_only_in_drive_letter_in_their_names(
+    ) {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                (
+                    "d:/someFolder/moduleA.ts",
+                    r#"import a = require("D:/someFolder/moduleC")"#,
+                ),
+                (
+                    "d:/someFolder/moduleB.ts",
+                    r#"import a = require("./moduleC")"#,
+                ),
+                ("D:/someFolder/moduleC.ts", "export const x = 10"),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::CommonJS)
+                    .force_consistent_casing_in_file_names(true)
+                    .build()
+                    .unwrap(),
+            ),
+            "d:/someFolder",
+            false,
+            &["d:/someFolder/moduleA.ts", "d:/someFolder/moduleB.ts"],
+            |_| vec![],
+        );
+    }
+}
+
+mod base_url_augmented_module_resolution {
+    use super::*;
+
+    use typescript_rust::{
+        resolve_module_name, CompilerOptionsBuilder, JsxEmit, ModuleResolutionKind,
+    };
+
+    #[test]
+    fn test_module_resolution_without_path_mappings_root_dirs() {
+        let test = |has_directory_exists: bool| {
+            let file1 = FileBuilder::default()
+                .name("/root/folder1/file1.ts")
+                .build()
+                .unwrap();
+            let file2 = FileBuilder::default()
+                .name("/root/folder2/file2.ts")
+                .build()
+                .unwrap();
+            let file3 = FileBuilder::default()
+                .name("/root/folder2/file3.ts")
+                .build()
+                .unwrap();
+            let host = create_module_resolution_host(
+                has_directory_exists,
+                vec![file1.clone(), file2.clone(), file3.clone()],
+            );
+            for module_resolution in [ModuleResolutionKind::NodeJs, ModuleResolutionKind::Classic] {
+                let options = Gc::new(
+                    CompilerOptionsBuilder::default()
+                        .module_resolution(module_resolution)
+                        .base_url("/root")
+                        .build()
+                        .unwrap(),
+                );
+                let result = resolve_module_name(
+                    "folder2/file2",
+                    &file1.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module_with_failed_lookup_locations(
+                    &result,
+                    &create_resolved_module(&file2.name, None),
+                    &[],
+                );
+                let result = resolve_module_name(
+                    "./file3",
+                    &file2.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module_with_failed_lookup_locations(
+                    &result,
+                    &create_resolved_module(&file3.name, None),
+                    &[],
+                );
+                let result = resolve_module_name(
+                    "/root/folder1/file1",
+                    &file2.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module_with_failed_lookup_locations(
+                    &result,
+                    &create_resolved_module(&file1.name, None),
+                    &[],
+                );
+            }
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_node_plus_base_url() {
+        let test = |has_directory_exists: bool| {
+            let main = FileBuilder::default()
+                .name("/root/a/b/main.ts")
+                .build()
+                .unwrap();
+            let m1 = FileBuilder::default().name("/root/m1.ts").build().unwrap();
+            let m2 = FileBuilder::default()
+                .name("/root/m2/index.d.ts")
+                .build()
+                .unwrap();
+            let m3 = FileBuilder::default()
+                .name("/root/m3/package.json")
+                .content(serde_json::json!({"typings": "dist/typings.d.ts"}).to_string())
+                .build()
+                .unwrap();
+            let m3_typings = FileBuilder::default()
+                .name("/root/m3/dist/typings.d.ts")
+                .build()
+                .unwrap();
+            let m4 = FileBuilder::default()
+                .name("/root/node_modules/m4.ts")
+                .build()
+                .unwrap();
+
+            let options = Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(ModuleResolutionKind::NodeJs)
+                    .base_url("/root")
+                    .build()
+                    .unwrap(),
+            );
+            let host = create_module_resolution_host(
+                has_directory_exists,
+                vec![
+                    main.clone(),
+                    m1.clone(),
+                    m2.clone(),
+                    m3.clone(),
+                    m3_typings.clone(),
+                    m4.clone(),
+                ],
+            );
+
+            let check = |name: &str,
+                         caller: &File,
+                         expected: &File,
+                         is_external_library_import: Option<bool>| {
+                let is_external_library_import = is_external_library_import.unwrap_or(false);
+                let result = resolve_module_name(
+                    name,
+                    &caller.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module(
+                    result.resolved_module.as_deref(),
+                    Some(&create_resolved_module(
+                        &expected.name,
+                        Some(is_external_library_import),
+                    )),
+                );
+            };
+
+            check("m1", &main, &m1, None);
+            check("m2", &main, &m2, None);
+            check("m3", &main, &m3_typings, None);
+            check("m4", &main, &m4, Some(true));
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_classic_plus_base_url() {
+        let test = |has_directory_exists: bool| {
+            let main = FileBuilder::default()
+                .name("/root/a/b/main.ts")
+                .build()
+                .unwrap();
+            let m1 = FileBuilder::default()
+                .name("/root/x/m1.ts")
+                .build()
+                .unwrap();
+            let m2 = FileBuilder::default().name("/m2.ts").build().unwrap();
+
+            let options = Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(ModuleResolutionKind::Classic)
+                    .base_url("/root/x")
+                    .jsx(JsxEmit::React)
+                    .build()
+                    .unwrap(),
+            );
+            let host = create_module_resolution_host(
+                has_directory_exists,
+                vec![main.clone(), m1.clone(), m2.clone()],
+            );
+
+            let check = |name: &str, caller: &File, expected: &File| {
+                let result = resolve_module_name(
+                    name,
+                    &caller.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module(
+                    result.resolved_module.as_deref(),
+                    Some(&create_resolved_module(&expected.name, None)),
+                );
+            };
+
+            check("m1", &main, &m1);
+            check("m2", &main, &m2);
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_node_plus_base_url_plus_path_mappings() {
+        let test = |has_directory_exists: bool| {
+            let main = FileBuilder::default()
+                .name("/root/folder1/main.ts")
+                .build()
+                .unwrap();
+            let file1 = FileBuilder::default()
+                .name("/root/folder1/file1.ts")
+                .build()
+                .unwrap();
+            let file2 = FileBuilder::default()
+                .name("/root/generated/folder1/file2.ts")
+                .build()
+                .unwrap();
+            let file3 = FileBuilder::default()
+                .name("/root/generated/folder2/file3/index.d.ts")
+                .build()
+                .unwrap();
+            let file4_typings = FileBuilder::default()
+                .name("/root/generated/folder2/file4/package.json")
+                .content(serde_json::json!({"typings": "dist/types.d.ts"}).to_string())
+                .build()
+                .unwrap();
+            let file4 = FileBuilder::default()
+                .name("/root/generated/folder2/file4/dist/types.d.ts")
+                .build()
+                .unwrap();
+            let file5 = FileBuilder::default()
+                .name("/root/someanotherfolder/file5/index.d.ts")
+                .build()
+                .unwrap();
+            let file6 = FileBuilder::default()
+                .name("/root/node_modules/file6.ts")
+                .build()
+                .unwrap();
+            let host = create_module_resolution_host(
+                has_directory_exists,
+                vec![
+                    file1.clone(),
+                    file2.clone(),
+                    file3.clone(),
+                    file4.clone(),
+                    file4_typings.clone(),
+                    file5.clone(),
+                    file6.clone(),
+                ],
+            );
+
+            let options = Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(ModuleResolutionKind::NodeJs)
+                    .base_url("/root")
+                    .jsx(JsxEmit::React)
+                    .paths(HashMap::from_iter([
+                        (
+                            "*".to_owned(),
+                            vec!["*".to_owned(), "generated/*".to_owned()],
+                        ),
+                        (
+                            "somefolder/*".to_owned(),
+                            vec!["someanotherfolder/*".to_owned()],
+                        ),
+                        ("/rooted/*".to_owned(), vec!["generated/*".to_owned()]),
+                    ]))
+                    .build()
+                    .unwrap(),
+            );
+
+            let check = |name: &str,
+                         expected: &File,
+                         expected_failed_lookups: &[&str],
+                         is_external_library_import: Option<bool>| {
+                let is_external_library_import = is_external_library_import.unwrap_or(false);
+                let result = resolve_module_name(
+                    name,
+                    &main.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module_with_failed_lookup_locations(
+                    &result,
+                    &create_resolved_module(&expected.name, Some(is_external_library_import)),
+                    expected_failed_lookups,
+                );
+            };
+
+            check("folder1/file1", &file1, &[], None);
+            check(
+                "folder1/file2",
+                &file2,
+                &[
+                    "/root/folder1/file2.ts",
+                    "/root/folder1/file2.tsx",
+                    "/root/folder1/file2.d.ts",
+                    "/root/folder1/file2/package.json",
+                    "/root/folder1/file2/index.ts",
+                    "/root/folder1/file2/index.tsx",
+                    "/root/folder1/file2/index.d.ts",
+                ],
+                None,
+            );
+            check("/rooted/folder1/file2", &file2, &[], None);
+            check(
+                "folder2/file3",
+                &file3,
+                &[
+                    "/root/folder2/file3.ts",
+                    "/root/folder2/file3.tsx",
+                    "/root/folder2/file3.d.ts",
+                    "/root/folder2/file3/package.json",
+                    "/root/folder2/file3/index.ts",
+                    "/root/folder2/file3/index.tsx",
+                    "/root/folder2/file3/index.d.ts",
+                    "/root/generated/folder2/file3.ts",
+                    "/root/generated/folder2/file3.tsx",
+                    "/root/generated/folder2/file3.d.ts",
+                    "/root/generated/folder2/file3/package.json",
+                    "/root/generated/folder2/file3/index.ts",
+                    "/root/generated/folder2/file3/index.tsx",
+                ],
+                None,
+            );
+            check(
+                "folder2/file4",
+                &file4,
+                &[
+                    "/root/folder2/file4.ts",
+                    "/root/folder2/file4.tsx",
+                    "/root/folder2/file4.d.ts",
+                    "/root/folder2/file4/package.json",
+                    "/root/folder2/file4/index.ts",
+                    "/root/folder2/file4/index.tsx",
+                    "/root/folder2/file4/index.d.ts",
+                    "/root/generated/folder2/file4.ts",
+                    "/root/generated/folder2/file4.tsx",
+                    "/root/generated/folder2/file4.d.ts",
+                ],
+                None,
+            );
+            check(
+                "somefolder/file5",
+                &file5,
+                &[
+                    "/root/someanotherfolder/file5.ts",
+                    "/root/someanotherfolder/file5.tsx",
+                    "/root/someanotherfolder/file5.d.ts",
+                    "/root/someanotherfolder/file5/package.json",
+                    "/root/someanotherfolder/file5/index.ts",
+                    "/root/someanotherfolder/file5/index.tsx",
+                ],
+                None,
+            );
+            check(
+                "file6",
+                &file6,
+                &[
+                    "/root/file6.ts",
+                    "/root/file6.tsx",
+                    "/root/file6.d.ts",
+                    "/root/file6/package.json",
+                    "/root/file6/index.ts",
+                    "/root/file6/index.tsx",
+                    "/root/file6/index.d.ts",
+                    "/root/generated/file6.ts",
+                    "/root/generated/file6.tsx",
+                    "/root/generated/file6.d.ts",
+                    "/root/generated/file6/package.json",
+                    "/root/generated/file6/index.ts",
+                    "/root/generated/file6/index.tsx",
+                    "/root/generated/file6/index.d.ts",
+                    "/root/folder1/node_modules/file6/package.json",
+                    "/root/folder1/node_modules/file6.ts",
+                    "/root/folder1/node_modules/file6.tsx",
+                    "/root/folder1/node_modules/file6.d.ts",
+                    "/root/folder1/node_modules/file6/index.ts",
+                    "/root/folder1/node_modules/file6/index.tsx",
+                    "/root/folder1/node_modules/file6/index.d.ts",
+                    "/root/folder1/node_modules/@types/file6/package.json",
+                    "/root/folder1/node_modules/@types/file6.d.ts",
+                    "/root/folder1/node_modules/@types/file6/index.d.ts",
+                    "/root/node_modules/file6/package.json",
+                ],
+                Some(true),
+            );
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_classic_plus_base_url_plus_path_mappings() {
+        let test = |has_directory_exists: bool| {
+            let main = FileBuilder::default()
+                .name("/root/folder1/main.ts")
+                .build()
+                .unwrap();
+
+            let file1 = FileBuilder::default()
+                .name("/root/folder1/file1.ts")
+                .build()
+                .unwrap();
+            let file2 = FileBuilder::default()
+                .name("/root/generated/folder1/file2.ts")
+                .build()
+                .unwrap();
+            let file3 = FileBuilder::default()
+                .name("/folder1/file3.ts")
+                .build()
+                .unwrap();
+            let host = create_module_resolution_host(
+                has_directory_exists,
+                vec![file1.clone(), file2.clone(), file3.clone()],
+            );
+
+            let options = Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(ModuleResolutionKind::Classic)
+                    .base_url("/root")
+                    .jsx(JsxEmit::React)
+                    .paths(HashMap::from_iter([
+                        (
+                            "*".to_owned(),
+                            vec!["*".to_owned(), "generated/*".to_owned()],
+                        ),
+                        (
+                            "somefolder/*".to_owned(),
+                            vec!["someanotherfolder/*".to_owned()],
+                        ),
+                        ("/rooted/*".to_owned(), vec!["generated/*".to_owned()]),
+                    ]))
+                    .build()
+                    .unwrap(),
+            );
+
+            let check = |name: &str, expected: &File, expected_failed_lookups: &[&str]| {
+                let result = resolve_module_name(
+                    name,
+                    &main.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module_with_failed_lookup_locations(
+                    &result,
+                    &create_resolved_module(&expected.name, None),
+                    expected_failed_lookups,
+                );
+            };
+
+            check("folder1/file1", &file1, &[]);
+            check(
+                "folder1/file2",
+                &file2,
+                &[
+                    "/root/folder1/file2.ts",
+                    "/root/folder1/file2.tsx",
+                    "/root/folder1/file2.d.ts",
+                ],
+            );
+            check("/rooted/folder1/file2", &file2, &[]);
+            check(
+                "folder1/file3",
+                &file3,
+                &[
+                    "/root/folder1/file3.ts",
+                    "/root/folder1/file3.tsx",
+                    "/root/folder1/file3.d.ts",
+                    "/root/generated/folder1/file3.ts",
+                    "/root/generated/folder1/file3.tsx",
+                    "/root/generated/folder1/file3.d.ts",
+                    "/root/folder1/folder1/file3.ts",
+                    "/root/folder1/folder1/file3.tsx",
+                    "/root/folder1/folder1/file3.d.ts",
+                    "/root/folder1/file3.ts",
+                    "/root/folder1/file3.tsx",
+                    "/root/folder1/file3.d.ts",
+                ],
+            );
+        };
+
+        test(false);
+    }
 }
