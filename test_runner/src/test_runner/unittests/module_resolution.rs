@@ -1457,11 +1457,15 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         combine_paths, create_get_canonical_file_name, create_program, create_source_file,
         normalize_path, not_implemented, sort_and_deduplicate_diagnostics, CompilerHost,
         CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder, Diagnostic,
-        DiagnosticInterface, Diagnostics, ModuleKind, Node, Owned, Program, ScriptTarget, VecExt,
+        DiagnosticInterface, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+        Diagnostics, ModuleKind, Node, Owned, Program, ScriptTarget, VecExt,
     };
 
     use super::*;
-    use crate::{get_diagnostic_message_chain, get_diagnostic_of_file_from_program};
+    use crate::{
+        get_diagnostic_message_chain, get_diagnostic_of_file_from,
+        get_diagnostic_of_file_from_program,
+    };
 
     thread_local! {
         static library: OnceCell<Gc<Node /*SourceFile*/>> = Default::default();
@@ -1813,6 +1817,287 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                     *diagnostic.maybe_related_information_mut() = None;
                     diagnostic
                 }]
+            },
+        );
+    }
+
+    #[test]
+    fn test_should_fail_when_two_files_used_in_program_differ_only_in_casing_imports() {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("/a/b/c.ts", r#"import {x} from "D""#),
+                ("/a/b/d.ts", "export var x"),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::AMD)
+                    .force_consistent_casing_in_file_names(true)
+                    .build()
+                    .unwrap(),
+            ),
+            "/a/b",
+            false,
+            &["c.ts", "d.ts"],
+            |program: &Program| {
+                vec![{
+                    let diagnostic = get_diagnostic_of_file_from_program(
+                        program,
+                        "c.ts",
+                        r#"import {x} from "D""#.find(r#""D""#).unwrap().try_into().unwrap(),
+                        r#""D""#.len().try_into().unwrap(),
+                        get_diagnostic_message_chain(
+                            &Diagnostics::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+                            ["/a/b/D.ts", "d.ts"].owned(),
+                            vec![
+                                get_diagnostic_message_chain(
+                                    &Diagnostics::The_file_is_in_the_program_because_Colon,
+                                    vec![],
+                                    vec![
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Imported_via_0_from_file_1,
+                                            [r#""D""#, "c.ts"].owned(),
+                                            None,
+                                        ),
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Root_file_specified_for_compilation,
+                                            None,
+                                            None,
+                                        ),
+                                    ]
+                                )
+                            ],
+                        ),
+                        None,
+                    );
+                    *diagnostic.maybe_related_information_mut() = None;
+                    diagnostic
+                }]
+            },
+        );
+    }
+
+    #[test]
+    fn test_should_fail_when_two_files_used_in_program_differ_only_in_casing_imports_relative_module_names(
+    ) {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("moduleA.ts", r#"import {x} from "./ModuleB""#),
+                ("moduleB.ts", "export var x"),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::CommonJS)
+                    .force_consistent_casing_in_file_names(true)
+                    .build()
+                    .unwrap(),
+            ),
+            "",
+            false,
+            &["moduleA.ts", "moduleB.ts"],
+            |program: &Program| {
+                vec![{
+                    let diagnostic = get_diagnostic_of_file_from_program(
+                        program,
+                        "moduleA.ts",
+                        r#"import {x} from "./ModuleB""#.find(r#""./ModuleB""#).unwrap().try_into().unwrap(),
+                        r#""./ModuleB""#.len().try_into().unwrap(),
+                        get_diagnostic_message_chain(
+                            &Diagnostics::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+                            ["ModuleB.ts", "moduleB.ts"].owned(),
+                            vec![
+                                get_diagnostic_message_chain(
+                                    &Diagnostics::The_file_is_in_the_program_because_Colon,
+                                    vec![],
+                                    vec![
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Imported_via_0_from_file_1,
+                                            [r#""./ModuleB""#, "moduleA.ts"].owned(),
+                                            None,
+                                        ),
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Root_file_specified_for_compilation,
+                                            None,
+                                            None,
+                                        ),
+                                    ]
+                                )
+                            ],
+                        ),
+                        None,
+                    );
+                    *diagnostic.maybe_related_information_mut() = None;
+                    diagnostic
+                }]
+            },
+        );
+    }
+
+    #[test]
+    fn test_should_fail_when_two_files_exist_on_disk_that_differs_only_in_casing() {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("/a/b/c.ts", r#"import {x} from "D""#),
+                ("/a/b/D.ts", "export var x"),
+                ("/a/b/d.ts", "export var y"),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::AMD)
+                    .build()
+                    .unwrap(),
+            ),
+            "/a/b",
+            true,
+            &["c.ts", "d.ts"],
+            |program: &Program| {
+                vec![{
+                    let diagnostic = get_diagnostic_of_file_from_program(
+                        program,
+                        "c.ts",
+                        r#"import {x} from "D""#.find(r#""D""#).unwrap().try_into().unwrap(),
+                        r#""D""#.len().try_into().unwrap(),
+                        get_diagnostic_message_chain(
+                            &Diagnostics::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+                            ["/a/b/D.ts", "d.ts"].owned(),
+                            vec![
+                                get_diagnostic_message_chain(
+                                    &Diagnostics::The_file_is_in_the_program_because_Colon,
+                                    vec![],
+                                    vec![
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Imported_via_0_from_file_1,
+                                            [r#""D""#, "c.ts"].owned(),
+                                            None,
+                                        ),
+                                        get_diagnostic_message_chain(
+                                            &Diagnostics::Root_file_specified_for_compilation,
+                                            None,
+                                            None,
+                                        ),
+                                    ]
+                                )
+                            ],
+                        ),
+                        None,
+                    );
+                    *diagnostic.maybe_related_information_mut() = None;
+                    diagnostic
+                }]
+            },
+        );
+    }
+
+    #[test]
+    fn test_should_fail_when_module_name_in_require_calls_has_inconsistent_casing() {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("moduleA.ts", r#"import a = require("./ModuleC")"#),
+                ("moduleB.ts", r#"import a = require("./moduleC")"#),
+                ("moduleC.ts", "export var x"),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::CommonJS)
+                    .force_consistent_casing_in_file_names(true)
+                    .build()
+                    .unwrap(),
+            ),
+            "",
+            false,
+            &["moduleA.ts", "moduleB.ts", "moduleC.ts"],
+            |program: &Program| {
+                let import_in_a: Gc<DiagnosticRelatedInformation> = Gc::new((*get_diagnostic_of_file_from_program(
+                    program,
+                    "moduleA.ts",
+                    r#"import a = require("./ModuleC")"#.find(r#""./ModuleC""#).unwrap().try_into().unwrap(),
+                    r#""./ModuleC""#.len().try_into().unwrap(),
+                    &*Diagnostics::File_is_included_via_import_here,
+                    None,
+                )).clone().into());
+                // reportsUnnecessary: undefined,
+                // reportsDeprecated: undefined,
+                let import_in_b: Gc<DiagnosticRelatedInformation>  = Gc::new((*get_diagnostic_of_file_from_program(
+                    program,
+                    "moduleB.ts",
+                    r#"import a = require("./moduleC")"#.find(r#""./moduleC""#).unwrap().try_into().unwrap(),
+                    r#""./moduleC""#.len().try_into().unwrap(),
+                    &*Diagnostics::File_is_included_via_import_here,
+                    None,
+                )).clone().into());
+                // reportsUnnecessary: undefined,
+                // reportsDeprecated: undefined,
+                let import_here_in_a = get_diagnostic_message_chain(
+                    &Diagnostics::Imported_via_0_from_file_1,
+                    [r#""./ModuleC""#, "moduleA.ts"].owned(),
+                    None,
+                );
+                let import_here_in_b = get_diagnostic_message_chain(
+                    &Diagnostics::Imported_via_0_from_file_1,
+                    [r#""./moduleC""#, "moduleB.ts"].owned(),
+                    None,
+                );
+                let details = vec![get_diagnostic_message_chain(
+                    &Diagnostics::The_file_is_in_the_program_because_Colon,
+                    None,
+                    vec![
+                        import_here_in_a,
+                        import_here_in_b,
+                        get_diagnostic_message_chain(
+                            &Diagnostics::Root_file_specified_for_compilation,
+                            None,
+                            None,
+                        ),
+                    ],
+                )];
+                vec![
+                    {
+                        let diagnostic = get_diagnostic_of_file_from(
+                            import_in_a.maybe_file(),
+                            Some(import_in_a.start()),
+                            Some(import_in_a.length()),
+                            get_diagnostic_message_chain(
+                                &Diagnostics::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+                                ["ModuleC.ts", "moduleC.ts"].owned(),
+                                details.clone(),
+                            ),
+                            None,
+                        );
+                        *diagnostic.maybe_related_information_mut() =
+                            Some(vec![import_in_b.clone()]);
+                        diagnostic
+                    },
+                    {
+                        let diagnostic = get_diagnostic_of_file_from(
+                            import_in_b.maybe_file(),
+                            Some(import_in_b.start()),
+                            Some(import_in_b.length()),
+                            get_diagnostic_message_chain(
+                                &Diagnostics::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
+                                ["moduleC.ts", "ModuleC.ts"].owned(),
+                                details
+                            ),
+                            None,
+                        );
+                        *diagnostic.maybe_related_information_mut() = Some(vec![import_in_a]);
+                        diagnostic
+                    },
+                ]
             },
         );
     }

@@ -5,7 +5,6 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::io;
 use std::iter::FromIterator;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -1170,10 +1169,7 @@ impl Program {
             *location_reason = Some(reason);
         } else if !matches!(
             *location_reason,
-            Some(location_reason) if ptr::eq(
-                location_reason,
-                reason
-            )
+            Some(location_reason) if location_reason == reason
         ) {
             if let Some(related_information) =
                 self.file_include_reason_to_related_information(reason)
@@ -1201,7 +1197,7 @@ impl Program {
         self.maybe_file_processing_diagnostics()
             .get_or_insert_with(|| vec![])
             .push(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
-            kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
+                kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
                 file: file.map(|file| file.borrow().as_source_file().path().clone()),
                 file_processing_reason: file_processing_reason.clone(),
                 diagnostic,
