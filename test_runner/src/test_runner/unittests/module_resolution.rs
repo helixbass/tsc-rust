@@ -1425,4 +1425,335 @@ export = C;
             &["../../../c/third/class_c.ts"],
         );
     }
+
+    #[test]
+    fn test_should_find_modules_in_node_modules() {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("/parent/node_modules/mod/index.d.ts", "export var x"),
+                ("/parent/app/myapp.ts", r#"import {x} from "mod""#),
+            ]
+            .owned(),
+        );
+        test(&files, "/parent/app", &["myapp.ts"], 2, &[]);
+    }
+
+    #[test]
+    fn test_should_find_files_referenced_via_absolute_and_relative_names() {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("/a/b/c.ts", r#"/// <reference path="b.ts"/>"#),
+                ("/a/b/b.ts", "var x"),
+            ]
+            .owned(),
+        );
+        test(&files, "/a/b", &["c.ts", "/a/b/b.ts"], 2, &[]);
+    }
+}
+
+mod files_with_different_casing_with_force_consistent_casing_in_file_names {
+    use once_cell::unsync::OnceCell;
+    use typescript_rust::{
+        combine_paths, create_get_canonical_file_name, create_program, create_source_file,
+        normalize_path, not_implemented, sort_and_deduplicate_diagnostics, CompilerHost,
+        CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder, Diagnostic,
+        ModuleKind, Node, Owned, Program, ScriptTarget, VecExt,
+    };
+
+    use super::*;
+    use crate::GcSlicesAreEqual;
+
+    thread_local! {
+        static library: OnceCell<Gc<Node /*SourceFile*/>> = Default::default();
+    }
+
+    fn test(
+        mut files: HashMap<String, String>,
+        options: Gc<CompilerOptions>,
+        current_directory: &str,
+        use_case_sensitive_file_names: bool,
+        root_files: &[&str],
+        mut expected_diagnostics: impl FnMut(&Program) -> Vec<Gc<Diagnostic>>,
+    ) {
+        let get_canonical_file_name = create_get_canonical_file_name(use_case_sensitive_file_names);
+        if !use_case_sensitive_file_names {
+            let old_files = files.clone();
+            files = Default::default();
+            for (file_name, file) in old_files {
+                files.insert(get_canonical_file_name(&file_name), file);
+            }
+        }
+
+        let host: Gc<Box<dyn CompilerHost>> = FilesWithDifferentCasingCompilerHost::new(
+            current_directory.to_owned(),
+            files.clone(),
+            get_canonical_file_name,
+            use_case_sensitive_file_names,
+        );
+        let program = create_program(
+            CreateProgramOptionsBuilder::default()
+                .root_names(root_files.owned())
+                .options(options)
+                .host(host)
+                .build()
+                .unwrap(),
+        );
+        let diagnostics: Vec<_> = sort_and_deduplicate_diagnostics(
+            &program
+                .get_semantic_diagnostics(None, None)
+                .and_extend(Vec::<_>::from(program.get_options_diagnostics(None))),
+        )
+        .into();
+        assert_that(&diagnostics).gc_slices_are_equal(&sort_and_deduplicate_diagnostics(
+            &expected_diagnostics(&program),
+        ));
+    }
+
+    #[derive(Trace, Finalize)]
+    struct FilesWithDifferentCasingCompilerHost {
+        current_directory: String,
+        files: HashMap<String, String>,
+        #[unsafe_ignore_trace]
+        get_canonical_file_name: fn(&str) -> String,
+        use_case_sensitive_file_names: bool,
+    }
+
+    impl FilesWithDifferentCasingCompilerHost {
+        pub fn new(
+            current_directory: String,
+            files: HashMap<String, String>,
+            get_canonical_file_name: fn(&str) -> String,
+            use_case_sensitive_file_names: bool,
+        ) -> Gc<Box<dyn CompilerHost>> {
+            Gc::new(Box::new(Self {
+                current_directory,
+                files,
+                get_canonical_file_name,
+                use_case_sensitive_file_names,
+            }))
+        }
+    }
+
+    impl CompilerHost for FilesWithDifferentCasingCompilerHost {
+        fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+            self
+        }
+
+        fn get_source_file(
+            &self,
+            file_name: &str,
+            language_version: ScriptTarget,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _should_create_new_source_file: Option<bool>,
+        ) -> Option<Gc<Node /*SourceFile*/>> {
+            if file_name == "lib.d.ts" {
+                return Some(library.with(|library_| {
+                    library_
+                        .get_or_init(|| {
+                            create_source_file(
+                                "lib.d.ts",
+                                "".to_owned(),
+                                ScriptTarget::ES5,
+                                None,
+                                None,
+                            )
+                        })
+                        .clone()
+                }));
+            }
+            let ref path = self.get_canonical_file_name(&normalize_path(&combine_paths(
+                &self.current_directory,
+                &[Some(file_name)],
+            )));
+            let file = self.files.get(path);
+            file.map(|file| {
+                create_source_file(file_name, file.clone(), language_version, None, None)
+            })
+        }
+
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
+            "lib.d.ts".to_owned()
+        }
+
+        fn write_file(
+            &self,
+            _file_name: &str,
+            _data: &str,
+            _write_byte_order_mark: bool,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        ) {
+            not_implemented()
+        }
+
+        fn write_file_non_overridden(
+            &self,
+            _file_name: &str,
+            _data: &str,
+            _write_byte_order_mark: bool,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_write_file_supported(&self) -> bool {
+            true
+        }
+
+        fn set_overriding_write_file(
+            &self,
+            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn get_current_directory(&self) -> String {
+            self.current_directory.clone()
+        }
+
+        fn get_canonical_file_name(&self, file_name: &str) -> String {
+            (self.get_canonical_file_name)(file_name)
+        }
+
+        fn get_new_line(&self) -> String {
+            "\r\n".to_owned()
+        }
+
+        fn use_case_sensitive_file_names(&self) -> bool {
+            self.use_case_sensitive_file_names
+        }
+
+        fn is_read_directory_implemented(&self) -> bool {
+            false
+        }
+
+        fn is_resolve_module_names_supported(&self) -> bool {
+            false
+        }
+
+        fn is_resolve_type_reference_directives_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_old_source_file_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_parsed_command_line_supported(&self) -> bool {
+            false
+        }
+
+        fn is_create_directory_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_create_directory(
+            &self,
+            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+    }
+
+    impl ModuleResolutionHost for FilesWithDifferentCasingCompilerHost {
+        fn is_get_directories_supported(&self) -> bool {
+            true
+        }
+
+        fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
+            Some(Default::default())
+        }
+
+        fn set_overriding_get_directories(
+            &self,
+            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn file_exists(&self, file_name: &str) -> bool {
+            let ref path = (self.get_canonical_file_name)(&normalize_path(&combine_paths(
+                &self.current_directory,
+                &[Some(file_name)],
+            )));
+            self.files.contains_key(path)
+        }
+
+        fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
+            unreachable!()
+        }
+
+        fn set_overriding_file_exists(
+            &self,
+            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file(&self, _file_name: &str) -> io::Result<Option<String>> {
+            not_implemented()
+        }
+
+        fn set_overriding_read_file(
+            &self,
+            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file_non_overridden(&self, _file_name: &str) -> io::Result<Option<String>> {
+            unreachable!()
+        }
+
+        fn is_trace_supported(&self) -> bool {
+            false
+        }
+
+        fn is_directory_exists_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_directory_exists(
+            &self,
+            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_realpath_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_realpath(
+            &self,
+            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    fn test_should_succeed_when_the_same_file_is_referenced_using_absolute_and_relative_names() {
+        let files: HashMap<String, String> = HashMap::from_iter(
+            [
+                ("/a/b/c.ts", r#"/// <reference path="d.ts"/>"#),
+                ("/a/b/d.ts", "var x"),
+            ]
+            .owned(),
+        );
+        test(
+            files,
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module(ModuleKind::AMD)
+                    .build()
+                    .unwrap(),
+            ),
+            "/a/b",
+            false,
+            &["c.ts", "/a/b/d.ts"],
+            |_| vec![],
+        );
+    }
 }
