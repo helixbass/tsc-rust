@@ -3122,8 +3122,8 @@ mod type_reference_directive_resolution {
     use typescript_rust::{
         array_to_map, create_program, create_source_file, not_implemented,
         resolve_type_reference_directive, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
-        CreateProgramOptionsBuilder, MapOrDefault, Node, Owned, ScriptTarget, SourceFileLike,
-        StructureIsReused, VecExt,
+        CreateProgramOptionsBuilder, MapOrDefault, Node, Owned, ResolvedProjectReference,
+        ScriptTarget, SourceFileLike, StructureIsReused, VecExt,
     };
 
     use super::*;
@@ -3620,6 +3620,534 @@ mod type_reference_directive_resolution {
             _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
+        }
+    }
+
+    #[test]
+    fn test_modules_in_the_same_d_ts_file_are_preferred_to_external_files() {
+        let f = FileBuilder::default()
+            .name("/a/b/c/c/app.d.ts")
+            .content(
+                r#"
+                declare module "fs" {
+                    export interface Stat { id: number }
+                }
+                declare module "fs-client" {
+                    import { Stat } from "fs";
+                    export function foo(): Stat;
+                }"#,
+            )
+            .build()
+            .unwrap();
+        let file = create_source_file(
+            &f.name,
+            f.content.clone().unwrap(),
+            ScriptTarget::ES2015,
+            None,
+            None,
+        );
+        let compiler_host = ModulesInTheSameKeepsErrorsCompilerHost::new(file);
+        create_program(
+            CreateProgramOptionsBuilder::default()
+                .root_names([&*f.name].owned())
+                .host(compiler_host.clone())
+                .build()
+                .unwrap(),
+        );
+    }
+
+    #[derive(Trace, Finalize)]
+    struct ModulesInTheSameKeepsErrorsCompilerHost {
+        file: Gc<Node /*SourceFile*/>,
+    }
+
+    impl ModulesInTheSameKeepsErrorsCompilerHost {
+        pub fn new(file: Gc<Node>) -> Gc<Box<dyn CompilerHost>> {
+            Gc::new(Box::new(Self { file }))
+        }
+    }
+
+    impl CompilerHost for ModulesInTheSameKeepsErrorsCompilerHost {
+        fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+            self
+        }
+
+        fn get_source_file(
+            &self,
+            file_name: &str,
+            _language_version: ScriptTarget,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _should_create_new_source_file: Option<bool>,
+        ) -> Option<Gc<Node /*SourceFile*/>> {
+            if file_name == &*self.file.as_source_file().file_name() {
+                Some(self.file.clone())
+            } else {
+                None
+            }
+        }
+
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
+            "lib.d.ts".to_owned()
+        }
+
+        fn write_file(
+            &self,
+            _file_name: &str,
+            _data: &str,
+            _write_byte_order_mark: bool,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        ) {
+            not_implemented()
+        }
+
+        fn write_file_non_overridden(
+            &self,
+            _file_name: &str,
+            _data: &str,
+            _write_byte_order_mark: bool,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_write_file_supported(&self) -> bool {
+            true
+        }
+
+        fn set_overriding_write_file(
+            &self,
+            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn get_current_directory(&self) -> String {
+            "/".to_owned()
+        }
+
+        fn get_canonical_file_name(&self, f: &str) -> String {
+            f.to_lowercase()
+        }
+
+        fn get_new_line(&self) -> String {
+            "\r\n".to_owned()
+        }
+
+        fn use_case_sensitive_file_names(&self) -> bool {
+            false
+        }
+
+        fn is_read_directory_implemented(&self) -> bool {
+            false
+        }
+
+        fn resolve_module_names(
+            &self,
+            _module_names: &[String],
+            _containing_file: &str,
+            _reused_names: Option<&[String]>,
+            _redirected_reference: Option<&ResolvedProjectReference>,
+            _options: &CompilerOptions,
+            _containing_source_file: Option<&Node /*SourceFile*/>,
+        ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+            not_implemented()
+        }
+
+        fn is_resolve_module_names_supported(&self) -> bool {
+            true
+        }
+
+        fn is_resolve_type_reference_directives_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_old_source_file_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_parsed_command_line_supported(&self) -> bool {
+            false
+        }
+
+        fn is_create_directory_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_create_directory(
+            &self,
+            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_get_source_file_by_path_supported(&self) -> bool {
+            false
+        }
+    }
+
+    impl ModuleResolutionHost for ModulesInTheSameKeepsErrorsCompilerHost {
+        fn file_exists(&self, file_name: &str) -> bool {
+            file_name == &*self.file.as_source_file().file_name()
+        }
+
+        fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
+            unreachable!()
+        }
+
+        fn set_overriding_file_exists(
+            &self,
+            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_get_directories_supported(&self) -> bool {
+            true
+        }
+
+        fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
+            Some(Default::default())
+        }
+
+        fn set_overriding_get_directories(
+            &self,
+            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
+            Ok(if file_name == &*self.file.as_source_file().file_name() {
+                Some(self.file.as_source_file().text().clone())
+            } else {
+                None
+            })
+        }
+
+        fn set_overriding_read_file(
+            &self,
+            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file_non_overridden(&self, _file_name: &str) -> io::Result<Option<String>> {
+            unreachable!()
+        }
+
+        fn is_trace_supported(&self) -> bool {
+            false
+        }
+
+        fn is_directory_exists_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_directory_exists(
+            &self,
+            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_realpath_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_realpath(
+            &self,
+            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    fn test_modules_in_ts_file_are_not_checked_in_the_same_file() {
+        let f = FileBuilder::default()
+            .name("/a/b/c/c/app.ts")
+            .content(
+                r#"
+                declare module "fs" {
+                    export interface Stat { id: number }
+                }
+                declare module "fs-client" {
+                    import { Stat } from "fs";
+                    export function foo(): Stat;
+                }"#,
+            )
+            .build()
+            .unwrap();
+        let file = create_source_file(
+            &f.name,
+            f.content.clone().unwrap(),
+            ScriptTarget::ES2015,
+            None,
+            None,
+        );
+        let compiler_host = ModulesInTsFileCompilerHost::new(file);
+        create_program(
+            CreateProgramOptionsBuilder::default()
+                .root_names([&*f.name].owned())
+                .host(compiler_host.clone())
+                .build()
+                .unwrap(),
+        );
+    }
+
+    #[derive(Trace, Finalize)]
+    struct ModulesInTsFileCompilerHost {
+        file: Gc<Node /*SourceFile*/>,
+    }
+
+    impl ModulesInTsFileCompilerHost {
+        pub fn new(file: Gc<Node>) -> Gc<Box<dyn CompilerHost>> {
+            Gc::new(Box::new(Self { file }))
+        }
+    }
+
+    impl CompilerHost for ModulesInTsFileCompilerHost {
+        fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+            self
+        }
+
+        fn get_source_file(
+            &self,
+            file_name: &str,
+            _language_version: ScriptTarget,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _should_create_new_source_file: Option<bool>,
+        ) -> Option<Gc<Node /*SourceFile*/>> {
+            if file_name == &*self.file.as_source_file().file_name() {
+                Some(self.file.clone())
+            } else {
+                None
+            }
+        }
+
+        fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String {
+            "lib.d.ts".to_owned()
+        }
+
+        fn write_file(
+            &self,
+            _file_name: &str,
+            _data: &str,
+            _write_byte_order_mark: bool,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        ) {
+            not_implemented()
+        }
+
+        fn write_file_non_overridden(
+            &self,
+            _file_name: &str,
+            _data: &str,
+            _write_byte_order_mark: bool,
+            _on_error: Option<&mut dyn FnMut(&str)>,
+            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_write_file_supported(&self) -> bool {
+            true
+        }
+
+        fn set_overriding_write_file(
+            &self,
+            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn get_current_directory(&self) -> String {
+            "/".to_owned()
+        }
+
+        fn get_canonical_file_name(&self, f: &str) -> String {
+            f.to_lowercase()
+        }
+
+        fn get_new_line(&self) -> String {
+            "\r\n".to_owned()
+        }
+
+        fn use_case_sensitive_file_names(&self) -> bool {
+            false
+        }
+
+        fn is_read_directory_implemented(&self) -> bool {
+            false
+        }
+
+        fn resolve_module_names(
+            &self,
+            module_names: &[String],
+            _containing_file: &str,
+            _reused_names: Option<&[String]>,
+            _redirected_reference: Option<&ResolvedProjectReference>,
+            _options: &CompilerOptions,
+            _containing_source_file: Option<&Node /*SourceFile*/>,
+        ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+            assert_that!(module_names).is_equal_to(&*["fs"].owned());
+            Some(vec![None])
+        }
+
+        fn is_resolve_module_names_supported(&self) -> bool {
+            true
+        }
+
+        fn is_resolve_type_reference_directives_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_old_source_file_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_parsed_command_line_supported(&self) -> bool {
+            false
+        }
+
+        fn is_create_directory_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_create_directory(
+            &self,
+            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_get_source_file_by_path_supported(&self) -> bool {
+            false
+        }
+    }
+
+    impl ModuleResolutionHost for ModulesInTsFileCompilerHost {
+        fn file_exists(&self, file_name: &str) -> bool {
+            file_name == &*self.file.as_source_file().file_name()
+        }
+
+        fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
+            unreachable!()
+        }
+
+        fn set_overriding_file_exists(
+            &self,
+            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_get_directories_supported(&self) -> bool {
+            true
+        }
+
+        fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
+            Some(Default::default())
+        }
+
+        fn set_overriding_get_directories(
+            &self,
+            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
+            Ok(if file_name == &*self.file.as_source_file().file_name() {
+                Some(self.file.as_source_file().text().clone())
+            } else {
+                None
+            })
+        }
+
+        fn set_overriding_read_file(
+            &self,
+            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file_non_overridden(&self, _file_name: &str) -> io::Result<Option<String>> {
+            unreachable!()
+        }
+
+        fn is_trace_supported(&self) -> bool {
+            false
+        }
+
+        fn is_directory_exists_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_directory_exists(
+            &self,
+            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_realpath_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_realpath(
+            &self,
+            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+    }
+
+    mod can_be_resolved_when_type_reference_directive_is_relative_and_in_a_sibling_folder {
+        use once_cell::sync::Lazy;
+
+        use super::*;
+
+        static initial_file: Lazy<File> = Lazy::new(|| {
+            FileBuilder::default()
+                .name("/root/src/background/app.ts")
+                .build()
+                .unwrap()
+        });
+        static target_file: Lazy<File> = Lazy::new(|| {
+            FileBuilder::default()
+                .name("/root/src/typedefs/filesystem.d.ts")
+                .build()
+                .unwrap()
+        });
+
+        #[test]
+        fn test_when_host_doesnt_have_directory_exists() {
+            test_worker(
+                false,
+                None,
+                "../typedefs/filesystem",
+                false,
+                &initial_file,
+                &target_file,
+                &[],
+            );
+        }
+
+        #[test]
+        fn test_when_host_has_directory_exists() {
+            test_worker(
+                true,
+                None,
+                "../typedefs/filesystem",
+                false,
+                &initial_file,
+                &target_file,
+                &[],
+            );
         }
     }
 }
