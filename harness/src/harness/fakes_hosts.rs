@@ -772,6 +772,10 @@ pub mod fakes {
         ) {
             unreachable!()
         }
+
+        fn is_get_source_file_by_path_supported(&self) -> bool {
+            false
+        }
     }
 
     impl ModuleResolutionHost for CompilerHost {

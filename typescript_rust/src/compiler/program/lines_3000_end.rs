@@ -65,11 +65,11 @@ impl Program {
                         &self.path_for_lib_file(lib_file_name),
                         true,
                         true,
-                        &FileIncludeReason::ReferencedFile(ReferencedFile {
+                        Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
                             kind: FileIncludeKind::LibReferenceDirective,
                             file: file_as_source_file.path().clone(),
                             index,
-                        }),
+                        })),
                     );
                 } else {
                     let unqualified_lib_name =
@@ -88,7 +88,7 @@ impl Program {
                     self.maybe_file_processing_diagnostics().get_or_insert_with(|| {
                         vec![]
                     }).push(
-                        FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
+                        Gc::new(FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
                             kind: FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic,
                             reason: ReferencedFile {
                                 kind: FileIncludeKind::LibReferenceDirective,
@@ -106,7 +106,7 @@ impl Program {
                                     lib_name,
                                 ])
                             }
-                        })
+                        }))
                     );
                 }
                 None
@@ -193,11 +193,11 @@ impl Program {
                         resolved_file_name,
                         false,
                         false,
-                        &FileIncludeReason::ReferencedFile(ReferencedFile {
+                        Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
                             kind: FileIncludeKind::Import,
                             file: file_as_source_file.path().clone(),
                             index,
-                        }),
+                        })),
                         resolution.package_id.as_ref(),
                     );
                 }
@@ -1060,20 +1060,21 @@ impl Program {
     pub fn create_diagnostic_explaining_file(
         &self,
         file: Option<impl Borrow<Node>>,
-        mut file_processing_reason: Option<&FileIncludeReason>,
+        mut file_processing_reason: Option<Gc<FileIncludeReason>>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
         let mut file_include_reasons: Option<Vec<DiagnosticMessageChain>> = None;
         let mut related_info: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
-        let mut location_reason = if is_referenced_file(file_processing_reason) {
-            file_processing_reason
+        let mut location_reason = if is_referenced_file(file_processing_reason.as_deref()) {
+            file_processing_reason.clone()
         } else {
             None
         };
         let file = file.map(|file| file.borrow().node_wrapper());
         let file_reasons = self.file_reasons();
         if let Some(file) = file.as_ref() {
+            let file_reasons = (*file_reasons).borrow();
             if let Some(reasons) = file_reasons.get(&*file.as_source_file().path()) {
                 for reason in reasons {
                     self.process_reason(
@@ -1081,13 +1082,13 @@ impl Program {
                         &mut location_reason,
                         &mut related_info,
                         &mut file_processing_reason,
-                        reason,
+                        reason.clone(),
                     );
                 }
             }
         }
         if file_processing_reason.is_some() {
-            let file_processing_reason_present = file_processing_reason.unwrap();
+            let file_processing_reason_present = file_processing_reason.clone().unwrap();
             self.process_reason(
                 &mut file_include_reasons,
                 &mut location_reason,
@@ -1154,25 +1155,25 @@ impl Program {
         }
     }
 
-    pub fn process_reason<'a>(
+    pub fn process_reason(
         &self,
         file_include_reasons: &mut Option<Vec<DiagnosticMessageChain>>,
-        location_reason: &mut Option<&'a FileIncludeReason>,
+        location_reason: &mut Option<Gc<FileIncludeReason>>,
         related_info: &mut Option<Vec<Gc<DiagnosticRelatedInformation>>>,
-        file_processing_reason: &mut Option<&FileIncludeReason>,
-        reason: &'a FileIncludeReason,
+        file_processing_reason: &mut Option<Gc<FileIncludeReason>>,
+        reason: Gc<FileIncludeReason>,
     ) {
         file_include_reasons.get_or_insert_with(|| vec![]).push(
-            file_include_reason_to_diagnostics(self, reason, Option::<fn(&str) -> String>::None),
+            file_include_reason_to_diagnostics(self, &reason, Option::<fn(&str) -> String>::None),
         );
-        if location_reason.is_none() && is_referenced_file(Some(reason)) {
-            *location_reason = Some(reason);
+        if location_reason.is_none() && is_referenced_file(Some(&reason)) {
+            *location_reason = Some(reason.clone());
         } else if !matches!(
-            *location_reason,
+            location_reason.clone(),
             Some(location_reason) if location_reason == reason
         ) {
             if let Some(related_information) =
-                self.file_include_reason_to_related_information(reason)
+                self.file_include_reason_to_related_information(&reason)
             {
                 related_info
                     .get_or_insert_with(|| vec![])
@@ -1180,7 +1181,7 @@ impl Program {
             }
         }
         if matches!(
-            *file_processing_reason,
+            file_processing_reason.clone(),
             Some(file_processing_reason) if reason == file_processing_reason
         ) {
             *file_processing_reason = None
@@ -1190,19 +1191,19 @@ impl Program {
     pub fn add_file_preprocessing_file_explaining_diagnostic(
         &self,
         file: Option<impl Borrow<Node>>,
-        file_processing_reason: &FileIncludeReason,
+        file_processing_reason: Gc<FileIncludeReason>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
         self.maybe_file_processing_diagnostics()
             .get_or_insert_with(|| vec![])
-            .push(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
+            .push(Gc::new(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
                 kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
                 file: file.map(|file| file.borrow().as_source_file().path().clone()),
                 file_processing_reason: file_processing_reason.clone(),
                 diagnostic,
                 args,
-            }))
+            })))
     }
 
     pub fn add_program_diagnostic_explaining_file(
@@ -1852,7 +1853,7 @@ impl Program {
         !symlinks.has_processed_resolutions() {
             symlinks.set_symlinks_from_resolutions(
                 &self.files(),
-                Some(&self.resolved_type_reference_directives()),
+                Some(&(*self.resolved_type_reference_directives()).borrow()),
             );
         }
         symlinks
@@ -2526,7 +2527,7 @@ pub fn get_resolution_diagnostic(
     }
 }
 
-fn need_jsx(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+pub(super) fn need_jsx(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
     if options.jsx.is_some() {
         None
     } else {
@@ -2534,7 +2535,7 @@ fn need_jsx(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
     }
 }
 
-fn need_allow_js(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+pub(super) fn need_allow_js(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
     if get_allow_js_compiler_option(options) || !get_strict_option_value(options, "noImplicitAny") {
         None
     } else {
@@ -2542,7 +2543,9 @@ fn need_allow_js(options: &CompilerOptions) -> Option<&'static DiagnosticMessage
     }
 }
 
-fn need_resolve_json_module(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+pub(super) fn need_resolve_json_module(
+    options: &CompilerOptions,
+) -> Option<&'static DiagnosticMessage> {
     if matches!(options.resolve_json_module, Some(true)) {
         None
     } else {
@@ -2550,7 +2553,7 @@ fn need_resolve_json_module(options: &CompilerOptions) -> Option<&'static Diagno
     }
 }
 
-fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
+pub(super) fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
     let file_as_source_file = file.as_source_file();
     let imports = file_as_source_file.maybe_imports();
     let imports = imports.as_ref().unwrap();

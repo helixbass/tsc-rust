@@ -33,6 +33,7 @@ pub struct ResolvedProjectReference {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StructureIsReused {
     Not,
+    SafeModules,
     Completely,
 }
 

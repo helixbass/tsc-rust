@@ -1559,21 +1559,27 @@ pub enum FilePreprocessingDiagnosticsKind {
     FilePreprocessingFileExplainingDiagnostic,
 }
 
+#[derive(Trace, Finalize)]
 pub struct FilePreprocessingReferencedDiagnostic {
+    #[unsafe_ignore_trace]
     pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic*/
     pub reason: ReferencedFile,
     pub diagnostic: &'static DiagnosticMessage,
     pub args: Option<Vec<String>>,
 }
 
+#[derive(Trace, Finalize)]
 pub struct FilePreprocessingFileExplainingDiagnostic {
+    #[unsafe_ignore_trace]
     pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic*/
+    #[unsafe_ignore_trace]
     pub file: Option<Path>,
-    pub file_processing_reason: FileIncludeReason,
+    pub file_processing_reason: Gc<FileIncludeReason>,
     pub diagnostic: &'static DiagnosticMessage,
     pub args: Option<Vec<String>>,
 }
 
+#[derive(Trace, Finalize)]
 pub enum FilePreprocessingDiagnostics {
     FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic),
     FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic),
@@ -1633,15 +1639,13 @@ pub struct Program {
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
-    #[unsafe_ignore_trace]
-    pub(crate) file_reasons: Rc<RefCell<MultiMap<Path, FileIncludeReason>>>,
+    pub(crate) file_reasons: GcCell<Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>>>,
     pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
-        Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>,
-    #[unsafe_ignore_trace]
-    pub(crate) file_processing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
+        GcCell<Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>>,
+    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Gc<FilePreprocessingDiagnostics>>>>,
 
     pub(crate) max_node_module_js_depth: usize,
     #[unsafe_ignore_trace]
@@ -1688,7 +1692,7 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
     #[unsafe_ignore_trace]
-    pub(crate) redirect_targets_map: Rc<RefCell<RedirectTargetsMap>>,
+    pub(crate) redirect_targets_map: RefCell<Rc<RefCell<RedirectTargetsMap>>>,
     #[unsafe_ignore_trace]
     pub(crate) uses_uri_style_node_core_modules: Cell<Option<bool>>,
 

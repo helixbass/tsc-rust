@@ -11,20 +11,20 @@ use crate::{
     directory_probably_exists, directory_separator, directory_separator_str, ends_with, every,
     extension_is_ts, file_extension_is, file_extension_is_one_of, filter, first_defined, for_each,
     for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
-    get_emit_module_kind, get_normalized_absolute_path, get_path_components,
-    get_path_from_path_components, get_paths_base_path, get_relative_path_from_directory,
-    get_root_length, has_js_file_extension, has_trailing_directory_separator,
-    is_external_module_name_relative, is_rooted_disk_path, last_index_of, match_pattern_or_exact,
-    matched_text, maybe_for_each, normalize_path, normalize_path_and_parts, normalize_slashes,
-    options_have_module_resolution_changes, package_id_to_string, path_is_relative, pattern_text,
-    read_json, remove_file_extension, remove_prefix, sort, starts_with, string_contains, to_path,
-    try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
-    version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
-    Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
-    PackageId, Path, PathAndParts, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
-    Version, VersionRange,
+    get_emit_module_kind, get_mode_for_resolution_at_index, get_normalized_absolute_path,
+    get_path_components, get_path_from_path_components, get_paths_base_path,
+    get_relative_path_from_directory, get_root_length, has_js_file_extension,
+    has_trailing_directory_separator, is_external_module_name_relative, is_rooted_disk_path,
+    last_index_of, match_pattern_or_exact, matched_text, maybe_for_each, normalize_path,
+    normalize_path_and_parts, normalize_slashes, options_have_module_resolution_changes,
+    package_id_to_string, path_is_relative, pattern_text, read_json, remove_file_extension,
+    remove_prefix, sort, starts_with, string_contains, to_path, try_get_extension_from_path,
+    try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
+    Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike,
+    ModuleKind, ModuleResolutionHost, ModuleResolutionKind, Node, PackageId, Path, PathAndParts,
+    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    StringOrBool, StringOrPattern, Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -1275,6 +1275,24 @@ impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
             .insert(result.clone(), (specifier.to_owned(), mode));
         result
     }
+}
+
+pub(crate) fn zip_to_mode_aware_cache<TValue: Clone + Trace + Finalize>(
+    file: &Node, /*SourceFile*/
+    keys: &[String],
+    values: &[TValue],
+) -> ModeAwareCache<TValue> {
+    let file_as_source_file = file.as_source_file();
+    Debug_.assert(keys.len() == values.len(), None);
+    let map = create_mode_aware_cache();
+    for (i, key) in keys.into_iter().enumerate() {
+        map.set(
+            key,
+            get_mode_for_resolution_at_index(file_as_source_file, i),
+            values[i].clone(),
+        );
+    }
+    map
 }
 
 pub fn create_module_resolution_cache(

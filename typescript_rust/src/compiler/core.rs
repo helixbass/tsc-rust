@@ -7,10 +7,10 @@ use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
-use std::hash;
 use std::hash::Hash;
 use std::mem;
 use std::rc::Rc;
+use std::{hash, iter};
 
 use crate::{
     __String, text_char_at_index, Comparison, Debug_, Node, NodeArrayOrVec, PeekableExt,
@@ -642,6 +642,33 @@ pub fn sort_and_deduplicate<
             None => ComparerOrEqualityComparer::Comparer(comparer),
         },
     )
+}
+
+pub fn array_is_equal_to<TItem>(
+    array1: Option<&[TItem]>,
+    array2: Option<&[TItem]>,
+    mut equality_comparer: impl FnMut(&TItem, &TItem, usize) -> bool,
+) -> bool {
+    if array1.is_none() && array2.is_none() {
+        return true;
+    }
+    if array1.is_none() || array2.is_none() {
+        return false;
+    }
+    let array1 = array1.unwrap();
+    let array2 = array2.unwrap();
+
+    if array1.len() != array2.len() {
+        return false;
+    }
+
+    for (i, (array1_i, array2_i)) in iter::zip(array1, array2).enumerate() {
+        if !equality_comparer(array1_i, array2_i, i) {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub fn relative_complement<TItem: Clone, TComparer: FnMut(&TItem, &TItem) -> Comparison>(
@@ -1309,6 +1336,10 @@ mod _MultiMapDeriveTraceScope {
 
         pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
             self.0.get(key)
+        }
+
+        pub fn contains_key(&self, key: &TKey) -> bool {
+            self.0.contains_key(key)
         }
 
         pub fn values(&self) -> Values<TKey, Vec<TValue>> {

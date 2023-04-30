@@ -679,7 +679,7 @@ pub fn type_directive_is_equal_to(
 pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
     names: &[impl AsRef<str>],
     new_resolutions: &[TValue],
-    old_resolutions: Option<ModeAwareCache<TValue>>,
+    old_resolutions: Option<&ModeAwareCache<TValue>>,
     old_source_file: Option<
         impl Borrow<Node>,
         /*SourceFile*/
@@ -691,7 +691,7 @@ pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
     for (i, name) in names.iter().enumerate() {
         let name = name.as_ref();
         let new_resolution = &new_resolutions[i];
-        let old_resolution = old_resolutions.as_ref().and_then(|old_resolutions| {
+        let old_resolution = old_resolutions.and_then(|old_resolutions| {
             old_resolutions.get(
                 name,
                 old_source_file.as_ref().and_then(|old_source_file| {

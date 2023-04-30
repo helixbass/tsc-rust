@@ -446,7 +446,7 @@ fn compute_module_specifiers(
                 Some(&host.get_current_directory()),
                 info.get_canonical_file_name,
             )),
-            |reason: &FileIncludeReason, _| {
+            |reason: &Gc<FileIncludeReason>, _| {
                 if reason.kind() != FileIncludeKind::Import
                     || reason.as_referenced_file().file
                         != *importing_source_file_as_source_file.path()

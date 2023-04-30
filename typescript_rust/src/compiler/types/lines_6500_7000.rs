@@ -338,6 +338,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     ) -> Option<Gc<Node /*SourceFile*/>> {
         None
     }
+    fn is_get_source_file_by_path_supported(&self) -> bool;
     fn get_cancellation_token(&self) -> Option<Gc<Box<dyn CancellationToken>>> {
         None
     }

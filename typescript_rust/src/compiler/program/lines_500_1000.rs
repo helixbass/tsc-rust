@@ -147,8 +147,8 @@ impl SourceFileImportsList for SourceFile {
     }
 }
 
-pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
-    file: &TFile,
+pub(crate) fn get_mode_for_resolution_at_index(
+    file: &impl SourceFileImportsList,
     index: usize,
 ) -> Option<ModuleKind> {
     if file.maybe_implied_node_format().is_none() {
@@ -304,19 +304,17 @@ pub fn for_each_resolved_project_reference<
     )
 }
 
-pub fn for_each_project_reference<
-    TReturn,
-    TCallbackResolvedRef: FnMut(
+pub fn for_each_project_reference<TReturn>(
+    project_references: Option<&[Rc<ProjectReference>]>,
+    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    mut cb_resolved_ref: impl FnMut(
         Option<Gc<ResolvedProjectReference>>,
         Option<&ResolvedProjectReference>,
         usize,
     ) -> Option<TReturn>,
-    TCallbackRef: Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
->(
-    project_references: Option<&[Rc<ProjectReference>]>,
-    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
-    mut cb_resolved_ref: TCallbackResolvedRef,
-    cb_ref: Option<TCallbackRef>,
+    cb_ref: Option<
+        impl Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+    >,
 ) -> Option<TReturn> {
     let mut seen_resolved_refs: Option<HashSet<Path>> = None;
 
@@ -328,6 +326,33 @@ pub fn for_each_project_reference<
         resolved_project_references,
         None,
     )
+}
+
+pub fn for_each_project_reference_bool(
+    project_references: Option<&[Rc<ProjectReference>]>,
+    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    mut cb_resolved_ref: impl FnMut(
+        Option<Gc<ResolvedProjectReference>>,
+        Option<&ResolvedProjectReference>,
+        usize,
+    ) -> bool,
+    cb_ref: Option<
+        impl Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> bool,
+    >,
+) -> bool {
+    for_each_project_reference(
+        project_references,
+        resolved_project_references,
+        |a: Option<Gc<ResolvedProjectReference>>,
+         b: Option<&ResolvedProjectReference>,
+         c: usize| { cb_resolved_ref(a, b, c).then_some(()) },
+        cb_ref.as_ref().map(|cb_ref| {
+            |a: Option<&[Rc<ProjectReference>]>, b: Option<&ResolvedProjectReference>| {
+                cb_ref(a, b).then_some(())
+            }
+        }),
+    )
+    .is_some()
 }
 
 fn for_each_project_reference_worker<
@@ -702,7 +727,7 @@ impl Program {
                 no_diagnostics_type_checker: Default::default(),
                 classifiable_names: Default::default(),
                 ambient_module_name_to_unmodified_file_name: Default::default(),
-                file_reasons: Rc::new(RefCell::new(create_multi_map())),
+                file_reasons: GcCell::new(Gc::new(GcCell::new(create_multi_map()))),
                 cached_bind_and_check_diagnostics_for_file: Default::default(),
                 cached_declaration_diagnostics_for_file: Default::default(),
 
@@ -735,7 +760,7 @@ impl Program {
                 actual_resolve_type_reference_directive_names_worker: Default::default(),
                 package_id_to_source_file: Default::default(),
                 source_file_to_package_name: Default::default(),
-                redirect_targets_map: Rc::new(RefCell::new(create_multi_map())),
+                redirect_targets_map: RefCell::new(Rc::new(RefCell::new(create_multi_map()))),
                 uses_uri_style_node_core_modules: Default::default(),
                 files_by_name: Default::default(),
                 missing_file_paths: Default::default(),
@@ -949,10 +974,10 @@ impl Program {
                     name,
                     false,
                     false,
-                    &FileIncludeReason::RootFile(RootFile {
+                    Gc::new(FileIncludeReason::RootFile(RootFile {
                         kind: FileIncludeKind::RootFile,
                         index,
-                    }),
+                    })),
                 );
                 Option::<()>::None
             });
@@ -988,7 +1013,7 @@ impl Program {
                     self.process_type_reference_directive(
                         &type_references[i],
                         resolutions.get(i).and_then(|resolution| resolution.clone()),
-                        &FileIncludeReason::AutomaticTypeDirectiveFile(
+                        Gc::new(FileIncludeReason::AutomaticTypeDirectiveFile(
                             AutomaticTypeDirectiveFile {
                                 kind: FileIncludeKind::AutomaticTypeDirectiveFile,
                                 type_reference: type_references[i].clone(),
@@ -998,7 +1023,7 @@ impl Program {
                                     .flatten()
                                     .and_then(|resolution| resolution.package_id.clone()),
                             },
-                        ),
+                        )),
                     );
                 }
                 // tracing?.pop();
@@ -1011,10 +1036,10 @@ impl Program {
                         &default_library_file_name,
                         true,
                         false,
-                        &FileIncludeReason::LibFile(LibFile {
+                        Gc::new(FileIncludeReason::LibFile(LibFile {
                             kind: FileIncludeKind::LibFile,
                             index: None,
-                        }),
+                        })),
                     );
                 } else {
                     maybe_for_each(
@@ -1024,10 +1049,10 @@ impl Program {
                                 &self.path_for_lib_file(lib_file_name),
                                 true,
                                 false,
-                                &FileIncludeReason::LibFile(LibFile {
+                                Gc::new(FileIncludeReason::LibFile(LibFile {
                                     kind: FileIncludeKind::LibFile,
                                     index: Some(index),
-                                }),
+                                })),
                             );
                             None
                         },
@@ -1114,7 +1139,7 @@ impl Program {
                                 diagnostic_as_file_explaining_diagnostic.file.as_ref().and_then(|diagnostic_file| {
                                     self.get_source_file_by_path(diagnostic_file)
                                 }),
-                                Some(&diagnostic_as_file_explaining_diagnostic.file_processing_reason),
+                                Some(diagnostic_as_file_explaining_diagnostic.file_processing_reason.clone()),
                                 diagnostic_as_file_explaining_diagnostic.diagnostic,
                                 Some(diagnostic_as_file_explaining_diagnostic.args.clone().unwrap_or_else(|| vec![]))
                             )
@@ -1178,6 +1203,10 @@ impl Program {
 
     pub(super) fn files(&self) -> GcCellRef<Vec<Gc<Node>>> {
         GcCellRef::map(self.files.borrow(), |files| files.as_ref().unwrap())
+    }
+
+    pub(super) fn set_files(&self, files: Option<Vec<Gc<Node>>>) {
+        *self.files.borrow_mut() = files;
     }
 
     pub(super) fn maybe_common_source_directory_mut(&self) -> RefMut<Option<String>> {
@@ -1261,16 +1290,15 @@ impl Program {
             .borrow_mut()
     }
 
-    pub(super) fn file_reasons(&self) -> Ref<MultiMap<Path, FileIncludeReason>> {
-        self.file_reasons.borrow()
+    pub(super) fn file_reasons(&self) -> Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>> {
+        self.file_reasons.borrow().clone()
     }
 
-    pub(super) fn file_reasons_mut(&self) -> RefMut<MultiMap<Path, FileIncludeReason>> {
-        self.file_reasons.borrow_mut()
-    }
-
-    pub(super) fn file_reasons_rc(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
-        self.file_reasons.clone()
+    pub(super) fn set_file_reasons(
+        &self,
+        file_reasons: Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>>,
+    ) {
+        *self.file_reasons.borrow_mut() = file_reasons;
     }
 
     pub(super) fn cached_bind_and_check_diagnostics_for_file_mut(
@@ -1287,26 +1315,23 @@ impl Program {
 
     pub(super) fn maybe_file_processing_diagnostics(
         &self,
-    ) -> RefMut<Option<Vec<FilePreprocessingDiagnostics>>> {
+    ) -> GcCellRefMut<Option<Vec<Gc<FilePreprocessingDiagnostics>>>> {
         self.file_processing_diagnostics.borrow_mut()
-    }
-
-    pub(super) fn resolved_type_reference_directives_rc(
-        &self,
-    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>> {
-        self.resolved_type_reference_directives.clone()
     }
 
     pub(super) fn resolved_type_reference_directives(
         &self,
-    ) -> GcCellRef<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>> {
-        (*self.resolved_type_reference_directives).borrow()
+    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>> {
+        self.resolved_type_reference_directives.borrow().clone()
     }
 
-    pub(super) fn resolved_type_reference_directives_mut(
+    pub(super) fn set_resolved_type_reference_directives(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>> {
-        self.resolved_type_reference_directives.borrow_mut()
+        resolved_type_reference_directives: Gc<
+            GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>,
+        >,
+    ) {
+        *self.resolved_type_reference_directives.borrow_mut() = resolved_type_reference_directives;
     }
 
     pub(super) fn program_diagnostics(&self) -> GcCellRef<DiagnosticCollection> {
@@ -1421,12 +1446,15 @@ impl Program {
         )
     }
 
-    pub(super) fn redirect_targets_map(&self) -> RefMut<RedirectTargetsMap> {
-        self.redirect_targets_map.borrow_mut()
+    pub(super) fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
+        self.redirect_targets_map.borrow().clone()
     }
 
-    pub(super) fn redirect_targets_map_rc(&self) -> Rc<RefCell<RedirectTargetsMap>> {
-        self.redirect_targets_map.clone()
+    pub(super) fn set_redirect_targets_map(
+        &self,
+        redirect_targets_map: Rc<RefCell<RedirectTargetsMap>>,
+    ) {
+        *self.redirect_targets_map.borrow_mut() = redirect_targets_map;
     }
 
     pub(super) fn uses_uri_style_node_core_modules(&self) -> bool {
@@ -1513,7 +1541,7 @@ impl Program {
         self.should_create_new_source_file.get().unwrap()
     }
 
-    pub(super) fn structure_is_reused(&self) -> StructureIsReused {
+    pub fn structure_is_reused(&self) -> StructureIsReused {
         self.structure_is_reused.get().unwrap()
     }
 
@@ -1554,6 +1582,18 @@ mod _FilesByNameValueDeriveTraceScope {
         SourceFile(Gc<Node /*SourceFile*/>),
         False,
         Undefined,
+    }
+
+    impl FilesByNameValue {
+        pub fn as_source_file(&self) -> &Gc<Node /*SourceFile*/> {
+            enum_unwrapped!(self, [FilesByNameValue, SourceFile])
+        }
+    }
+
+    impl From<Gc<Node /*SourceFile*/>> for FilesByNameValue {
+        fn from(value: Gc<Node /*SourceFile*/>) -> Self {
+            Self::SourceFile(value)
+        }
     }
 }
 pub use _FilesByNameValueDeriveTraceScope::FilesByNameValue;
@@ -1774,7 +1814,7 @@ impl ModuleSpecifierResolutionHost for Program {
     }
 
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
-        self.redirect_targets_map_rc()
+        self.redirect_targets_map()
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
@@ -1785,8 +1825,8 @@ impl ModuleSpecifierResolutionHost for Program {
         self.is_source_of_project_reference_redirect_(file_name)
     }
 
-    fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
-        self.file_reasons_rc()
+    fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>> {
+        self.file_reasons()
     }
 
     fn is_get_nearest_ancestor_directory_with_package_json_supported(&self) -> bool {
@@ -1810,7 +1850,7 @@ impl TypeCheckerHost for Program {
     fn get_resolved_type_reference_directives(
         &self,
     ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>> {
-        self.resolved_type_reference_directives_rc()
+        self.resolved_type_reference_directives()
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {

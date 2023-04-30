@@ -17,10 +17,10 @@ use crate::{
     sort_and_deduplicate_diagnostics, starts_with, token_to_string, CancellationTokenDebuggable,
     CommentDirective, CommentDirectivesMap, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithLocation, Diagnostics, EmitFlags,
-    FileIncludeReason, ForEachChildRecursivelyCallbackReturn, HasStatementsInterface,
-    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Program,
-    ReadonlyTextRange, ResolvedProjectReference, ScriptKind, SortedArray, SourceFileLike,
-    SyntaxKind,
+    FileIncludeReason, FileReference, ForEachChildRecursivelyCallbackReturn,
+    HasStatementsInterface, LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeFlags,
+    NodeInterface, Program, ReadonlyTextRange, ResolvedProjectReference, ScriptKind, SortedArray,
+    SourceFileLike, SyntaxKind,
 };
 
 use super::DiagnosticCache;
@@ -839,7 +839,7 @@ impl Program {
         file_name: &str,
         is_default_lib: bool,
         ignore_no_default_lib: bool,
-        reason: &FileIncludeReason,
+        reason: Gc<FileIncludeReason>,
     ) {
         self.process_source_file(
             &normalize_path(file_name),
@@ -848,6 +848,24 @@ impl Program {
             None,
             reason,
         );
+    }
+
+    pub fn file_reference_is_equal_to(&self, a: &FileReference, b: &FileReference) -> bool {
+        a.file_name == b.file_name
+    }
+
+    pub fn module_name_is_equal_to(
+        &self,
+        a: &Node, /*StringLiteralLike | Identifier*/
+        b: &Node, /*StringLiteralLike | Identifier*/
+    ) -> bool {
+        if a.kind() == SyntaxKind::Identifier {
+            b.kind() == SyntaxKind::Identifier
+                && a.as_identifier().escaped_text == b.as_identifier().escaped_text
+        } else {
+            b.kind() == SyntaxKind::StringLiteral
+                && &*a.as_literal_like_node().text() == &*b.as_literal_like_node().text()
+        }
     }
 
     pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Gc<Node> {
