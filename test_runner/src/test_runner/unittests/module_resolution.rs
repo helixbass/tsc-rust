@@ -335,7 +335,7 @@ mod node_module_resolution_relative_paths {
     use once_cell::sync::Lazy;
     use typescript_rust::{
         combine_paths, get_root_length, node_module_name_resolver, normalize_path,
-        supported_ts_extensions, supported_ts_extensions_flat, Extension,
+        supported_ts_extensions, supported_ts_extensions_flat, Extension, Owned,
     };
 
     use super::*;
@@ -454,10 +454,9 @@ mod node_module_resolution_relative_paths {
             let package_json = FileBuilder::default()
                 .name(package_json_file_name)
                 .content(
-                    serde_json::to_string::<HashMap<String, String>>(&HashMap::from_iter([(
-                        "typings".to_owned(),
-                        field_ref.to_owned(),
-                    )]))
+                    serde_json::to_string::<HashMap<String, String>>(&HashMap::from_iter(
+                        [("typings", field_ref)].owned(),
+                    ))
                     .unwrap(),
                 )
                 .build()
@@ -650,7 +649,7 @@ mod node_module_resolution_non_relative_paths {
     use typescript_rust::{
         create_module_resolution_cache, node_module_name_resolver, resolve_module_name,
         CompilerOptionsBuilder, Extension, GetCanonicalFileName, ModuleResolutionKind,
-        NonRelativeModuleNameResolutionCache,
+        NonRelativeModuleNameResolutionCache, Owned,
     };
 
     #[test]
@@ -947,7 +946,7 @@ mod node_module_resolution_non_relative_paths {
             vec![
                 FileBuilder::default()
                     .name(real_file_name)
-                    .symlinks([symlink_file_name.to_owned()])
+                    .symlinks([symlink_file_name].owned())
                     .build()
                     .unwrap(),
                 FileBuilder::default()
@@ -999,7 +998,7 @@ mod node_module_resolution_non_relative_paths {
             vec![
                 FileBuilder::default()
                     .name("/modules/a.ts")
-                    .symlinks(["/sub/node_modules/a/index.ts".to_owned()])
+                    .symlinks(["/sub/node_modules/a/index.ts"].owned())
                     .build()
                     .unwrap(),
                 FileBuilder::default()
@@ -2253,7 +2252,7 @@ mod base_url_augmented_module_resolution {
     use super::*;
 
     use typescript_rust::{
-        resolve_module_name, CompilerOptionsBuilder, JsxEmit, ModuleResolutionKind,
+        resolve_module_name, CompilerOptionsBuilder, JsxEmit, ModuleResolutionKind, Owned,
     };
 
     #[test]
@@ -2514,17 +2513,14 @@ mod base_url_augmented_module_resolution {
                     .module_resolution(ModuleResolutionKind::NodeJs)
                     .base_url("/root")
                     .jsx(JsxEmit::React)
-                    .paths(HashMap::from_iter([
-                        (
-                            "*".to_owned(),
-                            vec!["*".to_owned(), "generated/*".to_owned()],
-                        ),
-                        (
-                            "somefolder/*".to_owned(),
-                            vec!["someanotherfolder/*".to_owned()],
-                        ),
-                        ("/rooted/*".to_owned(), vec!["generated/*".to_owned()]),
-                    ]))
+                    .paths(HashMap::from_iter(
+                        [
+                            ("*", vec!["*", "generated/*"]),
+                            ("somefolder/*", vec!["someanotherfolder/*"]),
+                            ("/rooted/*", vec!["generated/*"]),
+                        ]
+                        .owned(),
+                    ))
                     .build()
                     .unwrap(),
             );
@@ -2684,17 +2680,14 @@ mod base_url_augmented_module_resolution {
                     .module_resolution(ModuleResolutionKind::Classic)
                     .base_url("/root")
                     .jsx(JsxEmit::React)
-                    .paths(HashMap::from_iter([
-                        (
-                            "*".to_owned(),
-                            vec!["*".to_owned(), "generated/*".to_owned()],
-                        ),
-                        (
-                            "somefolder/*".to_owned(),
-                            vec!["someanotherfolder/*".to_owned()],
-                        ),
-                        ("/rooted/*".to_owned(), vec!["generated/*".to_owned()]),
-                    ]))
+                    .paths(HashMap::from_iter(
+                        [
+                            ("*", vec!["*", "generated/*"]),
+                            ("somefolder/*", vec!["someanotherfolder/*"]),
+                            ("/rooted/*", vec!["generated/*"]),
+                        ]
+                        .owned(),
+                    ))
                     .build()
                     .unwrap(),
             );
@@ -2748,5 +2741,616 @@ mod base_url_augmented_module_resolution {
         };
 
         test(false);
+    }
+
+    #[test]
+    fn test_node_plus_root_dirs() {
+        let test = |has_directory_exists: bool| {
+            let file1 = FileBuilder::default()
+                .name("/root/folder1/file1.ts")
+                .build()
+                .unwrap();
+            let file1_1 = FileBuilder::default()
+                .name("/root/folder1/file1_1/index.d.ts")
+                .build()
+                .unwrap();
+            let file2 = FileBuilder::default()
+                .name("/root/generated/folder1/file2.ts")
+                .build()
+                .unwrap();
+            let file3 = FileBuilder::default()
+                .name("/root/generated/folder2/file3.ts")
+                .build()
+                .unwrap();
+            let host = create_module_resolution_host(
+                has_directory_exists,
+                vec![file1.clone(), file1_1.clone(), file2.clone(), file3.clone()],
+            );
+
+            let options = Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(ModuleResolutionKind::NodeJs)
+                    .root_dirs(["/root", "/root/generated/"].owned())
+                    .build()
+                    .unwrap(),
+            );
+
+            let check = |name: &str,
+                         container: &File,
+                         expected: &File,
+                         expected_failed_lookups: &[&str]| {
+                let result = resolve_module_name(
+                    name,
+                    &container.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module_with_failed_lookup_locations(
+                    &result,
+                    &create_resolved_module(&expected.name, None),
+                    expected_failed_lookups,
+                );
+            };
+
+            check(
+                "./file2",
+                &file1,
+                &file2,
+                &[
+                    "/root/folder1/file2.ts",
+                    "/root/folder1/file2.tsx",
+                    "/root/folder1/file2.d.ts",
+                    "/root/folder1/file2/package.json",
+                    "/root/folder1/file2/index.ts",
+                    "/root/folder1/file2/index.tsx",
+                    "/root/folder1/file2/index.d.ts",
+                ],
+            );
+            check(
+                "../folder1/file1",
+                &file3,
+                &file1,
+                &[
+                    "/root/generated/folder1/file1.ts",
+                    "/root/generated/folder1/file1.tsx",
+                    "/root/generated/folder1/file1.d.ts",
+                    "/root/generated/folder1/file1/package.json",
+                    "/root/generated/folder1/file1/index.ts",
+                    "/root/generated/folder1/file1/index.tsx",
+                    "/root/generated/folder1/file1/index.d.ts",
+                ],
+            );
+            check(
+                "../folder1/file1_1",
+                &file3,
+                &file1_1,
+                &[
+                    "/root/generated/folder1/file1_1.ts",
+                    "/root/generated/folder1/file1_1.tsx",
+                    "/root/generated/folder1/file1_1.d.ts",
+                    "/root/generated/folder1/file1_1/package.json",
+                    "/root/generated/folder1/file1_1/index.ts",
+                    "/root/generated/folder1/file1_1/index.tsx",
+                    "/root/generated/folder1/file1_1/index.d.ts",
+                    "/root/folder1/file1_1.ts",
+                    "/root/folder1/file1_1.tsx",
+                    "/root/folder1/file1_1.d.ts",
+                    "/root/folder1/file1_1/package.json",
+                    "/root/folder1/file1_1/index.ts",
+                    "/root/folder1/file1_1/index.tsx",
+                ],
+            );
+        };
+
+        test(false);
+        test(true);
+    }
+
+    #[test]
+    fn test_classic_plus_root_dirs() {
+        let test = |has_directory_exists: bool| {
+            let file1 = FileBuilder::default()
+                .name("/root/folder1/file1.ts")
+                .build()
+                .unwrap();
+            let file2 = FileBuilder::default()
+                .name("/root/generated/folder1/file2.ts")
+                .build()
+                .unwrap();
+            let file3 = FileBuilder::default()
+                .name("/root/generated/folder2/file3.ts")
+                .build()
+                .unwrap();
+            let file4 = FileBuilder::default()
+                .name("/folder1/file1_1.ts")
+                .build()
+                .unwrap();
+            let host = create_module_resolution_host(
+                has_directory_exists,
+                vec![file1.clone(), file2.clone(), file3.clone(), file4.clone()],
+            );
+            let options = Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(ModuleResolutionKind::Classic)
+                    .jsx(JsxEmit::React)
+                    .root_dirs(["/root", "/root/generated/"].owned())
+                    .build()
+                    .unwrap(),
+            );
+
+            let check = |name: &str,
+                         container: &File,
+                         expected: &File,
+                         expected_failed_lookups: &[&str]| {
+                let result = resolve_module_name(
+                    name,
+                    &container.name,
+                    options.clone(),
+                    &*host,
+                    None,
+                    None,
+                    None,
+                );
+                check_resolved_module_with_failed_lookup_locations(
+                    &result,
+                    &create_resolved_module(&expected.name, None),
+                    expected_failed_lookups,
+                );
+            };
+
+            check(
+                "./file2",
+                &file1,
+                &file2,
+                &[
+                    "/root/folder1/file2.ts",
+                    "/root/folder1/file2.tsx",
+                    "/root/folder1/file2.d.ts",
+                ],
+            );
+            check(
+                "../folder1/file1",
+                &file3,
+                &file1,
+                &[
+                    "/root/generated/folder1/file1.ts",
+                    "/root/generated/folder1/file1.tsx",
+                    "/root/generated/folder1/file1.d.ts",
+                ],
+            );
+            check(
+                "folder1/file1_1",
+                &file3,
+                &file4,
+                &[
+                    "/root/generated/folder2/folder1/file1_1.ts",
+                    "/root/generated/folder2/folder1/file1_1.tsx",
+                    "/root/generated/folder2/folder1/file1_1.d.ts",
+                    "/root/generated/folder1/file1_1.ts",
+                    "/root/generated/folder1/file1_1.tsx",
+                    "/root/generated/folder1/file1_1.d.ts",
+                    "/root/folder1/file1_1.ts",
+                    "/root/folder1/file1_1.tsx",
+                    "/root/folder1/file1_1.d.ts",
+                ],
+            );
+        };
+
+        test(false);
+    }
+
+    #[test]
+    fn test_nested_node_module() {
+        let test = |has_directory_exists: bool| {
+            let app = FileBuilder::default()
+                .name("/root/src/app.ts")
+                .build()
+                .unwrap();
+            let libs_package = FileBuilder::default()
+                .name("/root/src/libs/guid/package.json")
+                .content(serde_json::json!({"typings": "dist/guid.d.ts"}).to_string())
+                .build()
+                .unwrap();
+            let libs_typings = FileBuilder::default()
+                .name("/root/src/libs/guid/dist/guid.d.ts")
+                .build()
+                .unwrap();
+            let host = create_module_resolution_host(
+                has_directory_exists,
+                vec![app.clone(), libs_package.clone(), libs_typings.clone()],
+            );
+
+            let options = Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(ModuleResolutionKind::NodeJs)
+                    .base_url("/root")
+                    .paths(HashMap::from_iter(
+                        [("libs/guid", ["src/libs/guid"])].owned(),
+                    ))
+                    .build()
+                    .unwrap(),
+            );
+
+            let result = resolve_module_name(
+                "libs/guid",
+                &app.name,
+                options.clone(),
+                &*host,
+                None,
+                None,
+                None,
+            );
+            check_resolved_module_with_failed_lookup_locations(
+                &result,
+                &create_resolved_module(&libs_typings.name, None),
+                &[
+                    "/root/src/libs/guid.ts",
+                    "/root/src/libs/guid.tsx",
+                    "/root/src/libs/guid.d.ts",
+                ],
+            );
+        };
+
+        test(false);
+        test(true);
+    }
+}
+
+mod module_resolution_host_directory_exists {
+    use typescript_rust::{
+        not_implemented, resolve_module_name, CompilerOptionsBuilder, ModuleResolutionKind,
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_no_file_exists_calls_if_containing_directory_is_missing() {
+        let host = DirectoryExistsCompilerHost::new();
+
+        let result = resolve_module_name(
+            "someName",
+            "/a/b/c/d",
+            Gc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(ModuleResolutionKind::NodeJs)
+                    .build()
+                    .unwrap(),
+            ),
+            &host,
+            None,
+            None,
+            None,
+        );
+        assert_that(&result.resolved_module).is_none();
+    }
+
+    #[derive(Trace, Finalize)]
+    struct DirectoryExistsCompilerHost;
+
+    impl DirectoryExistsCompilerHost {
+        pub fn new() -> Self {
+            Self
+        }
+    }
+
+    impl ModuleResolutionHost for DirectoryExistsCompilerHost {
+        fn read_file(&self, _file_name: &str) -> io::Result<Option<String>> {
+            not_implemented()
+        }
+
+        fn set_overriding_read_file(
+            &self,
+            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn read_file_non_overridden(&self, _file_name: &str) -> io::Result<Option<String>> {
+            unreachable!()
+        }
+
+        fn file_exists(&self, _file_name: &str) -> bool {
+            not_implemented()
+        }
+
+        fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
+            unreachable!()
+        }
+
+        fn set_overriding_file_exists(
+            &self,
+            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn directory_exists(&self, _directory_name: &str) -> Option<bool> {
+            Some(false)
+        }
+
+        fn is_directory_exists_supported(&self) -> bool {
+            true
+        }
+
+        fn set_overriding_directory_exists(
+            &self,
+            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_get_directories_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_get_directories(
+            &self,
+            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+
+        fn is_trace_supported(&self) -> bool {
+            false
+        }
+
+        fn is_realpath_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_realpath(
+            &self,
+            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
+            unreachable!()
+        }
+    }
+}
+
+mod type_reference_directive_resolution {
+    use typescript_rust::{
+        resolve_type_reference_directive, CompilerOptionsBuilder, MapOrDefault, Owned, VecExt,
+    };
+
+    use super::*;
+
+    fn test_worker(
+        has_directory_exists: bool,
+        types_root: Option<&str>,
+        type_directive: &str,
+        primary: bool,
+        initial_file: &File,
+        target_file: &File,
+        other_files: &[&File],
+    ) {
+        let host = create_module_resolution_host(
+            has_directory_exists,
+            vec![initial_file.clone(), target_file.clone()]
+                .and_extend(other_files.into_iter().map(|value| (*value).clone())),
+        );
+        let result = resolve_type_reference_directive(
+            type_directive,
+            Some(&initial_file.name),
+            types_root.map_or_default(|types_root| {
+                Gc::new(
+                    CompilerOptionsBuilder::default()
+                        .type_roots([types_root].owned())
+                        .build()
+                        .unwrap(),
+                )
+            }),
+            &*host,
+            None,
+            None,
+        );
+        asserting("expected type directive to be resolved")
+            .that(
+                &result
+                    .resolved_type_reference_directive
+                    .as_ref()
+                    .unwrap()
+                    .resolved_file_name,
+            )
+            .is_some();
+        asserting("unexpected result of type reference resolution")
+            .that(
+                result
+                    .resolved_type_reference_directive
+                    .as_ref()
+                    .unwrap()
+                    .resolved_file_name
+                    .as_ref()
+                    .unwrap(),
+            )
+            .is_equal_to(&target_file.name);
+        asserting("unexpected 'primary' value")
+            .that(
+                &result
+                    .resolved_type_reference_directive
+                    .as_ref()
+                    .unwrap()
+                    .primary,
+            )
+            .is_equal_to(primary);
+    }
+
+    fn test(
+        types_root: &str,
+        type_directive: &str,
+        primary: bool,
+        initial_file: &File,
+        target_file: &File,
+        other_files: &[&File],
+    ) {
+        test_worker(
+            false,
+            Some(types_root),
+            type_directive,
+            primary,
+            initial_file,
+            target_file,
+            other_files,
+        )
+    }
+
+    #[test]
+    fn test_can_be_resolved_from_primary_location() {
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/src/types/lib/index.d.ts")
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", true, &f1, &f2, &[]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/src/types/lib/typings/lib.d.ts")
+            .build()
+            .unwrap();
+        let package_file = FileBuilder::default()
+            .name("/root/src/types/lib/package.json")
+            .content(serde_json::json!({"types": "typings/lib.d.ts"}).to_string())
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", true, &f1, &f2, &[&package_file]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/src/node_modules/lib/index.d.ts")
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/src/node_modules/lib/typings/lib.d.ts")
+            .build()
+            .unwrap();
+        let package_file = FileBuilder::default()
+            .name("/root/src/node_modules/lib/package.json")
+            .content(serde_json::json!({"types": "typings/lib.d.ts"}).to_string())
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[&package_file]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/src/node_modules/@types/lib/index.d.ts")
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/src/node_modules/@types/lib/typings/lib.d.ts")
+            .build()
+            .unwrap();
+        let package_file = FileBuilder::default()
+            .name("/root/src/node_modules/@types/lib/package.json")
+            .content(serde_json::json!({"types": "typings/lib.d.ts"}).to_string())
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[&package_file]);
+    }
+
+    #[test]
+    fn test_can_be_resolved_from_secondary_location() {
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/node_modules/lib.d.ts")
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/node_modules/lib/index.d.ts")
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/node_modules/lib/typings/lib.d.ts")
+            .build()
+            .unwrap();
+        let package_file = FileBuilder::default()
+            .name("/root/node_modules/lib/package.json")
+            .content(serde_json::json!({"typings": "typings/lib.d.ts"}).to_string())
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[&package_file]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/node_modules/@types/lib/index.d.ts")
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[]);
+
+        let f1 = FileBuilder::default()
+            .name("/root/src/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/node_modules/@types/lib/typings/lib.d.ts")
+            .build()
+            .unwrap();
+        let package_file = FileBuilder::default()
+            .name("/root/node_modules/@types/lib/package.json")
+            .content(serde_json::json!({"typings": "typings/lib.d.ts"}).to_string())
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", false, &f1, &f2, &[&package_file]);
+    }
+
+    #[test]
+    fn test_primary_resolution_overrides_secondary_resolution() {
+        let f1 = FileBuilder::default()
+            .name("/root/src/a/b/c/app.ts")
+            .build()
+            .unwrap();
+        let f2 = FileBuilder::default()
+            .name("/root/src/types/lib/index.d.ts")
+            .build()
+            .unwrap();
+        let f3 = FileBuilder::default()
+            .name("/root/src/a/b/node_modules/lib.d.ts")
+            .build()
+            .unwrap();
+        test("/root/src/types", "lib", true, &f1, &f2, &[&f3]);
     }
 }

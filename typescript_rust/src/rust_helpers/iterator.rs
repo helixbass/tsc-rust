@@ -123,6 +123,45 @@ impl ToOwnedNonTrivial for Path {
     }
 }
 
+impl<TItem> ToOwnedNonTrivial for [TItem]
+where
+    TItem: ToOwnedNonTrivial,
+{
+    type Owned = Vec<TItem::Owned>;
+
+    fn to_owned_non_trivial(&self) -> Self::Owned {
+        self.into_iter()
+            .map(|item| item.to_owned_non_trivial())
+            .collect()
+    }
+}
+
+impl<const TLen: usize, TItem> ToOwnedNonTrivial for [TItem; TLen]
+where
+    TItem: ToOwnedNonTrivial,
+{
+    type Owned = Vec<TItem::Owned>;
+
+    fn to_owned_non_trivial(&self) -> Self::Owned {
+        self.into_iter()
+            .map(|item| item.to_owned_non_trivial())
+            .collect()
+    }
+}
+
+impl<TItem> ToOwnedNonTrivial for Vec<TItem>
+where
+    TItem: ToOwnedNonTrivial,
+{
+    type Owned = Vec<TItem::Owned>;
+
+    fn to_owned_non_trivial(&self) -> Self::Owned {
+        self.into_iter()
+            .map(|item| item.to_owned_non_trivial())
+            .collect()
+    }
+}
+
 impl<'any, TToOwnedNonTrivial> ToOwnedNonTrivial for &'any TToOwnedNonTrivial
 where
     TToOwnedNonTrivial: ToOwnedNonTrivial + ?Sized,
