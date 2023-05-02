@@ -137,11 +137,12 @@ impl CompilerBaselineRunner {
                     )
                 }) {
                     let root_dir = if !test.file.contains("conformance") {
-                        "tests/cases/compiler/".to_owned()
-                        // "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                        // "tests/cases/compiler/".to_owned()
+                        "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
                     } else {
                         format!("{}/", get_directory_path(&test.file))
-                    };
+                    }
+                    .replace("../typescript_rust/typescript_src/", "");
                     payload = Some(TestCaseParser::make_units_from_test(
                         test.content.as_ref().unwrap(),
                         &test.file,
@@ -260,11 +261,12 @@ impl CompilerTest {
         }
 
         let root_dir = if !file_name.contains("conformance") {
-            "tests/cases/compiler/".to_owned()
-            // "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+            // "tests/cases/compiler/".to_owned()
+            "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
         } else {
             format!("{}/", get_directory_path(&file_name))
-        };
+        }
+        .replace("../typescript_rust/typescript_src/", "");
 
         if test_case_content.is_none() {
             test_case_content = Some(TestCaseParser::make_units_from_test(

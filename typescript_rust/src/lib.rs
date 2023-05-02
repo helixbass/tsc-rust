@@ -206,11 +206,12 @@ pub use compiler::module_specifiers;
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively,
     for_each_child_recursively_bool, for_each_child_returns, get_parse_node_factory,
-    is_external_module, parse_base_node_factory, parse_isolated_entity_name, parse_json_text,
-    parse_node_factory, update_source_file, with_parse_base_node_factory_and_factory,
-    ForEachChildRecursivelyCallbackReturn, IncrementalParser, IncrementalParserSyntaxCursor,
-    IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
-    IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
+    is_external_module, parse_base_node_factory, parse_isolated_entity_name,
+    parse_jsdoc_type_expression_for_tests, parse_json_text, parse_node_factory, update_source_file,
+    with_parse_base_node_factory_and_factory, ForEachChildRecursivelyCallbackReturn,
+    IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface,
+    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
     is_declaration_file_name, is_jsdoc_like_text, process_comment_pragmas,

@@ -77,6 +77,9 @@ fn handle_test_config() -> bool {
         if runners.is_empty() {
             // unimplemented!()
             runners.push(CompilerBaselineRunner::new_runner_base(
+                CompilerTestType::Conformance,
+            ));
+            runners.push(CompilerBaselineRunner::new_runner_base(
                 CompilerTestType::Regression,
             ));
             // unimplemented!()

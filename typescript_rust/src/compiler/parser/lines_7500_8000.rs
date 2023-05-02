@@ -1047,6 +1047,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct ParsedJSDocTypeExpression {
     pub js_doc_type_expression: Gc<Node /*JSDocTypeExpression*/>,
     pub diagnostics: Vec<Gc<Diagnostic>>,

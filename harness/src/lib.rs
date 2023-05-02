@@ -11,7 +11,7 @@ pub use harness::documents_util::documents;
 pub use harness::fakes_hosts::fakes;
 pub use harness::harness_io::{
     get_file_based_test_configuration_description, get_file_based_test_configurations, get_io,
-    get_light_mode, user_specified_root, with_io, Compiler, FileBasedTest,
+    get_light_mode, user_specified_root, with_io, Baseline, Compiler, FileBasedTest,
     FileBasedTestConfiguration, ListFilesOptions, TestCaseParser, IO,
 };
 pub use harness::runnerbase::{

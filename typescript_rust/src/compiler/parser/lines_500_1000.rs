@@ -258,8 +258,7 @@ pub(crate) fn parse_isolated_jsdoc_comment(
     result
 }
 
-#[allow(dead_code)]
-pub(crate) fn parse_jsdoc_type_expression_for_tests(
+pub fn parse_jsdoc_type_expression_for_tests(
     content: String,
     start: Option<usize>,
     length: Option<usize>,
