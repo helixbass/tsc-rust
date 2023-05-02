@@ -1126,6 +1126,18 @@ lazy_static! {
     static ref reserved_character_pattern: Regex = Regex::new(r"[^\w\s/]").unwrap();
 }
 
+pub fn reg_exp_escape(text: &str) -> String {
+    regex::escape(text)
+    // reserved_character_pattern.replace_all(text, |captures: &Captures| {
+    //     escape_reg_exp_character(&captures[0])
+    // })
+}
+
+#[allow(dead_code)]
+fn escape_reg_exp_character(match_: &str) -> String {
+    format!(r#"\{match_}"#)
+}
+
 lazy_static! {
     pub static ref common_package_folders: Vec<&'static str> =
         vec!["node_modules", "bower_components", "jspm_packages",];

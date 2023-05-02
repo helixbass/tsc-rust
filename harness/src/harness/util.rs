@@ -1,11 +1,14 @@
-use once_cell::sync::OnceCell;
-use regex::{Captures, Regex};
+use gc::{Finalize, Gc, Trace};
+use itertools::Itertools;
+use once_cell::unsync::Lazy;
+use regex::{Captures, Regex, SubCaptureMatches};
 use std::borrow::Cow;
+use typescript_rust::{
+    format_string_from_args, reg_exp_escape, regex, DiagnosticMessage, Diagnostics, Owned,
+};
 
 fn test_path_prefix_reg_exp() -> &'static Regex {
-    static test_path_prefix_reg_exp: OnceCell<Regex> = OnceCell::new();
-    test_path_prefix_reg_exp
-        .get_or_init(|| Regex::new(r"(?:(file:/{3})|/)\.(ts|lib|src)/").unwrap())
+    regex!(r"(?:(file:/{3})|/)\.(ts|lib|src)/")
 }
 
 pub fn remove_test_path_prefixes(
@@ -30,6 +33,103 @@ pub fn remove_test_path_prefixes(
             )
     })
     // : undefined!
+}
+
+fn create_diagnostic_message_replacer(
+    diagnostic_message: &'static DiagnosticMessage,
+    replacer: Gc<Box<dyn Replacer>>,
+) -> DiagnosticMessageReplacer {
+    let message_parts = regex!(r#"\{\d+\}"#).split(&diagnostic_message.message);
+    let reg_exp = Regex::new(&format!(
+        "^(?:{})$",
+        message_parts
+            .map(reg_exp_escape)
+            .collect_vec()
+            .join("(.*?)")
+    ))
+    .unwrap();
+    DiagnosticMessageReplacer::new(reg_exp, replacer, diagnostic_message)
+}
+
+struct DiagnosticMessageReplacer {
+    reg_exp: Regex,
+    replacer: Gc<Box<dyn Replacer>>,
+    diagnostic_message: &'static DiagnosticMessage,
+}
+
+impl DiagnosticMessageReplacer {
+    fn new(
+        reg_exp: Regex,
+        replacer: Gc<Box<dyn Replacer>>,
+        diagnostic_message: &'static DiagnosticMessage,
+    ) -> Self {
+        Self {
+            reg_exp,
+            replacer,
+            diagnostic_message,
+        }
+    }
+}
+
+impl DiagnosticMessageReplacer {
+    pub fn call<'text>(&self, text: &'text str, args: Vec<String>) -> Cow<'text, str> {
+        self.reg_exp.replace(text, |captures: &Captures| {
+            format_string_from_args(
+                &self.diagnostic_message.message,
+                self.replacer.call(captures.iter(), args.clone()),
+            )
+        })
+    }
+}
+
+trait Replacer: Trace + Finalize {
+    fn call(&self, message_args: SubCaptureMatches<'_, '_>, args: Vec<String>) -> Vec<String>;
+}
+
+thread_local! {
+    static replace_types_version_message: Lazy<DiagnosticMessageReplacer> = Lazy::new(|| {
+        create_diagnostic_message_replacer(
+            &Diagnostics::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
+            ReplaceTypesVersionMessageReplacer::new()
+        )
+    });
+}
+
+#[derive(Trace, Finalize)]
+struct ReplaceTypesVersionMessageReplacer;
+
+impl ReplaceTypesVersionMessageReplacer {
+    pub fn new() -> Gc<Box<dyn Replacer>> {
+        Gc::new(Box::new(Self))
+    }
+}
+
+impl Replacer for ReplaceTypesVersionMessageReplacer {
+    fn call(&self, mut message_args: SubCaptureMatches<'_, '_>, args: Vec<String>) -> Vec<String> {
+        let entry = message_args.next().unwrap().unwrap();
+        message_args.next();
+        let module_name = message_args.next().unwrap().unwrap();
+        let compiler_version = args.into_iter().next().unwrap();
+        vec![
+            entry.as_str().to_owned(),
+            compiler_version,
+            module_name.as_str().to_owned(),
+        ]
+    }
+}
+
+pub fn sanitize_trace_resolution_log_entry(text: &str) -> String {
+    if !text.is_empty() {
+        replace_types_version_message.with(|replace_types_version_message_| {
+            remove_test_path_prefixes(
+                &replace_types_version_message_.call(text, ["3.1.0-dev"].owned()),
+                None,
+            )
+            .into_owned()
+        })
+    } else {
+        text.to_owned()
+    }
 }
 
 pub fn get_byte_order_mark_length(text: &str) -> usize {

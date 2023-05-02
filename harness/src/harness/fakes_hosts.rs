@@ -1,7 +1,7 @@
 pub mod fakes {
     use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
     use std::borrow::Cow;
-    use std::cell::{Cell, RefCell};
+    use std::cell::{Cell, Ref, RefCell};
     use std::collections::HashMap;
     use std::io;
     use std::mem;
@@ -389,8 +389,8 @@ pub mod fakes {
     }
 
     impl CompilerHost {
-        pub fn new<TSys: Into<RcSystemOrRcFileSystem>>(
-            sys: TSys,
+        pub fn new(
+            sys: impl Into<RcSystemOrRcFileSystem>,
             options: Option<Gc<CompilerOptions>>,
             set_parent_nodes: Option<bool>,
         ) -> Gc<Box<Self>> {
@@ -458,6 +458,10 @@ pub mod fakes {
 
         pub fn outputs(&self) -> GcCellRef<Vec<Gc<documents::TextDocument>>> {
             self.outputs.borrow()
+        }
+
+        pub fn traces(&self) -> Ref<Vec<String>> {
+            self.traces.borrow()
         }
 
         fn maybe_file_exists_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {

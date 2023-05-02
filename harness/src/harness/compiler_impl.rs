@@ -1,7 +1,7 @@
 pub mod compiler {
     use gc::{Finalize, Gc, Trace};
-    use std::collections::HashMap;
     use std::ptr;
+    use std::{cell::Ref, collections::HashMap};
 
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
@@ -244,6 +244,10 @@ pub mod compiler {
 
         pub fn vfs(&self) -> Gc<vfs::FileSystem> {
             self.host.vfs()
+        }
+
+        pub fn traces(&self) -> Ref<Vec<String>> {
+            self.host.traces()
         }
 
         pub fn common_source_directory(&self) -> String {
