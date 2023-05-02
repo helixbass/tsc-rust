@@ -273,6 +273,17 @@ pub fn move_range_past_decorators(node: &Node) -> BaseTextRange {
     }
 }
 
+pub fn move_range_past_modifiers(node: &Node) -> BaseTextRange {
+    if let Some(node_modifiers) = node
+        .maybe_modifiers()
+        .filter(|node_modifiers| !node_modifiers.is_empty())
+    {
+        move_range_pos(node, node_modifiers.end())
+    } else {
+        move_range_past_decorators(node)
+    }
+}
+
 pub fn create_token_range(pos: isize, token: SyntaxKind) -> BaseTextRange {
     create_range(
         pos,

@@ -1119,7 +1119,7 @@ impl TransformES2018 {
                 &**self.context,
                 FlattenLevel::ObjectRest,
                 Some(!expression_result_is_unused),
-                Option::<fn(&Node, &Node, Option<&Node>) -> Gc<Node>>::None,
+                Option::<fn(&Node, &Node, Option<&dyn ReadonlyTextRange>) -> Gc<Node>>::None,
             );
         }
         if node_as_binary_expression.operator_token.kind() == SyntaxKind::CommaToken {

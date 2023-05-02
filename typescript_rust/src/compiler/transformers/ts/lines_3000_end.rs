@@ -1,6 +1,6 @@
 use gc::Gc;
 
-use crate::{Node, NodeInterface};
+use crate::{Node, NodeInterface, ReadonlyTextRange};
 
 use super::TransformTypeScript;
 
@@ -26,6 +26,22 @@ impl TransformTypeScript {
         _statements: &mut Vec<Gc<Node /*Statement*/>>,
         _node: &Node, /*ClassDeclaration | FunctionDeclaration*/
     ) {
+        unimplemented!()
+    }
+
+    pub(super) fn create_namespace_export_expression(
+        &self,
+        _export_name: &Node,  /*Identifier*/
+        _export_value: &Node, /*Expression*/
+        _location: Option<&dyn ReadonlyTextRange>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_namespace_member_name_with_source_maps_and_without_comments(
+        &self,
+        _name: &Node, /*Identifier*/
+    ) -> Gc<Node> {
         unimplemented!()
     }
 

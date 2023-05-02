@@ -10,7 +10,7 @@ pub enum FlattenLevel {
     ObjectRest,
 }
 
-pub fn flatten_destructuring_assignment<TCreateAssignmentCallbackLocation: ReadonlyTextRange>(
+pub fn flatten_destructuring_assignment(
     _node: &Node, /*VariableDeclaration | DestructuringAssignment*/
     _visitor: Option<impl FnMut(&Node) -> VisitResult>,
     _context: &(impl TransformationContext + ?Sized),
@@ -20,7 +20,7 @@ pub fn flatten_destructuring_assignment<TCreateAssignmentCallbackLocation: Reado
         impl FnMut(
             &Node, /*Identifier*/
             &Node, /*Expression*/
-            Option<&TCreateAssignmentCallbackLocation>,
+            Option<&dyn ReadonlyTextRange>,
         ) -> Gc<Node /*Expression*/>,
     >,
 ) -> Gc<Node /*Expression*/> {
