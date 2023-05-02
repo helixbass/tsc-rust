@@ -3,16 +3,20 @@ use std::ptr;
 use gc::Gc;
 
 use crate::{
-    flatten_destructuring_assignment, get_initialized_variables,
-    get_leading_comment_ranges_of_node, has_syntactic_modifier, is_assertion_expression,
-    is_binding_name, is_binding_pattern, is_expression, is_modifier, map,
-    move_range_past_decorators, move_range_past_modifiers, node_is_missing,
-    parameter_is_this_keyword, set_comment_range, set_emit_flags, set_source_map_range,
-    set_text_range, skip_outer_expressions, visit_each_child, visit_function_body, visit_node,
-    visit_nodes, visit_parameter_list, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeExt,
+    add_emit_flags, add_range, are_option_gcs_equal, flatten_destructuring_assignment,
+    get_initialized_variables, get_leading_comment_ranges_of_node, get_parse_tree_node,
+    has_syntactic_modifier, insert_statements_after_standard_prologue, is_assertion_expression,
+    is_binding_name, is_binding_pattern, is_enum_const, is_expression, is_instantiated_module,
+    is_jsx_attributes, is_jsx_tag_name_expression, is_left_hand_side_expression, is_modifier,
+    is_module_declaration, map, move_range_past_decorators, move_range_past_modifiers,
+    node_is_missing, parameter_is_this_keyword, set_comment_range, set_emit_flags,
+    set_source_map_range, set_synthetic_leading_comments, set_synthetic_trailing_comments,
+    set_text_range, set_text_range_rc_node, should_preserve_const_enums, skip_outer_expressions,
+    visit_each_child, visit_function_body, visit_node, visit_nodes, visit_parameter_list,
+    EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeExt,
     NodeInterface, NonEmpty, OuterExpressionKinds, ReadonlyTextRange,
-    SignatureDeclarationInterface, VisitResult,
+    SignatureDeclarationInterface, StringOrNumber, SyntaxKind, VisitResult,
 };
 
 use super::TransformTypeScript;
@@ -596,54 +600,408 @@ impl TransformTypeScript {
 
     pub(super) fn visit_assertion_expression(
         &self,
-        _node: &Node, /*AssertionExpression*/
+        node: &Node, /*AssertionExpression*/
     ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        let expression = visit_node(
+            Some(&*node.as_has_expression().expression()),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )
+        .unwrap();
+        self.factory
+            .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
+            .wrap()
     }
 
     pub(super) fn visit_non_null_expression(
         &self,
-        _node: &Node, /*NonNullExpression*/
+        node: &Node, /*NonNullExpression*/
     ) -> Gc<Node /*Expression*/> {
-        unimplemented!()
+        let expression = visit_node(
+            Some(&*node.as_non_null_expression().expression),
+            Some(|node: &Node| self.visitor(node)),
+            Some(is_left_hand_side_expression),
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+        )
+        .unwrap();
+        self.factory
+            .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
+            .wrap()
     }
 
-    pub(super) fn visit_call_expression(
-        &self,
-        _node: &Node, /*CallExpression*/
-    ) -> VisitResult {
-        unimplemented!()
+    pub(super) fn visit_call_expression(&self, node: &Node /*CallExpression*/) -> VisitResult {
+        let node_as_call_expression = node.as_call_expression();
+        Some(
+            self.factory
+                .update_call_expression(
+                    node,
+                    visit_node(
+                        Some(&*node_as_call_expression.expression),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    visit_nodes(
+                        Some(&node_as_call_expression.arguments),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        None,
+                        None,
+                    )
+                    .unwrap(),
+                )
+                .into(),
+        )
     }
 
-    pub(super) fn visit_new_expression(&self, _node: &Node /*NewExpression*/) -> VisitResult {
-        unimplemented!()
+    pub(super) fn visit_new_expression(&self, node: &Node /*NewExpression*/) -> VisitResult {
+        let node_as_new_expression = node.as_new_expression();
+        Some(
+            self.factory
+                .update_new_expression(
+                    node,
+                    visit_node(
+                        Some(&*node_as_new_expression.expression),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    visit_nodes(
+                        node_as_new_expression.arguments.as_deref(),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        None,
+                        None,
+                    ),
+                )
+                .into(),
+        )
     }
 
     pub(super) fn visit_tagged_template_expression(
         &self,
-        _node: &Node, /*TaggedTemplateExpression*/
+        node: &Node, /*TaggedTemplateExpression*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        Some(
+            self.factory
+                .update_tagged_template_expression(
+                    node,
+                    visit_node(
+                        Some(&*node_as_tagged_template_expression.tag),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    visit_node(
+                        Some(&*node_as_tagged_template_expression.template),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                )
+                .into(),
+        )
     }
 
     pub(super) fn visit_jsx_self_closing_element(
         &self,
-        _node: &Node, /*JsxSelfClosingElement*/
+        node: &Node, /*JsxSelfClosingElement*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
+        Some(
+            self.factory
+                .update_jsx_self_closing_element(
+                    node,
+                    visit_node(
+                        Some(&*node_as_jsx_self_closing_element.tag_name),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_jsx_tag_name_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    visit_node(
+                        Some(&*node_as_jsx_self_closing_element.attributes),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_jsx_attributes),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                )
+                .into(),
+        )
     }
 
     pub(super) fn visit_jsx_jsx_opening_element(
         &self,
-        _node: &Node, /*JsxOpeningElement*/
+        node: &Node, /*JsxOpeningElement*/
     ) -> VisitResult {
-        unimplemented!()
+        let node_as_jsx_opening_element = node.as_jsx_opening_element();
+        Some(
+            self.factory
+                .update_jsx_opening_element(
+                    node,
+                    visit_node(
+                        Some(&*node_as_jsx_opening_element.tag_name),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_jsx_tag_name_expression),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    visit_node(
+                        Some(&*node_as_jsx_opening_element.attributes),
+                        Some(|node: &Node| self.visitor(node)),
+                        Some(is_jsx_attributes),
+                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                    )
+                    .unwrap(),
+                )
+                .into(),
+        )
+    }
+
+    pub(super) fn should_emit_enum_declaration(
+        &self,
+        node: &Node, /*EnumDeclaration*/
+    ) -> bool {
+        !is_enum_const(node) || should_preserve_const_enums(&self.compiler_options)
     }
 
     pub(super) fn visit_enum_declaration(
         &self,
-        _node: &Node, /*EnumDeclaration*/
+        node: &Node, /*EnumDeclaration*/
     ) -> VisitResult /*<Statement>*/ {
-        unimplemented!()
+        if !self.should_emit_enum_declaration(node) {
+            return Some(
+                self.factory
+                    .create_not_emitted_statement(node.node_wrapper())
+                    .into(),
+            );
+        }
+
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+
+        let mut emit_flags = EmitFlags::AdviseOnEmitNode;
+
+        let var_added = self.add_var_for_enum_or_module_declaration(&mut statements, node);
+        if var_added {
+            if self.module_kind != ModuleKind::System
+                || !are_option_gcs_equal(
+                    self.maybe_current_lexical_scope().as_ref(),
+                    self.maybe_current_source_file().as_ref(),
+                )
+            {
+                emit_flags |= EmitFlags::NoLeadingComments;
+            }
+        }
+
+        let parameter_name = self.get_namespace_parameter_name(node);
+
+        let container_name = self.get_namespace_container_name(node);
+
+        let export_name = if has_syntactic_modifier(node, ModifierFlags::Export) {
+            self.factory.get_external_module_or_namespace_export_name(
+                self.maybe_current_namespace_container_name(),
+                node,
+                Some(false),
+                Some(true),
+            )
+        } else {
+            self.factory.get_local_name(node, Some(false), Some(true))
+        };
+
+        let mut module_arg = self
+            .factory
+            .create_logical_or(
+                export_name.clone(),
+                self.factory
+                    .create_assignment(
+                        export_name,
+                        self.factory
+                            .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None)
+                            .wrap(),
+                    )
+                    .wrap(),
+            )
+            .wrap();
+
+        if self.has_namespace_qualified_export_name(node) {
+            let local_name = self.factory.get_local_name(node, Some(false), Some(true));
+
+            module_arg = self
+                .factory
+                .create_assignment(local_name, module_arg)
+                .wrap();
+        }
+
+        let enum_statement = self
+            .factory
+            .create_expression_statement(
+                self.factory
+                    .create_call_expression(
+                        self.factory
+                            .create_function_expression(
+                                Option::<Gc<NodeArray>>::None,
+                                None,
+                                Option::<Gc<Node>>::None,
+                                Option::<Gc<NodeArray>>::None,
+                                Some(vec![self
+                                    .factory
+                                    .create_parameter_declaration(
+                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                        Some(parameter_name),
+                                        None,
+                                        None,
+                                        None,
+                                    )
+                                    .wrap()]),
+                                None,
+                                self.transform_enum_body(node, &container_name),
+                            )
+                            .wrap(),
+                        Option::<Gc<NodeArray>>::None,
+                        Some(vec![module_arg]),
+                    )
+                    .wrap(),
+            )
+            .wrap()
+            .set_original_node(Some(node.node_wrapper()));
+        if var_added {
+            set_synthetic_leading_comments(&enum_statement, None);
+            set_synthetic_trailing_comments(&enum_statement, None);
+        }
+        set_text_range(&*enum_statement, Some(node));
+        add_emit_flags(enum_statement.clone(), emit_flags);
+        statements.push(enum_statement);
+
+        statements.push(
+            self.factory
+                .create_end_of_declaration_marker(node.node_wrapper()),
+        );
+        Some(statements.into())
+    }
+
+    pub(super) fn transform_enum_body(
+        &self,
+        node: &Node,       /*EnumDeclaration*/
+        local_name: &Node, /*Identifier*/
+    ) -> Gc<Node /*Block*/> {
+        let node_as_enum_declaration = node.as_enum_declaration();
+        let saved_current_namespace_local_name = self.maybe_current_namespace_container_name();
+        self.set_current_namespace_container_name(Some(local_name.node_wrapper()));
+
+        let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
+        self.context.start_lexical_environment();
+        let members = map(&node_as_enum_declaration.members, |member: &Gc<Node>, _| {
+            self.transform_enum_member(member)
+        });
+        insert_statements_after_standard_prologue(
+            &mut statements,
+            self.context.end_lexical_environment().as_deref(),
+        );
+        add_range(&mut statements, Some(&members), None, None);
+
+        self.set_current_namespace_container_name(saved_current_namespace_local_name);
+        self.factory
+            .create_block(
+                self.factory
+                    .create_node_array(Some(statements), None)
+                    .set_text_range(Some(&*node_as_enum_declaration.members)),
+                Some(true),
+            )
+            .wrap()
+    }
+
+    pub(super) fn transform_enum_member(
+        &self,
+        member: &Node, /*EnumMember*/
+    ) -> Gc<Node /*Statement*/> {
+        let name = self.get_expression_for_property_name(member, false);
+        let value_expression = self.transform_enum_member_declaration_value(member);
+        let inner_assignment = self
+            .factory
+            .create_assignment(
+                self.factory
+                    .create_element_access_expression(
+                        self.current_namespace_container_name(),
+                        name.clone(),
+                    )
+                    .wrap(),
+                value_expression.clone(),
+            )
+            .wrap();
+        let outer_assignment = if value_expression.kind() == SyntaxKind::StringLiteral {
+            inner_assignment
+        } else {
+            self.factory
+                .create_assignment(
+                    self.factory
+                        .create_element_access_expression(
+                            self.current_namespace_container_name(),
+                            inner_assignment,
+                        )
+                        .wrap(),
+                    name,
+                )
+                .wrap()
+        };
+        self.factory
+            .create_expression_statement(set_text_range_rc_node(outer_assignment, Some(member)))
+            .wrap()
+            .set_text_range(Some(member))
+    }
+
+    pub(super) fn transform_enum_member_declaration_value(
+        &self,
+        member: &Node, /*EnumMember*/
+    ) -> Gc<Node /*Expression*/> {
+        let value = self.resolver.get_constant_value(member);
+        if let Some(value) = value {
+            match value {
+                StringOrNumber::String(value) => {
+                    self.factory.create_string_literal(value, None, None).wrap()
+                }
+                StringOrNumber::Number(value) => {
+                    self.factory.create_numeric_literal(value, None).wrap()
+                }
+            }
+        } else {
+            self.enable_substitution_for_non_qualified_enum_members();
+            if let Some(member_initializer) = member.as_enum_member().initializer.as_ref() {
+                visit_node(
+                    Some(&**member_initializer),
+                    Some(|node: &Node| self.visitor(node)),
+                    Some(is_expression),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                )
+                .unwrap()
+            } else {
+                self.factory.create_void_zero()
+            }
+        }
+    }
+
+    pub(super) fn should_emit_module_declaration(
+        &self,
+        node_in: &Node, /*ModuleDeclaration*/
+    ) -> bool {
+        let node = get_parse_tree_node(Some(node_in), Some(is_module_declaration));
+        if node.is_none() {
+            return true;
+        }
+        let ref node = node.unwrap();
+        is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options))
     }
 }

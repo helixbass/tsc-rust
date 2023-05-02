@@ -84,8 +84,8 @@ pub fn set_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -
     node
 }
 
-pub fn add_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
-    let emit_node = get_or_create_emit_node(&node);
+pub fn add_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
+    let emit_node = get_or_create_emit_node(node.borrow());
     let mut emit_node = emit_node.borrow_mut();
     emit_node.flags = Some(emit_node.flags.unwrap_or(EmitFlags::None) | emit_flags);
     node
@@ -97,8 +97,13 @@ pub fn get_source_map_range(node: &Node) -> Gc<SourceMapRange> {
         .unwrap_or_else(|| node.into())
 }
 
-pub fn set_source_map_range(node: Gc<Node>, range: Option<Gc<SourceMapRange>>) -> Gc<Node> {
-    get_or_create_emit_node(&node).borrow_mut().source_map_range = range;
+pub fn set_source_map_range<TNode: Borrow<Node>>(
+    node: TNode,
+    range: Option<Gc<SourceMapRange>>,
+) -> TNode {
+    get_or_create_emit_node(node.borrow())
+        .borrow_mut()
+        .source_map_range = range;
     node
 }
 
@@ -181,6 +186,12 @@ pub fn add_synthetic_leading_comment(
 pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().trailing_comments.clone())
+}
+
+pub fn set_synthetic_trailing_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
+/*-> Gc<Node>*/
+{
+    get_or_create_emit_node(node).borrow_mut().trailing_comments = comments;
 }
 
 pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {

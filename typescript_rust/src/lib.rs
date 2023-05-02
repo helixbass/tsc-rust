@@ -14,7 +14,7 @@ pub use compiler::builder_public::{
     BuilderProgram, EmitAndSemanticDiagnosticsBuilderProgram, SemanticDiagnosticsBuilderProgram,
 };
 pub use compiler::checker::{
-    create_type_checker, get_node_id, get_symbol_id, CheckBinaryExpression,
+    create_type_checker, get_node_id, get_symbol_id, is_instantiated_module, CheckBinaryExpression,
     DiagnosticMessageOrDiagnosticMessageChain, NodeBuilder,
 };
 use compiler::checker::{
@@ -97,6 +97,7 @@ pub use compiler::factory::emit_node::{
     get_source_map_range, get_synthetic_leading_comments, get_synthetic_trailing_comments,
     remove_all_comments, set_comment_range, set_comment_range_rc, set_emit_flags,
     set_source_map_range, set_synthetic_leading_comments, set_synthetic_leading_comments_rc,
+    set_synthetic_trailing_comments,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,

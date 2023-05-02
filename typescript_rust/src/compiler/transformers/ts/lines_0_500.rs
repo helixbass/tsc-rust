@@ -1,7 +1,7 @@
 use std::{cell::Cell, collections::HashMap, mem, ptr, rc::Rc};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::{
     add_emit_helpers, are_option_gcs_equal, create_unparsed_source_file, get_emit_module_kind,
@@ -125,6 +125,10 @@ impl TransformTypeScript {
         self._transformer_wrapper.borrow().clone().unwrap()
     }
 
+    pub(super) fn maybe_current_source_file(&self) -> Option<Gc<Node>> {
+        self.current_source_file.borrow().clone()
+    }
+
     pub(super) fn current_source_file(&self) -> Gc<Node> {
         self.current_source_file.borrow().clone().unwrap()
     }
@@ -135,6 +139,28 @@ impl TransformTypeScript {
 
     pub(super) fn maybe_current_namespace(&self) -> Option<Gc<Node>> {
         self.current_namespace.borrow().clone()
+    }
+
+    pub(super) fn maybe_current_namespace_container_name(&self) -> Option<Gc<Node>> {
+        self.current_namespace_container_name.borrow().clone()
+    }
+
+    pub(super) fn current_namespace_container_name(&self) -> Gc<Node> {
+        self.current_namespace_container_name
+            .borrow()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn set_current_namespace_container_name(
+        &self,
+        current_namespace_container_name: Option<Gc<Node>>,
+    ) {
+        *self.current_namespace_container_name.borrow_mut() = current_namespace_container_name;
+    }
+
+    pub(super) fn current_lexical_scope(&self) -> Gc<Node> {
+        self.current_lexical_scope.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_current_lexical_scope(&self) -> Option<Gc<Node>> {
@@ -157,6 +183,12 @@ impl TransformTypeScript {
         &self,
     ) -> GcCellRef<Option<UnderscoreEscapedMap<Gc<Node>>>> {
         self.current_scope_first_declarations_of_name.borrow()
+    }
+
+    pub(super) fn maybe_current_scope_first_declarations_of_name_mut(
+        &self,
+    ) -> GcCellRefMut<Option<UnderscoreEscapedMap<Gc<Node>>>> {
+        self.current_scope_first_declarations_of_name.borrow_mut()
     }
 
     pub(super) fn set_current_scope_first_declarations_of_name(

@@ -553,6 +553,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         unimplemented!()
     }
 
+    pub fn create_merge_declaration_marker(&self, _original: Gc<Node>) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn clone_node(&self, node: &Node) -> Gc<Node> {
         // if (node === undefined) {
         //     return node;
@@ -678,6 +682,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         _allow_comments: Option<bool>,
         _allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
+        unimplemented!()
+    }
+
+    pub fn get_external_module_or_namespace_export_name(
+        &self,
+        _ns: Option<impl Borrow<Node> /*Identifier*/>,
+        _node: &Node, /*Declaration*/
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
+    ) -> Gc<Node /*Identifier | PropertyAccessExpression*/> {
         unimplemented!()
     }
 

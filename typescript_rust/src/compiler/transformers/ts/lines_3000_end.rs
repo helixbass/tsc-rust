@@ -9,6 +9,10 @@ impl TransformTypeScript {
         unimplemented!()
     }
 
+    pub(super) fn is_external_module_export(&self, _node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_named_external_module_export(&self, _node: &Node) -> bool {
         unimplemented!()
     }
@@ -45,6 +49,20 @@ impl TransformTypeScript {
         unimplemented!()
     }
 
+    pub(super) fn get_namespace_parameter_name(
+        &self,
+        _node: &Node, /*ModuleDeclaration | EnumDeclaration*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_namespace_container_name(
+        &self,
+        _node: &Node, /*ModuleDeclaration | EnumDeclaration*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub(super) fn get_class_alias_if_needed(
         &self,
         _node: &Node, /*ClassDeclaration*/
@@ -57,6 +75,10 @@ impl TransformTypeScript {
         _node: &Node,   /*ClassExpression | ClassDeclaration*/
         _member: &Node, /*ClassElement*/
     ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn enable_substitution_for_non_qualified_enum_members(&self) {
         unimplemented!()
     }
 }
