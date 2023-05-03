@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -23,11 +24,23 @@ use local_macros::{enum_unwrapped, symbol_type};
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
 
-#[derive(Trace, Finalize)]
+#[derive(Builder, Trace, Finalize)]
+#[builder(setter(into, strip_option))]
 pub struct ResolvedProjectReference {
     pub command_line: Gc<ParsedCommandLine>,
     pub source_file: Gc<Node /*SourceFile*/>,
-    pub references: Option<Vec<Option<Gc<ResolvedProjectReference>>>>,
+    #[builder(setter(skip))]
+    references: GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
+}
+
+impl ResolvedProjectReference {
+    pub fn maybe_references(&self) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+        self.references.borrow()
+    }
+
+    pub fn set_references(&self, references: Option<Vec<Option<Gc<ResolvedProjectReference>>>>) {
+        *self.references.borrow_mut() = references;
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

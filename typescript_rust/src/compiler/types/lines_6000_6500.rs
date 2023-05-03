@@ -2729,6 +2729,7 @@ impl CommandLineOption {
             Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
                 CommandLineOptionType::String => CompilerOptionsValue::VecString(None),
                 CommandLineOptionType::Object => CompilerOptionsValue::VecPluginImport(None),
+                CommandLineOptionType::Map(_) => CompilerOptionsValue::VecString(None),
                 _ => panic!("Unexpected element type"),
             },
         }

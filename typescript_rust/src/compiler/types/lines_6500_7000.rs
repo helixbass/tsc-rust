@@ -439,6 +439,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn get_parsed_command_line(&self, _file_name: &str) -> Option<ParsedCommandLine> {
         None
     }
+    fn is_get_parsed_command_line_supported(&self) -> bool;
     fn use_source_of_project_reference_redirect(&self) -> Option<bool> {
         None
     }

@@ -780,6 +780,10 @@ pub mod fakes {
         fn is_get_source_file_by_path_supported(&self) -> bool {
             false
         }
+
+        fn is_get_parsed_command_line_supported(&self) -> bool {
+            false
+        }
     }
 
     impl ModuleResolutionHost for CompilerHost {

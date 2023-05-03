@@ -1300,6 +1300,12 @@ impl From<BaseDiagnostic> for Diagnostic {
     }
 }
 
+impl From<BaseDiagnostic> for Gc<Diagnostic> {
+    fn from(value: BaseDiagnostic) -> Self {
+        Gc::new(value.into())
+    }
+}
+
 impl From<BaseDiagnostic> for DiagnosticRelatedInformation {
     fn from(base_diagnostic: BaseDiagnostic) -> Self {
         DiagnosticRelatedInformation::Diagnostic(Diagnostic::BaseDiagnostic(base_diagnostic))
@@ -1942,6 +1948,12 @@ impl DiagnosticInterface for DiagnosticWithDetachedLocation {
 impl From<DiagnosticWithDetachedLocation> for Diagnostic {
     fn from(diagnostic_with_detached_location: DiagnosticWithDetachedLocation) -> Self {
         Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location)
+    }
+}
+
+impl From<DiagnosticWithDetachedLocation> for Gc<Diagnostic> {
+    fn from(value: DiagnosticWithDetachedLocation) -> Self {
+        Gc::new(value.into())
     }
 }
 

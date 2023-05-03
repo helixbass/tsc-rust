@@ -1314,6 +1314,10 @@ mod relative_imports {
         fn is_get_source_file_by_path_supported(&self) -> bool {
             false
         }
+
+        fn is_get_parsed_command_line_supported(&self) -> bool {
+            false
+        }
     }
 
     impl ModuleResolutionHost for RelativeImportsCompilerHost {
@@ -1663,6 +1667,10 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         }
 
         fn is_get_source_file_by_path_supported(&self) -> bool {
+            false
+        }
+
+        fn is_get_parsed_command_line_supported(&self) -> bool {
             false
         }
     }
@@ -3547,6 +3555,10 @@ mod type_reference_directive_resolution {
         fn is_get_source_file_by_path_supported(&self) -> bool {
             false
         }
+
+        fn is_get_parsed_command_line_supported(&self) -> bool {
+            false
+        }
     }
 
     impl ModuleResolutionHost for ReusedProgramKeepsErrorsCompilerHost {
@@ -3783,6 +3795,10 @@ mod type_reference_directive_resolution {
         }
 
         fn is_get_source_file_by_path_supported(&self) -> bool {
+            false
+        }
+
+        fn is_get_parsed_command_line_supported(&self) -> bool {
             false
         }
     }
@@ -4025,6 +4041,10 @@ mod type_reference_directive_resolution {
         }
 
         fn is_get_source_file_by_path_supported(&self) -> bool {
+            false
+        }
+
+        fn is_get_parsed_command_line_supported(&self) -> bool {
             false
         }
     }

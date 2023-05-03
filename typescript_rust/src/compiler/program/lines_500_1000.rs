@@ -14,27 +14,29 @@ use super::{
     UpdateHostForUseSourceOfProjectReferenceRedirectReturn,
 };
 use crate::{
-    clone, combine_paths, create_diagnostic_collection, create_file_diagnostic,
+    change_extension, clone, combine_paths, create_diagnostic_collection, create_file_diagnostic,
     create_module_resolution_cache, create_multi_map,
-    create_type_reference_directive_resolution_cache, extension_from_path,
-    file_extension_is_one_of, for_each, get_automatic_type_directive_names, get_directory_path,
-    get_emit_module_resolution_kind, get_package_scope_for_path, get_supported_extensions,
+    create_type_reference_directive_resolution_cache, extension_from_path, file_extension_is,
+    file_extension_is_one_of, for_each, gc_cell_ref_mut_unwrapped,
+    get_automatic_type_directive_names, get_common_source_directory_of_config, get_directory_path,
+    get_emit_module_kind, get_emit_module_resolution_kind, get_output_declaration_file_name,
+    get_package_scope_for_path, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, is_import_call,
     is_import_equals_declaration, is_logging, map_defined, maybe_for_each, options_have_changes,
-    ref_mut_unwrapped, ref_unwrapped, resolve_module_name, resolve_type_reference_directive,
-    skip_trivia, source_file_affecting_compiler_options, stable_sort, to_file_name_lower_case,
-    walk_up_parenthesized_expressions, AsDoubleDeref, AutomaticTypeDirectiveFile, CompilerHost,
-    CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection, Extension,
-    FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
-    FilePreprocessingDiagnosticsKind, GetProgramBuildInfo, LibFile, ModuleKind,
-    ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId,
-    PackageJsonInfoCache, ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange,
-    RedirectTargetsMap, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
-    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
-    TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    VecExt,
+    out_file, ref_mut_unwrapped, ref_unwrapped, resolve_module_name,
+    resolve_type_reference_directive, skip_trivia, source_file_affecting_compiler_options,
+    stable_sort, to_file_name_lower_case, walk_up_parenthesized_expressions, AsDoubleDeref,
+    AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions, CreateProgramOptions, Debug_,
+    Diagnostic, DiagnosticCollection, Extension, FileIncludeKind, FileIncludeReason,
+    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, GetProgramBuildInfo, LibFile,
+    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, NonEmpty,
+    PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParsedCommandLine, Path, Program,
+    ProjectReference, ProjectReferenceFile, ReadonlyTextRange, RedirectTargetsMap, ReferencedFile,
+    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
+    ScriptReferenceHost, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, VecExt,
 };
 use local_macros::enum_unwrapped;
 
@@ -355,17 +357,15 @@ pub fn for_each_project_reference_bool(
     .is_some()
 }
 
-fn for_each_project_reference_worker<
-    TReturn,
-    TCallbackResolvedRef: FnMut(
+fn for_each_project_reference_worker<TReturn>(
+    cb_ref: Option<
+        &impl Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+    >,
+    cb_resolved_ref: &mut impl FnMut(
         Option<Gc<ResolvedProjectReference>>,
         Option<&ResolvedProjectReference>,
         usize,
     ) -> Option<TReturn>,
-    TCallbackRef: Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
->(
-    cb_ref: Option<&TCallbackRef>,
-    cb_resolved_ref: &mut TCallbackResolvedRef,
     seen_resolved_refs: &mut Option<HashSet<Path>>,
     project_references: Option<&[Rc<ProjectReference>]>,
     resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
@@ -407,7 +407,7 @@ fn for_each_project_reference_worker<
                 cb_resolved_ref,
                 seen_resolved_refs,
                 resolved_ref.command_line.project_references.as_deref(),
-                resolved_ref.references.as_deref(),
+                resolved_ref.maybe_references().as_deref(),
                 Some(&**resolved_ref),
             )
         },
@@ -955,17 +955,84 @@ impl Program {
             *self.processing_other_files.borrow_mut() = Some(vec![]);
 
             if let Some(project_references) = self.maybe_project_references().as_ref() {
-                if self.resolved_project_references.borrow().is_none() {
-                    *self.resolved_project_references.borrow_mut() = Some(
-                        project_references
-                            .into_iter()
-                            .map(|project_reference| {
-                                self.parse_project_reference_config_file(project_reference)
-                            })
-                            .collect(),
-                    );
+                {
+                    self.maybe_resolved_project_references_mut()
+                        .get_or_insert_with(|| {
+                            project_references
+                                .into_iter()
+                                .map(|project_reference| {
+                                    self.parse_project_reference_config_file(project_reference)
+                                })
+                                .collect()
+                        });
                 }
-                unimplemented!()
+                if !self.root_names().is_empty() {
+                    self.maybe_resolved_project_references().as_ref().map(|resolved_project_references| {
+                        resolved_project_references.iter().enumerate().for_each(|(index, parsed_ref)| {
+                            if parsed_ref.is_none() {
+                                return;
+                            }
+                            let parsed_ref = parsed_ref.as_ref().unwrap();
+                            let out = out_file(
+                                &parsed_ref.command_line.options,
+                            );
+                            if self.use_source_of_project_reference_redirect() {
+                                if out.is_non_empty() || get_emit_module_kind(&parsed_ref.command_line.options) == ModuleKind::None {
+                                    for file_name in &parsed_ref.command_line.file_names {
+                                        self.process_project_reference_file(
+                                            file_name,
+                                            Gc::new(FileIncludeReason::ProjectReferenceFile(
+                                                ProjectReferenceFile {
+                                                    kind: FileIncludeKind::SourceFromProjectReference,
+                                                    index,
+                                                }
+                                            ))
+                                        );
+                                    }
+                                }
+                            } else {
+                                if let Some(out) = out.non_empty() {
+                                    self.process_project_reference_file(
+                                        &change_extension(out, ".d.ts"),
+                                        Gc::new(FileIncludeReason::ProjectReferenceFile(
+                                            ProjectReferenceFile {
+                                                kind: FileIncludeKind::OutputFromProjectReference,
+                                                index,
+                                            }
+                                        ))
+                                    );
+                                } else if get_emit_module_kind(&parsed_ref.command_line.options) == ModuleKind::None {
+                                    let mut got_common_source_directory: Option<String> = Default::default();
+                                    for file_name in &parsed_ref.command_line.file_names {
+                                        if !file_extension_is(file_name, Extension::Dts.to_str()) && !file_extension_is(file_name, Extension::Json.to_str()) {
+                                            self.process_project_reference_file(
+                                                &get_output_declaration_file_name(
+                                                    file_name,
+                                                    &parsed_ref.command_line,
+                                                    !CompilerHost::use_case_sensitive_file_names(&**self.host()),
+                                                    Some(&mut || {
+                                                        got_common_source_directory.get_or_insert_with(|| {
+                                                            get_common_source_directory_of_config(
+                                                                &parsed_ref.command_line,
+                                                                !CompilerHost::use_case_sensitive_file_names(&**self.host())
+                                                            )
+                                                        }).clone()
+                                                    })
+                                                ),
+                                                Gc::new(FileIncludeReason::ProjectReferenceFile(
+                                                    ProjectReferenceFile {
+                                                        kind: FileIncludeKind::OutputFromProjectReference,
+                                                        index,
+                                                    }
+                                                ))
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    });
+                }
             }
 
             // tracing?.push(tracing.Phase.Program, "processRootFiles", { count: rootNames.length });
@@ -1279,6 +1346,10 @@ impl Program {
         self.host.borrow().clone().unwrap()
     }
 
+    pub(super) fn config_parsing_host(&self) -> Gc<Box<dyn ParseConfigFileHost>> {
+        self.config_parsing_host.borrow().clone().unwrap()
+    }
+
     pub(super) fn symlinks(&self) -> GcCellRefMut<Option<Gc<SymlinkCache>>> {
         self.symlinks.borrow_mut()
     }
@@ -1499,14 +1570,29 @@ impl Program {
 
     pub(super) fn maybe_resolved_project_references(
         &self,
+    ) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+        self.resolved_project_references.borrow()
+    }
+
+    pub(super) fn maybe_resolved_project_references_mut(
+        &self,
     ) -> GcCellRefMut<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow_mut()
     }
 
-    pub(super) fn maybe_project_reference_redirects(
+    pub(super) fn maybe_project_reference_redirects_mut(
         &self,
     ) -> GcCellRefMut<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>> {
         self.project_reference_redirects.borrow_mut()
+    }
+
+    pub(super) fn project_reference_redirects_mut(
+        &self,
+    ) -> GcCellRefMut<
+        Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>,
+        HashMap<Path, Option<Gc<ResolvedProjectReference>>>,
+    > {
+        gc_cell_ref_mut_unwrapped(&self.project_reference_redirects)
     }
 
     pub(super) fn maybe_map_from_file_to_project_reference_redirects(

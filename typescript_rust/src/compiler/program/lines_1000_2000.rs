@@ -1190,7 +1190,7 @@ impl Program {
         create_prepend_nodes(
             self.maybe_project_references().as_deref(),
             |_ref, index| {
-                self.maybe_resolved_project_references()
+                self.maybe_resolved_project_references_mut()
                     .as_ref()
                     .unwrap()
                     .get(index)

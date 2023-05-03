@@ -29,7 +29,8 @@ use crate::{
     is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
     is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
     is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs,
-    maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
+    maybe_for_each, out_file, parse_isolated_entity_name,
+    parse_json_source_file_config_file_content, path_is_absolute, path_is_relative,
     remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
     resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
     string_contains, supported_js_extensions_flat, target_option_declaration,
@@ -42,10 +43,11 @@ use crate::{
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
     FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
-    PeekableExt, Program, ProjectReference, ReadFileCallback, ReferencedFile,
-    ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference, ScriptKind,
-    ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
+    NodeFlags, NodeInterface, NodeWrappered, ParseConfigFileHost, ParseConfigHost,
+    ParsedCommandLine, Path, PeekableExt, Program, ProjectReference, ReadFileCallback,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedProjectReferenceBuilder,
+    ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind, UnwrapOrEmpty,
+    WriteFileCallback,
 };
 
 impl Program {
@@ -253,14 +255,14 @@ impl Program {
         &self,
         ref_: &ProjectReference,
     ) -> Option<Gc<ResolvedProjectReference>> {
-        if self.maybe_project_reference_redirects().is_none() {
-            *self.maybe_project_reference_redirects() = Some(HashMap::new());
+        if self.maybe_project_reference_redirects_mut().is_none() {
+            *self.maybe_project_reference_redirects_mut() = Some(HashMap::new());
         }
 
         let ref_path = resolve_project_reference_path(ref_);
         let source_file_path = self.to_path(&ref_path);
         let from_cache = self
-            .maybe_project_reference_redirects()
+            .maybe_project_reference_redirects_mut()
             .as_ref()
             .unwrap()
             .get(&source_file_path)
@@ -268,7 +270,84 @@ impl Program {
         if let Some(from_cache) = from_cache {
             return from_cache;
         }
-        unimplemented!()
+
+        let command_line: Option<ParsedCommandLine>;
+        let source_file: Option<Gc<Node /*JsonSourceFile*/>>;
+        if self.host().is_get_parsed_command_line_supported() {
+            command_line = self.host().get_parsed_command_line(&ref_path);
+            if command_line.is_none() {
+                self.add_file_to_files_by_name(Option::<&Node>::None, &source_file_path, None);
+                self.project_reference_redirects_mut()
+                    .insert(source_file_path.clone(), None);
+                return None;
+            }
+            let command_line = command_line.as_ref().unwrap();
+            source_file =
+                Some(Debug_.check_defined(command_line.options.config_file.clone(), None));
+            let source_file = source_file.as_ref().unwrap();
+            Debug_.assert(
+                match source_file.as_source_file().maybe_path().as_ref() {
+                    None => true,
+                    Some(source_file_path_) => source_file_path_ == &source_file_path,
+                },
+                None,
+            );
+            self.add_file_to_files_by_name(Some(&**source_file), &source_file_path, None);
+        } else {
+            let base_path = get_normalized_absolute_path(
+                &get_directory_path(&ref_path),
+                Some(&CompilerHost::get_current_directory(&**self.host())),
+            );
+            source_file = self
+                .host()
+                .get_source_file(&ref_path, ScriptTarget::JSON, None, None);
+            self.add_file_to_files_by_name(source_file.as_deref(), &source_file_path, None);
+            if source_file.is_none() {
+                self.project_reference_redirects_mut()
+                    .insert(source_file_path.clone(), None);
+                return None;
+            }
+            let source_file = source_file.as_ref().unwrap();
+            command_line = Some(parse_json_source_file_config_file_content(
+                source_file,
+                &**self.config_parsing_host(),
+                &base_path,
+                None,
+                Some(&ref_path),
+                None,
+                None,
+                None,
+                None,
+            ));
+        }
+        let source_file = source_file.unwrap();
+        let source_file_as_source_file = source_file.as_source_file();
+        source_file_as_source_file.set_file_name(ref_path.clone());
+        source_file_as_source_file.set_path(source_file_path.clone());
+        source_file_as_source_file.set_resolved_path(Some(source_file_path.clone()));
+        source_file_as_source_file.set_original_file_name(Some(ref_path));
+        let command_line = Gc::new(command_line.unwrap());
+
+        let resolved_ref = Gc::new(
+            ResolvedProjectReferenceBuilder::default()
+                .command_line(command_line.clone())
+                .source_file(source_file)
+                .build()
+                .unwrap(),
+        );
+        self.project_reference_redirects_mut()
+            .insert(source_file_path, Some(resolved_ref.clone()));
+        if let Some(command_line_project_references) = command_line.project_references.as_ref() {
+            resolved_ref.set_references(Some(
+                command_line_project_references
+                    .into_iter()
+                    .map(|command_line_project_reference| {
+                        self.parse_project_reference_config_file(command_line_project_reference)
+                    })
+                    .collect(),
+            ));
+        }
+        Some(resolved_ref)
     }
 
     pub fn verify_compiler_options(&self) {
@@ -1304,19 +1383,19 @@ impl Program {
             | FileIncludeKind::OutputFromProjectReference => {
                 let reason_as_project_reference_file = reason.as_project_reference_file();
                 let referenced_resolved_ref = Debug_.check_defined(
-                    self.maybe_resolved_project_references().as_ref().and_then(
-                        |resolved_project_references| {
+                    self.maybe_resolved_project_references_mut()
+                        .as_ref()
+                        .and_then(|resolved_project_references| {
                             resolved_project_references
                                 .get(reason_as_project_reference_file.index)
                                 .cloned()
                                 .flatten()
-                        },
-                    ),
+                        }),
                     None,
                 );
                 let reference_info = for_each_project_reference(
                     self.maybe_project_references().as_deref(),
-                    self.maybe_resolved_project_references().as_deref(),
+                    self.maybe_resolved_project_references_mut().as_deref(),
                     |resolved_ref, parent, index| {
                         if matches!(
                             resolved_ref.as_ref(),
@@ -1438,7 +1517,7 @@ impl Program {
         };
         for_each_project_reference(
             self.maybe_project_references().as_deref(),
-            self.maybe_resolved_project_references().as_deref(),
+            self.maybe_resolved_project_references_mut().as_deref(),
             |resolved_ref: Option<Gc<ResolvedProjectReference>>,
              parent: Option<&ResolvedProjectReference>,
              index|
@@ -1670,12 +1749,48 @@ impl Program {
 
     pub fn create_diagnostic_for_reference(
         &self,
-        _source_file: Option<impl Borrow<Node> /*JsonSourceFile*/>,
-        _index: usize,
-        _message: &DiagnosticMessage,
-        _args: Option<Vec<String>>,
+        source_file: Option<impl Borrow<Node> /*JsonSourceFile*/>,
+        index: usize,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
     ) {
-        unimplemented!()
+        let source_file = source_file.node_wrappered();
+        let references_syntax = first_defined(
+            get_ts_config_prop_array(
+                source_file
+                    .clone()
+                    .or_else(|| self.options.config_file.clone()),
+                "references",
+            ),
+            |ref property: Gc<Node>, _| {
+                let property_as_property_assignment = property.as_property_assignment();
+                is_array_literal_expression(&property_as_property_assignment.initializer)
+                    .then(|| property_as_property_assignment.initializer.clone())
+            },
+        );
+        if let Some(references_syntax) = references_syntax.filter(|references_syntax| {
+            references_syntax
+                .as_array_literal_expression()
+                .elements
+                .len()
+                > index
+        }) {
+            self.program_diagnostics_mut().add(
+                create_diagnostic_for_node_in_source_file(
+                    source_file
+                        .as_ref()
+                        .or_else(|| self.options.config_file.as_ref())
+                        .unwrap(),
+                    &references_syntax.as_array_literal_expression().elements[index],
+                    message,
+                    args,
+                )
+                .into(),
+            );
+        } else {
+            self.program_diagnostics_mut()
+                .add(create_compiler_diagnostic(message, args).into());
+        }
     }
 
     pub fn create_diagnostic_for_option(
@@ -2513,7 +2628,8 @@ pub(crate) fn create_prepend_nodes(
     nodes
 }
 
-pub fn resolve_project_reference_path(ref_: &ProjectReference) -> ResolvedConfigFileName {
+pub fn resolve_project_reference_path(ref_: &ProjectReference) -> String /*ResolvedConfigFileName*/
+{
     let passed_in_ref = ref_;
     resolve_config_file_project_name(&passed_in_ref.path)
 }

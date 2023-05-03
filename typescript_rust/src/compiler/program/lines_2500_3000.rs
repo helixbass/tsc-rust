@@ -215,6 +215,14 @@ impl Program {
         );
     }
 
+    pub fn process_project_reference_file(
+        &self,
+        file_name: &str,
+        reason: Gc<FileIncludeReason /*ProjectReferenceFile*/>,
+    ) {
+        self.process_source_file(file_name, false, false, None, reason)
+    }
+
     pub fn report_file_names_differ_only_in_casing_error(
         &self,
         file_name: &str,
@@ -573,9 +581,9 @@ impl Program {
         }
     }
 
-    pub(super) fn add_file_to_files_by_name<TFile: Borrow<Node>>(
+    pub(super) fn add_file_to_files_by_name(
         &self,
-        file: Option<TFile /*SourceFile*/>,
+        file: Option<impl Borrow<Node> /*SourceFile*/>,
         path: &Path,
         redirected_path: Option<&Path>,
     ) {
@@ -617,7 +625,7 @@ impl Program {
         &self,
         file_name: &str,
     ) -> Option<Gc<ResolvedProjectReference>> {
-        if match self.maybe_resolved_project_references().as_ref() {
+        if match self.maybe_resolved_project_references_mut().as_ref() {
             None => true,
             Some(resolved_project_references) => resolved_project_references.is_empty(),
         } || file_extension_is(file_name, Extension::Dts.to_str())
@@ -685,7 +693,7 @@ impl Program {
         mut cb: TCallback,
     ) -> Option<TReturn> {
         for_each_resolved_project_reference(
-            self.maybe_resolved_project_references().as_deref(),
+            self.maybe_resolved_project_references_mut().as_deref(),
             |resolved_project_reference, _parent| cb(resolved_project_reference),
         )
     }
@@ -1105,7 +1113,9 @@ impl ProgramForEachResolvedProjectReference {
 impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference {
     fn call(&self, cb: &mut dyn FnMut(Gc<ResolvedProjectReference>)) {
         for_each_resolved_project_reference(
-            self.program.maybe_resolved_project_references().as_deref(),
+            self.program
+                .maybe_resolved_project_references_mut()
+                .as_deref(),
             |resolved_project_reference, _parent| -> Option<()> {
                 cb(resolved_project_reference);
                 None

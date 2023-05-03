@@ -36,10 +36,10 @@ pub struct ExtendedConfigCacheEntry {
     pub extended_config: Option<Rc<ParsedTsconfig>>,
 }
 
-pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
-    source_file: Option<TSourceFile>,
+pub(crate) fn get_extended_config(
+    source_file: Option<impl Borrow<Node>>,
     extended_config_path: &str,
-    host: &THost,
+    host: &(impl ParseConfigHost + ?Sized),
     resolution_stack: &[&str],
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
@@ -657,7 +657,7 @@ pub(crate) fn get_file_names_from_config_specs(
     config_file_specs: &ConfigFileSpecs,
     base_path: &str,
     options: &CompilerOptions,
-    host: &impl ParseConfigHost,
+    host: &(impl ParseConfigHost + ?Sized),
     extra_file_extensions: Option<&[FileExtensionInfo]>,
 ) -> Vec<String> {
     let base_path = normalize_path(base_path);

@@ -296,6 +296,8 @@ mod project_references_meta_check {
 }
 
 mod project_references_constraint_checking_for_settings {
+    use serde_json::json;
+
     use super::*;
 
     #[test]
@@ -323,6 +325,59 @@ mod project_references_constraint_checking_for_settings {
                 "Reports an error about the wrong decl setting",
                 &errs,
                 &Diagnostics::Composite_projects_may_not_disable_declaration_emit,
+            );
+        });
+    }
+
+    #[test]
+    fn test_errors_when_the_referenced_project_doesnt_have_composite_true() {
+        let spec = TestSpecification::from_iter([
+            (
+                "/primary".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/primary/a.ts", empty_module)].owned(),
+                    ))
+                    .references(vec![])
+                    .options(
+                        CompilerOptionsBuilder::default()
+                            .composite(false)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+            ),
+            (
+                "/reference".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [(
+                            "/secondary/b.ts",
+                            &*module_importing(&["../primary/a"].owned()),
+                        )]
+                        .owned(),
+                    ))
+                    .references(["../primary".to_owned().into()])
+                    .config(
+                        json!({
+                            "files": ["b.ts"],
+                        })
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                    )
+                    .build()
+                    .unwrap(),
+            ),
+        ]);
+
+        test_project_references(&spec, "/reference/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_options_diagnostics(None);
+            assert_has_error(
+                "Reports an error about 'composite' not being set",
+                &errs,
+                &Diagnostics::Referenced_project_0_must_have_setting_composite_Colon_true,
             );
         });
     }

@@ -642,6 +642,10 @@ impl CompilerHost for CompilerHostConcrete {
     fn is_get_source_file_by_path_supported(&self) -> bool {
         false
     }
+
+    fn is_get_parsed_command_line_supported(&self) -> bool {
+        false
+    }
 }
 
 pub(crate) fn change_compiler_host_like_to_use_cache(
