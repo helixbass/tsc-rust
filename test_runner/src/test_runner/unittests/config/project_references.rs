@@ -11,9 +11,10 @@ use speculoos::prelude::*;
 use typescript_rust::{
     combine_paths, create_program, flatten_diagnostic_message_text, get_directory_path,
     parse_config_host_from_compiler_host_like, parse_json_config_file_content, read_config_file,
-    CompilerHostLikeRcDynCompilerHost, CompilerOptions, CreateProgramOptionsBuilder, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, MapOrDefault, ModuleResolutionHost,
-    NonEmpty, Program, ProjectReference, ProjectReferenceBuilder, ReadConfigFileReturn,
+    CompilerHostLikeRcDynCompilerHost, CompilerOptions, CompilerOptionsBuilder,
+    CreateProgramOptionsBuilder, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, MapOrDefault, ModuleResolutionHost,
+    NonEmpty, Owned, Program, ProjectReference, ProjectReferenceBuilder, ReadConfigFileReturn,
     UnwrapOrEmpty,
 };
 
@@ -231,6 +232,7 @@ fn test_project_references(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TestProjectReferencesOptions {
     compiler_options: Gc<CompilerOptions>,
     references: Vec<Rc<ProjectReference>>,
@@ -253,8 +255,6 @@ impl TestProjectReferencesOptions {
 }
 
 mod project_references_meta_check {
-    use typescript_rust::Owned;
-
     use super::*;
 
     #[test]
@@ -290,6 +290,39 @@ mod project_references_meta_check {
             assert_no_errors(
                 "Sanity check should not produce errors",
                 &prog.get_options_diagnostics(None),
+            );
+        });
+    }
+}
+
+mod project_references_constraint_checking_for_settings {
+    use super::*;
+
+    #[test]
+    fn test_errors_when_declaration_false() {
+        let spec = TestSpecification::from_iter([(
+            "/primary".to_owned(),
+            TestProjectSpecificationBuilder::default()
+                .files(HashMap::from_iter(
+                    [("/primary/a.ts", empty_module)].owned(),
+                ))
+                .references(vec![])
+                .options(
+                    CompilerOptionsBuilder::default()
+                        .declaration(false)
+                        .build()
+                        .unwrap(),
+                )
+                .build()
+                .unwrap(),
+        )]);
+
+        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_options_diagnostics(None);
+            assert_has_error(
+                "Reports an error about the wrong decl setting",
+                &errs,
+                &Diagnostics::Composite_projects_may_not_disable_declaration_emit,
             );
         });
     }

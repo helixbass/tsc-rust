@@ -406,9 +406,10 @@ pub(crate) fn convert_json_option(
         } else if matches!(opt_type, CommandLineOptionType::Map(_)) {
             return convert_json_option_of_custom_type(
                 opt,
-                value.map(|value| match value {
-                    serde_json::Value::String(value) => &**value,
-                    _ => panic!("Expected string"),
+                value.and_then(|value| match value {
+                    serde_json::Value::String(value) => Some(&**value),
+                    serde_json::Value::Null => None,
+                    _ => unreachable!(),
                 }),
                 errors,
             );

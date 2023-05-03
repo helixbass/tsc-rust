@@ -6,6 +6,7 @@ use serde::Serialize;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
@@ -2262,7 +2263,7 @@ impl CommandLineOptionType {
     }
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringOrDiagnosticMessage {
     String(String),
     DiagnosticMessage(&'static DiagnosticMessage),
@@ -2493,7 +2494,49 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
     }
 }
 
+impl fmt::Debug for CommandLineOptionBase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CommandLineOptionBase")
+            // .field(
+            //     "_command_line_option_wrapper",
+            //     &self._command_line_option_wrapper,
+            // )
+            .field("name", &self.name)
+            .field("type_", &self.type_)
+            .field("is_file_path", &self.is_file_path)
+            .field("short_name", &self.short_name)
+            .field("description", &self.description)
+            .field("default_value_description", &self.default_value_description)
+            .field("param_type", &self.param_type)
+            .field("is_tsconfig_only", &self.is_tsconfig_only)
+            .field("is_command_line_only", &self.is_command_line_only)
+            .field(
+                "show_in_simplified_help_view",
+                &self.show_in_simplified_help_view,
+            )
+            .field("category", &self.category)
+            .field("strict_flag", &self.strict_flag)
+            .field("affects_source_file", &self.affects_source_file)
+            .field("affects_module_resolution", &self.affects_module_resolution)
+            .field("affects_bind_diagnostics", &self.affects_bind_diagnostics)
+            .field(
+                "affects_semantic_diagnostics",
+                &self.affects_semantic_diagnostics,
+            )
+            .field("affects_emit", &self.affects_emit)
+            .field("affects_program_structure", &self.affects_program_structure)
+            .field("transpile_option_value", &self.transpile_option_value)
+            // .field("extra_validation", &self.extra_validation)
+            // .field(
+            //     "extra_validation_compiler_options_value",
+            //     &self.extra_validation_compiler_options_value,
+            // )
+            .finish()
+    }
+}
+
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfStringType {
     _command_line_option_base: CommandLineOptionBase,
 }
@@ -2507,6 +2550,7 @@ impl CommandLineOptionOfStringType {
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfNumberType {
     _command_line_option_base: CommandLineOptionBase,
 }
@@ -2520,6 +2564,7 @@ impl CommandLineOptionOfNumberType {
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfBooleanType {
     _command_line_option_base: CommandLineOptionBase,
 }
@@ -2533,6 +2578,7 @@ impl CommandLineOptionOfBooleanType {
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfCustomType {
     _command_line_option_base: CommandLineOptionBase,
 }
@@ -2581,6 +2627,16 @@ impl TsConfigOnlyOption {
     }
 }
 
+impl fmt::Debug for TsConfigOnlyOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TsConfigOnlyOption")
+            .field("_command_line_option_base", &self._command_line_option_base)
+            .field("element_options", &self.element_options)
+            // .field("extra_key_diagnostics", &self.extra_key_diagnostics)
+            .finish()
+    }
+}
+
 pub enum RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
     RcDynDidYouMeanOptionsDiagnostics(Rc<dyn DidYouMeanOptionsDiagnostics>),
     RcDynParseCommandLineWorkerDiagnostics(Rc<dyn ParseCommandLineWorkerDiagnostics>),
@@ -2614,6 +2670,7 @@ impl From<Rc<dyn ParseCommandLineWorkerDiagnostics>>
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfListType {
     _command_line_option_base: CommandLineOptionBase,
     pub element: Gc<CommandLineOption>,
@@ -2632,6 +2689,7 @@ impl CommandLineOptionOfListType {
 }
 
 #[command_line_option_type(impl_from = false)]
+#[derive(Debug)]
 pub enum CommandLineOption {
     CommandLineOptionOfCustomType(CommandLineOptionOfCustomType),
     CommandLineOptionOfStringType(CommandLineOptionOfStringType),
@@ -2679,28 +2737,27 @@ impl CommandLineOption {
     pub fn to_compiler_options_value(&self, value: &serde_json::Value) -> CompilerOptionsValue {
         match self {
             Self::CommandLineOptionOfCustomType(_) => unimplemented!(),
-            Self::CommandLineOptionOfStringType(_) => {
-                CompilerOptionsValue::String(Some(match value {
-                    serde_json::Value::String(value) => value.clone(),
-                    _ => panic!("Expected string"),
-                }))
-            }
-            Self::CommandLineOptionOfNumberType(_) => {
-                CompilerOptionsValue::Usize(Some(match value {
-                    serde_json::Value::Number(value) => value.as_u64().unwrap().try_into().unwrap(),
-                    _ => panic!("Expected number"),
-                }))
-            }
-            Self::CommandLineOptionOfBooleanType(_) => {
-                CompilerOptionsValue::Bool(Some(match value {
-                    serde_json::Value::Bool(value) => *value,
-                    _ => panic!("Expected number"),
-                }))
-            }
+            Self::CommandLineOptionOfStringType(_) => CompilerOptionsValue::String(match value {
+                serde_json::Value::String(value) => Some(value.clone()),
+                serde_json::Value::Null => None,
+                _ => unreachable!(),
+            }),
+            Self::CommandLineOptionOfNumberType(_) => CompilerOptionsValue::Usize(match value {
+                serde_json::Value::Number(value) => {
+                    Some(value.as_u64().unwrap().try_into().unwrap())
+                }
+                serde_json::Value::Null => None,
+                _ => unreachable!(),
+            }),
+            Self::CommandLineOptionOfBooleanType(_) => CompilerOptionsValue::Bool(match value {
+                serde_json::Value::Bool(value) => Some(*value),
+                serde_json::Value::Null => None,
+                _ => unreachable!(),
+            }),
             Self::TsConfigOnlyOption(_) => {
-                CompilerOptionsValue::MapLikeVecString(Some(match value {
+                CompilerOptionsValue::MapLikeVecString(match value {
                     serde_json::Value::Object(value) => {
-                        HashMap::from_iter(value.into_iter().map(|(key, value)| {
+                        Some(HashMap::from_iter(value.into_iter().map(|(key, value)| {
                             (
                                 key.clone(),
                                 match value {
@@ -2708,20 +2765,73 @@ impl CommandLineOption {
                                         .into_iter()
                                         .map(|item| match item {
                                             serde_json::Value::String(item) => item.clone(),
-                                            _ => panic!("Expected string"),
+                                            _ => unreachable!(),
                                         })
                                         .collect(),
                                     // Looks like eg "paths": {"*": "*"} is accepted
                                     serde_json::Value::String(value) => vec![value.clone()],
-                                    _ => panic!("Expected array or string"),
+                                    _ => unreachable!(),
                                 },
                             )
-                        }))
+                        })))
                     }
-                    _ => panic!("Expected object"),
-                }))
+                    serde_json::Value::Null => None,
+                    _ => unreachable!(),
+                })
             }
-            Self::CommandLineOptionOfListType(_list_type) => unimplemented!(),
+            Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
+                CommandLineOptionType::String => CompilerOptionsValue::VecString(match value {
+                    serde_json::Value::Array(value) => Some(
+                        value
+                            .into_iter()
+                            .map(|item| match item {
+                                serde_json::Value::String(value) => value.clone(),
+                                _ => unreachable!(),
+                            })
+                            .collect(),
+                    ),
+                    serde_json::Value::Null => None,
+                    _ => unreachable!(),
+                }),
+                CommandLineOptionType::Object => {
+                    CompilerOptionsValue::VecPluginImport(match value {
+                        serde_json::Value::Array(value) => Some(
+                            value
+                                .into_iter()
+                                .map(|_item| {
+                                    unimplemented!();
+                                })
+                                .collect(),
+                        ),
+                        serde_json::Value::Null => None,
+                        _ => unreachable!(),
+                    })
+                }
+                CommandLineOptionType::Map(map) => CompilerOptionsValue::VecString(match value {
+                    serde_json::Value::Array(value) => Some(
+                        value
+                            .into_iter()
+                            .filter_map(|item| match item {
+                                serde_json::Value::String(value) => map
+                                    .get(&&*value.to_lowercase())
+                                    .map(|map_value| match map_value {
+                                        CommandLineOptionMapTypeValue::StaticStr(map_value) => {
+                                            (*map_value).to_owned()
+                                        }
+                                        CommandLineOptionMapTypeValue::String(map_value) => {
+                                            map_value.clone()
+                                        }
+                                        _ => unreachable!(),
+                                    }),
+                                _ => unreachable!(),
+                            })
+                            .collect(),
+                    ),
+                    serde_json::Value::Null => None,
+                    _ => unreachable!(),
+                }),
+                _ => panic!("Unexpected element type"),
+            },
         }
     }
 }

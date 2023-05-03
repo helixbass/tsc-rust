@@ -100,7 +100,7 @@ pub(crate) fn update_error_for_no_input_files(
     existing_errors != config_parse_diagnostics.len()
 }
 
-#[derive(Builder)]
+#[derive(Builder, Debug)]
 pub struct ParsedTsconfig {
     pub raw: Option<serde_json::Value>,
     pub options: Option<Gc<CompilerOptions>>,
@@ -113,10 +113,10 @@ pub(super) fn is_successful_parsed_tsconfig(value: &ParsedTsconfig) -> bool {
     value.options.is_some()
 }
 
-pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfigHost>(
+pub(super) fn parse_config(
     json: Option<serde_json::Value>,
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
-    host: &THost,
+    source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
+    host: &impl ParseConfigHost,
     base_path: &str,
     config_file_name: Option<&str>,
     resolution_stack: &[&str],
@@ -259,9 +259,9 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
     own_config
 }
 
-pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
+pub(super) fn parse_own_config_of_json(
     json: serde_json::Value,
-    host: &THost,
+    host: &impl ParseConfigHost,
     base_path: &str,
     config_file_name: Option<&str>,
     errors: &mut Vec<Gc<Diagnostic>>,
