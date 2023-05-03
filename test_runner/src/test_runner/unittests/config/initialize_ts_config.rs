@@ -47,3 +47,51 @@ fn test_initialized_ts_config_with_enum_value_compiler_options() {
         &["--init", "--target", "es5", "--jsx", "react"].owned(),
     );
 }
+
+#[test]
+fn test_initialized_ts_config_with_list_compiler_options() {
+    init_ts_config_correctly(
+        "Initialized TSConfig with list compiler options",
+        &["--init", "--types", "jquery,mocha"].owned(),
+    );
+}
+
+#[test]
+fn test_initialized_ts_config_with_list_compiler_options_with_enum_value() {
+    init_ts_config_correctly(
+        "Initialized TSConfig with list compiler options with enum value",
+        &["--init", "--lib", "es5,es2015.core"].owned(),
+    );
+}
+
+#[test]
+fn test_initialized_ts_config_with_incorrect_compiler_option() {
+    init_ts_config_correctly(
+        "Initialized TSConfig with incorrect compiler option",
+        &["--init", "--someNonExistOption"].owned(),
+    );
+}
+
+#[test]
+fn test_initialized_ts_config_with_incorrect_compiler_option_value() {
+    init_ts_config_correctly(
+        "Initialized TSConfig with incorrect compiler option value",
+        &["--init", "--lib", "nonExistLib,es5,es2015.promise"].owned(),
+    );
+}
+
+#[test]
+fn test_initialized_ts_config_with_advanced_options() {
+    init_ts_config_correctly(
+        "Initialized TSConfig with advanced options",
+        &[
+            "--init",
+            "--declaration",
+            "--declarationDir",
+            "lib",
+            "--skipLibCheck",
+            "--noErrorTruncation",
+        ]
+        .owned(),
+    );
+}

@@ -2251,7 +2251,7 @@ pub struct CompilerHostLikeRcDynCompilerHost {
 
 impl CompilerHostLikeRcDynCompilerHost {
     pub fn new(host: Gc<Box<dyn CompilerHost>>) -> Self {
-        Self { host }
+        host.into()
     }
 }
 
@@ -2319,6 +2319,12 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
     }
 }
 
+impl From<Gc<Box<dyn CompilerHost>>> for CompilerHostLikeRcDynCompilerHost {
+    fn from(host: Gc<Box<dyn CompilerHost>>) -> Self {
+        Self { host }
+    }
+}
+
 #[derive(Trace, Finalize)]
 pub struct DirectoryStructureHostRcDynCompilerHostLike {
     host: Gc<Box<dyn CompilerHostLike>>,
@@ -2376,7 +2382,7 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
     }
 }
 
-pub(crate) fn parse_config_host_from_compiler_host_like(
+pub fn parse_config_host_from_compiler_host_like(
     host: Gc<Box<dyn CompilerHostLike>>,
     directory_structure_host: Option<Gc<Box<dyn DirectoryStructureHost>>>,
 ) -> ParseConfigHostFromCompilerHostLike {

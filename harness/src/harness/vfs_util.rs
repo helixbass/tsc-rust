@@ -1,4 +1,5 @@
 pub mod vfs {
+    use derive_builder::Builder;
     use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
     use local_macros::enum_unwrapped;
     use std::borrow::Cow;
@@ -1337,7 +1338,8 @@ pub mod vfs {
         }
     }
 
-    #[derive(Default)]
+    #[derive(Builder, Default)]
+    #[builder(default, setter(strip_option, into))]
     pub struct FileSystemOptions {
         pub time: Option<TimestampOrNowOrSystemTimeOrCallback>,
         pub files: Option<FileSet>,

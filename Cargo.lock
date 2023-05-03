@@ -413,6 +413,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "clap",
+ "derive_builder",
  "fancy-regex",
  "futures",
  "gc",

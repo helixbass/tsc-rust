@@ -40,7 +40,7 @@ pub use compiler::command_line_parser::{
     parse_json_config_file_content, parse_json_source_file_config_file_content,
     parse_list_type_option, read_config_file, ConfigFileDiagnosticsReporter, ConvertToTSConfigHost,
     DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
-    ParseCommandLineWorkerDiagnostics, ParseConfigFileHost,
+    ParseCommandLineWorkerDiagnostics, ParseConfigFileHost, ReadConfigFileReturn,
 };
 pub use compiler::core::{
     add_range, append, append_if_unique_gc, append_if_unique_rc, array_is_equal_to, array_of,
@@ -249,8 +249,9 @@ pub use compiler::program::{
     create_compiler_host_worker, create_program, find_config_file, flatten_diagnostic_message_text,
     format_diagnostic, format_diagnostics, format_diagnostics_with_color_and_context,
     format_location, get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
-    get_pre_emit_diagnostics, get_resolution_diagnostic, resolve_tripleslash_reference,
-    ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
+    get_pre_emit_diagnostics, get_resolution_diagnostic, parse_config_host_from_compiler_host_like,
+    resolve_tripleslash_reference, ActualResolveModuleNamesWorker,
+    ActualResolveTypeReferenceDirectiveNamesWorker, CompilerHostLikeRcDynCompilerHost,
     EmitHostWriteFileCallback, FilesByNameValue, FormatDiagnosticsHost, ToPath,
 };
 #[allow(unused_imports)]
@@ -405,8 +406,8 @@ pub use compiler::types::{
     PragmaArgumentWithCapturedSpan, PragmaArguments, PragmaKindFlags, PragmaName,
     PragmaPseudoMapEntry, PragmaSpec, PragmaValue, PrefixUnaryExpression, PrintHandlers, Printer,
     PrinterOptions, PrinterOptionsBuilder, PrivateIdentifier, Program, ProjectReference,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
+    ProjectReferenceBuilder, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    PropertySignature, PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, RedirectInfo, RedirectTargetsMap, RegularExpressionLiteral,
     RelationComparisonResult, RelativeToBuildInfo, RequireResult, ResolvableTypeInterface,
     ResolvedConfigFileName, ResolvedModuleFull, ResolvedModuleFullBuilder,

@@ -21,11 +21,15 @@ pub struct PluginImport {
     pub name: String,
 }
 
-#[derive(Debug, Serialize, Trace, Finalize)]
+#[derive(Debug, Builder, Serialize, Trace, Finalize)]
+#[builder(setter(strip_option, into))]
 pub struct ProjectReference {
     pub path: String,
+    #[builder(default)]
     pub original_path: Option<String>,
+    #[builder(default)]
     pub prepend: Option<bool>,
+    #[builder(default)]
     pub circular: Option<bool>,
 }
 
@@ -2119,15 +2123,18 @@ mod _CreateProgramOptionsDeriveTraceScope {
     use local_macros::Trace;
 
     #[derive(Builder, Default, Trace, Finalize)]
-    #[builder(default, setter(into, strip_option))]
+    #[builder(default, setter(into))]
     pub struct CreateProgramOptions {
         #[unsafe_ignore_trace]
         pub root_names: Vec<String>,
         pub options: Gc<CompilerOptions>,
         #[unsafe_ignore_trace]
         pub project_references: Option<Vec<Rc<ProjectReference>>>,
+        #[builder(setter(strip_option))]
         pub host: Option<Gc<Box<dyn CompilerHost>>>,
+        #[builder(setter(strip_option))]
         pub old_program: Option<Gc<Box<Program>>>,
+        #[builder(setter(strip_option))]
         pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
     }
 }
