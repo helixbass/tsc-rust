@@ -82,9 +82,9 @@ pub(super) fn convert_to_option_value_with_absolute_paths<TToAbsolutePath: Fn(&s
     value
 }
 
-pub fn parse_json_config_file_content<THost: ParseConfigHost>(
+pub fn parse_json_config_file_content(
     json: Option<serde_json::Value>,
-    host: &THost,
+    host: &impl ParseConfigHost,
     base_path: &str,
     existing_options: Option<Gc<CompilerOptions>>,
     config_file_name: Option<&str>,

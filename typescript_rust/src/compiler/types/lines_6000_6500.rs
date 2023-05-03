@@ -56,6 +56,7 @@ pub enum PollingWatchKind {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[serde(untagged)]
 pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),
@@ -1024,8 +1025,8 @@ mod _CompilerOptionsDeriveTraceScope {
     impl ToHashMapOfCompilerOptionsValues for CompilerOptions {
         fn to_hash_map_of_compiler_options_values(
             &self,
-        ) -> HashMap<&'static str, CompilerOptionsValue> {
-            let mut result = HashMap::new();
+        ) -> IndexMap<&'static str, CompilerOptionsValue> {
+            let mut result = IndexMap::new();
 
             if self.all.is_some() {
                 result.insert("all", self.all.into());
@@ -1582,8 +1583,9 @@ mod _CompilerOptionsDeriveTraceScope {
 pub use _CompilerOptionsDeriveTraceScope::{CompilerOptions, CompilerOptionsBuilder};
 
 pub trait ToHashMapOfCompilerOptionsValues {
-    fn to_hash_map_of_compiler_options_values(&self)
-        -> HashMap<&'static str, CompilerOptionsValue>;
+    fn to_hash_map_of_compiler_options_values(
+        &self,
+    ) -> IndexMap<&'static str, CompilerOptionsValue>;
 }
 
 pub fn extend_compiler_options(a: &CompilerOptions, b: &CompilerOptions) -> CompilerOptions {
@@ -1878,8 +1880,8 @@ pub struct WatchOptions {
 impl ToHashMapOfCompilerOptionsValues for WatchOptions {
     fn to_hash_map_of_compiler_options_values(
         &self,
-    ) -> HashMap<&'static str, CompilerOptionsValue> {
-        let mut result = HashMap::new();
+    ) -> IndexMap<&'static str, CompilerOptionsValue> {
+        let mut result = IndexMap::new();
 
         if self.watch_file.is_some() {
             result.insert("watchFile", self.watch_file.into());
@@ -2026,7 +2028,7 @@ pub enum LanguageVariant {
 
 #[derive(Debug)]
 pub struct ParsedCommandLineWithBaseOptions {
-    pub options: HashMap<String, CompilerOptionsValue>,
+    pub options: IndexMap<String, CompilerOptionsValue>,
     pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub file_names: Vec<String>,
     pub project_references: Option<Vec<Rc<ProjectReference>>>,

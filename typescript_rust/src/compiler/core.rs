@@ -1366,7 +1366,7 @@ pub use _MultiMapDeriveTraceScope::MultiMap;
 
 pub fn create_multi_map<TKey: Trace + Finalize, TValue: Trace + Finalize>() -> MultiMap<TKey, TValue>
 {
-    MultiMap(HashMap::new())
+    MultiMap(Default::default())
 }
 
 pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
@@ -1374,6 +1374,81 @@ pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
 pub fn create_underscore_escaped_multi_map<TValue: Trace + Finalize>(
 ) -> UnderscoreEscapedMultiMap<TValue> {
     create_multi_map()
+}
+
+mod _MultiMapOrderedDeriveTraceScope {
+    use indexmap::map::{Entry, IntoValues, Values};
+
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Debug, Trace, Finalize)]
+    pub struct MultiMapOrdered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+        // TODO: make the nested hash map private and implement iteration on the wrapper
+        pub IndexMap<TKey, Vec<TValue>>,
+    );
+
+    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize>
+        MultiMapOrdered<TKey, TValue>
+    {
+        pub fn add(&mut self, key: TKey, value: TValue) {
+            let values = self.0.entry(key).or_insert(vec![]);
+            values.push(value);
+        }
+
+        pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
+            &mut self,
+            key: TKey,
+            value: &TValue,
+            comparer: TComparer,
+        ) {
+            {
+                let values = self.0.entry(key);
+                match values {
+                    Entry::Occupied(mut values) => {
+                        unordered_remove_item(values.get_mut(), value, comparer);
+                        if values.get().is_empty() {
+                            values.remove_entry();
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+
+        pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
+            self.0.get(key)
+        }
+
+        pub fn contains_key(&self, key: &TKey) -> bool {
+            self.0.contains_key(key)
+        }
+
+        pub fn values(&self) -> Values<TKey, Vec<TValue>> {
+            self.0.values()
+        }
+
+        pub fn into_values(self) -> IntoValues<TKey, Vec<TValue>> {
+            self.0.into_values()
+        }
+    }
+
+    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> IntoIterator
+        for MultiMapOrdered<TKey, TValue>
+    {
+        type Item = (TKey, Vec<TValue>);
+        type IntoIter = <IndexMap<TKey, Vec<TValue>> as IntoIterator>::IntoIter;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.into_iter()
+        }
+    }
+}
+pub use _MultiMapOrderedDeriveTraceScope::MultiMapOrdered;
+
+pub fn create_multi_map_ordered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+) -> MultiMapOrdered<TKey, TValue> {
+    MultiMapOrdered(Default::default())
 }
 
 pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {

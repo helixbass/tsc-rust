@@ -1,4 +1,5 @@
 use gc::Gc;
+use indexmap::IndexMap;
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -437,7 +438,7 @@ pub(super) fn create_unknown_option_error(
     }
 }
 
-pub fn hash_map_to_build_options(options: &HashMap<String, CompilerOptionsValue>) -> BuildOptions {
+pub fn hash_map_to_build_options(options: &IndexMap<String, CompilerOptionsValue>) -> BuildOptions {
     let mut build_options: BuildOptions = Default::default();
     for (option_name, value) in options {
         match &**option_name {
@@ -517,8 +518,8 @@ pub fn hash_map_to_build_options(options: &HashMap<String, CompilerOptionsValue>
     build_options
 }
 
-pub fn hash_map_to_compiler_options<TKey: AsRef<str>>(
-    options: &HashMap<TKey, CompilerOptionsValue>,
+pub fn hash_map_to_compiler_options(
+    options: &IndexMap<impl AsRef<str>, CompilerOptionsValue>,
 ) -> CompilerOptions {
     let mut compiler_options: CompilerOptions = Default::default();
     for (option_name, value) in options {
@@ -1000,7 +1001,7 @@ pub fn hash_map_to_compiler_options<TKey: AsRef<str>>(
 }
 
 pub(super) fn hash_map_to_watch_options(
-    options: &HashMap<String, CompilerOptionsValue>,
+    options: &IndexMap<String, CompilerOptionsValue>,
 ) -> WatchOptions {
     let mut watch_options: WatchOptions = Default::default();
     for (option_name, value) in options {
@@ -1040,10 +1041,10 @@ pub fn parse_command_line_worker(
     command_line: &[String],
     read_file: Option<impl Fn(&str) -> io::Result<Option<String>>>,
 ) -> ParsedCommandLineWithBaseOptions {
-    let mut options: HashMap<String, CompilerOptionsValue> = HashMap::new();
-    let watch_options: RefCell<Option<HashMap<String, CompilerOptionsValue>>> = RefCell::new(None);
-    let mut file_names: Vec<String> = vec![];
-    let mut errors: Vec<Gc<Diagnostic>> = vec![];
+    let mut options: IndexMap<String, CompilerOptionsValue> = Default::default();
+    let watch_options: RefCell<Option<IndexMap<String, CompilerOptionsValue>>> = Default::default();
+    let mut file_names: Vec<String> = Default::default();
+    let mut errors: Vec<Gc<Diagnostic>> = Default::default();
 
     parse_strings(
         &mut file_names,
@@ -1074,9 +1075,9 @@ pub fn parse_command_line_worker(
 pub(super) fn parse_strings(
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
-    options: &mut HashMap<String, CompilerOptionsValue>,
+    options: &mut IndexMap<String, CompilerOptionsValue>,
     errors: &mut Vec<Gc<Diagnostic>>,
-    watch_options: &RefCell<Option<HashMap<String, CompilerOptionsValue>>>,
+    watch_options: &RefCell<Option<IndexMap<String, CompilerOptionsValue>>>,
     read_file: Option<&impl Fn(&str) -> io::Result<Option<String>>>,
     args: &[String],
 ) {
@@ -1120,7 +1121,7 @@ pub(super) fn parse_strings(
                 if let Some(watch_opt) = watch_opt {
                     let mut watch_options = watch_options.borrow_mut();
                     if watch_options.is_none() {
-                        *watch_options = Some(HashMap::new());
+                        *watch_options = Some(Default::default());
                     }
                     i = parse_option_value(
                         args,

@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, GcCell, Trace};
+use indexmap::IndexMap;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -31,13 +32,13 @@ use crate::{
 };
 use local_macros::enum_unwrapped;
 
-pub(super) fn parse_response_file<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
-    read_file: Option<&TReadFile>,
+pub(super) fn parse_response_file(
+    read_file: Option<&impl Fn(&str) -> io::Result<Option<String>>>,
     errors: &mut Vec<Gc<Diagnostic>>,
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
-    options: &mut HashMap<String, CompilerOptionsValue>,
-    watch_options: &RefCell<Option<HashMap<String, CompilerOptionsValue>>>,
+    options: &mut IndexMap<String, CompilerOptionsValue>,
+    watch_options: &RefCell<Option<IndexMap<String, CompilerOptionsValue>>>,
     file_name: &str,
 ) {
     let sys = get_sys();
@@ -108,7 +109,7 @@ pub(super) fn parse_option_value(
     mut i: usize,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     opt: &CommandLineOption,
-    options: &mut HashMap<String, CompilerOptionsValue>,
+    options: &mut IndexMap<String, CompilerOptionsValue>,
     errors: &mut Vec<Gc<Diagnostic>>,
 ) -> usize {
     if opt.is_tsconfig_only() {
@@ -279,9 +280,9 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
     }
 }
 
-pub fn parse_command_line<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
+pub fn parse_command_line(
     command_line: &[String],
-    read_file: Option<TReadFile>,
+    read_file: Option<impl Fn(&str) -> io::Result<Option<String>>>,
 ) -> ParsedCommandLine {
     parse_command_line_worker(
         &*compiler_options_did_you_mean_diagnostics(),

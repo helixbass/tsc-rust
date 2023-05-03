@@ -15,16 +15,16 @@ use super::{
 };
 use crate::{
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, create_multi_map,
-    extend_compiler_options, get_directory_path, get_file_matcher_patterns,
-    get_locale_specific_message, get_normalized_absolute_path, get_regex_from_pattern,
-    get_relative_path_from_file, get_text_of_property_name, is_computed_non_literal_name,
-    is_string_double_quoted, is_string_literal, maybe_map, unescape_leading_underscores,
-    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, Diagnostic, Diagnostics,
-    DidYouMeanOptionsDiagnostics, FileMatcherPatterns, JsonConversionNotifier, MultiMap,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, OptionsNameMap,
-    ParsedCommandLine, ProjectReference, Push, SyntaxKind, ToHashMapOfCompilerOptionsValues,
-    WatchOptions,
+    create_multi_map_ordered, extend_compiler_options, get_directory_path,
+    get_file_matcher_patterns, get_locale_specific_message, get_normalized_absolute_path,
+    get_regex_from_pattern, get_relative_path_from_file, get_text_of_property_name,
+    is_computed_non_literal_name, is_string_double_quoted, is_string_literal, maybe_map,
+    unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
+    Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, FileMatcherPatterns,
+    JsonConversionNotifier, MultiMap, MultiMapOrdered, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, Number, OptionsNameMap, ParsedCommandLine, ProjectReference, Push, SyntaxKind,
+    ToHashMapOfCompilerOptionsValues, WatchOptions,
 };
 
 pub(super) fn is_root_option_map(
@@ -937,31 +937,40 @@ pub(super) struct SerializeOptionBaseObjectPathOptions {
 pub(super) fn serialize_compiler_options(
     options: &CompilerOptions,
     path_options: Option<SerializeOptionBaseObjectPathOptions>,
-) -> HashMap<&'static str, CompilerOptionsValue> {
+) -> IndexMap<&'static str, CompilerOptionsValue> {
     serialize_option_base_object(options, &get_options_name_map(), path_options)
 }
 
 pub(super) fn serialize_watch_options(
     options: &WatchOptions,
-) -> HashMap<&'static str, CompilerOptionsValue> {
+) -> IndexMap<&'static str, CompilerOptionsValue> {
     serialize_option_base_object(options, &get_watch_options_name_map(), None)
 }
 
-pub(super) fn serialize_option_base_object<TOptions: ToHashMapOfCompilerOptionsValues>(
-    options: &TOptions,
+pub(super) fn serialize_option_base_object(
+    options: &impl ToHashMapOfCompilerOptionsValues,
     options_name_map: &OptionsNameMap,
     path_options: Option<SerializeOptionBaseObjectPathOptions>,
-) -> HashMap<&'static str, CompilerOptionsValue> {
+) -> IndexMap<&'static str, CompilerOptionsValue> {
     let options_name_map = &options_name_map.options_name_map;
     let full = options.to_hash_map_of_compiler_options_values();
     let get_canonical_file_name = path_options.as_ref().map(|path_options| {
         create_get_canonical_file_name(path_options.use_case_sensitive_file_names)
     });
 
-    let mut result: HashMap<&'static str, CompilerOptionsValue> = HashMap::new();
+    let mut result: IndexMap<&'static str, CompilerOptionsValue> = Default::default();
     for (name, value) in full.into_iter() {
         if options_name_map.contains_key(name)
-            && matches!(options_name_map.get(name).unwrap().maybe_category(), Some(category) if ptr::eq(category, &*Diagnostics::Command_line_Options) || ptr::eq(category, &*Diagnostics::Output_Formatting))
+            && matches!(
+                options_name_map.get(name).unwrap().maybe_category(),
+                Some(category) if ptr::eq(
+                    category,
+                    &*Diagnostics::Command_line_Options
+                ) || ptr::eq(
+                    category,
+                    &*Diagnostics::Output_Formatting
+                )
+            )
         {
             continue;
         }
@@ -1039,7 +1048,7 @@ fn make_padding(padding_length: usize) -> String {
 }
 
 fn get_overwritten_default_options(
-    compiler_options_map: &HashMap<&'static str, CompilerOptionsValue>,
+    compiler_options_map: &IndexMap<&'static str, CompilerOptionsValue>,
     new_line: &str,
 ) -> String {
     let mut result: Vec<String> = vec![];
@@ -1072,15 +1081,14 @@ fn get_overwritten_default_options(
 
 pub(super) fn get_serialized_compiler_option(
     options: &CompilerOptions,
-) -> HashMap<&'static str, CompilerOptionsValue> {
+) -> IndexMap<&'static str, CompilerOptionsValue> {
     let compiler_options = default_init_compiler_options.with(|default_init_compiler_options_| {
         extend_compiler_options(options, &default_init_compiler_options_)
     });
     serialize_compiler_options(&compiler_options, None)
 }
 
-#[allow(dead_code)]
-pub(crate) fn generate_tsconfig(
+pub fn generate_tsconfig(
     options: &CompilerOptions,
     file_names: &[String],
     new_line: &str,
@@ -1090,7 +1098,7 @@ pub(crate) fn generate_tsconfig(
 }
 
 fn is_allowed_option_for_output(
-    compiler_options_map: &HashMap<&'static str, CompilerOptionsValue>,
+    compiler_options_map: &IndexMap<&'static str, CompilerOptionsValue>,
     option: &CommandLineOption,
 ) -> bool {
     let category = option.maybe_category();
@@ -1109,11 +1117,12 @@ fn is_allowed_option_for_output(
 }
 
 fn write_configurations(
-    compiler_options_map: &HashMap<&'static str, CompilerOptionsValue>,
+    compiler_options_map: &IndexMap<&'static str, CompilerOptionsValue>,
     file_names: &[String],
     new_line: &str,
 ) -> String {
-    let mut categorized_options: MultiMap<String, Gc<CommandLineOption>> = create_multi_map();
+    let mut categorized_options: MultiMapOrdered<String, Gc<CommandLineOption>> =
+        create_multi_map_ordered();
     option_declarations.with(|option_declarations_| {
         // TODO: implement IntoIterator for &GcVec<T>?
         for option in option_declarations_.iter() {

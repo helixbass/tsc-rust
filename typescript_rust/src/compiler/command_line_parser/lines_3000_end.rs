@@ -1191,8 +1191,10 @@ pub(super) fn get_default_value_for_option(option: &CommandLineOption) -> Compil
         CommandLineOptionType::String => CompilerOptionsValue::String(Some(
             if option.is_file_path() { "./" } else { "" }.to_owned(),
         )),
-        CommandLineOptionType::Object => panic!("Not sure what the default should be"),
-        CommandLineOptionType::List => CompilerOptionsValue::VecString(Some(vec![])),
+        CommandLineOptionType::Object => {
+            CompilerOptionsValue::MapLikeVecString(Some(Default::default()))
+        }
+        CommandLineOptionType::List => CompilerOptionsValue::VecString(Some(Default::default())),
         CommandLineOptionType::Map(map) => CompilerOptionsValue::String(Some(
             map.keys()
                 .next()
