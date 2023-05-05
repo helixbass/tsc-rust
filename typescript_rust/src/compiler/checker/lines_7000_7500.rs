@@ -1,4 +1,4 @@
-use std::{ptr, rc::Rc};
+use std::{io, ptr, rc::Rc};
 
 use gc::{Gc, GcCell};
 use itertools::Itertools;
@@ -23,8 +23,9 @@ use crate::{
     with_parse_base_node_factory_and_factory, with_synthetic_factory_and_factory, AsDoubleDeref,
     AssignmentDeclarationKind, Debug_, HasInitializerInterface, HasTypeArgumentsInterface,
     InternalSymbolName, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeBuilderFlags, NodeFlags, NodeInterface, Signature, SignatureKind, StringOrNumber, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, ThenAnd, Type, TypeInterface,
+    NodeBuilderFlags, NodeFlags, NodeInterface, OptionTry, Signature, SignatureKind,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, ThenAnd,
+    Type, TypeInterface,
 };
 
 use super::{
@@ -141,7 +142,7 @@ impl SymbolTableToDeclarationStatements {
         symbol: &Symbol,
         symbol_name: &str,
         modifier_flags: ModifierFlags,
-    ) {
+    ) -> io::Result<()> {
         let alias_type = self.type_checker.get_declared_type_of_type_alias(symbol);
         let type_params = (*self.type_checker.get_symbol_links(symbol))
             .borrow()
@@ -197,11 +198,12 @@ impl SymbolTableToDeclarationStatements {
                     self.bundled,
                 )
             })
-            .unwrap_or_else(|| {
-                self.node_builder
-                    .type_to_type_node_helper(Some(&*alias_type), &self.context())
-                    .unwrap()
-            });
+            .try_unwrap_or_else(|| {
+                Ok(self
+                    .node_builder
+                    .type_to_type_node_helper(Some(&*alias_type), &self.context())?
+                    .unwrap())
+            })?;
         self.add_result(
             &set_synthetic_leading_comments_rc(
                 get_factory()
@@ -228,6 +230,8 @@ impl SymbolTableToDeclarationStatements {
         );
         self.context().set_flags(old_flags);
         self.context().set_enclosing_declaration(old_enclosing_decl);
+
+        Ok(())
     }
 
     pub(super) fn serialize_interface(

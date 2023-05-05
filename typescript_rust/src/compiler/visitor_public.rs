@@ -25,7 +25,7 @@ use crate::{
     Debug_, FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
     HasQuestionTokenInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, NonEmpty,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, NonEmpty, OptionTry,
     ReadonlyTextRange, SignatureDeclarationInterface, SingleNodeOrVecNode, SyntaxKind,
     TransformationContext, VisitResult, VisitResultInterface,
 };
@@ -58,6 +58,45 @@ pub fn visit_node(
 
     Debug_.assert_node(visited_node.as_deref(), test, None);
     visited_node
+}
+
+pub fn try_visit_node<TError>(
+    node: Option<impl Borrow<Node>>,
+    visitor: Option<impl FnMut(&Node) -> Result<VisitResult, TError>>,
+    test: Option<impl Fn(&Node) -> bool>,
+    lift: Option<impl Fn(&[Gc<Node>]) -> Gc<Node>>,
+) -> Result<Option<Gc<Node>>, TError> {
+    if node.is_none() {
+        return Ok(None);
+    }
+    let node = node.unwrap();
+    let node = node.borrow();
+    if visitor.is_none() {
+        return Ok(None);
+    }
+    let mut visitor = visitor.unwrap();
+
+    let visited = visitor(node)?;
+    if visited.ptr_eq_node(node) {
+        return Ok(Some(node.node_wrapper()));
+    }
+    if visited.is_none() {
+        return Ok(None);
+    }
+    let visited = visited.unwrap();
+    let visited_node = match &visited {
+        SingleNodeOrVecNode::VecNode(visited) => {
+            if let Some(lift) = lift {
+                Some(lift(visited))
+            } else {
+                extract_single_node(visited)
+            }
+        }
+        SingleNodeOrVecNode::SingleNode(visited) => Some(visited.clone()),
+    };
+
+    Debug_.assert_node(visited_node.as_deref(), test, None);
+    Ok(visited_node)
 }
 
 pub fn visit_nodes(
@@ -143,6 +182,94 @@ pub fn visit_nodes(
     }
 
     Some(nodes.rc_wrapper())
+}
+
+pub fn try_visit_nodes<TError>(
+    nodes: Option<&NodeArray>,
+    visitor: Option<impl FnMut(&Node) -> Result<VisitResult, TError>>,
+    test: Option<impl Fn(&Node) -> bool>,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Result<Option<Gc<NodeArray>>, TError> {
+    if nodes.is_none() {
+        return Ok(None);
+    }
+    let nodes = nodes.unwrap();
+    if visitor.is_none() {
+        return Ok(Some(nodes.rc_wrapper()));
+    }
+    let mut visitor = visitor.unwrap();
+
+    let mut updated: Option<Vec<Gc<Node>>> = Default::default();
+
+    let length = nodes.len();
+    let start = start.unwrap_or(0); /*start < 0*/
+
+    let count = if count.is_none() || count.unwrap() > length - start {
+        length - start
+    } else {
+        count.unwrap()
+    };
+
+    let mut has_trailing_comma: Option<bool> = Default::default();
+    let mut pos: isize = -1;
+    let mut end: isize = -1;
+    if start > 0 || count < length {
+        updated = Some(vec![]);
+        has_trailing_comma = Some(nodes.has_trailing_comma && start + count == length);
+    }
+
+    for i in 0..count {
+        let node = nodes.get(i + start);
+        let visited = node.try_and_then(|node| visitor(node))?;
+        if updated.is_some()
+            || match visited.as_ref() {
+                None => true,
+                Some(visited) => !matches!(
+                    node,
+                    Some(node) if visited.ptr_eq_node(node)
+                ),
+            }
+        {
+            if updated.is_none() {
+                updated = Some(nodes[0..i].to_owned());
+                has_trailing_comma = Some(nodes.has_trailing_comma);
+                pos = nodes.pos();
+                end = nodes.end();
+            }
+            if let Some(visited) = visited {
+                match &visited {
+                    SingleNodeOrVecNode::VecNode(visited) => {
+                        for visited_node in visited {
+                            Debug_.assert_node(
+                                Some(&**visited_node),
+                                test.as_ref().map(|test| |node: &Node| test(node)),
+                                None,
+                            );
+                            updated.as_mut().unwrap().push(visited_node.clone());
+                        }
+                    }
+                    SingleNodeOrVecNode::SingleNode(visited) => {
+                        Debug_.assert_node(
+                            Some(&**visited),
+                            test.as_ref().map(|test| |node: &Node| test(node)),
+                            None,
+                        );
+                        updated.as_mut().unwrap().push(visited.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(updated) = updated {
+        let updated_array =
+            with_factory(|factory_| factory_.create_node_array(Some(updated), has_trailing_comma));
+        set_text_range_pos_end(&*updated_array, pos, end);
+        return Ok(Some(updated_array));
+    }
+
+    Ok(Some(nodes.rc_wrapper()))
 }
 
 pub fn visit_lexical_environment(

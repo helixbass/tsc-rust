@@ -92,9 +92,9 @@ impl TypeChecker {
         matches!(self.get_packages_map().get(package_name), Some(true))
     }
 
-    pub(super) fn resolve_external_module_symbol<TModuleSymbol: Borrow<Symbol>>(
+    pub(super) fn resolve_external_module_symbol(
         &self,
-        module_symbol: Option<TModuleSymbol>,
+        module_symbol: Option<impl Borrow<Symbol>>,
         dont_resolve_alias: Option<bool>,
     ) -> Option<Gc<Symbol>> {
         let module_symbol = module_symbol?;

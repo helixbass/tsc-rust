@@ -1,9 +1,9 @@
 use derive_builder::Builder;
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{
     command_options_without_build, convert_compile_on_save_option_from_json,
@@ -122,7 +122,7 @@ pub(super) fn parse_config(
     resolution_stack: &[&str],
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
-) -> ParsedTsconfig {
+) -> io::Result<ParsedTsconfig> {
     let base_path = normalize_slashes(base_path);
     let resolved_path =
         get_normalized_absolute_path(config_file_name.unwrap_or(""), Some(&base_path));
@@ -137,10 +137,10 @@ pub(super) fn parse_config(
             )
             .into(),
         ));
-        return ParsedTsconfigBuilder::default()
+        return Ok(ParsedTsconfigBuilder::default()
             .raw(json.or_else(|| convert_to_object(source_file.unwrap().borrow(), errors)))
             .build()
-            .unwrap();
+            .unwrap());
     }
 
     let mut own_config: ParsedTsconfig = if let Some(json) = json {
@@ -150,7 +150,7 @@ pub(super) fn parse_config(
             &base_path,
             config_file_name,
             &mut errors.borrow_mut(),
-        )
+        )?
     } else {
         parse_own_config_of_json_source_file(
             source_file
@@ -186,7 +186,7 @@ pub(super) fn parse_config(
             &resolution_stack,
             errors.clone(),
             extended_config_cache,
-        );
+        )?;
         if let Some(extended_config) = extended_config
             .filter(|extended_config| is_successful_parsed_tsconfig(&extended_config))
         {
@@ -256,7 +256,7 @@ pub(super) fn parse_config(
         }
     }
 
-    own_config
+    Ok(own_config)
 }
 
 pub(super) fn parse_own_config_of_json(
@@ -265,7 +265,7 @@ pub(super) fn parse_own_config_of_json(
     base_path: &str,
     config_file_name: Option<&str>,
     errors: &mut Vec<Gc<Diagnostic>>,
-) -> ParsedTsconfig {
+) -> io::Result<ParsedTsconfig> {
     let mut json = match json {
         serde_json::Value::Object(json) => json,
         _ => panic!("Expected object"),
@@ -317,7 +317,7 @@ pub(super) fn parse_own_config_of_json(
                     &new_base,
                     errors,
                     |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
-                );
+                )?;
             }
             _ => {
                 errors.push(Gc::new(
@@ -330,13 +330,13 @@ pub(super) fn parse_own_config_of_json(
             }
         }
     }
-    ParsedTsconfig {
+    Ok(ParsedTsconfig {
         raw: Some(serde_json::Value::Object(json)),
         options: Some(Gc::new(options)),
         watch_options: watch_options.map(|watch_options| Rc::new(watch_options)),
         type_acquisition: Some(Rc::new(type_acquisition)),
         extended_config_path,
-    }
+    })
 }
 
 pub(super) fn parse_own_config_of_json_source_file(
@@ -535,7 +535,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
         _key_node: &Node, /*PropertyName*/
         value: Option<&serde_json::Value>,
         value_node: &Node, /*Expression*/
-    ) {
+    ) -> io::Result<()> {
         match key {
             "extends" => {
                 let new_base = if let Some(config_file_name) = self.config_file_name {
@@ -562,10 +562,12 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                             .into(),
                         )
                     },
-                );
+                )?;
             }
             _ => (),
         }
+
+        Ok(())
     }
 
     fn on_set_unknown_option_key_value_in_root(
@@ -607,7 +609,7 @@ pub(super) fn get_extends_config_path(
     base_path: &str,
     errors: &mut Vec<Gc<Diagnostic>>,
     mut create_diagnostic: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
-) -> Option<String> {
+) -> io::Result<Option<String>> {
     let extended_config = normalize_slashes(extended_config);
     if is_rooted_disk_path(&extended_config)
         || starts_with(&extended_config, "./")
@@ -624,10 +626,10 @@ pub(super) fn get_extends_config_path(
                     &Diagnostics::File_0_not_found,
                     Some(vec![extended_config]),
                 ));
-                return None;
+                return Ok(None);
             }
         }
-        return Some(extended_config_path);
+        return Ok(Some(extended_config_path));
     }
     let resolved = node_module_name_resolver(
         &extended_config,
@@ -640,13 +642,13 @@ pub(super) fn get_extends_config_path(
         None,
         None,
         None,
-    );
+    )?;
     if let Some(resolved_resolved_module) = resolved.resolved_module.as_ref() {
-        return Some(resolved_resolved_module.resolved_file_name.clone());
+        return Ok(Some(resolved_resolved_module.resolved_file_name.clone()));
     }
     errors.push(create_diagnostic(
         &Diagnostics::File_0_not_found,
         Some(vec![extended_config]),
     ));
-    None
+    Ok(None)
 }

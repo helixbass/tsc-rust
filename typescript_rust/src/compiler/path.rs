@@ -867,6 +867,26 @@ pub fn for_each_ancestor_directory<TReturn>(
     }
 }
 
+pub fn try_for_each_ancestor_directory<TReturn, TError>(
+    directory: &Path,
+    mut callback: impl FnMut(&Path) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    let mut directory = (*directory).clone();
+    loop {
+        let result = callback(&directory)?;
+        if result.is_some() {
+            return Ok(result);
+        }
+
+        let parent_path = Path::new(get_directory_path(&directory));
+        if parent_path == directory {
+            return Ok(None);
+        }
+
+        directory = parent_path;
+    }
+}
+
 pub fn for_each_ancestor_directory_str<TReturn>(
     directory: &str,
     mut callback: impl FnMut(&str) -> Option<TReturn>,

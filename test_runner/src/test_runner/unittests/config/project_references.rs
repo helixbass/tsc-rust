@@ -297,6 +297,7 @@ mod project_references_meta_check {
 
 mod project_references_constraint_checking_for_settings {
     use serde_json::json;
+    use typescript_rust::ScriptReferenceHost;
 
     use super::*;
 
@@ -378,6 +379,107 @@ mod project_references_constraint_checking_for_settings {
                 "Reports an error about 'composite' not being set",
                 &errs,
                 &Diagnostics::Referenced_project_0_must_have_setting_composite_Colon_true,
+            );
+        });
+    }
+
+    #[test]
+    fn test_does_not_error_when_the_referenced_project_doesnt_have_composite_true_if_its_a_container_project(
+    ) {
+        let spec = TestSpecification::from_iter([
+            (
+                "/primary".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [("/primary/a.ts", empty_module)].owned(),
+                    ))
+                    .references(vec![])
+                    .options(
+                        CompilerOptionsBuilder::default()
+                            .composite(false)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap(),
+            ),
+            (
+                "/reference".to_owned(),
+                TestProjectSpecificationBuilder::default()
+                    .files(HashMap::from_iter(
+                        [(
+                            "/secondary/b.ts",
+                            &*module_importing(&["../primary/a"].owned()),
+                        )]
+                        .owned(),
+                    ))
+                    .references(["../primary".to_owned().into()])
+                    .build()
+                    .unwrap(),
+            ),
+        ]);
+
+        test_project_references(&spec, "/reference/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_options_diagnostics(None);
+            assert_no_errors("Reports an error about 'composite' not being set", &errs);
+        });
+    }
+
+    #[test]
+    fn test_errors_when_the_file_list_is_not_exhaustive() {
+        let spec = TestSpecification::from_iter([(
+            "/primary".to_owned(),
+            TestProjectSpecificationBuilder::default()
+                .files(HashMap::from_iter(
+                    [
+                        ("/primary/a.ts", "import * as b from './b'"),
+                        ("/primary/b.ts", "export {}"),
+                    ]
+                    .owned(),
+                ))
+                .config(
+                    json!({
+                        "files": ["a.ts"],
+                    })
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+                )
+                .build()
+                .unwrap(),
+        )]);
+
+        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_semantic_diagnostics(
+                program.get_source_file("/primary/a.ts").as_deref(),
+                None,
+            );
+            assert_has_error(
+                "Reports an error about b.ts not being in the list",
+                &errs,
+                &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern
+            );
+        });
+    }
+
+    #[test]
+    fn test_errors_when_the_referenced_project_doesnt_exist() {
+        let spec = TestSpecification::from_iter([(
+            "/primary".to_owned(),
+            TestProjectSpecificationBuilder::default()
+                .files(HashMap::from_iter(
+                    [("/primary/a.ts", empty_module)].owned(),
+                ))
+                .references(["../foo".to_owned().into()])
+                .build()
+                .unwrap(),
+        )]);
+        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
+            let errs = program.get_options_diagnostics(None);
+            assert_has_error(
+                "Reports an error about a missing file",
+                &errs,
+                &Diagnostics::File_0_not_found,
             );
         });
     }

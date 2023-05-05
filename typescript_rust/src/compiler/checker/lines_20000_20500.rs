@@ -2,8 +2,8 @@ use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{
@@ -21,7 +21,7 @@ impl CheckTypeRelatedTo {
         source_info: &IndexInfo,
         target_info: &IndexInfo,
         report_errors: bool,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let related = self.is_related_to(
             &source_info.type_,
             &target_info.type_,
@@ -39,7 +39,7 @@ impl CheckTypeRelatedTo {
                         Option::<&Node>::None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
             } else {
                 self.report_error(
@@ -50,18 +50,18 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None,
                             None,
-                        ),
+                        )?,
                         self.type_checker.type_to_string_(
                             &target_info.key_type,
                             Option::<&Node>::None,
                             None,
                             None,
-                        ),
+                        )?,
                     ]),
                 );
             };
         }
-        related
+        Ok(related)
     }
 
     pub(super) fn index_signatures_related_to(
@@ -120,19 +120,19 @@ impl CheckTypeRelatedTo {
         target_info: &IndexInfo,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let source_info = self
             .type_checker
             .get_applicable_index_info(source, &target_info.key_type);
         if let Some(source_info) = source_info.as_ref() {
-            return self.index_info_related_to(source_info, target_info, report_errors);
+            return Ok(self.index_info_related_to(source_info, target_info, report_errors));
         }
         if !intersection_state.intersects(IntersectionState::Source)
             && self
                 .type_checker
                 .is_object_type_with_inferable_index(source)
         {
-            return self.members_related_to_index_info(source, target_info, report_errors);
+            return Ok(self.members_related_to_index_info(source, target_info, report_errors));
         }
         if report_errors {
             self.report_error(
@@ -143,13 +143,13 @@ impl CheckTypeRelatedTo {
                         Option::<&Node>::None,
                         None,
                         None,
-                    ),
+                    )?,
                     self.type_checker
-                        .type_to_string_(source, Option::<&Node>::None, None, None),
+                        .type_to_string_(source, Option::<&Node>::None, None, None)?,
                 ]),
             );
         }
-        Ternary::False
+        Ok(Ternary::False)
     }
 
     pub(super) fn index_signatures_identical_to(&self, source: &Type, target: &Type) -> Ternary {

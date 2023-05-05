@@ -1,6 +1,7 @@
 use gc::{Finalize, Gc, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::io;
 use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, JsxNames};
@@ -14,8 +15,9 @@ use crate::{
     is_this_property, map, some, unescape_leading_underscores, AssignmentDeclarationKind,
     CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
-    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, Node, NodeInterface,
-    ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, Node,
+    NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -106,9 +108,9 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_jsx_element_children_property_name<TJsxNamespace: Borrow<Symbol>>(
+    pub(super) fn get_jsx_element_children_property_name(
         &self,
-        jsx_namespace: Option<TJsxNamespace>,
+        jsx_namespace: Option<impl Borrow<Symbol>>,
     ) -> Option<__String> {
         self.get_name_from_jsx_element_attributes_container(
             &JsxNames::ElementChildrenAttributeNameContainer,
@@ -120,9 +122,9 @@ impl TypeChecker {
         &self,
         element_type: &Type,
         caller: &Node, /*JsxOpeningLikeElement*/
-    ) -> Vec<Gc<Signature>> {
+    ) -> io::Result<Vec<Gc<Signature>>> {
         if element_type.flags().intersects(TypeFlags::String) {
-            return vec![self.any_signature()];
+            return Ok(vec![self.any_signature()]);
         } else if element_type.flags().intersects(TypeFlags::StringLiteral) {
             let intrinsic_type =
                 self.get_intrinsic_attributes_type_from_string_literal_type(element_type, caller);
@@ -136,12 +138,12 @@ impl TypeChecker {
                             format!("JSX.{}", JsxNames::IntrinsicElements),
                         ]),
                     );
-                    return vec![];
+                    return Ok(vec![]);
                 }
                 Some(intrinsic_type) => {
                     let fake_signature =
-                        self.create_signature_for_jsx_intrinsic(caller, intrinsic_type);
-                    return vec![fake_signature];
+                        self.create_signature_for_jsx_intrinsic(caller, intrinsic_type)?;
+                    return Ok(vec![fake_signature]);
                 }
             }
         }
@@ -152,12 +154,12 @@ impl TypeChecker {
             signatures = self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Call);
         }
         if signatures.is_empty() && apparent_elem_type.flags().intersects(TypeFlags::Union) {
-            signatures = self.get_union_signatures(&map(
+            signatures = self.get_union_signatures(&try_map(
                 apparent_elem_type.as_union_type().types(),
                 |t: &Gc<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
-            ));
+            )?);
         }
-        signatures
+        Ok(signatures)
     }
 
     pub(super) fn get_intrinsic_attributes_type_from_string_literal_type(
@@ -570,7 +572,7 @@ impl TypeChecker {
         type_: &Type,
         prop: &Symbol,
         report_error: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let report_error = report_error.unwrap_or(true);
         let error_node = if !report_error {
             None
@@ -591,15 +593,15 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_property_accessibility_at_location<TErrorNode: Borrow<Node>>(
+    pub(super) fn check_property_accessibility_at_location(
         &self,
         location: &Node,
         is_super: bool,
         writing: bool,
         containing_type: &Type,
         prop: &Symbol,
-        error_node: Option<TErrorNode>,
-    ) -> bool {
+        error_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<bool> {
         let flags = get_declaration_modifier_flags_from_symbol(prop, Some(writing));
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
@@ -613,7 +615,7 @@ impl TypeChecker {
                             None,
                         );
                     }
-                    return false;
+                    return Ok(false);
                 }
             }
             if flags.intersects(ModifierFlags::Abstract) {
@@ -626,16 +628,16 @@ impl TypeChecker {
                                 prop,
                                 Option::<&Node>::None,
                                 None, None, None
-                            ),
+                            )?,
                             self.type_to_string_(
                                 &self.get_declaring_class(prop).unwrap(),
                                 Option::<&Node>::None,
                                 None, None,
-                            ),
+                            )?,
                         ])
                     );
                 }
-                return false;
+                return Ok(false);
             }
         }
 
@@ -658,18 +660,18 @@ impl TypeChecker {
                                 self.symbol_to_string_(
                                     prop,
                                     Option::<&Node>::None, None, None, None,
-                                ),
+                                )?,
                                 get_text_of_identifier_or_literal(&declaring_class_declaration.as_named_declaration().name()).into_owned()
                             ])
                         );
                     }
-                    return false;
+                    return Ok(false);
                 }
             }
         }
 
         if !flags.intersects(ModifierFlags::NonPublicAccessibilityModifier) {
-            return true;
+            return Ok(true);
         }
 
         if flags.intersects(ModifierFlags::Private) {
@@ -682,23 +684,23 @@ impl TypeChecker {
                         error_node.as_deref(),
                         &Diagnostics::Property_0_is_private_and_only_accessible_within_class_1,
                         Some(vec![
-                            self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None),
+                            self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None)?,
                             self.type_to_string_(
                                 &self.get_declaring_class(prop).unwrap(),
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            ),
+                            )?,
                         ]),
                     );
                 }
-                return false;
+                return Ok(false);
             }
-            return true;
+            return Ok(true);
         }
 
         if is_super {
-            return true;
+            return Ok(true);
         }
 
         let mut enclosing_class =
@@ -736,16 +738,16 @@ impl TypeChecker {
                                 prop,
                                 Option::<&Node>::None,
                                 None, None, None,
-                            ),
+                            )?,
                             self.type_to_string_(
                                 &self.get_declaring_class(prop).unwrap_or_else(|| containing_type.type_wrapper()),
                                 Option::<&Node>::None,
                                 None, None,
-                            ),
+                            )?,
                         ])
                     );
                 }
-                return false;
+                return Ok(false);
             }
 
             let this_type = self.get_type_from_type_node_(
@@ -768,7 +770,7 @@ impl TypeChecker {
         }
         let enclosing_class = enclosing_class.unwrap();
         if flags.intersects(ModifierFlags::Static) {
-            return true;
+            return Ok(true);
         }
         let mut containing_type = Some(containing_type.type_wrapper());
         if containing_type
@@ -802,24 +804,24 @@ impl TypeChecker {
                             prop,
                             Option::<&Node>::None,
                             None, None, None,
-                        ),
+                        )?,
                         self.type_to_string_(
                             &enclosing_class,
                             Option::<&Node>::None,
                             None, None,
-                        ),
+                        )?,
                         self.type_to_string_(
                             // TODO: this looks like type_to_string_() actually should accept an Option<Type>
                             containing_type.as_ref().unwrap(),
                             Option::<&Node>::None,
                             None, None,
-                        ),
+                        )?,
                     ])
                 );
-                return false;
+                return Ok(false);
             }
         }
-        true
+        Ok(true)
     }
 }
 
@@ -837,7 +839,7 @@ impl GenerateInitialErrorChain {
 }
 
 impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
         let component_name = get_text_of_node(
             &self
                 .opening_like_element
@@ -845,10 +847,10 @@ impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
                 .tag_name(),
             None,
         );
-        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+        Ok(Some(Rc::new(RefCell::new(chain_diagnostic_messages(
             None,
             &Diagnostics::_0_cannot_be_used_as_a_JSX_component,
             Some(vec![component_name.into_owned()]),
-        ))))
+        )))))
     }
 }

@@ -1,10 +1,12 @@
 use gc::Gc;
 use std::borrow::Borrow;
 use std::cmp;
+use std::io;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, IterationUse, JsxNames};
+use crate::OptionTry;
 use crate::{
     concatenate, filter, get_enclosing_block_scope_container, get_jsdoc_enum_tag,
     get_strict_option_value, has_static_modifier, is_assignment_target, is_binary_expression,
@@ -567,7 +569,7 @@ impl TypeChecker {
         node: &Node, /*ArrayLiteralExpression*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let elements = &node.as_array_literal_expression().elements;
         let element_count = elements.len();
         let mut element_types: Vec<Gc<Type>> = vec![];
@@ -600,7 +602,7 @@ impl TypeChecker {
                 } else if in_destructuring_pattern {
                     let rest_element_type = self
                         .get_index_type_of_type_(&spread_type, &self.number_type())
-                        .or_else(|| {
+                        .try_or_else(|| {
                             self.get_iterated_type_or_element_type(
                                 IterationUse::Destructuring,
                                 &spread_type,
@@ -608,7 +610,7 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 false,
                             )
-                        })
+                        })?
                         .unwrap_or_else(|| self.unknown_type());
                     element_types.push(rest_element_type);
                     element_flags.push(ElementFlags::Rest);
@@ -651,7 +653,7 @@ impl TypeChecker {
             }
         }
         if in_destructuring_pattern {
-            return self.create_tuple_type(&element_types, Some(&element_flags), None, None);
+            return Ok(self.create_tuple_type(&element_types, Some(&element_flags), None, None));
         }
         if force_tuple == Some(true)
             || in_const_context
@@ -663,14 +665,14 @@ impl TypeChecker {
                 )
             )
         {
-            return self.create_array_literal_type(&self.create_tuple_type(
+            return Ok(self.create_array_literal_type(&self.create_tuple_type(
                 &element_types,
                 Some(&element_flags),
                 Some(in_const_context),
                 None,
-            ));
+            )));
         }
-        self.create_array_literal_type(&self.create_array_type(
+        Ok(self.create_array_literal_type(&self.create_array_type(
             &*if !element_types.is_empty() {
                 self.get_union_type(
                     &same_map(&element_types, |t: &Gc<Type>, i| {
@@ -699,7 +701,7 @@ impl TypeChecker {
                 self.undefined_widening_type()
             },
             Some(in_const_context),
-        ))
+        )))
     }
 
     pub(super) fn create_array_literal_type(&self, type_: &Type) -> Gc<Type> {
@@ -912,7 +914,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ObjectLiteralExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let in_destructuring_pattern = is_assignment_target(node);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern);
 
@@ -1113,7 +1115,7 @@ impl TypeChecker {
                                     contextual_type.as_ref().unwrap(),
                                     Option::<&Node>::None,
                                     None, None,
-                                ),
+                                )?,
                             ])
                         );
                     }
@@ -1264,7 +1266,7 @@ impl TypeChecker {
         }
 
         if self.is_error_type(&spread) {
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
         if !Gc::ptr_eq(&spread, &self.empty_object_type()) {
@@ -1293,7 +1295,7 @@ impl TypeChecker {
                 has_computed_string_property = false;
                 has_computed_number_property = false;
             }
-            return self
+            return Ok(self
                 .map_type(
                     &spread,
                     &mut |t: &Type| {
@@ -1317,10 +1319,10 @@ impl TypeChecker {
                     },
                     None,
                 )
-                .unwrap();
+                .unwrap());
         }
 
-        self.create_object_literal_type(
+        Ok(self.create_object_literal_type(
             has_computed_string_property,
             node,
             offset,
@@ -1332,6 +1334,6 @@ impl TypeChecker {
             is_js_object_literal,
             pattern_with_computed_properties,
             in_destructuring_pattern,
-        )
+        ))
     }
 }

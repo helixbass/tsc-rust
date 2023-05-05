@@ -1,7 +1,7 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::CheckMode;
 use crate::{
@@ -683,15 +683,15 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         writing: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if !self.push_type_resolution(
             &symbol.symbol_wrapper().into(),
             TypeSystemPropertyName::Type,
         ) {
-            return Some(self.error_type());
+            return Ok(Some(self.error_type()));
         }
 
-        let mut type_ = self.resolve_type_of_accessors(symbol, writing);
+        let mut type_ = self.resolve_type_of_accessors(symbol, writing)?;
 
         if !self.pop_type_resolution() {
             type_ = Some(self.any_type());
@@ -701,19 +701,19 @@ impl TypeChecker {
                     getter,
                     &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
                     ])
                 );
             }
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn resolve_type_of_accessors(
         &self,
         symbol: &Symbol,
         writing: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let writing = writing.unwrap_or(false);
         let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
         let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor);
@@ -722,7 +722,7 @@ impl TypeChecker {
 
         if writing {
             if let Some(setter_type) = setter_type.as_ref() {
-                return Some(self.instantiate_type_if_needed(setter_type, symbol));
+                return Ok(Some(self.instantiate_type_if_needed(setter_type, symbol)));
             }
         }
 
@@ -730,24 +730,26 @@ impl TypeChecker {
             if is_in_js_file(Some(getter)) {
                 let js_doc_type = self.get_type_for_declaration_from_jsdoc_comment(getter);
                 if let Some(js_doc_type) = js_doc_type {
-                    return Some(self.instantiate_type_if_needed(&js_doc_type, symbol));
+                    return Ok(Some(self.instantiate_type_if_needed(&js_doc_type, symbol)));
                 }
             }
         }
 
         let getter_type = self.get_annotated_accessor_type(getter.as_deref());
         if let Some(getter_type) = getter_type.as_ref() {
-            return Some(self.instantiate_type_if_needed(getter_type, symbol));
+            return Ok(Some(self.instantiate_type_if_needed(getter_type, symbol)));
         }
 
         if setter_type.is_some() {
-            return setter_type;
+            return Ok(setter_type);
         }
 
         if let Some(getter) = getter.as_ref() {
             if getter.as_function_like_declaration().maybe_body().is_some() {
                 let return_type_from_body = self.get_return_type_from_body(getter, None);
-                return Some(self.instantiate_type_if_needed(&return_type_from_body, symbol));
+                return Ok(Some(
+                    self.instantiate_type_if_needed(&return_type_from_body, symbol),
+                ));
             }
         }
 
@@ -758,11 +760,11 @@ impl TypeChecker {
                     setter,
                     &*Diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
                     ])
                 );
             }
-            return Some(self.any_type());
+            return Ok(Some(self.any_type()));
         } else if let Some(getter) = getter.as_ref() {
             // Debug.assert(!!getter, ...);
             if !self.is_private_within_ambient(getter) {
@@ -771,13 +773,13 @@ impl TypeChecker {
                     getter,
                     &*Diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
                     Some(vec![
-                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
                     ])
                 );
             }
-            return Some(self.any_type());
+            return Ok(Some(self.any_type()));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn instantiate_type_if_needed(&self, type_: &Type, symbol: &Symbol) -> Gc<Type> {

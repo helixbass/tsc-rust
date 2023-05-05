@@ -1,8 +1,8 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::ResolveCallContainingMessageChain;
 use crate::{
@@ -23,12 +23,12 @@ impl TypeChecker {
         &self,
         node: &Node,             /*FunctionLikeDeclaration | MethodSignature*/
         return_type_node: &Node, /*TypeNode*/
-    ) {
+    ) -> io::Result<()> {
         let return_type = self.get_type_from_type_node_(return_type_node);
 
         if self.language_version >= ScriptTarget::ES2015 {
             if self.is_error_type(&return_type) {
-                return;
+                return Ok(());
             }
             let global_promise_type = self.get_global_promise_type(true);
             if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type())
@@ -46,16 +46,16 @@ impl TypeChecker {
                             ).unwrap_or_else(|| self.void_type()),
                             Option::<&Node>::None,
                             None, None,
-                        )
+                        )?
                     ])
                 );
-                return;
+                return Ok(());
             }
         } else {
             self.mark_type_node_as_referenced(return_type_node);
 
             if self.is_error_type(&return_type) {
-                return;
+                return Ok(());
             }
 
             let promise_constructor_name = get_entity_name_from_type_node(return_type_node);
@@ -68,10 +68,10 @@ impl TypeChecker {
                             &return_type,
                             Option::<&Node>::None,
                             None, None
-                        )
+                        )?
                     ])
                 );
-                return;
+                return Ok(());
             }
             let promise_constructor_name = promise_constructor_name.unwrap();
 
@@ -110,7 +110,7 @@ impl TypeChecker {
                         ])
                     );
                 }
-                return;
+                return Ok(());
             }
 
             let global_promise_constructor_like_type =
@@ -126,7 +126,7 @@ impl TypeChecker {
                         entity_name_to_string(&promise_constructor_name).into_owned()
                     ])
                 );
-                return;
+                return Ok(());
             }
 
             if !self.check_type_assignable_to(
@@ -136,7 +136,7 @@ impl TypeChecker {
                 Some(&Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value),
                 None, None,
             ) {
-                return;
+                return Ok(());
             }
 
             let root_name = /*promiseConstructorName &&*/ get_first_identifier(&promise_constructor_name);
@@ -154,7 +154,7 @@ impl TypeChecker {
                         entity_name_to_string(&promise_constructor_name).into_owned(),
                     ])
                 );
-                return;
+                return Ok(());
             }
         }
         self.check_awaited_type(
@@ -164,6 +164,8 @@ impl TypeChecker {
             &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
             None,
         );
+
+        Ok(())
     }
 
     pub(super) fn check_decorator(&self, node: &Node /*Decorator*/) {

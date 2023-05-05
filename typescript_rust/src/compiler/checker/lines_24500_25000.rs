@@ -1,6 +1,6 @@
 use gc::Gc;
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
@@ -797,10 +797,10 @@ impl TypeChecker {
         &self,
         node: &Node, /*Identifier*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let symbol = self.get_resolved_symbol(node);
         if Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
         if Gc::ptr_eq(&symbol, &self.arguments_symbol()) {
@@ -810,7 +810,7 @@ impl TypeChecker {
                     &Diagnostics::arguments_cannot_be_referenced_in_property_initializers,
                     None,
                 );
-                return self.error_type();
+                return Ok(self.error_type());
             }
 
             let container = get_containing_function(node).unwrap();
@@ -831,7 +831,7 @@ impl TypeChecker {
             }
 
             self.get_node_links(&container).borrow_mut().flags |= NodeCheckFlags::CaptureArguments;
-            return self.get_type_of_symbol(&symbol);
+            return Ok(self.get_type_of_symbol(&symbol));
         }
 
         if !matches!(
@@ -971,7 +971,7 @@ impl TypeChecker {
                         None,
                     )]),
                 );
-                return self.error_type();
+                return Ok(self.error_type());
             }
             if self.is_readonly_symbol(&local_or_export_symbol) {
                 if local_or_export_symbol
@@ -1002,7 +1002,7 @@ impl TypeChecker {
                         )]),
                     );
                 }
-                return self.error_type();
+                return Ok(self.error_type());
             }
         }
 
@@ -1015,16 +1015,16 @@ impl TypeChecker {
             .intersects(SymbolFlags::Variable)
         {
             if assignment_kind == AssignmentKind::Definite {
-                return type_;
+                return Ok(type_);
             }
         } else if is_alias {
             declaration = self.get_declaration_of_alias_symbol(&symbol);
         } else {
-            return type_;
+            return Ok(type_);
         }
 
         if declaration.is_none() {
-            return type_;
+            return Ok(type_);
         }
         let declaration = declaration.unwrap();
 
@@ -1119,7 +1119,7 @@ impl TypeChecker {
                                 &flow_type,
                                 Option::<&Node>::None,
                                 None, None,
-                            )
+                            )?
                         ])
                     );
                     self.error(
@@ -1133,11 +1133,11 @@ impl TypeChecker {
                                 None,
                                 None,
                             ),
-                            self.type_to_string_(&flow_type, Option::<&Node>::None, None, None),
+                            self.type_to_string_(&flow_type, Option::<&Node>::None, None, None)?,
                         ]),
                     );
                 }
-                return self.convert_auto_to_any(&flow_type);
+                return Ok(self.convert_auto_to_any(&flow_type));
             }
         } else if !assume_initialized
             && !self
@@ -1158,12 +1158,12 @@ impl TypeChecker {
                     None,
                 )]),
             );
-            return type_;
+            return Ok(type_);
         }
-        if assignment_kind != AssignmentKind::None {
+        Ok(if assignment_kind != AssignmentKind::None {
             self.get_base_type_of_literal_type(&flow_type)
         } else {
             flow_type
-        }
+        })
     }
 }

@@ -56,7 +56,7 @@ pub trait ModuleResolutionHost {
         &self,
         overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     );
-    fn get_current_directory(&self) -> Option<String> {
+    fn get_current_directory(&self) -> Option<io::Result<String>> {
         None
     }
     fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
@@ -164,7 +164,7 @@ pub trait ModuleResolutionHostOverrider: Trace + Finalize {
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    );
+    ) -> io::Result<()>;
     fn directory_exists(&self, _directory_name: &str) -> Option<bool> {
         None
     }
@@ -327,7 +327,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         language_version: ScriptTarget,
         on_error: Option<&mut dyn FnMut(&str)>,
         should_create_new_source_file: Option<bool>,
-    ) -> Option<Gc<Node /*SourceFile*/>>;
+    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>>;
     fn get_source_file_by_path(
         &self,
         _file_name: &str,
@@ -353,7 +353,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    );
+    ) -> io::Result<()>;
     fn write_file_non_overridden(
         &self,
         file_name: &str,
@@ -361,13 +361,13 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    );
+    ) -> io::Result<()>;
     fn is_write_file_supported(&self) -> bool;
     fn set_overriding_write_file(
         &self,
         overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     );
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> io::Result<String>;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_new_line(&self) -> String;
@@ -378,7 +378,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         _excludes: Option<&[String]>,
         _includes: &[String],
         _depth: Option<usize>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<io::Result<Vec<String>>> {
         None
     }
     fn is_read_directory_implemented(&self) -> bool;
@@ -1066,13 +1066,13 @@ pub trait EmitHost:
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    ); // WriteFileCallback
+    ) -> io::Result<()>; // WriteFileCallback
     fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>>;
     fn get_source_file_from_reference(
         &self,
         referencing_file: &Node, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
-    ) -> Option<Gc<Node /*SourceFile*/>>;
+    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>>;
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>>;
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost;
     fn as_module_specifier_resolution_host_and_get_common_source_directory(

@@ -74,13 +74,17 @@ pub mod fakes {
         pub fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
             let mut files: Vec<String> = vec![];
             let mut directories: Vec<String> = vec![];
-            // try {
-            for file in self.vfs.readdir_sync(path) {
-                // try {
+            for file in self.vfs.readdir_sync(path).unwrap_or_default() {
                 let stats = self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)]));
-                if stats.is_file() {
+                if matches!(
+                    stats,
+                    Ok(stats) if stats.is_file()
+                ) {
                     files.push(file);
-                } else if stats.is_directory() {
+                } else if matches!(
+                    stats,
+                    Ok(stats) if stats.is_directory()
+                ) {
                     directories.push(file);
                 }
                 // }
@@ -93,8 +97,8 @@ pub mod fakes {
 
         fn _get_stats(&self, path: &str) -> Option<vfs::Stats> {
             // try {
-            if self.vfs.exists_sync(path) {
-                Some(self.vfs.stat_sync(path))
+            if self.vfs.exists_sync(path).ok()? {
+                Some(self.vfs.stat_sync(path).ok()?)
             } else {
                 None
             }
@@ -183,19 +187,16 @@ pub mod fakes {
         }
 
         fn get_directories(&self, path: &str) -> Vec<String> {
-            let mut result: Vec<String> = vec![];
-            // try {
-            for file in self.vfs.readdir_sync(path) {
-                if self
-                    .vfs
-                    .stat_sync(&vpath::combine(path, &[Some(&file)]))
-                    .is_directory()
-                {
-                    result.push(file);
+            let mut result: Vec<String> = Default::default();
+            for file in self.vfs.readdir_sync(path).unwrap_or_default() {
+                match self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)])) {
+                    Err(_) => break,
+                    Ok(value) if value.is_directory() => {
+                        result.push(file);
+                    }
+                    _ => (),
                 }
             }
-            // }
-            // catch { /*ignore*/ }
             result
         }
 
@@ -206,18 +207,18 @@ pub mod fakes {
             exclude: Option<&[String]>,
             include: Option<&[String]>,
             depth: Option<usize>,
-        ) -> Vec<String> {
-            match_files(
+        ) -> io::Result<Vec<String>> {
+            Ok(match_files(
                 path,
                 extensions,
                 exclude,
                 include,
                 self.use_case_sensitive_file_names,
-                &self.get_current_directory(),
+                &self.get_current_directory()?,
                 depth,
                 |path: &str| self.get_accessible_file_system_entries(path),
                 |path: &str| self.realpath(path).unwrap(),
-            )
+            ))
         }
 
         fn exit(&self, _exit_code: Option<ExitStatus>) -> ! {
@@ -235,8 +236,8 @@ pub mod fakes {
             )
         }
 
-        fn resolve_path(&self, path: &str) -> String {
-            vpath::resolve(&self.vfs.cwd(), &[Some(path)])
+        fn resolve_path(&self, path: &str) -> io::Result<String> {
+            Ok(vpath::resolve(&self.vfs.cwd()?, &[Some(path)]))
         }
 
         fn get_executing_file_path(&self) -> Cow<'static, str> {
@@ -272,12 +273,10 @@ pub mod fakes {
         }
 
         fn realpath(&self, path: &str) -> Option<String> {
-            // try {
-            Some(self.vfs.realpath_sync(path))
-            // }
-            // catch {
-            //     return path;
-            // }
+            match self.vfs.realpath_sync(path) {
+                Err(_) => Some(path.to_owned()),
+                Ok(value) => Some(value),
+            }
         }
 
         fn is_realpath_supported(&self) -> bool {
@@ -339,7 +338,7 @@ pub mod fakes {
     }
 
     impl ConvertToTSConfigHost for System {
-        fn get_current_directory(&self) -> String {
+        fn get_current_directory(&self) -> io::Result<String> {
             self.vfs.cwd()
         }
 
@@ -521,7 +520,7 @@ pub mod fakes {
             self
         }
 
-        fn get_current_directory(&self) -> String {
+        fn get_current_directory(&self) -> io::Result<String> {
             self.sys.get_current_directory()
         }
 
@@ -566,7 +565,7 @@ pub mod fakes {
             write_byte_order_mark: bool,
             on_error: Option<&mut dyn FnMut(&str)>,
             source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             if let Some(write_file_override) = self.maybe_write_file_override() {
                 write_file_override.write_file(
                     file_name,
@@ -593,7 +592,7 @@ pub mod fakes {
             write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-        ) {
+        ) -> io::Result<()> {
             let mut content = content.to_owned();
             if write_byte_order_mark {
                 content = Utils::add_utf8_byte_order_mark(content);
@@ -607,7 +606,7 @@ pub mod fakes {
                 .insert("fileName".to_owned(), file_name.to_owned());
             let document = Gc::new(document);
             self.vfs()
-                .filemeta(file_name)
+                .filemeta(file_name)?
                 .borrow_mut()
                 .set("document", document.clone().into());
             let mut _outputs_map = self._outputs_map.borrow_mut();
@@ -618,6 +617,7 @@ pub mod fakes {
             }
             let index = *_outputs_map.get(&document.file).unwrap();
             outputs[index] = document;
+            Ok(())
         }
 
         fn is_write_file_supported(&self) -> bool {
@@ -637,11 +637,11 @@ pub mod fakes {
             *write_file_override = overriding_write_file;
         }
 
-        fn get_default_lib_location(&self) -> Option<String> {
-            Some(vpath::resolve(
-                &typescript_rust::CompilerHost::get_current_directory(self),
+        fn get_default_lib_location(&self) -> io::Result<Option<String>> {
+            Ok(Some(vpath::resolve(
+                &typescript_rust::CompilerHost::get_current_directory(self)?,
                 &[Some(&self.default_lib_location)],
-            ))
+            )))
         }
 
         fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
@@ -657,9 +657,9 @@ pub mod fakes {
             language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> Option<Gc<Node /*SourceFile*/>> {
+        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
             let canonical_file_name = self.get_canonical_file_name(&vpath::resolve(
-                &typescript_rust::CompilerHost::get_current_directory(self),
+                &typescript_rust::CompilerHost::get_current_directory(self)?,
                 &[Some(file_name)],
             ));
             let existing = self
@@ -668,10 +668,13 @@ pub mod fakes {
                 .get(&canonical_file_name)
                 .cloned();
             if existing.is_some() {
-                return existing;
+                return Ok(existing);
             }
 
-            let content = self.read_file(&canonical_file_name).ok().flatten()?;
+            let content = self.read_file(&canonical_file_name)?;
+            if content.is_none() {
+                return Ok(None);
+            }
 
             let cache_key = if self.vfs().shadow_root().is_some() {
                 Some(format!(
@@ -682,7 +685,7 @@ pub mod fakes {
                 None
             };
             if let Some(cache_key) = cache_key.as_ref() {
-                let meta = self.vfs().filemeta(&canonical_file_name);
+                let meta = self.vfs().filemeta(&canonical_file_name)?;
                 let source_file_from_metadata = meta
                     .borrow()
                     .get(cache_key)
@@ -695,7 +698,7 @@ pub mod fakes {
                     self._source_files
                         .borrow_mut()
                         .set(canonical_file_name, source_file_from_metadata.clone());
-                    return Some(source_file_from_metadata);
+                    return Ok(Some(source_file_from_metadata));
                 }
             }
 
@@ -715,16 +718,22 @@ pub mod fakes {
                 .set(canonical_file_name.clone(), parsed.clone());
 
             if let Some(cache_key) = cache_key.as_ref() {
-                let stats = self.vfs().stat_sync(&canonical_file_name);
+                let stats = self.vfs().stat_sync(&canonical_file_name)?;
 
                 let mut fs = self.vfs();
                 while let Some(fs_shadow_root) = fs.shadow_root() {
-                    // try {
-                    let shadow_root_stats = if fs_shadow_root.exists_sync(&canonical_file_name) {
-                        fs_shadow_root.stat_sync(&canonical_file_name)
-                    } else {
-                        break;
-                    };
+                    let shadow_root_stats =
+                        if match fs_shadow_root.exists_sync(&canonical_file_name) {
+                            Err(_) => break,
+                            Ok(value) => value,
+                        } {
+                            match fs_shadow_root.stat_sync(&canonical_file_name) {
+                                Err(_) => break,
+                                Ok(value) => value,
+                            }
+                        } else {
+                            break;
+                        };
 
                     if shadow_root_stats.dev != stats.dev
                         || shadow_root_stats.ino != stats.ino
@@ -734,20 +743,16 @@ pub mod fakes {
                     }
 
                     fs = fs_shadow_root;
-                    // }
-                    // catch {
-                    //     break;
-                    // }
                 }
 
                 if !Gc::ptr_eq(&fs, &self.vfs()) {
-                    fs.filemeta(&canonical_file_name)
+                    fs.filemeta(&canonical_file_name)?
                         .borrow_mut()
                         .set(cache_key, parsed.clone().into());
                 }
             }
 
-            Some(parsed)
+            Ok(Some(parsed))
         }
 
         fn is_resolve_module_names_supported(&self) -> bool {
@@ -930,7 +935,7 @@ pub mod fakes {
             *realpath_override = overriding_realpath;
         }
 
-        fn get_current_directory(&self) -> Option<String> {
+        fn get_current_directory(&self) -> Option<io::Result<String>> {
             Some(typescript_rust::CompilerHost::get_current_directory(self))
         }
 

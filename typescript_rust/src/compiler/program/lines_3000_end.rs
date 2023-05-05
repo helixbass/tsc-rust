@@ -28,18 +28,17 @@ use crate::{
     has_zero_or_one_asterisk_character, inverse_jsx_option_map, is_array_literal_expression,
     is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
     is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
-    is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs,
-    maybe_for_each, out_file, parse_isolated_entity_name,
-    parse_json_source_file_config_file_content, path_is_absolute, path_is_relative,
-    remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
-    resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
-    string_contains, supported_js_extensions_flat, target_option_declaration,
-    to_file_name_lower_case, version, CancellationTokenDebuggable, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, Comparison, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, DirectoryStructureHost,
-    EmitFileNames, EmitResult, Extension, FileIncludeKind, FileIncludeReason,
-    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
+    is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs, out_file,
+    parse_isolated_entity_name, parse_json_source_file_config_file_content, path_is_absolute,
+    path_is_relative, remove_file_extension, remove_prefix, remove_suffix,
+    resolution_extension_is_ts_or_json, resolve_config_file_project_name, set_resolved_module,
+    source_file_may_be_emitted, string_contains, supported_js_extensions_flat,
+    target_option_declaration, to_file_name_lower_case, try_maybe_for_each, version,
+    CancellationTokenDebuggable, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    Comparison, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
+    Diagnostics, DirectoryStructureHost, EmitFileNames, EmitResult, Extension, FileIncludeKind,
+    FileIncludeReason, FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
     FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
@@ -51,20 +50,23 @@ use crate::{
 };
 
 impl Program {
-    pub fn process_lib_reference_directives(&self, file: &Node /*SourceFile*/) {
+    pub fn process_lib_reference_directives(
+        &self,
+        file: &Node, /*SourceFile*/
+    ) -> io::Result<()> {
         let file_as_source_file = file.as_source_file();
-        maybe_for_each(
+        try_maybe_for_each(
             file_as_source_file
                 .maybe_lib_reference_directives()
                 .as_ref()
                 .map(|file_lib_reference_directives| (**file_lib_reference_directives).borrow())
                 .as_deref(),
-            |lib_reference: &FileReference, index| -> Option<()> {
+            |lib_reference: &FileReference, index| -> io::Result<Option<()>> {
                 let lib_name = to_file_name_lower_case(&lib_reference.file_name);
                 let lib_file_name = lib_map.with(|lib_map_| lib_map_.get(&&*lib_name).copied());
                 if let Some(lib_file_name) = lib_file_name {
                     self.process_root_file(
-                        &self.path_for_lib_file(lib_file_name),
+                        &self.path_for_lib_file(lib_file_name)?,
                         true,
                         true,
                         Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
@@ -111,9 +113,11 @@ impl Program {
                         }))
                     );
                 }
-                None
+                Ok(None)
             },
-        );
+        )?;
+
+        Ok(())
     }
 
     pub fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -125,7 +129,7 @@ impl Program {
         Gc::new(Box::new(CompilerHostGetCanonicalFileName::new(host)))
     }
 
-    pub fn process_imported_modules(&self, file: &Node /*SourceFile*/) {
+    pub fn process_imported_modules(&self, file: &Node /*SourceFile*/) -> io::Result<()> {
         self.collect_external_module_references(file);
         let file_as_source_file = file.as_source_file();
         if !file_as_source_file
@@ -140,7 +144,7 @@ impl Program {
                 .is_empty()
         {
             let module_names = get_module_names(file);
-            let resolutions = self.resolve_module_names_reusing_old_state(&module_names, file);
+            let resolutions = self.resolve_module_names_reusing_old_state(&module_names, file)?;
             Debug_.assert(resolutions.len() == module_names.len(), None);
             let options_for_file = if self.use_source_of_project_reference_redirect() {
                 self.get_redirect_reference_for_resolution(file)
@@ -211,6 +215,8 @@ impl Program {
         } else {
             *file_as_source_file.maybe_resolved_modules() = None;
         }
+
+        Ok(())
     }
 
     pub fn check_source_files_belong_to_path(
@@ -254,7 +260,7 @@ impl Program {
     pub fn parse_project_reference_config_file(
         &self,
         ref_: &ProjectReference,
-    ) -> Option<Gc<ResolvedProjectReference>> {
+    ) -> io::Result<Option<Gc<ResolvedProjectReference>>> {
         if self.maybe_project_reference_redirects_mut().is_none() {
             *self.maybe_project_reference_redirects_mut() = Some(HashMap::new());
         }
@@ -268,7 +274,7 @@ impl Program {
             .get(&source_file_path)
             .cloned();
         if let Some(from_cache) = from_cache {
-            return from_cache;
+            return Ok(from_cache);
         }
 
         let command_line: Option<ParsedCommandLine>;
@@ -279,7 +285,7 @@ impl Program {
                 self.add_file_to_files_by_name(Option::<&Node>::None, &source_file_path, None);
                 self.project_reference_redirects_mut()
                     .insert(source_file_path.clone(), None);
-                return None;
+                return Ok(None);
             }
             let command_line = command_line.as_ref().unwrap();
             source_file =
@@ -296,16 +302,16 @@ impl Program {
         } else {
             let base_path = get_normalized_absolute_path(
                 &get_directory_path(&ref_path),
-                Some(&CompilerHost::get_current_directory(&**self.host())),
+                Some(&CompilerHost::get_current_directory(&**self.host())?),
             );
             source_file = self
                 .host()
-                .get_source_file(&ref_path, ScriptTarget::JSON, None, None);
+                .get_source_file(&ref_path, ScriptTarget::JSON, None, None)?;
             self.add_file_to_files_by_name(source_file.as_deref(), &source_file_path, None);
             if source_file.is_none() {
                 self.project_reference_redirects_mut()
                     .insert(source_file_path.clone(), None);
-                return None;
+                return Ok(None);
             }
             let source_file = source_file.as_ref().unwrap();
             command_line = Some(parse_json_source_file_config_file_content(
@@ -318,7 +324,7 @@ impl Program {
                 None,
                 None,
                 None,
-            ));
+            )?);
         }
         let source_file = source_file.unwrap();
         let source_file_as_source_file = source_file.as_source_file();
@@ -344,10 +350,10 @@ impl Program {
                     .map(|command_line_project_reference| {
                         self.parse_project_reference_config_file(command_line_project_reference)
                     })
-                    .collect(),
+                    .collect::<Result<Vec<_>, _>>()?,
             ));
         }
-        Some(resolved_ref)
+        Ok(Some(resolved_ref))
     }
 
     pub fn verify_compiler_options(&self) {
@@ -2217,7 +2223,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         _write_byte_order_mark: bool,
         _on_error: Option<&mut dyn FnMut(&str)>,
         _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    ) {
+    ) -> io::Result<()> {
         unreachable!()
     }
 
@@ -2333,7 +2339,7 @@ pub(super) fn filter_semantic_diagnostics(
 
 pub trait CompilerHostLike: Trace + Finalize {
     fn use_case_sensitive_file_names(&self) -> bool;
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> io::Result<String>;
     fn file_exists(&self, file_name: &str) -> bool;
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn read_directory(
@@ -2343,7 +2349,7 @@ pub trait CompilerHostLike: Trace + Finalize {
         _excludes: Option<&[String]>,
         _includes: &[String],
         _depth: Option<usize>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<io::Result<Vec<String>>> {
         None
     }
     fn trace(&self, _s: &str) {}
@@ -2354,7 +2360,12 @@ pub trait CompilerHostLike: Trace + Finalize {
     fn is_read_directory_implemented(&self) -> bool;
     fn realpath(&self, path: &str) -> Option<String>;
     fn create_directory(&self, path: &str);
-    fn write_file(&self, path: &str, data: &str, write_byte_order_mark: Option<bool>);
+    fn write_file(
+        &self,
+        path: &str,
+        data: &str,
+        write_byte_order_mark: Option<bool>,
+    ) -> io::Result<()>;
     fn directory_exists(&self, path: &str) -> Option<bool>;
     fn get_directories(&self, path: &str) -> Option<Vec<String>>;
 }
@@ -2375,7 +2386,7 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
         CompilerHost::use_case_sensitive_file_names(&**self.host)
     }
 
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> io::Result<String> {
         CompilerHost::get_current_directory(&**self.host)
     }
 
@@ -2394,7 +2405,7 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
         excludes: Option<&[String]>,
         includes: &[String],
         depth: Option<usize>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<io::Result<Vec<String>>> {
         self.host
             .read_directory(root_dir, extensions, excludes, includes, depth)
     }
@@ -2420,7 +2431,12 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
         self.host.create_directory(path)
     }
 
-    fn write_file(&self, path: &str, data: &str, write_byte_order_mark: Option<bool>) {
+    fn write_file(
+        &self,
+        path: &str,
+        data: &str,
+        write_byte_order_mark: Option<bool>,
+    ) -> io::Result<()> {
         self.host
             .write_file(path, data, write_byte_order_mark.unwrap(), None, None)
     }
@@ -2475,7 +2491,7 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         exclude: Option<&[String]>,
         include: Option<&[String]>,
         depth: Option<usize>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<io::Result<Vec<String>>> {
         self.host
             .read_directory(path, extensions, exclude, include.unwrap(), depth)
     }
@@ -2492,7 +2508,12 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         self.host.create_directory(path)
     }
 
-    fn write_file(&self, path: &str, data: &str, write_byte_order_mark: Option<bool>) {
+    fn write_file(
+        &self,
+        path: &str,
+        data: &str,
+        write_byte_order_mark: Option<bool>,
+    ) -> io::Result<()> {
         self.host.write_file(path, data, write_byte_order_mark)
     }
 }
@@ -2528,7 +2549,7 @@ impl ParseConfigHostFromCompilerHostLike {
 }
 
 impl ParseConfigFileHost for ParseConfigHostFromCompilerHostLike {
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> io::Result<String> {
         self.host.get_current_directory()
     }
 }
@@ -2545,7 +2566,7 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
         excludes: Option<&[String]>,
         includes: &[String],
         depth: Option<usize>,
-    ) -> Vec<String> {
+    ) -> io::Result<Vec<String>> {
         Debug_.assert(self.directory_structure_host.is_read_directory_implemented(), Some("'CompilerHost.readDirectory' must be implemented to correctly process 'projectReferences'"));
         self.directory_structure_host
             .read_directory(root, extensions, excludes, Some(includes), depth)

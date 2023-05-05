@@ -1,7 +1,7 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
@@ -914,9 +914,9 @@ impl TypeChecker {
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
         allow_modules: bool,
-    ) -> Option<SymbolAccessibilityResult> {
+    ) -> io::Result<Option<SymbolAccessibilityResult>> {
         if length(symbols) == 0 {
-            return None;
+            return Ok(None);
         }
         let symbols = symbols.unwrap();
 
@@ -939,7 +939,9 @@ impl TypeChecker {
                     should_compute_aliases_to_make_visible,
                 );
                 if let Some(has_accessible_declarations) = has_accessible_declarations {
-                    return Some(has_accessible_declarations.into_symbol_accessibility_result());
+                    return Ok(Some(
+                        has_accessible_declarations.into_symbol_accessibility_result(),
+                    ));
                 }
             }
             if allow_modules {
@@ -953,13 +955,13 @@ impl TypeChecker {
                         early_module_bail = true;
                         continue;
                     }
-                    return Some(SymbolAccessibilityResult {
+                    return Ok(Some(SymbolAccessibilityResult {
                         accessibility: SymbolAccessibility::Accessible,
                         aliases_to_make_visible: None,
                         error_symbol_name: None,
                         error_node: None,
                         error_module_name: None,
-                    });
+                    }));
                 }
             }
 
@@ -978,22 +980,22 @@ impl TypeChecker {
                 allow_modules,
             );
             if parent_result.is_some() {
-                return parent_result;
+                return Ok(parent_result);
             }
         }
 
         if early_module_bail {
-            return Some(SymbolAccessibilityResult {
+            return Ok(Some(SymbolAccessibilityResult {
                 accessibility: SymbolAccessibility::Accessible,
                 aliases_to_make_visible: None,
                 error_symbol_name: None,
                 error_node: None,
                 error_module_name: None,
-            });
+            }));
         }
 
         if let Some(had_accessible_chain) = had_accessible_chain {
-            return Some(SymbolAccessibilityResult {
+            return Ok(Some(SymbolAccessibilityResult {
                 accessibility: SymbolAccessibility::NotAccessible,
                 aliases_to_make_visible: None,
                 error_symbol_name: Some(self.symbol_to_string_(
@@ -1011,14 +1013,14 @@ impl TypeChecker {
                         Some(SymbolFlags::Namespace),
                         None,
                         None,
-                    ))
+                    )?)
                 } else {
                     None
                 },
-            });
+            }));
         }
 
-        None
+        Ok(None)
     }
 
     pub(super) fn is_symbol_accessible(
@@ -1044,7 +1046,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
         allow_modules: bool,
-    ) -> SymbolAccessibilityResult {
+    ) -> io::Result<SymbolAccessibilityResult> {
         if let Some(symbol) = symbol {
             let symbol = symbol.borrow();
             if let Some(enclosing_declaration) = enclosing_declaration {
@@ -1058,7 +1060,7 @@ impl TypeChecker {
                     allow_modules,
                 );
                 if let Some(result) = result {
-                    return result;
+                    return Ok(result);
                 }
 
                 let symbol_external_module = maybe_for_each(
@@ -1070,7 +1072,7 @@ impl TypeChecker {
                         self.get_external_module_container(enclosing_declaration);
                     if !matches!(enclosing_external_module, Some(enclosing_external_module) if Gc::ptr_eq(&symbol_external_module, &enclosing_external_module))
                     {
-                        return SymbolAccessibilityResult {
+                        return Ok(SymbolAccessibilityResult {
                             accessibility: SymbolAccessibility::CannotBeNamed,
                             aliases_to_make_visible: None,
                             error_symbol_name: Some(self.symbol_to_string_(
@@ -1079,24 +1081,24 @@ impl TypeChecker {
                                 Some(meaning),
                                 None,
                                 None,
-                            )),
+                            )?),
                             error_module_name: Some(self.symbol_to_string_(
                                 &symbol_external_module,
                                 Option::<&Node>::None,
                                 None,
                                 None,
                                 None,
-                            )),
+                            )?),
                             error_node: if is_in_js_file(Some(enclosing_declaration)) {
                                 Some(enclosing_declaration.node_wrapper())
                             } else {
                                 None
                             },
-                        };
+                        });
                     }
                 }
 
-                return SymbolAccessibilityResult {
+                return Ok(SymbolAccessibilityResult {
                     accessibility: SymbolAccessibility::NotAccessible,
                     aliases_to_make_visible: None,
                     error_symbol_name: Some(self.symbol_to_string_(
@@ -1105,20 +1107,20 @@ impl TypeChecker {
                         Some(meaning),
                         None,
                         None,
-                    )),
+                    )?),
                     error_node: None,
                     error_module_name: None,
-                };
+                });
             }
         }
 
-        SymbolAccessibilityResult {
+        Ok(SymbolAccessibilityResult {
             accessibility: SymbolAccessibility::Accessible,
             aliases_to_make_visible: None,
             error_symbol_name: None,
             error_node: None,
             error_module_name: None,
-        }
+        })
     }
 
     pub(super) fn get_external_module_container(&self, declaration: &Node) -> Option<Gc<Symbol>> {

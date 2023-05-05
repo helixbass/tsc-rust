@@ -1,9 +1,9 @@
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{cell::RefCell, io};
 
 use super::{MappedTypeModifiers, WideningKind};
 use crate::{
@@ -293,7 +293,7 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn report_widening_errors_in_type(&self, type_: &Type) -> bool {
+    pub(super) fn report_widening_errors_in_type(&self, type_: &Type) -> io::Result<bool> {
         let mut error_reported = false;
         if get_object_flags(type_).intersects(ObjectFlags::ContainsWideningType) {
             if type_.flags().intersects(TypeFlags::Union) {
@@ -338,7 +338,7 @@ impl TypeChecker {
                                         Option::<&Node>::None,
                                         None,
                                         None,
-                                    ),
+                                    )?,
                                 ]),
                             );
                         }
@@ -347,7 +347,7 @@ impl TypeChecker {
                 }
             }
         }
-        error_reported
+        Ok(error_reported)
     }
 
     pub(super) fn report_implicit_any(
@@ -355,20 +355,20 @@ impl TypeChecker {
         declaration: &Node, /*Declaration*/
         type_: &Type,
         widening_kind: Option<WideningKind>,
-    ) {
+    ) -> io::Result<()> {
         let type_as_string = self.type_to_string_(
             &self.get_widened_type(type_),
             Option::<&Node>::None,
             None,
             None,
-        );
+        )?;
         if is_in_js_file(Some(declaration))
             && !is_check_js_enabled_for_file(
                 &get_source_file_of_node(declaration),
                 &self.compiler_options,
             )
         {
-            return;
+            return Ok(());
         }
         let diagnostic: &'static DiagnosticMessage;
         match declaration.kind() {
@@ -445,7 +445,7 @@ impl TypeChecker {
                         &*Diagnostics::Parameter_has_a_name_but_no_type_Did_you_mean_0_Colon_1,
                         Some(vec![new_name, type_name]),
                     );
-                    return;
+                    return Ok(());
                 }
                 diagnostic = if declaration
                     .as_parameter_declaration()
@@ -468,7 +468,7 @@ impl TypeChecker {
             SyntaxKind::BindingElement => {
                 diagnostic = &Diagnostics::Binding_element_0_implicitly_has_an_1_type;
                 if !self.no_implicit_any {
-                    return;
+                    return Ok(());
                 }
             }
             SyntaxKind::JSDocFunctionType => {
@@ -479,7 +479,7 @@ impl TypeChecker {
                         type_as_string
                     ])
                 );
-                return;
+                return Ok(());
             }
             SyntaxKind::FunctionDeclaration
             | SyntaxKind::MethodDeclaration
@@ -507,7 +507,7 @@ impl TypeChecker {
                             ])
                         );
                     }
-                    return;
+                    return Ok(());
                 }
                 diagnostic = if !self.no_implicit_any {
                     &Diagnostics::_0_implicitly_has_an_1_return_type_but_a_better_type_may_be_inferred_from_usage
@@ -525,7 +525,7 @@ impl TypeChecker {
                         None,
                     );
                 }
-                return;
+                return Ok(());
             }
             _ => {
                 diagnostic = if self.no_implicit_any {
@@ -544,6 +544,8 @@ impl TypeChecker {
                 type_as_string,
             ]),
         );
+
+        Ok(())
     }
 
     pub(super) fn report_errors_from_widening(

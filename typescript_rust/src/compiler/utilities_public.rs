@@ -359,10 +359,13 @@ fn try_set_language_and_territory(
         file_path = format!("{}-{}", file_path, territory);
     }
 
-    file_path = sys.resolve_path(&combine_paths(
-        &file_path,
-        &vec![Some("diagnosticMessages.generated.json")],
-    ));
+    file_path = sys
+        .resolve_path(&combine_paths(
+            &file_path,
+            &vec![Some("diagnosticMessages.generated.json")],
+        ))
+        // TODO: this probably doesn't match the Typescript version behavior (should bubble up?)
+        .unwrap();
 
     if !sys.file_exists(&file_path) {
         return false;

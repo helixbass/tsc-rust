@@ -3,7 +3,7 @@ use std::{
     borrow::Borrow,
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
-    ptr,
+    io, ptr,
     rc::Rc,
 };
 
@@ -735,7 +735,7 @@ impl SymbolTableToDeclarationStatements {
         symbol: &Symbol,
         mut is_private: bool,
         property_as_alias: bool,
-    ) {
+    ) -> io::Result<()> {
         let symbol_name = unescape_leading_underscores(symbol.escaped_name());
         let is_default = symbol.escaped_name() == InternalSymbolName::Default;
         if is_private
@@ -747,7 +747,7 @@ impl SymbolTableToDeclarationStatements {
             && !is_default
         {
             self.context().set_encountered_error(true);
-            return;
+            return Ok(());
         }
         let mut needs_post_export_default = is_default
             && (symbol
@@ -929,7 +929,7 @@ impl SymbolTableToDeclarationStatements {
                                                     Some(&*self.enclosing_declaration),
                                                     Some(&|symbol: &Symbol| self.include_private_symbol(symbol)),
                                                     self.bundled,
-                                                )),
+                                                )?),
                                                 None,
                                             ).wrap()
                                         ],
@@ -1049,7 +1049,7 @@ impl SymbolTableToDeclarationStatements {
                                             self.node_builder.get_specifier_for_module_symbol(
                                                 resolved_module,
                                                 &self.context(),
-                                            ),
+                                            )?,
                                             None,
                                             None,
                                         )
@@ -1106,6 +1106,8 @@ impl SymbolTableToDeclarationStatements {
                 ModifierFlags::None,
             );
         }
+
+        Ok(())
     }
 }
 
@@ -1149,9 +1151,9 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         sym: &Symbol,
         decl: Option<Gc<Node>>,
         meaning: SymbolFlags,
-    ) -> Option<bool> {
+    ) -> Option<io::Result<bool>> {
         if self.is_track_symbol_disabled.get() {
-            return Some(false);
+            return Some(Ok(false));
         }
         let accessible_result =
             self.type_checker
@@ -1162,7 +1164,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
                 &self.context,
                 Some(meaning),
                 None,
-            );
+            )?;
             if !sym.flags().intersects(SymbolFlags::Property) {
                 self.symbol_table_to_declaration_statements
                     .include_private_symbol(&chain[0]);
@@ -1172,7 +1174,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         self.oldcontext_tracker.is_track_symbol_supported() {
             return self.oldcontext_tracker.track_symbol(sym, decl, meaning);
         }
-        Some(false)
+        Some(Ok(false))
     }
 
     fn disable_track_symbol(&self) {

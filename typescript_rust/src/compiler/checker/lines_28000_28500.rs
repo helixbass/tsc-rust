@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{anon, CheckMode};
 use crate::{
@@ -323,14 +323,12 @@ impl TypeChecker {
         self.get_property_of_type_(left_type, lexically_scoped_identifier.escaped_name(), None)
     }
 
-    pub(super) fn check_private_identifier_property_access<
-        TLexicallyScopedIdentifier: Borrow<Symbol>,
-    >(
+    pub(super) fn check_private_identifier_property_access(
         &self,
         left_type: &Type,
         right: &Node, /*PrivateIdentifier*/
-        lexically_scoped_identifier: Option<TLexicallyScopedIdentifier>,
-    ) -> bool {
+        lexically_scoped_identifier: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<bool> {
         let mut property_on_type: Option<Gc<Symbol>> = None;
         let properties = self.get_properties_of_type(left_type);
         // if (properties) {
@@ -379,7 +377,7 @@ impl TypeChecker {
                                 left_type,
                                 Option::<&Node>::None,
                                 None, None,
-                            )
+                            )?
                         ])
                     );
 
@@ -406,7 +404,7 @@ impl TypeChecker {
                             ),
                         ]
                     );
-                    return true;
+                    return Ok(true);
                 }
             }
             self.error(
@@ -421,9 +419,9 @@ impl TypeChecker {
                     ).into_owned()
                 ])
             );
-            return true;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_this_property_access_in_constructor(
@@ -449,7 +447,7 @@ impl TypeChecker {
         left_type: &Type,
         right: &Node, /*Identifier | PrivateIdentifier*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let parent_symbol = (*self.get_node_links(left))
             .borrow()
             .resolved_symbol
@@ -502,11 +500,11 @@ impl TypeChecker {
 
             if is_any_like {
                 if lexically_scoped_symbol.is_some() {
-                    return if self.is_error_type(&apparent_type) {
+                    return Ok(if self.is_error_type(&apparent_type) {
                         self.error_type()
                     } else {
                         apparent_type
-                    };
+                    });
                 }
                 if get_containing_class(right).is_none() {
                     self.grammar_error_on_node(
@@ -514,7 +512,7 @@ impl TypeChecker {
                         &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
                         None,
                     );
-                    return self.any_type();
+                    return Ok(self.any_type());
                 }
             }
             prop = lexically_scoped_symbol
@@ -532,7 +530,7 @@ impl TypeChecker {
                     lexically_scoped_symbol.as_deref(),
                 )
             {
-                return self.error_type();
+                return Ok(self.error_type());
             } else {
                 let is_setonly_accessor = matches!(
                     prop.as_ref(),
@@ -554,11 +552,11 @@ impl TypeChecker {
                         self.mark_alias_referenced(parent_symbol, node);
                     }
                 }
-                return if self.is_error_type(&apparent_type) {
+                return Ok(if self.is_error_type(&apparent_type) {
                     self.error_type()
                 } else {
                     apparent_type
-                };
+                });
             }
             prop = self.get_property_of_type_(
                 &apparent_type,
@@ -602,7 +600,7 @@ impl TypeChecker {
                     let is_unchecked_js =
                         self.is_unchecked_js_suggestion(Some(node), left_type.maybe_symbol(), true);
                     if !is_unchecked_js && self.is_js_literal_type(left_type) {
-                        return self.any_type();
+                        return Ok(self.any_type());
                     }
                     if matches!(
                         left_type.maybe_symbol().as_ref(),
@@ -636,7 +634,7 @@ impl TypeChecker {
                                         Option::<&Node>::None,
                                         None,
                                         None,
-                                    ),
+                                    )?,
                                 ]),
                             );
                         } else if self.no_implicit_any {
@@ -648,11 +646,11 @@ impl TypeChecker {
                                         left_type,
                                         Option::<&Node>::None,
                                         None, None,
-                                    )
+                                    )?
                                 ])
                             );
                         }
-                        return self.any_type();
+                        return Ok(self.any_type());
                     }
                     if !right.as_member_name().escaped_text().is_empty()
                         && !self.check_and_report_error_for_extending_interface(node)
@@ -667,7 +665,7 @@ impl TypeChecker {
                             is_unchecked_js,
                         );
                     }
-                    return self.error_type();
+                    return Ok(self.error_type());
                 }
                 let index_info = index_info.unwrap();
                 if index_info.is_readonly && (is_assignment_target(node) || is_delete_target(node))
@@ -680,7 +678,7 @@ impl TypeChecker {
                             Option::<&Node>::None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 }
 
@@ -748,7 +746,7 @@ impl TypeChecker {
                         &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
                         Some(vec![id_text(right).to_owned()]),
                     );
-                    return self.error_type();
+                    return Ok(self.error_type());
                 }
 
                 prop_type = if self.is_this_property_access_in_constructor(node, prop) {
@@ -761,7 +759,7 @@ impl TypeChecker {
             }
         }
 
-        self.get_flow_type_of_access_expression(node, prop, &prop_type, right, check_mode)
+        Ok(self.get_flow_type_of_access_expression(node, prop, &prop_type, right, check_mode))
     }
 
     pub(super) fn is_unchecked_js_suggestion<TNode: Borrow<Node>, TSuggestion: Borrow<Symbol>>(
@@ -1062,7 +1060,7 @@ impl TypeChecker {
         prop_node: &Node, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
         is_unchecked_js: bool,
-    ) {
+    ) -> io::Result<()> {
         let mut error_info: Option<DiagnosticMessageChain> = None;
         let mut related_info: Option<Gc<DiagnosticRelatedInformation>> = None;
         if !is_private_identifier(prop_node)
@@ -1085,7 +1083,7 @@ impl TypeChecker {
                         &Diagnostics::Property_0_does_not_exist_on_type_1,
                         Some(vec![
                             declaration_name_to_string(Some(prop_node)).into_owned(),
-                            self.type_to_string_(subtype, Option::<&Node>::None, None, None),
+                            self.type_to_string_(subtype, Option::<&Node>::None, None, None)?,
                         ]),
                     ));
                     break;
@@ -1097,7 +1095,7 @@ impl TypeChecker {
         {
             let prop_name = declaration_name_to_string(Some(prop_node)).into_owned();
             let type_name =
-                self.type_to_string_(containing_type, Option::<&Node>::None, None, None);
+                self.type_to_string_(containing_type, Option::<&Node>::None, None, None)?;
             error_info = Some(chain_diagnostic_messages(
                 error_info,
                 &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
@@ -1119,7 +1117,7 @@ impl TypeChecker {
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
                         declaration_name_to_string(Some(prop_node)).into_owned(),
-                        self.type_to_string_(containing_type, Option::<&Node>::None, None, None),
+                        self.type_to_string_(containing_type, Option::<&Node>::None, None, None)?,
                     ]),
                 ));
                 related_info = Some(Gc::new(
@@ -1133,7 +1131,7 @@ impl TypeChecker {
             } else {
                 let missing_property = declaration_name_to_string(Some(prop_node)).into_owned();
                 let container =
-                    self.type_to_string_(containing_type, Option::<&Node>::None, None, None);
+                    self.type_to_string_(containing_type, Option::<&Node>::None, None, None)?;
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
                     &missing_property,
                     containing_type,
@@ -1208,5 +1206,7 @@ impl TypeChecker {
                     != Diagnostics::Property_0_may_not_exist_on_type_1_Did_you_mean_2.code,
             result_diagnostic,
         );
+
+        Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{
     get_iteration_types_key_from_iteration_type_kind, CheckMode, IterationTypeKind, IterationUse,
@@ -209,7 +209,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_for_in_statement(&self, node: &Node /*ForInStatement*/) {
+    pub(super) fn check_for_in_statement(
+        &self,
+        node: &Node, /*ForInStatement*/
+    ) -> io::Result<()> {
         self.check_grammar_for_in_or_for_of_statement(node);
 
         let node_as_for_in_statement = node.as_for_in_statement();
@@ -278,7 +281,7 @@ impl TypeChecker {
                         &right_type,
                         Option::<&Node>::None,
                         None,None,
-                    )
+                    )?
                 ])
             );
         }
@@ -287,6 +290,8 @@ impl TypeChecker {
         if node.maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
+
+        Ok(())
     }
 
     pub(super) fn check_for_in_or_for_of_variable_declaration(
@@ -328,22 +333,23 @@ impl TypeChecker {
         input_type: &Type,
         sent_type: &Type,
         error_node: Option<TErrorNode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if self.is_type_any(Some(input_type)) {
-            return input_type.type_wrapper();
+            return Ok(input_type.type_wrapper());
         }
-        self.get_iterated_type_or_element_type(use_, input_type, sent_type, error_node, true)
-            .unwrap_or_else(|| self.any_type())
+        Ok(self
+            .get_iterated_type_or_element_type(use_, input_type, sent_type, error_node, true)?
+            .unwrap_or_else(|| self.any_type()))
     }
 
-    pub(super) fn get_iterated_type_or_element_type<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_iterated_type_or_element_type(
         &self,
         use_: IterationUse,
         input_type: &Type,
         sent_type: &Type,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         check_assignability: bool,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let allow_async_iterables = use_.intersects(IterationUse::AllowsAsyncIterablesFlag);
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if ptr::eq(input_type, &*self.never_type()) {
@@ -352,7 +358,7 @@ impl TypeChecker {
                 input_type,
                 allow_async_iterables,
             );
-            return None;
+            return Ok(None);
         }
 
         let uplevel_iteration = self.language_version >= ScriptTarget::ES2015;
@@ -401,7 +407,7 @@ impl TypeChecker {
                 }
             }
             if iteration_types.is_some() || uplevel_iteration {
-                return if possible_out_of_bounds {
+                return Ok(if possible_out_of_bounds {
                     self.include_undefined_in_index_signature(
                         iteration_types
                             .as_ref()
@@ -411,7 +417,7 @@ impl TypeChecker {
                     iteration_types
                         .as_ref()
                         .map(|iteration_types| iteration_types.yield_type())
-                };
+                });
             }
         }
 
@@ -452,11 +458,11 @@ impl TypeChecker {
                 }
 
                 if array_type.flags().intersects(TypeFlags::Never) {
-                    return if possible_out_of_bounds {
+                    return Ok(if possible_out_of_bounds {
                         self.include_undefined_in_index_signature(Some(self.string_type()))
                     } else {
                         Some(self.string_type())
-                    };
+                    });
                 }
             }
         }
@@ -490,11 +496,11 @@ impl TypeChecker {
                             Option::<&Node>::None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 }
             }
-            return if has_string_constituent {
+            return Ok(if has_string_constituent {
                 if possible_out_of_bounds {
                     self.include_undefined_in_index_signature(Some(self.string_type()))
                 } else {
@@ -502,7 +508,7 @@ impl TypeChecker {
                 }
             } else {
                 None
-            };
+            });
         }
 
         let array_element_type = self.get_index_type_of_type_(&array_type, &self.number_type());
@@ -511,10 +517,10 @@ impl TypeChecker {
                 if array_element_type.flags().intersects(TypeFlags::StringLike)
                     && self.compiler_options.no_unchecked_indexed_access != Some(true)
                 {
-                    return Some(self.string_type());
+                    return Ok(Some(self.string_type()));
                 }
 
-                return Some(self.get_union_type(
+                return Ok(Some(self.get_union_type(
                     &if possible_out_of_bounds {
                         vec![
                             array_element_type.clone(),
@@ -528,15 +534,15 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                ));
+                )));
             }
         }
 
-        if use_.intersects(IterationUse::PossiblyOutOfBounds) {
+        Ok(if use_.intersects(IterationUse::PossiblyOutOfBounds) {
             self.include_undefined_in_index_signature(array_element_type)
         } else {
             array_element_type
-        }
+        })
     }
 
     pub(super) fn get_iteration_diagnostic_details(

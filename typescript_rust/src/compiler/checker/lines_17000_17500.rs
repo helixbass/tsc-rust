@@ -1,9 +1,9 @@
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
-use std::cmp;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::{cmp, io};
 
 use super::{
     signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
@@ -13,8 +13,8 @@ use crate::{
     get_function_flags, get_semantic_jsx_children, get_source_file_of_node, get_text_of_node,
     has_type, id_text, is_block, is_computed_non_literal_name, is_identifier_type_predicate,
     is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute, is_omitted_expression,
-    is_spread_assignment, length, map, some, unescape_leading_underscores, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    is_spread_assignment, length, map, some, try_flat_map, unescape_leading_underscores, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
     FunctionLikeDeclarationInterface, HasInitializerInterface, NamedDeclarationInterface, Node,
     NodeInterface, Number, RelationComparisonResult, Signature, SignatureDeclarationInterface,
     SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
@@ -22,18 +22,15 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn check_type_assignable_to_and_optionally_elaborate<
-        TErrorNode: Borrow<Node>,
-        TExpr: Borrow<Node>,
-    >(
+    pub(super) fn check_type_assignable_to_and_optionally_elaborate(
         &self,
         source: &Type,
         target: &Type,
-        error_node: Option<TErrorNode>,
-        expr: Option<TExpr>,
+        error_node: Option<impl Borrow<Node>>,
+        expr: Option<impl Borrow<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         self.check_type_related_to_and_optionally_elaborate(
             source,
             target,
@@ -46,22 +43,19 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_type_related_to_and_optionally_elaborate<
-        TErrorNode: Borrow<Node>,
-        TExpr: Borrow<Node>,
-    >(
+    pub(super) fn check_type_related_to_and_optionally_elaborate(
         &self,
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<TErrorNode>,
-        expr: Option<TExpr>,
+        error_node: Option<impl Borrow<Node>>,
+        expr: Option<impl Borrow<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if self.is_type_related_to(source, target, relation.clone()) {
-            return true;
+            return Ok(true);
         }
         if error_node.is_none()
             || !self.elaborate_error(
@@ -72,9 +66,9 @@ impl TypeChecker {
                 head_message,
                 containing_message_chain.clone(),
                 error_output_container.clone(),
-            )
+            )?
         {
-            return self.check_type_related_to(
+            return Ok(self.check_type_related_to(
                 source,
                 target,
                 relation,
@@ -82,9 +76,9 @@ impl TypeChecker {
                 head_message.map(Cow::Borrowed),
                 containing_message_chain,
                 error_output_container,
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_or_has_generic_conditional(&self, type_: &Type) -> bool {
@@ -96,18 +90,18 @@ impl TypeChecker {
                 )
     }
 
-    pub(super) fn elaborate_error<TNode: Borrow<Node>>(
+    pub(super) fn elaborate_error(
         &self,
-        node: Option<TNode>,
+        node: Option<impl Borrow<Node>>,
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if node.is_none() || self.is_or_has_generic_conditional(target) {
-            return false;
+            return Ok(false);
         }
         let node = node.unwrap();
         let node = node.borrow();
@@ -128,7 +122,7 @@ impl TypeChecker {
             containing_message_chain.clone(),
             error_output_container.clone(),
         ) {
-            return true;
+            return Ok(true);
         }
         match node.kind() {
             SyntaxKind::JsxExpression | SyntaxKind::ParenthesizedExpression => {
@@ -201,7 +195,7 @@ impl TypeChecker {
             }
             _ => (),
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn elaborate_did_you_mean_to_call_or_construct(
@@ -279,25 +273,25 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node_as_arrow_function = node.as_arrow_function();
         if is_block(&node_as_arrow_function.maybe_body().unwrap()) {
-            return false;
+            return Ok(false);
         }
         if some(
             Some(&node_as_arrow_function.parameters()),
             Some(|parameter: &Gc<Node>| has_type(parameter)),
         ) {
-            return false;
+            return Ok(false);
         }
         let source_sig = self.get_single_call_signature(source);
         if source_sig.is_none() {
-            return false;
+            return Ok(false);
         }
         let source_sig = source_sig.unwrap();
         let target_signatures = self.get_signatures_of_type(target, SignatureKind::Call);
         if length(Some(&target_signatures)) == 0 {
-            return false;
+            return Ok(false);
         }
         let return_expression = node_as_arrow_function.maybe_body().unwrap();
         let source_return = self.get_return_type_of_signature(source_sig);
@@ -327,9 +321,9 @@ impl TypeChecker {
                 None,
                 containing_message_chain.clone(),
                 error_output_container.clone(),
-            );
+            )?;
             if elaborated {
-                return elaborated;
+                return Ok(elaborated);
             }
             let result_obj = error_output_container.unwrap_or_else(|| {
                 Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
@@ -382,10 +376,10 @@ impl TypeChecker {
                         .into()],
                     );
                 }
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_best_match_indexed_access_type_or_undefined(
@@ -449,7 +443,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let mut reported_error = false;
         for status in iterator {
             let ElaborationIteratorItem {
@@ -502,7 +496,7 @@ impl TypeChecker {
                         None,
                         containing_message_chain.clone(),
                         error_output_container.clone(),
-                    ),
+                    )?,
                 };
                 reported_error = true;
                 if !elaborated {
@@ -524,20 +518,24 @@ impl TypeChecker {
                             Some(&*target_prop_type),
                         )
                     {
-                        let diag: Gc<Diagnostic> = create_diagnostic_for_node(&prop, &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target, Some(vec![
-                                    self.type_to_string_(
-                                        &specific_source,
-                                        Option::<&Node>::None,
-                                        None,
-                                        None,
-                                    ),
-                                    self.type_to_string_(
-                                        &target_prop_type,
-                                        Option::<&Node>::None,
-                                        None,
-                                        None,
-                                    ),
-                                ])).into();
+                        let diag: Gc<Diagnostic> = create_diagnostic_for_node(
+                            &prop,
+                            &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target,
+                            Some(vec![
+                                self.type_to_string_(
+                                    &specific_source,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                )?,
+                                self.type_to_string_(
+                                    &target_prop_type,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                )?,
+                            ])
+                        ).into();
                         self.diagnostics().add(diag.clone());
                         result_obj.set_errors(vec![diag]);
                     } else {
@@ -643,14 +641,14 @@ impl TypeChecker {
                                                             Option::<&Node>::None,
                                                             None,
                                                             None,
-                                                        )
+                                                        )?
                                                     },
                                                     self.type_to_string_(
                                                         target,
                                                         Option::<&Node>::None,
                                                         None,
                                                         None,
-                                                    )
+                                                    )?
                                                 ])).into()
                                     ]
                                 );
@@ -660,7 +658,7 @@ impl TypeChecker {
                 }
             }
         }
-        reported_error
+        Ok(reported_error)
     }
 
     pub(super) fn generate_jsx_attributes(
@@ -691,83 +689,77 @@ impl TypeChecker {
             .collect()
     }
 
-    pub(super) fn generate_jsx_children<
-        TGetInvalidTextDiagnostic: FnMut() -> Cow<'static, DiagnosticMessage>,
-    >(
+    pub(super) fn generate_jsx_children(
         &self,
         node: &Node, /*JsxElement*/
-        mut get_invalid_text_diagnostic: TGetInvalidTextDiagnostic,
-    ) -> Vec<ElaborationIteratorItem> {
+        mut get_invalid_text_diagnostic: impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
+    ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_as_jsx_element = node.as_jsx_element();
         if length(Some(&node_as_jsx_element.children)) == 0 {
-            return vec![];
+            return Ok(vec![]);
         }
         let mut member_offset = 0;
-        node_as_jsx_element
-            .children
-            .iter()
-            .enumerate()
-            .flat_map(|(i, child)| {
+        try_flat_map(
+            Some(&node_as_jsx_element.children),
+            |child, i| -> io::Result<_> {
                 let name_type =
                     self.get_number_literal_type(Number::new((i - member_offset) as f64));
                 let elem = self.get_elaboration_element_for_jsx_child(
                     child,
                     &name_type,
                     &mut get_invalid_text_diagnostic,
-                );
-                if let Some(elem) = elem {
+                )?;
+                Ok(if let Some(elem) = elem {
                     vec![elem]
                 } else {
                     member_offset += 1;
                     vec![]
-                }
-            })
-            .collect()
+                })
+            },
+        )
     }
 
-    pub(super) fn get_elaboration_element_for_jsx_child<
-        TGetInvalidTextDiagnostic: FnMut() -> Cow<'static, DiagnosticMessage>,
-    >(
+    pub(super) fn get_elaboration_element_for_jsx_child(
         &self,
         child: &Node,     /*JsxChild*/
         name_type: &Type, /*LiteralType*/
-        get_invalid_text_diagnostic: &mut TGetInvalidTextDiagnostic,
-    ) -> Option<ElaborationIteratorItem> {
+        get_invalid_text_diagnostic: &mut impl FnMut() -> io::Result<Cow<'static, DiagnosticMessage>>,
+    ) -> io::Result<Option<ElaborationIteratorItem>> {
         match child.kind() {
             SyntaxKind::JsxExpression => {
-                return Some(ElaborationIteratorItem {
+                return Ok(Some(ElaborationIteratorItem {
                     error_node: child.node_wrapper(),
                     inner_expression: child.as_jsx_expression().expression.clone(),
                     name_type: name_type.type_wrapper(),
                     error_message: None,
-                });
+                }));
             }
             SyntaxKind::JsxText => {
                 if child.as_jsx_text().contains_only_trivia_white_spaces {
                 } else {
-                    return Some(ElaborationIteratorItem {
+                    return Ok(Some(ElaborationIteratorItem {
                         error_node: child.node_wrapper(),
                         inner_expression: None,
                         name_type: name_type.type_wrapper(),
-                        error_message: Some(get_invalid_text_diagnostic()),
-                    });
+                        error_message: Some(get_invalid_text_diagnostic()?),
+                    }));
                 }
             }
             SyntaxKind::JsxElement
             | SyntaxKind::JsxSelfClosingElement
             | SyntaxKind::JsxFragment => {
-                return Some(ElaborationIteratorItem {
+                return Ok(Some(ElaborationIteratorItem {
                     error_node: child.node_wrapper(),
                     inner_expression: Some(child.node_wrapper()),
                     name_type: name_type.type_wrapper(),
                     error_message: None,
-                });
+                }));
             }
             _ => {
                 Debug_.assert_never(child, Some("Found invalid jsx child"));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn elaborate_jsx_components(
@@ -778,7 +770,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let mut result = self.elaborate_elementwise(
             self.generate_jsx_attributes(node),
             source,
@@ -786,7 +778,7 @@ impl TypeChecker {
             relation.clone(),
             containing_message_chain.clone(),
             error_output_container.clone(),
-        );
+        )?;
         let mut invalid_text_diagnostic: Option<Cow<'static, DiagnosticMessage>> = None;
         if is_jsx_opening_element(&node.parent()) && is_jsx_element(&node.parent().parent()) {
             let containing_element = node.parent().parent();
@@ -808,7 +800,7 @@ impl TypeChecker {
             let valid_children =
                 get_semantic_jsx_children(&containing_element.as_jsx_element().children);
             if length(Some(&valid_children)) == 0 {
-                return result;
+                return Ok(result);
             }
             let more_than_one_real_children = length(Some(&valid_children)) > 1;
             let array_like_target_parts = self.filter_type(&children_target_type, |type_| {
@@ -817,54 +809,57 @@ impl TypeChecker {
             let non_array_like_target_parts = self.filter_type(&children_target_type, |type_| {
                 !self.is_array_or_tuple_like_type(type_)
             });
-            let mut get_invalid_textual_child_diagnostic = || -> Cow<'static, DiagnosticMessage> {
-                if invalid_text_diagnostic.is_none() {
-                    let tag_name_text = get_text_of_node(
-                        &node.parent().as_jsx_opening_like_element().tag_name(),
-                        None,
-                    );
-                    let child_prop_name = self.get_jsx_element_children_property_name(
-                        self.get_jsx_namespace_at(Some(node)),
-                    );
-                    let children_prop_name = child_prop_name.map_or_else(
-                        || "children".to_owned(),
-                        |child_prop_name| unescape_leading_underscores(&child_prop_name).to_owned(),
-                    );
-                    let children_target_type = self.get_indexed_access_type(
-                        target,
-                        &self.get_string_literal_type(&children_prop_name),
-                        None,
-                        Option::<&Node>::None,
-                        Option::<&Symbol>::None,
-                        None,
-                    );
-                    let diagnostic = &Diagnostics::_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_type_of_1_is_2;
-                    invalid_text_diagnostic = Some(Cow::Owned(DiagnosticMessage {
-                        code: diagnostic.code,
-                        category: diagnostic.category,
-                        key: "!!ALREADY FORMATTED!!",
-                        message: format_message(
+            let mut get_invalid_textual_child_diagnostic =
+                || -> io::Result<Cow<'static, DiagnosticMessage>> {
+                    if invalid_text_diagnostic.is_none() {
+                        let tag_name_text = get_text_of_node(
+                            &node.parent().as_jsx_opening_like_element().tag_name(),
                             None,
-                            diagnostic,
-                            Some(vec![
-                                tag_name_text.into_owned(),
-                                children_prop_name,
-                                self.type_to_string_(
-                                    &children_target_type,
-                                    Option::<&Node>::None,
-                                    None,
-                                    None,
-                                ),
-                            ]),
-                        )
-                        .into(),
-                        elided_in_compatability_pyramid: diagnostic
-                            .elided_in_compatability_pyramid
-                            .clone(),
-                    }));
-                }
-                invalid_text_diagnostic.clone().unwrap()
-            };
+                        );
+                        let child_prop_name = self.get_jsx_element_children_property_name(
+                            self.get_jsx_namespace_at(Some(node)),
+                        );
+                        let children_prop_name = child_prop_name.map_or_else(
+                            || "children".to_owned(),
+                            |child_prop_name| {
+                                unescape_leading_underscores(&child_prop_name).to_owned()
+                            },
+                        );
+                        let children_target_type = self.get_indexed_access_type(
+                            target,
+                            &self.get_string_literal_type(&children_prop_name),
+                            None,
+                            Option::<&Node>::None,
+                            Option::<&Symbol>::None,
+                            None,
+                        );
+                        let diagnostic = &Diagnostics::_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_type_of_1_is_2;
+                        invalid_text_diagnostic = Some(Cow::Owned(DiagnosticMessage {
+                            code: diagnostic.code,
+                            category: diagnostic.category,
+                            key: "!!ALREADY FORMATTED!!",
+                            message: format_message(
+                                None,
+                                diagnostic,
+                                Some(vec![
+                                    tag_name_text.into_owned(),
+                                    children_prop_name,
+                                    self.type_to_string_(
+                                        &children_target_type,
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                    )?,
+                                ]),
+                            )
+                            .into(),
+                            elided_in_compatability_pyramid: diagnostic
+                                .elided_in_compatability_pyramid
+                                .clone(),
+                        }));
+                    }
+                    Ok(invalid_text_diagnostic.clone().unwrap())
+                };
             if more_than_one_real_children {
                 if !Gc::ptr_eq(&array_like_target_parts, &self.never_type()) {
                     let real_source = self.create_tuple_type(
@@ -876,7 +871,7 @@ impl TypeChecker {
                     let children = self.generate_jsx_children(
                         &containing_element,
                         get_invalid_textual_child_diagnostic,
-                    );
+                    )?;
                     result = self.elaborate_elementwise(
                         children,
                         &real_source,
@@ -884,7 +879,7 @@ impl TypeChecker {
                         relation.clone(),
                         containing_message_chain,
                         error_output_container,
-                    ) || result;
+                    )? || result;
                 } else if !self.is_type_related_to(
                     &self.get_indexed_access_type(
                         source,
@@ -907,7 +902,7 @@ impl TypeChecker {
                                 &children_target_type,
                                 Option::<&Node>::None,
                                 None, None,
-                            )
+                            )?
                         ])
                     );
                     if let Some(error_output_container) = error_output_container.as_ref() {
@@ -923,7 +918,7 @@ impl TypeChecker {
                         child,
                         &children_name_type,
                         &mut get_invalid_textual_child_diagnostic,
-                    );
+                    )?;
                     if let Some(elem) = elem {
                         result = self.elaborate_elementwise(
                             vec![elem],
@@ -932,7 +927,7 @@ impl TypeChecker {
                             relation.clone(),
                             containing_message_chain,
                             error_output_container,
-                        ) || result;
+                        )? || result;
                     }
                 } else if !self.is_type_related_to(
                     &self.get_indexed_access_type(
@@ -956,7 +951,7 @@ impl TypeChecker {
                                 &children_target_type,
                                 Option::<&Node>::None,
                                 None, None,
-                            )
+                            )?
                         ])
                     );
                     if let Some(error_output_container) = error_output_container.as_ref() {
@@ -967,7 +962,7 @@ impl TypeChecker {
                 }
             }
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn generate_limited_tuple_elements(
@@ -1011,9 +1006,9 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if target.flags().intersects(TypeFlags::Primitive) {
-            return false;
+            return Ok(false);
         }
         if self.is_tuple_like_type(source) {
             return self.elaborate_elementwise(
@@ -1028,7 +1023,7 @@ impl TypeChecker {
         let old_context = node.maybe_contextual_type().clone();
         *node.maybe_contextual_type() = Some(target.type_wrapper());
         let tupleized_type =
-            self.check_array_literal(node, Some(CheckMode::Contextual), Some(true));
+            self.check_array_literal(node, Some(CheckMode::Contextual), Some(true))?;
         *node.maybe_contextual_type() = old_context;
         if self.is_tuple_like_type(&tupleized_type) {
             return self.elaborate_elementwise(
@@ -1040,7 +1035,7 @@ impl TypeChecker {
                 error_output_container,
             );
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn generate_object_literal_elements(
@@ -1106,9 +1101,9 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if target.flags().intersects(TypeFlags::Primitive) {
-            return false;
+            return Ok(false);
         }
         self.elaborate_elementwise(
             self.generate_object_literal_elements(node),
@@ -1144,8 +1139,8 @@ impl TypeChecker {
         source: Gc<Signature>,
         target: Gc<Signature>,
         ignore_return_types: bool,
-    ) -> bool {
-        self.compare_signatures_related(
+    ) -> io::Result<bool> {
+        Ok(self.compare_signatures_related(
             source,
             target,
             if ignore_return_types {
@@ -1160,7 +1155,7 @@ impl TypeChecker {
                 self.rc_wrapper(),
             ))),
             None,
-        ) != Ternary::False
+        )? != Ternary::False)
     }
 
     pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> bool {
@@ -1181,23 +1176,23 @@ impl TypeChecker {
             && self.is_type_any(Some(self.get_return_type_of_signature(s)))
     }
 
-    pub(super) fn compare_signatures_related<TIncompatibleErrorReporter: Fn(&Type, &Type)>(
+    pub(super) fn compare_signatures_related(
         &self,
         mut source: Gc<Signature>,
         mut target: Gc<Signature>,
         check_mode: SignatureCheckMode,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
-        incompatible_error_reporter: Option<&TIncompatibleErrorReporter>,
+        incompatible_error_reporter: Option<&impl Fn(&Type, &Type)>,
         compare_types: Gc<Box<dyn TypeComparer>>,
         report_unreliable_markers: Option<Gc<TypeMapper>>,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         if Gc::ptr_eq(&source, &target) {
-            return Ternary::True;
+            return Ok(Ternary::True);
         }
 
         if self.is_any_signature(target.clone()) {
-            return Ternary::True;
+            return Ok(Ternary::True);
         }
 
         let target_count = self.get_parameter_count(&target);
@@ -1209,7 +1204,7 @@ impl TypeChecker {
                 self.get_min_argument_count(&source, None) > target_count
             };
         if source_has_more_parameters {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
 
         if matches!(
@@ -1241,7 +1236,7 @@ impl TypeChecker {
         }
         if source_rest_type.is_some() && target_rest_type.is_some() && source_count != target_count
         {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
 
         let kind = target.declaration.as_ref().map_or_else(
@@ -1288,7 +1283,7 @@ impl TypeChecker {
                             None,
                         );
                     }
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
                 result &= related;
             }
@@ -1357,7 +1352,7 @@ impl TypeChecker {
                             incompatible_error_reporter.clone(),
                             compare_types.clone(),
                             report_unreliable_markers.clone(),
-                        )
+                        )?
                     } else {
                         if !check_mode.intersects(SignatureCheckMode::Callback) && !strict_variance
                         {
@@ -1410,7 +1405,7 @@ impl TypeChecker {
                                 ]),
                             );
                         }
-                        return Ternary::False;
+                        return Ok(Ternary::False);
                     }
                     result &= related;
                 }
@@ -1434,7 +1429,7 @@ impl TypeChecker {
                 self.get_return_type_of_signature(target.clone())
             };
             if Gc::ptr_eq(&target_return_type, &self.void_type()) {
-                return result;
+                return Ok(result);
             }
             let source_return_type = if self.is_resolving_return_type_of_signature(source.clone()) {
                 self.any_type()
@@ -1475,10 +1470,10 @@ impl TypeChecker {
                                 None,
                                 None,
                                 None,
-                            )]),
+                            )?]),
                         );
                     }
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
             } else {
                 result &= if check_mode.intersects(SignatureCheckMode::BivariantCallback) {
@@ -1507,11 +1502,11 @@ impl TypeChecker {
             }
         }
 
-        result
+        Ok(result)
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct ElaborationIteratorItem {
     pub error_node: Gc<Node>,
     pub inner_expression: Option<Gc<Node /*Expression*/>>,
@@ -1523,7 +1518,7 @@ pub(super) type ErrorReporter<'a> =
     &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>);
 
 pub(super) trait CheckTypeContainingMessageChain: Trace + Finalize {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>>;
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>>;
 }
 
 pub(super) trait CheckTypeErrorOutputContainer: Trace + Finalize {

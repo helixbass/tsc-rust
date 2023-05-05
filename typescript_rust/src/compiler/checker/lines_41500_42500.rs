@@ -1,8 +1,8 @@
 use gc::Gc;
 use itertools::Either;
 use std::collections::HashMap;
-use std::ptr;
 use std::{borrow::Borrow, iter};
+use std::{io, ptr};
 
 use super::EmitResolverCreateResolver;
 use crate::{
@@ -419,13 +419,15 @@ impl TypeChecker {
         mut flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         let declaration = get_parse_tree_node(
             Some(declaration_in),
             Some(|node: &Node| is_variable_like_or_accessor(node)),
         );
         if declaration.is_none() {
-            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
+            return Ok(Some(
+                get_factory().create_token(SyntaxKind::AnyKeyword).wrap(),
+            ));
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration);
@@ -460,13 +462,15 @@ impl TypeChecker {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         let signature_declaration = get_parse_tree_node(
             Some(signature_declaration_in),
             Some(|node: &Node| is_function_like(Some(node))),
         );
         if signature_declaration.is_none() {
-            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
+            return Ok(Some(
+                get_factory().create_token(SyntaxKind::AnyKeyword).wrap(),
+            ));
         }
         let signature_declaration = signature_declaration.as_ref().unwrap();
         let signature = self.get_signature_from_declaration_(signature_declaration);
@@ -484,10 +488,12 @@ impl TypeChecker {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
-            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
+            return Ok(Some(
+                get_factory().create_token(SyntaxKind::AnyKeyword).wrap(),
+            ));
         }
         let expr = expr.as_ref().unwrap();
         let ref type_ = self.get_widened_type(&self.get_regular_type_of_expression(expr));
@@ -582,7 +588,7 @@ impl TypeChecker {
         type_: &Type, /*FreshableType*/
         enclosing: &Node,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let enum_result = if type_.flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
                 &type_.symbol(),
@@ -590,7 +596,7 @@ impl TypeChecker {
                 Some(enclosing),
                 None,
                 Some(tracker),
-            )
+            )?
         } else if ptr::eq(type_, &*self.true_type()) {
             Some(get_factory().create_true().wrap())
         } else if ptr::eq(type_, &*self.false_type()) {
@@ -599,9 +605,9 @@ impl TypeChecker {
             None
         };
         if let Some(enum_result) = enum_result {
-            return enum_result;
+            return Ok(enum_result);
         }
-        match type_ {
+        Ok(match type_ {
             Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => get_factory()
                 .create_big_int_literal(type_.value.clone())
                 .wrap(),
@@ -612,7 +618,7 @@ impl TypeChecker {
                 .create_string_literal(type_.value.clone(), None, None)
                 .wrap(),
             _ => unreachable!(),
-        }
+        })
     }
 
     pub(super) fn create_literal_const_value(

@@ -1,8 +1,8 @@
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{get_node_id, UnusedKind};
 use crate::{
@@ -322,13 +322,11 @@ impl TypeChecker {
         is_identifier(node) && id_text(node).chars().next() == Some(CharacterCodes::underscore)
     }
 
-    pub(super) fn check_unused_class_members<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
-    >(
+    pub(super) fn check_unused_class_members(
         &self,
         node: &Node, /*ClassDeclaration | ClassExpression*/
-        add_diagnostic: &mut TAddDiagnostic,
-    ) {
+        add_diagnostic: &mut impl FnMut(&Node, UnusedKind, Gc<Diagnostic>),
+    ) -> io::Result<()> {
         for member in &node.as_class_like_declaration().members() {
             match member.kind() {
                 SyntaxKind::MethodDeclaration
@@ -360,7 +358,7 @@ impl TypeChecker {
                                             None,
                                             None,
                                             None,
-                                        )]),
+                                        )?]),
                                     )
                                     .into(),
                                 ),
@@ -399,6 +397,8 @@ impl TypeChecker {
                 _ => Debug_.fail(Some("Unexpected class member")),
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_unused_infer_type_parameter<

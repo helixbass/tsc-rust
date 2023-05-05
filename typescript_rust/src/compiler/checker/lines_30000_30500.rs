@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
+use std::{convert::TryInto, io};
 
 use super::{signature_has_literal_types, signature_has_rest_parameter, CheckMode};
 use crate::{
@@ -407,7 +407,7 @@ impl TypeChecker {
                         Option::<&Node>::None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
             } else {
                 let mut related_information: Option<Gc<DiagnosticRelatedInformation>> = None;
@@ -466,7 +466,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                     None,
                     None,
-                )]),
+                )?]),
             );
             return self.resolve_error_call(node);
         }
@@ -741,7 +741,7 @@ impl TypeChecker {
                             &declaring_class,
                             Option::<&Node>::None,
                             None, None,
-                        )
+                        )?
                     ])
                 );
             }
@@ -754,7 +754,7 @@ impl TypeChecker {
                             &declaring_class,
                             Option::<&Node>::None,
                             None, None,
-                        )
+                        )?
                     ])
                 );
             }
@@ -769,7 +769,7 @@ impl TypeChecker {
         error_target: &Node,
         apparent_type: &Type,
         kind: SignatureKind,
-    ) -> InvocationErrorDetails {
+    ) -> io::Result<InvocationErrorDetails> {
         let mut error_info: Option<DiagnosticMessageChain> = None;
         let is_call = kind == SignatureKind::Call;
         let awaited_type = self.get_awaited_type_(apparent_type, Option::<&Node>::None, None, None);
@@ -801,7 +801,7 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            )]),
+                            )?]),
                         ));
                         error_info = Some(chain_diagnostic_messages(
                             error_info,
@@ -815,7 +815,7 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            )]),
+                            )?]),
                         ));
                     }
                     if has_signatures {
@@ -836,7 +836,7 @@ impl TypeChecker {
                         Option::<&Node>::None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 ));
             }
             if error_info.is_none() {
@@ -852,7 +852,7 @@ impl TypeChecker {
                         Option::<&Node>::None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 ));
             }
         } else {
@@ -868,7 +868,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                     None,
                     None,
-                )]),
+                )?]),
             ));
         }
 
@@ -897,14 +897,14 @@ impl TypeChecker {
             }
         }
 
-        InvocationErrorDetails {
+        Ok(InvocationErrorDetails {
             message_chain: chain_diagnostic_messages(error_info, head_message, None),
             related_message: if maybe_missing_await {
                 Some(&Diagnostics::Did_you_forget_to_use_await)
             } else {
                 None
             },
-        }
+        })
     }
 }
 

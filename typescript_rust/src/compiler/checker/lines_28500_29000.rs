@@ -3,7 +3,7 @@ use itertools::Either;
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
-use std::ptr;
+use std::{io, ptr};
 
 use super::{signature_has_literal_types, CheckMode, ResolveNameNameArg};
 use crate::{
@@ -561,9 +561,9 @@ impl TypeChecker {
         is_write: bool,
         containing_type: &Type,
         property: &Symbol,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if self.is_type_any(Some(containing_type)) {
-            return true;
+            return Ok(true);
         }
 
         if let Some(property_value_declaration) = property
@@ -574,7 +574,7 @@ impl TypeChecker {
             })
         {
             let decl_class = get_containing_class(property_value_declaration);
-            return !is_optional_chain(node)
+            return Ok(!is_optional_chain(node)
                 && find_ancestor(Some(node), |parent: &Node| {
                     matches!(
                         decl_class.as_ref(),
@@ -584,7 +584,7 @@ impl TypeChecker {
                         )
                     )
                 })
-                .is_some();
+                .is_some());
         }
 
         self.check_property_accessibility_at_location(

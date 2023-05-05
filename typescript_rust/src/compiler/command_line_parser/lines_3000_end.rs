@@ -1,9 +1,9 @@
 use fancy_regex::Regex;
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{
     compile_on_save_command_line_option, compiler_options_did_you_mean_diagnostics,
@@ -43,7 +43,7 @@ pub(crate) fn get_extended_config(
     resolution_stack: &[&str],
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
-) -> Option<Rc<ParsedTsconfig>> {
+) -> io::Result<Option<Rc<ParsedTsconfig>>> {
     let path = if host.use_case_sensitive_file_names() {
         extended_config_path.to_owned()
     } else {
@@ -79,7 +79,7 @@ pub(crate) fn get_extended_config(
                 resolution_stack,
                 errors.clone(),
                 extended_config_cache,
-            )));
+            )?));
         }
         if let Some(extended_config_cache) = extended_config_cache {
             extended_config_cache.insert(
@@ -117,9 +117,9 @@ pub(crate) fn get_extended_config(
                 .borrow()
                 .clone(),
         );
-        return None;
+        return Ok(None);
     }
-    extended_config
+    Ok(extended_config)
 }
 
 pub(super) fn convert_compile_on_save_option_from_json(
@@ -659,7 +659,7 @@ pub(crate) fn get_file_names_from_config_specs(
     options: &CompilerOptions,
     host: &(impl ParseConfigHost + ?Sized),
     extra_file_extensions: Option<&[FileExtensionInfo]>,
-) -> Vec<String> {
+) -> io::Result<Vec<String>> {
     let base_path = normalize_path(base_path);
 
     let key_mapper = create_get_canonical_file_name(host.use_case_sensitive_file_names());
@@ -699,7 +699,7 @@ pub(crate) fn get_file_names_from_config_specs(
                 validated_exclude_specs,
                 validated_include_specs,
                 None,
-            ) {
+            )? {
                 if file_extension_is(&file, Extension::Json.to_str()) {
                     if json_only_include_regexes.is_none() {
                         let includes = validated_include_specs
@@ -774,7 +774,7 @@ pub(crate) fn get_file_names_from_config_specs(
 
     literal_files.append(&mut wildcard_files);
     literal_files.append(&mut wild_card_json_file_map.into_values().collect::<Vec<_>>());
-    literal_files
+    Ok(literal_files)
 }
 
 #[allow(dead_code)]

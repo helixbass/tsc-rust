@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    mem, ptr, rc::Rc,
+    mem, ptr, rc::Rc, io,
 };
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -35,7 +35,7 @@ use crate::{
     SymbolAccessibility, SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags,
     SymbolInterface, SymbolTracker, SyntaxKind, TextRange, TransformationContext,
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, VisitResult,
+    TransformerInterface, VisitResult, try_maybe_for_each,
 };
 
 pub fn get_declaration_diagnostics(
@@ -923,7 +923,7 @@ impl TransformDeclarations {
         node: &'arg Node,
         references: &'arg mut Vec<FileReference>,
         output_file_path: &'arg str,
-    ) -> impl FnMut(&Node /*SourceFile*/) + 'arg {
+    ) -> impl FnMut(&Node /*SourceFile*/) -> io::Result<()> + 'arg {
         |file: &Node| {
             let file_as_source_file = file.as_source_file();
             let decl_file_name: String;
@@ -939,7 +939,7 @@ impl TransformDeclarations {
                         },
                     )
                 {
-                    return;
+                    return Ok(());
                 }
                 let paths = get_output_paths_for(file, &**self.host, true);
                 decl_file_name = paths
@@ -965,10 +965,10 @@ impl TransformDeclarations {
                         |file_name| self.host.get_canonical_file_name(file_name),
                     ),
                     &**self.host,
-                );
+                )?;
                 if !path_is_relative(&specifier) {
                     self.record_type_reference_directives_if_necessary(Some(&[specifier]));
-                    return;
+                    return Ok(());
                 }
 
                 let mut file_name = get_relative_path_to_directory_or_url(
@@ -985,11 +985,13 @@ impl TransformDeclarations {
                 if starts_with(&file_name, "node_modules/")
                     || path_contains_node_modules(&file_name)
                 {
-                    return;
+                    return Ok(());
                 }
 
                 references.push(FileReference::new(-1, -1, file_name));
             }
+
+            Ok(())
         }
     }
 
@@ -997,28 +999,30 @@ impl TransformDeclarations {
         &self,
         source_file: &Node, /*SourceFile | UnparsedSource*/
         ret: &mut HashMap<NodeId, Gc<Node /*SourceFile*/>>,
-    ) {
+    ) -> io::Result<()> {
         if self.no_resolve == Some(true)
             || !is_unparsed_source(source_file) && is_source_file_js(source_file)
         {
-            return /*ret*/;
+            return Ok(())/*ret*/;
         }
-        maybe_for_each(
+        try_maybe_for_each(
             source_file
                 .as_source_file()
                 .maybe_referenced_files()
                 .as_ref()
                 .map(|source_file_referenced_files| (**source_file_referenced_files).borrow())
                 .as_deref(),
-            |f: &FileReference, _| -> Option<()> {
-                let elem = self.host.get_source_file_from_reference(source_file, f);
+            |f: &FileReference, _| -> io::Result<Option<()>> {
+                let elem = self.host.get_source_file_from_reference(source_file, f)?;
                 if let Some(elem) = elem {
                     ret.insert(get_original_node_id(&elem), elem);
                 }
-                None
+                Ok(None)
             },
-        );
+        )?;
         // return ret;
+
+        Ok(())
     }
 
     pub(super) fn collect_libs(
@@ -1272,12 +1276,12 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
         symbol: &Symbol,
         enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
-    ) -> Option<bool> {
+    ) -> Option<io::Result<bool>> {
         if self.is_track_symbol_disabled.get() {
-            return Some(false);
+            return Some(Ok(false));
         }
         if symbol.flags().intersects(SymbolFlags::TypeParameter) {
-            return Some(false);
+            return Some(Ok(false));
         }
         let issued_diagnostic = self
             .transform_declarations
@@ -1298,7 +1302,7 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
                     .get_type_reference_directives_for_symbol(symbol, Some(meaning))
                     .as_deref(),
             );
-        Some(issued_diagnostic)
+        Some(Ok(issued_diagnostic))
     }
 
     fn is_track_symbol_supported(&self) -> bool {

@@ -1408,7 +1408,7 @@ pub trait ParseConfigHost {
         excludes: Option<&[String]>,
         includes: &[String],
         depth: Option<usize>,
-    ) -> Vec<String>;
+    ) -> io::Result<Vec<String>>;
 
     fn file_exists(&self, path: &str) -> bool;
 
@@ -1426,7 +1426,7 @@ pub trait WriteFileCallback: Trace + Finalize {
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
-    );
+    ) -> io::Result<()>;
 }
 
 pub trait CancellationToken: Trace + Finalize {

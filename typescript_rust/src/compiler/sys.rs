@@ -80,7 +80,7 @@ pub trait System: ConvertToTSConfigHost + Trace + Finalize {
         recursive: Option<bool>,
         options: Option<&WatchOptions>,
     ) -> Rc<dyn FileWatcher>;
-    fn resolve_path(&self, path: &str) -> String;
+    fn resolve_path(&self, path: &str) -> io::Result<String>;
     fn file_exists(&self, path: &str) -> bool;
     fn directory_exists(&self, path: &str) -> bool;
     fn create_directory(&self, path: &str);
@@ -93,7 +93,7 @@ pub trait System: ConvertToTSConfigHost + Trace + Finalize {
         excludes: Option<&[String]>,
         includes: Option<&[String]>,
         depth: Option<usize>,
-    ) -> Vec<String>;
+    ) -> io::Result<Vec<String>>;
     fn is_get_modified_time_supported(&self) -> bool;
     fn get_modified_time(&self, _path: &str) -> Option<SystemTime> {
         panic!("Shouldn't call get_modified_time() unless supported")
@@ -117,7 +117,11 @@ pub trait System: ConvertToTSConfigHost + Trace + Finalize {
         None
     }
     fn exit(&self, exit_code: Option<ExitStatus>) -> !;
-    fn enable_cpu_profiler(&self, _path: &str, continuation: &mut dyn FnMut()) {
+    fn enable_cpu_profiler(
+        &self,
+        _path: &str,
+        continuation: &mut dyn FnMut() -> io::Result<()>,
+    ) -> io::Result<()> {
         continuation()
     }
     fn disable_cpu_profiler(&self /*, continuation: &dyn FnMut()*/) {}
@@ -262,12 +266,12 @@ impl ConvertToTSConfigHost for SystemConcrete {
         false
     }
 
-    fn get_current_directory(&self) -> String {
-        env::current_dir()
+    fn get_current_directory(&self) -> io::Result<String> {
+        Ok(env::current_dir()
             .unwrap()
             .into_os_string()
             .into_string()
-            .unwrap()
+            .unwrap())
     }
 }
 
@@ -300,13 +304,13 @@ impl System for SystemConcrete {
         false
     }
 
-    fn resolve_path(&self, path: &str) -> String {
-        Path::new(path)
+    fn resolve_path(&self, path: &str) -> io::Result<String> {
+        Ok(Path::new(path)
             .canonicalize()
             .unwrap()
             .into_os_string()
             .into_string()
-            .unwrap()
+            .unwrap())
     }
 
     fn get_executing_file_path(&self) -> Cow<'static, str> {
@@ -320,8 +324,8 @@ impl System for SystemConcrete {
         excludes: Option<&[String]>,
         includes: Option<&[String]>,
         depth: Option<usize>,
-    ) -> Vec<String> {
-        match_files(
+    ) -> io::Result<Vec<String>> {
+        Ok(match_files(
             path,
             extensions,
             excludes,
@@ -331,7 +335,7 @@ impl System for SystemConcrete {
             depth,
             |path| self.get_accessible_file_system_entries(path),
             |path| self.realpath(path).unwrap(),
-        )
+        ))
     }
 
     fn is_get_modified_time_supported(&self) -> bool {

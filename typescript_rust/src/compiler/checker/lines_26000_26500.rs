@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::{IterationUse, JsxNames};
 use crate::{
@@ -14,9 +14,9 @@ use crate::{
     is_property_declaration, is_property_signature, is_this_initialized_declaration, map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_,
     InferenceContext, InferenceInfo, JsxReferenceKind, Node, NodeFlags, NodeInterface, Number,
-    Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -382,12 +382,12 @@ impl TypeChecker {
         &self,
         array_contextual_type: Option<TArrayContextualType>,
         index: usize,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let array_contextual_type = array_contextual_type?;
         let array_contextual_type = array_contextual_type.borrow();
         self.get_type_of_property_of_contextual_type(array_contextual_type, &index.to_string())
-            .or_else(|| {
-                self.map_type(
+            .try_or_else(|| {
+                self.try_map_type(
                     array_contextual_type,
                     &mut |t: &Type| {
                         self.get_iterated_type_or_element_type(

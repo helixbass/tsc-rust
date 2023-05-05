@@ -20,7 +20,7 @@ use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
 
 pub trait IO: vfs::FileSystemResolverHost {
     fn new_line(&self) -> &'static str;
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> io::Result<String>;
     fn read_file(&self, path: &StdPath) -> Option<String>;
     fn write_file(&self, path: &StdPath, contents: &str);
     fn directory_name(&self, path: &StdPath) -> Option<String>;
@@ -128,7 +128,7 @@ impl IO for NodeIO {
         path_join(components).to_str().unwrap().to_owned()
     }
 
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> io::Result<String> {
         get_sys().get_current_directory()
     }
 
@@ -261,9 +261,9 @@ pub fn set_light_mode(flag: bool) {
 pub mod Compiler {
     use gc::{Finalize, Gc, GcCell, Trace};
     use regex::Regex;
-    use std::cmp;
     use std::collections::HashMap;
     use std::convert::TryInto;
+    use std::{cmp, io};
 
     use typescript_rust::{
         compare_diagnostics, compare_paths, compute_line_starts, count_where,
@@ -639,7 +639,7 @@ pub mod Compiler {
     pub fn minimal_diagnostics_to_string(
         diagnostics: &[Gc<Diagnostic>],
         pretty: Option<bool>,
-    ) -> String {
+    ) -> io::Result<String> {
         let host = MinimalDiagnosticsToStringFormatDiagnosticsHost;
         if pretty == Some(true) {
             format_diagnostics_with_color_and_context(diagnostics, &host)
@@ -651,8 +651,8 @@ pub mod Compiler {
     struct MinimalDiagnosticsToStringFormatDiagnosticsHost;
 
     impl FormatDiagnosticsHost for MinimalDiagnosticsToStringFormatDiagnosticsHost {
-        fn get_current_directory(&self) -> String {
-            "".to_owned()
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok("".to_owned())
         }
 
         fn get_new_line(&self) -> &str {
@@ -938,10 +938,11 @@ pub mod Compiler {
     impl<'iterate_error_baseline> FormatDiagnosticsHost
         for FormatDiagnsoticHost<'iterate_error_baseline>
     {
-        fn get_current_directory(&self) -> String {
-            self.options
+        fn get_current_directory(&self) -> io::Result<String> {
+            Ok(self
+                .options
                 .and_then(|options| options.current_directory.clone())
-                .unwrap_or_else(|| "".to_owned())
+                .unwrap_or_else(|| "".to_owned()))
         }
 
         fn get_new_line(&self) -> &str {
@@ -960,7 +961,7 @@ pub mod Compiler {
         errors_reported: &mut usize,
         total_errors_reported_in_non_library_files: &mut usize,
         error: &Diagnostic,
-    ) {
+    ) -> io::Error<()> {
         let message = flatten_diagnostic_message_text(
             Some(error.message_text()),
             with_io(|IO| IO.new_line()),
@@ -999,7 +1000,7 @@ pub mod Compiler {
                                 info.start(),
                                 format_diagnsotic_host,
                                 Some(|a: &str, _b: &str| a.to_owned()),
-                            )
+                            )?
                         )
                     } else {
                         "".to_owned()
@@ -1023,6 +1024,8 @@ pub mod Compiler {
         } {
             *total_errors_reported_in_non_library_files += 1;
         }
+
+        Ok(())
     }
 
     #[derive(Default)]

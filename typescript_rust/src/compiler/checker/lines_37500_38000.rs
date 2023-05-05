@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{
     get_iteration_types_key_from_iteration_type_kind, IterationTypeKind, IterationUse, TypeFacts,
@@ -304,7 +304,7 @@ impl TypeChecker {
         error_node: &Node,
         type_: &Type,
         allow_async_iterables: bool,
-    ) {
+    ) -> io::Result<()> {
         let message = if allow_async_iterables {
             &*Diagnostics::Type_0_must_have_a_Symbol_asyncIterator_method_that_returns_an_async_iterator
         } else {
@@ -320,8 +320,10 @@ impl TypeChecker {
                 Option::<&Node>::None,
                 None,
                 None,
-            )]),
+            )?]),
         );
+
+        Ok(())
     }
 
     pub(super) fn get_iteration_types_of_iterator<TErrorNode: Borrow<Node>>(

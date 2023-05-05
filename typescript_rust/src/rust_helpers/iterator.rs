@@ -5,11 +5,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub trait Empty {
+pub trait IteratorExt {
     fn empty(self) -> bool;
 }
 
-impl<TIterator> Empty for TIterator
+impl<TIterator> IteratorExt for TIterator
 where
     TIterator: Iterator,
 {

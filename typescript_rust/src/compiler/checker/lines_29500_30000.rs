@@ -1,9 +1,9 @@
 use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
-use std::cmp;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::{cmp, io};
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
 use crate::{
@@ -684,7 +684,7 @@ impl TypeChecker {
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
         fallback_error: Option<&'static DiagnosticMessage>,
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         let is_tagged_template = node.kind() == SyntaxKind::TaggedTemplateExpression;
         let is_decorator = node.kind() == SyntaxKind::Decorator;
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(node);
@@ -721,7 +721,7 @@ impl TypeChecker {
                     None,
                 ));
             }
-            return self.resolve_error_call(node);
+            return Ok(self.resolve_error_call(node));
         }
 
         let args = self.get_effective_call_arguments(node);
@@ -761,7 +761,7 @@ impl TypeChecker {
                 self.subtype_relation.clone(),
                 is_single_non_generic_candidate,
                 Some(signature_help_trailing_comma),
-            );
+            )?;
         }
         if result.is_none() {
             result = self.choose_overload(
@@ -776,10 +776,10 @@ impl TypeChecker {
                 self.assignable_relation.clone(),
                 is_single_non_generic_candidate,
                 Some(signature_help_trailing_comma),
-            );
+            )?;
         }
         if let Some(result) = result {
-            return result;
+            return Ok(result);
         }
 
         if report_errors {
@@ -815,7 +815,7 @@ impl TypeChecker {
                         Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
                             chain.map(|chain| Rc::new(RefCell::new(chain))),
                         )))),
-                    );
+                    )?;
                     if let Some(diags) = diags.as_ref() {
                         for d in diags {
                             if let Some(last_declaration) = last.declaration.as_ref() {
@@ -872,7 +872,7 @@ impl TypeChecker {
                             CheckMode::Normal,
                             true,
                             Some(Gc::new(Box::new(chain))),
-                        );
+                        )?;
                         if let Some(diags) = diags {
                             if diags.len() <= min {
                                 min = diags.len();
@@ -1011,12 +1011,12 @@ impl TypeChecker {
             }
         }
 
-        self.get_candidate_for_overload_failure(
+        Ok(self.get_candidate_for_overload_failure(
             node,
             candidates,
             &args,
             candidates_out_array_is_some,
-        )
+        ))
     }
 
     pub(super) fn add_implementation_success_elaboration(
@@ -1030,7 +1030,7 @@ impl TypeChecker {
         arg_check_mode: &mut CheckMode,
         failed: &Signature,
         diagnostic: &Diagnostic,
-    ) {
+    ) -> io::Result<()> {
         let old_candidates_for_argument_error = candidates_for_argument_error.clone();
         let old_candidate_for_argument_arity_error = candidate_for_argument_arity_error.clone();
         let old_candidate_for_type_argument_error = candidate_for_type_argument_error.clone();
@@ -1069,7 +1069,7 @@ impl TypeChecker {
                     self.assignable_relation.clone(),
                     is_single_non_generic_candidate,
                     None,
-                )
+                )?
                 .is_some()
             {
                 add_related_info(
@@ -1090,6 +1090,8 @@ impl TypeChecker {
         *candidates_for_argument_error = old_candidates_for_argument_error;
         *candidate_for_argument_arity_error = old_candidate_for_argument_arity_error;
         *candidate_for_type_argument_error = old_candidate_for_type_argument_error;
+
+        Ok(())
     }
 
     pub(super) fn choose_overload(
@@ -1105,7 +1107,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         is_single_non_generic_candidate: bool,
         signature_help_trailing_comma: Option<bool>,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
         *candidates_for_argument_error = None;
         *candidate_for_argument_arity_error = None;
@@ -1122,7 +1124,7 @@ impl TypeChecker {
                 candidate,
                 Some(signature_help_trailing_comma),
             ) {
-                return None;
+                return Ok(None);
             }
             if self
                 .get_signature_applicability_error(
@@ -1133,13 +1135,13 @@ impl TypeChecker {
                     CheckMode::Normal,
                     false,
                     None,
-                )
+                )?
                 .is_some()
             {
                 *candidates_for_argument_error = Some(vec![candidate.clone()]);
-                return None;
+                return Ok(None);
             }
-            return Some(candidate.clone());
+            return Ok(Some(candidate.clone()));
         }
 
         for candidate_index in 0..candidates.len() {
@@ -1187,7 +1189,7 @@ impl TypeChecker {
                         args,
                         *arg_check_mode | CheckMode::SkipGenericFunctions,
                         inference_context.clone().unwrap(),
-                    ));
+                    )?);
                     *arg_check_mode |= if inference_context
                         .as_ref()
                         .unwrap()
@@ -1233,7 +1235,7 @@ impl TypeChecker {
                     *arg_check_mode,
                     false,
                     None,
-                )
+                )?
                 .is_some()
             {
                 if candidates_for_argument_error.is_none() {
@@ -1254,7 +1256,7 @@ impl TypeChecker {
                         args,
                         *arg_check_mode,
                         inference_context.clone(),
-                    );
+                    )?;
                     check_candidate = self.get_signature_instantiation(
                         candidate.clone(),
                         Some(&type_argument_types),
@@ -1285,7 +1287,7 @@ impl TypeChecker {
                         *arg_check_mode,
                         false,
                         None,
-                    )
+                    )?
                     .is_some()
                 {
                     if candidates_for_argument_error.is_none() {
@@ -1299,10 +1301,10 @@ impl TypeChecker {
                 }
             }
             candidates[candidate_index] = check_candidate.clone();
-            return Some(check_candidate);
+            return Ok(Some(check_candidate));
         }
 
-        None
+        Ok(None)
     }
 }
 
@@ -1325,8 +1327,8 @@ impl ResolveCallContainingMessageChain {
 }
 
 impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        self.chain.clone()
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
+        Ok(self.chain.clone())
     }
 }
 
@@ -1356,8 +1358,8 @@ impl ResolveCallOverloadContainingMessageChain {
 }
 
 impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
+        Ok(Some(Rc::new(RefCell::new(chain_diagnostic_messages(
             None,
             &Diagnostics::Overload_0_of_1_2_gave_the_following_error,
             Some(vec![
@@ -1369,8 +1371,8 @@ impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageCha
                     None,
                     None,
                     None,
-                ),
+                )?,
             ]),
-        ))))
+        )))))
     }
 }

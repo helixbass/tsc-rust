@@ -18,7 +18,7 @@ pub trait DirectoryStructureHost: Trace + Finalize {
         _exclude: Option<&[String]>,
         _include: Option<&[String]>,
         _depth: Option<usize>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<io::Result<Vec<String>>> {
         None
     }
     fn is_read_directory_implemented(&self) -> bool;
@@ -27,5 +27,12 @@ pub trait DirectoryStructureHost: Trace + Finalize {
     }
 
     fn create_directory(&self, _path: &str) {}
-    fn write_file(&self, _path: &str, _data: &str, _write_byte_order_mark: Option<bool>) {}
+    fn write_file(
+        &self,
+        _path: &str,
+        _data: &str,
+        _write_byte_order_mark: Option<bool>,
+    ) -> io::Result<()> {
+        Ok(())
+    }
 }

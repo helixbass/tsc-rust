@@ -860,7 +860,7 @@ pub trait SymbolTracker: Trace + Finalize {
         _symbol: &Symbol,
         _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
-    ) -> Option<bool> {
+    ) -> Option<io::Result<bool>> {
         None
     }
     fn is_track_symbol_supported(&self) -> bool;

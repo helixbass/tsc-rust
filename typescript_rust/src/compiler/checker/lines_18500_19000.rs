@@ -1,8 +1,8 @@
 use gc::{Finalize, Gc, Trace};
 use regex::{Captures, Regex};
-use std::cell::Cell;
 use std::ptr;
 use std::rc::Rc;
+use std::{cell::Cell, io};
 
 use super::{
     CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
@@ -602,37 +602,39 @@ impl CheckTypeRelatedTo {
         target: &Type,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         if intersection_state.intersects(IntersectionState::PropertyCheck) {
-            return self.properties_related_to(
+            return Ok(self.properties_related_to(
                 source,
                 target,
                 report_errors,
                 None,
                 IntersectionState::None,
-            );
+            ));
         }
         let mut source = source.type_wrapper();
         if intersection_state.intersects(IntersectionState::UnionIntersectionCheck) {
             if source.flags().intersects(TypeFlags::Union) {
-                return if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation) {
-                    self.some_type_related_to_type(
-                        &source,
-                        target,
-                        report_errors && !source.flags().intersects(TypeFlags::Primitive),
-                        intersection_state & !IntersectionState::UnionIntersectionCheck,
-                    )
-                } else {
-                    self.each_type_related_to_type(
-                        &source,
-                        target,
-                        report_errors && !source.flags().intersects(TypeFlags::Primitive),
-                        intersection_state & !IntersectionState::UnionIntersectionCheck,
-                    )
-                };
+                return Ok(
+                    if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation) {
+                        self.some_type_related_to_type(
+                            &source,
+                            target,
+                            report_errors && !source.flags().intersects(TypeFlags::Primitive),
+                            intersection_state & !IntersectionState::UnionIntersectionCheck,
+                        )
+                    } else {
+                        self.each_type_related_to_type(
+                            &source,
+                            target,
+                            report_errors && !source.flags().intersects(TypeFlags::Primitive),
+                            intersection_state & !IntersectionState::UnionIntersectionCheck,
+                        )
+                    },
+                );
             }
             if target.flags().intersects(TypeFlags::Union) {
-                return self.type_related_to_some_type(
+                return Ok(self.type_related_to_some_type(
                     &self
                         .type_checker
                         .get_regular_type_of_object_literal(&source),
@@ -640,17 +642,17 @@ impl CheckTypeRelatedTo {
                     report_errors
                         && !source.flags().intersects(TypeFlags::Primitive)
                         && !target.flags().intersects(TypeFlags::Primitive),
-                );
+                ));
             }
             if target.flags().intersects(TypeFlags::Intersection) {
-                return self.type_related_to_each_type(
+                return Ok(self.type_related_to_each_type(
                     &self
                         .type_checker
                         .get_regular_type_of_object_literal(&source),
                     target,
                     report_errors,
                     IntersectionState::Target,
-                );
+                ));
             }
             if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
                 && target.flags().intersects(TypeFlags::Primitive)
@@ -669,37 +671,37 @@ impl CheckTypeRelatedTo {
                         None,
                     );
                     if !source.flags().intersects(TypeFlags::Intersection) {
-                        return self.is_related_to(
+                        return Ok(self.is_related_to(
                             &source,
                             target,
                             Some(RecursionFlags::Source),
                             Some(false),
                             None,
                             None,
-                        );
+                        ));
                     }
                 }
             }
-            return self.some_type_related_to_type(
+            return Ok(self.some_type_related_to_type(
                 &source,
                 target,
                 false,
                 IntersectionState::Source,
-            );
+            ));
         }
         let flags = source.flags() & target.flags();
         if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation)
             && !flags.intersects(TypeFlags::Object)
         {
             if flags.intersects(TypeFlags::Index) {
-                return self.is_related_to(
+                return Ok(self.is_related_to(
                     &source.as_index_type().type_,
                     &target.as_index_type().type_,
                     Some(RecursionFlags::Both),
                     Some(false),
                     None,
                     None,
-                );
+                ));
             }
             let mut result;
             if flags.intersects(TypeFlags::IndexedAccess) {
@@ -721,7 +723,7 @@ impl CheckTypeRelatedTo {
                         None,
                     );
                     if result != Ternary::False {
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
@@ -777,7 +779,7 @@ impl CheckTypeRelatedTo {
                                     None,
                                 );
                                 if result != Ternary::False {
-                                    return result;
+                                    return Ok(result);
                                 }
                             }
                         }
@@ -785,16 +787,16 @@ impl CheckTypeRelatedTo {
                 }
             }
             if flags.intersects(TypeFlags::Substitution) {
-                return self.is_related_to(
+                return Ok(self.is_related_to(
                     &source.as_substitution_type().substitute,
                     &target.as_substitution_type().substitute,
                     Some(RecursionFlags::Both),
                     Some(false),
                     None,
                     None,
-                );
+                ));
             }
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
 
         // The Typescript version doesn't initialize result but otherwise we'd run into type-checking issues
@@ -828,7 +830,7 @@ impl CheckTypeRelatedTo {
                             let variances =
                                 self.type_checker.get_alias_variances(&source_alias_symbol);
                             if variances.is_empty() {
-                                return Ternary::Unknown;
+                                return Ok(Ternary::Unknown);
                             }
                             let variance_result = self.relate_variances(
                                 &mut result,
@@ -842,7 +844,7 @@ impl CheckTypeRelatedTo {
                                 intersection_state,
                             );
                             if let Some(variance_result) = variance_result {
-                                return variance_result;
+                                return Ok(variance_result);
                             }
                         }
                     }
@@ -864,7 +866,7 @@ impl CheckTypeRelatedTo {
                 None,
             );
             if result != Ternary::False {
-                return result;
+                return Ok(result);
             }
         }
         if self
@@ -887,7 +889,7 @@ impl CheckTypeRelatedTo {
                 None,
             );
             if result != Ternary::False {
-                return result;
+                return Ok(result);
             }
         }
 
@@ -937,7 +939,7 @@ impl CheckTypeRelatedTo {
                         None,
                     );
                     if result != Ternary::False {
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
@@ -953,7 +955,7 @@ impl CheckTypeRelatedTo {
                     None,
                 );
                 if result != Ternary::False {
-                    return result;
+                    return Ok(result);
                 }
             }
             if self.type_checker.is_tuple_type(target_type) {
@@ -966,7 +968,7 @@ impl CheckTypeRelatedTo {
                     None,
                 );
                 if result != Ternary::False {
-                    return result;
+                    return Ok(result);
                 }
             } else {
                 let constraint = self
@@ -986,7 +988,7 @@ impl CheckTypeRelatedTo {
                         None,
                     ) == Ternary::True
                     {
-                        return Ternary::True;
+                        return Ok(Ternary::True);
                     }
                 } else if self.type_checker.is_generic_mapped_type(target_type) {
                     let name_type = self
@@ -1050,7 +1052,7 @@ impl CheckTypeRelatedTo {
                         None,
                     ) == Ternary::True
                     {
-                        return Ternary::True;
+                        return Ok(Ternary::True);
                     }
                 }
             }
@@ -1076,7 +1078,7 @@ impl CheckTypeRelatedTo {
                 }
                 if result != Ternary::False {
                     self.reset_error_info(save_error_info);
-                    return result;
+                    return Ok(result);
                 }
                 if report_errors {
                     original_error_info = self.maybe_error_info();
@@ -1125,7 +1127,7 @@ impl CheckTypeRelatedTo {
                             None,
                         );
                         if result != Ternary::False {
-                            return result;
+                            return Ok(result);
                         }
                         if report_errors {
                             if let Some(original_error_info) = original_error_info.clone() {
@@ -1172,7 +1174,7 @@ impl CheckTypeRelatedTo {
                             .get_type_parameter_from_mapped_type(target),
                     )
                 {
-                    return Ternary::True;
+                    return Ok(Ternary::True);
                 }
                 if !self.type_checker.is_generic_mapped_type(&source) {
                     let target_keys = if keys_remapped {
@@ -1235,7 +1237,7 @@ impl CheckTypeRelatedTo {
                                 None,
                             );
                             if result != Ternary::False {
-                                return result;
+                                return Ok(result);
                             }
                         } else {
                             let indexing_type = if keys_remapped {
@@ -1268,7 +1270,7 @@ impl CheckTypeRelatedTo {
                                 None,
                             );
                             if result != Ternary::False {
-                                return result;
+                                return Ok(result);
                             }
                         }
                     }
@@ -1284,7 +1286,7 @@ impl CheckTypeRelatedTo {
                 Some(10),
             ) {
                 self.reset_error_info(save_error_info);
-                return Ternary::Maybe;
+                return Ok(Ternary::Maybe);
             }
             let c = target;
             let c_as_conditional_type = c.as_conditional_type();
@@ -1340,21 +1342,23 @@ impl CheckTypeRelatedTo {
                     };
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
         } else if target.flags().intersects(TypeFlags::TemplateLiteral) {
             if source.flags().intersects(TypeFlags::TemplateLiteral) {
                 if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation) {
-                    return if self
-                        .type_checker
-                        .template_literal_types_definitely_unrelated(&source, target)
-                    {
-                        Ternary::False
-                    } else {
-                        Ternary::True
-                    };
+                    return Ok(
+                        if self
+                            .type_checker
+                            .template_literal_types_definitely_unrelated(&source, target)
+                        {
+                            Ternary::False
+                        } else {
+                            Ternary::True
+                        },
+                    );
                 }
                 self.type_checker.instantiate_type(
                     &source,
@@ -1368,7 +1372,7 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .is_type_matched_by_template_literal_type(&source, target)
             {
-                return Ternary::True;
+                return Ok(Ternary::True);
             }
         }
 
@@ -1396,7 +1400,7 @@ impl CheckTypeRelatedTo {
                     );
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
-                        return result;
+                        return Ok(result);
                     }
                 } else if {
                     result = self.is_related_to(
@@ -1410,7 +1414,7 @@ impl CheckTypeRelatedTo {
                     result != Ternary::False
                 } {
                     self.reset_error_info(save_error_info);
-                    return result;
+                    return Ok(result);
                 } else if {
                     result = self.is_related_to(
                         &self.type_checker.get_type_with_this_argument(
@@ -1431,7 +1435,7 @@ impl CheckTypeRelatedTo {
                     result != Ternary::False
                 } {
                     self.reset_error_info(save_error_info);
-                    return result;
+                    return Ok(result);
                 }
             }
         } else if source.flags().intersects(TypeFlags::Index) {
@@ -1445,7 +1449,7 @@ impl CheckTypeRelatedTo {
             );
             if result != Ternary::False {
                 self.reset_error_info(save_error_info);
-                return result;
+                return Ok(result);
             }
         } else if source.flags().intersects(TypeFlags::TemplateLiteral)
             && !target.flags().intersects(TypeFlags::Object)
@@ -1466,7 +1470,7 @@ impl CheckTypeRelatedTo {
                     );
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
@@ -1487,7 +1491,7 @@ impl CheckTypeRelatedTo {
                 );
                 if result != Ternary::False {
                     self.reset_error_info(save_error_info);
-                    return result;
+                    return Ok(result);
                 }
             } else {
                 let constraint = self.type_checker.get_base_constraint_of_type(&source);
@@ -1502,7 +1506,7 @@ impl CheckTypeRelatedTo {
                     );
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
@@ -1514,7 +1518,7 @@ impl CheckTypeRelatedTo {
                 Some(10),
             ) {
                 self.reset_error_info(save_error_info);
-                return Ternary::Maybe;
+                return Ok(Ternary::Maybe);
             }
             if target.flags().intersects(TypeFlags::Conditional) {
                 let source_params = (*source.as_conditional_type().root)
@@ -1595,7 +1599,7 @@ impl CheckTypeRelatedTo {
                     }
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
-                        return result;
+                        return Ok(result);
                     }
                 }
             } else {
@@ -1613,7 +1617,7 @@ impl CheckTypeRelatedTo {
                     );
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
@@ -1632,7 +1636,7 @@ impl CheckTypeRelatedTo {
             );
             if result != Ternary::False {
                 self.reset_error_info(save_error_info);
-                return result;
+                return Ok(result);
             }
             // }
         } else {
@@ -1641,23 +1645,23 @@ impl CheckTypeRelatedTo {
                 && self.type_checker.is_partial_mapped_type(target)
                 && self.type_checker.is_empty_object_type(&source)
             {
-                return Ternary::True;
+                return Ok(Ternary::True);
             }
             if self.type_checker.is_generic_mapped_type(target) {
                 if self.type_checker.is_generic_mapped_type(&source) {
                     result = self.mapped_type_related_to(&source, target, report_errors);
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
-                        return result;
+                        return Ok(result);
                     }
                 }
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             let source_is_primitive = source.flags().intersects(TypeFlags::Primitive);
             if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
                 source = self.type_checker.get_apparent_type(&source);
             } else if self.type_checker.is_generic_mapped_type(&source) {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             if get_object_flags(&source).intersects(ObjectFlags::Reference)
                 && get_object_flags(target).intersects(ObjectFlags::Reference)
@@ -1673,7 +1677,7 @@ impl CheckTypeRelatedTo {
                     .type_checker
                     .get_variances(&source.as_type_reference_interface().target());
                 if variances.is_empty() {
-                    return Ternary::Unknown;
+                    return Ok(Ternary::Unknown);
                 }
                 let variance_result = self.relate_variances(
                     &mut result,
@@ -1687,7 +1691,7 @@ impl CheckTypeRelatedTo {
                     intersection_state,
                 );
                 if let Some(variance_result) = variance_result {
-                    return variance_result;
+                    return Ok(variance_result);
                 }
             } else if if self.type_checker.is_readonly_array_type(target) {
                 self.type_checker.is_array_type(&source) || self.type_checker.is_tuple_type(&source)
@@ -1701,7 +1705,7 @@ impl CheckTypeRelatedTo {
                         .readonly
             } {
                 if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
-                    return self.is_related_to(
+                    return Ok(self.is_related_to(
                         &self
                             .type_checker
                             .get_index_type_of_type_(&source, &self.type_checker.number_type())
@@ -1714,9 +1718,9 @@ impl CheckTypeRelatedTo {
                         Some(report_errors),
                         None,
                         None,
-                    );
+                    ));
                 } else {
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
             } else if (Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation)
                 || Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation))
@@ -1724,7 +1728,7 @@ impl CheckTypeRelatedTo {
                 && get_object_flags(target).intersects(ObjectFlags::FreshLiteral)
                 && !self.type_checker.is_empty_object_type(&source)
             {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             if source
                 .flags()
@@ -1757,7 +1761,7 @@ impl CheckTypeRelatedTo {
                             target,
                             SignatureKind::Construct,
                             report_structural_errors,
-                        );
+                        )?;
                         if result != Ternary::False {
                             result &= self.index_signatures_related_to(
                                 &source,
@@ -1775,7 +1779,7 @@ impl CheckTypeRelatedTo {
                         .or_else(|| save_error_info.error_info.clone());
                     *self.maybe_error_info_mut() = error_info;
                 } else if result != Ternary::False {
-                    return result;
+                    return Ok(result);
                 }
             }
             if source
@@ -1791,12 +1795,12 @@ impl CheckTypeRelatedTo {
                     let result =
                         self.type_related_to_discriminated_type(&source, &object_only_target);
                     if result != Ternary::False {
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
         }
-        Ternary::False
+        Ok(Ternary::False)
     }
 }
 

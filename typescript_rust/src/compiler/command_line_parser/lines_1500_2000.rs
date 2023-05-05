@@ -478,7 +478,7 @@ pub(crate) fn get_diagnostic_text(
 }
 
 pub trait DiagnosticReporter: Trace + Finalize {
-    fn call(&self, diagnostic: Gc<Diagnostic>);
+    fn call(&self, diagnostic: Gc<Diagnostic>) -> io::Result<()>;
 }
 
 pub trait ConfigFileDiagnosticsReporter {
@@ -488,26 +488,26 @@ pub trait ConfigFileDiagnosticsReporter {
 pub trait ParseConfigFileHost:
     ParseConfigHost + ConfigFileDiagnosticsReporter + Trace + Finalize
 {
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> io::Result<String>;
 }
 
-pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
+pub fn get_parsed_command_line_of_config_file(
     config_file_name: &str,
     options_to_extend: Option<Gc<CompilerOptions>>,
-    host: &THost,
+    host: &impl ParseConfigFileHost,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
-) -> Option<ParsedCommandLine> {
+) -> io::Result<Option<ParsedCommandLine>> {
     let config_file_text = try_read_file(config_file_name, |file_name| host.read_file(file_name));
     if let StringOrRcDiagnostic::RcDiagnostic(ref config_file_text) = config_file_text {
         host.on_un_recoverable_config_file_diagnostic(config_file_text.clone());
-        return None;
+        return Ok(None);
     }
     let config_file_text = enum_unwrapped!(config_file_text, [StringOrRcDiagnostic, String]);
 
     let result = parse_json_text(config_file_name, config_file_text);
-    let cwd = host.get_current_directory();
+    let cwd = host.get_current_directory()?;
     let result_as_source_file = result.as_source_file();
     result_as_source_file.set_path(to_path(
         config_file_name,
@@ -516,7 +516,7 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     ));
     result_as_source_file.set_resolved_path(Some(result_as_source_file.path().clone()));
     result_as_source_file.set_original_file_name(Some(result_as_source_file.file_name().clone()));
-    Some(parse_json_source_file_config_file_content(
+    Ok(Some(parse_json_source_file_config_file_content(
         &result,
         host,
         &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(&cwd)),
@@ -526,7 +526,7 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
         extra_file_extensions,
         extended_config_cache,
         watch_options_to_extend,
-    ))
+    )?))
 }
 
 pub fn read_config_file(
@@ -570,9 +570,9 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
     }
 }
 
-pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
+pub fn read_json_config_file(
     file_name: &str,
-    read_file: TReadFile,
+    read_file: impl FnMut(&str) -> io::Result<Option<String>>,
 ) -> Gc<Node /*TsConfigSourceFile*/> {
     let text_or_diagnostic = try_read_file(file_name, read_file);
     match text_or_diagnostic {
@@ -633,9 +633,9 @@ impl From<Gc<Diagnostic>> for StringOrRcDiagnostic {
     }
 }
 
-pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
+pub(crate) fn try_read_file(
     file_name: &str,
-    mut read_file: TReadFile,
+    mut read_file: impl FnMut(&str) -> io::Result<Option<String>>,
 ) -> StringOrRcDiagnostic {
     match read_file(file_name) {
         Err(e) => Into::<StringOrRcDiagnostic>::into(Gc::new(
@@ -972,7 +972,7 @@ pub(crate) trait JsonConversionNotifier {
         key_node: &Node, /*PropertyName*/
         value: Option<&serde_json::Value>,
         value_node: &Node, /*Expression*/
-    );
+    ) -> io::Result<()>;
     fn on_set_unknown_option_key_value_in_root(
         &self,
         key: &str,
@@ -1000,7 +1000,7 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
         _key_node: &Node, /*PropertyName*/
         _value: Option<&serde_json::Value>,
         _value_node: &Node, /*Expression*/
-    ) {
+    ) -> io::Result<()> {
         unimplemented!()
     }
 

@@ -1,6 +1,6 @@
 use gc::Gc;
-use std::convert::TryInto;
 use std::ptr;
+use std::{convert::TryInto, io};
 
 use super::{CheckMode, TypeFacts};
 use crate::{
@@ -644,17 +644,17 @@ impl TypeChecker {
     pub(super) fn check_prefix_unary_expression(
         &self,
         node: &Node, /*PrefixUnaryExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         let operand_type =
             self.check_expression(&node_as_prefix_unary_expression.operand, None, None);
         if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
-            return self.silent_never_type();
+            return Ok(self.silent_never_type());
         }
         match node_as_prefix_unary_expression.operand.kind() {
             SyntaxKind::NumericLiteral => match node_as_prefix_unary_expression.operator {
                 SyntaxKind::MinusToken => {
-                    return self.get_fresh_type_of_literal_type(
+                    return Ok(self.get_fresh_type_of_literal_type(
                         &self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
@@ -664,10 +664,10 @@ impl TypeChecker {
                                 .unwrap()
                                 * -1.0,
                         )),
-                    );
+                    ));
                 }
                 SyntaxKind::PlusToken => {
-                    return self.get_fresh_type_of_literal_type(
+                    return Ok(self.get_fresh_type_of_literal_type(
                         &self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
@@ -676,13 +676,13 @@ impl TypeChecker {
                                 .parse::<f64>()
                                 .unwrap(),
                         )),
-                    );
+                    ));
                 }
                 _ => (),
             },
             SyntaxKind::BigIntLiteral => {
                 if node_as_prefix_unary_expression.operator == SyntaxKind::MinusToken {
-                    return self.get_fresh_type_of_literal_type(
+                    return Ok(self.get_fresh_type_of_literal_type(
                         &self.get_big_int_literal_type(PseudoBigInt::new(
                             true,
                             parse_pseudo_big_int(
@@ -692,12 +692,12 @@ impl TypeChecker {
                                     .text(),
                             ),
                         )),
-                    );
+                    ));
                 }
             }
             _ => (),
         }
-        match node_as_prefix_unary_expression.operator {
+        Ok(match node_as_prefix_unary_expression.operator {
             SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
                 self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand);
                 if self.maybe_type_of_kind(&operand_type, TypeFlags::ESSymbolLike) {
@@ -725,11 +725,11 @@ impl TypeChecker {
                                     Option::<&Node>::None,
                                     None,
                                     None,
-                                ),
+                                )?,
                             ]),
                         );
                     }
-                    return self.number_type();
+                    return Ok(self.number_type());
                 }
                 self.get_unary_result_type(&operand_type)
             }
@@ -755,7 +755,7 @@ impl TypeChecker {
                 self.get_unary_result_type(&operand_type)
             }
             _ => self.error_type(),
-        }
+        })
     }
 
     pub(super) fn check_postfix_unary_expression(

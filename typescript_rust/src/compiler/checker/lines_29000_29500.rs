@@ -1,9 +1,9 @@
 use gc::{Finalize, Gc, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
-use std::cmp;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::{cmp, io};
 
 use super::{
     CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer,
@@ -330,9 +330,9 @@ impl TypeChecker {
         args: &[Gc<Node /*Expression*/>],
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
-    ) -> Vec<Gc<Type>> {
+    ) -> io::Result<Vec<Gc<Type>>> {
         if is_jsx_opening_like_element(node) {
-            return self.infer_jsx_type_arguments(node, signature, check_mode, context);
+            return Ok(self.infer_jsx_type_arguments(node, signature, check_mode, context));
         }
 
         if node.kind() != SyntaxKind::Decorator {
@@ -487,11 +487,11 @@ impl TypeChecker {
                 rest_type,
                 Some(context.clone()),
                 check_mode,
-            );
+            )?;
             self.infer_types(&context.inferences(), &spread_type, rest_type, None, None);
         }
 
-        self.get_inferred_types(&context)
+        Ok(self.get_inferred_types(&context))
     }
 
     pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> Gc<Type> {
@@ -546,11 +546,11 @@ impl TypeChecker {
         rest_type: &Type,
         context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
             if self.is_spread_argument(Some(&**arg)) {
-                return self.get_mutable_array_or_tuple_type(&*if arg.kind()
+                return Ok(self.get_mutable_array_or_tuple_type(&*if arg.kind()
                     == SyntaxKind::SyntheticExpression
                 {
                     arg.as_synthetic_expression().type_.clone()
@@ -561,7 +561,7 @@ impl TypeChecker {
                         context.clone(),
                         check_mode,
                     )
-                });
+                }));
             }
         }
         let mut types: Vec<Gc<Type>> = vec![];
@@ -588,7 +588,7 @@ impl TypeChecker {
                         } else {
                             arg.clone()
                         }),
-                    ));
+                    )?);
                     flags.push(ElementFlags::Rest);
                 }
             } else {
@@ -628,7 +628,7 @@ impl TypeChecker {
                 }
             }
         }
-        self.create_tuple_type(
+        Ok(self.create_tuple_type(
             &types,
             Some(&flags),
             Some(false),
@@ -637,7 +637,7 @@ impl TypeChecker {
             } else {
                 None
             },
-        )
+        ))
     }
 
     pub(super) fn check_type_arguments(
@@ -742,7 +742,7 @@ impl TypeChecker {
         report_errors: bool,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
@@ -752,11 +752,11 @@ impl TypeChecker {
             None,
             check_mode,
         );
-        self.check_tag_name_does_not_expect_too_many_arguments(
+        Ok(self.check_tag_name_does_not_expect_too_many_arguments(
             node,
             report_errors,
             error_output_container.clone(),
-        ) && self.check_type_related_to_and_optionally_elaborate(
+        )? && self.check_type_related_to_and_optionally_elaborate(
             &attributes_type,
             &param_type,
             relation,
@@ -769,7 +769,7 @@ impl TypeChecker {
             None,
             containing_message_chain,
             Some(error_output_container),
-        )
+        )?)
     }
 
     pub(super) fn check_tag_name_does_not_expect_too_many_arguments(
@@ -777,12 +777,12 @@ impl TypeChecker {
         node: &Node, /*JsxOpeningLikeElement*/
         report_errors: bool,
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if self
             .get_jsx_namespace_container_for_implicit_import(Some(node))
             .is_some()
         {
-            return true;
+            return Ok(true);
         }
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         let tag_type = if is_jsx_opening_element(node)
@@ -794,16 +794,16 @@ impl TypeChecker {
             None
         };
         if tag_type.is_none() {
-            return true;
+            return Ok(true);
         }
         let tag_type = tag_type.unwrap();
         let tag_call_signatures = self.get_signatures_of_type(&tag_type, SignatureKind::Call);
         if length(Some(&*tag_call_signatures)) == 0 {
-            return true;
+            return Ok(true);
         }
         let factory = self.get_jsx_factory_entity(node);
         if factory.is_none() {
-            return true;
+            return Ok(true);
         }
         let factory = factory.unwrap();
         let factory_symbol = self.resolve_entity_name(
@@ -812,16 +812,16 @@ impl TypeChecker {
             Some(true),
             Some(false),
             Some(node),
-        );
+        )?;
         if factory_symbol.is_none() {
-            return true;
+            return Ok(true);
         }
         let factory_symbol = factory_symbol.unwrap();
 
         let factory_type = self.get_type_of_symbol(&factory_symbol);
         let call_signatures = self.get_signatures_of_type(&factory_type, SignatureKind::Call);
         if length(Some(&*call_signatures)) == 0 {
-            return true;
+            return Ok(true);
         }
 
         let mut has_first_param_signatures = false;
@@ -835,7 +835,7 @@ impl TypeChecker {
             for param_sig in &signatures_of_param {
                 has_first_param_signatures = true;
                 if self.has_effective_rest_parameter(param_sig) {
-                    return true;
+                    return Ok(true);
                 }
                 let param_count = self.get_parameter_count(param_sig);
                 if param_count > max_param_count {
@@ -844,7 +844,7 @@ impl TypeChecker {
             }
         }
         if !has_first_param_signatures {
-            return true;
+            return Ok(true);
         }
         let mut absolute_min_arg_count = usize::MAX;
         for tag_sig in &tag_call_signatures {
@@ -854,7 +854,7 @@ impl TypeChecker {
             }
         }
         if absolute_min_arg_count <= max_param_count {
-            return true;
+            return Ok(true);
         }
 
         if report_errors {
@@ -900,7 +900,7 @@ impl TypeChecker {
                 self.diagnostics().add(diag);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_signature_applicability_error(
@@ -912,7 +912,7 @@ impl TypeChecker {
         check_mode: CheckMode,
         report_errors: bool,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-    ) -> Option<Vec<Gc<Diagnostic>>> {
+    ) -> io::Result<Option<Vec<Gc<Diagnostic>>>> {
         let error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>> = Gc::new(Box::new(
             CheckTypeErrorOutputContainerConcrete::new(Some(true)),
         ));
@@ -925,14 +925,14 @@ impl TypeChecker {
                 report_errors,
                 containing_message_chain.clone(),
                 error_output_container.clone(),
-            ) {
+            )? {
                 Debug_.assert(
                     !report_errors || error_output_container.errors_len() > 0,
                     Some("jsx should have errors when reporting errors"),
                 );
-                return Some(error_output_container.errors()) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
             }
-            return None;
+            return Ok(None);
         }
         let this_type = self.get_this_type_of_signature(&signature);
         if let Some(this_type) = this_type.as_ref().filter(|this_type| {
@@ -963,7 +963,7 @@ impl TypeChecker {
                     !report_errors || error_output_container.errors_len() > 0,
                     Some("this parameter should have errors when reporting errors"),
                 );
-                return Some(error_output_container.errors()) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
             }
         }
         let head_message =
@@ -998,7 +998,7 @@ impl TypeChecker {
                     Some(head_message),
                     containing_message_chain.clone(),
                     Some(error_output_container.clone()),
-                ) {
+                )? {
                     Debug_.assert(
                         !report_errors || error_output_container.errors_len() > 0,
                         Some("parameter should have errors when reporting errors"),
@@ -1011,7 +1011,7 @@ impl TypeChecker {
                         &check_arg_type,
                         &param_type,
                     );
-                    return Some(error_output_container.errors()) /*|| emptyArray*/;
+                    return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
                 }
             }
         }
@@ -1023,7 +1023,7 @@ impl TypeChecker {
                 rest_type,
                 None,
                 check_mode,
-            );
+            )?;
             let rest_arg_count = args.len() - arg_count;
             let error_node = if !report_errors {
                 None
@@ -1066,10 +1066,10 @@ impl TypeChecker {
                     &spread_type,
                     rest_type,
                 );
-                return Some(error_output_container.errors()) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
             }
         }
-        None
+        Ok(None)
     }
 }
 
@@ -1077,11 +1077,11 @@ impl TypeChecker {
 struct CheckTypeArgumentsErrorInfo;
 
 impl CheckTypeContainingMessageChain for CheckTypeArgumentsErrorInfo {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
+        Ok(Some(Rc::new(RefCell::new(chain_diagnostic_messages(
             None,
             &Diagnostics::Type_0_does_not_satisfy_the_constraint_1,
             None,
-        ))))
+        )))))
     }
 }

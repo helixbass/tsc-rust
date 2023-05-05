@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::ptr;
 use std::rc::Rc;
 use std::{borrow::Borrow, collections::HashMap};
+use std::{io, ptr};
 
 use crate::{
     concatenate, create_symbol_table, every, get_effective_constraint_of_type_parameter,
@@ -249,14 +249,14 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             if !self.push_type_resolution(
                 &symbol.symbol_wrapper().into(),
                 TypeSystemPropertyName::DeclaredType,
             ) {
-                return self.error_type();
+                return Ok(self.error_type());
             }
 
             let declaration = Debug_.check_defined(
@@ -312,7 +312,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 } else {
                     self.error(
@@ -331,14 +331,14 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 }
             }
             links.borrow_mut().declared_type = Some(type_);
         }
         let ret = (*links).borrow().declared_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn is_string_concat_expression(&self, expr: &Node) -> bool {

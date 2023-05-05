@@ -212,17 +212,14 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn report_operator_error<
-        TErrorNode: Borrow<Node>,
-        TIsRelated: FnMut(&Type, &Type) -> bool,
-    >(
+    pub(super) fn report_operator_error(
         &self,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         operator_token: &Node,
         left_type: &Type,
         right_type: &Type,
-        mut is_related: Option<TIsRelated>,
-    ) {
+        mut is_related: Option<impl FnMut(&Type, &Type) -> bool>,
+    ) -> io::Result<()> {
         let mut would_work_with_await = false;
         let err_node = error_node.map_or_else(
             || operator_token.node_wrapper(),
@@ -256,7 +253,7 @@ impl TypeChecker {
             }
         }
         let (left_str, right_str) =
-            self.get_type_names_for_error_display(&effective_left, &effective_right);
+            self.get_type_names_for_error_display(&effective_left, &effective_right)?;
         if self
             .try_give_better_primary_error(
                 operator_token,
@@ -278,6 +275,8 @@ impl TypeChecker {
                 ]),
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn try_give_better_primary_error(

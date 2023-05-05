@@ -3,107 +3,110 @@ use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
-use std::ptr;
+use std::{io, ptr};
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
     are_option_gcs_equal, create_printer, create_symbol_table, declaration_name_to_string,
     escape_string, factory, find_ancestor, first_defined, get_check_flags,
     get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
-    get_emit_script_target, get_first_identifier, get_name_of_declaration, get_root_declaration,
-    has_effective_modifier, is_ambient_module, is_bindable_object_define_property_call,
-    is_binding_pattern, is_call_expression, is_computed_property_name,
-    is_external_module_augmentation, is_identifier_text,
+    get_emit_script_target, get_factory, get_first_identifier, get_name_of_declaration,
+    get_root_declaration, has_effective_modifier, is_ambient_module,
+    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
+    is_computed_property_name, is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
     parse_node_factory, push_if_unique_gc, set_parent, set_text_range, starts_with, symbol_name,
-    try_add_to_set, using_single_line_string_writer, walk_up_parenthesized_types, CharacterCodes,
-    CheckFlags, EmitHint, EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol,
-    SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
-    TypeSystemEntity, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    try_add_to_set, try_using_single_line_string_writer, using_single_line_string_writer,
+    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
+    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol, SymbolFlags,
+    SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
-    pub fn type_predicate_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_predicate_to_string_(
         &self,
         type_predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
-        if let Some(writer) = writer {
+        Ok(if let Some(writer) = writer {
             self.type_predicate_to_string_worker(
                 type_predicate,
                 enclosing_declaration,
                 flags,
                 writer.clone(),
-            );
+            )?;
             writer.get_text()
         } else {
-            using_single_line_string_writer(|writer| {
+            try_using_single_line_string_writer(|writer| {
                 self.type_predicate_to_string_worker(
                     type_predicate,
                     enclosing_declaration,
                     flags,
                     writer,
                 )
-            })
-        }
+            })?
+        })
     }
 
-    pub(super) fn type_predicate_to_string_worker<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn type_predicate_to_string_worker(
         &self,
         type_predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: TypeFormatFlags,
         writer: Gc<Box<dyn EmitTextWriter>>,
-    ) {
+    ) -> io::Result<()> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let predicate = factory.with(|factory_| {
-            factory_
-                .create_type_predicate_node(
-                    if matches!(
-                        type_predicate.kind,
-                        TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
-                    ) {
-                        Some(factory_.create_token(SyntaxKind::AssertsKeyword).wrap())
-                    } else {
-                        None
-                    },
-                    if matches!(
-                        type_predicate.kind,
-                        TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
-                    ) {
-                        factory_
-                            .create_identifier(
-                                type_predicate.parameter_name.as_ref().unwrap(),
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                            )
-                            .wrap()
-                    } else {
-                        factory_.create_this_type_node().wrap()
-                    },
-                    type_predicate.type_.as_ref().and_then(|type_| {
-                        self.node_builder().type_to_type_node(
-                            type_,
-                            enclosing_declaration.as_deref(),
-                            Some(
-                                self.to_node_builder_flags(Some(flags))
-                                    | NodeBuilderFlags::IgnoreErrors
-                                    | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
-                            ),
+        let predicate = get_factory()
+            .create_type_predicate_node(
+                if matches!(
+                    type_predicate.kind,
+                    TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
+                ) {
+                    Some(
+                        get_factory()
+                            .create_token(SyntaxKind::AssertsKeyword)
+                            .wrap(),
+                    )
+                } else {
+                    None
+                },
+                if matches!(
+                    type_predicate.kind,
+                    TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
+                ) {
+                    get_factory()
+                        .create_identifier(
+                            type_predicate.parameter_name.as_ref().unwrap(),
+                            Option::<Gc<NodeArray>>::None,
                             None,
                         )
-                    }),
-                )
-                .wrap()
-        });
+                        .wrap()
+                } else {
+                    get_factory().create_this_type_node().wrap()
+                },
+                type_predicate.type_.as_ref().try_and_then(|type_| {
+                    self.node_builder().type_to_type_node(
+                        type_,
+                        enclosing_declaration.as_deref(),
+                        Some(
+                            self.to_node_builder_flags(Some(flags))
+                                | NodeBuilderFlags::IgnoreErrors
+                                | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
+                        ),
+                        None,
+                    )
+                })?,
+            )
+            .wrap();
         let printer = create_printer(
             PrinterOptionsBuilder::default()
                 .remove_comments(Some(true))
@@ -123,6 +126,8 @@ impl TypeChecker {
             writer,
         );
         // return writer;
+
+        Ok(())
     }
 
     pub(super) fn format_union_types(&self, types: &[Gc<Type>]) -> Vec<Gc<Type>> {

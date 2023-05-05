@@ -1,6 +1,7 @@
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::io;
 use std::rc::Rc;
 
 use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags};
@@ -60,14 +61,17 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_import_call_expression(&self, node: &Node /*ImportCall*/) -> Gc<Type> {
+    pub(super) fn check_import_call_expression(
+        &self,
+        node: &Node, /*ImportCall*/
+    ) -> io::Result<Gc<Type>> {
         let node_as_call_expression = node.as_call_expression();
         if !self.check_grammar_arguments(Some(&node_as_call_expression.arguments)) {
             self.check_grammar_import_call_expression(node);
         }
 
         if node_as_call_expression.arguments.is_empty() {
-            return self.create_promise_return_type(node, &self.any_type());
+            return Ok(self.create_promise_return_type(node, &self.any_type()));
         }
 
         let specifier = &node_as_call_expression.arguments[0];
@@ -93,7 +97,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                     None,
                     None,
-                )]),
+                )?]),
             );
         }
 
@@ -116,7 +120,7 @@ impl TypeChecker {
             let es_module_symbol =
                 self.resolve_es_module_symbol(Some(&**module_symbol), specifier, true, false);
             if let Some(es_module_symbol) = es_module_symbol.as_ref() {
-                return self.create_promise_return_type(
+                return Ok(self.create_promise_return_type(
                     node,
                     &self
                         .get_type_with_synthetic_default_only(
@@ -133,10 +137,10 @@ impl TypeChecker {
                                 specifier,
                             )
                         }),
-                );
+                ));
             }
         }
-        self.create_promise_return_type(node, &self.any_type())
+        Ok(self.create_promise_return_type(node, &self.any_type()))
     }
 
     pub(super) fn create_default_property_wrapper_for_module<TAnonymousSymbol: Borrow<Symbol>>(

@@ -21,18 +21,27 @@ pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
     array.map_or(0, |array| array.len())
 }
 
-pub fn for_each<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn for_each<TCollection: IntoIterator, TReturn>(
     array: TCollection,
-    mut callback: TCallback,
+    mut callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     array
         .into_iter()
         .enumerate()
         .find_map(|(index, item)| callback(item, index))
+}
+
+pub fn try_for_each<TCollection: IntoIterator, TReturn, TError>(
+    array: TCollection,
+    mut callback: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    for (index, item) in array.into_iter().enumerate() {
+        let result = callback(item, index)?;
+        if result.is_some() {
+            return Ok(result);
+        }
+    }
+    Ok(None)
 }
 
 pub fn for_each_bool<
@@ -48,17 +57,23 @@ pub fn for_each_bool<
         .any(|(index, item)| callback(item, index))
 }
 
-pub fn maybe_for_each<
-    TCollection: IntoIterator,
-    TReturn,
-    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
->(
+pub fn maybe_for_each<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
-    callback: TCallback,
+    callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     match array {
         Some(array) => for_each(array, callback),
         None => None,
+    }
+}
+
+pub fn try_maybe_for_each<TCollection: IntoIterator, TReturn, TError>(
+    array: Option<TCollection>,
+    callback: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    match array {
+        Some(array) => try_for_each(array, callback),
+        None => Ok(None),
     }
 }
 
@@ -77,6 +92,13 @@ pub fn first_defined<TCollection: IntoIterator, TReturn>(
     callback: impl FnMut(TCollection::Item, usize) -> Option<TReturn>,
 ) -> Option<TReturn> {
     for_each(array, callback)
+}
+
+pub fn try_first_defined<TCollection: IntoIterator, TReturn, TError>(
+    array: TCollection,
+    callback: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    try_for_each(array, callback)
 }
 
 pub fn maybe_first_defined<TCollection: IntoIterator, TReturn>(
@@ -289,11 +311,29 @@ pub fn map<TCollection: IntoIterator, TReturn>(
     result
 }
 
+pub fn try_map<TCollection: IntoIterator, TReturn, TError>(
+    array: TCollection,
+    mut f: impl FnMut(TCollection::Item, usize) -> Result<TReturn, TError>,
+) -> Result<Vec<TReturn>, TError> {
+    let mut result = vec![];
+    for (i, item) in array.into_iter().enumerate() {
+        result.push(f(item, i)?);
+    }
+    Ok(result)
+}
+
 pub fn maybe_map<TCollection: IntoIterator, TReturn>(
     array: Option<TCollection>,
     f: impl FnMut(TCollection::Item, usize) -> TReturn,
 ) -> Option<Vec<TReturn>> {
     array.map(|array| map(array, f))
+}
+
+pub fn try_maybe_map<TCollection: IntoIterator, TReturn, TError>(
+    array: Option<TCollection>,
+    f: impl FnMut(TCollection::Item, usize) -> Result<TReturn, TError>,
+) -> Option<Result<Vec<TReturn>, TError>> {
+    array.map(|array| try_map(array, f))
 }
 
 // TODO: this currently just mimics map(), I think could do the intended avoiding allocation by
@@ -343,6 +383,23 @@ pub fn flat_map<TCollection: IntoIterator, TReturn: Clone>(
         result = Some(some_result);
     }
     result.unwrap_or(vec![])
+}
+
+pub fn try_flat_map<TCollection: IntoIterator, TReturn: Clone, TError>(
+    array: Option<TCollection>,
+    mut mapfn: impl FnMut(TCollection::Item, usize) -> Result<Vec<TReturn>, TError>, /* | undefined */
+) -> Result<Vec<TReturn>, TError> {
+    let mut result: Option<Vec<_>> = None;
+    if let Some(array) = array {
+        let mut some_result = vec![];
+        for (i, item) in array.into_iter().enumerate() {
+            let v = mapfn(item, i)?;
+            /*some_result = */
+            add_range(&mut some_result, Some(&v), None, None);
+        }
+        result = Some(some_result);
+    }
+    Ok(result.unwrap_or_default())
 }
 
 pub fn flat_map_to_mutable<
@@ -416,6 +473,22 @@ pub fn map_defined<TCollection: IntoIterator, TReturn>(
         }
     }
     result
+}
+
+pub fn try_map_defined<TCollection: IntoIterator, TReturn, TError>(
+    array: Option<TCollection>,
+    mut map_fn: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Vec<TReturn>, TError> {
+    let mut result = vec![];
+    if let Some(array) = array {
+        for (i, item) in array.into_iter().enumerate() {
+            let mapped = map_fn(item, i)?;
+            if let Some(mapped) = mapped {
+                result.push(mapped);
+            }
+        }
+    }
+    Ok(result)
 }
 
 pub fn get_or_update<TKey: Eq + Hash, TValue, TCallback: FnOnce() -> TValue>(

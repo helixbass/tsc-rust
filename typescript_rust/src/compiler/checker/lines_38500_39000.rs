@@ -1,10 +1,10 @@
 use gc::{Finalize, Gc, Trace};
 use itertools::Either;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::CheckTypeContainingMessageChain;
 use crate::{
@@ -89,18 +89,18 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_existing_member_for_override_modifier<TBaseWithThis: Borrow<Type>>(
+    pub(super) fn check_existing_member_for_override_modifier(
         &self,
         node: &Node,        /*ClassLikeDeclaration*/
         static_type: &Type, /*ObjectType*/
         base_static_type: &Type,
-        base_with_this: Option<TBaseWithThis>,
+        base_with_this: Option<impl Borrow<Type>>,
         type_: &Type, /*InterfaceType*/
         type_with_this: &Type,
         member: &Node, /*ClassElement | ParameterPropertyDeclaration*/
         member_is_parameter_property: bool,
         report_errors: Option<bool>,
-    ) -> MemberOverrideStatus {
+    ) -> io::Result<MemberOverrideStatus> {
         let report_errors = report_errors.unwrap_or(true);
         let declared_prop =
             if let Some(member_name) = member.as_named_declaration().maybe_name().as_ref() {
@@ -109,7 +109,7 @@ impl TypeChecker {
                 self.get_symbol_at_location_(member, None)
             };
         if declared_prop.is_none() {
-            return MemberOverrideStatus::Ok;
+            return Ok(MemberOverrideStatus::Ok);
         }
         let declared_prop = declared_prop.unwrap();
 
@@ -143,7 +143,7 @@ impl TypeChecker {
         member_is_parameter_property: bool,
         member_name: &str,
         error_node: Option<impl Borrow<Node>>,
-    ) -> MemberOverrideStatus {
+    ) -> io::Result<MemberOverrideStatus> {
         let is_js = is_in_js_file(Some(node));
         let node_in_ambient_context = node.flags().intersects(NodeFlags::Ambient);
         if let Some(base_with_this) = base_with_this.filter(|_| {
@@ -165,7 +165,7 @@ impl TypeChecker {
             let base_prop = self.get_property_of_type_(base_type, &member_escaped_name, None);
 
             let base_class_name =
-                self.type_to_string_(base_with_this, Option::<&Node>::None, None, None);
+                self.type_to_string_(base_with_this, Option::<&Node>::None, None, None)?;
             if prop
                 .as_ref()
                 .matches(|_| base_prop.is_none() && member_has_override_modifier)
@@ -187,7 +187,7 @@ impl TypeChecker {
                     Some(|declaration: &Gc<Node>| has_abstract_modifier(declaration)),
                 );
                 if member_has_override_modifier {
-                    return MemberOverrideStatus::Ok;
+                    return Ok(MemberOverrideStatus::Ok);
                 }
 
                 if !base_has_abstract {
@@ -207,7 +207,7 @@ impl TypeChecker {
                         };
                         self.error(error_node, diag, Some(vec![base_class_name]));
                     }
-                    return MemberOverrideStatus::NeedsOverride;
+                    return Ok(MemberOverrideStatus::NeedsOverride);
                 } else if member_has_abstract_modifier && base_has_abstract {
                     if error_node.is_some() {
                         self.error(
@@ -218,12 +218,12 @@ impl TypeChecker {
                             ])
                         );
                     }
-                    return MemberOverrideStatus::NeedsOverride;
+                    return Ok(MemberOverrideStatus::NeedsOverride);
                 }
             }
         } else if member_has_override_modifier {
             if error_node.is_some() {
-                let class_name = self.type_to_string_(type_, Option::<&Node>::None, None, None);
+                let class_name = self.type_to_string_(type_, Option::<&Node>::None, None, None)?;
                 self.error(
                     error_node,
                     if is_js {
@@ -236,10 +236,10 @@ impl TypeChecker {
                     ])
                 );
             }
-            return MemberOverrideStatus::HasInvalidOverride;
+            return Ok(MemberOverrideStatus::HasInvalidOverride);
         }
 
-        MemberOverrideStatus::Ok
+        Ok(MemberOverrideStatus::Ok)
     }
 
     pub(super) fn issue_member_specific_error(
@@ -341,10 +341,10 @@ impl TypeChecker {
         &self,
         node: &Node,   /*ClassLikeDeclaration*/
         member: &Node, /*ClassElement*/
-    ) -> MemberOverrideStatus {
+    ) -> io::Result<MemberOverrideStatus> {
         let member_name = member.as_named_declaration().maybe_name();
         if member_name.is_none() {
-            return MemberOverrideStatus::Ok;
+            return Ok(MemberOverrideStatus::Ok);
         }
         let member_name = member_name.unwrap();
 
@@ -424,7 +424,7 @@ impl TypeChecker {
         &self,
         type_: &Type,     /*InterfaceType*/
         base_type: &Type, /*BaseType*/
-    ) {
+    ) -> io::Result<()> {
         let base_properties = self.get_properties_of_type(base_type);
         'base_property_check: for ref base_property in base_properties {
             let base = self.get_target_symbol(base_property);
@@ -479,7 +479,7 @@ impl TypeChecker {
                                     base_type,
                                     Option::<&Node>::None,
                                     None, None,
-                                ),
+                                )?,
                             ])
                         );
                     } else {
@@ -491,7 +491,7 @@ impl TypeChecker {
                                     type_,
                                     Option::<&Node>::None,
                                     None, None,
-                                ),
+                                )?,
                                 self.symbol_to_string_(
                                     base_property,
                                     Option::<&Node>::None,
@@ -501,7 +501,7 @@ impl TypeChecker {
                                     base_type,
                                     Option::<&Node>::None,
                                     None, None,
-                                ),
+                                )?,
                             ])
                         );
                     }
@@ -561,8 +561,8 @@ impl TypeChecker {
                                     None,
                                     None,
                                 ),
-                                self.type_to_string_(base_type, Option::<&Node>::None, None, None),
-                                self.type_to_string_(type_, Option::<&Node>::None, None, None),
+                                self.type_to_string_(base_type, Option::<&Node>::None, None, None)?,
+                                self.type_to_string_(type_, Option::<&Node>::None, None, None)?,
                             ]),
                         );
                     } else if self.use_define_for_class_fields {
@@ -624,7 +624,7 @@ impl TypeChecker {
                                                 Option::<&Node>::None,
                                                 None,
                                                 None,
-                                            ),
+                                            )?,
                                         ]),
                                     );
                                 }
@@ -653,13 +653,15 @@ impl TypeChecker {
                         .or_else(|| derived.maybe_value_declaration()),
                     error_message,
                     Some(vec![
-                        self.type_to_string_(base_type, Option::<&Node>::None, None, None),
+                        self.type_to_string_(base_type, Option::<&Node>::None, None, None)?,
                         self.symbol_to_string_(&base, Option::<&Node>::None, None, None, None),
-                        self.type_to_string_(type_, Option::<&Node>::None, None, None),
+                        self.type_to_string_(type_, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_non_interhited_properties<TProperties, TPropertiesItem>(
@@ -712,10 +714,10 @@ impl TypeChecker {
         &self,
         type_: &Type, /*InterfaceType*/
         type_node: &Node,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let base_types = self.get_base_types(type_);
         if base_types.len() < 2 {
-            return true;
+            return Ok(true);
         }
 
         let mut seen: HashMap<__String, InheritanceInfoMap> = HashMap::new();
@@ -768,9 +770,9 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            );
+                            )?;
                             let type_name2 =
-                                self.type_to_string_(base, Option::<&Node>::None, None, None);
+                                self.type_to_string_(base, Option::<&Node>::None, None, None)?;
 
                             let mut error_info = chain_diagnostic_messages(
                                 None,
@@ -795,7 +797,7 @@ impl TypeChecker {
                                         type_,
                                         Option::<&Node>::None,
                                         None, None,
-                                    ),
+                                    )?,
                                     type_name1,
                                     type_name2,
                                 ])
@@ -812,7 +814,7 @@ impl TypeChecker {
             }
         }
 
-        ok
+        Ok(ok)
     }
 }
 
@@ -841,8 +843,8 @@ impl IssueMemberSpecificErrorContainingMessageChain {
 }
 
 impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessageChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        Some(Rc::new(RefCell::new(
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
+        Ok(Some(Rc::new(RefCell::new(
             chain_diagnostic_messages(
                 None,
                 &Diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
@@ -856,15 +858,15 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                         &self.type_with_this,
                         Option::<&Node>::None,
                         None, None,
-                    ),
+                    )?,
                     self.type_checker.type_to_string_(
                         &self.base_with_this,
                         Option::<&Node>::None,
                         None, None,
-                    ),
+                    )?,
                 ])
             )
-        )))
+        ))))
     }
 }
 

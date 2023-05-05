@@ -1,8 +1,8 @@
 use gc::{Finalize, Gc, Trace};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{cell::RefCell, io};
 
 use super::{
     signature_has_rest_parameter, CheckTypeContainingMessageChain, DeclarationMeaning,
@@ -15,14 +15,17 @@ use crate::{
     get_effective_type_parameter_declarations, get_function_flags, get_name_of_declaration,
     get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier, id_text,
     is_binding_pattern, is_identifier, is_omitted_expression, is_parameter_property_declaration,
-    is_private_identifier, is_static, node_is_present, DiagnosticMessageChain, Diagnostics,
-    ExternalEmitHelpers, FunctionFlags, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeInterface, ScriptTarget, SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeInterface, TypePredicateKind,
+    is_private_identifier, is_static, node_is_present, try_for_each, DiagnosticMessageChain,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeInterface, ScriptTarget, SignatureDeclarationInterface, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeInterface, TypePredicateKind,
 };
 
 impl TypeChecker {
-    pub(super) fn check_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
+    pub(super) fn check_type_parameter(
+        &self,
+        node: &Node, /*TypeParameterDeclaration*/
+    ) -> io::Result<()> {
         let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
         if let Some(node_expression) = node_as_type_parameter_declaration.expression.as_ref() {
             self.grammar_error_on_first_token(node_expression, &Diagnostics::Type_expected, None);
@@ -42,7 +45,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                     None,
                     None,
-                )]),
+                )?]),
             );
         }
         let constraint_type = self.get_constraint_of_type_parameter(&type_parameter);
@@ -74,6 +77,8 @@ impl TypeChecker {
                 &Diagnostics::Type_parameter_name_cannot_be_0,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn check_parameter(&self, node: &Node /*ParameterDeclaration*/) {
@@ -677,7 +682,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_type_for_duplicate_index_signatures(&self, node: &Node) {
+    pub(super) fn check_type_for_duplicate_index_signatures(&self, node: &Node) -> io::Result<()> {
         if node.kind() == SyntaxKind::InterfaceDeclaration {
             let node_symbol = self.get_symbol_of_node(node).unwrap();
             if matches!(
@@ -688,7 +693,7 @@ impl TypeChecker {
                         node
                     )
             ) {
-                return;
+                return Ok(());
             }
         }
 
@@ -728,23 +733,30 @@ impl TypeChecker {
                     }
                 }
             }
-            index_signature_map.values().for_each(|entry| {
-                if entry.declarations.len() > 1 {
-                    for declaration in &entry.declarations {
-                        self.error(
-                            Some(&**declaration),
-                            &Diagnostics::Duplicate_index_signature_for_type_0,
-                            Some(vec![self.type_to_string_(
-                                &entry.type_,
-                                Option::<&Node>::None,
-                                None,
-                                None,
-                            )]),
-                        );
+            try_for_each(
+                index_signature_map.values(),
+                |entry, _| -> io::Result<Option<()>> {
+                    if entry.declarations.len() > 1 {
+                        for declaration in &entry.declarations {
+                            self.error(
+                                Some(&**declaration),
+                                &Diagnostics::Duplicate_index_signature_for_type_0,
+                                Some(vec![self.type_to_string_(
+                                    &entry.type_,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                )?]),
+                            );
+                        }
                     }
-                }
-            });
+
+                    Ok(None)
+                },
+            )?;
         }
+
+        Ok(())
     }
 
     pub(super) fn check_property_declaration(&self, node: &Node /*PropertySignature*/) {
@@ -870,12 +882,12 @@ impl TypeChecker {
 struct CheckTypePredicateContainingMessageChain;
 
 impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChain {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+    fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
+        Ok(Some(Rc::new(RefCell::new(chain_diagnostic_messages(
             None,
             &Diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
             None,
-        ))))
+        )))))
     }
 }
 

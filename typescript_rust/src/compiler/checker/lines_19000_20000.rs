@@ -1,10 +1,10 @@
 use gc::Gc;
 use itertools::{Either, Itertools};
 use std::borrow::{Borrow, Cow};
-use std::cmp;
 use std::collections::HashSet;
 use std::ptr;
 use std::rc::Rc;
+use std::{cmp, io};
 
 use super::{
     anon, CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState,
@@ -1157,14 +1157,14 @@ impl CheckTypeRelatedTo {
         target: &Type,
         kind: SignatureKind,
         report_errors: bool,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
-            return self.signatures_identical_to(source, target, kind);
+            return Ok(self.signatures_identical_to(source, target, kind));
         }
         if ptr::eq(target, &*self.type_checker.any_function_type())
             || ptr::eq(source, &*self.type_checker.any_function_type())
         {
-            return Ternary::True;
+            return Ok(Ternary::True);
         }
 
         let source_is_js_constructor = matches!(
@@ -1210,14 +1210,14 @@ impl CheckTypeRelatedTo {
                         None,
                     );
                 }
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             if !self.constructor_visibilities_are_compatible(
                 &source_signatures[0],
                 &target_signatures[0],
                 report_errors,
             ) {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
 
@@ -1247,7 +1247,7 @@ impl CheckTypeRelatedTo {
                     incompatible_reporter(self, &source_signatures[i], &target_signatures[i]),
                 );
                 if related == Ternary::False {
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
                 result &= related;
             }
@@ -1265,7 +1265,7 @@ impl CheckTypeRelatedTo {
                 erase_generics,
                 report_errors,
                 incompatible_reporter(self, source_signature, target_signature),
-            );
+            )?;
             if result == Ternary::False
                 && report_errors
                 && kind == SignatureKind::Construct
@@ -1278,27 +1278,28 @@ impl CheckTypeRelatedTo {
                     Some(source_signature_declaration) if source_signature_declaration.kind() == SyntaxKind::Constructor
                 ))
             {
-                let construct_signature_to_string = |signature: Gc<Signature>| -> String {
-                    self.type_checker.signature_to_string_(
-                        signature,
-                        Option::<&Node>::None,
-                        Some(TypeFormatFlags::WriteArrowStyleSignature),
-                        Some(kind),
-                        None,
-                    )
-                };
+                let construct_signature_to_string =
+                    |signature: Gc<Signature>| -> io::Result<String> {
+                        self.type_checker.signature_to_string_(
+                            signature,
+                            Option::<&Node>::None,
+                            Some(TypeFormatFlags::WriteArrowStyleSignature),
+                            Some(kind),
+                            None,
+                        )
+                    };
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1),
                     Some(vec![
-                        construct_signature_to_string(source_signature.clone()),
-                        construct_signature_to_string(target_signature.clone()),
+                        construct_signature_to_string(source_signature.clone())?,
+                        construct_signature_to_string(target_signature.clone())?,
                     ]),
                 );
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::Types_of_construct_signatures_are_incompatible),
                     None,
                 );
-                return result;
+                return Ok(result);
             }
         } else {
             'outer: for t in &target_signatures {
@@ -1328,21 +1329,21 @@ impl CheckTypeRelatedTo {
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            ),
+                            )?,
                             self.type_checker.signature_to_string_(
                                 t.clone(),
                                 Option::<&Node>::None,
                                 None,
                                 Some(kind),
                                 None,
-                            ),
+                            )?,
                         ]),
                     );
                 }
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn report_incompatible_call_signature_return(
@@ -1361,32 +1362,36 @@ impl CheckTypeRelatedTo {
         &self,
         source: &Type,
         target: &Type,
-    ) {
+    ) -> io::Result<()> {
         self.report_incompatible_error(
             &Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
             Some(vec![
                 self.type_checker
-                    .type_to_string_(source, Option::<&Node>::None, None, None),
+                    .type_to_string_(source, Option::<&Node>::None, None, None)?,
                 self.type_checker
-                    .type_to_string_(target, Option::<&Node>::None, None, None),
+                    .type_to_string_(target, Option::<&Node>::None, None, None)?,
             ]),
-        )
+        );
+
+        Ok(())
     }
 
     pub(super) fn report_incompatible_call_signature_return_some_arguments(
         &self,
         source: &Type,
         target: &Type,
-    ) {
+    ) -> io::Result<()> {
         self.report_incompatible_error(
             &Diagnostics::Call_signature_return_types_0_and_1_are_incompatible,
             Some(vec![
                 self.type_checker
-                    .type_to_string_(source, Option::<&Node>::None, None, None),
+                    .type_to_string_(source, Option::<&Node>::None, None, None)?,
                 self.type_checker
-                    .type_to_string_(target, Option::<&Node>::None, None, None),
+                    .type_to_string_(target, Option::<&Node>::None, None, None)?,
             ]),
-        )
+        );
+
+        Ok(())
     }
 
     pub(super) fn report_incompatible_construct_signature_return(
@@ -1405,32 +1410,36 @@ impl CheckTypeRelatedTo {
         &self,
         source: &Type,
         target: &Type,
-    ) {
+    ) -> io::Result<()> {
         self.report_incompatible_error(
             &Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
             Some(vec![
                 self.type_checker
-                    .type_to_string_(source, Option::<&Node>::None, None, None),
+                    .type_to_string_(source, Option::<&Node>::None, None, None)?,
                 self.type_checker
-                    .type_to_string_(target, Option::<&Node>::None, None, None),
+                    .type_to_string_(target, Option::<&Node>::None, None, None)?,
             ]),
-        )
+        );
+
+        Ok(())
     }
 
     pub(super) fn report_incompatible_construct_signature_return_some_arguments(
         &self,
         source: &Type,
         target: &Type,
-    ) {
+    ) -> io::Result<()> {
         self.report_incompatible_error(
             &Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible,
             Some(vec![
                 self.type_checker
-                    .type_to_string_(source, Option::<&Node>::None, None, None),
+                    .type_to_string_(source, Option::<&Node>::None, None, None)?,
                 self.type_checker
-                    .type_to_string_(target, Option::<&Node>::None, None, None),
+                    .type_to_string_(target, Option::<&Node>::None, None, None)?,
             ]),
-        )
+        );
+
+        Ok(())
     }
 
     pub(super) fn signature_related_to(
@@ -1440,7 +1449,7 @@ impl CheckTypeRelatedTo {
         erase: bool,
         report_errors: bool,
         incompatible_reporter: fn(&Self, &Type, &Type),
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         self.type_checker.compare_signatures_related(
             if erase {
                 self.type_checker.get_erased_signature(source)

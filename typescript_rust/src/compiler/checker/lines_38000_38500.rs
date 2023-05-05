@@ -1,6 +1,6 @@
 use gc::Gc;
-use std::convert::TryInto;
 use std::ptr;
+use std::{convert::TryInto, io};
 
 use crate::{
     Type, TypeChecker, __String, are_option_gcs_equal, declaration_name_to_string, find_ancestor,
@@ -324,14 +324,14 @@ impl TypeChecker {
         prop: &Symbol,
         prop_name_type: &Type,
         prop_type: &Type,
-    ) {
+    ) -> io::Result<()> {
         let declaration = prop.maybe_value_declaration();
         let name = get_name_of_declaration(declaration.as_deref());
         if matches!(
             name.as_ref(),
             Some(name) if is_private_identifier(name)
         ) {
-            return;
+            return Ok(());
         }
         let index_infos = self.get_applicable_index_infos(type_, prop_name_type);
         let interface_declaration = if get_object_flags(type_).intersects(ObjectFlags::Interface) {
@@ -382,20 +382,22 @@ impl TypeChecker {
                     &Diagnostics::Property_0_of_type_1_is_not_assignable_to_2_index_type_3,
                     Some(vec![
                         self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None),
-                        self.type_to_string_(prop_type, Option::<&Node>::None, None, None),
-                        self.type_to_string_(&info.key_type, Option::<&Node>::None, None, None),
-                        self.type_to_string_(&info.type_, Option::<&Node>::None, None, None),
+                        self.type_to_string_(prop_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(&info.key_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(&info.type_, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_index_constraint_for_index_signature(
         &self,
         type_: &Type,
         check_info: &IndexInfo,
-    ) {
+    ) -> io::Result<()> {
         let declaration = check_info.declaration.as_ref();
         let index_infos = self.get_applicable_index_infos(type_, &check_info.key_type);
         let interface_declaration = if get_object_flags(type_).intersects(ObjectFlags::Interface) {
@@ -448,14 +450,16 @@ impl TypeChecker {
                             Option::<&Node>::None,
                             None,
                             None,
-                        ),
-                        self.type_to_string_(&check_info.type_, Option::<&Node>::None, None, None),
-                        self.type_to_string_(&info.key_type, Option::<&Node>::None, None, None),
-                        self.type_to_string_(&info.type_, Option::<&Node>::None, None, None),
+                        )?,
+                        self.type_to_string_(&check_info.type_, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(&info.key_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(&info.type_, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_type_name_is_reserved(

@@ -1,6 +1,6 @@
 use gc::{Finalize, Gc, Trace};
 use itertools::Itertools;
-use std::{collections::HashMap, convert::TryInto};
+use std::{collections::HashMap, convert::TryInto, io};
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{
@@ -1181,7 +1181,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         self.type_checker.create_type_of_declaration(
             declaration,
             enclosing_declaration,
@@ -1197,7 +1197,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         self.type_checker
             .create_return_type_of_signature_declaration(
                 signature_declaration,
@@ -1213,7 +1213,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         self.type_checker
             .create_type_of_expression(expr, enclosing_declaration, flags, tracker)
     }

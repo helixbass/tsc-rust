@@ -3,8 +3,8 @@ use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::fmt;
 use std::rc::Rc;
+use std::{fmt, io};
 
 use super::{
     BaseType, CancellationTokenDebuggable, CompilerOptions, DiagnosticCollection,
@@ -735,21 +735,21 @@ pub trait EmitResolver: Trace + Finalize {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
-    ) -> Option<Gc<Node /*TypeNode*/>>;
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>>;
     fn create_return_type_of_signature_declaration(
         &self,
         signature_declaration: &Node, /*SignatureDeclaration*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>>;
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>>;
     fn create_type_of_expression(
         &self,
         expr: &Node, /*Expression*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>>;
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>>;
     fn create_literal_const_value(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/

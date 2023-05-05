@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::MappedTypeModifiers;
 use crate::{
@@ -346,7 +346,7 @@ impl TypeChecker {
     pub(super) fn check_type_reference_node(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-    ) {
+    ) -> io::Result<()> {
         let node_as_has_type_arguments = node.as_has_type_arguments();
         self.check_grammar_type_arguments(
             node,
@@ -415,12 +415,14 @@ impl TypeChecker {
                                 &type_,
                                 Option::<&Node>::None,
                                 None, None,
-                            )
+                            )?
                         ])
                     );
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_type_argument_constraint_(
@@ -573,9 +575,9 @@ impl TypeChecker {
         &self,
         type_: &Type,
         access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if !type_.flags().intersects(TypeFlags::IndexedAccess) {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         let object_type = &type_as_indexed_access_type.object_type;
@@ -599,10 +601,10 @@ impl TypeChecker {
                         Option::<&Node>::None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
             }
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         let apparent_object_type = self.get_apparent_type(object_type);
         if self
@@ -610,7 +612,7 @@ impl TypeChecker {
             .is_some()
             && self.is_type_assignable_to_kind(index_type, TypeFlags::NumberLike, None)
         {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         if self.is_generic_object_type(object_type) {
             let property_name = self.get_property_name_from_index(index_type, Some(access_node));
@@ -632,7 +634,7 @@ impl TypeChecker {
                             unescape_leading_underscores(property_name).to_owned()
                         ])
                     );
-                    return self.error_type();
+                    return Ok(self.error_type());
                 }
             }
         }
@@ -640,11 +642,11 @@ impl TypeChecker {
             Some(access_node),
             &Diagnostics::Type_0_cannot_be_used_to_index_type_1,
             Some(vec![
-                self.type_to_string_(index_type, Option::<&Node>::None, None, None),
-                self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                self.type_to_string_(index_type, Option::<&Node>::None, None, None)?,
+                self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
             ]),
         );
-        self.error_type()
+        Ok(self.error_type())
     }
 
     pub(super) fn check_indexed_access_type(&self, node: &Node /*IndexedAccessTypeNode*/) {

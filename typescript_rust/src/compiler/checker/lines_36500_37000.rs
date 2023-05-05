@@ -1,6 +1,6 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::IterationUse;
 use crate::{
@@ -73,10 +73,10 @@ impl TypeChecker {
         });
     }
 
-    pub(super) fn check_collision_with_require_exports_in_generated_code<TName: Borrow<Node>>(
+    pub(super) fn check_collision_with_require_exports_in_generated_code(
         &self,
         node: &Node,
-        name: Option<TName /*Identifier*/>,
+        name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if self.module_kind >= ModuleKind::ES2015
             && !(self.module_kind >= ModuleKind::Node12
@@ -119,10 +119,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_collision_with_global_promise_in_generated_code<TName: Borrow<Node>>(
+    pub(super) fn check_collision_with_global_promise_in_generated_code(
         &self,
         node: &Node,
-        name: Option<TName /*Identifier*/>,
+        name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -197,10 +197,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn record_potential_collision_with_reflect_in_generated_code<TName: Borrow<Node>>(
+    pub(super) fn record_potential_collision_with_reflect_in_generated_code(
         &self,
         node: &Node,
-        name: Option<TName /*Identifier*/>,
+        name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -261,10 +261,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_collisions_for_declaration_name<TName: Borrow<Node>>(
+    pub(super) fn check_collisions_for_declaration_name(
         &self,
         node: &Node,
-        name: Option<TName /*Identifier*/>,
+        name: Option<impl Borrow<Node> /*Identifier*/>,
     ) {
         if name.is_none() {
             return;
@@ -288,17 +288,17 @@ impl TypeChecker {
     pub(super) fn check_var_declared_names_not_shadowed(
         &self,
         node: &Node, /*VariableDeclaration | BindingElement*/
-    ) {
+    ) -> io::Result<()> {
         if get_combined_node_flags(node).intersects(NodeFlags::BlockScoped)
             || is_parameter_declaration(node)
         {
-            return;
+            return Ok(());
         }
 
         if node.kind() == SyntaxKind::VariableDeclaration
             && node.as_variable_declaration().maybe_initializer().is_none()
         {
-            return;
+            return Ok(());
         }
 
         let symbol = self.get_symbol_of_node(node).unwrap();
@@ -363,7 +363,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        );
+                        )?;
                         self.error(
                             Some(node),
                             &Diagnostics::Cannot_initialize_outer_scoped_variable_0_in_the_same_scope_as_block_scoped_declaration_1,
@@ -376,6 +376,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Gc<Type> {
@@ -656,15 +658,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn error_next_variable_or_property_declaration_must_have_same_type<
-        TFirstDeclaration: Borrow<Node>,
-    >(
+    pub(super) fn error_next_variable_or_property_declaration_must_have_same_type(
         &self,
-        first_declaration: Option<TFirstDeclaration /*Declaration*/>,
+        first_declaration: Option<impl Borrow<Node> /*Declaration*/>,
         first_type: &Type,
         next_declaration: &Node, /*Declaration*/
         next_type: &Type,
-    ) {
+    ) -> io::Result<()> {
         let next_declaration_name = get_name_of_declaration(Some(next_declaration));
         let message = if matches!(
             next_declaration.kind(),
@@ -680,8 +680,8 @@ impl TypeChecker {
             message,
             Some(vec![
                 decl_name.clone(),
-                self.type_to_string_(first_type, Option::<&Node>::None, None, None),
-                self.type_to_string_(next_type, Option::<&Node>::None, None, None),
+                self.type_to_string_(first_type, Option::<&Node>::None, None, None)?,
+                self.type_to_string_(next_type, Option::<&Node>::None, None, None)?,
             ]),
         );
         if let Some(first_declaration) = first_declaration {
@@ -698,6 +698,8 @@ impl TypeChecker {
                 )],
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn are_declaration_flags_identical(
@@ -788,17 +790,17 @@ impl TypeChecker {
         self.check_source_element(node_as_if_statement.else_statement.as_deref());
     }
 
-    pub(super) fn check_testing_known_truthy_callable_or_awaitable_type<TBody: Borrow<Node>>(
+    pub(super) fn check_testing_known_truthy_callable_or_awaitable_type(
         &self,
         cond_expr: &Node, /*Expression*/
         type_: &Type,
-        body: Option<TBody /*Statement | Expression*/>,
-    ) {
+        body: Option<impl Borrow<Node> /*Statement | Expression*/>,
+    ) -> io::Result<()> {
         if !self.strict_null_checks {
-            return;
+            return Ok(());
         }
         if self.get_falsy_flags(type_) != TypeFlags::None {
-            return;
+            return Ok(());
         }
 
         let location = if is_binary_expression(cond_expr) {
@@ -809,7 +811,7 @@ impl TypeChecker {
         if is_property_access_expression(location)
             && self.is_type_assertion(&location.as_property_access_expression().expression)
         {
-            return;
+            return Ok(());
         }
 
         let tested_node = if is_identifier(location) {
@@ -829,14 +831,14 @@ impl TypeChecker {
             .get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)
             .is_some();
         if call_signatures.is_empty() && !is_promise {
-            return;
+            return Ok(());
         }
 
         let tested_symbol = tested_node
             .as_ref()
             .and_then(|tested_node| self.get_symbol_at_location_(tested_node, None));
         if tested_symbol.is_none() && !is_promise {
-            return;
+            return Ok(());
         }
 
         let body = body.map(|body| body.borrow().node_wrapper());
@@ -860,7 +862,7 @@ impl TypeChecker {
                     true,
                     &Diagnostics::This_condition_will_always_return_true_since_this_0_is_always_defined,
                     Some(vec![
-                        self.get_type_name_for_error_display(type_)
+                        self.get_type_name_for_error_display(type_)?
                     ])
                 );
             } else {
@@ -871,6 +873,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_symbol_used_in_condition_body(

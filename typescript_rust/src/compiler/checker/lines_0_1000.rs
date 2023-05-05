@@ -5,9 +5,9 @@ use regex::Regex;
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefMut};
 use std::collections::HashMap;
-use std::fmt;
 use std::iter::FromIterator;
 use std::ptr;
+use std::{fmt, io};
 
 use super::{is_not_accessor, is_not_overload};
 use crate::{
@@ -1724,24 +1724,24 @@ impl TypeChecker {
         self.remove_optional_type_marker(type_)
     }
 
-    pub fn type_to_type_node<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_to_type_node(
         &self,
         type_: &Type,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         self.node_builder()
             .type_to_type_node(type_, enclosing_declaration, flags, tracker)
     }
 
-    pub fn index_info_to_index_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn index_info_to_index_signature_declaration(
         &self,
         index_info: &IndexInfo,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> Option<Gc<Node /*IndexSignatureDeclaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*IndexSignatureDeclaration*/>>> {
         self.node_builder()
             .index_info_to_index_signature_declaration(
                 index_info,
@@ -1751,14 +1751,15 @@ impl TypeChecker {
             )
     }
 
-    pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn signature_to_signature_declaration(
         &self,
         signature: Gc<Signature>,
         kind: SyntaxKind,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Gc<Box<dyn SymbolTracker>>>,
-    ) -> Option<Gc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
+    ) -> io::Result<Option<Gc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
+    {
         self.node_builder().signature_to_signature_declaration(
             signature,
             kind,
@@ -1768,13 +1769,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_entity_name<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_entity_name(
         &self,
         symbol: &Symbol,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<Node /*EntityName*/>> {
+    ) -> io::Result<Option<Gc<Node /*EntityName*/>>> {
         self.node_builder().symbol_to_entity_name(
             symbol,
             Some(meaning),
@@ -1784,13 +1785,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_expression(
         &self,
         symbol: &Symbol,
         meaning: SymbolFlags,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Option<Gc<Node /*Expression*/>>> {
         self.node_builder().symbol_to_expression(
             symbol,
             Some(meaning),
@@ -1800,12 +1801,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_type_parameter_declarations<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_type_parameter_declarations(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/> {
+    ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
         self.node_builder().symbol_to_type_parameter_declarations(
             symbol,
             enclosing_declaration,
@@ -1814,12 +1815,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_parameter_declaration<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_parameter_declaration(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*ParameterDeclaration*/>>> {
         self.node_builder().symbol_to_parameter_declaration(
             symbol,
             enclosing_declaration,
@@ -1828,12 +1829,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn type_parameter_to_declaration<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_parameter_to_declaration(
         &self,
         parameter: &Type, /*TypeParameter*/
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Gc<Node /*TypeParameterDeclaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeParameterDeclaration*/>>> {
         self.node_builder().type_parameter_to_declaration(
             parameter,
             enclosing_declaration,
@@ -1864,9 +1865,9 @@ impl TypeChecker {
         self.get_index_infos_at_location_(&node)
     }
 
-    pub fn get_shorthand_assignment_value_symbol<TNode: Borrow<Node>>(
+    pub fn get_shorthand_assignment_value_symbol(
         &self,
-        node_in: Option<TNode>,
+        node_in: Option<impl Borrow<Node>>,
     ) -> Option<Gc<Symbol>> {
         let node = get_parse_tree_node(node_in, Option::<fn(&Node) -> bool>::None)?;
         self.get_shorthand_assignment_value_symbol_(Some(node))
@@ -1926,7 +1927,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1936,12 +1937,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn type_to_string<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_to_string(
         &self,
         type_: &Type,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.type_to_string_(
             type_,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1950,13 +1951,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn symbol_to_string<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn symbol_to_string(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1966,12 +1967,12 @@ impl TypeChecker {
         )
     }
 
-    pub fn type_predicate_to_string<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn type_predicate_to_string(
         &self,
         predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1980,14 +1981,14 @@ impl TypeChecker {
         )
     }
 
-    pub fn write_signature<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn write_signature(
         &self,
         signature: Gc<Signature>,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -1997,13 +1998,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn write_type<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn write_type(
         &self,
         type_: &Type,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.type_to_string_(
             type_,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -2012,14 +2013,14 @@ impl TypeChecker {
         )
     }
 
-    pub fn write_symbol<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn write_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
@@ -2029,13 +2030,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn write_type_predicate<TEnclosingDeclaration: Borrow<Node>>(
+    pub fn write_type_predicate(
         &self,
         predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Gc<Box<dyn EmitTextWriter>>>,
-    ) -> String {
+    ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),

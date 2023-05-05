@@ -1,30 +1,32 @@
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
-use std::cmp;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
 use std::{borrow::Cow, cell::RefCell};
+use std::{cmp, io};
 
 use crate::{
     combine_paths, compare_paths, contains, contains_path, create_get_canonical_file_name,
     directory_probably_exists, directory_separator, directory_separator_str, ends_with, every,
-    extension_is_ts, file_extension_is, file_extension_is_one_of, filter, first_defined, for_each,
+    extension_is_ts, file_extension_is, file_extension_is_one_of, filter, for_each,
     for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
     get_emit_module_kind, get_mode_for_resolution_at_index, get_normalized_absolute_path,
     get_path_components, get_path_from_path_components, get_paths_base_path,
     get_relative_path_from_directory, get_root_length, has_js_file_extension,
     has_trailing_directory_separator, is_external_module_name_relative, is_rooted_disk_path,
-    last_index_of, match_pattern_or_exact, matched_text, maybe_for_each, normalize_path,
-    normalize_path_and_parts, normalize_slashes, options_have_module_resolution_changes,
-    package_id_to_string, path_is_relative, pattern_text, read_json, remove_file_extension,
-    remove_prefix, sort, starts_with, string_contains, to_path, try_get_extension_from_path,
+    last_index_of, match_pattern_or_exact, matched_text, normalize_path, normalize_path_and_parts,
+    normalize_slashes, options_have_module_resolution_changes, package_id_to_string,
+    path_is_relative, pattern_text, read_json, remove_file_extension, remove_prefix, sort,
+    starts_with, string_contains, to_path, try_first_defined, try_for_each,
+    try_for_each_ancestor_directory, try_get_extension_from_path, try_maybe_for_each,
     try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
     Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike,
-    ModuleKind, ModuleResolutionHost, ModuleResolutionKind, Node, PackageId, Path, PathAndParts,
-    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
-    StringOrBool, StringOrPattern, Version, VersionRange,
+    ModuleKind, ModuleResolutionHost, ModuleResolutionKind, Node, OptionTry, PackageId, Path,
+    PathAndParts, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
+    Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -449,18 +451,14 @@ pub(crate) fn get_package_json_types_version_paths(
     })
 }
 
-pub fn get_effective_type_roots<
-    THostGetCurrentDirectory: FnMut() -> Option<String>,
-    THostDirectoryExists: FnMut(&str) -> Option<bool>,
-    THostIsDirectoryExistsSupported: FnMut() -> bool,
->(
+pub fn get_effective_type_roots(
     options: &CompilerOptions,
-    mut host_get_current_directory: THostGetCurrentDirectory,
-    host_directory_exists: THostDirectoryExists,
-    host_is_directory_exists_supported: THostIsDirectoryExistsSupported,
-) -> Option<Vec<String>> {
+    mut host_get_current_directory: impl FnMut() -> Option<io::Result<String>>,
+    host_directory_exists: impl FnMut(&str) -> Option<bool>,
+    host_is_directory_exists_supported: impl FnMut() -> bool,
+) -> io::Result<Option<Vec<String>>> {
     if options.type_roots.is_some() {
-        return options.type_roots.clone();
+        return Ok(options.type_roots.clone());
     }
 
     let current_directory: Option<String>;
@@ -469,17 +467,17 @@ pub fn get_effective_type_roots<
     } else
     /*if host.getCurrentDirectory*/
     {
-        current_directory = host_get_current_directory();
+        current_directory = host_get_current_directory().transpose()?;
     }
 
     if let Some(current_directory) = current_directory.as_ref() {
-        return get_default_type_roots(
+        return Ok(get_default_type_roots(
             current_directory,
             host_directory_exists,
             host_is_directory_exists_supported,
-        );
+        ));
     }
-    None
+    Ok(None)
 }
 
 fn get_default_type_roots<
@@ -532,7 +530,7 @@ pub fn resolve_type_reference_directive(
     host: &dyn ModuleResolutionHost,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
-) -> Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+) -> io::Result<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&options, host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
         options = redirected_reference.command_line.options.clone();
@@ -585,7 +583,7 @@ pub fn resolve_type_reference_directive(
             );
             trace_result(host, type_reference_directive_name, result);
         }
-        return result.clone();
+        return Ok(result.clone());
     }
 
     let type_roots = get_effective_type_roots(
@@ -593,7 +591,7 @@ pub fn resolve_type_reference_directive(
         || host.get_current_directory(),
         |directory_name| host.directory_exists(directory_name),
         || host.is_directory_exists_supported(),
-    );
+    )?;
     if trace_enabled {
         match containing_file {
             None => {
@@ -676,7 +674,7 @@ pub fn resolve_type_reference_directive(
         host,
         type_reference_directive_name,
         &module_resolution_state,
-    );
+    )?;
     let mut primary = true;
     if resolved.is_none() {
         resolved = secondary_lookup(
@@ -685,7 +683,7 @@ pub fn resolve_type_reference_directive(
             host,
             type_reference_directive_name,
             &module_resolution_state,
-        );
+        )?;
         primary = false;
     }
 
@@ -728,7 +726,7 @@ pub fn resolve_type_reference_directive(
     if trace_enabled {
         trace_result(host, type_reference_directive_name, &result);
     }
-    result
+    Ok(result)
 }
 
 fn trace_result(
@@ -798,51 +796,53 @@ fn primary_lookup(
     host: &dyn ModuleResolutionHost,
     type_reference_directive_name: &str,
     module_resolution_state: &ModuleResolutionState,
-) -> Option<PathAndPackageId> {
-    if let Some(type_roots) = type_roots.filter(|type_roots| !type_roots.is_empty()) {
-        if trace_enabled {
-            trace(
-                host,
-                &Diagnostics::Resolving_with_primary_search_path_0,
-                Some(vec![type_roots.join(", ")]),
-            );
-        }
-        first_defined(type_roots, |type_root: &String, _| {
-            let candidate = combine_paths(type_root, &[Some(type_reference_directive_name)]);
-            let candidate_directory = get_directory_path(&candidate);
-            let directory_exists = directory_probably_exists(
-                &candidate_directory,
-                |directory_name| host.directory_exists(directory_name),
-                || host.is_directory_exists_supported(),
-            );
-            if !directory_exists && trace_enabled {
+) -> io::Result<Option<PathAndPackageId>> {
+    Ok(
+        if let Some(type_roots) = type_roots.filter(|type_roots| !type_roots.is_empty()) {
+            if trace_enabled {
                 trace(
                     host,
-                    &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                    Some(vec![candidate_directory]),
+                    &Diagnostics::Resolving_with_primary_search_path_0,
+                    Some(vec![type_roots.join(", ")]),
                 );
             }
-            resolved_type_script_only(
-                load_node_module_from_directory(
-                    Extensions::DtsOnly,
-                    &candidate,
-                    !directory_exists,
-                    module_resolution_state,
+            try_first_defined(type_roots, |type_root: &String, _| -> io::Result<_> {
+                let candidate = combine_paths(type_root, &[Some(type_reference_directive_name)]);
+                let candidate_directory = get_directory_path(&candidate);
+                let directory_exists = directory_probably_exists(
+                    &candidate_directory,
+                    |directory_name| host.directory_exists(directory_name),
+                    || host.is_directory_exists_supported(),
+                );
+                if !directory_exists && trace_enabled {
+                    trace(
+                        host,
+                        &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                        Some(vec![candidate_directory]),
+                    );
+                }
+                Ok(resolved_type_script_only(
+                    load_node_module_from_directory(
+                        Extensions::DtsOnly,
+                        &candidate,
+                        !directory_exists,
+                        module_resolution_state,
+                        None,
+                    )?
+                    .as_ref(),
+                ))
+            })?
+        } else {
+            if trace_enabled {
+                trace(
+                    host,
+                    &Diagnostics::Root_directory_cannot_be_determined_skipping_primary_search_paths,
                     None,
-                )
-                .as_ref(),
-            )
-        })
-    } else {
-        if trace_enabled {
-            trace(
-                host,
-                &Diagnostics::Root_directory_cannot_be_determined_skipping_primary_search_paths,
-                None,
-            );
-        }
-        None
-    }
+                );
+            }
+            None
+        },
+    )
 }
 
 fn secondary_lookup(
@@ -851,64 +851,66 @@ fn secondary_lookup(
     host: &dyn ModuleResolutionHost,
     type_reference_directive_name: &str,
     module_resolution_state: &ModuleResolutionState,
-) -> Option<PathAndPackageId> {
+) -> io::Result<Option<PathAndPackageId>> {
     let initial_location_for_secondary_lookup =
         containing_file.map(|containing_file| get_directory_path(containing_file));
 
-    if let Some(initial_location_for_secondary_lookup) =
-        initial_location_for_secondary_lookup.as_ref()
-    {
-        if trace_enabled {
-            trace(
-                host,
-                &Diagnostics::Looking_up_in_node_modules_folder_initial_location_0,
-                Some(vec![initial_location_for_secondary_lookup.clone()]),
-            );
-        }
-        let result: Option<Resolved>;
-        if !is_external_module_name_relative(type_reference_directive_name) {
-            let search_result = load_module_from_nearest_node_modules_directory(
-                Extensions::DtsOnly,
-                type_reference_directive_name,
-                initial_location_for_secondary_lookup,
-                module_resolution_state,
-                None,
-                None,
-            );
-            result = search_result.and_then(|search_result| search_result.value);
+    Ok(
+        if let Some(initial_location_for_secondary_lookup) =
+            initial_location_for_secondary_lookup.as_ref()
+        {
+            if trace_enabled {
+                trace(
+                    host,
+                    &Diagnostics::Looking_up_in_node_modules_folder_initial_location_0,
+                    Some(vec![initial_location_for_secondary_lookup.clone()]),
+                );
+            }
+            let result: Option<Resolved>;
+            if !is_external_module_name_relative(type_reference_directive_name) {
+                let search_result = load_module_from_nearest_node_modules_directory(
+                    Extensions::DtsOnly,
+                    type_reference_directive_name,
+                    initial_location_for_secondary_lookup,
+                    module_resolution_state,
+                    None,
+                    None,
+                )?;
+                result = search_result.and_then(|search_result| search_result.value);
+            } else {
+                let ref candidate = normalize_path_and_parts(&combine_paths(
+                    initial_location_for_secondary_lookup,
+                    &[Some(type_reference_directive_name)],
+                ))
+                .path;
+                result = node_load_module_by_relative_name(
+                    Extensions::DtsOnly,
+                    candidate,
+                    false,
+                    module_resolution_state,
+                    true,
+                )?;
+            }
+            resolved_type_script_only(result.as_ref())
         } else {
-            let ref candidate = normalize_path_and_parts(&combine_paths(
-                initial_location_for_secondary_lookup,
-                &[Some(type_reference_directive_name)],
-            ))
-            .path;
-            result = node_load_module_by_relative_name(
-                Extensions::DtsOnly,
-                candidate,
-                false,
-                module_resolution_state,
-                true,
-            );
-        }
-        resolved_type_script_only(result.as_ref())
-    } else {
-        if trace_enabled {
-            trace(
+            if trace_enabled {
+                trace(
                 host,
                 &Diagnostics::Containing_file_is_not_specified_and_root_directory_cannot_be_determined_skipping_lookup_in_node_modules_folder,
                 None,
             );
-        }
-        None
-    }
+            }
+            None
+        },
+    )
 }
 
 pub fn get_automatic_type_directive_names(
     options: &CompilerOptions,
     host: &dyn ModuleResolutionHost,
-) -> Vec<String> {
+) -> io::Result<Vec<String>> {
     if let Some(options_types) = options.types.clone() {
-        return options_types;
+        return Ok(options_types);
     }
 
     let mut result: Vec<String> = vec![];
@@ -918,7 +920,7 @@ pub fn get_automatic_type_directive_names(
             || host.get_current_directory(),
             |directory_name| host.directory_exists(directory_name),
             || host.is_directory_exists_supported(),
-        );
+        )?;
         if let Some(type_roots) = type_roots.as_ref() {
             for root in type_roots {
                 if host.directory_exists(root).unwrap() {
@@ -945,7 +947,7 @@ pub fn get_automatic_type_directive_names(
             }
         }
     }
-    result
+    Ok(result)
 }
 
 #[derive(Trace, Finalize)]
@@ -1597,7 +1599,7 @@ pub fn resolve_module_name(
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options, host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
         compiler_options = redirected_reference.command_line.options.clone();
@@ -1682,7 +1684,7 @@ pub fn resolve_module_name(
                     cache.clone(),
                     redirected_reference.clone(),
                     resolution_mode,
-                ));
+                )?);
             }
             ModuleResolutionKind::NodeNext => {
                 result = Some(node_next_module_name_resolver(
@@ -1693,7 +1695,7 @@ pub fn resolve_module_name(
                     cache.clone(),
                     redirected_reference.clone(),
                     resolution_mode,
-                ));
+                )?);
             }
             ModuleResolutionKind::NodeJs => {
                 result = Some(node_module_name_resolver(
@@ -1704,7 +1706,7 @@ pub fn resolve_module_name(
                     cache.clone(),
                     redirected_reference.clone(),
                     None,
-                ));
+                )?);
             }
             ModuleResolutionKind::Classic => {
                 result = Some(classic_name_resolver(
@@ -1714,7 +1716,7 @@ pub fn resolve_module_name(
                     host,
                     cache.as_deref(),
                     redirected_reference.clone(),
-                ));
+                )?);
             } // _ => {
               //     Debug_.fail(Some(&format!(
               //         "Unexpected moduleResolution: {:?}",
@@ -1779,11 +1781,11 @@ pub fn resolve_module_name(
         }
     }
 
-    result
+    Ok(result)
 }
 
 type ResolutionKindSpecificLoader =
-    Rc<dyn Fn(Extensions, &str, bool, &ModuleResolutionState) -> Option<Resolved>>;
+    Rc<dyn Fn(Extensions, &str, bool, &ModuleResolutionState) -> io::Result<Option<Resolved>>>;
 
 fn try_load_module_using_optional_resolution_settings(
     extensions: Extensions,
@@ -1791,11 +1793,11 @@ fn try_load_module_using_optional_resolution_settings(
     containing_directory: &str,
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
-) -> Option<Resolved> {
+) -> io::Result<Option<Resolved>> {
     let resolved =
-        try_load_module_using_paths_if_eligible(extensions, module_name, loader.clone(), state);
+        try_load_module_using_paths_if_eligible(extensions, module_name, loader.clone(), state)?;
     if let Some(resolved) = resolved {
-        return resolved.value;
+        return Ok(resolved.value);
     }
 
     if !is_external_module_name_relative(module_name) {
@@ -1816,7 +1818,7 @@ fn try_load_module_using_paths_if_eligible(
     module_name: &str,
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
-) -> SearchResult<Resolved> {
+) -> io::Result<SearchResult<Resolved>> {
     let base_url = state.compiler_options.base_url.as_ref();
     let paths = state.compiler_options.paths.as_ref();
     let config_file = state.compiler_options.config_file.as_ref();
@@ -1843,7 +1845,7 @@ fn try_load_module_using_paths_if_eligible(
             }
             let base_directory = get_paths_base_path(&state.compiler_options, || {
                 state.host.get_current_directory()
-            })
+            })?
             .unwrap();
             let path_patterns = config_file
                 .and_then(|config_file| {
@@ -1870,7 +1872,7 @@ fn try_load_module_using_paths_if_eligible(
             );
         }
     }
-    None
+    Ok(None)
 }
 
 fn try_load_module_using_root_dirs(
@@ -1879,9 +1881,9 @@ fn try_load_module_using_root_dirs(
     containing_directory: &str,
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
-) -> Option<Resolved> {
+) -> io::Result<Option<Resolved>> {
     if state.compiler_options.root_dirs.is_none() {
-        return None;
+        return Ok(None);
     }
 
     if state.trace_enabled {
@@ -1956,9 +1958,9 @@ fn try_load_module_using_root_dirs(
                 || state.host.is_directory_exists_supported(),
             ),
             state,
-        );
+        )?;
         if resolved_file_name.is_some() {
-            return resolved_file_name;
+            return Ok(resolved_file_name);
         }
 
         if state.trace_enabled {
@@ -1993,9 +1995,9 @@ fn try_load_module_using_root_dirs(
                     || state.host.is_directory_exists_supported(),
                 ),
                 state,
-            );
+            )?;
             if resolved_file_name.is_some() {
-                return resolved_file_name;
+                return Ok(resolved_file_name);
             }
         }
         if state.trace_enabled {
@@ -2006,7 +2008,7 @@ fn try_load_module_using_root_dirs(
             );
         }
     }
-    None
+    Ok(None)
 }
 
 fn try_load_module_using_base_url(
@@ -2014,8 +2016,12 @@ fn try_load_module_using_base_url(
     module_name: &str,
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
-) -> Option<Resolved> {
-    let base_url = state.compiler_options.base_url.as_ref()?;
+) -> io::Result<Option<Resolved>> {
+    let base_url = state.compiler_options.base_url.as_ref();
+    if base_url.is_none() {
+        return Ok(None);
+    }
+    let base_url = base_url.unwrap();
     if state.trace_enabled {
         trace(
             state.host,
@@ -2071,7 +2077,7 @@ fn node12_module_name_resolver(
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     node_next_module_name_resolver_worker(
         NodeResolutionFeatures::Imports
             | NodeResolutionFeatures::SelfName
@@ -2094,7 +2100,7 @@ fn node_next_module_name_resolver(
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     node_next_module_name_resolver_worker(
         NodeResolutionFeatures::AllFeatures,
         module_name,
@@ -2116,7 +2122,7 @@ fn node_next_module_name_resolver_worker(
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     let containing_directory = get_directory_path(containing_file);
 
     let esm_mode = if resolution_mode == Some(ModuleKind::ESNext) {
@@ -2159,7 +2165,7 @@ pub fn node_module_name_resolver(
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     lookup_config: Option<bool>,
-) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     node_module_name_resolver_worker(
         NodeResolutionFeatures::None,
         module_name,
@@ -2187,7 +2193,7 @@ fn node_module_name_resolver_worker(
     cache: Option<Gc<ModuleResolutionCache>>,
     extensions: &[Extensions],
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options, host);
 
     let failed_lookup_locations: Vec<String> = vec![];
@@ -2208,9 +2214,9 @@ fn node_module_name_resolver_worker(
         result_from_cache: RefCell::new(None),
     };
 
-    let result = for_each(
+    let result = try_for_each(
         extensions,
-        |ext: &Extensions, _| -> SearchResult<TryResolveSearchResultValue> {
+        |ext: &Extensions, _| -> io::Result<SearchResult<TryResolveSearchResultValue>> {
             try_resolve(
                 module_name,
                 containing_directory,
@@ -2224,12 +2230,12 @@ fn node_module_name_resolver_worker(
                 *ext,
             )
         },
-    );
+    )?;
     let is_external_library_import = result
         .as_ref()
         .and_then(|result| result.value.as_ref())
         .map(|result_value| result_value.is_external_library_import);
-    create_resolved_module_with_failed_lookup_locations(
+    Ok(create_resolved_module_with_failed_lookup_locations(
         result
             .and_then(|result| result.value)
             .map(|result_value| result_value.resolved),
@@ -2242,7 +2248,7 @@ fn node_module_name_resolver_worker(
             let result_from_cache = state.result_from_cache.borrow().clone();
             result_from_cache
         },
-    )
+    ))
 }
 
 fn try_resolve(
@@ -2256,7 +2262,7 @@ fn try_resolve(
     compiler_options: &CompilerOptions,
     trace_enabled: bool,
     extensions: Extensions,
-) -> SearchResult<TryResolveSearchResultValue> {
+) -> io::Result<SearchResult<TryResolveSearchResultValue>> {
     let loader: ResolutionKindSpecificLoader =
         Rc::new(|extensions, candidate, only_record_failures, state| {
             node_load_module_by_relative_name(
@@ -2273,16 +2279,16 @@ fn try_resolve(
         containing_directory,
         loader.clone(),
         state,
-    );
+    )?;
     if let Some(resolved) = resolved {
         let is_external_library_import = path_contains_node_modules(&resolved.path);
-        return to_search_result(Some(TryResolveSearchResultValue {
+        return Ok(to_search_result(Some(TryResolveSearchResultValue {
             resolved,
             is_external_library_import,
-        }));
+        })));
     }
 
-    if !is_external_module_name_relative(module_name) {
+    Ok(if !is_external_module_name_relative(module_name) {
         let mut resolved: SearchResult<Resolved> = None;
         if features.intersects(NodeResolutionFeatures::Imports) && starts_with(module_name, "#") {
             resolved = load_module_from_imports(
@@ -2302,7 +2308,7 @@ fn try_resolve(
                 state,
                 cache.clone(),
                 redirected_reference.clone(),
-            );
+            )?;
         }
         if resolved.is_none() {
             if trace_enabled {
@@ -2319,9 +2325,12 @@ fn try_resolve(
                 state,
                 cache,
                 redirected_reference.clone(),
-            );
+            )?;
         }
-        let resolved = resolved?;
+        if resolved.is_none() {
+            return Ok(None);
+        }
+        let resolved = resolved.unwrap();
 
         let mut resolved_value = resolved.value.clone();
         if compiler_options.preserve_symlinks != Some(true) {
@@ -2366,14 +2375,14 @@ fn try_resolve(
             parts,
         } = normalize_path_and_parts(&combine_paths(containing_directory, &[Some(module_name)]));
         let resolved =
-            node_load_module_by_relative_name(extensions, &candidate, false, state, true);
+            node_load_module_by_relative_name(extensions, &candidate, false, state, true)?;
         resolved.and_then(|resolved| {
             to_search_result(Some(TryResolveSearchResultValue {
                 resolved,
                 is_external_library_import: contains(Some(&parts), &"node_modules".to_owned()),
             }))
         })
-    }
+    })
 }
 
 struct TryResolveSearchResultValue {
@@ -2407,7 +2416,7 @@ fn node_load_module_by_relative_name(
     mut only_record_failures: bool,
     state: &ModuleResolutionState,
     consider_package_json: bool,
-) -> Option<Resolved> {
+) -> io::Result<Option<Resolved>> {
     if state.trace_enabled {
         trace(
             state.host,
@@ -2447,7 +2456,10 @@ fn node_load_module_by_relative_name(
             let package_info = package_directory.as_ref().and_then(|package_directory| {
                 get_package_json_info(package_directory, false, state)
             });
-            return with_package_id(package_info.as_deref(), Some(resolved_from_file));
+            return Ok(with_package_id(
+                package_info.as_deref(),
+                Some(resolved_from_file),
+            ));
         }
     }
     if !only_record_failures {
@@ -2769,7 +2781,7 @@ fn load_node_module_from_directory(
     only_record_failures: bool,
     state: &ModuleResolutionState,
     consider_package_json: Option<bool>,
-) -> Option<Resolved> {
+) -> io::Result<Option<Resolved>> {
     let consider_package_json = consider_package_json.unwrap_or(true);
     let package_info = if consider_package_json {
         get_package_json_info(candidate, only_record_failures, state)
@@ -2782,7 +2794,7 @@ fn load_node_module_from_directory(
     let version_paths = package_info
         .as_ref()
         .and_then(|package_info| package_info.version_paths.clone());
-    with_package_id(
+    Ok(with_package_id(
         package_info.as_deref(),
         load_node_module_from_directory_worker(
             extensions,
@@ -2791,9 +2803,9 @@ fn load_node_module_from_directory(
             state,
             package_json_content.as_deref(),
             version_paths.as_deref(),
-        )
+        )?
         .as_ref(),
-    )
+    ))
 }
 
 #[derive(Trace, Finalize)]
@@ -2938,7 +2950,7 @@ fn load_node_module_from_directory_worker(
     state: &ModuleResolutionState,
     json_content: Option<&PackageJson /*PackageJsonPathFields*/>,
     version_paths: Option<&VersionPaths>,
-) -> Option<PathAndExtension> {
+) -> io::Result<Option<PathAndExtension>> {
     let mut package_file: Option<String> = None;
     if let Some(json_content) = json_content {
         match extensions {
@@ -2964,7 +2976,7 @@ fn load_node_module_from_directory_worker(
             if let Some(from_file) = from_file.as_ref() {
                 let resolved = resolved_if_extension_matches(extensions, from_file);
                 if let Some(resolved) = resolved.as_ref() {
-                    return no_package_id(Some(resolved));
+                    return Ok(no_package_id(Some(resolved)));
                 }
                 if state.trace_enabled {
                     trace(
@@ -3048,37 +3060,40 @@ fn load_node_module_from_directory_worker(
                 loader.clone(),
                 only_record_failures_for_package_file || only_record_failures_for_index,
                 state,
-            );
+            )?;
             if let Some(result) = result.as_ref() {
-                return remove_ignored_package_id(result.value.as_ref());
+                return Ok(remove_ignored_package_id(result.value.as_ref()));
             }
         }
     }
 
-    let package_file_result = package_file.as_ref().and_then(|package_file| {
-        remove_ignored_package_id(
-            loader(
-                extensions,
-                package_file,
-                only_record_failures_for_package_file,
-                state,
-            )
-            .as_ref(),
-        )
-    });
+    let package_file_result =
+        package_file
+            .as_ref()
+            .try_and_then(|package_file| -> io::Result<_> {
+                Ok(remove_ignored_package_id(
+                    loader(
+                        extensions,
+                        package_file,
+                        only_record_failures_for_package_file,
+                        state,
+                    )?
+                    .as_ref(),
+                ))
+            })?;
     if package_file_result.is_some() {
-        return package_file_result;
+        return Ok(package_file_result);
     }
 
     if !state.features.intersects(NodeResolutionFeatures::EsmMode) {
-        return load_module_from_file(
+        return Ok(load_module_from_file(
             extensions,
             &index_path,
             only_record_failures_for_index,
             state,
-        );
+        ));
     }
-    None
+    Ok(None)
 }
 
 fn resolved_if_extension_matches(extensions: Extensions, path: &str) -> Option<PathAndExtension> {
@@ -3151,11 +3166,11 @@ fn load_module_from_self_name_reference(
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> SearchResult<Resolved> {
+) -> io::Result<SearchResult<Resolved>> {
     let use_case_sensitive_file_names = state.host.use_case_sensitive_file_names();
     let directory_path = to_path(
         &combine_paths(directory, &[Some("dummy")]),
-        state.host.get_current_directory().as_deref(),
+        state.host.get_current_directory().transpose()?.as_deref(),
         create_get_canonical_file_name(use_case_sensitive_file_names.unwrap_or(true)),
     );
     let scope = get_package_scope_for_path(
@@ -3163,14 +3178,26 @@ fn load_module_from_self_name_reference(
         state.package_json_info_cache,
         state.host,
         state.compiler_options.clone(),
-    )?;
-    let scope_package_json_content = scope.package_json_content.as_object()?;
+    );
+    if scope.is_none() {
+        return Ok(None);
+    }
+    let scope = scope.unwrap();
+    let scope_package_json_content = scope.package_json_content.as_object();
+    if scope_package_json_content.is_none() {
+        return Ok(None);
+    }
+    let scope_package_json_content = scope_package_json_content.unwrap();
     if !scope_package_json_content.contains_key("exports") {
-        return None;
+        return Ok(None);
     }
     let scope_package_json_name = scope_package_json_content
         .get("name")
-        .and_then(|scope_package_json_name| scope_package_json_name.as_str())?;
+        .and_then(|scope_package_json_name| scope_package_json_name.as_str());
+    if scope_package_json_name.is_none() {
+        return Ok(None);
+    }
+    let scope_package_json_name = scope_package_json_name.unwrap();
     let parts = get_path_components(module_name, None);
     let name_parts = get_path_components(scope_package_json_name, None);
     if !every(&name_parts, |p: &String, i| {
@@ -3179,7 +3206,7 @@ fn load_module_from_self_name_reference(
             Some(parts_i) if parts_i == p
         )
     }) {
-        return None;
+        return Ok(None);
     }
     let trailing_parts = &parts[name_parts.len()..];
     load_module_from_exports(
@@ -3207,8 +3234,12 @@ fn load_module_from_exports(
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> SearchResult<Resolved> {
-    let scope_package_json_exports = scope.package_json_content.get("exports")?;
+) -> io::Result<SearchResult<Resolved>> {
+    let scope_package_json_exports = scope.package_json_content.get("exports");
+    if scope_package_json_exports.is_none() {
+        return Ok(None);
+    }
+    let scope_package_json_exports = scope_package_json_exports.unwrap();
 
     if subpath == "." {
         let mut main_export: Option<&serde_json::Value> = None;
@@ -3250,7 +3281,7 @@ fn load_module_from_exports(
                     Some(vec![subpath.to_owned(), scope.package_directory.clone()]),
                 );
             }
-            return to_search_result(None);
+            return Ok(to_search_result(None));
         }
         let result = load_module_from_imports_or_exports(
             extensions,
@@ -3261,9 +3292,9 @@ fn load_module_from_exports(
             scope_package_json_exports.as_object().unwrap(),
             scope,
             false,
-        );
+        )?;
         if result.is_some() {
-            return result;
+            return Ok(result);
         }
     }
 
@@ -3274,7 +3305,7 @@ fn load_module_from_exports(
             Some(vec![subpath.to_owned(), scope.package_directory.clone()]),
         );
     }
-    to_search_result(None)
+    Ok(to_search_result(None))
 }
 
 fn load_module_from_imports(
@@ -3297,7 +3328,7 @@ fn load_module_from_imports_or_exports(
     lookup_table: &serde_json::Map<String, serde_json::Value>,
     scope: &PackageJsonInfo,
     is_imports: bool,
-) -> SearchResult<Resolved> {
+) -> io::Result<SearchResult<Resolved>> {
     let load_module_from_target_import_or_export = get_load_module_from_target_import_or_export(
         extensions,
         state,
@@ -3366,7 +3397,7 @@ fn load_module_from_imports_or_exports(
             return load_module_from_target_import_or_export.call(target, subpath, false);
         }
     }
-    None
+    Ok(None)
 }
 
 fn matches_pattern_with_trailer(target: &str, name: &str) -> bool {
@@ -3417,7 +3448,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
         target: Option<&serde_json::Value>,
         subpath: &str,
         pattern: bool,
-    ) -> SearchResult<Resolved> {
+    ) -> io::Result<SearchResult<Resolved>> {
         if let Some(target) = target.and_then(|target| target.as_str()) {
             if !pattern && !subpath.is_empty() && !ends_with(target, "/") {
                 if self.state.trace_enabled {
@@ -3430,7 +3461,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                         ])
                     );
                 }
-                return to_search_result(None);
+                return Ok(to_search_result(None));
             }
             if !starts_with(target, "./") {
                 if self.is_imports
@@ -3452,8 +3483,8 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                         self.cache.clone(),
                         &[self.extensions],
                         self.redirected_reference.clone(),
-                    );
-                    return to_search_result(result.resolved_module.as_ref().map(
+                    )?;
+                    return Ok(to_search_result(result.resolved_module.as_ref().map(
                         |result_resolved_module| Resolved {
                             path: result_resolved_module.resolved_file_name.clone(),
                             extension: result_resolved_module.extension.unwrap(),
@@ -3461,7 +3492,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                             original_path:
                                 result_resolved_module.original_path.clone().map(Into::into),
                         },
-                    ));
+                    )));
                 }
                 if self.state.trace_enabled {
                     trace(
@@ -3473,7 +3504,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                         ])
                     );
                 }
-                return to_search_result(None);
+                return Ok(to_search_result(None));
             }
             let parts = if path_is_relative(target) {
                 get_path_components(target, None)[1..].to_owned()
@@ -3497,7 +3528,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                         ])
                     );
                 }
-                return to_search_result(None);
+                return Ok(to_search_result(None));
             }
             let resolved_target = combine_paths(&self.scope.package_directory, &[Some(target)]);
             let subpath_parts = get_path_components(subpath, None);
@@ -3519,7 +3550,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                         ])
                     );
                 }
-                return to_search_result(None);
+                return Ok(to_search_result(None));
             }
             let final_path = get_normalized_absolute_path(
                 &if pattern {
@@ -3527,14 +3558,18 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                 } else {
                     format!("{resolved_target}{subpath}")
                 },
-                self.state.host.get_current_directory().as_deref(),
+                self.state
+                    .host
+                    .get_current_directory()
+                    .transpose()?
+                    .as_deref(),
             );
 
-            return to_search_result(with_package_id(
+            return Ok(to_search_result(with_package_id(
                 Some(self.scope),
                 load_js_or_exact_ts_file_name(self.extensions, &final_path, false, self.state)
                     .as_ref(),
-            ));
+            )));
         } else if let Some(target) = target.filter(|target| target.is_object() || target.is_array())
         {
             if let Some(target) = target.as_object() {
@@ -3544,13 +3579,13 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                         || is_applicable_versioned_types_key(&self.state.conditions, key)
                     {
                         let sub_target = target.get(key);
-                        let result = self.call(sub_target, subpath, pattern);
+                        let result = self.call(sub_target, subpath, pattern)?;
                         if result.is_some() {
-                            return result;
+                            return Ok(result);
                         }
                     }
                 }
-                return None;
+                return Ok(None);
             } else {
                 let target = target.as_array().unwrap();
                 if target.is_empty() {
@@ -3564,12 +3599,12 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                             ])
                         );
                     }
-                    return to_search_result(None);
+                    return Ok(to_search_result(None));
                 }
                 for elem in target {
-                    let result = self.call(Some(elem), subpath, pattern);
+                    let result = self.call(Some(elem), subpath, pattern)?;
                     if result.is_some() {
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
@@ -3584,7 +3619,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                     ]),
                 );
             }
-            return to_search_result(None);
+            return Ok(to_search_result(None));
         }
         if self.state.trace_enabled {
             trace(
@@ -3596,7 +3631,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                 ]),
             );
         }
-        to_search_result(None)
+        Ok(to_search_result(None))
     }
 }
 
@@ -3611,7 +3646,7 @@ fn load_module_from_nearest_node_modules_directory(
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> SearchResult<Resolved> {
+) -> io::Result<SearchResult<Resolved>> {
     load_module_from_nearest_node_modules_directory_worker(
         extensions,
         module_name,
@@ -3627,7 +3662,7 @@ fn load_module_from_nearest_node_modules_directory_types_scope(
     module_name: &str,
     directory: &str,
     state: &ModuleResolutionState,
-) -> SearchResult<Resolved> {
+) -> io::Result<SearchResult<Resolved>> {
     load_module_from_nearest_node_modules_directory_worker(
         Extensions::DtsOnly,
         module_name,
@@ -3647,7 +3682,7 @@ fn load_module_from_nearest_node_modules_directory_worker(
     types_scope_only: bool,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> SearchResult<Resolved> {
+) -> io::Result<SearchResult<Resolved>> {
     let per_module_name_cache = cache.as_ref().map(|cache| {
         cache.get_or_create_cache_for_module_name(
             module_name,
@@ -3661,7 +3696,7 @@ fn load_module_from_nearest_node_modules_directory_worker(
             redirected_reference.clone(),
         )
     });
-    for_each_ancestor_directory(&normalize_slashes(directory).into(), |ancestor_directory| {
+    try_for_each_ancestor_directory(&normalize_slashes(directory).into(), |ancestor_directory| {
         if get_base_file_name(ancestor_directory, None, None) != "node_modules" {
             let resolution_from_cache = try_find_non_relative_module_name_in_cache(
                 per_module_name_cache.as_deref(),
@@ -3670,19 +3705,21 @@ fn load_module_from_nearest_node_modules_directory_worker(
                 state,
             );
             if resolution_from_cache.is_some() {
-                return resolution_from_cache;
+                return Ok(resolution_from_cache);
             }
-            return to_search_result(load_module_from_immediate_node_modules_directory(
-                extensions,
-                module_name,
-                ancestor_directory,
-                state,
-                types_scope_only,
-                cache.clone(),
-                redirected_reference.clone(),
+            return Ok(to_search_result(
+                load_module_from_immediate_node_modules_directory(
+                    extensions,
+                    module_name,
+                    ancestor_directory,
+                    state,
+                    types_scope_only,
+                    cache.clone(),
+                    redirected_reference.clone(),
+                )?,
             ));
         }
-        None
+        Ok(None)
     })
 }
 
@@ -3694,7 +3731,7 @@ fn load_module_from_immediate_node_modules_directory(
     types_scope_only: bool,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> Option<Resolved> {
+) -> io::Result<Option<Resolved>> {
     let node_modules_folder = combine_paths(directory, &[Some("node_modules")]);
     let node_modules_folder_exists = directory_probably_exists(
         &node_modules_folder,
@@ -3720,10 +3757,10 @@ fn load_module_from_immediate_node_modules_directory(
             state,
             cache.clone(),
             redirected_reference.clone(),
-        )
+        )?
     };
     if package_result.is_some() {
-        return package_result;
+        return Ok(package_result);
     }
     if matches!(extensions, Extensions::TypeScript | Extensions::DtsOnly) {
         let node_modules_at_types_ = combine_paths(&node_modules_folder, &[Some("@types")]);
@@ -3754,7 +3791,7 @@ fn load_module_from_immediate_node_modules_directory(
             redirected_reference,
         );
     }
-    None
+    Ok(None)
 }
 
 fn load_module_from_specific_node_modules_directory(
@@ -3765,7 +3802,7 @@ fn load_module_from_specific_node_modules_directory(
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> Option<Resolved> {
+) -> io::Result<Option<Resolved>> {
     let candidate = normalize_path(&combine_paths(node_modules_directory, &[Some(module_name)]));
 
     let package_info = Rc::new(RefCell::new(get_package_json_info(
@@ -3782,7 +3819,7 @@ fn load_module_from_specific_node_modules_directory(
                 state,
             );
             if from_file.is_some() {
-                return no_package_id(from_file.as_ref());
+                return Ok(no_package_id(from_file.as_ref()));
             }
 
             let from_directory = load_node_module_from_directory_worker(
@@ -3792,8 +3829,11 @@ fn load_module_from_specific_node_modules_directory(
                 state,
                 Some(&package_info.package_json_content),
                 package_info.version_paths.as_deref(),
-            );
-            return with_package_id(Some(&**package_info), from_directory.as_ref());
+            )?;
+            return Ok(with_package_id(
+                Some(&**package_info),
+                from_directory.as_ref(),
+            ));
         }
     }
 
@@ -3810,7 +3850,7 @@ fn load_module_from_specific_node_modules_directory(
                     Some(package_info_package_json_content) if package_info_package_json_content.get("exports").is_some()
                 ) && state.features.intersects(NodeResolutionFeatures::Exports)
             }) {
-                return load_module_from_exports(
+                return Ok(load_module_from_exports(
                     package_info,
                     extensions,
                     &combine_paths(
@@ -3820,11 +3860,11 @@ fn load_module_from_specific_node_modules_directory(
                     state,
                     cache.clone(),
                     redirected_reference.clone(),
-                ).and_then(|search_result| search_result.value);
+                )?.and_then(|search_result| search_result.value));
             }
             let path_and_extension =
-                load_module_from_file(extensions, candidate, only_record_failures, state).or_else(
-                    || {
+                load_module_from_file(extensions, candidate, only_record_failures, state)
+                    .try_or_else(|| {
                         load_node_module_from_directory_worker(
                             extensions,
                             candidate,
@@ -3840,12 +3880,11 @@ fn load_module_from_specific_node_modules_directory(
                                 .and_then(|package_info| package_info.version_paths.clone())
                                 .as_deref(),
                         )
-                    },
-                );
-            with_package_id(
+                    })?;
+            Ok(with_package_id(
                 (*package_info).borrow().as_deref(),
                 path_and_extension.as_ref(),
-            )
+            ))
         }
     });
 
@@ -3886,9 +3925,9 @@ fn load_module_from_specific_node_modules_directory(
                 loader.clone(),
                 !package_directory_exists,
                 state,
-            );
+            )?;
             if let Some(from_paths) = from_paths {
-                return from_paths.value;
+                return Ok(from_paths.value);
             }
         }
     }
@@ -3934,7 +3973,7 @@ fn try_load_module_using_paths(
     loader: ResolutionKindSpecificLoader,
     only_record_failures: bool,
     state: &ModuleResolutionState,
-) -> SearchResult<Resolved> {
+) -> io::Result<SearchResult<Resolved>> {
     let path_patterns = path_patterns
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| try_parse_patterns(paths));
@@ -3957,45 +3996,46 @@ fn try_load_module_using_paths(
                 Some(vec![module_name.to_owned(), matched_pattern_text.clone()]),
             );
         }
-        let resolved = maybe_for_each(paths.get(&matched_pattern_text), |subst: &String, _| {
-            let path = if let Some(matched_star) = matched_star.as_ref() {
-                subst.replace("*", matched_star)
-            } else {
-                subst.clone()
-            };
-            let candidate = normalize_path(&combine_paths(base_directory, &[Some(&path)]));
-            if state.trace_enabled {
-                trace(
-                    state.host,
-                    &Diagnostics::Trying_substitution_0_candidate_module_location_Colon_1,
-                    Some(vec![subst.clone(), path.clone()]),
-                );
-            }
-            let extension = try_get_extension_from_path(subst);
-            if let Some(extension) = extension {
-                let path = try_file(&candidate, only_record_failures, state);
-                if let Some(path) = path {
-                    return no_package_id(Some(&PathAndExtension {
-                        path,
-                        ext: extension,
-                    }));
+        let resolved =
+            try_maybe_for_each(paths.get(&matched_pattern_text), |subst: &String, _| {
+                let path = if let Some(matched_star) = matched_star.as_ref() {
+                    subst.replace("*", matched_star)
+                } else {
+                    subst.clone()
+                };
+                let candidate = normalize_path(&combine_paths(base_directory, &[Some(&path)]));
+                if state.trace_enabled {
+                    trace(
+                        state.host,
+                        &Diagnostics::Trying_substitution_0_candidate_module_location_Colon_1,
+                        Some(vec![subst.clone(), path.clone()]),
+                    );
                 }
-            }
-            loader(
-                extensions,
-                &candidate,
-                only_record_failures
-                    || !directory_probably_exists(
-                        &get_directory_path(&candidate),
-                        |directory_name: &str| state.host.directory_exists(directory_name),
-                        || state.host.is_directory_exists_supported(),
-                    ),
-                state,
-            )
-        });
-        return Some(SearchResultPresent { value: resolved });
+                let extension = try_get_extension_from_path(subst);
+                if let Some(extension) = extension {
+                    let path = try_file(&candidate, only_record_failures, state);
+                    if let Some(path) = path {
+                        return Ok(no_package_id(Some(&PathAndExtension {
+                            path,
+                            ext: extension,
+                        })));
+                    }
+                }
+                loader(
+                    extensions,
+                    &candidate,
+                    only_record_failures
+                        || !directory_probably_exists(
+                            &get_directory_path(&candidate),
+                            |directory_name: &str| state.host.directory_exists(directory_name),
+                            || state.host.is_directory_exists_supported(),
+                        ),
+                    state,
+                )
+            })?;
+        return Ok(Some(SearchResultPresent { value: resolved }));
     }
-    None
+    Ok(None)
 }
 
 static mangled_scoped_package_separator: &str = "__";
@@ -4088,14 +4128,14 @@ fn try_find_non_relative_module_name_in_cache(
     })
 }
 
-pub fn classic_name_resolver<TCache: NonRelativeModuleNameResolutionCache>(
+pub fn classic_name_resolver(
     module_name: &str,
     containing_file: &str,
     compiler_options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<&TCache>,
+    cache: Option<&impl NonRelativeModuleNameResolutionCache>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
-) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options, host);
     let failed_lookup_locations: RefCell<Vec<String>> = RefCell::new(vec![]);
     let state = ModuleResolutionState {
@@ -4117,8 +4157,8 @@ pub fn classic_name_resolver<TCache: NonRelativeModuleNameResolutionCache>(
         cache,
         redirected_reference.clone(),
         Extensions::TypeScript,
-    )
-    .or_else(|| {
+    )?
+    .try_or_else(|| {
         classic_name_resolver_try_resolve(
             module_name,
             containing_directory,
@@ -4127,39 +4167,51 @@ pub fn classic_name_resolver<TCache: NonRelativeModuleNameResolutionCache>(
             redirected_reference.clone(),
             Extensions::JavaScript,
         )
-    });
+    })?;
     let ModuleResolutionState {
         failed_lookup_locations: state_failed_lookup_locations,
         result_from_cache: state_result_from_cache,
         ..
     } = state;
-    create_resolved_module_with_failed_lookup_locations(
+    Ok(create_resolved_module_with_failed_lookup_locations(
         resolved.and_then(|resolved| resolved.value),
         Some(false),
         state_failed_lookup_locations.into_inner(),
         state_result_from_cache.into_inner(),
-    )
+    ))
 }
 
-fn classic_name_resolver_try_resolve<TCache: NonRelativeModuleNameResolutionCache>(
+fn classic_name_resolver_try_resolve(
     module_name: &str,
     containing_directory: &str,
     state: &ModuleResolutionState,
-    cache: Option<&TCache>,
+    cache: Option<&impl NonRelativeModuleNameResolutionCache>,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     extensions: Extensions,
-) -> SearchResult<Resolved> {
+) -> io::Result<SearchResult<Resolved>> {
     let resolved_using_settings = try_load_module_using_optional_resolution_settings(
         extensions,
         module_name,
         containing_directory,
-        Rc::new(load_module_from_file_no_package_id),
+        Rc::new(
+            |extensions: Extensions,
+             candidate: &str,
+             only_record_failures: bool,
+             state: &ModuleResolutionState| {
+                Ok(load_module_from_file_no_package_id(
+                    extensions,
+                    candidate,
+                    only_record_failures,
+                    state,
+                ))
+            },
+        ),
         state,
-    );
+    )?;
     if let Some(resolved_using_settings) = resolved_using_settings {
-        return Some(SearchResultPresent {
+        return Ok(Some(SearchResultPresent {
             value: Some(resolved_using_settings),
-        });
+        }));
     }
 
     if !is_external_module_name_relative(module_name) {
@@ -4193,7 +4245,7 @@ fn classic_name_resolver_try_resolve<TCache: NonRelativeModuleNameResolutionCach
             },
         );
         if resolved.is_some() {
-            return resolved;
+            return Ok(resolved);
         }
         if extensions == Extensions::TypeScript {
             return load_module_from_nearest_node_modules_directory_types_scope(
@@ -4205,11 +4257,11 @@ fn classic_name_resolver_try_resolve<TCache: NonRelativeModuleNameResolutionCach
     } else {
         let ref candidate =
             normalize_path(&combine_paths(containing_directory, &[Some(module_name)]));
-        return to_search_result(load_module_from_file_no_package_id(
+        return Ok(to_search_result(load_module_from_file_no_package_id(
             extensions, candidate, false, state,
-        ));
+        )));
     }
-    None
+    Ok(None)
 }
 
 type SearchResult<TValue> = Option<SearchResultPresent<TValue>>;

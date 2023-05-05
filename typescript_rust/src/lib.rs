@@ -67,8 +67,9 @@ pub use compiler::core::{
     remove_prefix, remove_suffix, replace_element, same_flat_map_rc_node, same_map, set_ui_locale,
     single_element_array, single_or_undefined, some, sort, sort_and_deduplicate, stable_sort,
     starts_with, string_contains, sum, take_while, to_file_name_lower_case, trim_string,
-    trim_string_end, trim_string_start, try_add_to_set, try_cast, AssertionLevel, Cloneable,
-    MultiMap, MultiMapOrdered, Pattern, SingleOrVec, UnderscoreEscapedMultiMap,
+    trim_string_end, trim_string_start, try_add_to_set, try_cast, try_first_defined, try_flat_map,
+    try_for_each, try_map, try_map_defined, try_maybe_for_each, try_maybe_map, AssertionLevel,
+    Cloneable, MultiMap, MultiMapOrdered, Pattern, SingleOrVec, UnderscoreEscapedMultiMap,
 };
 pub use compiler::core_public::{
     version, version_major_minor, Comparer, Comparison, MapLike, Push, ReadonlyCollection,
@@ -234,7 +235,7 @@ pub use compiler::path::{
     is_node_modules_directory, is_rooted_disk_path, is_url, normalize_path,
     normalize_path_and_parts, normalize_slashes, path_is_absolute, path_is_bare_specifier,
     path_is_relative, reduce_path_components, remove_trailing_directory_separator, resolve_path,
-    starts_with_directory, to_path, PathAndParts, StringOrBool,
+    starts_with_directory, to_path, try_for_each_ancestor_directory, PathAndParts, StringOrBool,
 };
 #[allow(unused_imports)]
 use compiler::program::{
@@ -625,11 +626,12 @@ pub use compiler::utilities::{
     set_text_range_pos_width, set_value_declaration, should_preserve_const_enums, skip_parentheses,
     skip_type_checking, slice_after, source_file_may_be_emitted, strip_quotes,
     supported_js_extensions_flat, supported_ts_extensions, supported_ts_extensions_flat,
-    try_extract_ts_extension,
+    try_extract_ts_extension, try_for_each_entry_bool,
     try_get_class_implementing_or_extending_expression_with_type_arguments,
     try_get_extension_from_path, try_get_import_from_module_specifier,
     try_get_module_specifier_from_declaration, try_get_property_access_or_identifier_to_string,
-    try_parse_pattern, try_parse_patterns, try_remove_extension, type_directive_is_equal_to,
+    try_parse_pattern, try_parse_patterns, try_remove_extension,
+    try_using_single_line_string_writer, type_directive_is_equal_to,
     type_has_call_or_construct_signatures, unreachable_code_is_error, unused_label_is_error,
     unwrap_innermost_statement_of_label, using_single_line_string_writer,
     walk_up_parenthesized_expressions, walk_up_parenthesized_types,
@@ -712,8 +714,8 @@ use compiler::utilities_public::{
     text_range_contains_position_inclusive,
 };
 pub use compiler::visitor_public::{
-    visit_each_child, visit_function_body, visit_iteration_body, visit_lexical_environment,
-    visit_node, visit_nodes, visit_parameter_list,
+    try_visit_node, try_visit_nodes, visit_each_child, visit_function_body, visit_iteration_body,
+    visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
 };
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
@@ -741,12 +743,12 @@ pub use rust_helpers::deref::AsDoubleDeref;
 pub use rust_helpers::hash_map::{GcHashMap, GcHashMapOwnedValues};
 pub use rust_helpers::io::io_error_from_name;
 pub use rust_helpers::iterator::{
-    maybe_concat, maybe_concat_exact_size, Empty, Owned, PeekMoreExt, PeekableExt,
+    maybe_concat, maybe_concat_exact_size, IteratorExt, Owned, PeekMoreExt, PeekableExt,
 };
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::option::{
-    GetOrInsertDefault, MapOrDefault, Matches, NodeWrappered, NonEmpty, SymbolWrappered, ThenAnd,
-    TypeWrappered, UnwrapOrEmpty,
+    GetOrInsertDefault, MapOrDefault, Matches, NodeWrappered, NonEmpty, OptionTry, SymbolWrappered,
+    ThenAnd, TypeWrappered, UnwrapOrEmpty,
 };
 pub use rust_helpers::sys::{
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,

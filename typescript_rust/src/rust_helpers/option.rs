@@ -188,3 +188,89 @@ impl<TIterator: Iterator> UnwrapOrEmpty for Option<TIterator> {
         )
     }
 }
+
+pub trait OptionTry {
+    type Unwrapped;
+
+    fn try_get_or_insert_with<TError>(
+        &mut self,
+        predicate: impl FnOnce() -> Result<Self::Unwrapped, TError>,
+    ) -> Result<&mut Self::Unwrapped, TError>;
+
+    fn try_or_else<TError>(
+        self,
+        predicate: impl FnOnce() -> Result<Option<Self::Unwrapped>, TError>,
+    ) -> Result<Option<Self::Unwrapped>, TError>;
+
+    fn try_unwrap_or_else<TError>(
+        self,
+        predicate: impl FnOnce() -> Result<Self::Unwrapped, TError>,
+    ) -> Result<Self::Unwrapped, TError>;
+
+    fn try_and_then<TMapped, TError>(
+        self,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<Option<TMapped>, TError>,
+    ) -> Result<Option<TMapped>, TError>;
+
+    fn try_map<TMapped, TError>(
+        self,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
+    ) -> Result<Option<TMapped>, TError>;
+}
+
+impl<TValue> OptionTry for Option<TValue> {
+    type Unwrapped = TValue;
+
+    fn try_get_or_insert_with<TError>(
+        &mut self,
+        predicate: impl FnOnce() -> Result<TValue, TError>,
+    ) -> Result<&mut TValue, TError> {
+        match self {
+            Some(value) => Ok(value),
+            None => {
+                *self = Some(predicate()?);
+                Ok(self.as_mut().unwrap())
+            }
+        }
+    }
+
+    fn try_or_else<TError>(
+        self,
+        predicate: impl FnOnce() -> Result<Option<Self::Unwrapped>, TError>,
+    ) -> Result<Option<Self::Unwrapped>, TError> {
+        match self {
+            Some(value) => Ok(Some(value)),
+            None => predicate(),
+        }
+    }
+
+    fn try_unwrap_or_else<TError>(
+        self,
+        predicate: impl FnOnce() -> Result<Self::Unwrapped, TError>,
+    ) -> Result<Self::Unwrapped, TError> {
+        match self {
+            Some(value) => Ok(value),
+            None => predicate(),
+        }
+    }
+
+    fn try_and_then<TMapped, TError>(
+        self,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<Option<TMapped>, TError>,
+    ) -> Result<Option<TMapped>, TError> {
+        match self {
+            Some(value) => predicate(value),
+            None => Ok(None),
+        }
+    }
+
+    fn try_map<TMapped, TError>(
+        self,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
+    ) -> Result<Option<TMapped>, TError> {
+        Ok(match self {
+            Some(value) => Some(predicate(value)?),
+            None => None,
+        })
+    }
+}

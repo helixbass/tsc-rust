@@ -1,3 +1,5 @@
+use std::io;
+
 use gc::Gc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};
@@ -104,7 +106,7 @@ impl TypeChecker {
     pub(super) fn check_alias_symbol(
         &self,
         node: &Node, /*ImportEqualsDeclaration | VariableDeclaration | ImportClause | NamespaceImport | ImportSpecifier | ExportSpecifier | NamespaceExport*/
-    ) {
+    ) -> io::Result<()> {
         let mut symbol = self.get_symbol_of_node(node).unwrap();
         let target = self.resolve_alias(&symbol);
 
@@ -143,7 +145,7 @@ impl TypeChecker {
                         None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
             }
 
@@ -243,6 +245,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_import_binding(
@@ -451,12 +455,15 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_export_declaration(&self, node: &Node /*ExportDeclaration*/) {
+    pub(super) fn check_export_declaration(
+        &self,
+        node: &Node, /*ExportDeclaration*/
+    ) -> io::Result<()> {
         if self.check_grammar_module_element_context(
             node,
             &Diagnostics::An_export_declaration_can_only_be_used_in_a_module,
         ) {
-            return;
+            return Ok(());
         }
 
         if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
@@ -533,7 +540,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 } else if let Some(node_export_clause) =
                     node_as_export_declaration.export_clause.as_ref()
@@ -558,6 +565,8 @@ impl TypeChecker {
             }
         }
         self.check_assert_clause(node);
+
+        Ok(())
     }
 
     pub(super) fn check_grammar_export_declaration(

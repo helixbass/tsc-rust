@@ -1,6 +1,6 @@
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
-use std::ptr;
+use std::{io, ptr};
 
 use super::ResolveNameNameArg;
 use crate::{
@@ -184,13 +184,13 @@ impl TypeChecker {
         error_location: &Node,
         name: &str, /*__String*/
         name_arg: ResolveNameNameArg<'name_arg>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if !is_identifier(error_location)
             || &error_location.as_identifier().escaped_text != name
             || self.is_type_reference_identifier(error_location)
             || self.is_in_type_query(error_location)
         {
-            return false;
+            return Ok(false);
         }
 
         let container = get_this_container(error_location, false);
@@ -216,10 +216,10 @@ impl TypeChecker {
                                 None,
                                 None,
                                 None,
-                            ),
+                            )?,
                         ]),
                     );
-                    return true;
+                    return Ok(true);
                 }
 
                 if Gc::ptr_eq(&location_present, &container) && !is_static(&location_present) {
@@ -232,14 +232,14 @@ impl TypeChecker {
                             &Diagnostics::Cannot_find_name_0_Did_you_mean_the_instance_member_this_0,
                             Some(vec![self.diagnostic_name(name_arg).into_owned()]),
                         );
-                        return true;
+                        return Ok(true);
                     }
                 }
             }
 
             location = location_present.maybe_parent();
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_and_report_error_for_extending_interface(
@@ -972,7 +972,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportClause*/
         dont_resolve_alias: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let node_parent = node.parent();
         let node_parent_as_import_declaration = node_parent.as_import_declaration();
         let module_symbol = self.resolve_external_module_name_(
@@ -1032,7 +1032,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        ),
+                        )?,
                         compiler_option_name.to_owned(),
                     ]),
                 );
@@ -1056,7 +1056,7 @@ impl TypeChecker {
                 resolved.as_deref(),
                 false,
             );
-            return resolved;
+            return Ok(resolved);
         }
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
@@ -1064,14 +1064,14 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             false,
         );
-        export_default_symbol
+        Ok(export_default_symbol)
     }
 
     pub(super) fn report_non_default_export(
         &self,
         module_symbol: &Symbol,
         node: &Node, /*ImportClause*/
-    ) {
+    ) -> io::Result<()> {
         let node_as_import_clause = node.as_import_clause();
         if matches!(
             module_symbol.maybe_exports().as_ref(),
@@ -1081,8 +1081,8 @@ impl TypeChecker {
                 node_as_import_clause.name.as_deref(),
                 &Diagnostics::Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_0_instead,
                 Some(vec![
-                    self.symbol_to_string_(module_symbol, Option::<&Node>::None, None, None, None),
-                    self.symbol_to_string_(&node.symbol(), Option::<&Node>::None, None, None, None),
+                    self.symbol_to_string_(module_symbol, Option::<&Node>::None, None, None, None)?,
+                    self.symbol_to_string_(&node.symbol(), Option::<&Node>::None, None, None, None)?,
                 ])
             );
         } else {
@@ -1095,7 +1095,7 @@ impl TypeChecker {
                     None,
                     None,
                     None,
-                )]),
+                )?]),
             );
             let export_star = module_symbol.maybe_exports().as_ref().and_then(|exports| {
                 (**exports)
@@ -1128,6 +1128,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_target_of_namespace_import(
@@ -1295,7 +1297,7 @@ impl TypeChecker {
         node: &Node,      /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
         specifier: &Node, /*ImportOrExportSpecifier | BindingElement | PropertyAccessExpression*/
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
         let module_specifier =
             get_external_module_require_argument(node).unwrap_or_else(|| match node {
@@ -1311,7 +1313,7 @@ impl TypeChecker {
         }
         .unwrap_or_else(|| specifier.as_named_declaration().name());
         if !is_identifier(&name) {
-            return None;
+            return Ok(None);
         }
         let name_as_identifier = name.as_identifier();
         let suppress_interop_error = name_as_identifier.escaped_text == InternalSymbolName::Default
@@ -1328,7 +1330,7 @@ impl TypeChecker {
         let module_symbol = module_symbol.unwrap();
         if !(&*name_as_identifier.escaped_text).is_empty() {
             if is_shorthand_ambient_module_symbol(&module_symbol) {
-                return Some(module_symbol);
+                return Ok(Some(module_symbol));
             }
 
             let mut symbol_from_variable: Option<Gc<Symbol>>;
@@ -1413,7 +1415,7 @@ impl TypeChecker {
                         None,
                         None,
                         None,
-                    );
+                    )?;
                     let diagnostic = self.error(
                         Some(&*name),
                         &Diagnostics::_0_has_no_exported_member_named_1_Did_you_mean_2,
@@ -1459,9 +1461,9 @@ impl TypeChecker {
                     }
                 }
             }
-            return symbol;
+            return Ok(symbol);
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn report_non_exported_member(
@@ -1471,7 +1473,7 @@ impl TypeChecker {
         declaration_name: String,
         module_symbol: &Symbol,
         module_name: String,
-    ) {
+    ) -> io::Result<()> {
         let local_symbol = module_symbol
             .maybe_value_declaration()
             .and_then(|value_declaration| {
@@ -1535,7 +1537,7 @@ impl TypeChecker {
                                 None,
                                 None,
                                 None,
-                            ),
+                            )?,
                         ]),
                     )
                 } else {
@@ -1572,6 +1574,8 @@ impl TypeChecker {
                 Some(vec![module_name, declaration_name]),
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn report_invalid_import_equals_export_member(
@@ -1633,7 +1637,7 @@ impl TypeChecker {
             &root,
             &common_js_property_access.unwrap_or_else(|| node.node_wrapper()),
             Some(dont_resolve_alias),
-        );
+        )?;
         let name = node
             .as_has_property_name()
             .maybe_property_name()
@@ -1697,7 +1701,7 @@ impl TypeChecker {
         node: &Node, /*ExportSpecifier*/
         meaning: SymbolFlags,
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let resolved = if node
             .parent()
             .parent()
@@ -1705,7 +1709,7 @@ impl TypeChecker {
             .module_specifier
             .is_some()
         {
-            self.get_external_module_member(&node.parent().parent(), node, dont_resolve_alias)
+            self.get_external_module_member(&node.parent().parent(), node, dont_resolve_alias)?
         } else {
             let node_as_export_specifier = node.as_export_specifier();
             self.resolve_entity_name(
@@ -1725,7 +1729,7 @@ impl TypeChecker {
             resolved.as_deref(),
             false,
         );
-        resolved
+        Ok(resolved)
     }
 
     pub(super) fn get_target_of_export_assignment(

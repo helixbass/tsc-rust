@@ -1431,22 +1431,16 @@ pub fn get_regex_from_pattern(pattern: &str, use_case_sensitive_file_names: bool
     .unwrap()
 }
 
-pub fn match_files<
-    TExtension: AsRef<str>,
-    TExclude: AsRef<str>,
-    TInclude: AsRef<str>,
-    TGetFileSystemEntries: FnMut(&str) -> FileSystemEntries,
-    TRealpath: FnMut(&str) -> String,
->(
+pub fn match_files(
     path: &str,
-    extensions: Option<&[TExtension]>,
-    excludes: Option<&[TExclude]>,
-    includes: Option<&[TInclude]>,
+    extensions: Option<&[impl AsRef<str>]>,
+    excludes: Option<&[impl AsRef<str>]>,
+    includes: Option<&[impl AsRef<str>]>,
     use_case_sensitive_file_names: bool,
     current_directory: &str,
     mut depth: Option<usize>,
-    mut get_file_system_entries: TGetFileSystemEntries,
-    mut realpath: TRealpath,
+    mut get_file_system_entries: impl FnMut(&str) -> FileSystemEntries,
+    mut realpath: impl FnMut(&str) -> String,
 ) -> Vec<String> {
     let path = normalize_path(path);
     let current_directory = normalize_path(current_directory);

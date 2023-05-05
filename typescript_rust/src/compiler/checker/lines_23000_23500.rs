@@ -1,8 +1,8 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::IterationUse;
 use crate::{
@@ -385,15 +385,15 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn map_type<TMapper: FnMut(&Type) -> Option<Gc<Type>>>(
+    pub(super) fn try_map_type(
         &self,
         type_: &Type,
-        mapper: &mut TMapper,
+        mapper: &mut impl FnMut(&Type) -> io::Result<Option<Gc<Type>>>,
         no_reductions: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let no_reductions = no_reductions.unwrap_or(false);
         if type_.flags().intersects(TypeFlags::Never) {
-            return Some(type_.type_wrapper());
+            return Ok(Some(type_.type_wrapper()));
         }
         if !type_.flags().intersects(TypeFlags::Union) {
             return mapper(type_);
@@ -414,9 +414,9 @@ impl TypeChecker {
         let mut changed = false;
         for t in &types {
             let mapped = if t.flags().intersects(TypeFlags::Union) {
-                self.map_type(&t, mapper, Some(no_reductions))
+                self.try_map_type(&t, mapper, Some(no_reductions))?
             } else {
-                mapper(&t)
+                mapper(&t)?
             };
             changed = changed
                 || match mapped.as_ref() {
@@ -427,7 +427,7 @@ impl TypeChecker {
                 mapped_types.push(mapped);
             }
         }
-        if changed {
+        Ok(if changed {
             if !mapped_types.is_empty() {
                 Some(self.get_union_type(
                     &mapped_types,
@@ -445,7 +445,17 @@ impl TypeChecker {
             }
         } else {
             Some(type_.type_wrapper())
-        }
+        })
+    }
+
+    pub(super) fn map_type(
+        &self,
+        type_: &Type,
+        mapper: &mut impl FnMut(&Type) -> Option<Gc<Type>>,
+        no_reductions: Option<bool>,
+    ) -> Option<Gc<Type>> {
+        self.try_map_type(type_, &mut |type_: &Type| Ok(mapper(type_)), no_reductions)
+            .unwrap()
     }
 
     pub(super) fn map_type_with_alias<

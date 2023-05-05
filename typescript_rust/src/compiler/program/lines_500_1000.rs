@@ -25,16 +25,16 @@ use crate::{
     is_import_equals_declaration, is_logging, map_defined, maybe_for_each, options_have_changes,
     out_file, ref_mut_unwrapped, ref_unwrapped, resolve_module_name,
     resolve_type_reference_directive, skip_trivia, source_file_affecting_compiler_options,
-    stable_sort, to_file_name_lower_case, walk_up_parenthesized_expressions, AsDoubleDeref,
-    AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions, CreateProgramOptions, Debug_,
-    Diagnostic, DiagnosticCollection, Extension, FileIncludeKind, FileIncludeReason,
+    stable_sort, to_file_name_lower_case, try_maybe_for_each, walk_up_parenthesized_expressions,
+    AsDoubleDeref, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions, CreateProgramOptions,
+    Debug_, Diagnostic, DiagnosticCollection, Extension, FileIncludeKind, FileIncludeReason,
     FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, GetProgramBuildInfo, LibFile,
     ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
     ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, NonEmpty,
-    PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParsedCommandLine, Path, Program,
-    ProjectReference, ProjectReferenceFile, ReadonlyTextRange, RedirectTargetsMap, ReferencedFile,
-    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
-    ScriptReferenceHost, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
+    OptionTry, PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParsedCommandLine, Path,
+    Program, ProjectReference, ProjectReferenceFile, ReadonlyTextRange, RedirectTargetsMap,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    RootFile, ScriptReferenceHost, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost,
     TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, VecExt,
 };
@@ -46,7 +46,7 @@ pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
         name: &str,
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> TValue;
+    ) -> io::Result<TValue>;
 }
 
 #[derive(Trace, Finalize)]
@@ -80,18 +80,18 @@ impl LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>
         types_ref: &str,
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Gc<ResolvedTypeReferenceDirective> {
-        resolve_type_reference_directive(
+    ) -> io::Result<Gc<ResolvedTypeReferenceDirective>> {
+        Ok(resolve_type_reference_directive(
             types_ref,
             Some(containing_file),
             self.options.clone(),
             self.host.as_dyn_module_resolution_host(),
             redirected_reference,
             self.type_reference_directive_resolution_cache.clone(),
-        )
+        )?
         .resolved_type_reference_directive
         .clone()
-        .unwrap()
+        .unwrap())
     }
 }
 
@@ -100,23 +100,23 @@ pub(crate) fn load_with_local_cache<TValue: Clone>(
     containing_file: &str,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     loader: &dyn LoadWithLocalCacheLoader<TValue>,
-) -> Vec<TValue> {
+) -> io::Result<Vec<TValue>> {
     if names.is_empty() {
-        return vec![];
+        return Ok(Default::default());
     }
-    let mut resolutions: Vec<TValue> = vec![];
+    let mut resolutions: Vec<TValue> = Default::default();
     let mut cache: HashMap<String, TValue> = HashMap::new();
     for name in names {
         let result: TValue;
         if cache.contains_key(name) {
             result = cache.get(name).cloned().unwrap();
         } else {
-            result = loader.call(name, containing_file, redirected_reference.clone());
+            result = loader.call(name, containing_file, redirected_reference.clone())?;
             cache.insert(name.clone(), result.clone());
         }
         resolutions.push(result);
     }
-    resolutions
+    Ok(resolutions)
 }
 
 pub(crate) trait SourceFileImportsList {
@@ -197,7 +197,7 @@ pub trait LoadWithModeAwareCacheLoader<TValue>: Trace + Finalize {
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> TValue;
+    ) -> io::Result<TValue>;
 }
 
 #[derive(Trace, Finalize)]
@@ -230,8 +230,8 @@ impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Option<Gc<ResolvedModuleFull>> {
-        resolve_module_name(
+    ) -> io::Result<Option<Gc<ResolvedModuleFull>>> {
+        Ok(resolve_module_name(
             module_name,
             containing_file_name,
             self.options.clone(),
@@ -239,9 +239,9 @@ impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
             self.module_resolution_cache.clone(),
             redirected_reference,
             resolver_mode,
-        )
+        )?
         .resolved_module
-        .clone()
+        .clone())
     }
 }
 
@@ -251,12 +251,12 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     containing_file_name: &str,
     redirected_reference: Option<Gc<ResolvedProjectReference>>,
     loader: &dyn LoadWithModeAwareCacheLoader<TValue>,
-) -> Vec<TValue> {
+) -> io::Result<Vec<TValue>> {
     if names.is_empty() {
-        return vec![];
+        return Ok(vec![]);
     }
-    let mut resolutions: Vec<TValue> = vec![];
-    let mut cache: HashMap<String, TValue> = HashMap::new();
+    let mut resolutions: Vec<TValue> = Default::default();
+    let mut cache: HashMap<String, TValue> = Default::default();
     let mut i = 0;
     let containing_file_as_source_file = containing_file.as_source_file();
     for name in names {
@@ -276,12 +276,12 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
                 mode,
                 containing_file_name,
                 redirected_reference.clone(),
-            );
+            )?;
             cache.insert(cache_key, result.clone());
         }
         resolutions.push(result);
     }
-    resolutions
+    Ok(resolutions)
 }
 
 pub fn for_each_resolved_project_reference<
@@ -330,6 +330,33 @@ pub fn for_each_project_reference<TReturn>(
     )
 }
 
+pub fn for_each_project_reference_fallible<TReturn, TError>(
+    project_references: Option<&[Rc<ProjectReference>]>,
+    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    mut cb_resolved_ref: impl FnMut(
+        Option<Gc<ResolvedProjectReference>>,
+        Option<&ResolvedProjectReference>,
+        usize,
+    ) -> Result<Option<TReturn>, TError>,
+    cb_ref: Option<
+        impl Fn(
+            Option<&[Rc<ProjectReference>]>,
+            Option<&ResolvedProjectReference>,
+        ) -> Result<Option<TReturn>, TError>,
+    >,
+) -> Result<Option<TReturn>, TError> {
+    let mut seen_resolved_refs: Option<HashSet<Path>> = None;
+
+    for_each_project_reference_worker_fallible(
+        cb_ref.as_ref(),
+        &mut cb_resolved_ref,
+        &mut seen_resolved_refs,
+        project_references,
+        resolved_project_references,
+        None,
+    )
+}
+
 pub fn for_each_project_reference_bool(
     project_references: Option<&[Rc<ProjectReference>]>,
     resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
@@ -355,6 +382,36 @@ pub fn for_each_project_reference_bool(
         }),
     )
     .is_some()
+}
+
+pub fn for_each_project_reference_fallible_bool<TError>(
+    project_references: Option<&[Rc<ProjectReference>]>,
+    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    mut cb_resolved_ref: impl FnMut(
+        Option<Gc<ResolvedProjectReference>>,
+        Option<&ResolvedProjectReference>,
+        usize,
+    ) -> Result<bool, TError>,
+    cb_ref: Option<
+        impl Fn(
+            Option<&[Rc<ProjectReference>]>,
+            Option<&ResolvedProjectReference>,
+        ) -> Result<bool, TError>,
+    >,
+) -> Result<bool, TError> {
+    Ok(for_each_project_reference_fallible(
+        project_references,
+        resolved_project_references,
+        |a: Option<Gc<ResolvedProjectReference>>,
+         b: Option<&ResolvedProjectReference>,
+         c: usize| { Ok(cb_resolved_ref(a, b, c)?.then_some(())) },
+        cb_ref.as_ref().map(|cb_ref| {
+            |a: Option<&[Rc<ProjectReference>]>, b: Option<&ResolvedProjectReference>| {
+                Ok(cb_ref(a, b)?.then_some(()))
+            }
+        }),
+    )?
+    .is_some())
 }
 
 fn for_each_project_reference_worker<TReturn>(
@@ -403,6 +460,66 @@ fn for_each_project_reference_worker<TReturn>(
                 .get_or_insert_with(|| HashSet::new())
                 .insert(resolved_ref.source_file.as_source_file().path().clone());
             for_each_project_reference_worker(
+                cb_ref,
+                cb_resolved_ref,
+                seen_resolved_refs,
+                resolved_ref.command_line.project_references.as_deref(),
+                resolved_ref.maybe_references().as_deref(),
+                Some(&**resolved_ref),
+            )
+        },
+    )
+}
+
+fn for_each_project_reference_worker_fallible<TReturn, TError>(
+    cb_ref: Option<
+        &impl Fn(
+            Option<&[Rc<ProjectReference>]>,
+            Option<&ResolvedProjectReference>,
+        ) -> Result<Option<TReturn>, TError>,
+    >,
+    cb_resolved_ref: &mut impl FnMut(
+        Option<Gc<ResolvedProjectReference>>,
+        Option<&ResolvedProjectReference>,
+        usize,
+    ) -> Result<Option<TReturn>, TError>,
+    seen_resolved_refs: &mut Option<HashSet<Path>>,
+    project_references: Option<&[Rc<ProjectReference>]>,
+    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    parent: Option<&ResolvedProjectReference>,
+) -> Result<Option<TReturn>, TError> {
+    if let Some(cb_ref) = cb_ref {
+        let result = cb_ref(project_references, parent)?;
+        if result.is_some() {
+            return Ok(result);
+        }
+    }
+
+    try_maybe_for_each(
+        resolved_project_references,
+        |resolved_ref: &Option<Gc<ResolvedProjectReference>>, index| {
+            if matches!(
+                resolved_ref.as_ref(),
+                Some(resolved_ref) if matches!(
+                    seen_resolved_refs,
+                    Some(seen_resolved_refs) if seen_resolved_refs.contains(
+                        &*resolved_ref.source_file.as_source_file().path()
+                    )
+                )
+            ) {
+                return Ok(None);
+            }
+
+            let result = cb_resolved_ref(resolved_ref.clone(), parent, index)?;
+            if result.is_some() || resolved_ref.is_none() {
+                return Ok(result);
+            }
+            let resolved_ref = resolved_ref.as_ref().unwrap();
+
+            seen_resolved_refs
+                .get_or_insert_with(|| HashSet::new())
+                .insert(resolved_ref.source_file.as_source_file().path().clone());
+            for_each_project_reference_worker_fallible(
                 cb_ref,
                 cb_resolved_ref,
                 seen_resolved_refs,
@@ -792,7 +909,7 @@ impl Program {
             .unwrap()
     }
 
-    pub fn create(&self) {
+    pub fn create(&self) -> io::Result<()> {
         let CreateProgramOptions {
             root_names,
             config_file_parsing_diagnostics,
@@ -829,7 +946,7 @@ impl Program {
         );
         *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection());
         *self.current_directory.borrow_mut() =
-            Some(CompilerHost::get_current_directory(&**self.host()));
+            Some(CompilerHost::get_current_directory(&**self.host())?);
         *self.supported_extensions.borrow_mut() =
             Some(get_supported_extensions(Some(&self.options), None));
         *self
@@ -948,7 +1065,7 @@ impl Program {
             )));
         // tracing?.pop();
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
-        self.set_structure_is_reused(self.try_reuse_structure_from_old_program());
+        self.set_structure_is_reused(self.try_reuse_structure_from_old_program()?);
         // tracing?.pop();
         if self.structure_is_reused() != StructureIsReused::Completely {
             *self.processing_default_lib_files.borrow_mut() = Some(vec![]);
@@ -957,14 +1074,14 @@ impl Program {
             if let Some(project_references) = self.maybe_project_references().as_ref() {
                 {
                     self.maybe_resolved_project_references_mut()
-                        .get_or_insert_with(|| {
+                        .try_get_or_insert_with(|| {
                             project_references
                                 .into_iter()
                                 .map(|project_reference| {
                                     self.parse_project_reference_config_file(project_reference)
                                 })
                                 .collect()
-                        });
+                        })?;
                 }
                 if !self.root_names().is_empty() {
                     self.maybe_resolved_project_references().as_ref().map(|resolved_project_references| {
@@ -1054,7 +1171,7 @@ impl Program {
                 get_automatic_type_directive_names(
                     &self.options,
                     self.host().as_dyn_module_resolution_host(),
-                )
+                )?
             } else {
                 vec![]
             };
@@ -1066,7 +1183,7 @@ impl Program {
                 {
                     get_directory_path(options_config_file_path)
                 } else {
-                    CompilerHost::get_current_directory(&**self.host())
+                    CompilerHost::get_current_directory(&**self.host())?
                 };
                 let containing_filename = combine_paths(
                     &containing_directory,
@@ -1075,7 +1192,7 @@ impl Program {
                 let resolutions = self.resolve_type_reference_directive_names_worker(
                     &type_references,
                     containing_filename,
-                );
+                )?;
                 for i in 0..type_references.len() {
                     self.process_type_reference_directive(
                         &type_references[i],
@@ -1109,11 +1226,11 @@ impl Program {
                         })),
                     );
                 } else {
-                    maybe_for_each(
+                    try_maybe_for_each(
                         self.options.lib.as_ref(),
-                        |lib_file_name: &String, index| -> Option<()> {
+                        |lib_file_name: &String, index| -> io::Result<Option<()>> {
                             self.process_root_file(
-                                &self.path_for_lib_file(lib_file_name),
+                                &self.path_for_lib_file(lib_file_name)?,
                                 true,
                                 false,
                                 Gc::new(FileIncludeReason::LibFile(LibFile {
@@ -1121,7 +1238,7 @@ impl Program {
                                     index: Some(index),
                                 })),
                             );
-                            None
+                            Ok(None)
                         },
                     );
                 }
@@ -1242,6 +1359,8 @@ impl Program {
         // performance.mark("afterProgram");
         // performance.measure("Program", "beforeProgram", "afterProgram");
         // tracing?.pop();
+
+        Ok(())
     }
 
     pub fn set_rc_wrapper(&self, rc_wrapper: Option<Gc<Box<Program>>>) {
@@ -1692,7 +1811,7 @@ pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Gc<ResolvedModuleFull>>>;
+    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -1715,8 +1834,9 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
-        self.host
+    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
+        Ok(self
+            .host
             .resolve_module_names(
                 /*Debug.checkEachDefined(*/ module_names, /*)*/
                 containing_file_name,
@@ -1739,7 +1859,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
                 with_extension.extension = Some(extension_from_path(&resolved.resolved_file_name));
                 Some(Gc::new(with_extension))
             })
-            .collect()
+            .collect())
     }
 }
 
@@ -1764,7 +1884,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
         containing_file_name: &str,
         _reused_names: Option<&[String]>,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Gc<ResolvedModuleFull>>> {
+    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
         load_with_mode_aware_cache(
             /*Debug.checkEachDefined(*/ module_names, /*)*/
             containing_file,
@@ -1781,7 +1901,7 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
         type_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Gc<ResolvedTypeReferenceDirective>>>;
+    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -1804,15 +1924,16 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         type_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Gc<ResolvedTypeReferenceDirective>>> {
-        self.host
+    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
+        Ok(self
+            .host
             .resolve_type_reference_directives(
                 /*Debug.checkEachDefined(*/ type_directive_names, /*)*/
                 containing_file,
                 redirected_reference.as_deref(),
                 &self.options,
             )
-            .unwrap()
+            .unwrap())
     }
 }
 
@@ -1837,16 +1958,16 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         type_reference_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> Vec<Option<Gc<ResolvedTypeReferenceDirective>>> {
-        load_with_local_cache(
+    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
+        Ok(load_with_local_cache(
             /*Debug.checkEachDefined(*/ type_reference_directive_names, /*)*/
             containing_file,
             redirected_reference,
             &**self.loader,
-        )
+        )?
         .into_iter()
         .map(Some)
-        .collect()
+        .collect())
     }
 }
 

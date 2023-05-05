@@ -1,9 +1,9 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{
     signature_has_rest_parameter, CheckMode, GetDiagnosticSpanForCallNodeReturn,
@@ -293,7 +293,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
         result: &Type,
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         let namespace = self.get_jsx_namespace_at(Some(node));
         let exports = namespace
             .as_ref()
@@ -321,7 +321,7 @@ impl TypeChecker {
                         Some("props"),
                         None,
                         self.node_builder()
-                            .type_to_type_node(result, Some(node), None, None),
+                            .type_to_type_node(result, Some(node), None, None)?,
                         None,
                     )
                     .wrap()],
@@ -348,7 +348,7 @@ impl TypeChecker {
             .symbol_links()
             .borrow_mut()
             .type_ = Some(result.type_wrapper());
-        Gc::new(self.create_signature(
+        Ok(Gc::new(self.create_signature(
             Some(declaration),
             None,
             None,
@@ -361,7 +361,7 @@ impl TypeChecker {
             None,
             1,
             SignatureFlags::None,
-        ))
+        )))
     }
 
     pub(super) fn resolve_jsx_opening_like_element(
@@ -910,7 +910,7 @@ impl TypeChecker {
         &self,
         signature: Gc<Signature>,
         node: &Node, /*CallLikeExpression*/
-    ) {
+    ) -> io::Result<()> {
         if let Some(signature_declaration) =
             signature
                 .declaration
@@ -934,9 +934,11 @@ impl TypeChecker {
                     None,
                     None,
                     None,
-                ),
+                )?,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn get_deprecated_suggestion_node(&self, node: &Node) -> Gc<Node> {

@@ -1,6 +1,6 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use crate::{
     declaration_name_to_string, entity_name_to_string, file_extension_is, find, find_ancestor,
@@ -141,7 +141,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn resolve_alias(&self, symbol: &Symbol) -> Gc<Symbol> {
+    pub(super) fn resolve_alias(&self, symbol: &Symbol) -> io::Result<Gc<Symbol>> {
         Debug_.assert(
             symbol.flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
@@ -170,7 +170,7 @@ impl TypeChecker {
                         None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
             }
         } else if Gc::ptr_eq(
@@ -180,7 +180,7 @@ impl TypeChecker {
             links.borrow_mut().target = Some(self.unknown_symbol());
         }
         let ret = (*links).borrow().target.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
@@ -397,12 +397,12 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         containing_location: Option<impl Borrow<Node>>,
-    ) -> String {
-        if let Some(symbol_parent) = symbol.maybe_parent() {
+    ) -> io::Result<String> {
+        Ok(if let Some(symbol_parent) = symbol.maybe_parent() {
             format!(
                 "{}.{}",
                 self.get_fully_qualified_name(&symbol_parent, containing_location),
-                self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
             )
         } else {
             self.symbol_to_string_(
@@ -414,8 +414,8 @@ impl TypeChecker {
                         | SymbolFormatFlags::AllowAnyNodeKind,
                 ),
                 None,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn get_containing_qualified_name_node(
@@ -467,11 +467,11 @@ impl TypeChecker {
         ignore_errors: Option<bool>,
         dont_resolve_alias: Option<bool>,
         location: Option<impl Borrow<Node>>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let ignore_errors_unwrapped = ignore_errors.unwrap_or(false);
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
         if node_is_missing(Some(name)) {
-            return None;
+            return Ok(None);
         }
 
         let namespace_meaning = SymbolFlags::Namespace
@@ -508,7 +508,7 @@ impl TypeChecker {
                 Some(false),
             ));
             if symbol.is_none() {
-                return self.get_merged_symbol(symbol_from_js_prototype);
+                return Ok(self.get_merged_symbol(symbol_from_js_prototype));
             }
         } else if matches!(
             name.kind(),
@@ -524,17 +524,21 @@ impl TypeChecker {
             } else {
                 &name.as_property_access_expression().name
             };
-            let mut namespace = self.resolve_entity_name(
+            let namespace = self.resolve_entity_name(
                 left,
                 namespace_meaning,
                 ignore_errors,
                 Some(false),
                 location,
             )?;
+            if namespace.is_none() {
+                return Ok(None);
+            }
+            let mut namespace = namespace.unwrap();
             if node_is_missing(Some(&**right)) {
-                return None;
+                return Ok(None);
             } else if Gc::ptr_eq(&namespace, &self.unknown_symbol()) {
-                return Some(namespace);
+                return Ok(Some(namespace));
             }
             if let Some(namespace_value_declaration) = namespace.maybe_value_declaration() {
                 if is_in_js_file(Some(&*namespace_value_declaration))
@@ -592,10 +596,10 @@ impl TypeChecker {
                                     None,
                                     None,
                                     None,
-                                ),
+                                )?,
                             ]),
                         );
-                        return None;
+                        return Ok(None);
                     }
 
                     let containing_qualified_name = if is_qualified_name(name) {
@@ -615,7 +619,7 @@ impl TypeChecker {
                             &Diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
                             Some(vec![entity_name_to_string(containing_qualified_name.as_ref().unwrap()).into_owned()])
                         );
-                        return None;
+                        return Ok(None);
                     }
 
                     if meaning.intersects(SymbolFlags::Namespace)
@@ -631,11 +635,11 @@ impl TypeChecker {
                                 Some(&*name.parent().as_qualified_name().right),
                                 &Diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
                                 Some(vec![
-                                    self.symbol_to_string_(&exported_type_symbol, Option::<&Node>::None, None, None, None),
+                                    self.symbol_to_string_(&exported_type_symbol, Option::<&Node>::None, None, None, None)?,
                                     unescape_leading_underscores(&name.parent().as_qualified_name().right.as_identifier().escaped_text).to_owned()
                                 ])
                             );
-                            return None;
+                            return Ok(None);
                         }
                     }
 
@@ -645,7 +649,7 @@ impl TypeChecker {
                         Some(vec![namespace_name, declaration_name.into_owned()]),
                     );
                 }
-                return None;
+                return Ok(None);
             }
         } else {
             Debug_.assert_never(name, Some("Unknown entity name kind."));
@@ -667,11 +671,13 @@ impl TypeChecker {
                 true,
             );
         }
-        if symbol.flags().intersects(meaning) || dont_resolve_alias {
-            Some(symbol)
-        } else {
-            Some(self.resolve_alias(&symbol))
-        }
+        Ok(
+            if symbol.flags().intersects(meaning) || dont_resolve_alias {
+                Some(symbol)
+            } else {
+                Some(self.resolve_alias(&symbol))
+            },
+        )
     }
 
     pub(super) fn resolve_entity_name_from_assignment_declaration(

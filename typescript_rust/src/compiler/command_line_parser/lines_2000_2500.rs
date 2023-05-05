@@ -2,10 +2,10 @@ use fancy_regex::Regex;
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
 use serde::Serialize;
-use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{cmp, io};
 
 use super::{
     command_options_without_build, create_diagnostic_for_invalid_custom_type,
@@ -681,7 +681,7 @@ pub(crate) struct TSConfig {
 }
 
 pub trait ConvertToTSConfigHost {
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> io::Result<String>;
     fn use_case_sensitive_file_names(&self) -> bool;
 }
 
@@ -689,7 +689,7 @@ pub(crate) fn convert_to_tsconfig(
     config_parse_result: &ParsedCommandLine,
     config_file_name: &str,
     host: &dyn ConvertToTSConfigHost,
-) -> TSConfig {
+) -> io::Result<TSConfig> {
     let get_canonical_file_name =
         create_get_canonical_file_name(host.use_case_sensitive_file_names());
     let maybe_config_file_specs =
@@ -717,7 +717,8 @@ pub(crate) fn convert_to_tsconfig(
                     }),
                 host,
             )
-        });
+        })
+        .transpose()?;
     let files = config_parse_result
         .file_names
         .iter()
@@ -726,22 +727,22 @@ pub(crate) fn convert_to_tsconfig(
             None => true,
         })
         .map(|f| {
-            get_relative_path_from_file(
+            io::Result::Ok(get_relative_path_from_file(
                 &get_normalized_absolute_path(
                     config_file_name,
-                    Some(&host.get_current_directory()),
+                    Some(&host.get_current_directory()?),
                 ),
-                &get_normalized_absolute_path(f, Some(&host.get_current_directory())),
+                &get_normalized_absolute_path(f, Some(&host.get_current_directory()?)),
                 get_canonical_file_name,
-            )
+            ))
         })
-        .collect::<Vec<String>>();
+        .collect::<Result<Vec<String>, _>>()?;
     let option_map = serialize_compiler_options(
         &config_parse_result.options,
         Some(SerializeOptionBaseObjectPathOptions {
             config_file_path: get_normalized_absolute_path(
                 config_file_name,
-                Some(&host.get_current_directory()),
+                Some(&host.get_current_directory()?),
             ),
             use_case_sensitive_file_names: host.use_case_sensitive_file_names(),
         }),
@@ -801,7 +802,7 @@ pub(crate) fn convert_to_tsconfig(
             filter_same_as_default_include(config_file_specs.validated_include_specs.as_deref());
         config.exclude = config_file_specs.validated_exclude_specs.clone();
     }
-    config
+    Ok(config)
 }
 
 pub(super) fn filter_same_as_default_include(specs: Option<&[String]>) -> Option<Vec<String>> {
@@ -824,8 +825,8 @@ pub(super) fn matches_specs(
     include_specs: Option<&[String]>,
     exclude_specs: Option<&[String]>,
     host: &dyn ConvertToTSConfigHost,
-) -> MatchesSpecs {
-    MatchesSpecs::new(path, include_specs, exclude_specs, host)
+) -> io::Result<MatchesSpecs> {
+    Ok(MatchesSpecs::new(path, include_specs, exclude_specs, host)?)
 }
 
 pub(super) struct MatchesSpecs {
@@ -840,7 +841,7 @@ impl MatchesSpecs {
         include_specs: Option<&[String]>,
         exclude_specs: Option<&[String]>,
         host: &dyn ConvertToTSConfigHost,
-    ) -> Self {
+    ) -> io::Result<Self> {
         let patterns: Option<FileMatcherPatterns>;
         let mut exclude_re: Option<Regex> = None;
         let mut include_re: Option<Regex> = None;
@@ -852,7 +853,7 @@ impl MatchesSpecs {
                 exclude_specs,
                 include_specs,
                 host.use_case_sensitive_file_names(),
-                &host.get_current_directory(),
+                &host.get_current_directory()?,
             ));
             let patterns = patterns.as_ref().unwrap();
             exclude_re = patterns
@@ -875,11 +876,11 @@ impl MatchesSpecs {
                 });
         }
 
-        Self {
+        Ok(Self {
             include_specs_is_some,
             exclude_re,
             include_re,
-        }
+        })
     }
 
     pub fn call(&self, path: &str) -> bool {

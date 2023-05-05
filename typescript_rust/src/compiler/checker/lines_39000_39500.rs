@@ -1,5 +1,5 @@
 use gc::Gc;
-use std::{borrow::Borrow, ptr};
+use std::{borrow::Borrow, io, ptr};
 
 use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
@@ -149,7 +149,10 @@ impl TypeChecker {
             .intersects(TypeFlags::Undefined)
     }
 
-    pub(super) fn check_interface_declaration(&self, node: &Node /*InterfaceDeclaration*/) {
+    pub(super) fn check_interface_declaration(
+        &self,
+        node: &Node, /*InterfaceDeclaration*/
+    ) -> io::Result<()> {
         if !self.check_grammar_decorators_and_modifiers(node) {
             self.check_grammar_interface_declaration(node);
         }
@@ -183,7 +186,7 @@ impl TypeChecker {
                 if self.check_inherited_properties_are_identical(
                     &type_,
                     &node_as_interface_declaration.name(),
-                ) {
+                )? {
                     for base_type in &self.get_base_types(&type_) {
                         self.check_type_assignable_to(
                             &type_with_this,
@@ -233,6 +236,8 @@ impl TypeChecker {
             self.check_type_for_duplicate_index_signatures(node);
             self.register_for_unused_identifiers_check(node);
         }
+
+        Ok(())
     }
 
     pub(super) fn check_type_alias_declaration(&self, node: &Node /*TypeAliasDeclaration*/) {
@@ -297,7 +302,7 @@ impl TypeChecker {
         &self,
         member: &Node, /*EnumMember*/
         auto_value: Option<Number>,
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         let member_as_enum_member = member.as_enum_member();
         if is_computed_non_literal_name(&member_as_enum_member.name) {
             self.error(
@@ -323,23 +328,23 @@ impl TypeChecker {
             && self.get_enum_kind(&self.get_symbol_of_node(&member.parent()).unwrap())
                 == EnumKind::Numeric
         {
-            return None;
+            return Ok(None);
         }
         if auto_value.is_some() {
-            return auto_value.map(Into::into);
+            return Ok(auto_value.map(Into::into));
         }
         self.error(
             Some(&*member_as_enum_member.name),
             &Diagnostics::Enum_member_must_have_initializer,
             None,
         );
-        None
+        Ok(None)
     }
 
     pub(super) fn compute_constant_value(
         &self,
         member: &Node, /*EnumMember*/
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         let enum_kind = self.get_enum_kind(&self.get_symbol_of_node(&member.parent()).unwrap());
         let is_const_enum = is_enum_const(&member.parent());
         let member_as_enum_member = member.as_enum_member();
@@ -371,7 +376,7 @@ impl TypeChecker {
                 &Diagnostics::Computed_values_are_not_permitted_in_an_enum_with_string_valued_members,
                 None,
             );
-            return Some(StringOrNumber::Number(Number::new(0.0)));
+            return Ok(Some(StringOrNumber::Number(Number::new(0.0))));
         } else if is_const_enum {
             self.error(
                 Some(&**initializer),
@@ -395,7 +400,7 @@ impl TypeChecker {
                             &source,
                             Option::<&Node>::None,
                             None, None,
-                        )
+                        )?
                     ])
                 );
             } else {
@@ -411,7 +416,7 @@ impl TypeChecker {
                 );
             }
         }
-        value
+        Ok(value)
     }
 
     pub(super) fn evaluate(

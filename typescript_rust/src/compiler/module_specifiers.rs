@@ -27,7 +27,7 @@ use crate::{
     FileIncludeReason, JsxEmit, LiteralLikeNodeInterface, ModuleKind, ModulePath,
     ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
     ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty,
-    Path, ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    OptionTry, Path, ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
     UserPreferences,
 };
 
@@ -223,8 +223,8 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
         unreachable!()
     }
 
-    fn get_current_directory(&self) -> Option<String> {
-        Some(self.host.get_current_directory())
+    fn get_current_directory(&self) -> Option<io::Result<String>> {
+        Some(Ok(self.host.get_current_directory()))
     }
 
     fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
@@ -257,7 +257,7 @@ pub fn get_module_specifier(
     importing_source_file_name: &Path,
     to_file_name: &str,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
-) -> String {
+) -> io::Result<String> {
     get_module_specifier_worker(
         &compiler_options,
         importing_source_file_name,
@@ -280,7 +280,7 @@ fn get_module_specifier_worker(
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     preferences: Preferences,
     user_preferences: &UserPreferences,
-) -> String {
+) -> io::Result<String> {
     let info = get_info(importing_source_file_name, host);
     let module_paths = get_all_module_paths(
         importing_source_file_name,
@@ -293,7 +293,7 @@ fn get_module_specifier_worker(
         try_get_module_name_as_node_module(module_path, &info, host, compiler_options, None)
     })
     .non_empty()
-    .unwrap_or_else(|| {
+    .try_unwrap_or_else(|| {
         get_local_module_specifier(to_file_name, &info, compiler_options, host, preferences)
     })
 }
@@ -342,16 +342,16 @@ pub fn get_module_specifiers(
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
-) -> Vec<String> {
-    get_module_specifiers_with_cache_info(
+) -> io::Result<Vec<String>> {
+    Ok(get_module_specifiers_with_cache_info(
         module_symbol,
         checker,
         compiler_options,
         importing_source_file, /*SourceFile*/
         host,
         user_preferences,
-    )
-    .module_specifiers
+    )?
+    .module_specifiers)
 }
 
 pub fn get_module_specifiers_with_cache_info(
@@ -361,14 +361,14 @@ pub fn get_module_specifiers_with_cache_info(
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
-) -> ModuleSpecifiersWithCacheInfo {
+) -> io::Result<ModuleSpecifiersWithCacheInfo> {
     let mut computed_without_cache = false;
     let ambient = try_get_module_name_from_ambient_module(module_symbol, checker);
     if let Some(ambient) = ambient {
-        return ModuleSpecifiersWithCacheInfo {
+        return Ok(ModuleSpecifiersWithCacheInfo {
             module_specifiers: vec![ambient],
             computed_without_cache,
-        };
+        });
     }
 
     let (specifiers, module_source_file, module_paths, cache) =
@@ -379,16 +379,16 @@ pub fn get_module_specifiers_with_cache_info(
             user_preferences,
         );
     if let Some(specifiers) = specifiers {
-        return ModuleSpecifiersWithCacheInfo {
+        return Ok(ModuleSpecifiersWithCacheInfo {
             module_specifiers: specifiers,
             computed_without_cache,
-        };
+        });
     }
     if module_source_file.is_none() {
-        return ModuleSpecifiersWithCacheInfo {
+        return Ok(ModuleSpecifiersWithCacheInfo {
             module_specifiers: vec![],
             computed_without_cache,
-        };
+        });
     }
     let module_source_file = module_source_file.unwrap();
 
@@ -408,7 +408,7 @@ pub fn get_module_specifiers_with_cache_info(
         importing_source_file,
         host,
         user_preferences,
-    );
+    )?;
     if let Some(cache) = cache {
         cache.set(
             &importing_source_file_as_source_file.path(),
@@ -418,10 +418,10 @@ pub fn get_module_specifiers_with_cache_info(
             &result,
         );
     }
-    ModuleSpecifiersWithCacheInfo {
+    Ok(ModuleSpecifiersWithCacheInfo {
         module_specifiers: result,
         computed_without_cache,
-    }
+    })
 }
 
 fn compute_module_specifiers(
@@ -430,7 +430,7 @@ fn compute_module_specifiers(
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
-) -> Vec<String> {
+) -> io::Result<Vec<String>> {
     let importing_source_file_as_source_file = importing_source_file.as_source_file();
     let info = get_info(&importing_source_file_as_source_file.path(), host);
     let preferences = get_preferences(
@@ -472,7 +472,7 @@ fn compute_module_specifiers(
     });
     if let Some(existing_specifier) = existing_specifier {
         let module_specifiers = vec![existing_specifier];
-        return module_specifiers;
+        return Ok(module_specifiers);
     }
 
     let imported_file_is_in_node_modules = some(
@@ -494,7 +494,7 @@ fn compute_module_specifiers(
         }
         if specifier.is_some() {
             if module_path.is_redirect {
-                return node_modules_specifiers.unwrap();
+                return Ok(node_modules_specifiers.unwrap());
             }
         }
 
@@ -505,7 +505,7 @@ fn compute_module_specifiers(
                 &compiler_options,
                 host,
                 preferences,
-            );
+            )?;
             if path_is_bare_specifier(&local) {
                 append(paths_specifiers.get_or_insert_with(|| vec![]), Some(local));
             } else if !imported_file_is_in_node_modules || module_path.is_in_node_modules {
@@ -517,13 +517,13 @@ fn compute_module_specifiers(
         }
     }
 
-    paths_specifiers
+    Ok(paths_specifiers
         .filter(|paths_specifiers| !paths_specifiers.is_empty())
         .or_else(|| {
             node_modules_specifiers
                 .filter(|node_modules_specifiers| !node_modules_specifiers.is_empty())
         })
-        .unwrap_or_else(|| Debug_.check_defined(relative_specifiers, None))
+        .unwrap_or_else(|| Debug_.check_defined(relative_specifiers, None)))
 }
 
 struct Info {
@@ -553,7 +553,7 @@ fn get_local_module_specifier(
     compiler_options: &CompilerOptions,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     preferences: Preferences,
-) -> String {
+) -> io::Result<String> {
     let ending = preferences.ending;
     let relative_preference = preferences.relative_preference;
     let base_url = compiler_options.base_url.as_ref();
@@ -591,11 +591,11 @@ fn get_local_module_specifier(
     } && paths.is_none()
         || relative_preference == RelativePreference::Relative
     {
-        return relative_path;
+        return Ok(relative_path);
     }
 
     let base_directory = get_normalized_absolute_path(
-        &get_paths_base_path(compiler_options, || Some(host.get_current_directory()))
+        &get_paths_base_path(compiler_options, || Some(Ok(host.get_current_directory())))?
             .unwrap_or_else(|| base_url.unwrap().clone()),
         Some(&host.get_current_directory()),
     );
@@ -605,11 +605,11 @@ fn get_local_module_specifier(
         get_canonical_file_name,
     );
     if relative_to_base_url.is_none() {
-        return relative_path;
+        return Ok(relative_path);
     }
     let relative_to_base_url = relative_to_base_url.unwrap();
     if relative_to_base_url.is_empty() {
-        return relative_path;
+        return Ok(relative_path);
     }
 
     let import_relative_to_base_url =
@@ -627,15 +627,15 @@ fn get_local_module_specifier(
         from_paths
     };
     if non_relative.is_none() {
-        return relative_path;
+        return Ok(relative_path);
     }
     let non_relative = non_relative.unwrap();
     if non_relative.is_empty() {
-        return relative_path;
+        return Ok(relative_path);
     }
 
     if relative_preference == RelativePreference::NonRelative {
-        return non_relative;
+        return Ok(non_relative);
     }
 
     if relative_preference == RelativePreference::ExternalNonRelative {
@@ -659,7 +659,7 @@ fn get_local_module_specifier(
         let source_is_internal = starts_with(source_directory, &project_directory);
         let target_is_internal = starts_with(&module_path, &project_directory);
         if source_is_internal && !target_is_internal || !source_is_internal && target_is_internal {
-            return non_relative;
+            return Ok(non_relative);
         }
 
         let nearest_target_package_json = get_nearest_ancestor_directory_with_package_json(
@@ -669,23 +669,25 @@ fn get_local_module_specifier(
         let nearest_source_package_json =
             get_nearest_ancestor_directory_with_package_json(host, source_directory);
         if nearest_source_package_json != nearest_target_package_json {
-            return non_relative;
+            return Ok(non_relative);
         }
 
-        return relative_path;
+        return Ok(relative_path);
     }
 
     if relative_preference != RelativePreference::Shortest {
         Debug_.assert_never(relative_preference, None);
     }
 
-    if is_path_relative_to_parent(&non_relative)
-        || count_path_components(&relative_path) < count_path_components(&non_relative)
-    {
-        relative_path
-    } else {
-        non_relative
-    }
+    Ok(
+        if is_path_relative_to_parent(&non_relative)
+            || count_path_components(&relative_path) < count_path_components(&non_relative)
+        {
+            relative_path
+        } else {
+            non_relative
+        },
+    )
 }
 
 pub struct ModuleSpecifiersWithCacheInfo {
