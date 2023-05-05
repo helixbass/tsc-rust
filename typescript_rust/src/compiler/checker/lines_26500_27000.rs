@@ -513,7 +513,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SpreadElement*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if self.language_version < ScriptTarget::ES2015 {
             self.check_external_emit_helpers(
                 node,
@@ -620,7 +620,7 @@ impl TypeChecker {
                         &spread_type,
                         &self.undefined_type(),
                         Some(&*e.as_spread_element().expression),
-                    ));
+                    )?);
                     element_flags.push(ElementFlags::Rest);
                 }
             } else if self.exact_optional_property_types == Some(true)
@@ -633,7 +633,7 @@ impl TypeChecker {
                 let element_contextual_type = self.get_contextual_type_for_element_expression(
                     contextual_type.as_deref(),
                     element_types.len(),
-                );
+                )?;
                 let type_ = self.check_expression_for_mutable_location(
                     e,
                     check_mode,
@@ -1031,7 +1031,7 @@ impl TypeChecker {
                                     .type_expression
                                     .as_ref()
                                     .unwrap(),
-                            ),
+                            )?,
                             Some(&**member_decl),
                             None,
                             None,
@@ -1110,7 +1110,7 @@ impl TypeChecker {
                                     &member_present,
                                     Option::<&Node>::None,
                                     None, None, None,
-                                ),
+                                )?,
                                 self.type_to_string_(
                                     contextual_type.as_ref().unwrap(),
                                     Option::<&Node>::None,

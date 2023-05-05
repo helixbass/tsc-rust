@@ -264,6 +264,19 @@ pub fn filter<TItem: Clone>(
         .collect()
 }
 
+pub fn try_filter<TItem: Clone, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem) -> Result<bool, TError>,
+) -> Result<Vec<TItem>, TError> {
+    let mut results: Vec<TItem> = Default::default();
+    for item in array {
+        if predicate(item)? {
+            results.push(item.clone());
+        }
+    }
+    Ok(results)
+}
+
 pub fn filter_iter<TItem, TArray: IntoIterator<Item = TItem>, TCallback: FnMut(&TItem) -> bool>(
     array: TArray,
     predicate: TCallback,
@@ -271,11 +284,18 @@ pub fn filter_iter<TItem, TArray: IntoIterator<Item = TItem>, TCallback: FnMut(&
     array.into_iter().filter(predicate)
 }
 
-pub fn maybe_filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+pub fn maybe_filter<TItem: Clone>(
     array: Option<&[TItem]>,
-    predicate: TCallback,
+    predicate: impl FnMut(&TItem) -> bool,
 ) -> Option<Vec<TItem>> {
     array.map(|array| filter(array, predicate))
+}
+
+pub fn try_maybe_filter<TItem: Clone, TError>(
+    array: Option<&[TItem]>,
+    predicate: impl FnMut(&TItem) -> Result<bool, TError>,
+) -> Option<Result<Vec<TItem>, TError>> {
+    array.map(|array| try_filter(array, predicate))
 }
 
 pub fn filter_owning<TItem, TCallback: FnMut(&TItem) -> bool>(
@@ -535,6 +555,33 @@ where
             |predicate| array.any(predicate),
         )
     })
+}
+
+pub fn try_some<'item, TItem, TArray, TError>(
+    array: Option<TArray>,
+    predicate: Option<impl FnMut(&TItem) -> Result<bool, TError>>,
+) -> Result<bool, TError>
+where
+    TItem: 'item,
+    TArray: IntoIterator<Item = &'item TItem>,
+    TArray::IntoIter: Clone,
+{
+    match array {
+        None => Ok(false),
+        Some(array) => {
+            let mut array = array.into_iter();
+            Ok(if let Some(predicate) = predicate {
+                !array.peekable().is_empty_()
+            } else {
+                for item in array {
+                    if predicate(item)? {
+                        return Ok(true);
+                    }
+                }
+                false
+            })
+        }
+    }
 }
 
 pub fn get_ranges_where<TItem, TPred: FnMut(&TItem) -> bool, TCallback: FnMut(usize, usize)>(

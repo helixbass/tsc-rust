@@ -1,9 +1,9 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{get_next_flow_id, increment_next_flow_id, IterationUse, TypeFacts};
 use crate::{
@@ -888,28 +888,30 @@ impl TypeChecker {
         &self,
         type_: &Type,
         index: usize,
-    ) -> Gc<Type> {
-        if self.every_type(type_, |type_: &Type| self.is_tuple_like_type(type_)) {
-            self.get_tuple_element_type(type_, index)
-        } else {
-            None
-        }
-        .or_else(|| {
-            self.include_undefined_in_index_signature(Some(
-                self.check_iterated_type_or_element_type(
-                    IterationUse::Destructuring,
-                    type_,
-                    &self.undefined_type(),
-                    Option::<&Node>::None,
-                ),
-            ))
-        })
-        .unwrap_or_else(|| self.error_type())
+    ) -> io::Result<Gc<Type>> {
+        Ok(
+            if self.every_type(type_, |type_: &Type| self.is_tuple_like_type(type_)) {
+                self.get_tuple_element_type(type_, index)
+            } else {
+                None
+            }
+            .or_else(|| {
+                self.include_undefined_in_index_signature(Some(
+                    self.check_iterated_type_or_element_type(
+                        IterationUse::Destructuring,
+                        type_,
+                        &self.undefined_type(),
+                        Option::<&Node>::None,
+                    )?,
+                ))
+            })
+            .unwrap_or_else(|| self.error_type()),
+        )
     }
 
-    pub(super) fn include_undefined_in_index_signature<TType: Borrow<Type>>(
+    pub(super) fn include_undefined_in_index_signature(
         &self,
-        type_: Option<TType>,
+        type_: Option<impl Borrow<Type>>,
     ) -> Option<Gc<Type>> {
         let type_ = type_?;
         let type_ = type_.borrow();

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, ptr};
+use std::{borrow::Borrow, io, ptr};
 
 use gc::Gc;
 
@@ -21,8 +21,8 @@ use crate::{
     visit_nodes, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
     GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface, HasTypeArgumentsInterface,
     HasTypeInterface, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, NonEmpty, ReadonlyTextRange, SignatureDeclarationInterface,
-    SymbolInterface, SyntaxKind, VisitResult,
+    NodeArray, NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange,
+    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, VisitResult,
 };
 
 impl TransformDeclarations {
@@ -31,12 +31,12 @@ impl TransformDeclarations {
         node: &Node, /*HasInferredType*/
         type_: Option<&Node /*TypeNode*/>,
         ignore_private: Option<bool>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         if ignore_private != Some(true) && has_effective_modifier(node, ModifierFlags::Private) {
-            return None;
+            return Ok(None);
         }
         if self.should_print_with_initializer(node) {
-            return None;
+            return Ok(None);
         }
         let should_use_resolver_type = node.kind() == SyntaxKind::Parameter
             && (self.resolver.is_required_initialized_parameter(node)
@@ -45,16 +45,16 @@ impl TransformDeclarations {
                     .is_optional_uninitialized_parameter_property(node));
         if let Some(type_) = type_ {
             if !should_use_resolver_type {
-                return visit_node(
+                return Ok(visit_node(
                     Some(type_),
                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                     Option::<fn(&Node) -> bool>::None,
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                );
+                ));
             }
         }
         if get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).is_none() {
-            return if let Some(type_) = type_ {
+            return Ok(if let Some(type_) = type_ {
                 visit_node(
                     Some(type_),
                     Some(|node: &Node| self.visit_declaration_subtree(node)),
@@ -67,14 +67,14 @@ impl TransformDeclarations {
                         .create_keyword_type_node(SyntaxKind::AnyKeyword)
                         .wrap(),
                 )
-            };
+            });
         }
         if node.kind() == SyntaxKind::SetAccessor {
-            return Some(
+            return Ok(Some(
                 self.factory
                     .create_keyword_type_node(SyntaxKind::AnyKeyword)
                     .wrap(),
-            );
+            ));
         }
         self.set_error_name_node(node.as_named_declaration().maybe_name());
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
@@ -88,7 +88,7 @@ impl TransformDeclarations {
             node.kind(),
             SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
         ) {
-            return Some(self.ensure_type_cleanup(
+            return Ok(Some(self.ensure_type_cleanup(
                 old_diag,
                 self.resolver.create_type_of_declaration(
                     node,
@@ -97,14 +97,14 @@ impl TransformDeclarations {
                     self.symbol_tracker(),
                     None,
                 ),
-            ));
+            )));
         }
         if matches!(
             node.kind(),
             SyntaxKind::Parameter | SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature
         ) {
             if node.as_has_initializer().maybe_initializer().is_none() {
-                return Some(self.ensure_type_cleanup(
+                return Ok(Some(self.ensure_type_cleanup(
                     old_diag,
                     self.resolver.create_type_of_declaration(
                         node,
@@ -113,9 +113,9 @@ impl TransformDeclarations {
                         self.symbol_tracker(),
                         Some(should_use_resolver_type),
                     ),
-                ));
+                )));
             }
-            return Some(
+            return Ok(Some(
                 self.ensure_type_cleanup(
                     old_diag,
                     self.resolver
@@ -125,19 +125,19 @@ impl TransformDeclarations {
                             declaration_emit_node_builder_flags(),
                             self.symbol_tracker(),
                             None,
-                        )
-                        .or_else(|| {
+                        )?
+                        .try_or_else(|| {
                             self.resolver.create_type_of_expression(
                                 &node.as_has_initializer().maybe_initializer().unwrap(),
                                 &self.enclosing_declaration(),
                                 declaration_emit_node_builder_flags(),
                                 self.symbol_tracker(),
                             )
-                        }),
+                        })?,
                 ),
-            );
+            ));
         }
-        Some(self.ensure_type_cleanup(
+        Ok(Some(self.ensure_type_cleanup(
             old_diag,
             self.resolver.create_return_type_of_signature_declaration(
                 node,
@@ -145,7 +145,7 @@ impl TransformDeclarations {
                 declaration_emit_node_builder_flags(),
                 self.symbol_tracker(),
             ),
-        ))
+        )))
     }
 
     pub(super) fn ensure_type_cleanup(

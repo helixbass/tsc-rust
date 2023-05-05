@@ -1,7 +1,7 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{
     signature_has_rest_parameter, typeof_eq_facts, typeof_ne_facts, CheckMode, IterationTypeKind,
@@ -36,7 +36,7 @@ impl TypeChecker {
         signature: &Signature,
         context: Gc<Signature>,
         inference_context: &InferenceContext,
-    ) {
+    ) -> io::Result<()> {
         let len = signature.parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
@@ -54,7 +54,7 @@ impl TypeChecker {
                 if let Some(type_node) = type_node.as_ref() {
                     self.infer_types(
                         &inference_context.inferences(),
-                        &self.get_type_from_type_node_(type_node),
+                        &self.get_type_from_type_node_(type_node)?,
                         &self.get_type_at_position(&context, i),
                         None,
                         None,
@@ -82,6 +82,8 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn assign_contextual_parameter_types(
@@ -558,7 +560,7 @@ impl TypeChecker {
         &self,
         func: &Node, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> CheckAndAggregateYieldOperandTypesReturn {
+    ) -> io::Result<CheckAndAggregateYieldOperandTypesReturn> {
         let mut yield_types: Vec<Gc<Type>> = vec![];
         let mut next_types: Vec<Gc<Type>> = vec![];
         let is_async = get_function_flags(Some(func)).intersects(FunctionFlags::Async);
@@ -597,17 +599,17 @@ impl TypeChecker {
                     );
                     next_type = iteration_types.map(|iteration_types| iteration_types.next_type());
                 } else {
-                    next_type = self.get_contextual_type_(yield_expression, None);
+                    next_type = self.get_contextual_type_(yield_expression, None)?;
                 }
                 if let Some(next_type) = next_type.as_ref() {
                     push_if_unique_gc(&mut next_types, next_type);
                 }
             },
         );
-        CheckAndAggregateYieldOperandTypesReturn {
+        Ok(CheckAndAggregateYieldOperandTypesReturn {
             yield_types,
             next_types,
-        }
+        })
     }
 
     pub(super) fn get_yielded_type_of_yield_expression(
@@ -616,7 +618,7 @@ impl TypeChecker {
         expression_type: &Type,
         sent_type: &Type,
         is_async: bool,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let node_as_yield_expression = node.as_yield_expression();
         let error_node = node_as_yield_expression
             .expression
@@ -632,11 +634,11 @@ impl TypeChecker {
                 expression_type,
                 sent_type,
                 Some(&*error_node),
-            )
+            )?
         } else {
             expression_type.type_wrapper()
         };
-        if !is_async {
+        Ok(if !is_async {
             Some(yielded_type)
         } else {
             self.get_awaited_type_(
@@ -649,7 +651,7 @@ impl TypeChecker {
                 }),
                 None,
             )
-        }
+        })
     }
 
     pub(super) fn get_facts_from_typeof_switch(

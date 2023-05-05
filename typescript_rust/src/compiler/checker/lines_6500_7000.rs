@@ -1159,12 +1159,15 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
             self.type_checker
                 .is_symbol_accessible(Some(sym), decl.as_deref(), meaning, false);
         if accessible_result.accessibility == SymbolAccessibility::Accessible {
-            let chain = self.node_builder.lookup_symbol_chain_worker(
+            let chain = match self.node_builder.lookup_symbol_chain_worker(
                 sym,
                 &self.context,
                 Some(meaning),
                 None,
-            )?;
+            ) {
+                Err(err) => return Some(Err(err)),
+                Ok(chain) => chain,
+            };
             if !sym.flags().intersects(SymbolFlags::Property) {
                 self.symbol_table_to_declaration_statements
                     .include_private_symbol(&chain[0]);

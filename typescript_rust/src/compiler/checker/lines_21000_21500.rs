@@ -304,7 +304,7 @@ impl TypeChecker {
                     error_reported = true;
                 } else {
                     for t in type_.as_union_or_intersection_type_interface().types() {
-                        if self.report_widening_errors_in_type(t) {
+                        if self.report_widening_errors_in_type(t)? {
                             error_reported = true;
                         }
                     }
@@ -312,7 +312,7 @@ impl TypeChecker {
             }
             if self.is_array_type(type_) || self.is_tuple_type(type_) {
                 for t in &self.get_type_arguments(type_) {
-                    if self.report_widening_errors_in_type(t) {
+                    if self.report_widening_errors_in_type(t)? {
                         error_reported = true;
                     }
                 }
@@ -321,7 +321,7 @@ impl TypeChecker {
                 for ref p in self.get_properties_of_object_type(type_) {
                     let t = self.get_type_of_symbol(p);
                     if get_object_flags(&t).intersects(ObjectFlags::ContainsWideningType) {
-                        if !self.report_widening_errors_in_type(&t) {
+                        if !self.report_widening_errors_in_type(&t)? {
                             self.error(
                                 p.maybe_value_declaration(),
                                 &Diagnostics::Object_literal_s_property_0_implicitly_has_an_1_type,
@@ -332,7 +332,7 @@ impl TypeChecker {
                                         None,
                                         None,
                                         None,
-                                    ),
+                                    )?,
                                     self.type_to_string_(
                                         &self.get_widened_type(&t),
                                         Option::<&Node>::None,
@@ -553,7 +553,7 @@ impl TypeChecker {
         declaration: &Node, /*Declaration*/
         type_: &Type,
         widening_kind: Option<WideningKind>,
-    ) {
+    ) -> io::Result<()> {
         if self.produce_diagnostics
             && self.no_implicit_any
             && get_object_flags(type_).intersects(ObjectFlags::ContainsWideningType)
@@ -562,17 +562,19 @@ impl TypeChecker {
                     .get_contextual_signature_for_function_like_declaration(declaration)
                     .is_none())
         {
-            if !self.report_widening_errors_in_type(type_) {
+            if !self.report_widening_errors_in_type(type_)? {
                 self.report_implicit_any(declaration, type_, widening_kind);
             }
         }
+
+        Ok(())
     }
 
-    pub(super) fn apply_to_parameter_types<TCallback: FnMut(&Type, &Type)>(
+    pub(super) fn apply_to_parameter_types(
         &self,
         source: &Signature,
         target: &Signature,
-        mut callback: TCallback,
+        mut callback: impl FnMut(&Type, &Type),
     ) {
         let source_count = self.get_parameter_count(source);
         let target_count = self.get_parameter_count(target);
@@ -609,11 +611,11 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn apply_to_return_types<TCallback: FnMut(&Type, &Type)>(
+    pub(super) fn apply_to_return_types(
         &self,
         source: Gc<Signature>,
         target: Gc<Signature>,
-        mut callback: TCallback,
+        mut callback: impl FnMut(&Type, &Type),
     ) {
         let source_type_predicate = self.get_type_predicate_of_signature(&source);
         let target_type_predicate = self.get_type_predicate_of_signature(&target);

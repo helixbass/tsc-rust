@@ -359,8 +359,8 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_valid_const_assertion_argument(&self, node: &Node) -> bool {
-        match node.kind() {
+    pub(super) fn is_valid_const_assertion_argument(&self, node: &Node) -> io::Result<bool> {
+        Ok(match node.kind() {
             SyntaxKind::StringLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::NumericLiteral
@@ -390,7 +390,7 @@ impl TypeChecker {
                     .as_ref()
                     .filter(|symbol| symbol.flags().intersects(SymbolFlags::Alias))
                 {
-                    symbol = Some(self.resolve_alias(symbol_present));
+                    symbol = Some(self.resolve_alias(symbol_present)?);
                 }
                 matches!(
                     symbol.as_ref(),
@@ -398,7 +398,7 @@ impl TypeChecker {
                 )
             }
             _ => false,
-        }
+        })
     }
 
     pub(super) fn check_assertion_worker(
@@ -407,7 +407,7 @@ impl TypeChecker {
         type_: &Node,      /*TypeNode*/
         expression: &Node, /*UnaryExpression | Expression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let mut expr_type = self.check_expression(expression, check_mode, None);
         if is_const_type_reference(type_) {
             if !self.is_valid_const_assertion_argument(expression) {
@@ -417,12 +417,12 @@ impl TypeChecker {
                     None,
                 );
             }
-            return self.get_regular_type_of_literal_type(&expr_type);
+            return Ok(self.get_regular_type_of_literal_type(&expr_type));
         }
         self.check_source_element(Some(type_));
         expr_type = self
             .get_regular_type_of_object_literal(&self.get_base_type_of_literal_type(&expr_type));
-        let target_type = self.get_type_from_type_node_(type_);
+        let target_type = self.get_type_from_type_node_(type_)?;
         if self.produce_diagnostics && !self.is_error_type(&target_type) {
             let widened_type = self.get_widened_type(&expr_type);
             if !self.is_type_comparable_to(&target_type, &widened_type) {
@@ -435,7 +435,7 @@ impl TypeChecker {
                 );
             }
         }
-        target_type
+        Ok(target_type)
     }
 
     pub(super) fn check_non_null_chain(&self, node: &Node /*NonNullChain*/) -> Gc<Type> {

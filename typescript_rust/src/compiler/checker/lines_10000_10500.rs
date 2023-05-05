@@ -104,16 +104,16 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_thisless_interface(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_thisless_interface(&self, symbol: &Symbol) -> io::Result<bool> {
         let symbol_declarations = symbol.maybe_declarations();
         if symbol_declarations.is_none() {
-            return true;
+            return Ok(true);
         }
         let symbol_declarations = symbol_declarations.as_deref().unwrap();
         for declaration in symbol_declarations {
             if declaration.kind() == SyntaxKind::InterfaceDeclaration {
                 if declaration.flags().intersects(NodeFlags::ContainsThis) {
-                    return false;
+                    return Ok(false);
                 }
                 let base_type_nodes = get_interface_base_type_nodes(declaration);
                 if let Some(base_type_nodes) = base_type_nodes {
@@ -129,7 +129,7 @@ impl TypeChecker {
                                 Some(true),
                                 None,
                                 Option::<&Node>::None,
-                            );
+                            )?;
                             if match base_symbol {
                                 None => true,
                                 Some(base_symbol) => {
@@ -141,14 +141,14 @@ impl TypeChecker {
                                             .is_some()
                                 }
                             } {
-                                return false;
+                                return Ok(false);
                             }
                         }
                     }
                 }
             }
         }
-        true
+        Ok(true)
     }
 
     pub(super) fn get_declared_type_of_class_or_interface(
@@ -498,14 +498,14 @@ impl TypeChecker {
         links.declared_type.clone().unwrap()
     }
 
-    pub(super) fn get_declared_type_of_alias(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_declared_type_of_alias(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
-            return links_declared_type;
+            return Ok(links_declared_type);
         }
-        let declared_type = self.get_declared_type_of_symbol(&self.resolve_alias(symbol));
+        let declared_type = self.get_declared_type_of_symbol(&self.resolve_alias(symbol)?);
         links.borrow_mut().declared_type = Some(declared_type.clone());
-        declared_type
+        Ok(declared_type)
     }
 
     pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> Gc<Type> {
@@ -513,29 +513,32 @@ impl TypeChecker {
             .unwrap_or_else(|| self.error_type())
     }
 
-    pub(super) fn try_get_declared_type_of_symbol(&self, symbol: &Symbol) -> Option<Gc<Type>> {
+    pub(super) fn try_get_declared_type_of_symbol(
+        &self,
+        symbol: &Symbol,
+    ) -> io::Result<Option<Gc<Type>>> {
         if symbol
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
-            return Some(self.get_declared_type_of_class_or_interface(symbol));
+            return Ok(Some(self.get_declared_type_of_class_or_interface(symbol)));
         }
         if symbol.flags().intersects(SymbolFlags::TypeAlias) {
-            return Some(self.get_declared_type_of_type_alias(symbol));
+            return Ok(Some(self.get_declared_type_of_type_alias(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::TypeParameter) {
-            return Some(self.get_declared_type_of_type_parameter(symbol));
+            return Ok(Some(self.get_declared_type_of_type_parameter(symbol)));
         }
         if symbol.flags().intersects(SymbolFlags::Enum) {
-            return Some(self.get_declared_type_of_enum(symbol));
+            return Ok(Some(self.get_declared_type_of_enum(symbol)));
         }
         if symbol.flags().intersects(SymbolFlags::EnumMember) {
-            return Some(self.get_declared_type_of_enum_member(symbol));
+            return Ok(Some(self.get_declared_type_of_enum_member(symbol)));
         }
         if symbol.flags().intersects(SymbolFlags::Alias) {
-            return Some(self.get_declared_type_of_alias(symbol));
+            return Ok(Some(self.get_declared_type_of_alias(symbol)));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn is_thisless_type(&self, node: &Node /*TypeNode*/) -> bool {

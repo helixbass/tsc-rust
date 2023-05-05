@@ -327,12 +327,12 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_iterated_type_or_element_type<TErrorNode: Borrow<Node>>(
+    pub(super) fn check_iterated_type_or_element_type(
         &self,
         use_: IterationUse,
         input_type: &Type,
         sent_type: &Type,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Gc<Type>> {
         if self.is_type_any(Some(input_type)) {
             return Ok(input_type.type_wrapper());

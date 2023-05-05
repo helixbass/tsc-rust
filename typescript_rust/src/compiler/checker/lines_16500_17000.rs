@@ -1,7 +1,7 @@
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts,
@@ -11,11 +11,12 @@ use crate::{
     contains_gc, contains_rc, every, for_each_child_bool, get_effective_return_type_node,
     get_object_flags, has_context_sensitive_parameters, is_function_declaration,
     is_function_expression_or_arrow_function, is_in_js_file, is_jsx_opening_element,
-    is_object_literal_method, is_part_of_type_node, map, some, AsDoubleDeref, Debug_,
-    DiagnosticMessage, Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType,
-    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    is_object_literal_method, is_part_of_type_node, map, some, try_for_each_child_bool, try_some,
+    AsDoubleDeref, Debug_, DiagnosticMessage, Diagnostics, ElementFlags, HasTypeArgumentsInterface,
+    IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface,
+    ResolvableTypeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -48,7 +49,7 @@ impl TypeChecker {
         &self,
         tp: &Type, /*TypeParameter*/
         node: &Node,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if let Some(tp_symbol) = tp.maybe_symbol() {
             let tp_symbol_declarations = tp_symbol.maybe_declarations();
             if let Some(tp_symbol_declarations) = tp_symbol_declarations.as_ref() {
@@ -64,14 +65,14 @@ impl TypeChecker {
                             Some(n) => {
                                 n.kind() == SyntaxKind::Block
                                     || n.kind() == SyntaxKind::ConditionalType
-                                        && for_each_child_bool(
+                                        && try_for_each_child_bool(
                                             &n.as_conditional_type_node().extends_type,
                                             |child| self.contains_reference(tp, child),
-                                            Option::<fn(&NodeArray) -> bool>::None,
-                                        )
+                                            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                                        )?
                             }
                         } {
-                            return true;
+                            return Ok(true);
                         }
                         n = n.as_ref().unwrap().maybe_parent();
                     }
@@ -79,18 +80,22 @@ impl TypeChecker {
                 }
             }
         }
-        true
+        Ok(true)
     }
 
-    pub(super) fn contains_reference(&self, tp: &Type /*TypeParameter*/, node: &Node) -> bool {
+    pub(super) fn contains_reference(
+        &self,
+        tp: &Type, /*TypeParameter*/
+        node: &Node,
+    ) -> io::Result<bool> {
         let tp_as_type_parameter = tp.as_type_parameter();
-        match node.kind() {
+        Ok(match node.kind() {
             SyntaxKind::ThisType => matches!(tp_as_type_parameter.is_this_type, Some(true)),
             SyntaxKind::Identifier => {
                 !matches!(tp_as_type_parameter.is_this_type, Some(true))
                     && is_part_of_type_node(node)
                     && self.maybe_type_parameter_reference(node)
-                    && ptr::eq(&*self.get_type_from_type_node_worker(node), tp)
+                    && ptr::eq(&*self.get_type_from_type_node_worker(node)?, tp)
             }
             SyntaxKind::TypeQuery => true,
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
@@ -100,29 +105,29 @@ impl TypeChecker {
                         .maybe_as_function_like_declaration()
                         .and_then(|node| node.maybe_body())
                         .is_some()
-                    || some(
+                    || try_some(
                         node_as_signature_declaration
                             .maybe_type_parameters()
                             .as_double_deref(),
                         Some(|type_parameter: &Gc<Node>| {
                             self.contains_reference(tp, type_parameter)
                         }),
-                    )
-                    || some(
+                    )?
+                    || try_some(
                         Some(&node_as_signature_declaration.parameters()),
                         Some(|parameter: &Gc<Node>| self.contains_reference(tp, parameter)),
-                    )
+                    )?
                     || matches!(
                         node_as_signature_declaration.maybe_type(),
-                        Some(type_) if self.contains_reference(tp, &type_)
+                        Some(type_) if self.contains_reference(tp, &type_)?
                     )
             }
-            _ => for_each_child_bool(
+            _ => try_for_each_child_bool(
                 node,
                 |child| self.contains_reference(tp, child),
-                Option::<fn(&NodeArray) -> bool>::None,
-            ),
-        }
+                Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            )?,
+        })
     }
 
     pub(super) fn get_homomorphic_type_variable(
@@ -412,13 +417,13 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_conditional_type_instantiation<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn get_conditional_type_instantiation(
         &self,
         type_: &Type, /*ConditionalType*/
         mapper: &TypeMapper,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let root = type_.as_conditional_type().root.clone();
         if let Some(root_outer_type_parameters) =
             (*root).borrow().outer_type_parameters.clone().as_deref()
@@ -460,7 +465,7 @@ impl TypeChecker {
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
                         })
                     {
-                        self.map_type_with_alias(
+                        self.try_map_type_with_alias(
                             distribution_type,
                             &mut |t| {
                                 self.get_conditional_type(
@@ -476,14 +481,14 @@ impl TypeChecker {
                             },
                             alias_symbol,
                             alias_type_arguments,
-                        )
+                        )?
                     } else {
                         self.get_conditional_type(
                             root.clone(),
                             Some(new_mapper),
                             alias_symbol,
                             alias_type_arguments,
-                        )
+                        )?
                     },
                 );
                 (*root)
@@ -493,9 +498,9 @@ impl TypeChecker {
                     .unwrap()
                     .insert(id, result.clone().unwrap());
             }
-            return result.unwrap();
+            return Ok(result.unwrap());
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn instantiate_type(

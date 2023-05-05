@@ -13,8 +13,8 @@ use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node, entity_name_to_string,
     find, find_index, is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element,
     is_jsx_self_closing_element, is_optional_chain, is_optional_chain_root, last, length, map,
-    maybe_every, node_is_missing, set_text_range_pos_end, some, AccessFlags, ContextFlags, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags,
+    maybe_every, node_is_missing, set_text_range_pos_end, some, try_map, AccessFlags, ContextFlags,
+    Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags,
     InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, JsxReferenceKind, Node,
     NodeArray, NodeInterface, Number, ReadonlyTextRange, RelationComparisonResult, Signature,
     SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
@@ -348,7 +348,7 @@ impl TypeChecker {
                         ContextFlags::None
                     },
                 ),
-            );
+            )?;
             if let Some(contextual_type) = contextual_type.as_ref() {
                 let outer_context = self.get_inference_context(node);
                 let outer_mapper = self.get_mapper_from_context(
@@ -646,14 +646,14 @@ impl TypeChecker {
         type_argument_nodes: &[Gc<Node /*TypeNode*/>],
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
-    ) -> Option<Vec<Gc<Type>>> {
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
         let is_javascript = is_in_js_file(signature.declaration.as_deref());
         let type_parameters = signature.maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
-                Some(map(type_argument_nodes, |node: &Gc<Node>, _| {
+                Some(try_map(type_argument_nodes, |node: &Gc<Node>, _| {
                     self.get_type_from_type_node_(node)
-                })),
+                })?),
                 Some(&type_parameters),
                 self.get_min_type_argument_count(Some(&type_parameters)),
                 is_javascript,
@@ -698,11 +698,11 @@ impl TypeChecker {
                     error_info.clone(),
                     None,
                 ) {
-                    return None;
+                    return Ok(None);
                 }
             }
         }
-        Some(type_argument_types)
+        Ok(Some(type_argument_types))
     }
 
     pub(super) fn get_jsx_reference_kind(
@@ -779,7 +779,7 @@ impl TypeChecker {
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> io::Result<bool> {
         if self
-            .get_jsx_namespace_container_for_implicit_import(Some(node))
+            .get_jsx_namespace_container_for_implicit_import(Some(node))?
             .is_some()
         {
             return Ok(true);
@@ -873,7 +873,7 @@ impl TypeChecker {
                 ).into()
             );
             let tag_name_declaration = self
-                .get_symbol_at_location_(&node_as_jsx_opening_like_element.tag_name(), None)
+                .get_symbol_at_location_(&node_as_jsx_opening_like_element.tag_name(), None)?
                 .and_then(|symbol| symbol.maybe_value_declaration());
             if let Some(tag_name_declaration) = tag_name_declaration.as_ref() {
                 add_related_info(

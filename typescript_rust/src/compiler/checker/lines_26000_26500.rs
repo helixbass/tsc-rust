@@ -23,10 +23,10 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_assignment_declaration(
         &self,
         binary_expression: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let kind = get_assignment_declaration_kind(binary_expression);
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
-        match kind {
+        Ok(match kind {
             AssignmentDeclarationKind::None | AssignmentDeclarationKind::ThisProperty => {
                 let lhs_symbol =
                     self.get_symbol_for_expression(&binary_expression_as_binary_expression.left);
@@ -38,33 +38,35 @@ impl TypeChecker {
                     .filter(|decl| is_property_declaration(decl) || is_property_signature(decl))
                 {
                     let overall_annotation = get_effective_type_annotation_node(decl);
-                    return if let Some(overall_annotation) = overall_annotation.as_ref() {
-                        Some(
-                            self.instantiate_type(
-                                &self.get_type_from_type_node_(overall_annotation),
-                                (*self.get_symbol_links(lhs_symbol.as_ref().unwrap()))
-                                    .borrow()
-                                    .mapper
-                                    .clone(),
-                            ),
-                        )
-                    } else {
-                        None
-                    }
-                    .or_else(|| {
-                        if decl.as_has_initializer().maybe_initializer().is_some() {
-                            Some(self.get_type_of_expression(
-                                &binary_expression_as_binary_expression.left,
-                            ))
+                    return Ok(
+                        if let Some(overall_annotation) = overall_annotation.as_ref() {
+                            Some(
+                                self.instantiate_type(
+                                    &self.get_type_from_type_node_(overall_annotation),
+                                    (*self.get_symbol_links(lhs_symbol.as_ref().unwrap()))
+                                        .borrow()
+                                        .mapper
+                                        .clone(),
+                                ),
+                            )
                         } else {
                             None
                         }
-                    });
+                        .or_else(|| {
+                            if decl.as_has_initializer().maybe_initializer().is_some() {
+                                Some(self.get_type_of_expression(
+                                    &binary_expression_as_binary_expression.left,
+                                ))
+                            } else {
+                                None
+                            }
+                        }),
+                    );
                 }
                 if kind == AssignmentDeclarationKind::None {
-                    return Some(
-                        self.get_type_of_expression(&binary_expression_as_binary_expression.left),
-                    );
+                    return Ok(Some(self.get_type_of_expression(
+                        &binary_expression_as_binary_expression.left,
+                    )));
                 }
                 self.get_contextual_type_for_this_property_assignment(binary_expression)
             }
@@ -112,13 +114,13 @@ impl TypeChecker {
                             if let Some(annotated) = annotated.as_ref() {
                                 let name_str = get_element_or_property_access_name(lhs);
                                 if let Some(name_str) = name_str.as_ref() {
-                                    return self.get_type_of_property_of_contextual_type(
-                                        &self.get_type_from_type_node_(annotated),
+                                    return Ok(self.get_type_of_property_of_contextual_type(
+                                        &self.get_type_from_type_node_(annotated)?,
                                         name_str,
-                                    );
+                                    ));
                                 }
                             }
-                            return None;
+                            return Ok(None);
                         }
                     }
                     if is_in_js_file(Some(&*decl)) {
@@ -155,7 +157,7 @@ impl TypeChecker {
                 });
                 annotated
                     .as_ref()
-                    .map(|annotated| self.get_type_from_type_node_(annotated))
+                    .try_map(|annotated| self.get_type_from_type_node_(annotated))?
             }
             AssignmentDeclarationKind::ModuleExports => {
                 let mut value_declaration: Option<Gc<Node>> = None;
@@ -172,14 +174,14 @@ impl TypeChecker {
                 });
                 annotated
                     .as_ref()
-                    .map(|annotated| self.get_type_from_type_node_(annotated))
+                    .try_map(|annotated| self.get_type_from_type_node_(annotated))?
             }
             AssignmentDeclarationKind::ObjectDefinePropertyValue
             | AssignmentDeclarationKind::ObjectDefinePropertyExports
             | AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
                 Debug_.fail(Some("Does not apply"));
             } // _ => Debug_.assert_never(kind, None)
-        }
+        })
     }
 
     pub(super) fn is_possibly_aliased_this_property(
@@ -229,11 +231,13 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_this_property_assignment(
         &self,
         binary_expression: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let binary_expression_symbol = binary_expression.maybe_symbol();
         let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
         if binary_expression_symbol.is_none() {
-            return Some(self.get_type_of_expression(&binary_expression_as_binary_expression.left));
+            return Ok(Some(self.get_type_of_expression(
+                &binary_expression_as_binary_expression.left,
+            )));
         }
         let binary_expression_symbol = binary_expression_symbol.unwrap();
         if let Some(binary_expression_symbol_value_declaration) =
@@ -242,9 +246,9 @@ impl TypeChecker {
             let annotated =
                 get_effective_type_annotation_node(&binary_expression_symbol_value_declaration);
             if let Some(annotated) = annotated.as_ref() {
-                let type_ = self.get_type_from_type_node_(annotated);
+                let type_ = self.get_type_from_type_node_(annotated)?;
                 // if (type) {
-                return Some(type_);
+                return Ok(Some(type_));
                 // }
             }
         }
@@ -256,13 +260,13 @@ impl TypeChecker {
             &this_access.as_has_expression().expression(),
             false,
         )) {
-            return None;
+            return Ok(None);
         }
         let this_type = self.check_this_expression(&this_access.as_has_expression().expression());
         let name_str = get_element_or_property_access_name(&this_access);
-        name_str
-            .as_ref()
-            .and_then(|name_str| self.get_type_of_property_of_contextual_type(&this_type, name_str))
+        Ok(name_str.as_ref().and_then(|name_str| {
+            self.get_type_of_property_of_contextual_type(&this_type, name_str)
+        }))
     }
 
     pub(super) fn is_circular_mapped_property(&self, symbol: &Symbol) -> bool {
@@ -378,12 +382,15 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_contextual_type_for_element_expression<TArrayContextualType: Borrow<Type>>(
+    pub(super) fn get_contextual_type_for_element_expression(
         &self,
-        array_contextual_type: Option<TArrayContextualType>,
+        array_contextual_type: Option<impl Borrow<Type>>,
         index: usize,
     ) -> io::Result<Option<Gc<Type>>> {
-        let array_contextual_type = array_contextual_type?;
+        if array_contextual_type.is_none() {
+            return Ok(None);
+        }
+        let array_contextual_type = array_contextual_type.unwrap();
         let array_contextual_type = array_contextual_type.borrow();
         self.get_type_of_property_of_contextual_type(array_contextual_type, &index.to_string())
             .try_or_else(|| {
@@ -728,9 +735,9 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn instantiate_contextual_type<TContextualType: Borrow<Type>>(
+    pub(super) fn instantiate_contextual_type(
         &self,
-        contextual_type: Option<TContextualType>,
+        contextual_type: Option<impl Borrow<Type>>,
         node: &Node,
         context_flags: Option<ContextFlags>,
     ) -> Option<Gc<Type>> {
@@ -806,15 +813,15 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if node.flags().intersects(NodeFlags::InWithStatement) {
-            return None;
+            return Ok(None);
         }
         if let Some(node_contextual_type) = node.maybe_contextual_type().clone() {
-            return Some(node_contextual_type);
+            return Ok(Some(node_contextual_type));
         }
         let parent = node.parent();
-        match parent.kind() {
+        Ok(match parent.kind() {
             SyntaxKind::VariableDeclaration
             | SyntaxKind::Parameter
             | SyntaxKind::PropertyDeclaration
@@ -837,7 +844,7 @@ impl TypeChecker {
                 if is_const_type_reference(&parent_type) {
                     self.try_find_when_const_type_reference(&parent)
                 } else {
-                    Some(self.get_type_from_type_node_(&parent_type))
+                    Some(self.get_type_from_type_node_(&parent_type)?)
                 }
             }
             SyntaxKind::BinaryExpression => {
@@ -857,7 +864,7 @@ impl TypeChecker {
                     index_of_node(&array_literal.as_array_literal_expression().elements, node)
                         .try_into()
                         .unwrap(),
-                )
+                )?
             }
             SyntaxKind::ConditionalExpression => {
                 self.get_contextual_type_for_conditional_operand(node, context_flags)
@@ -898,7 +905,7 @@ impl TypeChecker {
                                         .unwrap()
                                         .as_jsdoc_type_expression()
                                         .type_,
-                                ),
+                                )?,
                             )
                         }
                     }
@@ -913,7 +920,7 @@ impl TypeChecker {
                 Some(self.get_contextual_jsx_element_attributes_type(&parent, context_flags))
             }
             _ => None,
-        }
+        })
     }
 
     pub(super) fn try_find_when_const_type_reference(
@@ -1004,12 +1011,12 @@ impl TypeChecker {
     pub(super) fn get_static_type_of_referenced_jsx_constructor(
         &self,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let context_as_jsx_opening_like_element = context.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(&context_as_jsx_opening_like_element.tag_name()) {
             let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(context);
             let fake_signature = self.create_signature_for_jsx_intrinsic(context, &result);
-            return self.get_or_create_type_from_signature(fake_signature);
+            return Ok(self.get_or_create_type_from_signature(fake_signature));
         }
         let tag_type =
             self.check_expression_cached(&context_as_jsx_opening_like_element.tag_name(), None);
@@ -1017,12 +1024,12 @@ impl TypeChecker {
             let result =
                 self.get_intrinsic_attributes_type_from_string_literal_type(&tag_type, context);
             if result.is_none() {
-                return self.error_type();
+                return Ok(self.error_type());
             }
             let result = result.unwrap();
-            let fake_signature = self.create_signature_for_jsx_intrinsic(context, &result);
-            return self.get_or_create_type_from_signature(fake_signature);
+            let fake_signature = self.create_signature_for_jsx_intrinsic(context, &result)?;
+            return Ok(self.get_or_create_type_from_signature(fake_signature));
         }
-        tag_type
+        Ok(tag_type)
     }
 }

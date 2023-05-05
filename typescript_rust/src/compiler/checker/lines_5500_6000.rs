@@ -962,7 +962,7 @@ impl NodeBuilder {
                         meaning.unwrap(),
                     )
                 },
-            ),
+            )?,
         } {
             let parents = self.type_checker.get_containers_of_symbol(
                 accessible_symbol_chain
@@ -1019,7 +1019,7 @@ impl NodeBuilder {
                                 Some(parent_exports_get) if self.type_checker.get_symbol_if_same_reference(
                                     parent_exports_get,
                                     symbol,
-                                ).is_some()
+                                )?.is_some()
                             )
                         ) {
                             accessible_symbol_chain = Some(parent_chain);
@@ -1028,7 +1028,7 @@ impl NodeBuilder {
                         parent_chain.append(&mut accessible_symbol_chain.unwrap_or_else(|| {
                             vec![self
                                 .type_checker
-                                .get_alias_for_symbol_in_container(parent, symbol)
+                                .get_alias_for_symbol_in_container(parent, symbol)?
                                 .unwrap_or_else(|| symbol.symbol_wrapper())]
                         }));
                         accessible_symbol_chain = Some(parent_chain);

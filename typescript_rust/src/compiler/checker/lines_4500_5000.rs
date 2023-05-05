@@ -1194,7 +1194,7 @@ impl NodeBuilder {
                     || self.type_checker.is_type_symbol_accessible(
                         &type_alias_symbol,
                         context.maybe_enclosing_declaration().as_deref(),
-                    )
+                    )?
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
                         type_.maybe_alias_type_arguments().as_deref(),
@@ -1268,7 +1268,7 @@ impl NodeBuilder {
                 && !self.type_checker.is_type_symbol_accessible(
                     &type_.symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
-                )
+                )?
             {
                 let name = self.type_parameter_to_name(&type_, context)?;
                 context.increment_approximate_length_by(id_text(&name).len());

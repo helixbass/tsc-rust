@@ -1,9 +1,9 @@
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{CheckMode, IterationUse, TypeFacts};
 use crate::{
@@ -146,7 +146,7 @@ impl TypeChecker {
         node: &Node, /*ArrayLiteralExpression*/
         source_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         let elements = &node_as_array_literal_expression.elements;
         if self.language_version < ScriptTarget::ES2015
@@ -159,7 +159,7 @@ impl TypeChecker {
             source_type,
             &self.undefined_type(),
             Some(node)
-        ) /*|| errorType*/;
+        )? /*|| errorType*/;
         let mut in_bounds_type = if self.compiler_options.no_unchecked_indexed_access == Some(true)
         {
             None
@@ -187,7 +187,7 @@ impl TypeChecker {
                 check_mode,
             );
         }
-        source_type.type_wrapper()
+        Ok(source_type.type_wrapper())
     }
 
     pub(super) fn check_array_literal_destructuring_element_assignment(

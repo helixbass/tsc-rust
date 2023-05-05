@@ -1,8 +1,8 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{get_node_id, CheckMode};
 use crate::{
@@ -28,14 +28,14 @@ impl TypeChecker {
         ) || is_jsdoc_type_assertion(&node)
     }
 
-    pub(super) fn check_declaration_initializer<TType: Borrow<Type>>(
+    pub(super) fn check_declaration_initializer(
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
-        contextual_type: Option<TType>,
-    ) -> Gc<Type> {
+        contextual_type: Option<impl Borrow<Type>>,
+    ) -> io::Result<Gc<Type>> {
         let initializer = get_effective_initializer(declaration).unwrap();
         let type_ = self
-            .get_quick_type_of_expression(&initializer)
+            .get_quick_type_of_expression(&initializer)?
             .unwrap_or_else(|| {
                 if let Some(contextual_type) = contextual_type {
                     self.check_expression_with_contextual_type(
@@ -48,27 +48,29 @@ impl TypeChecker {
                     self.check_expression_cached(&initializer, None)
                 }
             });
-        if is_parameter(declaration)
-            && declaration.as_parameter_declaration().name().kind()
-                == SyntaxKind::ArrayBindingPattern
-            && self.is_tuple_type(&type_)
-            && !type_
-                .as_type_reference()
-                .target
-                .as_tuple_type()
-                .has_rest_element
-            && self.get_type_reference_arity(&type_)
-                < declaration
-                    .as_parameter_declaration()
-                    .name()
-                    .as_array_binding_pattern()
-                    .elements
-                    .len()
-        {
-            self.pad_tuple_type(&type_, &declaration.as_parameter_declaration().name())
-        } else {
-            type_
-        }
+        Ok(
+            if is_parameter(declaration)
+                && declaration.as_parameter_declaration().name().kind()
+                    == SyntaxKind::ArrayBindingPattern
+                && self.is_tuple_type(&type_)
+                && !type_
+                    .as_type_reference()
+                    .target
+                    .as_tuple_type()
+                    .has_rest_element
+                && self.get_type_reference_arity(&type_)
+                    < declaration
+                        .as_parameter_declaration()
+                        .name()
+                        .as_array_binding_pattern()
+                        .elements
+                        .len()
+            {
+                self.pad_tuple_type(&type_, &declaration.as_parameter_declaration().name())
+            } else {
+                type_
+            },
+        )
     }
 
     pub(super) fn pad_tuple_type(
@@ -596,12 +598,12 @@ impl TypeChecker {
     pub(super) fn get_quick_type_of_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let mut expr = skip_parentheses(node, Some(true));
         if is_jsdoc_type_assertion(&expr) {
             let type_ = get_jsdoc_type_assertion_type(&expr);
             if !is_const_type_reference(&type_) {
-                return Some(self.get_type_from_type_node_(&type_));
+                return Ok(Some(self.get_type_from_type_node_(&type_)?));
             }
         }
         expr = skip_parentheses(node, None);
@@ -618,12 +620,14 @@ impl TypeChecker {
                 )
             };
             if type_.is_some() {
-                return type_;
+                return Ok(type_);
             }
         } else if is_assertion_expression(&expr)
             && !is_const_type_reference(&expr.as_has_type().maybe_type().unwrap())
         {
-            return Some(self.get_type_from_type_node_(&expr.as_has_type().maybe_type().unwrap()));
+            return Ok(Some(self.get_type_from_type_node_(
+                &expr.as_has_type().maybe_type().unwrap(),
+            )?));
         } else if matches!(
             node.kind(),
             SyntaxKind::NumericLiteral
@@ -631,9 +635,9 @@ impl TypeChecker {
                 | SyntaxKind::TrueKeyword
                 | SyntaxKind::FalseKeyword
         ) {
-            return Some(self.check_expression(node, None, None));
+            return Ok(Some(self.check_expression(node, None, None)));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_context_free_type_of_expression(

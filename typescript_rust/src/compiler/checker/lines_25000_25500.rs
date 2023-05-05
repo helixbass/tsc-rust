@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use crate::{
     add_related_info, contains_gc, contains_rc, create_diagnostic_for_node, find_ancestor,
@@ -18,9 +18,9 @@ use crate::{
     push_if_unique_gc, push_if_unique_rc, text_range_contains_position_inclusive, AsDoubleDeref,
     AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
     HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, ReadonlyTextRange,
-    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, OptionTry,
+    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -328,7 +328,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_this_expression(&self, node: &Node) -> Gc<Type> {
+    pub(super) fn check_this_expression(&self, node: &Node) -> io::Result<Gc<Type>> {
         let is_node_in_type_query = self.is_in_type_query(node);
         let mut container = get_this_container(node, true);
         let mut captured_by_arrow_function = false;
@@ -384,7 +384,7 @@ impl TypeChecker {
             self.capture_lexical_this(node, &container);
         }
 
-        let type_ = self.try_get_this_type_at_(node, Some(true), Some(&*container));
+        let type_ = self.try_get_this_type_at_(node, Some(true), Some(&*container))?;
         if self.no_implicit_this {
             let global_this_type = self.get_type_of_symbol(&self.global_this_symbol());
             if matches!(
@@ -408,7 +408,7 @@ impl TypeChecker {
                 );
                 if !is_source_file(&container) {
                     let outside_this =
-                        self.try_get_this_type_at_(&container, None, Option::<&Node>::None);
+                        self.try_get_this_type_at_(&container, None, Option::<&Node>::None)?;
                     if matches!(
                         outside_this.as_ref(),
                         Some(outside_this) if !Gc::ptr_eq(
@@ -432,7 +432,7 @@ impl TypeChecker {
                 }
             }
         }
-        type_.unwrap_or_else(|| self.any_type())
+        Ok(type_.unwrap_or_else(|| self.any_type()))
     }
 
     pub(super) fn try_get_this_type_at_(
@@ -440,7 +440,7 @@ impl TypeChecker {
         node: &Node,
         include_global_this: Option<bool>,
         container: Option<impl Borrow<Node>>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let include_global_this = include_global_this.unwrap_or(true);
         let container = container.map_or_else(
             || get_this_container(node, false),
@@ -451,13 +451,15 @@ impl TypeChecker {
             && (!self.is_in_parameter_initializer_before_containing_function(node)
                 || get_this_parameter(&container).is_some())
         {
-            let mut this_type = self.get_this_type_of_declaration(&container).or_else(|| {
-                if is_in_js {
-                    self.get_type_for_this_expression_from_jsdoc(&container)
-                } else {
-                    None
-                }
-            });
+            let mut this_type = self.get_this_type_of_declaration(&container).try_or_else(
+                || -> io::Result<_> {
+                    Ok(if is_in_js {
+                        self.get_type_for_this_expression_from_jsdoc(&container)?
+                    } else {
+                        None
+                    })
+                },
+            )?;
             if this_type.is_none() {
                 let class_name = self.get_class_name_from_prototype_method(&container);
                 if let Some(class_name) = class_name.as_ref().filter(|_| is_in_js) {
@@ -485,12 +487,12 @@ impl TypeChecker {
             }
 
             if let Some(this_type) = this_type.as_ref() {
-                return Some(self.get_flow_type_of_reference(
+                return Ok(Some(self.get_flow_type_of_reference(
                     node,
                     this_type,
                     Option::<&Type>::None,
                     Option::<&Node>::None,
-                ));
+                )));
             }
         }
 
@@ -504,12 +506,12 @@ impl TypeChecker {
                     .maybe_this_type()
                     .unwrap()
             };
-            return Some(self.get_flow_type_of_reference(
+            return Ok(Some(self.get_flow_type_of_reference(
                 node,
                 &type_,
                 Option::<&Type>::None,
                 Option::<&Node>::None,
-            ));
+            )));
         }
 
         if is_source_file(&container) {
@@ -519,25 +521,25 @@ impl TypeChecker {
                 .is_some()
             {
                 let file_symbol = self.get_symbol_of_node(&container);
-                return file_symbol
+                return Ok(file_symbol
                     .as_ref()
-                    .map(|file_symbol| self.get_type_of_symbol(file_symbol));
+                    .map(|file_symbol| self.get_type_of_symbol(file_symbol)));
             } else if container_as_source_file
                 .maybe_external_module_indicator()
                 .is_some()
             {
-                return Some(self.undefined_type());
+                return Ok(Some(self.undefined_type()));
             } else if include_global_this {
-                return Some(self.get_type_of_symbol(&self.global_this_symbol()));
+                return Ok(Some(self.get_type_of_symbol(&self.global_this_symbol())));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_explicit_this_type(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let container = get_this_container(node, false);
         if is_function_like(Some(&*container)) {
             let signature = self.get_signature_from_declaration_(&container);
@@ -548,15 +550,15 @@ impl TypeChecker {
         }
         if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
-            return if is_static(&container) {
+            return Ok(if is_static(&container) {
                 Some(self.get_type_of_symbol(&symbol))
             } else {
                 self.get_declared_type_of_symbol(&symbol)
                     .as_interface_type()
                     .maybe_this_type()
-            };
+            });
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_class_name_from_prototype_method(
@@ -696,7 +698,10 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_type_for_this_expression_from_jsdoc(&self, node: &Node) -> Option<Gc<Type>> {
+    pub(super) fn get_type_for_this_expression_from_jsdoc(
+        &self,
+        node: &Node,
+    ) -> io::Result<Option<Gc<Type>>> {
         let jsdoc_type = get_jsdoc_type(node);
         if let Some(jsdoc_type) = jsdoc_type
             .as_ref()
@@ -710,14 +715,14 @@ impl TypeChecker {
                     Some(name) if name.as_identifier().escaped_text == InternalSymbolName::This
                 )
             {
-                return Some(
+                return Ok(Some(
                     self.get_type_from_type_node_(
                         &js_doc_function_type_parameters[0]
                             .as_parameter_declaration()
                             .maybe_type()
                             .unwrap(),
-                    ),
-                );
+                    )?,
+                ));
             }
         }
         let this_tag = get_jsdoc_this_tag(node);
@@ -729,7 +734,9 @@ impl TypeChecker {
                     .clone()
             })
             .as_ref()
-            .map(|this_tag_type_expression| self.get_type_from_type_node_(this_tag_type_expression))
+            .try_map(|this_tag_type_expression| {
+                self.get_type_from_type_node_(this_tag_type_expression)
+            })
     }
 
     pub(super) fn is_in_constructor_argument_initializer(

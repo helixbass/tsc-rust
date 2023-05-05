@@ -1,8 +1,8 @@
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use crate::{
     find_index, is_constructor_declaration, is_function_expression, is_node_descendant_of,
@@ -17,7 +17,7 @@ use crate::{
     TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
     TypeReferenceInterface, UniqueESSymbolType, __String, get_assignment_declaration_kind,
     get_check_flags, get_host_signature_from_jsdoc, get_symbol_id, get_this_container,
-    is_binary_expression, is_class_like, maybe_is_class_like,
+    is_binary_expression, is_class_like, maybe_is_class_like, try_maybe_filter, try_some,
 };
 use local_macros::enum_unwrapped;
 
@@ -445,7 +445,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_rest_type_node(
         &self,
         node: &Node, /*RestTypeNode | NamedTupleMember*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_has_type = node.as_has_type();
         self.get_type_from_type_node_(
             &self
@@ -487,31 +487,38 @@ impl TypeChecker {
     pub(super) fn get_type_from_named_tuple_type_node(
         &self,
         node: &Node, /*NamedTupleMember*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_named_tuple_member = node.as_named_tuple_member();
             links.borrow_mut().resolved_type =
                 Some(if node_as_named_tuple_member.dot_dot_dot_token.is_some() {
-                    self.get_type_from_rest_type_node(node)
+                    self.get_type_from_rest_type_node(node)?
                 } else {
                     self.add_optionality(
-                        &self.get_type_from_type_node_(&node_as_named_tuple_member.type_),
+                        &*self.get_type_from_type_node_(&node_as_named_tuple_member.type_)?,
                         Some(true),
                         Some(node_as_named_tuple_member.question_token.is_some()),
                     )
                 });
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_type_from_type_node_(&self, node: &Node /*TypeNode*/) -> Gc<Type> {
-        self.get_conditional_flow_type_of_type(&self.get_type_from_type_node_worker(node), node)
+    pub(super) fn get_type_from_type_node_(
+        &self,
+        node: &Node, /*TypeNode*/
+    ) -> io::Result<Gc<Type>> {
+        Ok(self
+            .get_conditional_flow_type_of_type(&*self.get_type_from_type_node_worker(node)?, node))
     }
 
-    pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Gc<Type> {
-        match node.kind() {
+    pub(super) fn get_type_from_type_node_worker(
+        &self,
+        node: &Node, /*TypeNode*/
+    ) -> io::Result<Gc<Type>> {
+        Ok(match node.kind() {
             SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {
                 self.any_type()
             }
@@ -546,18 +553,18 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::ExpressionWithTypeArguments => self.get_type_from_type_reference(node),
-            SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
+            SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node)?,
             SyntaxKind::ArrayType | SyntaxKind::TupleType => {
-                self.get_type_from_array_or_tuple_type_node(node)
+                self.get_type_from_array_or_tuple_type_node(node)?
             }
-            SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node),
-            SyntaxKind::UnionType => self.get_type_from_union_type_node(node),
+            SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node)?,
+            SyntaxKind::UnionType => self.get_type_from_union_type_node(node)?,
             SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node),
             SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node),
             SyntaxKind::JSDocOptionalType => self.add_optionality(
-                &self.get_type_from_type_node_(
+                &*self.get_type_from_type_node_(
                     node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
-                ),
+                )?,
                 None,
                 None,
             ),
@@ -565,7 +572,7 @@ impl TypeChecker {
             SyntaxKind::ParenthesizedType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocTypeExpression => {
-                self.get_type_from_type_node_(&node.as_has_type().maybe_type().unwrap())
+                self.get_type_from_type_node_(&node.as_has_type().maybe_type().unwrap())?
             }
             SyntaxKind::RestType => self.get_type_from_rest_type_node(node),
             SyntaxKind::JSDocVariadicType => self.get_type_from_jsdoc_variadic_type(node),
@@ -583,11 +590,11 @@ impl TypeChecker {
             SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node),
             SyntaxKind::InferType => self.get_type_from_infer_type_node(node),
             SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node),
-            SyntaxKind::ImportType => self.get_type_from_import_type_node(node),
+            SyntaxKind::ImportType => self.get_type_from_import_type_node(node)?,
             SyntaxKind::Identifier
             | SyntaxKind::QualifiedName
             | SyntaxKind::PropertyAccessExpression => {
-                let symbol = self.get_symbol_at_location_(node, None);
+                let symbol = self.get_symbol_at_location_(node, None)?;
                 if let Some(symbol) = symbol.as_ref() {
                     self.get_declared_type_of_symbol(symbol)
                 } else {
@@ -595,7 +602,7 @@ impl TypeChecker {
                 }
             }
             _ => self.error_type(),
-        }
+        })
     }
 
     pub(super) fn instantiate_list<
@@ -1030,12 +1037,13 @@ impl TypeChecker {
                 || target.symbol().flags().intersects(SymbolFlags::TypeLiteral))
                 && target.maybe_alias_type_arguments().is_none()
             {
-                maybe_filter(type_parameters.as_deref(), |tp: &Gc<Type>| {
-                    some(
+                try_maybe_filter(type_parameters.as_deref(), |tp: &Gc<Type>| {
+                    try_some(
                         Some(&*all_declarations),
                         Some(|d: &Gc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
                     )
                 })
+                .transpose()?
             } else {
                 type_parameters
             };

@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{DeclarationSpaces, TypeFacts};
 use crate::{
@@ -122,9 +122,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_exports_on_merged_declarations(&self, node: &Node /*Declaration*/) {
+    pub(super) fn check_exports_on_merged_declarations(
+        &self,
+        node: &Node, /*Declaration*/
+    ) -> io::Result<()> {
         if !self.produce_diagnostics {
-            return;
+            return Ok(());
         }
 
         let mut symbol = node.maybe_local_symbol();
@@ -132,7 +135,7 @@ impl TypeChecker {
             symbol = self.get_symbol_of_node(node);
             let symbol = symbol.as_ref().unwrap();
             if symbol.maybe_export_symbol().is_none() {
-                return;
+                return Ok(());
             }
         }
         let symbol = symbol.unwrap();
@@ -141,14 +144,14 @@ impl TypeChecker {
             get_declaration_of_kind(&symbol, node.kind()).as_ref(),
             Some(declaration) if ptr::eq(&**declaration, node)
         ) {
-            return;
+            return Ok(());
         }
 
         let mut exported_declaration_spaces = DeclarationSpaces::None;
         let mut non_exported_declaration_spaces = DeclarationSpaces::None;
         let mut default_exported_declaration_spaces = DeclarationSpaces::None;
         for d in symbol.maybe_declarations().as_ref().unwrap() {
-            let declaration_spaces = self.get_declaration_spaces(d);
+            let declaration_spaces = self.get_declaration_spaces(d)?;
             let effective_declaration_flags = self
                 .get_effective_declaration_flags(d, ModifierFlags::Export | ModifierFlags::Default);
 
@@ -175,7 +178,7 @@ impl TypeChecker {
             || common_declaration_spaces_for_default_and_non_default != DeclarationSpaces::None
         {
             for d in symbol.maybe_declarations().as_ref().unwrap() {
-                let declaration_spaces = self.get_declaration_spaces(d);
+                let declaration_spaces = self.get_declaration_spaces(d)?;
 
                 let name = get_name_of_declaration(Some(&**d));
                 if declaration_spaces
@@ -201,14 +204,16 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_declaration_spaces(
         &self,
         decl: &Node, /*Declaration*/
-    ) -> DeclarationSpaces {
+    ) -> io::Result<DeclarationSpaces> {
         let d = decl;
-        match d.kind() {
+        Ok(match d.kind() {
             SyntaxKind::InterfaceDeclaration
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::JSDocTypedefTag
@@ -239,16 +244,16 @@ impl TypeChecker {
                     node.as_binary_expression().right.clone()
                 };
                 if !is_entity_name_expression(&expression) {
-                    return DeclarationSpaces::ExportValue;
+                    return Ok(DeclarationSpaces::ExportValue);
                 }
 
                 let d = expression;
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap());
+                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap())?;
                 maybe_for_each(
                     target.maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> Option<()> {
-                        result |= self.get_declaration_spaces(d);
+                        result |= self.get_declaration_spaces(d)?;
                         None
                     },
                 );
@@ -258,11 +263,11 @@ impl TypeChecker {
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportClause => {
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap());
+                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap())?;
                 maybe_for_each(
                     target.maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> Option<()> {
-                        result |= self.get_declaration_spaces(d);
+                        result |= self.get_declaration_spaces(d)?;
                         None
                     },
                 );
@@ -274,7 +279,7 @@ impl TypeChecker {
             | SyntaxKind::ImportSpecifier
             | SyntaxKind::Identifier => DeclarationSpaces::ExportValue,
             _ => Debug_.fail_bad_syntax_kind(d, None),
-        }
+        })
     }
 
     pub(super) fn get_awaited_type_of_promise<TErrorNode: Borrow<Node>>(

@@ -783,7 +783,7 @@ impl TypeChecker {
         if is_jsx_opening_element(&node.parent()) && is_jsx_element(&node.parent().parent()) {
             let containing_element = node.parent().parent();
             let child_prop_name =
-                self.get_jsx_element_children_property_name(self.get_jsx_namespace_at(Some(node)));
+                self.get_jsx_element_children_property_name(self.get_jsx_namespace_at(Some(node))?);
             let children_prop_name = child_prop_name.map_or_else(
                 || "children".to_owned(),
                 |child_prop_name| unescape_leading_underscores(&child_prop_name).to_owned(),
@@ -817,8 +817,8 @@ impl TypeChecker {
                             None,
                         );
                         let child_prop_name = self.get_jsx_element_children_property_name(
-                            self.get_jsx_namespace_at(Some(node)),
-                        );
+                            self.get_jsx_namespace_at(Some(node))?,
+                        )?;
                         let children_prop_name = child_prop_name.map_or_else(
                             || "children".to_owned(),
                             |child_prop_name| {

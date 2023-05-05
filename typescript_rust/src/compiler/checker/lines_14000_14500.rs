@@ -3,16 +3,16 @@ use indexmap::IndexMap;
 use peekmore::PeekMore;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
-use std::ptr;
+use std::{io, ptr};
 
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
     ordered_remove_item_at, push_if_unique_gc, reduce_left, replace_element, same_map, some,
-    BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
-    Node, ObjectFlags, PeekMoreExt, Signature, Symbol, SymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
+    try_map, BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType,
+    LiteralTypeInterface, Node, ObjectFlags, PeekMoreExt, Signature, Symbol, SymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, TypePredicate, TypePredicateKind,
+    TypeReferenceInterface, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
 };
 use local_macros::enum_unwrapped;
 
@@ -375,12 +375,12 @@ impl TypeChecker {
     pub(super) fn get_type_from_optional_type_node(
         &self,
         node: &Node, /*OptionalTypeNode*/
-    ) -> Gc<Type> {
-        self.add_optionality(
-            &self.get_type_from_type_node_(&node.as_optional_type_node().type_),
+    ) -> io::Result<Gc<Type>> {
+        Ok(self.add_optionality(
+            &*self.get_type_from_type_node_(&node.as_optional_type_node().type_)?,
             Some(true),
             None,
-        )
+        ))
     }
 
     pub(super) fn get_type_id(&self, type_: &Type) -> TypeId {
@@ -971,15 +971,15 @@ impl TypeChecker {
     pub(super) fn get_type_from_union_type_node(
         &self,
         node: &Node, /*UnionTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
             links.borrow_mut().resolved_type = Some(
                 self.get_union_type(
-                    &map(&node.as_union_type_node().types, |type_: &Gc<Node>, _| {
+                    &try_map(&node.as_union_type_node().types, |type_: &Gc<Node>, _| {
                         self.get_type_from_type_node_(type_)
-                    }),
+                    })?,
                     Some(UnionReduction::Literal),
                     alias_symbol.clone(),
                     self.get_type_arguments_for_alias_symbol(alias_symbol)
@@ -989,7 +989,7 @@ impl TypeChecker {
             );
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn add_type_to_intersection(

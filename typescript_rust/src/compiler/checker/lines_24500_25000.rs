@@ -511,7 +511,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         location: &Node,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let symbol = symbol
             .maybe_export_symbol()
             .unwrap_or_else(|| symbol.symbol_wrapper());
@@ -537,7 +537,7 @@ impl TypeChecker {
                         &symbol
                     )
                 ) {
-                    return type_;
+                    return Ok(type_);
                 }
             }
         }
@@ -547,11 +547,10 @@ impl TypeChecker {
                 .get_annotated_accessor_type_node(location.maybe_parent())
                 .is_some()
         {
-            return self
-                .resolve_type_of_accessors(&location.parent().symbol(), Some(true))
+            return Ok(self.resolve_type_of_accessors(&location.parent().symbol(), Some(true)))?
                 .unwrap();
         }
-        self.get_non_missing_type_of_symbol(&symbol)
+        Ok(self.get_non_missing_type_of_symbol(&symbol))
     }
 
     pub(super) fn maybe_get_control_flow_container(&self, node: &Node) -> Option<Gc<Node>> {
@@ -773,12 +772,12 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn mark_alias_referenced(&self, symbol: &Symbol, location: &Node) {
+    pub(super) fn mark_alias_referenced(&self, symbol: &Symbol, location: &Node) -> io::Result<()> {
         if self.is_non_local_alias(Some(symbol), Some(SymbolFlags::Value))
             && !self.is_in_type_query(location)
             && self.get_type_only_alias_declaration(symbol).is_none()
         {
-            let target = self.resolve_alias(symbol);
+            let target = self.resolve_alias(symbol)?;
             if target.flags().intersects(SymbolFlags::Value) {
                 if self.compiler_options.isolated_modules == Some(true)
                     || should_preserve_const_enums(&self.compiler_options)
@@ -791,6 +790,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_identifier(
@@ -851,7 +852,7 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::Alias)
         {
-            self.resolve_alias(&local_or_export_symbol)
+            self.resolve_alias(&local_or_export_symbol)?
         } else {
             local_or_export_symbol.clone()
         };
@@ -969,7 +970,7 @@ impl TypeChecker {
                         None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
                 return Ok(self.error_type());
             }
@@ -987,7 +988,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 } else {
                     self.error(
@@ -999,7 +1000,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        )]),
+                        )?]),
                     );
                 }
                 return Ok(self.error_type());
@@ -1114,7 +1115,7 @@ impl TypeChecker {
                                 &symbol,
                                 Option::<&Node>::None,
                                 None, None, None,
-                            ),
+                            )?,
                             self.type_to_string_(
                                 &flow_type,
                                 Option::<&Node>::None,
@@ -1132,7 +1133,7 @@ impl TypeChecker {
                                 None,
                                 None,
                                 None,
-                            ),
+                            )?,
                             self.type_to_string_(&flow_type, Option::<&Node>::None, None, None)?,
                         ]),
                     );
@@ -1156,7 +1157,7 @@ impl TypeChecker {
                     None,
                     None,
                     None,
-                )]),
+                )?]),
             );
             return Ok(type_);
         }

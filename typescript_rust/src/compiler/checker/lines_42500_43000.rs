@@ -1,8 +1,8 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::DeclarationMeaning;
 use crate::{
@@ -403,22 +403,22 @@ impl TypeChecker {
     pub(super) fn check_grammar_index_signature_parameters(
         &self,
         node: &Node, /*SignatureDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node_as_signature_declaration = node.as_signature_declaration();
         let parameter = node_as_signature_declaration.parameters().get(0).cloned();
         if node_as_signature_declaration.parameters().len() != 1 {
             if let Some(parameter) = parameter.as_ref() {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     &parameter.as_parameter_declaration().name(),
                     &Diagnostics::An_index_signature_must_have_exactly_one_parameter,
                     None,
-                );
+                ));
             } else {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     node,
                     &Diagnostics::An_index_signature_must_have_exactly_one_parameter,
                     None,
-                );
+                ));
             }
         }
         self.check_grammar_for_disallowed_trailing_comma(
@@ -431,81 +431,81 @@ impl TypeChecker {
             .dot_dot_dot_token
             .as_ref()
         {
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 parameter_dot_dot_dot_token,
                 &Diagnostics::An_index_signature_cannot_have_a_rest_parameter,
                 None,
-            );
+            ));
         }
         if has_effective_modifiers(parameter) {
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_cannot_have_an_accessibility_modifier,
                 None,
-            );
+            ));
         }
         if let Some(parameter_question_token) =
             parameter_as_parameter_declaration.question_token.as_ref()
         {
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 parameter_question_token,
                 &Diagnostics::An_index_signature_parameter_cannot_have_a_question_mark,
                 None,
-            );
+            ));
         }
         if parameter_as_parameter_declaration
             .maybe_initializer()
             .is_some()
         {
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_cannot_have_an_initializer,
                 None,
-            );
+            ));
         }
         if parameter_as_parameter_declaration.maybe_type().is_none() {
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_must_have_a_type_annotation,
                 None,
-            );
+            ));
         }
         let type_ = self
-            .get_type_from_type_node_(&parameter_as_parameter_declaration.maybe_type().unwrap());
+            .get_type_from_type_node_(&parameter_as_parameter_declaration.maybe_type().unwrap())?;
         if self.some_type(&type_, |t: &Type| {
             t.flags()
                 .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
         }) || self.is_generic_type(&type_)
         {
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_type_cannot_be_a_literal_type_or_generic_type_Consider_using_a_mapped_object_type_instead,
                 None,
-            );
+            ));
         }
         if !self.every_type(&type_, |type_: &Type| self.is_valid_index_key_type(type_)) {
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type,
                 None,
-            );
+            ));
         }
         if node_as_signature_declaration.maybe_type().is_none() {
-            return self.grammar_error_on_node(
+            return Ok(self.grammar_error_on_node(
                 node,
                 &Diagnostics::An_index_signature_must_have_a_type_annotation,
                 None,
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_grammar_index_signature(
         &self,
         node: &Node, /*SignatureDeclaration*/
-    ) -> bool {
-        self.check_grammar_decorators_and_modifiers(node)
-            || self.check_grammar_index_signature_parameters(node)
+    ) -> io::Result<bool> {
+        Ok(self.check_grammar_decorators_and_modifiers(node)
+            || self.check_grammar_index_signature_parameters(node)?)
     }
 
     pub(super) fn check_grammar_for_at_least_one_type_argument(

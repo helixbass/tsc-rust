@@ -77,7 +77,7 @@ impl NodeBuilder {
                     |ex: &Gc<Symbol>, name: &__String| {
                         if self
                             .type_checker
-                            .get_symbol_if_same_reference(ex, symbol)
+                            .get_symbol_if_same_reference(ex, symbol)?
                             .is_some()
                             && !self.type_checker.is_late_bound_name(name)
                             && name != InternalSymbolName::ExportEquals
@@ -112,7 +112,7 @@ impl NodeBuilder {
                     Some(got_member_of_symbol) if self.type_checker.get_symbol_if_same_reference(
                         got_member_of_symbol,
                         symbol,
-                    ).is_some()
+                    )?.is_some()
                 )
             }) {
                 let ref lhs = self.create_access_from_symbol_chain(
@@ -754,7 +754,7 @@ impl NodeBuilder {
                     if ptr::eq(
                         &*self.type_checker.get_type_from_type_node_(
                             existing,
-                        ),
+                        )?,
                         type_,
                     ) && self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
                         existing,
@@ -803,12 +803,12 @@ impl NodeBuilder {
         Ok(result.unwrap())
     }
 
-    pub(super) fn serialize_return_type_for_signature<TIncludePrivateSymbol: Fn(&Symbol)>(
+    pub(super) fn serialize_return_type_for_signature(
         &self,
         context: &NodeBuilderContext,
         type_: &Type,
         signature: &Signature,
-        include_private_symbol: Option<&TIncludePrivateSymbol>,
+        include_private_symbol: Option<&impl Fn(&Symbol)>,
         bundled: Option<bool>,
     ) -> io::Result<Gc<Node>> {
         if !self.type_checker.is_error_type(type_) {
@@ -827,7 +827,7 @@ impl NodeBuilder {
                     })
                     .is_some()
                     {
-                        let annotated = self.type_checker.get_type_from_type_node_(annotation);
+                        let annotated = self.type_checker.get_type_from_type_node_(annotation)?;
                         let this_instantiated =
                             if annotated.flags().intersects(TypeFlags::TypeParameter)
                                 && annotated.as_type_parameter().is_this_type == Some(true)
@@ -1121,18 +1121,18 @@ impl NodeBuilder {
                             let type_via_parent = self.type_checker.get_type_of_property_of_type_(
                                 &self.type_checker.get_type_from_type_node_(
                                     node
-                                ),
+                                )?,
                                 &name.as_identifier().escaped_text
                             );
-                            let override_type_node = type_via_parent.as_ref().filter(|type_via_parent| {
-                                matches!(
+                            let override_type_node = type_via_parent.as_ref().try_filter(|type_via_parent| {
+                                Ok(matches!(
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref(),
                                     Some(t_type_expression) if !Gc::ptr_eq(
-                                        &self.type_checker.get_type_from_type_node_(&t_type_expression.as_jsdoc_type_expression().type_),
+                                        &self.type_checker.get_type_from_type_node_(&t_type_expression.as_jsdoc_type_expression().type_)?,
                                         *type_via_parent
                                     )
-                                )
-                            }).try_and_then(|type_via_parent| {
+                                ))
+                            })?.try_and_then(|type_via_parent| {
                                 self.type_to_type_node_helper(
                                     Some(&**type_via_parent),
                                     context,
@@ -1394,7 +1394,7 @@ impl NodeBuilder {
         if is_type_reference_node(node) && is_in_jsdoc(Some(node)) && (
             !self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
                 node,
-                &self.type_checker.get_type_from_type_node_(node)
+                &self.type_checker.get_type_from_type_node_(node)?
             ) || self.type_checker.get_intended_type_from_jsdoc_type_reference(node).is_some() ||
             Gc::ptr_eq(
                 &self.type_checker.unknown_symbol(),
@@ -1408,7 +1408,7 @@ impl NodeBuilder {
             return Ok(Some(
                 set_original_node(
                     self.type_to_type_node_helper(
-                        Some(self.type_checker.get_type_from_type_node_(node)),
+                        Some(self.type_checker.get_type_from_type_node_(node)?),
                         context,
                     )?.unwrap(),
                     Some(node.node_wrapper()),
@@ -1438,7 +1438,7 @@ impl NodeBuilder {
                 return Ok(Some(
                     set_original_node(
                         self.type_to_type_node_helper(
-                            Some(self.type_checker.get_type_from_type_node_(node)),
+                            Some(self.type_checker.get_type_from_type_node_(node)?),
                             context,
                         )?
                         .unwrap(),

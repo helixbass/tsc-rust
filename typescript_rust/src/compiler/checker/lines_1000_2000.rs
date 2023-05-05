@@ -1,8 +1,8 @@
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::{
     get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id,
@@ -548,7 +548,7 @@ impl TypeChecker {
         target: &Symbol,
         source: &Symbol,
         unidirectional: Option<bool>,
-    ) -> Gc<Symbol> {
+    ) -> io::Result<Gc<Symbol>> {
         let unidirectional = unidirectional.unwrap_or(false);
         let mut target = target.symbol_wrapper();
         if !target
@@ -557,12 +557,12 @@ impl TypeChecker {
             || (source.flags() | target.flags()).intersects(SymbolFlags::Assignment)
         {
             if ptr::eq(source, &*target) {
-                return target;
+                return Ok(target);
             }
             if !target.flags().intersects(SymbolFlags::Transient) {
                 let resolved_target = self.resolve_symbol(Some(&*target), None).unwrap();
                 if Gc::ptr_eq(&resolved_target, &self.unknown_symbol()) {
-                    return source.symbol_wrapper();
+                    return Ok(source.symbol_wrapper());
                 }
                 target = self.clone_symbol(&resolved_target);
             }
@@ -623,7 +623,7 @@ impl TypeChecker {
                 self.error(
                     source.maybe_declarations().as_ref().and_then(|source_declarations| get_name_of_declaration(source_declarations.get(0).map(Clone::clone))),
                     &Diagnostics::Cannot_augment_module_0_with_value_exports_because_it_resolves_to_a_non_module_entity,
-                    Some(vec![self.symbol_to_string_(&target, Option::<&Node>::None, None, None, None)])
+                    Some(vec![self.symbol_to_string_(&target, Option::<&Node>::None, None, None, None)?])
                 );
             }
         } else {
@@ -654,7 +654,7 @@ impl TypeChecker {
                         maybe_get_source_file_of_node(target_declarations.get(0).cloned())
                     });
             let symbol_name =
-                self.symbol_to_string_(source, Option::<&Node>::None, None, None, None);
+                self.symbol_to_string_(source, Option::<&Node>::None, None, None, None)?;
 
             if source_symbol_file.is_some()
                 && target_symbol_file.is_some()
@@ -730,7 +730,7 @@ impl TypeChecker {
                 );
             }
         }
-        target
+        Ok(target)
     }
 
     pub(super) fn add_duplicate_locations(
@@ -1045,7 +1045,7 @@ impl TypeChecker {
         symbols: &SymbolTable,
         name: &str, /*__String*/
         meaning: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if meaning != SymbolFlags::None {
             let symbol = self.get_merged_symbol(symbols.get(name).map(Clone::clone));
             if let Some(symbol) = symbol {
@@ -1054,19 +1054,19 @@ impl TypeChecker {
                     Some("Should never get an instantiated symbol here."),
                 );
                 if symbol.flags().intersects(meaning) {
-                    return Some(symbol);
+                    return Ok(Some(symbol));
                 }
                 if symbol.flags().intersects(SymbolFlags::Alias) {
-                    let target = self.resolve_alias(&symbol);
+                    let target = self.resolve_alias(&symbol)?;
                     if Gc::ptr_eq(&target, &self.unknown_symbol())
                         || target.flags().intersects(meaning)
                     {
-                        return Some(symbol);
+                        return Ok(Some(symbol));
                     }
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_symbols_of_parameter_property_declaration_(
@@ -1470,7 +1470,7 @@ impl TypeChecker {
         is_use: bool,
         exclude_globals: bool,
         mut lookup: impl FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Gc<Symbol>>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if name == "TextNode" {
             panic!("resolve_name_helper() TextNode");
         }
@@ -1711,7 +1711,7 @@ impl TypeChecker {
                                 &Diagnostics::Static_members_cannot_reference_class_type_parameters,
                                 None,
                             );
-                            return None;
+                            return Ok(None);
                         }
                         if !should_skip_rest_of_match_arm {
                             break;
@@ -1753,7 +1753,7 @@ impl TypeChecker {
                                 if name_not_found_message.is_some() {
                                     self.error(error_location.as_deref(), &Diagnostics::Base_class_expressions_cannot_reference_class_type_parameters, None);
                                 }
-                                return None;
+                                return Ok(None);
                             }
                         }
                     }
@@ -1770,7 +1770,7 @@ impl TypeChecker {
                         );
                         if result.is_some() {
                             self.error(error_location.as_deref(), &Diagnostics::A_computed_property_name_cannot_reference_a_type_parameter_from_its_containing_type, None);
-                            return None;
+                            return Ok(None);
                         }
                     }
                 }
@@ -1908,7 +1908,7 @@ impl TypeChecker {
                     && name == "exports"
                     && meaning.intersects(last_location.symbol().flags())
                 {
-                    return Some(last_location.symbol());
+                    return Ok(Some(last_location.symbol()));
                 }
             }
 
@@ -1921,7 +1921,7 @@ impl TypeChecker {
                 if is_in_js_file(Some(&**original_location)) {
                     if let Some(original_location_parent) = original_location.maybe_parent() {
                         if is_require_call(&original_location_parent, false) {
-                            return Some(self.require_symbol());
+                            return Ok(Some(self.require_symbol()));
                         }
                     }
                 }
@@ -1935,7 +1935,7 @@ impl TypeChecker {
                         error_location,
                         name,
                         name_arg.clone().unwrap().into(),
-                    ) && !self.check_and_report_error_for_extending_interface(error_location)
+                    )? && !self.check_and_report_error_for_extending_interface(error_location)
                         && !self.check_and_report_error_for_using_type_as_namespace(
                             error_location,
                             name,
@@ -1982,7 +1982,7 @@ impl TypeChecker {
                                 None,
                                 None,
                                 None,
-                            );
+                            )?;
                             let is_unchecked_js = self.is_unchecked_js_suggestion(
                                 original_location.as_deref(),
                                 Some(&**suggestion),
@@ -2045,7 +2045,7 @@ impl TypeChecker {
                     self.increment_suggestion_count();
                 }
             }
-            return None;
+            return Ok(None);
         }
         let result = result.unwrap();
 
@@ -2064,7 +2064,7 @@ impl TypeChecker {
                         &Diagnostics::Initializer_of_instance_member_variable_0_cannot_reference_identifier_1_declared_in_the_constructor,
                         Some(vec![declaration_name_to_string(Some(&*property_name)).into_owned(), self.diagnostic_name(name_arg.unwrap().into()).into_owned()])
                     );
-                    return None;
+                    return Ok(None);
                 }
             }
 
@@ -2178,7 +2178,7 @@ impl TypeChecker {
                 }
             }
         }
-        Some(result)
+        Ok(Some(result))
     }
 }
 

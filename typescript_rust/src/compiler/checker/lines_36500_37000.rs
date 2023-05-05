@@ -14,9 +14,10 @@ use crate::{
     is_identifier, is_in_js_file, is_module_declaration, is_named_declaration,
     is_object_binding_pattern, is_object_literal_expression, is_parameter_declaration,
     is_property_access_expression, is_prototype_access, is_require_variable_declaration,
-    is_variable_like, node_is_missing, some, ClassLikeDeclarationInterface, Debug_, Diagnostics,
-    ExternalEmitHelpers, HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind,
-    Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget, SignatureKind, Symbol,
+    is_variable_like, node_is_missing, some, try_for_each_child_bool,
+    ClassLikeDeclarationInterface, Debug_, Diagnostics, ExternalEmitHelpers,
+    HasInitializerInterface, ModifierFlags, ModuleInstanceState, ModuleKind, Node, NodeArray,
+    NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, ScriptTarget, SignatureKind, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
@@ -836,7 +837,7 @@ impl TypeChecker {
 
         let tested_symbol = tested_node
             .as_ref()
-            .and_then(|tested_node| self.get_symbol_at_location_(tested_node, None));
+            .try_and_then(|tested_node| self.get_symbol_at_location_(tested_node, None))?;
         if tested_symbol.is_none() && !is_promise {
             return Ok(());
         }
@@ -853,7 +854,7 @@ impl TypeChecker {
                 body,
                 tested_node.as_ref().unwrap(),
                 tested_symbol,
-            )
+            )?
         );
         if !is_used {
             if is_promise {
@@ -883,8 +884,8 @@ impl TypeChecker {
         body: &Node, /*Statement | Expression*/
         tested_node: &Node,
         tested_symbol: &Symbol,
-    ) -> bool {
-        for_each_child_bool(
+    ) -> io::Result<bool> {
+        try_for_each_child_bool(
             body,
             |child_node| {
                 self.is_symbol_used_in_condition_body_check(
@@ -894,7 +895,7 @@ impl TypeChecker {
                     child_node,
                 )
             },
-            Option::<fn(&NodeArray) -> bool>::None,
+            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
         )
     }
 
@@ -904,15 +905,15 @@ impl TypeChecker {
         tested_node: &Node,
         tested_symbol: &Symbol,
         child_node: &Node,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if is_identifier(child_node) {
-            let child_symbol = self.get_symbol_at_location_(child_node, None);
+            let child_symbol = self.get_symbol_at_location_(child_node, None)?;
             if matches!(
                 child_symbol.as_ref(),
                 Some(child_symbol) if ptr::eq(&**child_symbol, tested_symbol)
             ) {
                 if is_identifier(expr) {
-                    return true;
+                    return Ok(true);
                 }
                 let mut tested_expression = tested_node.maybe_parent();
                 let mut child_expression = child_node.maybe_parent();
@@ -924,12 +925,12 @@ impl TypeChecker {
                         || tested_expression_present.kind() == SyntaxKind::ThisKeyword
                             && child_expression_present.kind() == SyntaxKind::ThisKeyword
                     {
-                        return are_option_gcs_equal(
-                            self.get_symbol_at_location_(tested_expression_present, None)
+                        return Ok(are_option_gcs_equal(
+                            self.get_symbol_at_location_(tested_expression_present, None)?
                                 .as_ref(),
-                            self.get_symbol_at_location_(child_expression_present, None)
+                            self.get_symbol_at_location_(child_expression_present, None)?
                                 .as_ref(),
-                        );
+                        ));
                     } else if is_property_access_expression(tested_expression_present)
                         && is_property_access_expression(child_expression_present)
                     {
@@ -941,15 +942,15 @@ impl TypeChecker {
                             self.get_symbol_at_location_(
                                 &tested_expression_present_as_property_access_expression.name,
                                 None,
-                            )
+                            )?
                             .as_ref(),
                             self.get_symbol_at_location_(
                                 &child_expression_present_as_property_access_expression.name,
                                 None,
-                            )
+                            )?
                             .as_ref(),
                         ) {
-                            return false;
+                            return Ok(false);
                         }
                         child_expression = Some(
                             child_expression_present_as_property_access_expression
@@ -977,12 +978,12 @@ impl TypeChecker {
                                 .clone(),
                         );
                     } else {
-                        return false;
+                        return Ok(false);
                     }
                 }
             }
         }
-        for_each_child_bool(
+        try_for_each_child_bool(
             child_node,
             |child_node| {
                 self.is_symbol_used_in_condition_body_check(
@@ -992,7 +993,7 @@ impl TypeChecker {
                     child_node,
                 )
             },
-            Option::<fn(&NodeArray) -> bool>::None,
+            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
         )
     }
 }

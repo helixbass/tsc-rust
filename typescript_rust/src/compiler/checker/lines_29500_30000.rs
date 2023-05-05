@@ -119,7 +119,7 @@ impl TypeChecker {
     pub(super) fn get_effective_call_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Vec<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Vec<Gc<Node /*Expression*/>>> {
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
             let template = &node.as_tagged_template_expression().template;
             let mut args: Vec<Gc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
@@ -137,25 +137,27 @@ impl TypeChecker {
                     },
                 );
             }
-            return args;
+            return Ok(args);
         }
         if node.kind() == SyntaxKind::Decorator {
             return self.get_effective_decorator_arguments(node);
         }
         if is_jsx_opening_like_element(node) {
-            return if !node
-                .as_jsx_opening_like_element()
-                .attributes()
-                .as_jsx_attributes()
-                .properties
-                .is_empty()
-                || is_jsx_opening_element(node)
-                    && !node.parent().as_jsx_element().children.is_empty()
-            {
-                vec![node.as_jsx_opening_like_element().attributes()]
-            } else {
-                vec![]
-            };
+            return Ok(
+                if !node
+                    .as_jsx_opening_like_element()
+                    .attributes()
+                    .as_jsx_attributes()
+                    .properties
+                    .is_empty()
+                    || is_jsx_opening_element(node)
+                        && !node.parent().as_jsx_element().children.is_empty()
+                {
+                    vec![node.as_jsx_opening_like_element().attributes()]
+                } else {
+                    vec![]
+                },
+            );
         }
         let args = node
             .as_has_arguments()
@@ -210,18 +212,18 @@ impl TypeChecker {
                     effective_args.push(arg.clone());
                 }
             }
-            return effective_args;
+            return Ok(effective_args);
         }
-        args
+        Ok(args)
     }
 
     pub(super) fn get_effective_decorator_arguments(
         &self,
         node: &Node, /*Decorator*/
-    ) -> Vec<Gc<Node /*Expression*/>> {
+    ) -> io::Result<Vec<Gc<Node /*Expression*/>>> {
         let parent = node.parent();
         let expr = &node.as_decorator().expression;
-        match parent.kind() {
+        Ok(match parent.kind() {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,
@@ -280,7 +282,7 @@ impl TypeChecker {
                         expr,
                         &*if has_prop_desc {
                             self.create_typed_property_descriptor_type(
-                                &self.get_type_of_node(&parent),
+                                &*self.get_type_of_node(&parent)?,
                             )
                         } else {
                             self.any_type()
@@ -291,7 +293,7 @@ impl TypeChecker {
                 ]
             }
             _ => Debug_.fail(None),
-        }
+        })
     }
 
     pub(super) fn get_decorator_argument_count(
@@ -376,13 +378,13 @@ impl TypeChecker {
     pub(super) fn is_promise_resolve_arity_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         if !is_call_expression(node) {
-            return false;
+            return Ok(false);
         }
         let node_as_call_expression = node.as_call_expression();
         if !is_identifier(&node_as_call_expression.expression) {
-            return false;
+            return Ok(false);
         }
 
         let symbol = self.resolve_name_(
@@ -401,7 +403,7 @@ impl TypeChecker {
             .as_ref()
             .and_then(|symbol| symbol.maybe_value_declaration());
         if decl.is_none() {
-            return false;
+            return Ok(false);
         }
         let decl = decl.unwrap();
         if !is_parameter(&decl)
@@ -409,26 +411,26 @@ impl TypeChecker {
             || !is_new_expression(&decl.parent().parent())
             || is_identifier(&decl.parent().parent().as_new_expression().expression)
         {
-            return false;
+            return Ok(false);
         }
 
         let global_promise_symbol = self.get_global_promise_constructor_symbol(false);
         if global_promise_symbol.is_none() {
-            return false;
+            return Ok(false);
         }
         let global_promise_symbol = global_promise_symbol.unwrap();
 
         let constructor_symbol = self.get_symbol_at_location_(
             &decl.parent().parent().as_new_expression().expression,
             Some(true),
-        );
-        matches!(
+        )?;
+        Ok(matches!(
             constructor_symbol.as_ref(),
             Some(constructor_symbol) if Gc::ptr_eq(
                 constructor_symbol,
                 &global_promise_symbol
             )
-        )
+        ))
     }
 
     pub(super) fn get_argument_arity_error(

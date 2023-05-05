@@ -148,9 +148,9 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAccessExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_property_access_expression = node.as_property_access_expression();
-        if node.flags().intersects(NodeFlags::OptionalChain) {
+        Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_property_access_chain(node, check_mode)
         } else {
             self.check_property_access_expression_or_qualified_name(
@@ -159,15 +159,15 @@ impl TypeChecker {
                 &self.check_non_null_expression(&node_as_property_access_expression.expression),
                 &node_as_property_access_expression.name,
                 check_mode,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn check_property_access_chain(
         &self,
         node: &Node, /*PropertyAccessChain*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_property_access_expression = node.as_property_access_expression();
         let left_type =
             self.check_expression(&node_as_property_access_expression.expression, None, None);
@@ -175,7 +175,7 @@ impl TypeChecker {
             &left_type,
             &node_as_property_access_expression.expression,
         );
-        self.propagate_optional_type_marker(
+        Ok(self.propagate_optional_type_marker(
             &self.check_property_access_expression_or_qualified_name(
                 node,
                 &node_as_property_access_expression.expression,
@@ -185,17 +185,17 @@ impl TypeChecker {
                 ),
                 &node_as_property_access_expression.name,
                 check_mode,
-            ),
+            )?,
             node,
             !Gc::ptr_eq(&non_optional_type, &left_type),
-        )
+        ))
     }
 
     pub(super) fn check_qualified_name(
         &self,
         node: &Node, /*QualifiedName*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_qualified_name = node.as_qualified_name();
         let left_type = if is_part_of_type_query(node)
             && is_this_identifier(Some(&*node_as_qualified_name.left))
@@ -528,7 +528,7 @@ impl TypeChecker {
                     left_type,
                     right,
                     lexically_scoped_symbol.as_deref(),
-                )
+                )?
             {
                 return Ok(self.error_type());
             } else {
@@ -809,24 +809,24 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_flow_type_of_access_expression<TProp: Borrow<Symbol>>(
+    pub(super) fn get_flow_type_of_access_expression(
         &self,
         node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
-        prop: Option<TProp>,
+        prop: Option<impl Borrow<Symbol>>,
         prop_type: &Type,
         error_node: &Node,
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let assignment_kind = get_assignment_target_kind(node);
         let prop = prop.map(|prop| prop.borrow().symbol_wrapper());
         if assignment_kind == AssignmentKind::Definite {
-            return self.remove_missing_type(
+            return Ok(self.remove_missing_type(
                 prop_type,
                 matches!(
                     prop.as_ref(),
                     Some(prop) if prop.flags().intersects(SymbolFlags::Optional)
                 ),
-            );
+            ));
         }
         if matches!(
             prop.as_ref(),
@@ -834,10 +834,10 @@ impl TypeChecker {
                 !(prop.flags().intersects(SymbolFlags::Method) && prop_type.flags().intersects(TypeFlags::Union)) &&
                 !self.is_duplicated_common_js_export(prop.maybe_declarations().as_deref())
         ) {
-            return prop_type.type_wrapper();
+            return Ok(prop_type.type_wrapper());
         }
         if ptr::eq(prop_type, &*self.auto_type()) {
-            return self.get_flow_type_of_property(node, prop);
+            return Ok(self.get_flow_type_of_property(node, prop));
         }
         let mut prop_type = prop_type.type_wrapper();
         prop_type = self.get_narrowable_type_for_reference(&prop_type, node, check_mode);
@@ -904,15 +904,15 @@ impl TypeChecker {
                     None,
                     None,
                     None,
-                )]),
+                )?]),
             );
-            return prop_type;
+            return Ok(prop_type);
         }
-        if assignment_kind != AssignmentKind::None {
+        Ok(if assignment_kind != AssignmentKind::None {
             self.get_base_type_of_literal_type(&flow_type)
         } else {
             flow_type
-        }
+        })
     }
 
     pub(super) fn check_property_not_used_before_declaration(

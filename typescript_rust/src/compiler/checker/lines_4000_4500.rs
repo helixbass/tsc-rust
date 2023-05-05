@@ -9,12 +9,12 @@ use crate::{
     get_declaration_of_kind, get_source_file_of_node, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
     is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
-    node_is_present, push_if_unique_gc, some, BaseInterfaceType, BaseIntrinsicType, BaseObjectType,
-    BaseType, CharacterCodes, FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName,
-    Node, NodeInterface, ObjectFlags, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
-    SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeParameter,
+    node_is_present, push_if_unique_gc, some, try_for_each_entry, BaseInterfaceType,
+    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
+    IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, ResolvableTypeInterface,
+    ResolvedTypeInterface, Signature, SignatureFlags, Symbol, SymbolAccessibility,
+    SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {
@@ -22,10 +22,10 @@ impl TypeChecker {
         &self,
         container: &Symbol,
         symbol: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if matches!(self.get_parent_of_symbol(symbol), Some(parent) if ptr::eq(container, &*parent))
         {
-            return Some(symbol.symbol_wrapper());
+            return Ok(Some(symbol.symbol_wrapper()));
         }
         let export_equals = container.maybe_exports().as_ref().and_then(|exports| {
             (**exports)
@@ -33,26 +33,26 @@ impl TypeChecker {
                 .get(InternalSymbolName::ExportEquals)
                 .cloned()
         });
-        if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(&export_equals, symbol).is_some())
+        if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(&export_equals, symbol)?.is_some())
         {
-            return Some(container.symbol_wrapper());
+            return Ok(Some(container.symbol_wrapper()));
         }
         let exports = self.get_exports_of_symbol(container);
         let exports = (*exports).borrow();
         let quick = exports.get(symbol.escaped_name());
         if let Some(quick) = quick {
-            if self.get_symbol_if_same_reference(quick, symbol).is_some() {
-                return Some(quick.clone());
+            if self.get_symbol_if_same_reference(quick, symbol)?.is_some() {
+                return Ok(Some(quick.clone()));
             }
         }
-        for_each_entry(&*exports, |exported: &Gc<Symbol>, _| {
+        try_for_each_entry(&*exports, |exported: &Gc<Symbol>, _| {
             if self
-                .get_symbol_if_same_reference(exported, symbol)
+                .get_symbol_if_same_reference(exported, symbol)?
                 .is_some()
             {
-                return Some(exported.clone());
+                return Ok(Some(exported.clone()));
             }
-            None
+            Ok(None)
         })
     }
 
@@ -60,23 +60,23 @@ impl TypeChecker {
         &self,
         s1: &Symbol,
         s2: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if Gc::ptr_eq(
             &self
-                .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None))
+                .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None)?)
                 .unwrap(),
             &self
-                .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s2)), None))
+                .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s2)), None)?)
                 .unwrap(),
         ) {
-            return Some(s1.symbol_wrapper());
+            return Ok(Some(s1.symbol_wrapper()));
         }
-        None
+        Ok(None)
     }
 
-    pub(super) fn get_export_symbol_of_value_symbol_if_exported<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_export_symbol_of_value_symbol_if_exported(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
     ) -> Option<Gc<Symbol>> {
         self.get_merged_symbol(symbol.and_then(|symbol| {
             let symbol = symbol.borrow();
@@ -88,14 +88,14 @@ impl TypeChecker {
         }))
     }
 
-    pub(super) fn symbol_is_value(&self, symbol: &Symbol) -> bool {
-        symbol.flags().intersects(SymbolFlags::Value)
+    pub(super) fn symbol_is_value(&self, symbol: &Symbol) -> io::Result<bool> {
+        Ok(symbol.flags().intersects(SymbolFlags::Value)
             || symbol.flags().intersects(SymbolFlags::Alias)
                 && self
-                    .resolve_alias(symbol)
+                    .resolve_alias(symbol)?
                     .flags()
                     .intersects(SymbolFlags::Value)
-                && self.get_type_only_alias_declaration(symbol).is_none()
+                && self.get_type_only_alias_declaration(symbol).is_none())
     }
 
     pub(super) fn find_constructor_declaration(
@@ -220,8 +220,8 @@ impl TypeChecker {
         &self,
         member: &Symbol,
         escaped_name: &str, /*__String*/
-    ) -> bool {
-        !self.is_reserved_member_name(escaped_name) && self.symbol_is_value(member)
+    ) -> io::Result<bool> {
+        Ok(!self.is_reserved_member_name(escaped_name) && self.symbol_is_value(member)?)
     }
 
     pub(super) fn get_named_or_index_signature_members(
@@ -237,11 +237,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn set_structured_type_members<
-        TType: ResolvableTypeInterface + ResolvedTypeInterface,
-    >(
+    pub(super) fn set_structured_type_members(
         &self,
-        type_: &TType,
+        type_: &(impl ResolvableTypeInterface + ResolvedTypeInterface),
         members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
@@ -344,20 +342,37 @@ impl TypeChecker {
         type_copy
     }
 
-    pub(super) fn for_each_symbol_table_in_scope<
-        TEnclosingDeclaration: Borrow<Node>,
-        TReturn,
-        TCallback: FnMut(
+    pub(super) fn for_each_symbol_table_in_scope<TReturn>(
+        &self,
+        enclosing_declaration: Option<impl Borrow<Node>>,
+        mut callback: impl FnMut(
             Gc<GcCell<SymbolTable>>,
             Option<bool>,
             Option<bool>,
             Option<&Node>,
         ) -> Option<TReturn>,
-    >(
-        &self,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
-        mut callback: TCallback,
     ) -> Option<TReturn> {
+        self.try_for_each_symbol_table_in_scope(
+            enclosing_declaration,
+            |a: Gc<GcCell<SymbolTable>>,
+             b: Option<bool>,
+             c: Option<bool>,
+             d: Option<&Node>|
+             -> Result<TReturn, ()> { Ok(callback(a, b, c, d)) },
+        )
+        .unwrap()
+    }
+
+    pub(super) fn try_for_each_symbol_table_in_scope<TReturn, TError>(
+        &self,
+        enclosing_declaration: Option<impl Borrow<Node>>,
+        mut callback: impl FnMut(
+            Gc<GcCell<SymbolTable>>,
+            Option<bool>,
+            Option<bool>,
+            Option<&Node>,
+        ) -> Result<Option<TReturn>, TError>,
+    ) -> Result<Option<TReturn>, TError> {
         let mut result: Option<TReturn>;
         let mut location: Option<Gc<Node>> = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -369,9 +384,9 @@ impl TypeChecker {
                         None,
                         Some(true),
                         Some(&*location_unwrapped),
-                    );
+                    )?;
                     if result.is_some() {
-                        return result;
+                        return Ok(result);
                     }
                 }
             }
@@ -387,9 +402,9 @@ impl TypeChecker {
                             None,
                             Some(true),
                             Some(&*location_unwrapped),
-                        );
+                        )?;
                         if result.is_some() {
-                            return result;
+                            return Ok(result);
                         }
                     }
                 }
@@ -424,9 +439,9 @@ impl TypeChecker {
                             None,
                             Some(false),
                             Some(&*location_unwrapped),
-                        );
+                        )?;
                         if result.is_some() {
-                            return result;
+                            return Ok(result);
                         }
                     }
                 }
@@ -534,9 +549,9 @@ impl TypeChecker {
         symbols: Gc<GcCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
-    ) -> Option<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
         if !push_if_unique_gc(&mut visited_symbol_tables.borrow_mut(), &symbols) {
-            return None;
+            return Ok(None);
         }
 
         let result = self.try_symbol_table(
@@ -549,9 +564,9 @@ impl TypeChecker {
             symbols,
             ignore_qualification,
             is_local_name_lookup,
-        );
+        )?;
         visited_symbol_tables.borrow_mut().pop();
-        result
+        Ok(result)
     }
 
     pub(super) fn can_qualify_symbol(
@@ -561,17 +576,19 @@ impl TypeChecker {
         visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         symbol_from_symbol_table: &Symbol,
         meaning: SymbolFlags,
-    ) -> bool {
-        !self.needs_qualification(symbol_from_symbol_table, enclosing_declaration, meaning)
-            || self
-                .get_accessible_symbol_chain(
-                    symbol_from_symbol_table.maybe_parent(),
-                    enclosing_declaration,
-                    self.get_qualified_left_meaning(meaning),
-                    use_only_external_aliasing,
-                    Some(visited_symbol_tables_map),
-                )
-                .is_some()
+    ) -> io::Result<bool> {
+        Ok(
+            !self.needs_qualification(symbol_from_symbol_table, enclosing_declaration, meaning)?
+                || self
+                    .get_accessible_symbol_chain(
+                        symbol_from_symbol_table.maybe_parent(),
+                        enclosing_declaration,
+                        self.get_qualified_left_meaning(meaning),
+                        use_only_external_aliasing,
+                        Some(visited_symbol_tables_map),
+                    )
+                    .is_some(),
+        )
     }
 
     pub(super) fn is_accessible(
@@ -638,7 +655,7 @@ impl TypeChecker {
         symbols: Gc<GcCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
-    ) -> Option<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
         if self.is_accessible(
             symbol,
             meaning,
@@ -649,12 +666,12 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             ignore_qualification,
         ) {
-            return Some(vec![symbol.symbol_wrapper()]);
+            return Ok(Some(vec![symbol.symbol_wrapper()]));
         }
 
-        let result: Option<Vec<Gc<Symbol>>> = for_each_entry(
+        let result: Option<Vec<Gc<Symbol>>> = try_for_each_entry(
             &*(*symbols).borrow(),
-            |symbol_from_symbol_table, _| {
+            |symbol_from_symbol_table, _| -> io::Result<_> {
                 if symbol_from_symbol_table
                     .flags()
                     .intersects(SymbolFlags::Alias)
@@ -686,7 +703,7 @@ impl TypeChecker {
                         )
                         .is_none())
                 {
-                    let resolved_import_symbol = self.resolve_alias(symbol_from_symbol_table);
+                    let resolved_import_symbol = self.resolve_alias(symbol_from_symbol_table)?;
                     let candidate = self.get_candidate_list_for_symbol(
                         symbol,
                         meaning,
@@ -699,7 +716,7 @@ impl TypeChecker {
                         ignore_qualification,
                     );
                     if candidate.is_some() {
-                        return candidate;
+                        return Ok(candidate);
                     }
                 }
                 if symbol_from_symbol_table.escaped_name() == symbol.escaped_name() {
@@ -716,15 +733,15 @@ impl TypeChecker {
                             Option::<&Symbol>::None,
                             ignore_qualification,
                         ) {
-                            return Some(vec![symbol.symbol_wrapper()]);
+                            return Ok(Some(vec![symbol.symbol_wrapper()]));
                         }
                     }
                 }
-                None
+                Ok(None)
             },
-        );
+        )?;
 
-        result.or_else(|| {
+        Ok(result.or_else(|| {
             if Gc::ptr_eq(&symbols, &self.globals_rc()) {
                 self.get_candidate_list_for_symbol(
                     symbol,
@@ -740,7 +757,7 @@ impl TypeChecker {
             } else {
                 None
             }
-        })
+        }))
     }
 
     pub(super) fn get_candidate_list_for_symbol(
@@ -797,14 +814,14 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn needs_qualification<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn needs_qualification(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let mut qualify = false;
-        self.for_each_symbol_table_in_scope(enclosing_declaration, |symbol_table, _, _, _| {
+        self.try_for_each_symbol_table_in_scope(enclosing_declaration, |symbol_table, _, _, _| {
             let mut symbol_from_symbol_table = self.get_merged_symbol(
                 (*symbol_table)
                     .borrow()
@@ -812,7 +829,7 @@ impl TypeChecker {
                     .map(Clone::clone),
             )?;
             if ptr::eq(&*symbol_from_symbol_table, symbol) {
-                return Some(());
+                return Ok(Some(()));
             }
 
             symbol_from_symbol_table = if symbol_from_symbol_table
@@ -821,19 +838,19 @@ impl TypeChecker {
                 && get_declaration_of_kind(&symbol_from_symbol_table, SyntaxKind::ExportSpecifier)
                     .is_none()
             {
-                self.resolve_alias(&symbol_from_symbol_table)
+                self.resolve_alias(&symbol_from_symbol_table)?
             } else {
                 symbol_from_symbol_table
             };
             if symbol_from_symbol_table.flags().intersects(meaning) {
                 qualify = true;
-                return Some(());
+                return Ok(Some(()));
             }
 
-            None
-        });
+            Ok(None)
+        })?;
 
-        qualify
+        Ok(qualify)
     }
 
     pub(super) fn is_property_or_method_declaration_symbol(&self, symbol: &Symbol) -> bool {
@@ -862,7 +879,7 @@ impl TypeChecker {
         &self,
         type_symbol: &Symbol,
         enclosing_declaration: Option<impl Borrow<Node>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let access = self.is_symbol_accessible_worker(
@@ -871,8 +888,8 @@ impl TypeChecker {
             SymbolFlags::Type,
             false,
             true,
-        );
-        access.accessibility == SymbolAccessibility::Accessible
+        )?;
+        Ok(access.accessibility == SymbolAccessibility::Accessible)
     }
 
     pub(super) fn is_value_symbol_accessible<TEnclosingDeclaration: Borrow<Node>>(

@@ -19,11 +19,11 @@ use crate::{
     is_shorthand_ambient_module_symbol, is_source_file, is_static, is_string_literal_like,
     is_variable_declaration, is_variable_statement, length, map, map_defined, maybe_first_defined,
     maybe_get_source_file_of_node, maybe_map, set_parent, set_synthetic_leading_comments_rc,
-    set_text_range_rc_node, some, unescape_leading_underscores,
+    set_text_range_rc_node, some, try_maybe_map, unescape_leading_underscores,
     with_parse_base_node_factory_and_factory, with_synthetic_factory_and_factory, AsDoubleDeref,
     AssignmentDeclarationKind, Debug_, HasInitializerInterface, HasTypeArgumentsInterface,
-    InternalSymbolName, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeBuilderFlags, NodeFlags, NodeInterface, OptionTry, Signature, SignatureKind,
+    InternalSymbolName, IteratorExt, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, OptionTry, Signature, SignatureKind,
     StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, ThenAnd,
     Type, TypeInterface,
 };
@@ -143,15 +143,16 @@ impl SymbolTableToDeclarationStatements {
         symbol_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
-        let alias_type = self.type_checker.get_declared_type_of_type_alias(symbol);
+        let alias_type = self.type_checker.get_declared_type_of_type_alias(symbol)?;
         let type_params = (*self.type_checker.get_symbol_links(symbol))
             .borrow()
             .type_parameters
             .clone();
-        let type_param_decls = maybe_map(type_params.as_ref(), |p: &Gc<Type>, _| {
+        let type_param_decls = try_maybe_map(type_params.as_ref(), |p: &Gc<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
-        });
+        })
+        .transpose()?;
         let jsdoc_alias_decl =
             symbol
                 .maybe_declarations()
@@ -186,7 +187,7 @@ impl SymbolTableToDeclarationStatements {
             .filter(|jsdoc_alias_decl_type_expression| {
                 is_jsdoc_type_expression(jsdoc_alias_decl_type_expression)
             })
-            .and_then(|jsdoc_alias_decl_type_expression| {
+            .try_and_then(|jsdoc_alias_decl_type_expression| {
                 self.node_builder.serialize_existing_type_node(
                     &self.context(),
                     &jsdoc_alias_decl_type_expression
@@ -197,8 +198,8 @@ impl SymbolTableToDeclarationStatements {
                     }),
                     self.bundled,
                 )
-            })
-            .try_unwrap_or_else(|| {
+            })?
+            .try_unwrap_or_else(|| -> io::Result<_> {
                 Ok(self
                     .node_builder
                     .type_to_type_node_helper(Some(&*alias_type), &self.context())?
@@ -239,17 +240,18 @@ impl SymbolTableToDeclarationStatements {
         symbol: &Symbol,
         symbol_name: &str,
         modifier_flags: ModifierFlags,
-    ) {
+    ) -> io::Result<()> {
         let ref interface_type = self
             .type_checker
             .get_declared_type_of_class_or_interface(symbol);
         let local_params = self
             .type_checker
             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
-        let type_param_decls = maybe_map(local_params.as_deref(), |p: &Gc<Type>, _| {
+        let type_param_decls = try_maybe_map(local_params.as_deref(), |p: &Gc<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
-        });
+        })
+        .transpose()?;
         let base_types = self.type_checker.get_base_types(interface_type);
         let base_type = if !base_types.is_empty() {
             Some(self.type_checker.get_intersection_type(
@@ -314,6 +316,8 @@ impl SymbolTableToDeclarationStatements {
                 .wrap(),
             modifier_flags,
         );
+
+        Ok(())
     }
 
     pub(super) fn get_namespace_members_for_serialization(
@@ -333,16 +337,16 @@ impl SymbolTableToDeclarationStatements {
             })
     }
 
-    pub(super) fn is_type_only_namespace(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_type_only_namespace(&self, symbol: &Symbol) -> io::Result<bool> {
         self.get_namespace_members_for_serialization(symbol)
             .iter()
-            .all(|m| {
-                !self
+            .try_all(|m| {
+                Ok(!self
                     .type_checker
-                    .resolve_symbol(Some(&**m), None)
+                    .resolve_symbol(Some(&**m), None)?
                     .unwrap()
                     .flags()
-                    .intersects(SymbolFlags::Value)
+                    .intersects(SymbolFlags::Value))
             })
     }
 

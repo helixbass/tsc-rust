@@ -2,6 +2,7 @@ use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::io;
 use std::rc::Rc;
 
 use crate::{
@@ -10,25 +11,26 @@ use crate::{
     is_identifier, is_jsdoc_type_expression, is_jsdoc_type_literal, is_literal_import_type_node,
     is_optional_type_node, is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node,
     is_type_alias, is_type_operator_node, length, map, maybe_concatenate, maybe_filter,
-    node_is_missing, same_map, AccessFlags, CheckFlags, ConditionalRoot, ConditionalType,
-    Diagnostics, IndexInfo, InferenceFlags, InferencePriority, MappedType, ModifierFlags, Node,
-    NodeFlags, NodeInterface, NodeLinks, ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    node_is_missing, same_map, try_maybe_filter, AccessFlags, CheckFlags, ConditionalRoot,
+    ConditionalType, Diagnostics, IndexInfo, InferenceFlags, InferencePriority, MappedType,
+    ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn get_type_from_indexed_access_type_node(
         &self,
         node: &Node, /*IndexedAccessTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
             let object_type =
-                self.get_type_from_type_node_(&node_as_indexed_access_type_node.object_type);
+                self.get_type_from_type_node_(&node_as_indexed_access_type_node.object_type)?;
             let index_type =
-                self.get_type_from_type_node_(&node_as_indexed_access_type_node.index_type);
+                self.get_type_from_type_node_(&node_as_indexed_access_type_node.index_type)?;
             let potential_alias = self.get_alias_symbol_for_type_node(node);
             let resolved = self.get_indexed_access_type(
                 &object_type,
@@ -52,7 +54,7 @@ impl TypeChecker {
             );
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_from_mapped_type_node(
@@ -146,13 +148,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_conditional_type<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn get_conditional_type(
         &self,
         root: Gc<GcCell<ConditionalRoot>>,
         mut mapper: Option<Gc<TypeMapper>>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         mut alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let result: Gc<Type>;
         let mut extra_types: Option<Vec<Gc<Type>>> = None;
         let mut tail_count = 0;
@@ -188,7 +190,7 @@ impl TypeChecker {
             if Gc::ptr_eq(&check_type, &self.wildcard_type())
                 || Gc::ptr_eq(&extends_type, &self.wildcard_type())
             {
-                return self.wildcard_type();
+                return Ok(self.wildcard_type());
             }
             let mut combined_mapper: Option<Gc<TypeMapper>> = None;
             if let Some(root_infer_type_parameters) =
@@ -249,7 +251,7 @@ impl TypeChecker {
                                         .clone()
                                         .as_conditional_type_node()
                                         .true_type,
-                                ),
+                                )?,
                                 combined_mapper.clone().or_else(|| mapper.clone()),
                             ),
                         );
@@ -261,7 +263,7 @@ impl TypeChecker {
                             .clone()
                             .as_conditional_type_node()
                             .false_type,
-                    );
+                    )?;
                     if false_type.flags().intersects(TypeFlags::Conditional) {
                         let new_root = false_type.as_conditional_type().root.clone();
                         if Gc::ptr_eq(&(*new_root).borrow().node.parent(), &(*root).borrow().node)
@@ -305,7 +307,7 @@ impl TypeChecker {
                             .clone()
                             .as_conditional_type_node()
                             .true_type,
-                    );
+                    )?;
                     let true_mapper = combined_mapper.clone().or_else(|| mapper.clone());
                     if self.can_tail_recurse(
                         &mut root,
@@ -345,7 +347,7 @@ impl TypeChecker {
             };
             break;
         }
-        if let Some(mut extra_types) = extra_types {
+        Ok(if let Some(mut extra_types) = extra_types {
             append(&mut extra_types, Some(result));
             self.get_union_type(
                 &extra_types,
@@ -356,7 +358,7 @@ impl TypeChecker {
             )
         } else {
             result
-        }
+        })
     }
 
     pub(super) fn can_tail_recurse(
@@ -424,7 +426,7 @@ impl TypeChecker {
     pub(super) fn get_true_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
             .maybe_resolved_true_type()
@@ -439,21 +441,21 @@ impl TypeChecker {
                             .clone()
                             .as_conditional_type_node()
                             .true_type,
-                    ),
+                    )?,
                     type_as_conditional_type.mapper.clone(),
                 ),
             );
         }
-        type_as_conditional_type
+        Ok(type_as_conditional_type
             .maybe_resolved_true_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
     pub(super) fn get_false_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
             .maybe_resolved_false_type()
@@ -468,21 +470,21 @@ impl TypeChecker {
                             .clone()
                             .as_conditional_type_node()
                             .false_type,
-                    ),
+                    )?,
                     type_as_conditional_type.mapper.clone(),
                 ),
             );
         }
-        type_as_conditional_type
+        Ok(type_as_conditional_type
             .maybe_resolved_false_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
     pub(super) fn get_inferred_true_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         if type_as_conditional_type
             .maybe_resolved_inferred_true_type()
@@ -492,14 +494,14 @@ impl TypeChecker {
                 if let Some(type_combined_mapper) = type_as_conditional_type.combined_mapper.clone()
                 {
                     self.instantiate_type(
-                        &self.get_type_from_type_node_(
+                        &*self.get_type_from_type_node_(
                             &(*type_as_conditional_type.root)
                                 .borrow()
                                 .node
                                 .clone()
                                 .as_conditional_type_node()
                                 .true_type,
-                        ),
+                        )?,
                         Some(type_combined_mapper),
                     )
                 } else {
@@ -507,10 +509,10 @@ impl TypeChecker {
                 },
             );
         }
-        type_as_conditional_type
+        Ok(type_as_conditional_type
             .maybe_resolved_inferred_true_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
     pub(super) fn get_infer_type_parameters(
@@ -537,26 +539,26 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn is_distribution_dependent(&self, root: &ConditionalRoot) -> bool {
-        root.is_distributive
+    pub(super) fn is_distribution_dependent(&self, root: &ConditionalRoot) -> io::Result<bool> {
+        Ok(root.is_distributive
             && (self.is_type_parameter_possibly_referenced(
                 &root.check_type,
                 &root.node.as_conditional_type_node().true_type,
-            ) || self.is_type_parameter_possibly_referenced(
+            )? || self.is_type_parameter_possibly_referenced(
                 &root.check_type,
                 &root.node.as_conditional_type_node().false_type,
-            ))
+            )?))
     }
 
     pub(super) fn get_type_from_conditional_type_node(
         &self,
         node: &Node, /*ConditionalTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_conditional_type_node = node.as_conditional_type_node();
             let check_type =
-                self.get_type_from_type_node_(&node_as_conditional_type_node.check_type);
+                self.get_type_from_type_node_(&node_as_conditional_type_node.check_type)?;
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
             let alias_type_arguments =
                 self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
@@ -564,14 +566,15 @@ impl TypeChecker {
             let outer_type_parameters = if alias_type_arguments.is_some() {
                 all_outer_type_parameters
             } else {
-                maybe_filter(all_outer_type_parameters.as_deref(), |tp: &Gc<Type>| {
+                try_maybe_filter(all_outer_type_parameters.as_deref(), |tp: &Gc<Type>| {
                     self.is_type_parameter_possibly_referenced(tp, node)
                 })
+                .transpose()?
             };
             let root = Gc::new(GcCell::new(ConditionalRoot::new(
                 node.node_wrapper(),
                 check_type.clone(),
-                self.get_type_from_type_node_(&node_as_conditional_type_node.extends_type),
+                self.get_type_from_type_node_(&node_as_conditional_type_node.extends_type)?,
                 check_type.flags().intersects(TypeFlags::TypeParameter),
                 self.get_infer_type_parameters(node),
                 outer_type_parameters.clone(),
@@ -579,7 +582,7 @@ impl TypeChecker {
                 alias_type_arguments,
             )));
             let resolved_type =
-                self.get_conditional_type(root.clone(), None, Option::<&Symbol>::None, None);
+                self.get_conditional_type(root.clone(), None, Option::<&Symbol>::None, None)?;
             links.borrow_mut().resolved_type = Some(resolved_type.clone());
             if let Some(outer_type_parameters) = outer_type_parameters {
                 let mut instantiations: HashMap<String, Gc<Type>> = HashMap::new();
@@ -591,7 +594,7 @@ impl TypeChecker {
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_from_infer_type_node(
@@ -629,7 +632,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_import_type_node(
         &self,
         node: &Node, /*ImportTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_import_type_node = node.as_import_type_node();
@@ -645,7 +648,7 @@ impl TypeChecker {
                 links.resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.error_type();
                 links.resolved_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             }
             if !is_literal_import_type_node(node) {
                 self.error(
@@ -657,7 +660,7 @@ impl TypeChecker {
                 links.resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.error_type();
                 links.resolved_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             }
             let target_meaning = if node_as_import_type_node.is_type_of() {
                 SymbolFlags::Value
@@ -679,7 +682,7 @@ impl TypeChecker {
                 links.resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.error_type();
                 links.resolved_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             }
             let inner_module_symbol = inner_module_symbol.unwrap();
             let module_symbol = self
@@ -728,13 +731,13 @@ impl TypeChecker {
                                 self.get_fully_qualified_name(
                                     &current_namespace,
                                     Option::<&Node>::None,
-                                ),
+                                )?,
                                 declaration_name_to_string(Some(&*current)).into_owned(),
                             ]),
                         );
                         let ret = self.error_type();
                         links.borrow_mut().resolved_type = Some(ret.clone());
-                        return ret;
+                        return Ok(ret);
                     }
                     let next = next.unwrap();
                     self.get_node_links(&current).borrow_mut().resolved_symbol = Some(next.clone());
@@ -783,7 +786,7 @@ impl TypeChecker {
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn resolve_import_symbol_type(

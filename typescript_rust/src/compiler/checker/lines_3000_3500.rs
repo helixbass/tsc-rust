@@ -64,14 +64,14 @@ impl TypeChecker {
         &self,
         node: &Node, /*Declaration*/
         dont_recursively_resolve: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let dont_recursively_resolve = dont_recursively_resolve.unwrap_or(false);
-        match node.kind() {
+        Ok(match node.kind() {
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
                 self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)
             }
             SyntaxKind::ImportClause => {
-                self.get_target_of_import_clause(node, dont_recursively_resolve)
+                self.get_target_of_import_clause(node, dont_recursively_resolve)?
             }
             SyntaxKind::NamespaceImport => {
                 self.get_target_of_namespace_import(node, dont_recursively_resolve)
@@ -86,7 +86,7 @@ impl TypeChecker {
                 node,
                 SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
                 Some(dont_recursively_resolve),
-            ),
+            )?,
             SyntaxKind::ExportAssignment | SyntaxKind::BinaryExpression => {
                 self.get_target_of_export_assignment(node, dont_recursively_resolve)
             }
@@ -107,7 +107,7 @@ impl TypeChecker {
                 self.get_target_of_access_expression(node, dont_recursively_resolve)
             }
             _ => Debug_.fail(None),
-        }
+        })
     }
 
     pub(super) fn is_non_local_alias<TSymbol: Borrow<Symbol>>(
@@ -131,14 +131,16 @@ impl TypeChecker {
         &self,
         symbol: Option<impl Borrow<Symbol> + Clone>,
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
-        if !matches!(dont_resolve_alias, Some(true))
-            && self.is_non_local_alias(symbol.clone(), None)
-        {
-            Some(self.resolve_alias(symbol.unwrap().borrow()))
-        } else {
-            symbol.map(|symbol| symbol.borrow().symbol_wrapper())
-        }
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        Ok(
+            if !matches!(dont_resolve_alias, Some(true))
+                && self.is_non_local_alias(symbol.clone(), None)
+            {
+                Some(self.resolve_alias(symbol.unwrap().borrow())?)
+            } else {
+                symbol.map(|symbol| symbol.borrow().symbol_wrapper())
+            },
+        )
     }
 
     pub(super) fn resolve_alias(&self, symbol: &Symbol) -> io::Result<Gc<Symbol>> {
@@ -154,7 +156,7 @@ impl TypeChecker {
                 Debug_.fail(None);
             }
             let node = node.unwrap();
-            let target = self.get_target_of_alias_declaration(&node, None);
+            let target = self.get_target_of_alias_declaration(&node, None)?;
             if Gc::ptr_eq(
                 (*links).borrow().target.as_ref().unwrap(),
                 &self.resolving_symbol(),
@@ -183,16 +185,16 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
+    pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> io::Result<Option<Gc<Symbol>>> {
         let links = self.get_symbol_links(symbol);
         if !matches!(
             (*links).borrow().target.as_ref(),
             Some(target) if Gc::ptr_eq(target, &self.resolving_symbol())
         ) {
-            return Some(self.resolve_alias(symbol));
+            return Ok(Some(self.resolve_alias(symbol)?));
         }
 
-        None
+        Ok(None)
     }
 
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only<
@@ -312,9 +314,9 @@ impl TypeChecker {
     pub(super) fn mark_export_as_referenced(
         &self,
         node: &Node, /*ImportEqualsDeclaration | ExportSpecifier*/
-    ) {
+    ) -> io::Result<()> {
         let symbol = self.get_symbol_of_node(node).unwrap();
-        let target = self.resolve_alias(&symbol);
+        let target = self.resolve_alias(&symbol)?;
         // if (target) {
         let mark_alias = Gc::ptr_eq(&target, &self.unknown_symbol())
             || target.flags().intersects(SymbolFlags::Value)
@@ -325,9 +327,11 @@ impl TypeChecker {
             self.mark_alias_symbol_as_referenced(&symbol);
         }
         // }
+
+        Ok(())
     }
 
-    pub(super) fn mark_alias_symbol_as_referenced(&self, symbol: &Symbol) {
+    pub(super) fn mark_alias_symbol_as_referenced(&self, symbol: &Symbol) -> io::Result<()> {
         let links = self.get_symbol_links(symbol);
         if !matches!((*links).borrow().referenced, Some(true)) {
             links.borrow_mut().referenced = Some(true);
@@ -337,7 +341,7 @@ impl TypeChecker {
             }
             let node = node.unwrap();
             if is_internal_module_import_equals_declaration(&node) {
-                let target = self.resolve_symbol(Some(symbol), None).unwrap();
+                let target = self.resolve_symbol(Some(symbol), None)?.unwrap();
                 if Gc::ptr_eq(&target, &self.unknown_symbol())
                     || target.flags().intersects(SymbolFlags::Value)
                 {
@@ -348,6 +352,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn mark_const_enum_alias_as_referenced(&self, symbol: &Symbol) {
@@ -361,36 +367,38 @@ impl TypeChecker {
         &self,
         entity_name: &Node, /*EntityName*/
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let mut entity_name = entity_name.node_wrapper();
         if entity_name.kind() == SyntaxKind::Identifier
             && is_right_side_of_qualified_name_or_property_access(&entity_name)
         {
             entity_name = entity_name.parent();
         }
-        if entity_name.kind() == SyntaxKind::Identifier
-            || entity_name.parent().kind() == SyntaxKind::QualifiedName
-        {
-            self.resolve_entity_name(
-                &entity_name,
-                SymbolFlags::Namespace,
-                Some(false),
-                dont_resolve_alias,
-                Option::<&Node>::None,
-            )
-        } else {
-            Debug_.assert(
-                entity_name.parent().kind() == SyntaxKind::ImportEqualsDeclaration,
-                None,
-            );
-            self.resolve_entity_name(
-                &entity_name,
-                SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
-                Some(false),
-                dont_resolve_alias,
-                Option::<&Node>::None,
-            )
-        }
+        Ok(
+            if entity_name.kind() == SyntaxKind::Identifier
+                || entity_name.parent().kind() == SyntaxKind::QualifiedName
+            {
+                self.resolve_entity_name(
+                    &entity_name,
+                    SymbolFlags::Namespace,
+                    Some(false),
+                    dont_resolve_alias,
+                    Option::<&Node>::None,
+                )?
+            } else {
+                Debug_.assert(
+                    entity_name.parent().kind() == SyntaxKind::ImportEqualsDeclaration,
+                    None,
+                );
+                self.resolve_entity_name(
+                    &entity_name,
+                    SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
+                    Some(false),
+                    dont_resolve_alias,
+                    Option::<&Node>::None,
+                )?
+            },
+        )
     }
 
     pub(super) fn get_fully_qualified_name(
@@ -401,7 +409,7 @@ impl TypeChecker {
         Ok(if let Some(symbol_parent) = symbol.maybe_parent() {
             format!(
                 "{}.{}",
-                self.get_fully_qualified_name(&symbol_parent, containing_location),
+                self.get_fully_qualified_name(&symbol_parent, containing_location)?,
                 self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)?
             )
         } else {
@@ -573,11 +581,11 @@ impl TypeChecker {
                 &(*self.get_exports_of_symbol(&namespace)).borrow(),
                 &right.as_identifier().escaped_text,
                 meaning,
-            ));
+            )?);
             if symbol.is_none() {
                 if !ignore_errors_unwrapped {
                     let namespace_name =
-                        self.get_fully_qualified_name(&namespace, Option::<&Node>::None);
+                        self.get_fully_qualified_name(&namespace, Option::<&Node>::None)?;
                     let declaration_name = declaration_name_to_string(Some(&**right));
                     let suggestion_for_nonexistent_module =
                         self.get_suggested_symbol_for_nonexistent_module(right, &namespace);
@@ -629,7 +637,7 @@ impl TypeChecker {
                             &(*self.get_exports_of_symbol(&namespace)).borrow(),
                             &right.as_identifier().escaped_text,
                             SymbolFlags::Type,
-                        ));
+                        )?);
                         if let Some(exported_type_symbol) = exported_type_symbol {
                             self.error(
                                 Some(&*name.parent().as_qualified_name().right),
@@ -675,7 +683,7 @@ impl TypeChecker {
             if symbol.flags().intersects(meaning) || dont_resolve_alias {
                 Some(symbol)
             } else {
-                Some(self.resolve_alias(&symbol))
+                Some(self.resolve_alias(&symbol)?)
             },
         )
     }

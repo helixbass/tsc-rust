@@ -1,6 +1,6 @@
 use gc::Gc;
 use indexmap::IndexMap;
-use std::borrow::Borrow;
+use std::{borrow::Borrow, io};
 
 use super::UnusedKind;
 use crate::{
@@ -392,9 +392,9 @@ impl TypeChecker {
     pub(super) fn get_type_from_jsdoc_variadic_type(
         &self,
         node: &Node, /*JSDocVariadicType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let ref type_ =
-            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap());
+            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
         let ref parent = node.parent();
         let ref param_tag = node.parent().parent();
         if is_jsdoc_type_expression(&node.parent()) && is_jsdoc_parameter_tag(param_tag) {
@@ -438,14 +438,14 @@ impl TypeChecker {
                         ) && is_rest_parameter(last_param_declaration)
                     }
                 } {
-                    return self.create_array_type(type_, None);
+                    return Ok(self.create_array_type(type_, None));
                 }
             }
         }
         if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
-            return self.create_array_type(type_, None);
+            return Ok(self.create_array_type(type_, None));
         }
-        self.add_optionality(type_, None, None)
+        Ok(self.add_optionality(type_, None, None))
     }
 
     pub(super) fn check_node_deferred(&self, node: &Node) {

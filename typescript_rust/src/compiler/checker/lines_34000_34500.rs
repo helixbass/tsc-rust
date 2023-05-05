@@ -337,7 +337,10 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_signature_declaration(&self, node: &Node /*SignatureDeclaration*/) {
+    pub(super) fn check_signature_declaration(
+        &self,
+        node: &Node, /*SignatureDeclaration*/
+    ) -> io::Result<()> {
         if node.kind() == SyntaxKind::IndexSignature {
             self.check_grammar_index_signature(node);
         } else if matches!(
@@ -416,7 +419,7 @@ impl TypeChecker {
                 if function_flags & (FunctionFlags::Invalid | FunctionFlags::Generator)
                     == FunctionFlags::Generator
                 {
-                    let return_type = self.get_type_from_type_node_(return_type_node);
+                    let return_type = self.get_type_from_type_node_(return_type_node)?;
                     if Gc::ptr_eq(&return_type, &self.void_type()) {
                         self.error(
                             Some(&**return_type_node),
@@ -471,6 +474,8 @@ impl TypeChecker {
                 self.register_for_unused_identifiers_check(node);
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_class_for_duplicate_declarations(
@@ -718,7 +723,7 @@ impl TypeChecker {
                             .as_ref()
                     {
                         self.for_each_type(
-                            &self.get_type_from_type_node_(declaration_parameters_0_type),
+                            &self.get_type_from_type_node_(declaration_parameters_0_type)?,
                             |type_: &Type| -> Option<()> {
                                 let entry = index_signature_map
                                     .entry(self.get_type_id(type_))

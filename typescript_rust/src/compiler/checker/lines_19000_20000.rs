@@ -329,13 +329,11 @@ impl CheckTypeRelatedTo {
         result.unwrap_or_else(|| properties.to_owned())
     }
 
-    pub(super) fn is_property_symbol_type_related<
-        TGetTypeOfSourceProperty: FnMut(&Symbol) -> Gc<Type>,
-    >(
+    pub(super) fn is_property_symbol_type_related(
         &self,
         source_prop: &Symbol,
         target_prop: &Symbol,
-        mut get_type_of_source_property: TGetTypeOfSourceProperty,
+        mut get_type_of_source_property: impl FnMut(&Symbol) -> Gc<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
@@ -359,13 +357,13 @@ impl CheckTypeRelatedTo {
         )
     }
 
-    pub(super) fn property_related_to<TGetTypeOfSourceProperty: FnMut(&Symbol) -> Gc<Type>>(
+    pub(super) fn property_related_to(
         &self,
         source: &Type,
         target: &Type,
         source_prop: &Symbol,
         target_prop: &Symbol,
-        get_type_of_source_property: TGetTypeOfSourceProperty,
+        get_type_of_source_property: impl FnMut(&Symbol) -> Gc<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
         skip_optional: bool,
@@ -731,9 +729,9 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         excluded_properties: Option<&HashSet<__String>>,
         intersection_state: IntersectionState,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
-            return self.properties_identical_to(source, target, excluded_properties);
+            return Ok(self.properties_identical_to(source, target, excluded_properties));
         }
         let mut result = Ternary::True;
         if self.type_checker.is_tuple_type(target) {
@@ -750,7 +748,7 @@ impl CheckTypeRelatedTo {
                                 .as_tuple_type()
                                 .readonly)
                 {
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
                 let source_arity = self.type_checker.get_type_reference_arity(source);
                 let target_arity = self.type_checker.get_type_reference_arity(target);
@@ -788,7 +786,7 @@ impl CheckTypeRelatedTo {
                             ]),
                         );
                     }
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
                 if target_rest_flag == ElementFlags::None && target_arity < source_min_length {
                     if report_errors {
@@ -802,7 +800,7 @@ impl CheckTypeRelatedTo {
                             ]),
                         );
                     }
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
                 if target_rest_flag == ElementFlags::None
                     && (source_rest_flag != ElementFlags::None || target_arity < source_arity)
@@ -824,7 +822,7 @@ impl CheckTypeRelatedTo {
                             );
                         }
                     }
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
                 let source_type_arguments = self.type_checker.get_type_arguments(source);
                 let target_type_arguments = self.type_checker.get_type_arguments(target);
@@ -886,7 +884,7 @@ impl CheckTypeRelatedTo {
                                 ])
                             );
                         }
-                        return Ternary::False;
+                        return Ok(Ternary::False);
                     }
                     if source_flags.intersects(ElementFlags::Variadic)
                         && !target_flags.intersects(ElementFlags::Variable)
@@ -900,7 +898,7 @@ impl CheckTypeRelatedTo {
                                 ])
                             );
                         }
-                        return Ternary::False;
+                        return Ok(Ternary::False);
                     }
                     if target_flags.intersects(ElementFlags::Required)
                         && !source_flags.intersects(ElementFlags::Required)
@@ -913,7 +911,7 @@ impl CheckTypeRelatedTo {
                                 ])
                             );
                         }
-                        return Ternary::False;
+                        return Ok(Ternary::False);
                     }
                     if can_exclude_discriminants {
                         if source_flags.intersects(ElementFlags::Variable)
@@ -990,17 +988,17 @@ impl CheckTypeRelatedTo {
                                 );
                             }
                         }
-                        return Ternary::False;
+                        return Ok(Ternary::False);
                     }
                     result &= related;
                 }
-                return result;
+                return Ok(result);
             }
             if target_target_as_tuple_type
                 .combined_flags
                 .intersects(ElementFlags::Variable)
             {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
         let require_optional_properties =
@@ -1024,7 +1022,7 @@ impl CheckTypeRelatedTo {
                     require_optional_properties,
                 );
             }
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         if self.type_checker.is_object_literal_type(target) {
             for source_prop in &self.exclude_properties(
@@ -1051,17 +1049,17 @@ impl CheckTypeRelatedTo {
                                         None,
                                         None,
                                         None,
-                                    ),
+                                    )?,
                                     self.type_checker.type_to_string_(
                                         target,
                                         Option::<&Node>::None,
                                         None,
                                         None,
-                                    ),
+                                    )?,
                                 ]),
                             );
                         }
-                        return Ternary::False;
+                        return Ok(Ternary::False);
                     }
                 }
             }
@@ -1091,14 +1089,14 @@ impl CheckTypeRelatedTo {
                             Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation),
                         );
                         if related == Ternary::False {
-                            return Ternary::False;
+                            return Ok(Ternary::False);
                         }
                         result &= related;
                     }
                 }
             }
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn properties_identical_to(
@@ -1245,7 +1243,7 @@ impl CheckTypeRelatedTo {
                     true,
                     report_errors,
                     incompatible_reporter(self, &source_signatures[i], &target_signatures[i]),
-                );
+                )?;
                 if related == Ternary::False {
                     return Ok(Ternary::False);
                 }
@@ -1311,7 +1309,7 @@ impl CheckTypeRelatedTo {
                         true,
                         should_elaborate_errors,
                         incompatible_reporter(self, s, t),
-                    );
+                    )?;
                     if related != Ternary::False {
                         result &= related;
                         self.reset_error_info(save_error_info.clone());
@@ -1350,7 +1348,7 @@ impl CheckTypeRelatedTo {
         &self,
         siga: &Signature,
         sigb: &Signature,
-    ) -> fn(&Self, &Type, &Type) {
+    ) -> fn(&Self, &Type, &Type) -> io::Result<()> {
         if siga.parameters().is_empty() && sigb.parameters().is_empty() {
             Self::report_incompatible_call_signature_return_no_arguments
         } else {
@@ -1398,7 +1396,7 @@ impl CheckTypeRelatedTo {
         &self,
         siga: &Signature,
         sigb: &Signature,
-    ) -> fn(&Self, &Type, &Type) {
+    ) -> fn(&Self, &Type, &Type) -> io::Result<()> {
         if siga.parameters().is_empty() && sigb.parameters().is_empty() {
             Self::report_incompatible_construct_signature_return_no_arguments
         } else {
@@ -1518,7 +1516,7 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target_info: &IndexInfo,
         report_errors: bool,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
         let key_type = &target_info.key_type;
         let props = if source.flags().intersects(TypeFlags::Intersection) {
@@ -1572,10 +1570,10 @@ impl CheckTypeRelatedTo {
                                 None,
                                 None,
                                 None,
-                            )]),
+                            )?]),
                         );
                     }
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
                 result &= related;
             }
@@ -1585,13 +1583,13 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .is_applicable_index_type(&info.key_type, key_type)
             {
-                let related = self.index_info_related_to(info, target_info, report_errors);
+                let related = self.index_info_related_to(info, target_info, report_errors)?;
                 if related == Ternary::False {
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
                 result &= related;
             }
         }
-        result
+        Ok(result)
     }
 }

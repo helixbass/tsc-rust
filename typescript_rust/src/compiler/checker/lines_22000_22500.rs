@@ -2,6 +2,7 @@ use gc::Gc;
 use itertools::Either;
 use peekmore::PeekMore;
 use std::cmp;
+use std::io;
 use std::iter::once;
 use std::ptr;
 
@@ -238,7 +239,7 @@ impl InferTypes {
         &self,
         source: &Type,
         target: &Type, /*ConditionalType*/
-    ) {
+    ) -> io::Result<()> {
         let target_as_conditional_type = target.as_conditional_type();
         if source.flags().intersects(TypeFlags::Conditional) {
             let source_as_conditional_type = source.as_conditional_type();
@@ -253,7 +254,7 @@ impl InferTypes {
             self.infer_from_types(
                 &self
                     .type_checker
-                    .get_true_type_from_conditional_type(source),
+                    .get_true_type_from_conditional_type(source)?,
                 &self
                     .type_checker
                     .get_true_type_from_conditional_type(target),
@@ -261,10 +262,10 @@ impl InferTypes {
             self.infer_from_types(
                 &self
                     .type_checker
-                    .get_false_type_from_conditional_type(source),
+                    .get_false_type_from_conditional_type(source)?,
                 &self
                     .type_checker
-                    .get_false_type_from_conditional_type(target),
+                    .get_false_type_from_conditional_type(target)?,
             );
         } else {
             let save_priority = self.priority();
@@ -285,6 +286,8 @@ impl InferTypes {
             self.infer_to_multiple_types(source, &target_types, target.flags());
             self.set_priority(save_priority);
         }
+
+        Ok(())
     }
 
     pub(super) fn infer_to_template_literal_type(

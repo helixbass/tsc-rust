@@ -71,9 +71,9 @@ impl CheckTypeRelatedTo {
         source_is_primitive: bool,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
-            return self.index_signatures_identical_to(source, target);
+            return Ok(self.index_signatures_identical_to(source, target));
         }
         let index_infos = self.type_checker.get_index_infos_of_type(target);
         let target_has_string_index = some(
@@ -104,14 +104,14 @@ impl CheckTypeRelatedTo {
                     target_info,
                     report_errors,
                     intersection_state,
-                )
+                )?
             };
             if related == Ternary::False {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             result &= related;
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn type_related_to_index_info(
@@ -125,7 +125,7 @@ impl CheckTypeRelatedTo {
             .type_checker
             .get_applicable_index_info(source, &target_info.key_type);
         if let Some(source_info) = source_info.as_ref() {
-            return Ok(self.index_info_related_to(source_info, target_info, report_errors));
+            return self.index_info_related_to(source_info, target_info, report_errors);
         }
         if !intersection_state.intersects(IntersectionState::Source)
             && self

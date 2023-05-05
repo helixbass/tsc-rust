@@ -403,12 +403,12 @@ impl TypeChecker {
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
         &self,
         symbol: &Symbol,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if symbol.flags().intersects(SymbolFlags::Prototype) {
-            return self.get_type_of_prototype_property(symbol);
+            return Ok(self.get_type_of_prototype_property(symbol));
         }
         if ptr::eq(symbol, &*self.require_symbol()) {
-            return self.any_type();
+            return Ok(self.any_type());
         }
         if symbol.flags().intersects(SymbolFlags::ModuleExports) {
             if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
@@ -445,13 +445,13 @@ impl TypeChecker {
                 }
                 let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 members.insert("exports".to_owned(), result);
-                return self.create_anonymous_type(
+                return Ok(self.create_anonymous_type(
                     Some(symbol),
                     Gc::new(GcCell::new(members)),
                     vec![],
                     vec![],
                     vec![],
-                );
+                ));
             }
         }
         Debug_.assert_is_defined(&symbol.maybe_value_declaration(), None);
@@ -460,26 +460,28 @@ impl TypeChecker {
         if is_catch_clause_variable_declaration_or_binding_element(declaration) {
             let type_node = get_effective_type_annotation_node(declaration);
             if type_node.is_none() {
-                return if self.use_unknown_in_catch_variables {
+                return Ok(if self.use_unknown_in_catch_variables {
                     self.unknown_type()
                 } else {
                     self.any_type()
-                };
+                });
             }
             let type_node = type_node.unwrap();
             let type_ = self.get_type_of_node(&type_node);
-            return if self.is_type_any(Some(&*type_)) || Gc::ptr_eq(&type_, &self.unknown_type()) {
-                type_
-            } else {
-                self.error_type()
-            };
+            return Ok(
+                if self.is_type_any(Some(&*type_)) || Gc::ptr_eq(&type_, &self.unknown_type()) {
+                    type_
+                } else {
+                    self.error_type()
+                },
+            );
         }
         if is_source_file(declaration) && is_json_source_file(declaration) {
             let declaration_as_source_file = declaration.as_source_file();
             if declaration_as_source_file.statements().is_empty() {
-                return self.empty_object_type();
+                return Ok(self.empty_object_type());
             }
-            return self.get_widened_type(
+            return Ok(self.get_widened_type(
                 &self.get_widened_literal_type(
                     &self.check_expression(
                         &declaration_as_source_file.statements()[0]
@@ -489,7 +491,7 @@ impl TypeChecker {
                         None,
                     ),
                 ),
-            );
+            ));
         }
 
         if !self.push_type_resolution(
@@ -499,9 +501,9 @@ impl TypeChecker {
             if symbol.flags().intersects(SymbolFlags::ValueModule)
                 && !symbol.flags().intersects(SymbolFlags::Assignment)
             {
-                return self.get_type_of_func_class_enum_module(symbol);
+                return Ok(self.get_type_of_func_class_enum_module(symbol));
             }
-            return self.report_circularity_error(symbol);
+            return Ok(self.report_circularity_error(symbol));
         }
         let type_: Gc<Type>;
         if declaration.kind() == SyntaxKind::ExportAssignment {
@@ -545,7 +547,7 @@ impl TypeChecker {
                     | SymbolFlags::Enum
                     | SymbolFlags::ValueModule,
             ) {
-                return self.get_type_of_func_class_enum_module(symbol);
+                return Ok(self.get_type_of_func_class_enum_module(symbol));
             }
             type_ = if is_binary_expression(&declaration.parent()) {
                 self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)
@@ -592,7 +594,7 @@ impl TypeChecker {
             type_ = self.get_type_of_enum_member(symbol);
         } else if is_accessor(declaration) {
             type_ = self
-                .resolve_type_of_accessors(symbol, None)
+                .resolve_type_of_accessors(symbol, None)?
                 .unwrap_or_else(|| {
                     Debug_.fail(Some(
                         "Non-write accessor resolution must always produce a type",
@@ -610,11 +612,11 @@ impl TypeChecker {
             if symbol.flags().intersects(SymbolFlags::ValueModule)
                 && !symbol.flags().intersects(SymbolFlags::Assignment)
             {
-                return self.get_type_of_func_class_enum_module(symbol);
+                return Ok(self.get_type_of_func_class_enum_module(symbol));
             }
-            return self.report_circularity_error(symbol);
+            return Ok(self.report_circularity_error(symbol));
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn get_annotated_accessor_type_node<TAccessor: Borrow<Node>>(
@@ -655,28 +657,28 @@ impl TypeChecker {
         self.get_this_type_of_signature(&self.get_signature_from_declaration_(declaration))
     }
 
-    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_type) = (*links).borrow().type_.clone() {
-            return links_type;
+            return Ok(links_type);
         }
         let ret = self
-            .get_type_of_accessors_worker(symbol, None)
+            .get_type_of_accessors_worker(symbol, None)?
             .unwrap_or_else(|| {
                 Debug_.fail(Some("Read type of accessor must always produce a type"))
             });
         links.borrow_mut().type_ = Some(ret.clone());
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> Option<Gc<Type>> {
+    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> io::Result<Option<Gc<Type>>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_write_type) = (*links).borrow().write_type.clone() {
-            return Some(links_write_type);
+            return Ok(Some(links_write_type));
         }
-        let ret = self.get_type_of_accessors_worker(symbol, Some(true));
+        let ret = self.get_type_of_accessors_worker(symbol, Some(true))?;
         links.borrow_mut().write_type = ret.clone();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_of_accessors_worker(

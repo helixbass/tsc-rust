@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{io, ptr};
 
 use gc::Gc;
 
@@ -7,10 +7,11 @@ use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, flatten, for_each_bool,
     get_effective_modifier_flags, get_factory, get_parse_tree_node, has_effective_modifier,
     is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
-    is_external_module, is_internal_declaration, map_defined, some, visit_nodes,
+    is_external_module, is_internal_declaration, map_defined, some, try_map_defined, visit_nodes,
     with_synthetic_factory, with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
     GetSymbolAccessibilityDiagnostic, HasTypeInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeArrayOrVec, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
+    Node, NodeArray, NodeArrayOrVec, NodeInterface, OptionTry, SignatureDeclarationInterface,
+    SyntaxKind,
 };
 
 impl TransformDeclarations {
@@ -61,38 +62,38 @@ impl TransformDeclarations {
     pub(super) fn recreate_binding_pattern(
         &self,
         d: &Node, /*BindingPattern*/
-    ) -> Vec<Gc<Node /*VariableDeclaration*/>> {
-        flatten(&map_defined(
+    ) -> io::Result<Vec<Gc<Node /*VariableDeclaration*/>>> {
+        Ok(flatten(&try_map_defined(
             Some(&d.as_has_elements().elements()),
             |e: &Gc<Node>, _| self.recreate_binding_element(e),
-        ))
+        )?))
     }
 
     pub(super) fn recreate_binding_element(
         &self,
         e: &Node, /*ArrayBindingElement*/
-    ) -> Option<Vec<Gc<Node>>> {
+    ) -> io::Result<Option<Vec<Gc<Node>>>> {
         if e.kind() == SyntaxKind::OmittedExpression {
-            return None;
+            return Ok(None);
         }
         let e_name = e.as_binding_element().maybe_name();
-        e_name.and_then(|e_name| {
+        e_name.try_and_then(|e_name| {
             if !self.get_binding_name_visible(e) {
-                return None;
+                return Ok(None);
             }
-            if is_binding_pattern(Some(&*e_name)) {
-                Some(self.recreate_binding_pattern(&e_name))
+            Ok(if is_binding_pattern(Some(&*e_name)) {
+                Some(self.recreate_binding_pattern(&e_name)?)
             } else {
                 Some(vec![self
                     .factory
                     .create_variable_declaration(
                         Some(e_name),
                         None,
-                        self.ensure_type(e, None, None),
+                        self.ensure_type(e, None, None)?,
                         None,
                     )
                     .wrap()])
-            }
+            })
         })
     }
 

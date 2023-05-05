@@ -2,6 +2,7 @@ use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
+use std::io;
 use std::rc::Rc;
 
 use super::TypeFacts;
@@ -532,11 +533,11 @@ impl GetFlowTypeOfReference {
     pub(super) fn get_type_at_flow_call(
         &self,
         flow: Gc<FlowNode /*FlowCall*/>,
-    ) -> Option<FlowType> {
+    ) -> io::Result<Option<FlowType>> {
         let flow_as_flow_call = flow.as_flow_call();
         let signature = self
             .type_checker
-            .get_effects_signature(&flow_as_flow_call.node);
+            .get_effects_signature(&flow_as_flow_call.node)?;
         if let Some(signature) = signature.as_ref() {
             let predicate = self.type_checker.get_type_predicate_of_signature(signature);
             if let Some(predicate) = predicate.as_ref().filter(|predicate| {
@@ -570,14 +571,14 @@ impl GetFlowTypeOfReference {
                 } else {
                     type_.clone()
                 };
-                return if Gc::ptr_eq(&narrowed_type, &type_) {
+                return Ok(if Gc::ptr_eq(&narrowed_type, &type_) {
                     Some(flow_type)
                 } else {
                     Some(self.type_checker.create_flow_type(
                         &narrowed_type,
                         self.type_checker.is_incomplete(&flow_type),
                     ))
-                };
+                });
             }
             if self
                 .type_checker
@@ -585,10 +586,10 @@ impl GetFlowTypeOfReference {
                 .flags()
                 .intersects(TypeFlags::Never)
             {
-                return Some(self.type_checker.unreachable_never_type().into());
+                return Ok(Some(self.type_checker.unreachable_never_type().into()));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_type_at_flow_array_mutation(

@@ -1209,18 +1209,15 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_indexed_access_type<
-        TAccessNode: Borrow<Node>,
-        TAliasSymbol: Borrow<Symbol>,
-    >(
+    pub(super) fn get_indexed_access_type(
         &self,
         object_type: &Type,
         index_type: &Type,
         access_flags: Option<AccessFlags>,
         access_node: Option<
-            TAccessNode, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+            impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
         let access_flags = access_flags.unwrap_or(AccessFlags::None);

@@ -2,13 +2,13 @@ use gc::Gc;
 use indexmap::IndexMap;
 use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
-use std::ptr;
+use std::{io, ptr};
 
 use crate::{
     contains_gc, every, filter, find_index, get_declaration_modifier_flags_from_symbol,
     get_name_of_declaration, get_object_flags, index_of_gc, is_computed_property_name,
     is_identifier, is_known_symbol, is_private_identifier, map, ordered_remove_item_at,
-    reduce_left, replace_element, some, symbol_name, unescape_leading_underscores,
+    reduce_left, replace_element, some, symbol_name, try_map, unescape_leading_underscores,
     walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_, Diagnostics, IndexType,
     InternalSymbolName, IntersectionType, ModifierFlags, Node, NodeInterface, ObjectFlags,
     ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
@@ -408,16 +408,16 @@ impl TypeChecker {
     pub(super) fn get_type_from_intersection_type_node(
         &self,
         node: &Node, /*IntersectionTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
             links.borrow_mut().resolved_type = Some(
                 self.get_intersection_type(
-                    &map(
+                    &try_map(
                         &*node.as_intersection_type_node().types,
                         |type_: &Gc<Node>, _| self.get_type_from_type_node_(type_),
-                    ),
+                    )?,
                     alias_symbol.clone(),
                     self.get_type_arguments_for_alias_symbol(alias_symbol)
                         .as_deref(),
@@ -425,7 +425,7 @@ impl TypeChecker {
             );
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn create_index_type(
@@ -838,14 +838,14 @@ impl TypeChecker {
     pub(super) fn get_type_from_type_operator_node(
         &self,
         node: &Node, /*TypeOperatorNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_type_operator_node = node.as_type_operator_node();
             match node_as_type_operator_node.operator {
                 SyntaxKind::KeyOfKeyword => {
                     links.borrow_mut().resolved_type = Some(self.get_index_type(
-                        &self.get_type_from_type_node_(&node_as_type_operator_node.type_),
+                        &*self.get_type_from_type_node_(&node_as_type_operator_node.type_)?,
                         None,
                         None,
                     ));
@@ -863,7 +863,7 @@ impl TypeChecker {
                 }
                 SyntaxKind::ReadonlyKeyword => {
                     links.borrow_mut().resolved_type =
-                        Some(self.get_type_from_type_node_(&node_as_type_operator_node.type_));
+                        Some(self.get_type_from_type_node_(&node_as_type_operator_node.type_)?);
                 }
                 _ => {
                     Debug_.assert_never(node_as_type_operator_node.operator, None);
@@ -871,13 +871,13 @@ impl TypeChecker {
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_from_template_type_node(
         &self,
         node: &Node, /*TemplateLiteralTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_template_literal_type_node = node.as_template_literal_type_node();
@@ -901,16 +901,16 @@ impl TypeChecker {
             );
             links.borrow_mut().resolved_type = Some(self.get_template_literal_type(
                 &texts,
-                &map(
+                &try_map(
                     &*node_as_template_literal_type_node.template_spans,
                     |span: &Gc<Node>, _| {
                         self.get_type_from_type_node_(&span.as_template_literal_type_span().type_)
                     },
-                ),
+                )?,
             ));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_template_literal_type(

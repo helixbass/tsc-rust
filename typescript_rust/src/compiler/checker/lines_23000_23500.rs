@@ -15,8 +15,8 @@ use crate::{
     is_in_js_file, is_optional_chain, is_parameter, is_private_identifier,
     is_property_access_expression, is_property_declaration, is_property_signature,
     is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map,
-    skip_parentheses, some, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowFlags,
-    FlowNode, FlowNodeBase, FlowType, HasInitializerInterface, IncompleteType,
+    skip_parentheses, some, try_map, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType,
+    FlowFlags, FlowNode, FlowNodeBase, FlowType, HasInitializerInterface, IncompleteType,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
@@ -28,7 +28,7 @@ impl TypeChecker {
     pub(super) fn get_initial_type_of_binding_element(
         &self,
         node: &Node, /*BindingElement*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let pattern = node.parent();
         let parent_type = self.get_initial_type(&pattern.parent());
         let node_as_binding_element = node.as_binding_element();
@@ -49,14 +49,14 @@ impl TypeChecker {
                     .iter()
                     .position(|element| ptr::eq(&**element, node))
                     .unwrap(),
-            )
+            )?
         } else {
             self.get_type_of_destructured_spread_expression(&parent_type)
         };
-        self.get_type_with_default(
+        Ok(self.get_type_with_default(
             &type_,
             &node_as_binding_element.maybe_initializer().unwrap(),
-        )
+        ))
     }
 
     pub(super) fn get_type_of_initializer(&self, node: &Node /*Expression*/) -> Gc<Type> {
@@ -458,30 +458,45 @@ impl TypeChecker {
             .unwrap()
     }
 
-    pub(super) fn map_type_with_alias<
-        TMapper: FnMut(&Type) -> Gc<Type>,
-        TAliasSymbol: Borrow<Symbol>,
-    >(
+    pub(super) fn map_type_with_alias(
         &self,
         type_: &Type,
-        mapper: &mut TMapper,
-        alias_symbol: Option<TAliasSymbol>,
+        mapper: &mut impl FnMut(&Type) -> Gc<Type>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
-        if type_.flags().intersects(TypeFlags::Union) && alias_symbol.is_some() {
-            self.get_union_type(
-                &map(type_.as_union_type().types(), |type_: &Gc<Type>, _| {
-                    mapper(type_)
-                }),
-                Some(UnionReduction::Literal),
-                alias_symbol,
-                alias_type_arguments,
-                Option::<&Type>::None,
-            )
-        } else {
-            self.map_type(type_, &mut |type_: &Type| Some(mapper(type_)), None)
-                .unwrap()
-        }
+        self.try_map_type_with_alias(
+            type_,
+            &mut |type_: &Type| Ok(mapper(type_)),
+            alias_symbol,
+            alias_type_arguments,
+        )
+        .unwrap()
+    }
+
+    pub(super) fn try_map_type_with_alias<TError>(
+        &self,
+        type_: &Type,
+        mapper: &mut impl FnMut(&Type) -> Result<Gc<Type>, TError>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Result<Gc<Type>, TError> {
+        Ok(
+            if type_.flags().intersects(TypeFlags::Union) && alias_symbol.is_some() {
+                self.get_union_type(
+                    &try_map(type_.as_union_type().types(), |type_: &Gc<Type>, _| {
+                        mapper(type_)
+                    })?,
+                    Some(UnionReduction::Literal),
+                    alias_symbol,
+                    alias_type_arguments,
+                    Option::<&Type>::None,
+                )
+            } else {
+                self.try_map_type(type_, &mut |type_: &Type| Ok(Some(mapper(type_))?), None)?
+                    .unwrap()
+            },
+        )
     }
 
     pub(super) fn get_constituent_count(&self, type_: &Type) -> usize {
@@ -760,14 +775,14 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         diagnostic: Option<&Diagnostic>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if symbol.flags().intersects(
             SymbolFlags::Function
                 | SymbolFlags::Method
                 | SymbolFlags::Class
                 | SymbolFlags::ValueModule,
         ) {
-            return Some(self.get_type_of_symbol(symbol));
+            return Ok(Some(self.get_type_of_symbol(symbol)));
         }
         if symbol
             .flags()
@@ -782,13 +797,13 @@ impl TypeChecker {
                     origin.as_ref(),
                     Some(origin) if self.get_explicit_type_of_symbol(origin, None).is_some()
                 ) {
-                    return Some(self.get_type_of_symbol(symbol));
+                    return Ok(Some(self.get_type_of_symbol(symbol)));
                 }
             }
             let declaration = symbol.maybe_value_declaration();
             if let Some(declaration) = declaration.as_ref() {
                 if self.is_declaration_with_explicit_type_annotation(declaration) {
-                    return Some(self.get_type_of_symbol(symbol));
+                    return Ok(Some(self.get_type_of_symbol(symbol)));
                 }
                 if is_variable_declaration(declaration)
                     && declaration.parent().parent().kind() == SyntaxKind::ForOfStatement
@@ -796,19 +811,19 @@ impl TypeChecker {
                     let statement = declaration.parent().parent();
                     let statement_as_for_of_statement = statement.as_for_of_statement();
                     let expression_type = self
-                        .get_type_of_dotted_name(&statement_as_for_of_statement.expression, None);
+                        .get_type_of_dotted_name(&statement_as_for_of_statement.expression, None)?;
                     if let Some(expression_type) = expression_type.as_ref() {
                         let use_ = if statement_as_for_of_statement.await_modifier.is_some() {
                             IterationUse::ForAwaitOf
                         } else {
                             IterationUse::ForOf
                         };
-                        return Some(self.check_iterated_type_or_element_type(
+                        return Ok(Some(self.check_iterated_type_or_element_type(
                             use_,
                             expression_type,
                             &self.undefined_type(),
                             Option::<&Node>::None,
-                        ));
+                        )?));
                     }
                 }
                 if let Some(diagnostic) = diagnostic {
@@ -824,7 +839,7 @@ impl TypeChecker {
                                     None,
                                     None,
                                     None,
-                                )]),
+                                )?]),
                             )
                             .into(),
                         )],
@@ -832,14 +847,14 @@ impl TypeChecker {
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_type_of_dotted_name(
         &self,
         node: &Node, /*Expression*/
         diagnostic: Option<&Diagnostic>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if !node.flags().intersects(NodeFlags::InWithStatement) {
             match node.kind() {
                 SyntaxKind::Identifier => {
@@ -848,33 +863,33 @@ impl TypeChecker {
                             self.get_resolved_symbol(node),
                         ))
                         .unwrap();
-                    return self.get_explicit_type_of_symbol(
+                    return Ok(self.get_explicit_type_of_symbol(
                         &*if symbol.flags().intersects(SymbolFlags::Alias) {
-                            self.resolve_alias(&symbol)
+                            self.resolve_alias(&symbol)?
                         } else {
                             symbol
                         },
                         diagnostic,
-                    );
+                    ));
                 }
                 SyntaxKind::ThisKeyword => {
-                    return self.get_explicit_this_type(node);
+                    return Ok(self.get_explicit_this_type(node));
                 }
                 SyntaxKind::SuperKeyword => {
-                    return Some(self.check_super_expression(node));
+                    return Ok(Some(self.check_super_expression(node)));
                 }
                 SyntaxKind::PropertyAccessExpression => {
                     let node_as_property_access_expression = node.as_property_access_expression();
                     let type_ = self.get_type_of_dotted_name(
                         &node_as_property_access_expression.expression,
                         diagnostic,
-                    );
+                    )?;
                     if let Some(type_) = type_.as_ref() {
                         let name = &node_as_property_access_expression.name;
                         let prop: Option<Gc<Symbol>>;
                         if is_private_identifier(name) {
                             if type_.maybe_symbol().is_none() {
-                                return None;
+                                return Ok(None);
                             }
                             prop = self.get_property_of_type_(
                                 type_,
@@ -891,35 +906,36 @@ impl TypeChecker {
                                 None,
                             );
                         }
-                        return prop
+                        return Ok(prop
                             .as_ref()
-                            .and_then(|prop| self.get_explicit_type_of_symbol(prop, diagnostic));
+                            .and_then(|prop| self.get_explicit_type_of_symbol(prop, diagnostic)));
                     }
-                    return None;
+                    return Ok(None);
                 }
                 SyntaxKind::ParenthesizedExpression => {
-                    return self.get_type_of_dotted_name(
+                    return Ok(self.get_type_of_dotted_name(
                         &node.as_parenthesized_expression().expression,
                         diagnostic,
-                    );
+                    )?);
                 }
                 _ => (),
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_effects_signature(
         &self,
         node: &Node, /*CallExpression*/
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         let links = self.get_node_links(node);
         let mut signature = (*links).borrow().effects_signature.clone();
         if signature.is_none() {
             let mut func_type: Option<Gc<Type>> = None;
             let node_as_call_expression = node.as_call_expression();
             if node.parent().kind() == SyntaxKind::ExpressionStatement {
-                func_type = self.get_type_of_dotted_name(&node_as_call_expression.expression, None);
+                func_type =
+                    self.get_type_of_dotted_name(&node_as_call_expression.expression, None)?;
             } else if node_as_call_expression.expression.kind() != SyntaxKind::SuperKeyword {
                 if is_optional_chain(node) {
                     func_type = Some(self.check_non_null_type(
@@ -966,11 +982,11 @@ impl TypeChecker {
             links.borrow_mut().effects_signature = signature.clone();
         }
         let signature = signature.unwrap();
-        if Gc::ptr_eq(&signature, &self.unknown_signature()) {
+        Ok(if Gc::ptr_eq(&signature, &self.unknown_signature()) {
             None
         } else {
             Some(signature)
-        }
+        })
     }
 
     pub(super) fn has_type_predicate_or_never_return_type(&self, signature: &Signature) -> bool {

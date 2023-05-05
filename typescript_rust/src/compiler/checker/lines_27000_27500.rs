@@ -1,8 +1,8 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{CheckMode, JsxNames};
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
     unescape_leading_underscores, Debug_, Diagnostics, IndexInfo, JsxFlags, ModuleResolutionKind,
     NodeArray, PragmaName, SymbolFlags, SymbolTable, TransientSymbolInterface, __String,
     get_factory, get_object_flags, maybe_get_source_file_of_node, Node, NodeInterface, ObjectFlags,
-    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -229,7 +229,7 @@ impl TypeChecker {
         &self,
         opening_like_element: &Node, /*JsxOpeningLikeElement*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let opening_like_element_as_jsx_opening_like_element =
             opening_like_element.as_jsx_opening_like_element();
         let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
@@ -247,7 +247,7 @@ impl TypeChecker {
         let mut explicitly_specify_children_attribute = false;
         let mut object_flags = ObjectFlags::JsxAttributes;
         let jsx_children_property_name = self.get_jsx_element_children_property_name(
-            self.get_jsx_namespace_at(Some(opening_like_element)),
+            self.get_jsx_namespace_at(Some(opening_like_element))?,
         );
 
         for attribute_decl in &attributes.as_jsx_attributes().properties {
@@ -491,18 +491,18 @@ impl TypeChecker {
         }
 
         if has_spread_any_type {
-            return self.any_type();
+            return Ok(self.any_type());
         }
         if let Some(type_to_intersect) = type_to_intersect.as_ref() {
             if !Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
-                return self.get_intersection_type(
+                return Ok(self.get_intersection_type(
                     &[type_to_intersect.clone(), spread.clone()],
                     Option::<&Symbol>::None,
                     None,
-                );
+                ));
             }
         }
-        type_to_intersect.unwrap_or_else(|| {
+        Ok(type_to_intersect.unwrap_or_else(|| {
             if Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
                 self.create_jsx_attributes_type(
                     &mut object_flags,
@@ -512,7 +512,7 @@ impl TypeChecker {
             } else {
                 spread
             }
-        })
+        }))
     }
 
     pub(super) fn create_jsx_attributes_type(
@@ -603,39 +603,39 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxAttributes*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.create_jsx_attributes_type_from_attributes_property(&node.parent(), check_mode)
     }
 
-    pub(super) fn get_jsx_type<TLocation: Borrow<Node>>(
+    pub(super) fn get_jsx_type(
         &self,
         name: &str, /*__String*/
-        location: Option<TLocation>,
-    ) -> Gc<Type> {
+        location: Option<impl Borrow<Node>>,
+    ) -> io::Result<Gc<Type>> {
         let location = location.map(|location| location.borrow().node_wrapper());
-        let namespace = self.get_jsx_namespace_at(location.as_deref());
+        let namespace = self.get_jsx_namespace_at(location.as_deref())?;
         let exports = namespace
             .as_ref()
             .map(|namespace| self.get_exports_of_symbol(namespace));
-        let type_symbol = exports
-            .as_ref()
-            .and_then(|exports| self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type));
-        if let Some(type_symbol) = type_symbol.as_ref() {
+        let type_symbol = exports.as_ref().try_and_then(|exports| {
+            self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type)
+        })?;
+        Ok(if let Some(type_symbol) = type_symbol.as_ref() {
             self.get_declared_type_of_symbol(type_symbol)
         } else {
             self.error_type()
-        }
+        })
     }
 
     pub(super) fn get_intrinsic_tag_symbol(
         &self,
         node: &Node, /*JsxOpeningLikeElement | JsxClosingElement*/
-    ) -> Gc<Symbol> {
+    ) -> io::Result<Gc<Symbol>> {
         let links = self.get_node_links(node);
         let node_as_has_tag_name = node.as_has_tag_name();
         if (*links).borrow().resolved_symbol.is_none() {
             let intrinsic_elements_type =
-                self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node));
+                self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?;
             if !self.is_error_type(&intrinsic_elements_type) {
                 if !is_identifier(&node_as_has_tag_name.tag_name()) {
                     Debug_.fail(None);
@@ -648,7 +648,7 @@ impl TypeChecker {
                 if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicNamedElement;
                     links.borrow_mut().resolved_symbol = Some(intrinsic_prop.clone());
-                    return intrinsic_prop.clone();
+                    return Ok(intrinsic_prop.clone());
                 }
 
                 let index_signature_type =
@@ -656,7 +656,7 @@ impl TypeChecker {
                 if index_signature_type.is_some() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
                     links.borrow_mut().resolved_symbol = Some(intrinsic_elements_type.symbol());
-                    return intrinsic_elements_type.symbol();
+                    return Ok(intrinsic_elements_type.symbol());
                 }
 
                 self.error(
@@ -669,7 +669,7 @@ impl TypeChecker {
                 );
                 let ret = self.unknown_symbol();
                 links.borrow_mut().resolved_symbol = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             } else {
                 if self.no_implicit_any {
                     self.error(
@@ -682,17 +682,17 @@ impl TypeChecker {
                 }
                 let ret = self.unknown_symbol();
                 links.borrow_mut().resolved_symbol = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             }
         }
         let ret = (*links).borrow().resolved_symbol.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_jsx_namespace_container_for_implicit_import<TLocation: Borrow<Node>>(
+    pub(super) fn get_jsx_namespace_container_for_implicit_import(
         &self,
-        location: Option<TLocation>,
-    ) -> Option<Gc<Symbol>> {
+        location: Option<impl Borrow<Node>>,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let file = location
             .as_ref()
@@ -705,13 +705,13 @@ impl TypeChecker {
                 Some(None)
             )
         ) {
-            return None;
+            return Ok(None);
         }
         if let Some(Some(links_jsx_implicit_import_container)) = links
             .as_ref()
             .and_then(|links| (**links).borrow().jsx_implicit_import_container.clone())
         {
-            return Some(links_jsx_implicit_import_container);
+            return Ok(Some(links_jsx_implicit_import_container));
         }
         let runtime_import_specifier = get_jsx_runtime_import(
             get_jsx_implicit_import_base(&self.compiler_options, file.as_deref()).as_deref(),
@@ -734,20 +734,21 @@ impl TypeChecker {
         let result = mod_
             .as_ref()
             .filter(|mod_| !Gc::ptr_eq(mod_, &self.unknown_symbol()))
-            .map(|mod_| {
-                self.get_merged_symbol(self.resolve_symbol(Some(&**mod_), None))
-                    .unwrap()
-            });
+            .try_map(|mod_| {
+                Ok(self
+                    .get_merged_symbol(self.resolve_symbol(Some(&**mod_), None)?)
+                    .unwrap())
+            })?;
         if let Some(links) = links.as_ref() {
             links.borrow_mut().jsx_implicit_import_container = Some(result.clone());
         }
-        result
+        Ok(result)
     }
 
-    pub(super) fn get_jsx_namespace_at<TLocation: Borrow<Node>>(
+    pub(super) fn get_jsx_namespace_at(
         &self,
-        location: Option<TLocation>,
-    ) -> Option<Gc<Symbol>> {
+        location: Option<impl Borrow<Node>>,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let links = location
             .as_ref()
@@ -756,7 +757,7 @@ impl TypeChecker {
             .as_ref()
             .and_then(|links| (**links).borrow().jsx_namespace.clone())
         {
-            return Some(links_jsx_namespace);
+            return Ok(Some(links_jsx_namespace));
         }
         if match links
             .as_ref()
@@ -790,15 +791,15 @@ impl TypeChecker {
                     self.get_symbol(
                         &(*self.get_exports_of_symbol(
                             &self
-                                .resolve_symbol(Some(&**resolved_namespace), None)
+                                .resolve_symbol(Some(&**resolved_namespace), None)?
                                 .unwrap(),
                         ))
                         .borrow(),
                         &JsxNames::JSX,
                         SymbolFlags::Namespace,
-                    ),
+                    )?,
                     None,
-                );
+                )?;
                 if let Some(candidate) = candidate
                     .as_ref()
                     .filter(|candidate| !Gc::ptr_eq(candidate, &self.unknown_symbol()))
@@ -806,7 +807,7 @@ impl TypeChecker {
                     if let Some(links) = links.as_ref() {
                         links.borrow_mut().jsx_namespace = Some(Some(candidate.clone()));
                     }
-                    return Some(candidate.clone());
+                    return Ok(Some(candidate.clone()));
                 }
             }
             if let Some(links) = links.as_ref() {
@@ -816,7 +817,7 @@ impl TypeChecker {
         let s = self.resolve_symbol(
             self.get_global_symbol(&JsxNames::JSX, SymbolFlags::Namespace, None),
             None,
-        );
+        )?;
         if matches!(
             s.as_ref(),
             Some(s) if Gc::ptr_eq(
@@ -824,8 +825,8 @@ impl TypeChecker {
                 &self.unknown_symbol()
             )
         ) {
-            return None;
+            return Ok(None);
         }
-        s
+        Ok(s)
     }
 }

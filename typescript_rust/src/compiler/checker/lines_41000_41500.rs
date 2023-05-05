@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::{is_declaration_name_or_import_property_name, IterationUse};
 use crate::{
@@ -51,7 +51,7 @@ impl TypeChecker {
     pub(super) fn get_shorthand_assignment_value_symbol_<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if let Some(location) = location {
             let location: &Node = location.borrow();
             if location.kind() == SyntaxKind::ShorthandPropertyAssignment {
@@ -64,14 +64,14 @@ impl TypeChecker {
                 );
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_export_specifier_local_target_symbol_(
         &self,
         node: &Node, /*Identifier | ExportSpecifier*/
-    ) -> Option<Gc<Symbol>> {
-        if is_export_specifier(node) {
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        Ok(if is_export_specifier(node) {
             let node_as_export_specifier = node.as_export_specifier();
             if node
                 .parent()
@@ -80,7 +80,7 @@ impl TypeChecker {
                 .module_specifier
                 .is_some()
             {
-                self.get_external_module_member(&node.parent().parent(), node, None)
+                self.get_external_module_member(&node.parent().parent(), node, None)?
             } else {
                 self.resolve_entity_name(
                     node_as_export_specifier
@@ -94,7 +94,7 @@ impl TypeChecker {
                     None,
                     None,
                     Option::<&Node>::None,
-                )
+                )?
             }
         } else {
             self.resolve_entity_name(
@@ -106,17 +106,17 @@ impl TypeChecker {
                 None,
                 None,
                 Option::<&Node>::None,
-            )
-        }
+            )?
+        })
     }
 
-    pub(super) fn get_type_of_node(&self, node: &Node) -> Gc<Type> {
+    pub(super) fn get_type_of_node(&self, node: &Node) -> io::Result<Gc<Type>> {
         if is_source_file(node) && !is_external_module(node) {
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
         if node.flags().intersects(NodeFlags::InWithStatement) {
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
         let class_decl =
@@ -127,8 +127,8 @@ impl TypeChecker {
             )
         });
         if is_part_of_type_node(node) {
-            let ref type_from_type_node = self.get_type_from_type_node_(node);
-            return if let Some(class_type) = class_type.as_ref() {
+            let ref type_from_type_node = self.get_type_from_type_node_(node)?;
+            return Ok(if let Some(class_type) = class_type.as_ref() {
                 self.get_type_with_this_argument(
                     type_from_type_node,
                     class_type.as_interface_type().maybe_this_type(),
@@ -136,18 +136,18 @@ impl TypeChecker {
                 )
             } else {
                 type_from_type_node.clone()
-            };
+            });
         }
 
         if is_expression_node(node) {
-            return self.get_regular_type_of_expression(node);
+            return Ok(self.get_regular_type_of_expression(node));
         }
 
         if let Some(class_type) = class_type.as_ref() {
             if !class_decl.as_ref().unwrap().is_implements {
                 let base_types = self.get_base_types(class_type);
                 let base_type = first_or_undefined(&base_types);
-                return if let Some(base_type) = base_type {
+                return Ok(if let Some(base_type) = base_type {
                     self.get_type_with_this_argument(
                         base_type,
                         class_type.as_interface_type().maybe_this_type(),
@@ -155,68 +155,68 @@ impl TypeChecker {
                     )
                 } else {
                     self.error_type()
-                };
+                });
             }
         }
 
         if self.is_type_declaration(node) {
             let ref symbol = self.get_symbol_of_node(node).unwrap();
-            return self.get_declared_type_of_symbol(symbol);
+            return Ok(self.get_declared_type_of_symbol(symbol));
         }
 
         if self.is_type_declaration_name(node) {
-            let symbol = self.get_symbol_at_location_(node, None);
-            return if let Some(symbol) = symbol.as_ref() {
+            let symbol = self.get_symbol_at_location_(node, None)?;
+            return Ok(if let Some(symbol) = symbol.as_ref() {
                 self.get_declared_type_of_symbol(symbol)
             } else {
                 self.error_type()
-            };
+            });
         }
 
         if is_declaration(node) {
             let ref symbol = self.get_symbol_of_node(node).unwrap();
-            return self.get_type_of_symbol(symbol);
+            return Ok(self.get_type_of_symbol(symbol));
         }
 
         if is_declaration_name_or_import_property_name(node) {
-            let symbol = self.get_symbol_at_location_(node, None);
+            let symbol = self.get_symbol_at_location_(node, None)?;
             if let Some(symbol) = symbol.as_ref() {
-                return self.get_type_of_symbol(symbol);
+                return Ok(self.get_type_of_symbol(symbol));
             }
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
         if is_binding_pattern(Some(node)) {
-            return self
+            return Ok(self
                 .get_type_for_variable_like_declaration(&node.parent(), true)
-                .unwrap_or_else(|| self.error_type());
+                .unwrap_or_else(|| self.error_type()));
         }
 
         if self.is_in_right_side_of_import_or_export_assignment(node) {
-            let symbol = self.get_symbol_at_location_(node, None);
+            let symbol = self.get_symbol_at_location_(node, None)?;
             if let Some(symbol) = symbol.as_ref() {
                 let ref declared_type = self.get_declared_type_of_symbol(symbol);
-                return if !self.is_error_type(declared_type) {
+                return Ok(if !self.is_error_type(declared_type) {
                     declared_type.clone()
                 } else {
                     self.get_type_of_symbol(symbol)
-                };
+                });
             }
         }
 
         if is_meta_property(&node.parent())
             && node.parent().as_meta_property().keyword_token == node.kind()
         {
-            return self.check_meta_property_keyword(&node.parent());
+            return Ok(self.check_meta_property_keyword(&node.parent()));
         }
 
-        self.error_type()
+        Ok(self.error_type())
     }
 
     pub(super) fn get_type_of_assignment_pattern_(
         &self,
         expr: &Node, /*AssignmentPattern*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         Debug_.assert(
             matches!(
                 expr.kind(),
@@ -226,55 +226,55 @@ impl TypeChecker {
         );
         if expr.parent().kind() == SyntaxKind::ForOfStatement {
             let ref iterated_type = self.check_right_hand_side_of_for_of(&expr.parent());
-            return Some(self.check_destructuring_assignment(
+            return Ok(Some(self.check_destructuring_assignment(
                 expr,
                 iterated_type, /*|| errorType*/
                 None,
                 None,
-            ));
+            )));
         }
         if expr.parent().kind() == SyntaxKind::BinaryExpression {
             let ref iterated_type =
                 self.get_type_of_expression(&expr.parent().as_binary_expression().right);
-            return Some(self.check_destructuring_assignment(
+            return Ok(Some(self.check_destructuring_assignment(
                 expr,
                 &iterated_type, /*|| errorType*/
                 None,
                 None,
-            ));
+            )));
         }
         if expr.parent().kind() == SyntaxKind::PropertyAssignment {
             let ref node = cast_present(expr.parent().parent(), |node: &Gc<Node>| {
                 is_object_literal_expression(node)
             });
             let ref type_of_parent_object_literal = self
-                .get_type_of_assignment_pattern_(node)
+                .get_type_of_assignment_pattern_(node)?
                 .unwrap_or_else(|| self.error_type());
             let property_index = index_of_node(
                 &node.as_object_literal_expression().properties,
                 &expr.parent(),
             );
-            return self.check_object_literal_destructuring_property_assignment(
+            return Ok(self.check_object_literal_destructuring_property_assignment(
                 node,
                 type_of_parent_object_literal,
                 property_index.try_into().unwrap(),
                 None,
                 None,
-            );
+            ));
         }
         let node = cast_present(expr.parent(), |node: &Gc<Node>| {
             is_array_literal_expression(node)
         });
         let ref type_of_array_literal = self
-            .get_type_of_assignment_pattern_(&node)
+            .get_type_of_assignment_pattern_(&node)?
             .unwrap_or_else(|| self.error_type());
         let ref element_type = self.check_iterated_type_or_element_type(
             IterationUse::Destructuring,
             type_of_array_literal,
             &self.undefined_type(),
             expr.maybe_parent()
-        ) /*|| errorType*/;
-        self.check_array_literal_destructuring_element_assignment(
+        )? /*|| errorType*/;
+        Ok(self.check_array_literal_destructuring_element_assignment(
             &node,
             type_of_array_literal,
             {
@@ -288,18 +288,18 @@ impl TypeChecker {
             },
             element_type,
             None,
-        )
+        ))
     }
 
     pub(super) fn get_property_symbol_of_destructuring_assignment_(
         &self,
         location: &Node, /*Identifier*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let type_of_object_literal = self.get_type_of_assignment_pattern_(&*cast_present(
             location.parent().parent(),
             |node: &Gc<Node>| is_assignment_pattern(node),
-        ));
-        type_of_object_literal
+        ))?;
+        Ok(type_of_object_literal
             .as_ref()
             .and_then(|type_of_object_literal| {
                 self.get_property_of_type_(
@@ -307,7 +307,7 @@ impl TypeChecker {
                     &location.as_identifier().escaped_text,
                     None,
                 )
-            })
+            }))
     }
 
     pub(super) fn get_regular_type_of_expression(

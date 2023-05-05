@@ -43,13 +43,15 @@ impl NodeBuilder {
         *context.infer_type_parameters.borrow_mut() = save_infer_type_parameters;
         let true_type_node = self.type_to_type_node_or_circularity_elision(
             context,
-            &self.type_checker.get_true_type_from_conditional_type(type_),
+            &*self
+                .type_checker
+                .get_true_type_from_conditional_type(type_)?,
         )?;
         let false_type_node = self.type_to_type_node_or_circularity_elision(
             context,
-            &self
+            &*self
                 .type_checker
-                .get_false_type_from_conditional_type(type_),
+                .get_false_type_from_conditional_type(type_)?,
         )?;
         context.increment_approximate_length_by(15);
         Ok(get_factory()

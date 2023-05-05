@@ -216,6 +216,11 @@ pub trait OptionTry {
         self,
         predicate: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
     ) -> Result<Option<TMapped>, TError>;
+
+    fn try_filter<TError>(
+        self,
+        predicate: impl FnOnce(&Self::Unwrapped) -> Result<bool, TError>,
+    ) -> Result<Option<Self::Unwrapped>, TError>;
 }
 
 impl<TValue> OptionTry for Option<TValue> {
@@ -271,6 +276,22 @@ impl<TValue> OptionTry for Option<TValue> {
         Ok(match self {
             Some(value) => Some(predicate(value)?),
             None => None,
+        })
+    }
+
+    fn try_filter<TError>(
+        self,
+        predicate: impl FnOnce(&TValue) -> Result<bool, TError>,
+    ) -> Result<Option<TValue>, TError> {
+        Ok(match self {
+            None => None,
+            Some(value) => {
+                if predicate(&value)? {
+                    Some(value)
+                } else {
+                    None
+                }
+            }
         })
     }
 }

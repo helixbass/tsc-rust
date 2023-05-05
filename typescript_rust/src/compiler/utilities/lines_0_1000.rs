@@ -502,6 +502,19 @@ pub fn for_each_entry<TKey, TValue, TReturn>(
     None
 }
 
+pub fn try_for_each_entry<TKey, TValue, TReturn, TError>(
+    map: impl IntoIterator<Item = (TKey, TValue)>, /*ReadonlyESMap*/
+    mut callback: impl FnMut(TValue, TKey) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    for (key, value) in map {
+        let result = callback(value, key)?;
+        if result.is_some() {
+            return Ok(result);
+        }
+    }
+    Ok(None)
+}
+
 pub fn for_each_entry_bool<TKey, TValue>(
     map: impl IntoIterator<Item = (TKey, TValue)>, /*ReadonlyESMap*/
     mut callback: impl FnMut(TValue, TKey) -> bool,
@@ -515,10 +528,10 @@ pub fn for_each_entry_bool<TKey, TValue>(
     false
 }
 
-pub fn try_for_each_entry_bool<TKey, TValue>(
+pub fn try_for_each_entry_bool<TKey, TValue, TError>(
     map: impl IntoIterator<Item = (TKey, TValue)>, /*ReadonlyESMap*/
-    mut callback: impl FnMut(TValue, TKey) -> io::Result<bool>,
-) -> io::Result<bool> {
+    mut callback: impl FnMut(TValue, TKey) -> Result<bool, TError>,
+) -> Result<bool, TError> {
     for (key, value) in map {
         let result = callback(value, key)?;
         if result {

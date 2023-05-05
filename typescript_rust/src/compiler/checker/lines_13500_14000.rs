@@ -1,16 +1,16 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::get_node_id;
 use crate::{
     __String, count_where, create_symbol_table, find, is_assertion_expression,
     is_const_type_reference, is_this_identifier, is_type_alias_declaration, is_type_operator_node,
-    length, map, maybe_map, some, symbol_name, AsDoubleDeref, BaseInterfaceType, CheckFlags,
-    DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface,
+    length, map, maybe_map, some, symbol_name, try_maybe_map, AsDoubleDeref, BaseInterfaceType,
+    CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     Node, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, TupleType, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -21,14 +21,14 @@ impl TypeChecker {
     pub(super) fn get_type_from_jsdoc_nullable_type_node(
         &self,
         node: &Node, /*JSDocNullableType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_ =
-            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap());
-        if self.strict_null_checks {
+            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
+        Ok(if self.strict_null_checks {
             self.get_nullable_type(&type_, TypeFlags::Null)
         } else {
             type_
-        }
+        })
     }
 
     pub(super) fn get_type_from_type_reference(
@@ -80,22 +80,23 @@ impl TypeChecker {
     pub(super) fn type_arguments_from_type_reference_node(
         &self,
         node: &Node, /*NodeWithTypeArguments*/
-    ) -> Option<Vec<Gc<Type>>> {
-        maybe_map(
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+        try_maybe_map(
             node.as_has_type_arguments().maybe_type_arguments().as_ref(),
             |type_argument, _| self.get_type_from_type_node_(&**type_argument),
         )
+        .transpose()
     }
 
     pub(super) fn get_type_from_type_query_node(
         &self,
         node: &Node, /*TypeQueryNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_type_query_node = node.as_type_query_node();
             let type_ = if is_this_identifier(Some(&*node_as_type_query_node.expr_name)) {
-                self.check_this_expression(&node_as_type_query_node.expr_name)
+                self.check_this_expression(&node_as_type_query_node.expr_name)?
             } else {
                 self.check_expression(&node_as_type_query_node.expr_name, None, None)
             };
@@ -103,7 +104,7 @@ impl TypeChecker {
                 Some(self.get_regular_type_of_literal_type(&self.get_widened_type(&type_)));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_of_global_symbol<TSymbol: Borrow<Symbol>>(
@@ -853,7 +854,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_array_or_tuple_type_node(
         &self,
         node: &Node, /*ArrayTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let target = self.get_array_or_tuple_target_type(node);
@@ -886,7 +887,7 @@ impl TypeChecker {
                 );
             } else {
                 let element_types = if node.kind() == SyntaxKind::ArrayType {
-                    vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)]
+                    vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)?]
                 } else {
                     map(
                         &node.as_tuple_type_node().elements,
@@ -898,7 +899,7 @@ impl TypeChecker {
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn is_readonly_type_operator(&self, node: &Node) -> bool {

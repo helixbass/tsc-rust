@@ -686,7 +686,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_export_specifier(&self, node: &Node /*ExportSpecifier*/) {
+    pub(super) fn check_export_specifier(
+        &self,
+        node: &Node, /*ExportSpecifier*/
+    ) -> io::Result<()> {
         self.check_alias_symbol(node);
         let node_as_export_specifier = node.as_export_specifier();
         if get_emit_declarations(&self.compiler_options) {
@@ -749,7 +752,7 @@ impl TypeChecker {
                 self.mark_export_as_referenced(node);
                 let target = symbol.as_ref().map(|symbol| {
                     if symbol.flags().intersects(SymbolFlags::Alias) {
-                        self.resolve_alias(symbol)
+                        self.resolve_alias(symbol)?
                     } else {
                         symbol.clone()
                     }
@@ -788,9 +791,14 @@ impl TypeChecker {
                 self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault);
             }
         }
+
+        Ok(())
     }
 
-    pub(super) fn check_export_assignment(&self, node: &Node /*ExportAssignment*/) {
+    pub(super) fn check_export_assignment(
+        &self,
+        node: &Node, /*ExportAssignment*/
+    ) -> io::Result<()> {
         let node_as_export_assignment = node.as_export_assignment();
         let illegal_context_message = if node_as_export_assignment.is_export_equals == Some(true) {
             &*Diagnostics::An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration
@@ -798,7 +806,7 @@ impl TypeChecker {
             &*Diagnostics::A_default_export_must_be_at_the_top_level_of_a_file_or_module_declaration
         };
         if self.check_grammar_module_element_context(node, illegal_context_message) {
-            return;
+            return Ok(());
         }
 
         let ref container = if node.parent().kind() == SyntaxKind::SourceFile {
@@ -821,7 +829,7 @@ impl TypeChecker {
                 );
             }
 
-            return;
+            return Ok(());
         }
         if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
             self.grammar_error_on_first_token(
@@ -846,11 +854,11 @@ impl TypeChecker {
         if node_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
             let id = &node_as_export_assignment.expression;
             let sym =
-                self.resolve_entity_name(id, SymbolFlags::All, Some(true), Some(true), Some(node));
+                self.resolve_entity_name(id, SymbolFlags::All, Some(true), Some(true), Some(node))?;
             if let Some(sym) = sym.as_ref() {
                 self.mark_alias_referenced(sym, id);
                 let target = if sym.flags().intersects(SymbolFlags::Alias) {
-                    self.resolve_alias(sym)
+                    self.resolve_alias(sym)?
                 } else {
                     sym.clone()
                 };
@@ -904,6 +912,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn has_exported_members(&self, module_symbol: &Symbol) -> bool {
