@@ -16,9 +16,10 @@ use crate::{
     is_spread_assignment, length, map, some, try_flat_map, unescape_leading_underscores, Debug_,
     Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
     FunctionLikeDeclarationInterface, HasInitializerInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, RelationComparisonResult, Signature, SignatureDeclarationInterface,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker,
-    TypeComparer, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    NodeInterface, Number, OptionTry, RelationComparisonResult, Signature,
+    SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -541,11 +542,11 @@ impl TypeChecker {
                     } else {
                         let target_is_optional = matches!(
                             prop_name.as_ref(),
-                            Some(prop_name) if self.get_property_of_type_(target, prop_name, None).unwrap_or_else(|| self.unknown_symbol()).flags().intersects(SymbolFlags::Optional)
+                            Some(prop_name) if self.get_property_of_type_(target, prop_name, None)?.unwrap_or_else(|| self.unknown_symbol()).flags().intersects(SymbolFlags::Optional)
                         );
                         let source_is_optional = matches!(
                             prop_name.as_ref(),
-                            Some(prop_name) if self.get_property_of_type_(source, prop_name, None).unwrap_or_else(|| self.unknown_symbol()).flags().intersects(SymbolFlags::Optional)
+                            Some(prop_name) if self.get_property_of_type_(source, prop_name, None)?.unwrap_or_else(|| self.unknown_symbol()).flags().intersects(SymbolFlags::Optional)
                         );
                         target_prop_type =
                             self.remove_missing_type(&target_prop_type, target_is_optional);
@@ -582,9 +583,9 @@ impl TypeChecker {
                         } else {
                             None
                         };
-                        let target_prop = property_name.as_ref().and_then(|property_name| {
+                        let target_prop = property_name.as_ref().try_and_then(|property_name| {
                             self.get_property_of_type_(target, property_name, None)
-                        });
+                        })?;
 
                         let mut issued_elaboration = false;
                         if target_prop.is_none() {
@@ -969,17 +970,17 @@ impl TypeChecker {
         &self,
         node: &Node, /*ArrayLiteralExpression*/
         target: &Type,
-    ) -> Vec<ElaborationIteratorItem> {
+    ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         let len = length(Some(&node_as_array_literal_expression.elements));
         let mut ret = vec![];
         if len == 0 {
-            return ret;
+            return Ok(ret);
         }
         for (i, elem) in node_as_array_literal_expression.elements.iter().enumerate() {
             if self.is_tuple_like_type(target)
                 && self
-                    .get_property_of_type_(target, &i.to_string(), None)
+                    .get_property_of_type_(target, &i.to_string(), None)?
                     .is_none()
             {
                 continue;
@@ -995,7 +996,7 @@ impl TypeChecker {
                 error_message: None,
             });
         }
-        ret
+        Ok(ret)
     }
 
     pub(super) fn elaborate_array_literal(

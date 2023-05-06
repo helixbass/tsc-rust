@@ -25,7 +25,7 @@ use crate::{
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_static,
     node_is_missing, node_is_present, AssignmentDeclarationKind, Debug_, Diagnostic,
     FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Symbol, SymbolFlags,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface, __String,
 };
 
@@ -676,7 +676,7 @@ impl TypeChecker {
         };
         if let Some(left) = left.as_ref() {
             let proto = if left.flags().intersects(SymbolFlags::Value) {
-                self.get_property_of_type_(&self.get_type_of_symbol(left)?, "prototype", None)
+                self.get_property_of_type_(&*self.get_type_of_symbol(left)?, "prototype", None)?
             } else {
                 None
             };
@@ -685,7 +685,7 @@ impl TypeChecker {
             } else {
                 self.get_declared_type_of_symbol(left)?
             };
-            return Ok(self.get_property_of_type_(&t, &right, None));
+            return self.get_property_of_type_(&t, &right, None);
         }
         Ok(None)
     }
@@ -748,7 +748,7 @@ impl TypeChecker {
                     type_of_pattern,
                     &node.as_identifier().escaped_text,
                     None,
-                );
+                )?;
 
                 if property_declaration.is_some() {
                     return Ok(property_declaration);
@@ -759,7 +759,7 @@ impl TypeChecker {
                     parent_type,
                     &node.as_identifier().escaped_text,
                     None,
-                );
+                )?;
                 if property_declaration.is_some() {
                     return Ok(property_declaration);
                 }
@@ -866,13 +866,13 @@ impl TypeChecker {
                 } else {
                     None
                 };
-                object_type.as_ref().and_then(|object_type| {
+                object_type.as_ref().try_and_then(|object_type| {
                     self.get_property_of_type_(
                         object_type,
                         &escape_leading_underscores(&node.as_literal_like_node().text()),
                         None,
                     )
-                })
+                })?
             }
 
             SyntaxKind::NumericLiteral => {
@@ -896,13 +896,13 @@ impl TypeChecker {
                 } else {
                     None
                 };
-                object_type.as_ref().and_then(|object_type| {
+                object_type.as_ref().try_and_then(|object_type| {
                     self.get_property_of_type_(
                         object_type,
                         &escape_leading_underscores(&node.as_literal_like_node().text()),
                         None,
                     )
-                })
+                })?
             }
 
             SyntaxKind::DefaultKeyword

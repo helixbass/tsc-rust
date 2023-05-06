@@ -1,8 +1,8 @@
 use gc::Gc;
 use indexmap::IndexMap;
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{
@@ -62,7 +62,7 @@ impl TypeChecker {
         containing_type: &Type, /*UnionOrIntersectionType*/
         name: &str,             /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let mut single_prop: Option<Gc<Symbol>> = None;
         let mut prop_set: Option<IndexMap<SymbolId, Gc<Symbol>>> = None;
         let mut index_types: Option<Vec<Gc<Type>>> = None;
@@ -85,8 +85,11 @@ impl TypeChecker {
         {
             let type_ = self.get_apparent_type(current);
             if !(self.is_error_type(&type_) || type_.flags().intersects(TypeFlags::Never)) {
-                let prop =
-                    self.get_property_of_type_(&type_, name, skip_object_function_property_augment);
+                let prop = self.get_property_of_type_(
+                    &type_,
+                    name,
+                    skip_object_function_property_augment,
+                )?;
                 let modifiers = if let Some(prop) = prop.as_ref() {
                     get_declaration_modifier_flags_from_symbol(prop, None)
                 } else {
@@ -205,7 +208,7 @@ impl TypeChecker {
                 && check_flags
                     .intersects(CheckFlags::ContainsPrivate | CheckFlags::ContainsProtected)
         {
-            return None;
+            return Ok(None);
         }
         let single_prop = single_prop.unwrap();
         if prop_set.is_none()
@@ -234,9 +237,9 @@ impl TypeChecker {
                 clone_symbol_links.mapper = single_prop
                     .maybe_as_transient_symbol()
                     .and_then(|single_prop| (*single_prop.symbol_links()).borrow().mapper.clone());
-                return Some(clone);
+                return Ok(Some(clone));
             } else {
-                return Some(single_prop);
+                return Ok(Some(single_prop));
             }
         }
         let props = if let Some(prop_set) = prop_set.as_ref() {
@@ -334,7 +337,7 @@ impl TypeChecker {
                 self.get_intersection_type(&prop_types, Option::<&Symbol>::None, None)
             });
         }
-        Some(result)
+        Ok(Some(result))
     }
 
     pub(super) fn get_union_or_intersection_property(
@@ -545,7 +548,7 @@ impl TypeChecker {
         type_: &Type,
         name: &str, /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(&type_);
@@ -554,12 +557,12 @@ impl TypeChecker {
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {
-                if self.symbol_is_value(&symbol) {
-                    return Some(symbol);
+                if self.symbol_is_value(&symbol)? {
+                    return Ok(Some(symbol));
                 }
             }
             if matches!(skip_object_function_property_augment, Some(true)) {
-                return None;
+                return Ok(None);
             }
             let resolved_as_resolved_type = resolved.as_resolved_type();
             let function_type = if Gc::ptr_eq(&resolved, &self.any_function_type()) {
@@ -574,19 +577,19 @@ impl TypeChecker {
             if let Some(function_type) = function_type {
                 let symbol = self.get_property_of_object_type(&function_type, name);
                 if symbol.is_some() {
-                    return symbol;
+                    return Ok(symbol);
                 }
             }
-            return self.get_property_of_object_type(&self.global_object_type(), name);
+            return Ok(self.get_property_of_object_type(&self.global_object_type(), name));
         }
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            return self.get_property_of_union_or_intersection_type(
+            return Ok(self.get_property_of_union_or_intersection_type(
                 &type_,
                 name,
                 skip_object_function_property_augment,
-            );
+            ));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_signatures_of_structured_type(

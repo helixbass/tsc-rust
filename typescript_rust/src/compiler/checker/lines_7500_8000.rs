@@ -756,18 +756,22 @@ impl MakeSerializePropertySymbol {
         if p.flags().intersects(SymbolFlags::Prototype)
             || matches!(
                 base_type,
-                Some(base_type) if self.type_checker.get_property_of_type_(base_type, p.escaped_name(), None).is_some() &&
+                Some(base_type) if self.type_checker.get_property_of_type_(
+                    base_type,
+                    p.escaped_name(),
+                    None
+                )?.is_some() &&
                     self.type_checker.is_readonly_symbol(
-                        &self.type_checker.get_property_of_type_(base_type, p.escaped_name(), None).unwrap()
+                        &self.type_checker.get_property_of_type_(base_type, p.escaped_name(), None)?.unwrap()
                     ) == self.type_checker.is_readonly_symbol(p) &&
                     p.flags() & SymbolFlags::Optional ==
-                        self.type_checker.get_property_of_type_(base_type, p.escaped_name(), None).unwrap().flags() & SymbolFlags::Optional &&
+                        self.type_checker.get_property_of_type_(base_type, p.escaped_name(), None)?.unwrap().flags() & SymbolFlags::Optional &&
                     self.type_checker.is_type_identical_to(
-                        &self.type_checker.get_type_of_symbol(p),
-                        &self.type_checker.get_type_of_property_of_type_(
+                        &*self.type_checker.get_type_of_symbol(p)?,
+                        &*self.type_checker.get_type_of_property_of_type_(
                             base_type,
                             p.escaped_name()
-                        ).unwrap()
+                        )?.unwrap()
                     )
             )
         {

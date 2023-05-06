@@ -617,9 +617,10 @@ impl TypeChecker {
         if self.is_generic_object_type(object_type) {
             let property_name = self.get_property_name_from_index(index_type, Some(access_node));
             if let Some(property_name) = property_name.as_ref() {
-                let property_symbol = self.for_each_type(&apparent_object_type, |t: &Type| {
-                    self.get_property_of_type_(t, property_name, None)
-                });
+                let property_symbol = self
+                    .try_for_each_type(&apparent_object_type, |t: &Type| {
+                        self.get_property_of_type_(t, property_name, None)
+                    })?;
                 if matches!(
                     property_symbol.as_ref(),
                     Some(property_symbol) if get_declaration_modifier_flags_from_symbol(

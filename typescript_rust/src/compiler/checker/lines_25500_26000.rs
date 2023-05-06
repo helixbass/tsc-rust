@@ -1,8 +1,8 @@
 use gc::Gc;
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use super::{signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse};
 use crate::{
@@ -702,33 +702,35 @@ impl TypeChecker {
     pub(super) fn get_symbol_for_expression(
         &self,
         e: &Node, /*Expression*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if e.maybe_symbol().is_some() {
-            return e.maybe_symbol();
+            return Ok(e.maybe_symbol());
         }
         if is_identifier(e) {
-            return Some(self.get_resolved_symbol(e));
+            return Ok(Some(self.get_resolved_symbol(e)));
         }
         if is_property_access_expression(e) {
             let e_as_property_access_expression = e.as_property_access_expression();
             let lhs_type = self.get_type_of_expression(&e_as_property_access_expression.expression);
-            return if is_private_identifier(&e_as_property_access_expression.name) {
-                self.try_get_private_identifier_property_of_type(
-                    &lhs_type,
-                    &e_as_property_access_expression.name,
-                )
-            } else {
-                self.get_property_of_type_(
-                    &lhs_type,
-                    &e_as_property_access_expression
-                        .name
-                        .as_identifier()
-                        .escaped_text,
-                    None,
-                )
-            };
+            return Ok(
+                if is_private_identifier(&e_as_property_access_expression.name) {
+                    self.try_get_private_identifier_property_of_type(
+                        &lhs_type,
+                        &e_as_property_access_expression.name,
+                    )
+                } else {
+                    self.get_property_of_type_(
+                        &lhs_type,
+                        &e_as_property_access_expression
+                            .name
+                            .as_identifier()
+                            .escaped_text,
+                        None,
+                    )?
+                },
+            );
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn try_get_private_identifier_property_of_type(

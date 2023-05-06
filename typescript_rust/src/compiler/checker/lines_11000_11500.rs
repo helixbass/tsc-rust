@@ -1,8 +1,8 @@
 use gc::{Gc, GcCell};
-use std::borrow::Borrow;
 use std::cmp;
 use std::convert::TryInto;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::MappedTypeModifiers;
 use crate::{
@@ -978,7 +978,7 @@ impl TypeChecker {
         index_infos: &mut Vec<Gc<IndexInfo>>,
         key_type: &Type,
         prop_name_type: &Type,
-    ) {
+    ) -> io::Result<()> {
         if self.is_type_usable_as_property_name(prop_name_type) {
             let prop_name = self.get_property_name_from_type(prop_name_type);
             let existing_prop = members.get(&*prop_name);
@@ -1015,7 +1015,7 @@ impl TypeChecker {
                         modifiers_type,
                         &self.get_property_name_from_type(key_type),
                         None,
-                    )
+                    )?
                 } else {
                     None
                 };
@@ -1114,6 +1114,8 @@ impl TypeChecker {
             ));
             self.append_index_info(index_infos, &index_info, true);
         }
+
+        Ok(())
     }
 
     pub(super) fn get_type_of_mapped_symbol(

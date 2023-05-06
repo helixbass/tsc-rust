@@ -572,7 +572,7 @@ impl TypeChecker {
                 None,
                 None,
             ),
-            SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node),
+            SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node)?,
             SyntaxKind::ParenthesizedType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocTypeExpression => {
@@ -870,13 +870,13 @@ impl TypeChecker {
         &self,
         predicate: &TypePredicate,
         mapper: Gc<TypeMapper>,
-    ) -> TypePredicate {
-        self.create_type_predicate(
+    ) -> io::Result<TypePredicate> {
+        Ok(self.create_type_predicate(
             predicate.kind,
             predicate.parameter_name.clone(),
             predicate.parameter_index,
-            self.maybe_instantiate_type(predicate.type_.as_deref(), Some(mapper)),
-        )
+            self.maybe_instantiate_type(predicate.type_.as_deref(), Some(mapper))?,
+        ))
     }
 
     pub(super) fn instantiate_signature(

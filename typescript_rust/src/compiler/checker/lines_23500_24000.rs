@@ -765,7 +765,7 @@ impl GetFlowTypeOfReference {
                     &flow_as_flow_switch_clause.switch_statement,
                     flow_as_flow_switch_clause.clause_start,
                     flow_as_flow_switch_clause.clause_end,
-                );
+                )?;
             }
         }
         Ok(self

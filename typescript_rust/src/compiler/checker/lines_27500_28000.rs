@@ -178,7 +178,7 @@ impl TypeChecker {
                 &intrinsic_elements_type,
                 &escape_leading_underscores(string_literal_type_name),
                 None,
-            );
+            )?;
             if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
                 return Ok(Some(self.get_type_of_symbol(intrinsic_prop)));
             }

@@ -17,7 +17,7 @@ use crate::{
     is_tagged_template_expression, is_write_only_access, map_defined, maybe_for_each,
     skip_parentheses, starts_with, symbol_name, try_get_property_access_or_identifier_to_string,
     unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags, Debug_, Diagnostics,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Signature,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Signature,
     SignatureFlags, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
     Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
@@ -48,21 +48,22 @@ impl TypeChecker {
         &self,
         prop_name: &str, /*__String*/
         containing_type: &Type,
-    ) -> bool {
-        let prop = containing_type
-            .maybe_symbol()
-            .as_ref()
-            .and_then(|containing_type_symbol| {
-                self.get_property_of_type_(
-                    &self.get_type_of_symbol(containing_type_symbol),
-                    prop_name,
-                    None,
-                )
-            });
-        matches!(
+    ) -> io::Result<bool> {
+        let prop =
+            containing_type
+                .maybe_symbol()
+                .as_ref()
+                .try_and_then(|containing_type_symbol| {
+                    self.get_property_of_type_(
+                        &self.get_type_of_symbol(containing_type_symbol),
+                        prop_name,
+                        None,
+                    )
+                })?;
+        Ok(matches!(
             prop.as_ref().and_then(|prop| prop.maybe_value_declaration()).as_ref(),
             Some(prop_value_declaration) if is_static(prop_value_declaration)
-        )
+        ))
     }
 
     pub(super) fn get_suggested_lib_for_non_existent_name<'name>(
@@ -536,13 +537,13 @@ impl TypeChecker {
         is_super: bool,
         property_name: &str, /*__String*/
         type_: &Type,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if self.is_type_any(Some(type_)) {
-            return true;
+            return Ok(true);
         }
 
-        let prop = self.get_property_of_type_(type_, property_name, None);
-        matches!(
+        let prop = self.get_property_of_type_(type_, property_name, None)?;
+        Ok(matches!(
             prop.as_ref(),
             Some(prop) if self.is_property_accessible(
                 node,
@@ -551,7 +552,7 @@ impl TypeChecker {
                 type_,
                 prop,
             )
-        )
+        ))
     }
 
     pub(super) fn is_property_accessible(

@@ -324,7 +324,7 @@ impl TypeChecker {
                     );
                     let prop_name = &parent_as_qualified_name.right.as_identifier().escaped_text;
                     let prop_type = self.get_property_of_type(
-                        &self.get_declared_type_of_symbol(&symbol)?,
+                        &*self.get_declared_type_of_symbol(&symbol)?,
                         prop_name,
                     );
                     if prop_type.is_some() {
@@ -444,7 +444,7 @@ impl TypeChecker {
                             &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_es2015_or_later,
                             Some(vec![raw_name.to_owned()])
                         );
-                    } else if self.maybe_mapped_type(error_location, &symbol) {
+                    } else if self.maybe_mapped_type(error_location, &symbol)? {
                         let second_arg = if raw_name == "K" { "P" } else { "K" };
                         self.error(
                             Some(error_location),
@@ -1143,7 +1143,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NamespaceImport*/
         dont_resolve_alias: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let module_specifier = node
             .parent()
             .parent()
@@ -1156,14 +1156,14 @@ impl TypeChecker {
             &module_specifier,
             dont_resolve_alias,
             false,
-        );
+        )?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             immediate,
             resolved.as_deref(),
             false,
         );
-        resolved
+        Ok(resolved)
     }
 
     pub(super) fn get_target_of_namespace_export(
@@ -1290,9 +1290,9 @@ impl TypeChecker {
             if let Some(type_annotation) = type_annotation {
                 return self.resolve_symbol(
                     self.get_property_of_type(
-                        &self.get_type_from_type_node_(&type_annotation)?,
+                        &*self.get_type_from_type_node_(&type_annotation)?,
                         name,
-                    ),
+                    )?,
                     None,
                 );
             }
@@ -1360,10 +1360,10 @@ impl TypeChecker {
                 .is_some()
             {
                 symbol_from_variable = self.get_property_of_type_(
-                    &self.get_type_of_symbol(&target_symbol)?,
+                    &*self.get_type_of_symbol(&target_symbol)?,
                     &name_as_identifier.escaped_text,
                     Some(true),
-                );
+                )?;
             } else {
                 symbol_from_variable = self
                     .get_property_of_variable(&target_symbol, &name_as_identifier.escaped_text)?;
@@ -1527,7 +1527,7 @@ impl TypeChecker {
                 }
             } else {
                 let exported_symbol = exports.as_ref().try_and_then(|exports| {
-                    try_find(
+                    Ok(try_find(
                         &self.symbols_to_array(&(**exports).borrow()),
                         |symbol: &Gc<Symbol>, _| -> io::Result<_> {
                             Ok(self
@@ -1535,8 +1535,8 @@ impl TypeChecker {
                                 .is_some())
                         },
                     )?
-                    .cloned()
-                });
+                    .cloned())
+                })?;
                 let diagnostic = if let Some(exported_symbol) = exported_symbol {
                     self.error(
                         Some(name),
@@ -1663,7 +1663,7 @@ impl TypeChecker {
                             &*self.get_type_of_symbol(resolved)?,
                             &name.as_identifier().escaped_text,
                             None,
-                        ),
+                        )?,
                         Some(dont_resolve_alias),
                     );
                 }
@@ -1749,20 +1749,20 @@ impl TypeChecker {
         &self,
         node: &Node, /*ExportAssignment | BinaryExpression*/
         dont_resolve_alias: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let expression = if is_export_assignment(node) {
             node.as_export_assignment().expression.clone()
         } else {
             node.as_binary_expression().right.clone()
         };
-        let resolved = self.get_target_of_alias_like_expression(&expression, dont_resolve_alias);
+        let resolved = self.get_target_of_alias_like_expression(&expression, dont_resolve_alias)?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             Option::<&Symbol>::None,
             resolved.as_deref(),
             false,
         );
-        resolved
+        Ok(resolved)
     }
 
     pub(super) fn get_target_of_alias_like_expression(

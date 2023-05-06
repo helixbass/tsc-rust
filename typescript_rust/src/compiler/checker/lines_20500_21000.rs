@@ -383,8 +383,8 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_tuple_like_type(&self, type_: &Type) -> bool {
-        self.is_tuple_type(type_) || self.get_property_of_type_(type_, "0", None).is_some()
+    pub(super) fn is_tuple_like_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(self.is_tuple_type(type_) || self.get_property_of_type_(type_, "0", None)?.is_some())
     }
 
     pub(super) fn is_array_or_tuple_like_type(&self, type_: &Type) -> bool {

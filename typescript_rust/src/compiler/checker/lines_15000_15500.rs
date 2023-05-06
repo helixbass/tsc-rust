@@ -1,8 +1,8 @@
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{get_symbol_id, intrinsic_type_kinds, IntrinsicTypeKind};
 use crate::{
@@ -191,17 +191,17 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_property_type_for_index_type<TAccessNode: Borrow<Node>>(
+    pub(super) fn get_property_type_for_index_type(
         &self,
         original_object_type: &Type,
         object_type: &Type,
         index_type: &Type,
         full_index_type: &Type,
         access_node: Option<
-            TAccessNode, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+            impl Borrow<Node>, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
         >,
         access_flags: AccessFlags,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         let access_expression = access_node
             .as_deref()
@@ -215,12 +215,12 @@ impl TypeChecker {
 
         if let Some(prop_name) = prop_name.as_ref() {
             if access_flags.intersects(AccessFlags::Contextual) {
-                return Some(
+                return Ok(Some(
                     self.get_type_of_property_of_contextual_type(object_type, prop_name)
                         .unwrap_or_else(|| self.any_type()),
-                );
+                ));
             }
-            let prop = self.get_property_of_type_(object_type, prop_name, None);
+            let prop = self.get_property_of_type_(object_type, prop_name, None)?;
             if let Some(prop) = prop {
                 if access_flags.intersects(AccessFlags::ReportDeprecated) {
                     if let Some(access_node) = access_node.as_ref() {
@@ -287,7 +287,7 @@ impl TypeChecker {
                                 None,
                             )]),
                         );
-                        return None;
+                        return Ok(None);
                     }
                     if access_flags.intersects(AccessFlags::CacheSymbol) {
                         self.get_node_links(access_node.as_ref().unwrap())
@@ -295,11 +295,11 @@ impl TypeChecker {
                             .resolved_symbol = Some(prop.clone());
                     }
                     if self.is_this_property_access_in_constructor(access_expression, &prop) {
-                        return Some(self.auto_type());
+                        return Ok(Some(self.auto_type()));
                     }
                 }
                 let prop_type = self.get_type_of_symbol(&prop);
-                return Some(
+                return Ok(Some(
                     if let Some(access_expression) = access_expression.filter(|access_expression| {
                         get_assignment_target_kind(access_expression) != AssignmentKind::Definite
                     }) {
@@ -312,7 +312,7 @@ impl TypeChecker {
                     } else {
                         prop_type
                     },
-                );
+                ));
             }
             if self.every_type(object_type, |type_| self.is_tuple_type(type_))
                 && self.is_numeric_literal_name(prop_name)
@@ -364,7 +364,7 @@ impl TypeChecker {
                     object_type,
                     self.get_index_info_of_type_(object_type, &self.number_type()),
                 );
-                return self.map_type(
+                return Ok(self.map_type(
                     object_type,
                     &mut |t| {
                         let rest_type = self
@@ -383,7 +383,7 @@ impl TypeChecker {
                         })
                     },
                     None,
-                );
+                ));
             }
         }
         if !index_type.flags().intersects(TypeFlags::Nullable)
@@ -397,7 +397,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::Never)
             {
-                return Some(object_type.type_wrapper());
+                return Ok(Some(object_type.type_wrapper()));
             }
             let index_info = self
                 .get_applicable_index_info(object_type, index_type)
@@ -421,7 +421,7 @@ impl TypeChecker {
                             ]),
                         );
                     }
-                    return None;
+                    return Ok(None);
                 }
                 if let Some(access_node) = access_node.as_ref() {
                     if Gc::ptr_eq(&index_info.key_type, &self.string_type())
@@ -442,17 +442,19 @@ impl TypeChecker {
                                 None,
                             )]),
                         );
-                        return Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
-                            self.get_union_type(
-                                &[index_info.type_.clone(), self.undefined_type()],
-                                None,
-                                Option::<&Symbol>::None,
-                                None,
-                                Option::<&Type>::None,
-                            )
-                        } else {
-                            index_info.type_.clone()
-                        });
+                        return Ok(Some(
+                            if access_flags.intersects(AccessFlags::IncludeUndefined) {
+                                self.get_union_type(
+                                    &[index_info.type_.clone(), self.undefined_type()],
+                                    None,
+                                    Option::<&Symbol>::None,
+                                    None,
+                                    Option::<&Type>::None,
+                                )
+                            } else {
+                                index_info.type_.clone()
+                            },
+                        ));
                     }
                 }
                 self.error_if_writing_to_readonly_index(
@@ -460,23 +462,25 @@ impl TypeChecker {
                     object_type,
                     Some(index_info),
                 );
-                return Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
-                    self.get_union_type(
-                        &[index_info.type_.clone(), self.undefined_type()],
-                        None,
-                        Option::<&Symbol>::None,
-                        None,
-                        Option::<&Type>::None,
-                    )
-                } else {
-                    index_info.type_.clone()
-                });
+                return Ok(Some(
+                    if access_flags.intersects(AccessFlags::IncludeUndefined) {
+                        self.get_union_type(
+                            &[index_info.type_.clone(), self.undefined_type()],
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
+                        )
+                    } else {
+                        index_info.type_.clone()
+                    },
+                ));
             }
             if index_type.flags().intersects(TypeFlags::Never) {
-                return Some(self.never_type());
+                return Ok(Some(self.never_type()));
             }
             if self.is_js_literal_type(object_type) {
-                return Some(self.any_type());
+                return Ok(Some(self.any_type()));
             }
             if let Some(access_expression) = access_expression {
                 if !self.is_const_enum_object_type(object_type) {
@@ -510,7 +514,7 @@ impl TypeChecker {
                                 )
                                 .into(),
                             );
-                            return Some(self.undefined_type());
+                            return Ok(Some(self.undefined_type()));
                         } else if index_type
                             .flags()
                             .intersects(TypeFlags::Number | TypeFlags::String)
@@ -520,13 +524,13 @@ impl TypeChecker {
                                 |property: &Gc<Symbol>, _| self.get_type_of_symbol(property),
                             )?;
                             append(&mut types, Some(self.undefined_type()));
-                            return Some(self.get_union_type(
+                            return Ok(Some(self.get_union_type(
                                 &types,
                                 None,
                                 Option::<&Symbol>::None,
                                 None,
                                 Option::<&Type>::None,
-                            )?);
+                            )?));
                         }
                     }
 
@@ -750,12 +754,12 @@ impl TypeChecker {
                             }
                         }
                     }
-                    return None;
+                    return Ok(None);
                 }
             }
         }
         if self.is_js_literal_type(object_type) {
-            return Some(self.any_type());
+            return Ok(Some(self.any_type()));
         }
         if let Some(access_node) = access_node.as_ref() {
             let index_node = self.get_index_node_for_access_expression(access_node);
@@ -806,9 +810,9 @@ impl TypeChecker {
             }
         }
         if self.is_type_any(Some(index_type)) {
-            return Some(index_type.type_wrapper());
+            return Ok(Some(index_type.type_wrapper()));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn error_if_writing_to_readonly_index<TIndexInfo: Borrow<IndexInfo>>(

@@ -563,9 +563,11 @@ impl InferTypes {
     pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) -> io::Result<()> {
         let properties = self.type_checker.get_properties_of_object_type(target);
         for ref target_prop in properties {
-            let source_prop =
-                self.type_checker
-                    .get_property_of_type_(source, target_prop.escaped_name(), None);
+            let source_prop = self.type_checker.get_property_of_type_(
+                source,
+                target_prop.escaped_name(),
+                None,
+            )?;
             if let Some(source_prop) = source_prop.as_ref() {
                 self.infer_from_types(
                     &*self.type_checker.get_type_of_symbol(source_prop)?,
@@ -887,7 +889,7 @@ impl TypeChecker {
                         {
                             inferred_covariant_type.clone()
                         } else {
-                            self.get_contravariant_inference(&inference)
+                            self.get_contravariant_inference(&inference)?
                         },
                     );
                 } else if let Some(inferred_covariant_type) = inferred_covariant_type.as_ref() {

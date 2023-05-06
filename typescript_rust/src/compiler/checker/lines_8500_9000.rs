@@ -17,13 +17,14 @@ use crate::{
     is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
     is_parameter, is_parameter_declaration, is_property_access_expression, is_property_declaration,
     is_property_signature, is_string_or_numeric_literal_like, is_variable_declaration, length,
-    maybe_every, set_parent, skip_parentheses, some, starts_with, synthetic_factory, try_cast,
-    unescape_leading_underscores, walk_up_binding_elements_and_patterns, AccessFlags,
-    AssignmentDeclarationKind, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
-    InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, StrOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction,
+    maybe_every, return_ok_none_if_none, set_parent, skip_parentheses, some, starts_with,
+    synthetic_factory, try_cast, unescape_leading_underscores,
+    walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind, Debug_,
+    Diagnostics, HasInitializerInterface, HasTypeInterface, InternalSymbolName, LiteralType,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, Number,
+    ObjectFlags, ObjectFlagsTypeInterface, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -104,7 +105,8 @@ impl TypeChecker {
         declaration: &Node, /*BindingElement*/
     ) -> io::Result<Option<Gc<Type>>> {
         let pattern = declaration.parent();
-        let mut parent_type = self.get_type_for_binding_element_parent(&pattern.parent())?;
+        let mut parent_type =
+            return_ok_none_if_none!(self.get_type_for_binding_element_parent(&pattern.parent()));
         if self.is_type_any(Some(&*parent_type)) {
             return Ok(Some(parent_type));
         }
@@ -1078,7 +1080,7 @@ impl TypeChecker {
                         &self.get_type_from_type_node_(&type_node)?,
                         symbol.escaped_name(),
                         None,
-                    );
+                    )?;
                     if let Some(annotation_symbol) = annotation_symbol {
                         return Ok(Some(
                             self.get_non_missing_type_of_symbol(&annotation_symbol),

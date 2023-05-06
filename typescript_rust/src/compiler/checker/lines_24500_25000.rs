@@ -32,7 +32,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         identifier: &Node, /*Expression*/
         assume_true: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if if assume_true {
             !matches!(
                 operator,
@@ -44,21 +44,21 @@ impl GetFlowTypeOfReference {
                 SyntaxKind::ExclamationEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
             )
         } {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
 
         let identifier_type = self.type_checker.get_type_of_expression(identifier);
         if !self.type_checker.is_function_type(&identifier_type)
             && !self.type_checker.is_constructor_type(&identifier_type)
         {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
 
         let prototype_property =
             self.type_checker
-                .get_property_of_type_(&identifier_type, "prototype", None);
+                .get_property_of_type_(&identifier_type, "prototype", None)?;
         if prototype_property.is_none() {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         let prototype_property = prototype_property.unwrap();
 
@@ -69,17 +69,17 @@ impl GetFlowTypeOfReference {
             None
         };
         if candidate.is_none() {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         let candidate = candidate.unwrap();
         if Gc::ptr_eq(&candidate, &self.type_checker.global_object_type())
             || Gc::ptr_eq(&candidate, &self.type_checker.global_function_type())
         {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
 
         if self.type_checker.is_type_any(Some(type_)) {
-            return candidate;
+            return Ok(candidate);
         }
 
         let is_constructed_by = |source: &Type, target: &Type| {
@@ -88,17 +88,18 @@ impl GetFlowTypeOfReference {
                 || target.flags().intersects(TypeFlags::Object)
                     && get_object_flags(target).intersects(ObjectFlags::Class)
             {
-                return are_option_gcs_equal(
+                return Ok(are_option_gcs_equal(
                     source.maybe_symbol().as_ref(),
                     target.maybe_symbol().as_ref(),
-                );
+                ));
             }
 
             self.type_checker.is_type_subtype_of(source, target)
         };
 
-        self.type_checker
-            .filter_type(type_, |t: &Type| is_constructed_by(t, &candidate))
+        Ok(self
+            .type_checker
+            .filter_type(type_, |t: &Type| is_constructed_by(t, &candidate)))
     }
 
     pub(super) fn narrow_type_by_instanceof(
@@ -106,7 +107,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let expr_as_binary_expression = expr.as_binary_expression();
         let left = self
             .type_checker
@@ -121,11 +122,11 @@ impl GetFlowTypeOfReference {
                     .type_checker
                     .optional_chain_contains_reference(&left, &self.reference)
             {
-                return self
+                return Ok(self
                     .type_checker
-                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull);
+                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull));
             }
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
 
         let right_type = self
@@ -135,13 +136,13 @@ impl GetFlowTypeOfReference {
             .type_checker
             .is_type_derived_from(&right_type, &self.type_checker.global_function_type())
         {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
 
         let mut target_type: Option<Gc<Type>> = None;
         let prototype_property =
             self.type_checker
-                .get_property_of_type_(&right_type, "prototype", None);
+                .get_property_of_type_(&right_type, "prototype", None)?;
         if let Some(prototype_property) = prototype_property.as_ref() {
             let prototype_property_type = self.type_checker.get_type_of_symbol(prototype_property);
             if !self
@@ -164,7 +165,7 @@ impl GetFlowTypeOfReference {
                 )
             )
         {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
 
         if target_type.is_none() {
@@ -196,16 +197,16 @@ impl GetFlowTypeOfReference {
                 })
                 .cloned();
             if non_constructor_type_in_union.is_none() {
-                return type_.type_wrapper();
+                return Ok(type_.type_wrapper());
             }
         }
 
-        self.get_narrowed_type(
+        Ok(self.get_narrowed_type(
             type_,
             &target_type,
             assume_true,
             |source: &Type, target: &Type| self.type_checker.is_type_derived_from(source, target),
-        )
+        ))
     }
 
     pub(super) fn get_narrowed_type<TIsRelated: FnMut(&Type, &Type) -> bool>(

@@ -16,15 +16,15 @@ use crate::{
     is_computed_property_name, is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
-    parse_node_factory, push_if_unique_gc, set_parent, set_text_range, starts_with, symbol_name,
-    try_add_to_set, try_using_single_line_string_writer, using_single_line_string_writer,
-    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
-    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol, SymbolFlags,
-    SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    parse_node_factory, push_if_unique_gc, return_ok_none_if_none, set_parent, set_text_range,
+    starts_with, symbol_name, try_add_to_set, try_using_single_line_string_writer,
+    using_single_line_string_writer, walk_up_parenthesized_types, CharacterCodes, CheckFlags,
+    EmitHint, EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol,
+    SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
+    TypeSystemEntity, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -700,11 +700,7 @@ impl TypeChecker {
         type_: &Type,
         name: &str, /*__String*/
     ) -> io::Result<Option<Gc<Type>>> {
-        let prop = self.get_property_of_type_(type_, name, None);
-        if prop.is_none() {
-            return Ok(None);
-        }
-        let prop = prop.unwrap();
+        let prop = return_ok_none_if_none!(self.get_property_of_type_(type_, name, None)?);
         Ok(Some(self.get_type_of_symbol(&prop)?))
     }
 

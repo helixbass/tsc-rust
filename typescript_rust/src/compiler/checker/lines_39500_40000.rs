@@ -16,8 +16,8 @@ use crate::{
     is_type_only_import_or_export_declaration, length, maybe_get_source_file_of_node,
     node_is_missing, unescape_leading_underscores, Debug_, DiagnosticMessage, Diagnostics,
     ExternalEmitHelpers, HasStatementsInterface, LiteralLikeNodeInterface, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker,
+    ModuleKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker,
 };
 
 impl TypeChecker {
@@ -108,7 +108,7 @@ impl TypeChecker {
         node: &Node, /*ImportEqualsDeclaration | VariableDeclaration | ImportClause | NamespaceImport | ImportSpecifier | ExportSpecifier | NamespaceExport*/
     ) -> io::Result<()> {
         let mut symbol = self.get_symbol_of_node(node).unwrap();
-        let target = self.resolve_alias(&symbol);
+        let target = self.resolve_alias(&symbol)?;
 
         if !Gc::ptr_eq(&target, &self.unknown_symbol()) {
             symbol = self
@@ -218,7 +218,7 @@ impl TypeChecker {
                                     },
                                     &name,
                                 );
-                                return;
+                                return Ok(());
                             }
                         }
                         _ => (),
@@ -375,12 +375,12 @@ impl TypeChecker {
     pub(super) fn check_import_equals_declaration(
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
-    ) {
+    ) -> io::Result<()> {
         if self.check_grammar_module_element_context(
             node,
             &Diagnostics::An_import_declaration_can_only_be_used_in_a_namespace_or_module,
         ) {
-            return;
+            return Ok(());
         }
 
         self.check_grammar_decorators_and_modifiers(node);
@@ -395,7 +395,7 @@ impl TypeChecker {
             if node_as_import_equals_declaration.module_reference.kind()
                 != SyntaxKind::ExternalModuleReference
             {
-                let target = self.resolve_alias(&self.get_symbol_of_node(node).unwrap());
+                let target = self.resolve_alias(&self.get_symbol_of_node(node).unwrap())?;
                 if !Gc::ptr_eq(&target, &self.unknown_symbol()) {
                     if target.flags().intersects(SymbolFlags::Value) {
                         let module_name = get_first_identifier(
@@ -408,7 +408,7 @@ impl TypeChecker {
                                 None,
                                 None,
                                 Option::<&Node>::None,
-                            )
+                            )?
                             .unwrap()
                             .flags()
                             .intersects(SymbolFlags::Namespace)
@@ -453,6 +453,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_export_declaration(
@@ -750,13 +752,13 @@ impl TypeChecker {
                 );
             } else {
                 self.mark_export_as_referenced(node);
-                let target = symbol.as_ref().map(|symbol| {
-                    if symbol.flags().intersects(SymbolFlags::Alias) {
+                let target = symbol.as_ref().try_map(|symbol| {
+                    Ok(if symbol.flags().intersects(SymbolFlags::Alias) {
                         self.resolve_alias(symbol)?
                     } else {
                         symbol.clone()
-                    }
-                });
+                    })
+                })?;
                 if match target.as_ref() {
                     None => true,
                     Some(target) => {
@@ -843,7 +845,7 @@ impl TypeChecker {
         if let Some(type_annotation_node) = type_annotation_node.as_ref() {
             self.check_type_assignable_to(
                 &self.check_expression_cached(&node_as_export_assignment.expression, None),
-                &self.get_type_from_type_node_(type_annotation_node),
+                &*self.get_type_from_type_node_(type_annotation_node)?,
                 Some(&*node_as_export_assignment.expression),
                 None,
                 None,

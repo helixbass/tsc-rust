@@ -394,7 +394,7 @@ impl TypeChecker {
     pub(super) fn check_variable_like_declaration(
         &self,
         node: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement*/
-    ) {
+    ) -> io::Result<()> {
         self.check_decorators(node);
         if !is_binding_element(node) {
             self.check_source_element(node.as_variable_like_declaration().maybe_type());
@@ -402,7 +402,7 @@ impl TypeChecker {
 
         let node_name = node.as_named_declaration().maybe_name();
         if node_name.is_none() {
-            return;
+            return Ok(());
         }
         let node_name = node_name.unwrap();
 
@@ -444,7 +444,7 @@ impl TypeChecker {
                     let expr_type = self.get_literal_type_from_property_name(&name);
                     if self.is_type_usable_as_property_name(&expr_type) {
                         let name_text = self.get_property_name_from_type(&expr_type);
-                        let property = self.get_property_of_type_(parent_type, &name_text, None);
+                        let property = self.get_property_of_type_(parent_type, &name_text, None)?;
                         if let Some(property) = property.as_ref() {
                             self.mark_property_as_referenced(
                                 property,
@@ -498,7 +498,7 @@ impl TypeChecker {
                 &Diagnostics::A_parameter_initializer_is_only_allowed_in_a_function_or_constructor_implementation,
                 None,
             );
-            return;
+            return Ok(());
         }
         if is_binding_pattern(Some(&*node_name)) {
             let need_check_initializer = node_as_has_initializer.maybe_initializer().is_some()
@@ -537,12 +537,12 @@ impl TypeChecker {
                     }
                 }
             }
-            return;
+            return Ok(());
         }
         let symbol = self.get_symbol_of_node(node).unwrap();
         if symbol.flags().intersects(SymbolFlags::Alias) && is_require_variable_declaration(node) {
             self.check_alias_symbol(node);
-            return;
+            return Ok(());
         }
 
         let type_ = self.convert_auto_to_any(&self.get_type_of_symbol(&symbol));
@@ -657,6 +657,8 @@ impl TypeChecker {
             }
             self.check_collisions_for_declaration_name(node, Some(&*node_name));
         }
+
+        Ok(())
     }
 
     pub(super) fn error_next_variable_or_property_declaration_must_have_same_type(

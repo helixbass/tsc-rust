@@ -261,19 +261,22 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn is_readonly_assignment_declaration(&self, d: &Node /*Declaration*/) -> bool {
+    pub(super) fn is_readonly_assignment_declaration(
+        &self,
+        d: &Node, /*Declaration*/
+    ) -> io::Result<bool> {
         if !is_call_expression(d) {
-            return false;
+            return Ok(false);
         }
         if !is_bindable_object_define_property_call(d) {
-            return false;
+            return Ok(false);
         }
         let d_as_call_expression = d.as_call_expression();
         let object_lit_type =
             self.check_expression_cached(&d_as_call_expression.arguments[2], None);
         let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value");
         if value_type.is_some() {
-            let writable_prop = self.get_property_of_type_(&object_lit_type, "writable", None);
+            let writable_prop = self.get_property_of_type_(&object_lit_type, "writable", None)?;
             let writable_type = writable_prop
                 .as_ref()
                 .map(|writable_prop| self.get_type_of_symbol(writable_prop));
@@ -284,7 +287,7 @@ impl TypeChecker {
                         || Gc::ptr_eq(writable_type, &self.regular_false_type())
                 }
             } {
-                return true;
+                return Ok(true);
             }
             if let Some(ref writable_prop_value_declaration) = writable_prop
                 .as_ref()
@@ -300,13 +303,13 @@ impl TypeChecker {
                 if Gc::ptr_eq(&raw_original_type, &self.false_type())
                     || Gc::ptr_eq(&raw_original_type, &self.regular_false_type())
                 {
-                    return true;
+                    return Ok(true);
                 }
             }
-            return false;
+            return Ok(false);
         }
-        let set_prop = self.get_property_of_type_(&object_lit_type, "set", None);
-        set_prop.is_none()
+        let set_prop = self.get_property_of_type_(&object_lit_type, "set", None)?;
+        Ok(set_prop.is_none())
     }
 
     pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> bool {

@@ -186,19 +186,19 @@ impl TypeChecker {
     pub(super) fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> impl Iterator<Item = Gc<Symbol>> {
+    ) -> io::Result<impl Iterator<Item = Gc<Symbol>>> {
         let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
         if declaration.is_none() {
-            return Either::Right(iter::empty());
+            return Ok(Either::Right(iter::empty()));
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration);
-        if let Some(symbol) = symbol.as_ref() {
-            Some(self.get_properties_of_type(&self.get_type_of_symbol(symbol)))
+        Ok(if let Some(symbol) = symbol.as_ref() {
+            Some(self.get_properties_of_type(&*self.get_type_of_symbol(symbol)?))
         } else {
             None
         }
-        .unwrap_or_empty()
+        .unwrap_or_empty())
     }
 
     pub(super) fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags {

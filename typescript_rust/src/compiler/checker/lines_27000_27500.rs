@@ -647,7 +647,7 @@ impl TypeChecker {
                     &intrinsic_elements_type,
                     &node_as_has_tag_name.tag_name().as_identifier().escaped_text,
                     None,
-                );
+                )?;
                 if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicNamedElement;
                     links.borrow_mut().resolved_symbol = Some(intrinsic_prop.clone());

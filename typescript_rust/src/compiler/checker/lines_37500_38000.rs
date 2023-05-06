@@ -248,27 +248,27 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_iteration_types_of_iterable_slow<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_iteration_types_of_iterable_slow(
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-        error_node: Option<TErrorNode>,
-    ) -> Gc<IterationTypes> {
+        error_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<Gc<IterationTypes>> {
         let method = self.get_property_of_type_(
             type_,
             &self.get_property_name_for_known_symbol_name(resolver.iterator_symbol_name),
             None,
-        );
+        )?;
         let method_type = method
             .as_ref()
             .filter(|method| !method.flags().intersects(SymbolFlags::Optional))
             .map(|method| self.get_type_of_symbol(method));
         if self.is_type_any(method_type.as_deref()) {
-            return self.set_cached_iteration_types(
+            return Ok(self.set_cached_iteration_types(
                 type_,
                 resolver.iterable_cache_key,
                 self.any_iteration_types(),
-            );
+            ));
         }
 
         let signatures = method_type
@@ -278,11 +278,11 @@ impl TypeChecker {
             signatures.as_deref(),
             Option::<fn(&Gc<Signature>) -> bool>::None,
         ) {
-            return self.set_cached_iteration_types(
+            return Ok(self.set_cached_iteration_types(
                 type_,
                 resolver.iterable_cache_key,
                 self.no_iteration_types(),
-            );
+            ));
         }
         let signatures = signatures.unwrap();
 
@@ -296,7 +296,7 @@ impl TypeChecker {
         let iteration_types = self
             .get_iteration_types_of_iterator(&iterator_type, resolver, error_node)
             .unwrap_or_else(|| self.no_iteration_types());
-        self.set_cached_iteration_types(type_, resolver.iterable_cache_key, iteration_types)
+        Ok(self.set_cached_iteration_types(type_, resolver.iterable_cache_key, iteration_types))
     }
 
     pub(super) fn report_type_not_iterable_error(
@@ -506,17 +506,17 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_iteration_types_of_method<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_iteration_types_of_method(
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
         method_name: &str, /*"next" | "return" | "throw"*/
-        error_node: Option<TErrorNode>,
-    ) -> Option<Gc<IterationTypes>> {
-        let method = self.get_property_of_type_(type_, method_name, None);
+        error_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<Option<Gc<IterationTypes>>> {
+        let method = self.get_property_of_type_(type_, method_name, None)?;
 
         if method.is_none() && method_name != "next" {
-            return None;
+            return Ok(None);
         }
 
         let method_type = method
@@ -536,11 +536,11 @@ impl TypeChecker {
             });
 
         if self.is_type_any(method_type.as_deref()) {
-            return Some(if method_name == "next" {
+            return Ok(Some(if method_name == "next" {
                 self.any_iteration_types()
             } else {
                 self.any_iteration_types_except_next()
-            });
+            }));
         }
 
         let method_signatures = if let Some(method_type) = method_type.as_ref() {
@@ -557,11 +557,11 @@ impl TypeChecker {
                 };
                 self.error(error_node, diagnostic, Some(vec![method_name.to_owned()]));
             }
-            return if method_name == "next" {
+            return Ok(if method_name == "next" {
                 Some(self.any_iteration_types())
             } else {
                 None
-            };
+            });
         }
 
         if let Some(method_type_symbol) = method_type
@@ -603,7 +603,7 @@ impl TypeChecker {
                     };
                     let method_type = method_type.as_ref().unwrap();
                     let mapper = method_type.as_object_type().maybe_mapper();
-                    return Some(
+                    return Ok(Some(
                         self.create_iteration_types(
                             Some(
                                 self.get_mapped_type(
@@ -637,7 +637,7 @@ impl TypeChecker {
                                 None
                             },
                         ),
-                    );
+                    ));
                 }
             }
         }
@@ -739,7 +739,7 @@ impl TypeChecker {
             );
         }
 
-        Some(self.create_iteration_types(
+        Ok(Some(self.create_iteration_types(
             Some(yield_type),
             Some(self.get_union_type(
                 &return_types.unwrap(),
@@ -749,7 +749,7 @@ impl TypeChecker {
                 Option::<&Type>::None,
             )),
             next_type,
-        ))
+        )))
     }
 
     pub(super) fn get_iteration_types_of_iterator_slow<TErrorNode: Borrow<Node>>(

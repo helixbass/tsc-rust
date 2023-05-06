@@ -2,8 +2,8 @@ use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, CheckTypeRelatedTo,
@@ -196,9 +196,9 @@ impl TypeChecker {
         source_symbol: &Symbol,
         target_symbol: &Symbol,
         error_reporter: &mut Option<ErrorReporter>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if ptr::eq(source_symbol, target_symbol) {
-            return true;
+            return Ok(true);
         }
         let id = format!(
             "{},{}",
@@ -211,7 +211,7 @@ impl TypeChecker {
                 && entry.intersects(RelationComparisonResult::Failed)
                 && error_reporter.is_some())
         }) {
-            return entry.intersects(RelationComparisonResult::Succeeded);
+            return Ok(entry.intersects(RelationComparisonResult::Succeeded));
         }
         if source_symbol.escaped_name() != target_symbol.escaped_name()
             || !source_symbol.flags().intersects(SymbolFlags::RegularEnum)
@@ -221,13 +221,13 @@ impl TypeChecker {
                 id,
                 RelationComparisonResult::Failed | RelationComparisonResult::Reported,
             );
-            return false;
+            return Ok(false);
         }
         let target_enum_type = self.get_type_of_symbol(target_symbol);
         for property in self.get_properties_of_type(&self.get_type_of_symbol(source_symbol)) {
             if property.flags().intersects(SymbolFlags::EnumMember) {
                 let target_property =
-                    self.get_property_of_type_(&target_enum_type, property.escaped_name(), None);
+                    self.get_property_of_type_(&target_enum_type, property.escaped_name(), None)?;
                 if match target_property {
                     None => true,
                     Some(target_property) => {
@@ -255,13 +255,13 @@ impl TypeChecker {
                         self.enum_relation()
                             .insert(id, RelationComparisonResult::Failed);
                     }
-                    return false;
+                    return Ok(false);
                 }
             }
         }
         self.enum_relation()
             .insert(id, RelationComparisonResult::Succeeded);
-        true
+        Ok(true)
     }
 
     pub(super) fn is_simple_type_related_to(

@@ -17,11 +17,11 @@ use crate::{
     is_right_side_of_qualified_name_or_property_access, is_shorthand_ambient_module_symbol,
     is_source_file, is_statement_with_locals, is_static, map_defined, node_is_missing,
     single_element_array, some,
-    try_get_class_implementing_or_extending_expression_with_type_arguments,
+    try_get_class_implementing_or_extending_expression_with_type_arguments, try_map_defined,
     type_has_call_or_construct_signatures, walk_up_binding_elements_and_patterns, CheckFlags,
     Debug_, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, Node, NodeCheckFlags,
-    NodeFlags, NodeInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    NodeFlags, NodeInterface, OptionTry, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface,
 };
 
@@ -48,9 +48,9 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_shorthand_assignment_value_symbol_<TLocation: Borrow<Node>>(
+    pub(super) fn get_shorthand_assignment_value_symbol_(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         if let Some(location) = location {
             let location: &Node = location.borrow();
@@ -299,15 +299,15 @@ impl TypeChecker {
             location.parent().parent(),
             |node: &Gc<Node>| is_assignment_pattern(node),
         ))?;
-        Ok(type_of_object_literal
+        type_of_object_literal
             .as_ref()
-            .and_then(|type_of_object_literal| {
+            .try_and_then(|type_of_object_literal| {
                 self.get_property_of_type_(
                     type_of_object_literal,
                     &location.as_identifier().escaped_text,
                     None,
                 )
-            }))
+            })
     }
 
     pub(super) fn get_regular_type_of_expression(
@@ -400,9 +400,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_immediate_root_symbols(&self, symbol: &Symbol) -> Option<Vec<Gc<Symbol>>> {
+    pub(super) fn get_immediate_root_symbols(
+        &self,
+        symbol: &Symbol,
+    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
         if get_check_flags(symbol).intersects(CheckFlags::Synthetic) {
-            return Some(map_defined(
+            return Ok(Some(try_map_defined(
                 Some(
                     (*self.get_symbol_links(symbol))
                         .borrow()
@@ -415,7 +418,7 @@ impl TypeChecker {
                 |type_: &Gc<Type>, _| {
                     self.get_property_of_type_(type_, symbol.escaped_name(), None)
                 },
-            ));
+            )?));
         } else if symbol.flags().intersects(SymbolFlags::Transient) {
             let (left_spread, right_spread, synthetic_origin) = {
                 let symbol_links = symbol.as_transient_symbol().symbol_links();
@@ -426,15 +429,15 @@ impl TypeChecker {
                     symbol_links.synthetic_origin.clone(),
                 )
             };
-            return if let Some(left_spread) = left_spread {
+            return Ok(if let Some(left_spread) = left_spread {
                 Some(vec![left_spread, right_spread.unwrap()])
             } else if let Some(synthetic_origin) = synthetic_origin {
                 Some(vec![synthetic_origin])
             } else {
                 single_element_array(self.try_get_alias_target(symbol))
-            };
+            });
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn try_get_alias_target(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {

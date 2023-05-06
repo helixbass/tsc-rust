@@ -58,7 +58,10 @@ impl TypeChecker {
                 )
     }
 
-    pub(super) fn resolve_base_types_of_interface(&self, type_: &Type /*InterfaceType*/) {
+    pub(super) fn resolve_base_types_of_interface(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> io::Result<()> {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_resolved_base_types().is_none() {
             *type_as_interface_type.maybe_resolved_base_types() = Some(Gc::new(vec![]));
@@ -72,7 +75,8 @@ impl TypeChecker {
                         .as_deref()
                         .unwrap()
                     {
-                        let base_type = self.get_reduced_type(&self.get_type_from_type_node_(node));
+                        let base_type =
+                            self.get_reduced_type(&*self.get_type_from_type_node_(node)?);
                         if !self.is_error_type(&base_type) {
                             if self.is_valid_base_type(&base_type) {
                                 if !ptr::eq(type_, &*base_type)
@@ -102,6 +106,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_thisless_interface(&self, symbol: &Symbol) -> io::Result<bool> {
@@ -154,7 +160,7 @@ impl TypeChecker {
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> Gc<Type /*InterfaceType*/> {
+    ) -> io::Result<Gc<Type /*InterfaceType*/>> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         let mut symbol = symbol.symbol_wrapper();
@@ -202,7 +208,7 @@ impl TypeChecker {
             let type_: Gc<Type> = if outer_type_parameters.is_some()
                 || local_type_parameters.is_some()
                 || kind == ObjectFlags::Class
-                || !self.is_thisless_interface(&symbol)
+                || !self.is_thisless_interface(&symbol)?
             {
                 need_to_set_constraint = true;
                 type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
@@ -246,7 +252,7 @@ impl TypeChecker {
             links.borrow_mut().declared_type = Some(type_.clone());
         }
         let ret = (*links).borrow().declared_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
@@ -412,20 +418,24 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> Gc<Type> {
-        if type_.flags().intersects(TypeFlags::EnumLiteral)
-            && !type_.flags().intersects(TypeFlags::Union)
-        {
-            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(&type_.symbol()).unwrap())
-        } else {
-            type_.type_wrapper()
-        }
+    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(
+            if type_.flags().intersects(TypeFlags::EnumLiteral)
+                && !type_.flags().intersects(TypeFlags::Union)
+            {
+                self.get_declared_type_of_symbol(
+                    &self.get_parent_of_symbol(&type_.symbol()).unwrap(),
+                )?
+            } else {
+                type_.type_wrapper()
+            },
+        )
     }
 
-    pub(super) fn get_declared_type_of_enum(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_declared_type_of_enum(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
-            return links_declared_type;
+            return Ok(links_declared_type);
         }
         if self.get_enum_kind(symbol) == EnumKind::Literal {
             self.increment_enum_count();
@@ -457,19 +467,19 @@ impl TypeChecker {
                     Some(symbol),
                     None,
                     Option::<&Type>::None,
-                );
+                )?;
                 if enum_type.flags().intersects(TypeFlags::Union) {
                     enum_type.set_flags(enum_type.flags() | TypeFlags::EnumLiteral);
                     enum_type.set_symbol(Some(symbol.symbol_wrapper()));
                 }
                 links.borrow_mut().declared_type = Some(enum_type.clone());
-                return enum_type;
+                return Ok(enum_type);
             }
         }
         let enum_type: Gc<Type> = self.create_type(TypeFlags::Enum).into();
         enum_type.set_symbol(Some(symbol.symbol_wrapper()));
         links.borrow_mut().declared_type = Some(enum_type.clone());
-        enum_type
+        Ok(enum_type)
     }
 
     pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> Gc<Type> {
@@ -503,7 +513,7 @@ impl TypeChecker {
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
             return Ok(links_declared_type);
         }
-        let declared_type = self.get_declared_type_of_symbol(&*self.resolve_alias(symbol)?);
+        let declared_type = self.get_declared_type_of_symbol(&*self.resolve_alias(symbol)?)?;
         links.borrow_mut().declared_type = Some(declared_type.clone());
         Ok(declared_type)
     }

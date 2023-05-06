@@ -15,9 +15,9 @@ use crate::{
     is_in_js_file, is_optional_chain, is_parameter, is_private_identifier,
     is_property_access_expression, is_property_declaration, is_property_signature,
     is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map,
-    skip_parentheses, some, try_map, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType,
-    FlowFlags, FlowNode, FlowNodeBase, FlowType, HasInitializerInterface, IncompleteType,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
+    skip_parentheses, some, try_for_each, try_map, CheckFlags, Diagnostic, Diagnostics,
+    EvolvingArrayType, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasInitializerInterface,
+    IncompleteType, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
     TypeInterface, TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface,
@@ -263,13 +263,22 @@ impl TypeChecker {
         self.contains_type(target_as_union_type.types(), source)
     }
 
-    pub(super) fn for_each_type<TReturn, TCallback: FnMut(&Type) -> Option<TReturn>>(
+    pub(super) fn for_each_type<TReturn>(
         &self,
         type_: &Type,
-        mut f: TCallback,
+        mut f: impl FnMut(&Type) -> Option<TReturn>,
     ) -> Option<TReturn> {
+        self.try_for_each_type(type_, |type_: &Type| Ok(f(type_)))
+            .unwrap()
+    }
+
+    pub(super) fn try_for_each_type<TReturn>(
+        &self,
+        type_: &Type,
+        mut f: impl FnMut(&Type) -> io::Result<Option<TReturn>>,
+    ) -> io::Result<Option<TReturn>> {
         if type_.flags().intersects(TypeFlags::Union) {
-            for_each(
+            try_for_each(
                 type_.as_union_or_intersection_type_interface().types(),
                 |type_: &Gc<Type>, _| f(type_),
             )
@@ -278,11 +287,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn some_type<TCallback: FnMut(&Type) -> bool>(
-        &self,
-        type_: &Type,
-        mut f: TCallback,
-    ) -> bool {
+    pub(super) fn some_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> bool {
         if type_.flags().intersects(TypeFlags::Union) {
             some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
@@ -293,11 +298,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn every_type<TCallback: FnMut(&Type) -> bool>(
-        &self,
-        type_: &Type,
-        mut f: TCallback,
-    ) -> bool {
+    pub(super) fn every_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> bool {
         if type_.flags().intersects(TypeFlags::Union) {
             every(
                 type_.as_union_or_intersection_type_interface().types(),
@@ -308,10 +309,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn every_contained_type<TCallback: FnMut(&Type) -> bool>(
+    pub(super) fn every_contained_type(
         &self,
         type_: &Type,
-        mut f: TCallback,
+        mut f: impl FnMut(&Type) -> bool,
     ) -> bool {
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             every(
@@ -323,11 +324,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn filter_type<TCallback: FnMut(&Type) -> bool>(
-        &self,
-        type_: &Type,
-        mut f: TCallback,
-    ) -> Gc<Type> {
+    pub(super) fn filter_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Union) {
             let type_as_union_type = type_.as_union_type();
             let types = type_as_union_type.types();
@@ -898,13 +895,13 @@ impl TypeChecker {
                                     &name.as_private_identifier().escaped_text,
                                 ),
                                 None,
-                            );
+                            )?;
                         } else {
                             prop = self.get_property_of_type_(
                                 type_,
                                 &name.as_identifier().escaped_text,
                                 None,
-                            );
+                            )?;
                         }
                         return Ok(prop
                             .as_ref()

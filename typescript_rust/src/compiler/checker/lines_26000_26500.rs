@@ -285,8 +285,8 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Option<Gc<Type>> {
-        self.map_type(
+    ) -> io::Result<Option<Gc<Type>>> {
+        Ok(self.map_type(
             type_,
             &mut |t| {
                 if self.is_generic_mapped_type(t) {
@@ -300,7 +300,7 @@ impl TypeChecker {
                         return Some(self.substitute_indexed_mapped_type(t, &property_name_type));
                     }
                 } else if t.flags().intersects(TypeFlags::StructuredType) {
-                    let prop = self.get_property_of_type_(t, name, None);
+                    let prop = self.get_property_of_type_(t, name, None)?;
                     if let Some(prop) = prop.as_ref() {
                         return if self.is_circular_mapped_property(prop) {
                             None
@@ -327,7 +327,7 @@ impl TypeChecker {
                 None
             },
             Some(true),
-        )
+        ))
     }
 
     pub(super) fn get_contextual_type_for_object_literal_method(

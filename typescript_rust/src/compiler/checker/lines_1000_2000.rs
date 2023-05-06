@@ -1443,7 +1443,7 @@ impl TypeChecker {
         name_arg: Option<impl Into<ResolveNameNameArg<'name_arg>> + Clone>,
         is_use: bool,
         exclude_globals: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let exclude_globals = exclude_globals.unwrap_or(false);
         self.resolve_name_helper(
             location,

@@ -133,7 +133,7 @@ impl GetFlowTypeOfReference {
                 type_.type_wrapper()
             },
             &prop_name,
-        );
+        )?;
         if prop_type.is_none() {
             return Ok(type_.type_wrapper());
         }
@@ -194,7 +194,7 @@ impl GetFlowTypeOfReference {
                         } else if self.type_checker.is_unit_type(
                             &self
                                 .type_checker
-                                .get_type_of_property_of_type_(candidate, key_property_name)
+                                .get_type_of_property_of_type_(candidate, key_property_name)?
                                 .unwrap_or_else(|| self.type_checker.unknown_type()),
                         ) {
                             self.type_checker.remove_type(type_, candidate)
@@ -305,26 +305,28 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         prop_name: &str, /*__String*/
         assume_true: bool,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let prop = self
             .type_checker
-            .get_property_of_type_(type_, prop_name, None);
+            .get_property_of_type_(type_, prop_name, None)?;
         if let Some(prop) = prop.as_ref() {
-            return if prop.flags().intersects(SymbolFlags::Optional) {
+            return Ok(if prop.flags().intersects(SymbolFlags::Optional) {
                 true
             } else {
                 assume_true
-            };
+            });
         }
-        if self
-            .type_checker
-            .get_applicable_index_info_for_name(type_, prop_name)
-            .is_some()
-        {
-            true
-        } else {
-            !assume_true
-        }
+        Ok(
+            if self
+                .type_checker
+                .get_applicable_index_info_for_name(type_, prop_name)
+                .is_some()
+            {
+                true
+            } else {
+                !assume_true
+            },
+        )
     }
 
     pub(super) fn narrow_by_in_keyword(
@@ -439,23 +441,23 @@ impl GetFlowTypeOfReference {
                 }
                 let left_access = self.get_discriminant_property_access(&left, &type_);
                 if let Some(left_access) = left_access.as_ref() {
-                    return Ok(self.narrow_type_by_discriminant_property(
+                    return self.narrow_type_by_discriminant_property(
                         &type_,
                         left_access,
                         operator,
                         &right,
                         assume_true,
-                    ));
+                    );
                 }
                 let right_access = self.get_discriminant_property_access(&right, &type_);
                 if let Some(right_access) = right_access.as_ref() {
-                    return Ok(self.narrow_type_by_discriminant_property(
+                    return self.narrow_type_by_discriminant_property(
                         &type_,
                         right_access,
                         operator,
                         &left,
                         assume_true,
-                    ));
+                    );
                 }
                 if self.is_matching_constructor_reference(&left) {
                     return Ok(self.narrow_type_by_constructor(
@@ -852,13 +854,13 @@ impl GetFlowTypeOfReference {
                 let mut callback_returning_non_optional =
                     self.narrow_union_member_by_typeof(implied_type);
                 self.type_checker
-                    .map_type(
+                    .try_map_type(
                         type_,
                         &mut move |candidate: &Type| {
-                            Some(callback_returning_non_optional(candidate))
+                            Ok(Some(callback_returning_non_optional(candidate)?))
                         },
                         None,
-                    )
+                    )?
                     .unwrap()
             } else {
                 type_.type_wrapper()
@@ -1114,7 +1116,7 @@ impl GetFlowTypeOfReference {
             &*self.type_checker.get_union_type(
                 &clause_witnesses
                     .iter()
-                    .map(|text| {
+                    .map(|text| -> io::Result<_> {
                         Ok(self
                             .get_implied_type_from_typeof_guard(type_, text)?
                             .unwrap_or_else(|| type_.type_wrapper()))
@@ -1131,11 +1133,13 @@ impl GetFlowTypeOfReference {
         Ok(self.type_checker.get_type_with_facts(
             &self
                 .type_checker
-                .map_type(
+                .try_map_type(
                     type_,
-                    &mut move |candidate: &Type| Some(callback_returning_non_optional(candidate)),
+                    &mut move |candidate: &Type| {
+                        Ok(Some(callback_returning_non_optional(candidate)?))
+                    },
                     None,
-                )
+                )?
                 .unwrap(),
             switch_facts,
         ))

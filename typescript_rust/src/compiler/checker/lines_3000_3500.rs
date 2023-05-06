@@ -20,12 +20,12 @@ use crate::{
     is_right_side_of_qualified_name_or_property_access, is_string_literal_like,
     is_type_of_expression, is_type_only_import_or_export_declaration, is_variable_declaration,
     node_is_missing, node_is_synthesized, path_is_relative, remove_extension, remove_prefix,
-    resolution_extension_is_ts_or_json, starts_with, try_extract_ts_extension,
-    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, DiagnosticMessage,
-    Diagnostics, Extension, FindAncestorCallbackReturn, HasInitializerInterface,
-    InternalSymbolName, ModuleKind, ModuleResolutionKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolLinks,
-    SyntaxKind, TypeChecker, TypeCheckerHost,
+    resolution_extension_is_ts_or_json, return_ok_none_if_none, starts_with,
+    try_extract_ts_extension, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
+    Debug_, DiagnosticMessage, Diagnostics, Extension, FindAncestorCallbackReturn,
+    HasInitializerInterface, InternalSymbolName, ModuleKind, ModuleResolutionKind,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolInterface, SymbolLinks, SyntaxKind, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -442,7 +442,7 @@ impl TypeChecker {
         node: &Node, /*QualifiedName*/
     ) -> io::Result<Option<Gc<Symbol>>> {
         let mut left = get_first_identifier(node);
-        let mut symbol = self.resolve_name_(
+        let mut symbol = return_ok_none_if_none!(self.resolve_name_(
             Some(&*left),
             &left.as_identifier().escaped_text,
             SymbolFlags::Value,
@@ -450,10 +450,10 @@ impl TypeChecker {
             Some(left.clone()),
             true,
             None,
-        )?;
+        )?);
         while is_qualified_name(&left.parent()) {
             let type_ = self.get_type_of_symbol(&symbol)?;
-            symbol = self.get_property_of_type_(
+            symbol = return_ok_none_if_none!(self.get_property_of_type_(
                 &type_,
                 &left
                     .parent()
@@ -462,7 +462,7 @@ impl TypeChecker {
                     .as_identifier()
                     .escaped_text,
                 None,
-            )?;
+            )?);
             left = left.parent();
         }
         Ok(Some(symbol))
@@ -619,7 +619,8 @@ impl TypeChecker {
                         && meaning.intersects(SymbolFlags::Type)
                         && matches!(
                             containing_qualified_name.as_ref(),
-                            Some(containing_qualified_name) if !is_type_of_expression(&containing_qualified_name.parent()) && self.try_get_qualified_name_as_value(containing_qualified_name).is_some()
+                            Some(containing_qualified_name) if !is_type_of_expression(&containing_qualified_name.parent())
+                                && self.try_get_qualified_name_as_value(containing_qualified_name)?.is_some()
                         );
                     if can_suggest_typeof {
                         self.error(

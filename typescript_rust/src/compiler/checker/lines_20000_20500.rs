@@ -10,9 +10,10 @@ use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot,
     OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
     for_each_bool, get_check_flags, get_selected_effective_modifier_flags, maybe_map, some,
-    CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
-    RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
+    try_filter, CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node, ObjectFlags,
+    ObjectFlagsTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags,
+    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -264,19 +265,19 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         if self.is_tuple_type(source) && self.is_tuple_type(target) {
-            return vec![];
+            return Ok(vec![]);
         }
-        self.get_properties_of_type(target)
-            .into_iter()
-            .filter(|target_prop: &Gc<Symbol>| {
-                self.is_exact_optional_property_mismatch(
-                    self.get_type_of_property_of_type_(source, target_prop.escaped_name()),
-                    Some(self.get_type_of_symbol(target_prop)),
-                )
-            })
-            .collect()
+        Ok(try_filter(
+            &self.get_properties_of_type(target),
+            |target_prop: &Gc<Symbol>| -> io::Result<_> {
+                Ok(self.is_exact_optional_property_mismatch(
+                    self.get_type_of_property_of_type_(source, target_prop.escaped_name())?,
+                    Some(self.get_type_of_symbol(target_prop)?),
+                ))
+            },
+        ))
     }
 
     pub(super) fn is_exact_optional_property_mismatch<
@@ -674,11 +675,11 @@ impl TypeChecker {
         format!("{},{}{}", source.id(), target.id(), post_fix)
     }
 
-    pub(super) fn for_each_property<TReturn, TCallback: FnMut(&Symbol) -> Option<TReturn>>(
+    pub(super) fn for_each_property<TReturn>(
         &self,
         prop: &Symbol,
-        callback: &mut TCallback,
-    ) -> Option<TReturn> {
+        callback: &mut impl FnMut(&Symbol) -> Option<TReturn>,
+    ) -> io::Result<Option<TReturn>> {
         if get_check_flags(prop).intersects(CheckFlags::Synthetic) {
             for t in (*prop.as_transient_symbol().symbol_links())
                 .borrow()
@@ -688,21 +689,21 @@ impl TypeChecker {
                 .as_union_or_intersection_type_interface()
                 .types()
             {
-                let p = self.get_property_of_type_(t, prop.escaped_name(), None);
+                let p = self.get_property_of_type_(t, prop.escaped_name(), None)?;
                 let result = p.as_ref().and_then(|p| self.for_each_property(p, callback));
                 if result.is_some() {
-                    return result;
+                    return Ok(result);
                 }
             }
-            return None;
+            return Ok(None);
         }
-        callback(prop)
+        Ok(callback(prop))
     }
 
-    pub(super) fn for_each_property_bool<TCallback: FnMut(&Symbol) -> bool>(
+    pub(super) fn for_each_property_bool(
         &self,
         prop: &Symbol,
-        callback: &mut TCallback,
+        callback: &mut impl FnMut(&Symbol) -> bool,
     ) -> bool {
         self.for_each_property(prop, &mut |symbol: &Symbol| {
             if callback(symbol) {

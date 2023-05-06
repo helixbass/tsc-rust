@@ -299,7 +299,7 @@ impl TypeChecker {
                     if !self.check_cross_product_union(&type_set) {
                         return Ok(self.error_type());
                     }
-                    let constituents = self.get_cross_product_intersections(&type_set);
+                    let constituents = self.get_cross_product_intersections(&type_set)?;
                     let origin = if some(
                         Some(&constituents),
                         Some(|t: &Gc<Type>| t.flags().intersects(TypeFlags::Intersection)),

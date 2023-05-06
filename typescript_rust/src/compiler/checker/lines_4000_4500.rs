@@ -11,10 +11,10 @@ use crate::{
     is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
     node_is_present, push_if_unique_gc, some, try_for_each_entry, BaseInterfaceType,
     BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
-    IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, ResolvableTypeInterface,
-    ResolvedTypeInterface, Signature, SignatureFlags, Symbol, SymbolAccessibility,
-    SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
+    IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
+    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, Symbol,
+    SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {
@@ -208,7 +208,7 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_named_members(&self, members: &SymbolTable) -> Vec<Gc<Symbol>> {
+    pub(super) fn get_named_members(&self, members: &SymbolTable) -> io::Result<Vec<Gc<Symbol>>> {
         let mut results = vec![];
         for (id, symbol) in members {
             if self.is_named_member(symbol, id)? {
@@ -746,8 +746,8 @@ impl TypeChecker {
             },
         )?;
 
-        Ok(result.or_else(|| {
-            if Gc::ptr_eq(&symbols, &self.globals_rc()) {
+        result.try_or_else(|| {
+            Ok(if Gc::ptr_eq(&symbols, &self.globals_rc()) {
                 self.get_candidate_list_for_symbol(
                     symbol,
                     meaning,
@@ -761,8 +761,8 @@ impl TypeChecker {
                 )?
             } else {
                 None
-            }
-        }))
+            })
+        })
     }
 
     pub(super) fn get_candidate_list_for_symbol(
@@ -995,7 +995,7 @@ impl TypeChecker {
             }
 
             let containers =
-                self.get_containers_of_symbol(symbol, enclosing_declaration.as_deref(), meaning);
+                self.get_containers_of_symbol(symbol, enclosing_declaration.as_deref(), meaning)?;
             let parent_result = self.is_any_symbol_accessible(
                 containers.as_deref(),
                 enclosing_declaration.as_deref(),

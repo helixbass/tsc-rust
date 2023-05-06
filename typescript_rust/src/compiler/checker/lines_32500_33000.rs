@@ -50,17 +50,17 @@ impl TypeChecker {
         property_index: usize,
         all_properties: Option<&NodeArray /*<ObjectLiteralElementLike>*/>,
         right_is_this: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let right_is_this = right_is_this.unwrap_or(false);
         let properties = &node.as_object_literal_expression().properties;
         let property = &properties[property_index];
-        match property.kind() {
+        Ok(match property.kind() {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 let name = property.as_named_declaration().name();
                 let expr_type = self.get_literal_type_from_property_name(&name);
                 if self.is_type_usable_as_property_name(&expr_type) {
                     let text = self.get_property_name_from_type(&expr_type);
-                    let prop = self.get_property_of_type_(object_literal_type, &text, None);
+                    let prop = self.get_property_of_type_(object_literal_type, &text, None)?;
                     if let Some(prop) = prop.as_ref() {
                         self.mark_property_as_referenced(prop, Some(&**property), right_is_this);
                         self.check_property_accessibility(
@@ -138,7 +138,7 @@ impl TypeChecker {
                 );
                 None
             }
-        }
+        })
     }
 
     pub(super) fn check_array_literal_assignment(

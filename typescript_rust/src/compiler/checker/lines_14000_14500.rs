@@ -22,16 +22,18 @@ impl TypeChecker {
         &self,
         target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Gc<Type>>>,
-    ) -> Gc<Type> {
-        if target
-            .as_object_flags_type()
-            .object_flags()
-            .intersects(ObjectFlags::Tuple)
-        {
-            self.create_normalized_tuple_type(target, type_arguments.unwrap())
-        } else {
-            self.create_type_reference(target, type_arguments)
-        }
+    ) -> io::Result<Gc<Type>> {
+        Ok(
+            if target
+                .as_object_flags_type()
+                .object_flags()
+                .intersects(ObjectFlags::Tuple)
+            {
+                self.create_normalized_tuple_type(target, type_arguments.unwrap())?
+            } else {
+                self.create_type_reference(target, type_arguments)
+            },
+        )
     }
 
     pub(super) fn create_normalized_tuple_type(
@@ -68,16 +70,16 @@ impl TypeChecker {
                             self.unknown_type()
                         }
                     })) {
-                        self.map_type(
+                        self.try_map_type(
                             &element_types[union_index],
                             &mut |t: &Type| {
-                                Some(self.create_normalized_tuple_type(
+                                Ok(Some(self.create_normalized_tuple_type(
                                     target,
                                     replace_element(&element_types, union_index, t.type_wrapper()),
-                                ))
+                                )?))
                             },
                             None,
-                        )
+                        )?
                         .unwrap()
                     } else {
                         self.error_type()
@@ -323,7 +325,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let type_target = type_.as_type_reference().target();
         let type_target_as_tuple_type = type_target.as_tuple_type();
-        Ok(self.get_union_type(
+        self.get_union_type(
             &{
                 let mut ret = array_of(type_target_as_tuple_type.fixed_length, |i| {
                     self.get_string_literal_type(&i.to_string())
@@ -343,7 +345,7 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
-        ))
+        )
     }
 
     pub(super) fn get_start_element_count(
@@ -555,7 +557,7 @@ impl TypeChecker {
                                 let t = self.get_type_of_property_of_type_(
                                     target,
                                     key_property.escaped_name(),
-                                );
+                                )?;
                                 if matches!(
                                     t.as_ref(),
                                     Some(t) if self.is_unit_type(t) && !matches!(

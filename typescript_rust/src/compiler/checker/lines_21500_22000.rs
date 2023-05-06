@@ -1,9 +1,9 @@
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell, RefMut};
-use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{cmp, io};
 
 use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
@@ -48,7 +48,7 @@ impl TypeChecker {
         target: &Type,
         require_optional_properties: bool,
         match_discriminant_properties: bool,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let properties = self.get_properties_of_type(target);
         let mut ret: Vec<Gc<Symbol>> = vec![];
         for ref target_prop in properties {
@@ -60,7 +60,7 @@ impl TypeChecker {
                     || get_check_flags(target_prop).intersects(CheckFlags::Partial))
             {
                 let source_prop =
-                    self.get_property_of_type_(source, target_prop.escaped_name(), None);
+                    self.get_property_of_type_(source, target_prop.escaped_name(), None)?;
                 match source_prop {
                     None => {
                         ret.push(target_prop.clone());
@@ -84,7 +84,7 @@ impl TypeChecker {
                 }
             }
         }
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_unmatched_property(

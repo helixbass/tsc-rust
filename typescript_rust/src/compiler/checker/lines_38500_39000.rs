@@ -161,8 +161,8 @@ impl TypeChecker {
             } else {
                 base_with_this
             };
-            let prop = self.get_property_of_type_(this_type, &member_escaped_name, None);
-            let base_prop = self.get_property_of_type_(base_type, &member_escaped_name, None);
+            let prop = self.get_property_of_type_(this_type, &member_escaped_name, None)?;
+            let base_prop = self.get_property_of_type_(base_type, &member_escaped_name, None)?;
 
             let base_class_name =
                 self.type_to_string_(base_with_this, Option::<&Node>::None, None, None)?;
@@ -248,7 +248,7 @@ impl TypeChecker {
         type_with_this: &Type,
         base_with_this: &Type,
         broad_diag: &'static DiagnosticMessage,
-    ) {
+    ) -> io::Result<()> {
         let mut issued_member_error = false;
         let node_as_class_like_declaration = node.as_class_like_declaration();
         for member in &node_as_class_like_declaration.members() {
@@ -263,9 +263,9 @@ impl TypeChecker {
                 .or_else(|| self.get_symbol_at_location_(member, None));
             if let Some(declared_prop) = declared_prop.as_ref() {
                 let prop =
-                    self.get_property_of_type_(type_with_this, declared_prop.escaped_name(), None);
+                    self.get_property_of_type_(type_with_this, declared_prop.escaped_name(), None)?;
                 let base_prop =
-                    self.get_property_of_type_(base_with_this, declared_prop.escaped_name(), None);
+                    self.get_property_of_type_(base_with_this, declared_prop.escaped_name(), None)?;
                 if let (Some(prop), Some(base_prop)) = (prop.as_ref(), base_prop.as_ref()) {
                     if !self.check_type_assignable_to(
                         &self.get_type_of_symbol(prop),
@@ -305,6 +305,8 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn check_base_type_accessibility(

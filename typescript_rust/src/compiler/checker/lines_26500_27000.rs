@@ -1089,7 +1089,7 @@ impl TypeChecker {
                         contextual_type.as_ref().unwrap(),
                         member_present.escaped_name(),
                         None,
-                    );
+                    )?;
                     if let Some(implied_prop) = implied_prop.as_ref() {
                         prop.set_flags(
                             prop.flags() | (implied_prop.flags() & SymbolFlags::Optional),
@@ -1247,7 +1247,7 @@ impl TypeChecker {
             for ref prop in self.get_properties_of_type(contextual_type.as_ref().unwrap()) {
                 if !properties_table.contains_key(prop.escaped_name())
                     && self
-                        .get_property_of_type_(&spread, prop.escaped_name(), None)
+                        .get_property_of_type_(&spread, prop.escaped_name(), None)?
                         .is_none()
                 {
                     if !prop.flags().intersects(SymbolFlags::Optional) {
@@ -1322,7 +1322,7 @@ impl TypeChecker {
                 .unwrap());
         }
 
-        Ok(self.create_object_literal_type(
+        self.create_object_literal_type(
             has_computed_string_property,
             node,
             offset,
@@ -1334,6 +1334,6 @@ impl TypeChecker {
             is_js_object_literal,
             pattern_with_computed_properties,
             in_destructuring_pattern,
-        ))
+        )
     }
 }

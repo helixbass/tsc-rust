@@ -187,13 +187,13 @@ impl CheckTypeRelatedTo {
         &self,
         source: &Type,
         target: &Type, /*UnionType*/
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let source_properties = self.type_checker.get_properties_of_type(source);
         let source_properties_filtered = self
             .type_checker
             .find_discriminant_properties(source_properties, target);
         if source_properties_filtered.is_none() {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         let source_properties_filtered = source_properties_filtered.unwrap();
 
@@ -206,7 +206,7 @@ impl CheckTypeRelatedTo {
             );
             if num_combinations > 25 {
                 // tracing?.instant(tracing.Phase.CheckTypes, "typeRelatedToDiscriminatedType_DepthLimit", { sourceId: source.id, targetId: target.id, numCombinations });
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
 
@@ -240,7 +240,7 @@ impl CheckTypeRelatedTo {
                         type_,
                         source_property.escaped_name(),
                         None,
-                    );
+                    )?;
                     if target_property.is_none() {
                         continue 'outer;
                     }
@@ -268,7 +268,7 @@ impl CheckTypeRelatedTo {
                 has_match = true;
             }
             if !has_match {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
 
@@ -301,10 +301,10 @@ impl CheckTypeRelatedTo {
                 }
             }
             if result == Ternary::False {
-                return result;
+                return Ok(result);
             }
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn exclude_properties(
@@ -555,7 +555,7 @@ impl CheckTypeRelatedTo {
         target: &Type,
         unmatched_property: &Symbol,
         require_optional_properties: bool,
-    ) {
+    ) -> io::Result<()> {
         let mut should_skip_elaboration = false;
         if let Some(unmatched_property_value_declaration) = unmatched_property
             .maybe_value_declaration()
@@ -589,7 +589,7 @@ impl CheckTypeRelatedTo {
                 /*symbolTableKey &&*/
                 self
                     .type_checker
-                    .get_property_of_type_(source, &symbol_table_key, None)
+                    .get_property_of_type_(source, &symbol_table_key, None)?
                     .is_some()
                 {
                     let source_name = factory.with(|factory_| {
@@ -622,7 +622,7 @@ impl CheckTypeRelatedTo {
                             }).into_owned(),
                         ])
                     );
-                    return;
+                    return Ok(());
                 }
             }
         }
@@ -720,6 +720,8 @@ impl CheckTypeRelatedTo {
                 self.set_override_next_error_info(self.override_next_error_info() + 1);
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn properties_related_to(
@@ -1075,7 +1077,9 @@ impl CheckTypeRelatedTo {
                     || self.type_checker.is_numeric_literal_name(name)
                     || name == "length")
             {
-                let source_prop = self.type_checker.get_property_of_type_(source, name, None);
+                let source_prop = self
+                    .type_checker
+                    .get_property_of_type_(source, name, None)?;
                 if let Some(source_prop) = source_prop {
                     if !Gc::ptr_eq(&source_prop, &target_prop) {
                         let related = self.property_related_to(

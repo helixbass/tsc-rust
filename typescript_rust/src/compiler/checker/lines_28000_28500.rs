@@ -319,7 +319,7 @@ impl TypeChecker {
         &self,
         left_type: &Type,
         lexically_scoped_identifier: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_property_of_type_(left_type, lexically_scoped_identifier.escaped_name(), None)
     }
 
@@ -562,7 +562,7 @@ impl TypeChecker {
                 &apparent_type,
                 &right.as_identifier().escaped_text,
                 None,
-            );
+            )?;
         }
         if is_identifier(left) {
             if let Some(parent_symbol) = parent_symbol.as_ref() {
@@ -1010,18 +1010,18 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn is_property_declared_in_ancestor_class(&self, prop: &Symbol) -> bool {
+    pub(super) fn is_property_declared_in_ancestor_class(&self, prop: &Symbol) -> io::Result<bool> {
         if !prop
             .maybe_parent()
             .unwrap()
             .flags()
             .intersects(SymbolFlags::Class)
         {
-            return false;
+            return Ok(false);
         }
         let mut class_type: Option<Gc<Type>> =
             Some(self.get_type_of_symbol(&prop.maybe_parent().unwrap()));
-        loop {
+        Ok(loop {
             let class_type_present = class_type.as_ref().unwrap();
             class_type = if class_type_present.maybe_symbol().is_some() {
                 self.get_super_class(class_type_present)
@@ -1033,7 +1033,7 @@ impl TypeChecker {
             }
             let class_type_present = class_type.as_ref().unwrap();
             let super_property =
-                self.get_property_of_type_(class_type_present, prop.escaped_name(), None);
+                self.get_property_of_type_(class_type_present, prop.escaped_name(), None)?;
             if super_property
                 .as_ref()
                 .and_then(|super_property| super_property.maybe_value_declaration())
@@ -1041,7 +1041,7 @@ impl TypeChecker {
             {
                 return true;
             }
-        }
+        })
     }
 
     pub(super) fn get_super_class(
@@ -1069,7 +1069,7 @@ impl TypeChecker {
         {
             for subtype in containing_type.as_union_type().types() {
                 if self
-                    .get_property_of_type_(subtype, &prop_node.as_identifier().escaped_text, None)
+                    .get_property_of_type_(subtype, &prop_node.as_identifier().escaped_text, None)?
                     .is_none()
                     && self
                         .get_applicable_index_info_for_name(
@@ -1110,7 +1110,11 @@ impl TypeChecker {
                 self.get_promised_type_of_promise(containing_type, Option::<&Node>::None);
             if matches!(
                 promised_type.as_ref(),
-                Some(promised_type) if self.get_property_of_type_(promised_type, &prop_node.as_member_name().escaped_text(), None).is_some()
+                Some(promised_type) if self.get_property_of_type_(
+                    promised_type,
+                    &prop_node.as_member_name().escaped_text(),
+                    None
+                )?.is_some()
             ) {
                 error_info = Some(chain_diagnostic_messages(
                     error_info,
