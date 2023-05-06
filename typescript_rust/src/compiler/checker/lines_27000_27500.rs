@@ -352,7 +352,7 @@ impl TypeChecker {
                                 &[type_to_intersect.clone(), expr_type],
                                 Option::<&Symbol>::None,
                                 None,
-                            )
+                            )?
                         } else {
                             expr_type
                         },
@@ -498,11 +498,11 @@ impl TypeChecker {
         }
         if let Some(type_to_intersect) = type_to_intersect.as_ref() {
             if !Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
-                return Ok(self.get_intersection_type(
+                return self.get_intersection_type(
                     &[type_to_intersect.clone(), spread.clone()],
                     Option::<&Symbol>::None,
                     None,
-                ));
+                );
             }
         }
         Ok(type_to_intersect.unwrap_or_else(|| {

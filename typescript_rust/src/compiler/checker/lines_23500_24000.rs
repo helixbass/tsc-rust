@@ -510,16 +510,16 @@ impl GetFlowTypeOfReference {
             if node_as_binary_expression.operator_token.kind()
                 == SyntaxKind::AmpersandAmpersandToken
             {
-                return Ok(self.narrow_type_by_assertion(
-                    &self.narrow_type_by_assertion(type_, &node_as_binary_expression.left),
+                return self.narrow_type_by_assertion(
+                    &*self.narrow_type_by_assertion(type_, &node_as_binary_expression.left)?,
                     &node_as_binary_expression.right,
-                ));
+                );
             }
             if node_as_binary_expression.operator_token.kind() == SyntaxKind::BarBarToken {
                 return self.type_checker.get_union_type(
                     &[
-                        self.narrow_type_by_assertion(type_, &node_as_binary_expression.left),
-                        self.narrow_type_by_assertion(type_, &node_as_binary_expression.right),
+                        self.narrow_type_by_assertion(type_, &node_as_binary_expression.left)?,
+                        self.narrow_type_by_assertion(type_, &node_as_binary_expression.right)?,
                     ],
                     None,
                     Option::<&Symbol>::None,
@@ -568,7 +568,7 @@ impl GetFlowTypeOfReference {
                         &type_,
                         &flow_as_flow_call.node.as_call_expression().arguments
                             [predicate.parameter_index.unwrap()],
-                    )
+                    )?
                 } else {
                     type_.clone()
                 };
@@ -710,7 +710,7 @@ impl GetFlowTypeOfReference {
                 &flow_as_flow_switch_clause.switch_statement,
                 flow_as_flow_switch_clause.clause_start,
                 flow_as_flow_switch_clause.clause_end,
-            );
+            )?;
         } else if expr.kind() == SyntaxKind::TypeOfExpression
             && self
                 .type_checker
@@ -721,7 +721,7 @@ impl GetFlowTypeOfReference {
                 &flow_as_flow_switch_clause.switch_statement,
                 flow_as_flow_switch_clause.clause_start,
                 flow_as_flow_switch_clause.clause_end,
-            );
+            )?;
         } else {
             if self.type_checker.strict_null_checks {
                 if self
@@ -835,14 +835,14 @@ impl GetFlowTypeOfReference {
             }
         }
         Ok(self.type_checker.create_flow_type(
-            &self.get_union_or_evolving_array_type(
+            &*self.get_union_or_evolving_array_type(
                 &antecedent_types,
                 if subtype_reduction {
                     UnionReduction::Subtype
                 } else {
                     UnionReduction::Literal
                 },
-            ),
+            )?,
             seen_incomplete,
         ))
     }
@@ -890,7 +890,7 @@ impl GetFlowTypeOfReference {
                 .is_empty()
             {
                 return Ok(self.type_checker.create_flow_type(
-                    &self.get_union_or_evolving_array_type(
+                    &*self.get_union_or_evolving_array_type(
                         &self
                             .type_checker
                             .flow_loop_types()
@@ -898,7 +898,7 @@ impl GetFlowTypeOfReference {
                             .cloned()
                             .unwrap(),
                         UnionReduction::Literal,
-                    ),
+                    )?,
                     true,
                 ));
             }
@@ -958,7 +958,7 @@ impl GetFlowTypeOfReference {
             } else {
                 UnionReduction::Literal
             },
-        );
+        )?;
         if self
             .type_checker
             .is_incomplete(first_antecedent_type.as_ref().unwrap())

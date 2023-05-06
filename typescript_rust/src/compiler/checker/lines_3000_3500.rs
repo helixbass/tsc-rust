@@ -68,7 +68,7 @@ impl TypeChecker {
         let dont_recursively_resolve = dont_recursively_resolve.unwrap_or(false);
         Ok(match node.kind() {
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
-                self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)
+                self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)?
             }
             SyntaxKind::ImportClause => {
                 self.get_target_of_import_clause(node, dont_recursively_resolve)?
@@ -440,7 +440,7 @@ impl TypeChecker {
     pub(super) fn try_get_qualified_name_as_value(
         &self,
         node: &Node, /*QualifiedName*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let mut left = get_first_identifier(node);
         let mut symbol = self.resolve_name_(
             Some(&*left),
@@ -452,7 +452,7 @@ impl TypeChecker {
             None,
         )?;
         while is_qualified_name(&left.parent()) {
-            let type_ = self.get_type_of_symbol(&symbol);
+            let type_ = self.get_type_of_symbol(&symbol)?;
             symbol = self.get_property_of_type_(
                 &type_,
                 &left
@@ -465,7 +465,7 @@ impl TypeChecker {
             )?;
             left = left.parent();
         }
-        Some(symbol)
+        Ok(Some(symbol))
     }
 
     pub(super) fn resolve_entity_name(
@@ -568,7 +568,7 @@ impl TypeChecker {
                             );
                             if let Some(module_sym) = module_sym {
                                 let resolved_module_symbol =
-                                    self.resolve_external_module_symbol(Some(&*module_sym), None);
+                                    self.resolve_external_module_symbol(Some(&*module_sym), None)?;
                                 if let Some(resolved_module_symbol) = resolved_module_symbol {
                                     namespace = resolved_module_symbol;
                                 }

@@ -150,7 +150,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn create_typeof_type(&self) -> Gc<Type> {
+    pub(super) fn create_typeof_type(&self) -> io::Result<Gc<Type>> {
         self.get_union_type(
             &typeof_eq_facts
                 .keys()
@@ -163,9 +163,9 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn create_type_parameter<TSymbol: Borrow<Symbol>>(
+    pub(super) fn create_type_parameter(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
     ) -> TypeParameter {
         let type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
@@ -209,11 +209,13 @@ impl TypeChecker {
     }
 
     pub(super) fn get_named_members(&self, members: &SymbolTable) -> Vec<Gc<Symbol>> {
-        members
-            .iter()
-            .filter(|(id, symbol)| self.is_named_member(&symbol, id))
-            .map(|(_, symbol)| symbol.clone())
-            .collect()
+        let mut results = vec![];
+        for (id, symbol) in members {
+            if self.is_named_member(symbol, id)? {
+                results.push(symbol.clone());
+            }
+        }
+        Ok(results)
     }
 
     pub(super) fn is_named_member(
@@ -475,7 +477,10 @@ impl TypeChecker {
         let mut visited_symbol_tables_map_default = HashMap::new();
         let visited_symbol_tables_map =
             visited_symbol_tables_map.unwrap_or(&mut visited_symbol_tables_map_default);
-        let symbol = symbol?;
+        if symbol.is_none() {
+            return Ok(None);
+        }
+        let symbol = symbol.unwrap();
         let symbol = symbol.borrow();
         if self.is_property_or_method_declaration_symbol(symbol) {
             return Ok(None);
@@ -586,7 +591,7 @@ impl TypeChecker {
                         self.get_qualified_left_meaning(meaning),
                         use_only_external_aliasing,
                         Some(visited_symbol_tables_map),
-                    )
+                    )?
                     .is_some(),
         )
     }
@@ -665,7 +670,7 @@ impl TypeChecker {
             (*symbols).borrow().get(symbol.escaped_name()).cloned(),
             Option::<&Symbol>::None,
             ignore_qualification,
-        ) {
+        )? {
             return Ok(Some(vec![symbol.symbol_wrapper()]));
         }
 
@@ -714,7 +719,7 @@ impl TypeChecker {
                         symbol_from_symbol_table,
                         &resolved_import_symbol,
                         ignore_qualification,
-                    );
+                    )?;
                     if candidate.is_some() {
                         return Ok(candidate);
                     }
@@ -732,7 +737,7 @@ impl TypeChecker {
                             self.get_merged_symbol(Some(&*symbol_from_symbol_table_export_symbol)),
                             Option::<&Symbol>::None,
                             ignore_qualification,
-                        ) {
+                        )? {
                             return Ok(Some(vec![symbol.symbol_wrapper()]));
                         }
                     }
@@ -753,7 +758,7 @@ impl TypeChecker {
                     &self.global_this_symbol(),
                     &self.global_this_symbol(),
                     ignore_qualification,
-                )
+                )?
             } else {
                 None
             }
@@ -781,7 +786,7 @@ impl TypeChecker {
             Some(symbol_from_symbol_table),
             Some(resolved_import_symbol),
             ignore_qualification,
-        ) {
+        )? {
             return Ok(Some(vec![symbol_from_symbol_table.symbol_wrapper()]));
         }
 
@@ -797,7 +802,7 @@ impl TypeChecker {
                 candidate_table,
                 Some(true),
                 None,
-            );
+            )?;
         if let Some(mut accessible_symbols_from_exports) = accessible_symbols_from_exports {
             if self.can_qualify_symbol(
                 enclosing_declaration,
@@ -821,38 +826,41 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
         let mut qualify = false;
-        self.try_for_each_symbol_table_in_scope(enclosing_declaration, |symbol_table, _, _, _| {
-            let symbol_from_symbol_table = self.get_merged_symbol(
-                (*symbol_table)
-                    .borrow()
-                    .get(symbol.escaped_name())
-                    .map(Clone::clone),
-            );
-            if symbol_from_symbol_table.is_none() {
-                return Ok(None);
-            }
-            let mut symbol_from_symbol_table = symbol_from_symbol_table.unwrap();
-            if ptr::eq(&*symbol_from_symbol_table, symbol) {
-                return Ok(Some(()));
-            }
+        self.try_for_each_symbol_table_in_scope(
+            enclosing_declaration,
+            |symbol_table, _, _, _| -> io::Result<_> {
+                let symbol_from_symbol_table = self.get_merged_symbol(
+                    (*symbol_table).borrow().get(symbol.escaped_name()).cloned(),
+                );
+                if symbol_from_symbol_table.is_none() {
+                    return Ok(None);
+                }
+                let mut symbol_from_symbol_table = symbol_from_symbol_table.unwrap();
+                if ptr::eq(&*symbol_from_symbol_table, symbol) {
+                    return Ok(Some(()));
+                }
 
-            symbol_from_symbol_table = if symbol_from_symbol_table
-                .flags()
-                .intersects(SymbolFlags::Alias)
-                && get_declaration_of_kind(&symbol_from_symbol_table, SyntaxKind::ExportSpecifier)
+                symbol_from_symbol_table = if symbol_from_symbol_table
+                    .flags()
+                    .intersects(SymbolFlags::Alias)
+                    && get_declaration_of_kind(
+                        &symbol_from_symbol_table,
+                        SyntaxKind::ExportSpecifier,
+                    )
                     .is_none()
-            {
-                self.resolve_alias(&symbol_from_symbol_table)?
-            } else {
-                symbol_from_symbol_table
-            };
-            if symbol_from_symbol_table.flags().intersects(meaning) {
-                qualify = true;
-                return Ok(Some(()));
-            }
+                {
+                    self.resolve_alias(&symbol_from_symbol_table)?
+                } else {
+                    symbol_from_symbol_table
+                };
+                if symbol_from_symbol_table.flags().intersects(meaning) {
+                    qualify = true;
+                    return Ok(Some(()));
+                }
 
-            Ok(None)
-        })?;
+                Ok(None)
+            },
+        )?;
 
         Ok(qualify)
     }
@@ -952,7 +960,7 @@ impl TypeChecker {
                 meaning,
                 false,
                 None,
-            );
+            )?;
             if let Some(accessible_symbol_chain) = accessible_symbol_chain {
                 had_accessible_chain = Some(symbol.clone());
                 let has_accessible_declarations = self.has_visible_declarations(

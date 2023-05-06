@@ -13,8 +13,8 @@ use std::rc::Rc;
 use std::{hash, iter};
 
 use crate::{
-    __String, text_char_at_index, Comparison, Debug_, Node, NodeArrayOrVec, PeekableExt,
-    SortedArray, SourceTextAsChars,
+    __String, text_char_at_index, Comparison, Debug_, IteratorExt, Node, NodeArrayOrVec,
+    PeekableExt, SortedArray, SourceTextAsChars,
 };
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
@@ -122,14 +122,25 @@ pub fn maybe_every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array.map_or(false, |array| every(array, predicate))
 }
 
-pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn find<TItem>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
 ) -> Option<&TItem> {
     array
         .into_iter()
         .enumerate()
         .find(|(index, value)| predicate(value, *index))
+        .map(|(_, value)| value)
+}
+
+pub fn try_find<TItem, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<Option<&TItem>, TError> {
+    array
+        .into_iter()
+        .enumerate()
+        .try_find_(|(index, value)| predicate(value, *index))?
         .map(|(_, value)| value)
 }
 

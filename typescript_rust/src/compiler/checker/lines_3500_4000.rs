@@ -6,19 +6,20 @@ use std::{borrow::Borrow, io};
 
 use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{
-    add_range, chain_diagnostic_messages, create_diagnostic_for_node, create_symbol_table, first,
-    for_each_entry, get_declaration_of_kind, get_es_module_interop, get_namespace_declaration_node,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnderscoreEscapedMap, __String, add_range, chain_diagnostic_messages,
+    create_diagnostic_for_node, create_symbol_table, first, for_each_entry,
+    get_declaration_of_kind, get_es_module_interop, get_namespace_declaration_node,
     get_object_flags, get_source_file_of_node, get_text_of_node, get_types_package_name,
     is_access_expression, is_ambient_module, is_binary_expression, is_class_expression,
     is_entity_name_expression, is_exports_identifier, is_external_module,
     is_external_module_name_relative, is_import_call, is_import_declaration,
     is_module_exports_access_expression, is_object_literal_expression, is_type_literal_node,
     is_variable_declaration, length, mangle_scoped_package_name, map_defined, node_is_synthesized,
-    push_if_unique_gc, unescape_leading_underscores, Diagnostics, HasInitializerInterface,
-    HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags,
-    ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnderscoreEscapedMap, __String,
+    push_if_unique_gc, try_for_each_entry, try_map_defined, unescape_leading_underscores,
+    Diagnostics, HasInitializerInterface, HasTypeInterface, InternalSymbolName, ModuleKind, Node,
+    NodeInterface, ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable,
 };
 
 impl TypeChecker {
@@ -180,17 +181,21 @@ impl TypeChecker {
         Ok(Some(merged.clone()))
     }
 
-    pub(super) fn resolve_es_module_symbol<TModuleSymbol: Borrow<Symbol>>(
+    pub(super) fn resolve_es_module_symbol(
         &self,
-        module_symbol: Option<TModuleSymbol>,
+        module_symbol: Option<impl Borrow<Symbol>>,
         referencing_location: &Node,
         dont_resolve_alias: bool,
         suppress_interop_error: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let module_symbol =
             module_symbol.map(|module_symbol| module_symbol.borrow().symbol_wrapper());
         let symbol = self
             .resolve_external_module_symbol(module_symbol.as_deref(), Some(dont_resolve_alias))?;
+        if symbol.is_none() {
+            return Ok(None);
+        }
+        let symbol = symbol.unwrap();
 
         if !dont_resolve_alias {
             if !suppress_interop_error
@@ -211,7 +216,7 @@ impl TypeChecker {
                     Some(vec![compiler_option_name.to_owned()])
                 );
 
-                return Some(symbol);
+                return Ok(Some(symbol));
             }
 
             let reference_parent = referencing_location.parent();
@@ -224,7 +229,7 @@ impl TypeChecker {
                 } else {
                     &reference_parent.as_import_declaration().module_specifier
                 };
-                let type_ = self.get_type_of_symbol(&symbol);
+                let type_ = self.get_type_of_symbol(&symbol)?;
                 let default_only_type = self.get_type_with_synthetic_default_only(
                     &type_,
                     &symbol,
@@ -232,11 +237,11 @@ impl TypeChecker {
                     reference,
                 );
                 if let Some(default_only_type) = default_only_type {
-                    return Some(self.clone_type_as_module_type(
+                    return Ok(Some(self.clone_type_as_module_type(
                         &symbol,
                         &default_only_type,
                         &reference_parent,
-                    ));
+                    )));
                 }
 
                 if matches!(get_es_module_interop(&self.compiler_options), Some(true)) {
@@ -261,16 +266,16 @@ impl TypeChecker {
                             module_symbol.as_ref().unwrap(),
                             reference,
                         );
-                        return Some(self.clone_type_as_module_type(
+                        return Ok(Some(self.clone_type_as_module_type(
                             &symbol,
                             &module_type,
                             &reference_parent,
-                        ));
+                        )));
                     }
                 }
             }
         }
-        Some(symbol)
+        Ok(Some(symbol))
     }
 
     pub(super) fn clone_type_as_module_type(
@@ -331,13 +336,16 @@ impl TypeChecker {
         self.symbols_to_array(&(*self.get_exports_of_module_(module_symbol)).borrow())
     }
 
-    pub fn get_exports_and_properties_of_module(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
+    pub fn get_exports_and_properties_of_module(
+        &self,
+        module_symbol: &Symbol,
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let mut exports = self.get_exports_of_module_as_array(module_symbol);
         let export_equals = self
-            .resolve_external_module_symbol(Some(module_symbol), None)
+            .resolve_external_module_symbol(Some(module_symbol), None)?
             .unwrap();
         if !ptr::eq(&*export_equals, module_symbol) {
-            let type_ = self.get_type_of_symbol(&export_equals);
+            let type_ = self.get_type_of_symbol(&export_equals)?;
             if self.should_treat_properties_of_external_module_as_exports(&type_) {
                 add_range(
                     &mut exports,
@@ -347,14 +355,14 @@ impl TypeChecker {
                 );
             }
         }
-        exports
+        Ok(exports)
     }
 
     pub fn for_each_export_and_property_of_module(
         &self,
         module_symbol: &Symbol,
         mut cb: impl FnMut(&Symbol, &__String),
-    ) {
+    ) -> io::Result<()> {
         let exports = self.get_exports_of_module_(module_symbol);
         for (key, symbol) in &*(*exports).borrow() {
             if !self.is_reserved_member_name(key) {
@@ -362,16 +370,18 @@ impl TypeChecker {
             }
         }
         let export_equals = self
-            .resolve_external_module_symbol(Some(module_symbol), None)
+            .resolve_external_module_symbol(Some(module_symbol), None)?
             .unwrap();
         if !ptr::eq(&*export_equals, module_symbol) {
-            let type_ = self.get_type_of_symbol(&export_equals);
+            let type_ = self.get_type_of_symbol(&export_equals)?;
             if self.should_treat_properties_of_external_module_as_exports(&type_) {
                 self.for_each_property_of_type(&type_, |symbol, escaped_name| {
                     cb(symbol, escaped_name)
                 });
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn try_get_member_in_module_exports_(
@@ -390,25 +400,27 @@ impl TypeChecker {
         &self,
         member_name: &str, /*__String*/
         module_symbol: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let symbol = self.try_get_member_in_module_exports_(member_name, module_symbol);
         if symbol.is_some() {
-            return symbol;
+            return Ok(symbol);
         }
 
         let export_equals = self
-            .resolve_external_module_symbol(Some(module_symbol), None)
+            .resolve_external_module_symbol(Some(module_symbol), None)?
             .unwrap();
         if ptr::eq(&*export_equals, module_symbol) {
-            return None;
+            return Ok(None);
         }
 
-        let type_ = self.get_type_of_symbol(&export_equals);
-        if self.should_treat_properties_of_external_module_as_exports(&type_) {
-            self.get_property_of_type_(&type_, member_name, None)
-        } else {
-            None
-        }
+        let type_ = self.get_type_of_symbol(&export_equals)?;
+        Ok(
+            if self.should_treat_properties_of_external_module_as_exports(&type_) {
+                self.get_property_of_type_(&type_, member_name, None)
+            } else {
+                None
+            },
+        )
     }
 
     pub(super) fn should_treat_properties_of_external_module_as_exports(
@@ -449,15 +461,15 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn extend_export_symbols<TSource: Borrow<SymbolTable>, TExportNode: Borrow<Node>>(
+    pub(super) fn extend_export_symbols(
         &self,
         target: &mut SymbolTable,
-        source: Option<TSource>,
+        source: Option<impl Borrow<SymbolTable>>,
         mut lookup_table: Option<&mut ExportCollisionTrackerTable>,
-        export_node: Option<TExportNode>,
-    ) {
+        export_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<()> {
         if source.is_none() {
-            return;
+            return Ok(());
         }
         let source = source.unwrap();
         let source = source.borrow();
@@ -494,7 +506,10 @@ impl TypeChecker {
                     let export_node = export_node.borrow();
                     if matches!(
                         target_symbol.as_ref(),
-                        Some(target_symbol) if !Gc::ptr_eq(&self.resolve_symbol(Some(&**target_symbol), None).unwrap(), &self.resolve_symbol(Some(&**source_symbol), None).unwrap())
+                        Some(target_symbol) if !Gc::ptr_eq(
+                            &self.resolve_symbol(Some(&**target_symbol), None)?.unwrap(),
+                            &self.resolve_symbol(Some(&**source_symbol), None)?.unwrap()
+                        )
                     ) {
                         let collision_tracker = lookup_table.get_mut(id).unwrap();
                         if collision_tracker.exports_with_duplicate.is_none() {
@@ -511,21 +526,24 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_exports_of_module_worker(
         &self,
         module_symbol: &Symbol,
-    ) -> Gc<GcCell<SymbolTable>> {
+    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         let mut visited_symbols: Vec<Gc<Symbol>> = vec![];
 
-        let module_symbol = self.resolve_external_module_symbol(Some(module_symbol), None);
+        let module_symbol = self.resolve_external_module_symbol(Some(module_symbol), None)?;
 
-        self.visit_get_exports_of_module_worker(&mut visited_symbols, module_symbol)
+        Ok(self
+            .visit_get_exports_of_module_worker(&mut visited_symbols, module_symbol)
             .map_or_else(
                 || self.empty_symbols(),
                 |symbol_table| Gc::new(GcCell::new(symbol_table)),
-            )
+            ))
     }
 
     pub(super) fn visit_get_exports_of_module_worker(
@@ -625,7 +643,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         enclosing_declaration: &Node,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let containing_file = get_source_file_of_node(enclosing_declaration);
         let id = get_node_id(&containing_file);
         let links = self.get_symbol_links(symbol);
@@ -635,7 +653,7 @@ impl TypeChecker {
         {
             results = links_extended_containers_by_file.get(&id).map(Clone::clone);
             if results.is_some() {
-                return results.unwrap();
+                return Ok(results.unwrap());
             }
         }
         if
@@ -656,7 +674,7 @@ impl TypeChecker {
                     continue;
                 }
                 let resolved_module = resolved_module.unwrap();
-                let ref_ = self.get_alias_for_symbol_in_container(&resolved_module, symbol);
+                let ref_ = self.get_alias_for_symbol_in_container(&resolved_module, symbol)?;
                 if ref_.is_none() {
                     continue;
                 }
@@ -675,11 +693,11 @@ impl TypeChecker {
                     .as_mut()
                     .unwrap()
                     .insert(id, results.clone().unwrap());
-                return results.unwrap();
+                return Ok(results.unwrap());
             }
         }
         if let Some(links_extended_containers) = (*links).borrow().extended_containers.as_ref() {
-            return links_extended_containers.clone();
+            return Ok(links_extended_containers.clone());
         }
         let other_files = self.host.get_source_files();
         for file in &*other_files {
@@ -687,7 +705,7 @@ impl TypeChecker {
                 continue;
             }
             let sym = self.get_symbol_of_node(file).unwrap();
-            let ref_ = self.get_alias_for_symbol_in_container(&sym, symbol);
+            let ref_ = self.get_alias_for_symbol_in_container(&sym, symbol)?;
             if ref_.is_none() {
                 continue;
             }
@@ -698,15 +716,15 @@ impl TypeChecker {
         }
         let ret = results.unwrap_or_else(|| vec![]);
         links.borrow_mut().extended_containers = Some(ret.clone());
-        ret
+        Ok(ret)
     }
 
-    pub(super) fn get_containers_of_symbol<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn get_containers_of_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
+        enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
-    ) -> Option<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
         let container = self.get_parent_of_symbol(symbol);
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -735,7 +753,7 @@ impl TypeChecker {
                                 SymbolFlags::Namespace,
                                 false,
                                 None,
-                            )
+                            )?
                             .is_some()
                     {
                         let mut ret = vec![container];
@@ -746,7 +764,7 @@ impl TypeChecker {
                         if let Some(object_literal_container) = object_literal_container {
                             ret.push(object_literal_container);
                         }
-                        return Some(ret);
+                        return Ok(Some(ret));
                     }
                 }
                 let first_variable_match = if !(container
@@ -754,28 +772,31 @@ impl TypeChecker {
                     .intersects(self.get_qualified_left_meaning(meaning)))
                     && container.flags().intersects(SymbolFlags::Type)
                     && self
-                        .get_declared_type_of_symbol(&container)
+                        .get_declared_type_of_symbol(&container)?
                         .flags()
                         .intersects(TypeFlags::Object)
                     && meaning == SymbolFlags::Value
                 {
-                    self.for_each_symbol_table_in_scope(
+                    self.try_for_each_symbol_table_in_scope(
                         enclosing_declaration.as_deref(),
-                        |t, _, _, _| {
-                            for_each_entry(&*(*t).borrow(), |s: &Gc<Symbol>, _| {
-                                if s.flags()
-                                    .intersects(self.get_qualified_left_meaning(meaning))
-                                    && Gc::ptr_eq(
-                                        &self.get_type_of_symbol(s),
-                                        &self.get_declared_type_of_symbol(&container),
-                                    )
-                                {
-                                    return Some(s.clone());
-                                }
-                                None
-                            })
+                        |t, _, _, _| -> io::Result<_> {
+                            try_for_each_entry(
+                                &*(*t).borrow(),
+                                |s: &Gc<Symbol>, _| -> io::Result<_> {
+                                    if s.flags()
+                                        .intersects(self.get_qualified_left_meaning(meaning))
+                                        && Gc::ptr_eq(
+                                            &self.get_type_of_symbol(s)?,
+                                            &self.get_declared_type_of_symbol(&container)?,
+                                        )
+                                    {
+                                        return Ok(Some(s.clone()));
+                                    }
+                                    Ok(None)
+                                },
+                            )
                         },
-                    )
+                    )?
                 } else {
                     None
                 };
@@ -792,14 +813,14 @@ impl TypeChecker {
                 if let Some(reexport_containers) = reexport_containers.as_mut() {
                     res.append(reexport_containers);
                 }
-                return Some(res);
+                return Ok(Some(res));
             }
         }
         let candidates = map_defined(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>, _| {
             if !is_ambient_module(d) {
                 if let Some(d_parent) = d.maybe_parent() {
                     if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
-                        return self.get_symbol_of_node(&d_parent);
+                        return Ok(self.get_symbol_of_node(&d_parent));
                     }
                 }
             }
@@ -820,13 +841,13 @@ impl TypeChecker {
                                 &d_parent_as_binary_expression.left,
                             ) || is_exports_identifier(&d_parent_left_expression)
                             {
-                                return self.get_symbol_of_node(&get_source_file_of_node(d));
+                                return Ok(self.get_symbol_of_node(&get_source_file_of_node(d)));
                             }
                             self.check_expression_cached(&d_parent_left_expression, None);
-                            return (*self.get_node_links(&d_parent_left_expression))
+                            return Ok((*self.get_node_links(&d_parent_left_expression))
                                 .borrow()
                                 .resolved_symbol
-                                .clone();
+                                .clone());
                         }
                     }
                 }
@@ -834,18 +855,23 @@ impl TypeChecker {
             None
         });
         if length(Some(&candidates)) == 0 {
-            return None;
+            return Ok(None);
         }
-        Some(map_defined(Some(candidates), |candidate: Gc<Symbol>, _| {
-            if self
-                .get_alias_for_symbol_in_container(&candidate, symbol)
-                .is_some()
-            {
-                Some(candidate)
-            } else {
-                None
-            }
-        }))
+        Ok(Some(try_map_defined(
+            Some(candidates),
+            |candidate: Gc<Symbol>, _| {
+                Ok(
+                    if self
+                        .get_alias_for_symbol_in_container(&candidate, symbol)?
+                        .is_some()
+                    {
+                        Some(candidate)
+                    } else {
+                        None
+                    },
+                )
+            },
+        )?))
     }
 
     pub(super) fn get_variable_declaration_of_object_literal(
@@ -888,7 +914,7 @@ impl TypeChecker {
         &self,
         d: &Node, /*Declaration*/
         container: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let file_symbol = self.get_external_module_container(d);
         let exported = file_symbol
             .as_ref()
@@ -899,14 +925,16 @@ impl TypeChecker {
                     .get(InternalSymbolName::ExportEquals)
                     .cloned()
             })?;
-        if self
-            .get_symbol_if_same_reference(&exported, container)
-            .is_some()
-        {
-            file_symbol
-        } else {
-            None
-        }
+        Ok(
+            if self
+                .get_symbol_if_same_reference(&exported, container)?
+                .is_some()
+            {
+                file_symbol
+            } else {
+                None
+            },
+        )
     }
 }
 

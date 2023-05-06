@@ -611,7 +611,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_list<TItem: Trace + Finalize>(
         &self,
-        items: Option<&[Gc<impl Trace + Finalize>]>,
+        items: Option<&[Gc<TItem>]>,
         mapper: Option<Gc<TypeMapper>>,
         mut instantiator: impl FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
     ) -> Option<Vec<Gc<TItem>>> {

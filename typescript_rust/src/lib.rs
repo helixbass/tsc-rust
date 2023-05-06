@@ -67,10 +67,10 @@ pub use compiler::core::{
     remove_prefix, remove_suffix, replace_element, same_flat_map_rc_node, same_map, set_ui_locale,
     single_element_array, single_or_undefined, some, sort, sort_and_deduplicate, stable_sort,
     starts_with, string_contains, sum, take_while, to_file_name_lower_case, trim_string,
-    trim_string_end, trim_string_start, try_add_to_set, try_cast, try_filter, try_first_defined,
-    try_flat_map, try_for_each, try_map, try_map_defined, try_maybe_filter, try_maybe_for_each,
-    try_maybe_map, try_some, AssertionLevel, Cloneable, MultiMap, MultiMapOrdered, Pattern,
-    SingleOrVec, UnderscoreEscapedMultiMap,
+    trim_string_end, trim_string_start, try_add_to_set, try_cast, try_filter, try_find,
+    try_first_defined, try_flat_map, try_for_each, try_map, try_map_defined, try_maybe_filter,
+    try_maybe_for_each, try_maybe_map, try_some, AssertionLevel, Cloneable, MultiMap,
+    MultiMapOrdered, Pattern, SingleOrVec, UnderscoreEscapedMultiMap,
 };
 pub use compiler::core_public::{
     version, version_major_minor, Comparer, Comparison, MapLike, Push, ReadonlyCollection,

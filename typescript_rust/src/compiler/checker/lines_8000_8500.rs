@@ -699,9 +699,13 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Option<Gc<Type>> {
-        let prop = self.get_property_of_type_(type_, name, None)?;
-        Some(self.get_type_of_symbol(&prop))
+    ) -> io::Result<Option<Gc<Type>>> {
+        let prop = self.get_property_of_type_(type_, name, None);
+        if prop.is_none() {
+            return Ok(None);
+        }
+        let prop = prop.unwrap();
+        Ok(Some(self.get_type_of_symbol(&prop)?))
     }
 
     pub(super) fn get_type_of_property_or_index_signature(
@@ -717,7 +721,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.unknown_type())
     }
 
-    pub(super) fn is_type_any<TType: Borrow<Type>>(&self, type_: Option<TType>) -> bool {
+    pub(super) fn is_type_any(&self, type_: Option<impl Borrow<Type>>) -> bool {
         match type_ {
             Some(type_) => {
                 let type_ = type_.borrow();
@@ -735,33 +739,33 @@ impl TypeChecker {
     pub(super) fn get_type_for_binding_element_parent(
         &self,
         node: &Node, /*BindingElementGrandparent*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let symbol = self.get_symbol_of_node(node);
         symbol
             .as_ref()
             .and_then(|symbol| (*self.get_symbol_links(symbol)).borrow().type_.clone())
-            .or_else(|| self.get_type_for_variable_like_declaration(node, false))
+            .try_or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
 
-    pub(super) fn get_rest_type<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_rest_type(
         &self,
         source: &Type,
         properties: &[Gc<Node /*PropertyName*/>],
-        symbol: Option<TSymbol>,
-    ) -> Gc<Type> {
+        symbol: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<Gc<Type>> {
         let source = self.filter_type(source, |t| !t.flags().intersects(TypeFlags::Nullable));
         if source.flags().intersects(TypeFlags::Never) {
-            return self.empty_object_type();
+            return Ok(self.empty_object_type());
         }
         let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
         if source.flags().intersects(TypeFlags::Union) {
-            return self
+            return Ok(self
                 .map_type(
                     &source,
                     &mut |t| Some(self.get_rest_type(t, properties, symbol.as_deref())),
                     None,
                 )
-                .unwrap();
+                .unwrap());
         }
         let omit_key_type = self.get_union_type(
             &map(properties, |property: &Gc<Node>, _| {
@@ -771,23 +775,23 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
-        );
+        )?;
         if self.is_generic_object_type(&source) || self.is_generic_index_type(&omit_key_type) {
             if omit_key_type.flags().intersects(TypeFlags::Never) {
-                return source;
+                return Ok(source);
             }
 
             let omit_type_alias = self.get_global_omit_symbol();
             if omit_type_alias.is_none() {
-                return self.error_type();
+                return Ok(self.error_type());
             }
             let omit_type_alias = omit_type_alias.unwrap();
-            return self.get_type_alias_instantiation(
+            return Ok(self.get_type_alias_instantiation(
                 &omit_type_alias,
                 Some(&vec![source, omit_key_type]),
                 Option::<&Symbol>::None,
                 None,
-            );
+            ));
         }
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(&source) {
@@ -804,7 +808,7 @@ impl TypeChecker {
             {
                 members.insert(
                     prop.escaped_name().to_owned(),
-                    self.get_spread_symbol(&prop, false),
+                    self.get_spread_symbol(&prop, false)?,
                 );
             }
         }
@@ -819,7 +823,7 @@ impl TypeChecker {
         result_as_interface_type.set_object_flags(
             result_as_interface_type.object_flags() | ObjectFlags::ObjectRestType,
         );
-        result
+        Ok(result)
     }
 
     pub(super) fn is_generic_type_with_undefined_constraint(&self, type_: &Type) -> bool {
@@ -858,18 +862,18 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
         declared_type: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let reference = self.get_synthetic_element_access(node);
-        if let Some(reference) = reference {
+        Ok(if let Some(reference) = reference {
             self.get_flow_type_of_reference(
                 &reference,
                 declared_type,
                 Option::<&Type>::None,
                 Option::<&Node>::None,
-            )
+            )?
         } else {
             declared_type.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn get_synthetic_element_access(

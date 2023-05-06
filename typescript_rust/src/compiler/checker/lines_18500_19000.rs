@@ -1249,7 +1249,7 @@ impl CheckTypeRelatedTo {
                                     &vec![filtered_by_applicability, type_parameter],
                                     Option::<&Symbol>::None,
                                     None,
-                                )
+                                )?
                             } else {
                                 type_parameter
                             };

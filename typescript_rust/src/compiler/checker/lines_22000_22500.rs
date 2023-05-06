@@ -121,7 +121,7 @@ impl InferTypes {
                 });
                 if !unmatched.is_empty() {
                     self.infer_from_types(
-                        &self.type_checker.get_union_type(
+                        &*self.type_checker.get_union_type(
                             &unmatched,
                             None,
                             Option::<&Symbol>::None,
@@ -200,7 +200,7 @@ impl InferTypes {
         }
         if constraint_type.flags().intersects(TypeFlags::TypeParameter) {
             self.infer_with_priority(
-                &self.type_checker.get_index_type(source, None, None),
+                &*self.type_checker.get_index_type(source, None, None)?,
                 constraint_type,
                 InferencePriority::MappedTypeConstraint,
             );
@@ -225,7 +225,7 @@ impl InferTypes {
                 }
             });
             self.infer_from_types(
-                &self.type_checker.get_union_type(
+                &*self.type_checker.get_union_type(
                     prop_types.and_extend(index_types),
                     None,
                     Option::<&Symbol>::None,
@@ -544,11 +544,11 @@ impl InferTypes {
                             &element_types[target_arity - i - 1],
                         );
                     }
-                    return;
+                    return Ok(());
                 }
                 if self.type_checker.is_array_type(target) {
                     self.infer_from_index_types(source, target);
-                    return;
+                    return Ok(());
                 }
             }
             self.infer_from_properties(source, target);
@@ -676,7 +676,7 @@ impl InferTypes {
                 }
                 if !prop_types.is_empty() {
                     self.infer_with_priority(
-                        &self.type_checker.get_union_type(
+                        &*self.type_checker.get_union_type(
                             &prop_types,
                             None,
                             Option::<&Symbol>::None,
@@ -790,19 +790,24 @@ impl TypeChecker {
         Ok(Either::Right(candidates.cloned()))
     }
 
-    pub(super) fn get_contravariant_inference(&self, inference: &InferenceInfo) -> Gc<Type> {
-        if matches!(
-            inference.maybe_priority(),
-            Some(inference_priority) if inference_priority.intersects(InferencePriority::PriorityImpliesCombination)
-        ) {
-            self.get_intersection_type(
-                inference.maybe_contra_candidates().as_deref().unwrap(),
-                Option::<&Symbol>::None,
-                None,
-            )
-        } else {
-            self.get_common_subtype(inference.maybe_contra_candidates().as_deref().unwrap())
-        }
+    pub(super) fn get_contravariant_inference(
+        &self,
+        inference: &InferenceInfo,
+    ) -> io::Result<Gc<Type>> {
+        Ok(
+            if matches!(
+                inference.maybe_priority(),
+                Some(inference_priority) if inference_priority.intersects(InferencePriority::PriorityImpliesCombination)
+            ) {
+                self.get_intersection_type(
+                    inference.maybe_contra_candidates().as_deref().unwrap(),
+                    Option::<&Symbol>::None,
+                    None,
+                )?
+            } else {
+                self.get_common_subtype(inference.maybe_contra_candidates().as_deref().unwrap())
+            },
+        )
     }
 
     pub(super) fn get_covariant_inference(
@@ -812,7 +817,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let inference_candidates = inference.maybe_candidates();
         let candidates = self
-            .union_object_and_array_literal_candidates(inference_candidates.as_deref().unwrap());
+            .union_object_and_array_literal_candidates(inference_candidates.as_deref().unwrap())?;
         let primitive_constraint = self.has_primitive_constraint(&inference.type_parameter);
         let widen_literal_types = !primitive_constraint
             && inference.top_level()
@@ -952,12 +957,15 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_inferred_types(&self, context: &InferenceContext) -> Vec<Gc<Type>> {
+    pub(super) fn get_inferred_types(
+        &self,
+        context: &InferenceContext,
+    ) -> io::Result<Vec<Gc<Type>>> {
         let mut result: Vec<Gc<Type>> = vec![];
         for i in 0..context.inferences().len() {
-            result.push(self.get_inferred_type(context, i));
+            result.push(self.get_inferred_type(context, i)?);
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn get_cannot_find_name_diagnostic_for_name(

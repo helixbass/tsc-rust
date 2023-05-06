@@ -515,23 +515,23 @@ impl TypeChecker {
         &self,
         type_: Option<TType>,
         mapper: Option<Gc<TypeMapper>>,
-    ) -> Option<Gc<Type>> {
-        match (type_.as_ref(), mapper) {
+    ) -> io::Result<Option<Gc<Type>>> {
+        Ok(match (type_.as_ref(), mapper) {
             (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
                 type_.borrow(),
                 mapper,
                 Option::<&Symbol>::None,
                 None,
-            )),
+            )?),
             _ => type_.map(|type_| type_.borrow().type_wrapper()),
-        }
+        })
     }
 
-    pub(super) fn instantiate_type_with_alias<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn instantiate_type_with_alias(
         &self,
         type_: &Type,
         mapper: Gc<TypeMapper>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> io::Result<Gc<Type>> {
         if !self.could_contain_type_variables(type_) {
@@ -657,7 +657,7 @@ impl TypeChecker {
                         &new_types,
                         new_alias_symbol,
                         new_alias_type_arguments.as_deref(),
-                    )
+                    )?
                 } else {
                     self.get_union_type(
                         &new_types,
@@ -665,16 +665,16 @@ impl TypeChecker {
                         new_alias_symbol,
                         new_alias_type_arguments.as_deref(),
                         Option::<&Type>::None,
-                    )
+                    )?
                 },
             );
         }
         if flags.intersects(TypeFlags::Index) {
-            return Ok(self.get_index_type(
+            return self.get_index_type(
                 &self.instantiate_type(&type_.as_index_type().type_, Some(mapper)),
                 None,
                 None,
-            ));
+            );
         }
         if flags.intersects(TypeFlags::TemplateLiteral) {
             let type_as_template_literal_type = type_.as_template_literal_type();
@@ -833,17 +833,17 @@ impl TypeChecker {
     pub(super) fn is_context_sensitive(
         &self,
         node: &Node, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
             None,
         );
-        match node.kind() {
+        Ok(match node.kind() {
             SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
             | SyntaxKind::MethodDeclaration
             | SyntaxKind::FunctionDeclaration => {
-                self.is_context_sensitive_function_like_declaration(node)
+                self.is_context_sensitive_function_like_declaration(node)?
             }
             SyntaxKind::ObjectLiteralExpression => some(
                 Some(&node.as_object_literal_expression().properties),
@@ -897,7 +897,7 @@ impl TypeChecker {
                 )
             }
             _ => false,
-        }
+        })
     }
 
     pub(super) fn is_context_sensitive_function_like_declaration(
@@ -931,14 +931,14 @@ impl TypeChecker {
     pub(super) fn is_context_sensitive_function_or_object_literal_method(
         &self,
         func: &Node,
-    ) -> bool {
-        (is_in_js_file(Some(func)) && is_function_declaration(func)
+    ) -> io::Result<bool> {
+        Ok((is_in_js_file(Some(func)) && is_function_declaration(func)
             || is_function_expression_or_arrow_function(func)
             || is_object_literal_method(func))
-            && self.is_context_sensitive_function_like_declaration(func)
+            && self.is_context_sensitive_function_like_declaration(func)?)
     }
 
-    pub(super) fn get_type_without_signatures(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_type_without_signatures(&self, type_: &Type) -> io::Result<Gc<Type>> {
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_);
             let resolved_as_resolved_type = resolved.as_resolved_type();
@@ -953,7 +953,7 @@ impl TypeChecker {
                     vec![],
                     vec![],
                 );
-                return result.into();
+                return Ok(result.into());
             }
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
@@ -965,7 +965,7 @@ impl TypeChecker {
                 None,
             );
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn is_type_identical_to(&self, source: &Type, target: &Type) -> bool {

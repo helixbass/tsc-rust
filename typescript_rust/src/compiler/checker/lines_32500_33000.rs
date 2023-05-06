@@ -567,7 +567,7 @@ impl TypeChecker {
                 if ptr::eq(left_type, &*self.silent_never_type())
                     || ptr::eq(right_type, &*self.silent_never_type())
                 {
-                    return self.silent_never_type();
+                    return Ok(self.silent_never_type());
                 }
 
                 let left_type = self.check_non_null_type(left_type, left);
@@ -670,7 +670,7 @@ impl TypeChecker {
                 if ptr::eq(left_type, &*self.silent_never_type())
                     || ptr::eq(right_type, &*self.silent_never_type())
                 {
-                    return self.silent_never_type();
+                    return Ok(self.silent_never_type());
                 }
 
                 let mut left_type = left_type.type_wrapper();
@@ -731,7 +731,7 @@ impl TypeChecker {
                         right,
                         operator,
                     ) {
-                        return result_type.clone();
+                        return Ok(result_type.clone());
                     }
                 }
 
@@ -750,7 +750,7 @@ impl TypeChecker {
                                 && self.is_type_assignable_to_kind(right, close_enough_kind, None)
                         }),
                     );
-                    return self.any_type();
+                    return Ok(self.any_type());
                 }
                 let result_type = result_type.unwrap();
 

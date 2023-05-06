@@ -38,13 +38,13 @@ impl TypeChecker {
         &self,
         target: &Type, /*TupleType*/
         element_types: Vec<Gc<Type>>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let target_as_tuple_type = target.as_tuple_type();
         if !target_as_tuple_type
             .combined_flags
             .intersects(ElementFlags::NonRequired)
         {
-            return self.create_type_reference(target, Some(element_types));
+            return Ok(self.create_type_reference(target, Some(element_types)));
         }
         if target_as_tuple_type
             .combined_flags
@@ -59,27 +59,30 @@ impl TypeChecker {
                 None,
             );
             if let Some(union_index) = union_index {
-                return if self.check_cross_product_union(&map(&element_types, |t: &Gc<Type>, i| {
-                    if target_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic) {
-                        t.clone()
+                return Ok(
+                    if self.check_cross_product_union(&map(&element_types, |t: &Gc<Type>, i| {
+                        if target_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic)
+                        {
+                            t.clone()
+                        } else {
+                            self.unknown_type()
+                        }
+                    })) {
+                        self.map_type(
+                            &element_types[union_index],
+                            &mut |t: &Type| {
+                                Some(self.create_normalized_tuple_type(
+                                    target,
+                                    replace_element(&element_types, union_index, t.type_wrapper()),
+                                ))
+                            },
+                            None,
+                        )
+                        .unwrap()
                     } else {
-                        self.unknown_type()
-                    }
-                })) {
-                    self.map_type(
-                        &element_types[union_index],
-                        &mut |t: &Type| {
-                            Some(self.create_normalized_tuple_type(
-                                target,
-                                replace_element(&element_types, union_index, t.type_wrapper()),
-                            ))
-                        },
-                        None,
-                    )
-                    .unwrap()
-                } else {
-                    self.error_type()
-                };
+                        self.error_type()
+                    },
+                );
             }
         }
         let mut expanded_types: Vec<Gc<Type>> = vec![];
@@ -126,7 +129,7 @@ impl TypeChecker {
                             },
                             None
                         );
-                        return self.error_type();
+                        return Ok(self.error_type());
                     }
                     for_each(&elements, |t: &Gc<Type>, n| {
                         self.add_element(
@@ -230,7 +233,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            );
+            )?;
             expanded_types.splice(first_rest_index + 1..last_optional_or_rest_index + 1, []);
             expanded_flags.splice(first_rest_index + 1..last_optional_or_rest_index + 1, []);
             if let Some(expanded_declarations) = expanded_declarations.as_mut() {
@@ -243,13 +246,13 @@ impl TypeChecker {
             target_as_tuple_type.readonly,
             expanded_declarations.as_deref(),
         );
-        if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+        Ok(if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
             self.empty_object_type()
         } else if !expanded_flags.is_empty() {
             self.create_type_reference(&tuple_target, Some(expanded_types))
         } else {
             tuple_target
-        }
+        })
     }
 
     pub(super) fn add_element(
@@ -317,10 +320,10 @@ impl TypeChecker {
     pub(super) fn get_known_keys_of_tuple_type(
         &self,
         type_: &Type, /*TupleTypeReference*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_target = type_.as_type_reference().target();
         let type_target_as_tuple_type = type_target.as_tuple_type();
-        self.get_union_type(
+        Ok(self.get_union_type(
             &{
                 let mut ret = array_of(type_target_as_tuple_type.fixed_length, |i| {
                     self.get_string_literal_type(&i.to_string())
@@ -333,14 +336,14 @@ impl TypeChecker {
                     },
                     None,
                     None,
-                ));
+                )?);
                 ret
             },
             None,
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
-        )
+        ))
     }
 
     pub(super) fn get_start_element_count(
@@ -514,14 +517,20 @@ impl TypeChecker {
                         | TypeFlags::InstantiableNonPrimitive,
                 ) {
                     self.get_properties_of_type(&source)
-                        .try_find_(|p| Ok(self.is_unit_type(&*self.get_type_of_symbol(p)?)))?
+                        .try_find_(|p| -> io::Result<_> {
+                            Ok(self.is_unit_type(&*self.get_type_of_symbol(p)?))
+                        })?
                 } else {
                     None
                 };
-                let key_property_type = key_property.as_ref().try_map(|key_property| {
-                    Ok(self
-                        .get_regular_type_of_literal_type(&*self.get_type_of_symbol(key_property)?))
-                })?;
+                let key_property_type =
+                    key_property
+                        .as_ref()
+                        .try_map(|key_property| -> io::Result<_> {
+                            Ok(self.get_regular_type_of_literal_type(
+                                &*self.get_type_of_symbol(key_property)?,
+                            ))
+                        })?;
                 for target in &types.clone() {
                     if !Gc::ptr_eq(&source, target) {
                         if count == 100000 {
@@ -987,7 +996,7 @@ impl TypeChecker {
                     self.get_type_arguments_for_alias_symbol(alias_symbol)
                         .as_deref(),
                     Option::<&Type>::None,
-                ),
+                )?,
             );
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();

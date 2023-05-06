@@ -254,7 +254,7 @@ impl TypeChecker {
                         &type_set,
                         alias_symbol.as_deref(),
                         alias_type_arguments,
-                    ));
+                    )?);
                 } else if self.each_is_union_containing(&type_set, TypeFlags::Undefined) {
                     let undefined_or_missing_type =
                         if matches!(self.exact_optional_property_types, Some(true))
@@ -275,26 +275,26 @@ impl TypeChecker {
                     self.remove_from_each(&mut type_set, TypeFlags::Undefined);
                     result = Some(self.get_union_type(
                         &[
-                            self.get_intersection_type(&type_set, Option::<&Symbol>::None, None),
+                            self.get_intersection_type(&type_set, Option::<&Symbol>::None, None)?,
                             undefined_or_missing_type,
                         ],
                         Some(UnionReduction::Literal),
                         alias_symbol.as_deref(),
                         alias_type_arguments,
                         Option::<&Type>::None,
-                    ));
+                    )?);
                 } else if self.each_is_union_containing(&type_set, TypeFlags::Null) {
                     self.remove_from_each(&mut type_set, TypeFlags::Null);
                     result = Some(self.get_union_type(
                         &[
-                            self.get_intersection_type(&type_set, Option::<&Symbol>::None, None),
+                            self.get_intersection_type(&type_set, Option::<&Symbol>::None, None)?,
                             self.null_type(),
                         ],
                         Some(UnionReduction::Literal),
                         alias_symbol.as_deref(),
                         alias_type_arguments,
                         Option::<&Type>::None,
-                    ));
+                    )?);
                 } else {
                     if !self.check_cross_product_union(&type_set) {
                         return Ok(self.error_type());
@@ -364,7 +364,10 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_cross_product_intersections(&self, types: &[Gc<Type>]) -> Vec<Gc<Type>> {
+    pub(super) fn get_cross_product_intersections(
+        &self,
+        types: &[Gc<Type>],
+    ) -> io::Result<Vec<Gc<Type>>> {
         let count = self.get_cross_product_union_size(types);
         let mut intersections: Vec<Gc<Type>> = vec![];
         let mut did_manually_allocate = false;
@@ -382,7 +385,7 @@ impl TypeChecker {
                 }
                 j -= 1;
             }
-            let t = self.get_intersection_type(&constituents, Option::<&Symbol>::None, None);
+            let t = self.get_intersection_type(&constituents, Option::<&Symbol>::None, None)?;
             if !t.flags().intersects(TypeFlags::Never) {
                 // in one project it looked like often the length of intersections either ends up
                 // being 1 or a number close to or equal to `count`, so defer allocating space for
@@ -402,7 +405,7 @@ impl TypeChecker {
             // println!("get_cross_product_intersections() releasing over-allocation (allocated {}, used {})", intersections.capacity(), intersections.len());
             intersections.shrink_to_fit();
         }
-        intersections
+        Ok(intersections)
     }
 
     pub(super) fn get_type_from_intersection_type_node(
@@ -421,7 +424,7 @@ impl TypeChecker {
                     alias_symbol.clone(),
                     self.get_type_arguments_for_alias_symbol(alias_symbol)
                         .as_deref(),
-                ),
+                )?,
             );
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
@@ -760,17 +763,17 @@ impl TypeChecker {
         let type_ = self.get_reduced_type(type_);
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.get_intersection_type(
-                &map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
+                &try_map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
                     self.get_index_type(t, Some(strings_only), no_index_signatures)
-                }),
+                })?,
                 Option::<&Symbol>::None,
                 None,
-            )
+            )?
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             self.get_union_type(
-                &map(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
+                &try_map(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
                     self.get_index_type(t, Some(strings_only), no_index_signatures)
-                }),
+                })?,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -784,7 +787,7 @@ impl TypeChecker {
         {
             self.get_index_type_for_generic_type(&type_, strings_only)
         } else if get_object_flags(&type_).intersects(ObjectFlags::Mapped) {
-            self.get_index_type_for_mapped_type(&type_, strings_only, no_index_signatures)
+            self.get_index_type_for_mapped_type(&type_, strings_only, no_index_signatures)?
         } else if Gc::ptr_eq(&type_, &self.wildcard_type()) {
             self.wildcard_type()
         } else if type_.flags().intersects(TypeFlags::Unknown) {
@@ -805,7 +808,7 @@ impl TypeChecker {
                 },
                 strings_only == self.keyof_strings_only
                     && !matches!(no_index_signatures, Some(true)),
-            )
+            )?
         })
     }
 
@@ -826,13 +829,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_index_type_or_string(&self, type_: &Type) -> Gc<Type> {
-        let index_type = self.get_extract_string_type(&self.get_index_type(type_, None, None));
-        if index_type.flags().intersects(TypeFlags::Never) {
+    pub(super) fn get_index_type_or_string(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        let index_type = self.get_extract_string_type(&*self.get_index_type(type_, None, None)?);
+        Ok(if index_type.flags().intersects(TypeFlags::Never) {
             self.string_type()
         } else {
             index_type
-        }
+        })
     }
 
     pub(super) fn get_type_from_type_operator_node(
@@ -848,7 +851,7 @@ impl TypeChecker {
                         &*self.get_type_from_type_node_(&node_as_type_operator_node.type_)?,
                         None,
                         None,
-                    ));
+                    )?);
                 }
                 SyntaxKind::UniqueKeyword => {
                     links.borrow_mut().resolved_type = Some(
