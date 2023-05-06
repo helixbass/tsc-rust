@@ -137,11 +137,11 @@ pub fn try_find<TItem, TError>(
     array: &[TItem],
     mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
 ) -> Result<Option<&TItem>, TError> {
-    array
+    Ok(array
         .into_iter()
         .enumerate()
         .try_find_(|(index, value)| predicate(value, *index))?
-        .map(|(_, value)| value)
+        .map(|(_, value)| value))
 }
 
 pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
@@ -582,14 +582,14 @@ where
         Some(array) => {
             let mut array = array.into_iter();
             Ok(if let Some(predicate) = predicate {
-                !array.peekable().is_empty_()
-            } else {
                 for item in array {
                     if predicate(item)? {
                         return Ok(true);
                     }
                 }
                 false
+            } else {
+                !array.peekable().is_empty_()
             })
         }
     }

@@ -176,7 +176,7 @@ impl TypeChecker {
     pub(super) fn check_function_expression_or_object_literal_method_deferred(
         &self,
         node: &Node, /*ArrowFunction | FunctionExpression | MethodDeclaration*/
-    ) {
+    ) -> io::Result<()> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
             None,
@@ -197,7 +197,7 @@ impl TypeChecker {
             if node_body.kind() == SyntaxKind::Block {
                 self.check_source_element(Some(&**node_body));
             } else {
-                let expr_type = self.check_expression(node_body, None, None);
+                let expr_type = self.check_expression(node_body, None, None)?;
                 let return_or_promised_type = return_type
                     .as_ref()
                     .map(|return_type| self.unwrap_return_type(return_type, function_flags));
@@ -231,6 +231,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_arithmetic_operand_type(
@@ -299,7 +301,7 @@ impl TypeChecker {
                 let initializer = &writable_prop_value_declaration
                     .as_property_assignment()
                     .initializer;
-                let raw_original_type = self.check_expression(initializer, None, None);
+                let raw_original_type = self.check_expression(initializer, None, None)?;
                 if Gc::ptr_eq(&raw_original_type, &self.false_type())
                     || Gc::ptr_eq(&raw_original_type, &self.regular_false_type())
                 {
@@ -435,9 +437,9 @@ impl TypeChecker {
     pub(super) fn check_delete_expression(
         &self,
         node: &Node, /*DeleteExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_delete_expression = node.as_delete_expression();
-        self.check_expression(&node_as_delete_expression.expression, None, None);
+        self.check_expression(&node_as_delete_expression.expression, None, None)?;
         let expr = skip_parentheses(&node_as_delete_expression.expression, None);
         if !is_access_expression(&expr) {
             self.error(
@@ -445,7 +447,7 @@ impl TypeChecker {
                 &Diagnostics::The_operand_of_a_delete_operator_must_be_a_property_reference,
                 None,
             );
-            return self.boolean_type();
+            return Ok(self.boolean_type());
         }
         if is_property_access_expression(&expr)
             && is_private_identifier(&expr.as_property_access_expression().name)
@@ -469,7 +471,7 @@ impl TypeChecker {
             }
             self.check_delete_expression_must_be_optional(&expr, symbol);
         }
-        self.boolean_type()
+        Ok(self.boolean_type())
     }
 
     pub(super) fn check_delete_expression_must_be_optional(
@@ -500,17 +502,23 @@ impl TypeChecker {
     pub(super) fn check_type_of_expression(
         &self,
         node: &Node, /*TypeOfExpression*/
-    ) -> Gc<Type> {
-        self.check_expression(&node.as_type_of_expression().expression, None, None);
-        self.typeof_type()
+    ) -> io::Result<Gc<Type>> {
+        self.check_expression(&node.as_type_of_expression().expression, None, None)?;
+        Ok(self.typeof_type())
     }
 
-    pub(super) fn check_void_expression(&self, node: &Node /*VoidExpression*/) -> Gc<Type> {
-        self.check_expression(&node.as_void_expression().expression, None, None);
-        self.undefined_widening_type()
+    pub(super) fn check_void_expression(
+        &self,
+        node: &Node, /*VoidExpression*/
+    ) -> io::Result<Gc<Type>> {
+        self.check_expression(&node.as_void_expression().expression, None, None)?;
+        Ok(self.undefined_widening_type())
     }
 
-    pub(super) fn check_await_expression(&self, node: &Node /*AwaitExpression*/) -> Gc<Type> {
+    pub(super) fn check_await_expression(
+        &self,
+        node: &Node, /*AwaitExpression*/
+    ) -> io::Result<Gc<Type>> {
         if self.produce_diagnostics {
             let container = get_containing_function_or_class_static_block(node);
             if matches!(
@@ -617,7 +625,7 @@ impl TypeChecker {
         }
 
         let operand_type =
-            self.check_expression(&node.as_await_expression().expression, None, None);
+            self.check_expression(&node.as_await_expression().expression, None, None)?;
         let awaited_type = self.check_awaited_type(
             &operand_type,
             true,
@@ -641,7 +649,7 @@ impl TypeChecker {
                 ),
             );
         }
-        awaited_type
+        Ok(awaited_type)
     }
 
     pub(super) fn check_prefix_unary_expression(
@@ -650,7 +658,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         let operand_type =
-            self.check_expression(&node_as_prefix_unary_expression.operand, None, None);
+            self.check_expression(&node_as_prefix_unary_expression.operand, None, None)?;
         if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
             return Ok(self.silent_never_type());
         }
@@ -764,12 +772,12 @@ impl TypeChecker {
     pub(super) fn check_postfix_unary_expression(
         &self,
         node: &Node, /*PostfixUnaryExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         let operand_type =
-            self.check_expression(&node_as_postfix_unary_expression.operand, None, None);
+            self.check_expression(&node_as_postfix_unary_expression.operand, None, None)?;
         if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
-            return self.silent_never_type();
+            return Ok(self.silent_never_type());
         }
         let ok = self.check_arithmetic_operand_type(
             &node_as_postfix_unary_expression.operand,
@@ -784,7 +792,7 @@ impl TypeChecker {
                 &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
             );
         }
-        self.get_unary_result_type(&operand_type)
+        Ok(self.get_unary_result_type(&operand_type))
     }
 
     pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> Gc<Type> {

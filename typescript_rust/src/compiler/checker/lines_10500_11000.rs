@@ -2,8 +2,8 @@ use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};
 use crate::{
@@ -14,13 +14,14 @@ use crate::{
     get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
     is_binary_expression, is_dynamic_name, is_element_access_expression, is_in_js_file,
     last_or_undefined, length, map, map_defined, maybe_concatenate, maybe_for_each, maybe_map,
-    range_equals_gc, range_equals_rc, same_map, some, unescape_leading_underscores,
-    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, IndexInfo,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags,
-    SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface,
-    SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
+    range_equals_gc, range_equals_rc, same_map, some, try_map_defined,
+    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
+    ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry,
+    Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
+    __String,
 };
 
 impl TypeChecker {
@@ -386,10 +387,10 @@ impl TypeChecker {
         symbol.symbol_wrapper()
     }
 
-    pub(super) fn get_type_with_this_argument<TThisArgument: Borrow<Type>>(
+    pub(super) fn get_type_with_this_argument(
         &self,
         type_: &Type,
-        this_argument: Option<TThisArgument>,
+        this_argument: Option<impl Borrow<Type>>,
         need_apparent_type: Option<bool>,
     ) -> Gc<Type> {
         let this_argument =
@@ -449,7 +450,7 @@ impl TypeChecker {
         source: &Type, /*InterfaceTypeWithDeclaredMembers*/
         type_parameters: Vec<Gc<Type /*TypeParameter*/>>,
         type_arguments: Vec<Gc<Type>>,
-    ) {
+    ) -> io::Result<()> {
         let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut members: Gc<GcCell<SymbolTable>>;
         let mut call_signatures: Vec<Gc<Signature>>;
@@ -503,7 +504,7 @@ impl TypeChecker {
             index_infos = self.instantiate_index_infos(
                 &*source_as_interface_type_with_declared_members.declared_index_infos(),
                 mapper.clone().unwrap(),
-            );
+            )?;
         }
         let base_types = self.get_base_types(source);
         if !base_types.is_empty() {
@@ -526,7 +527,7 @@ impl TypeChecker {
             for base_type in base_types {
                 let instantiated_base_type = if let Some(this_argument) = this_argument {
                     self.get_type_with_this_argument(
-                        &self.instantiate_type(&base_type, mapper.clone()),
+                        &*self.instantiate_type(&base_type, mapper.clone())?,
                         Some(&**this_argument),
                         None,
                     )
@@ -568,20 +569,30 @@ impl TypeChecker {
             construct_signatures,
             index_infos,
         );
+
+        Ok(())
     }
 
-    pub(super) fn resolve_class_or_interface_members(&self, type_: &Type /*InterfaceType*/) {
+    pub(super) fn resolve_class_or_interface_members(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> io::Result<()> {
         self.resolve_object_type_members(
             type_,
-            &self.resolve_declared_members(type_),
+            &*self.resolve_declared_members(type_)?,
             vec![],
             vec![],
         );
+
+        Ok(())
     }
 
-    pub(super) fn resolve_type_reference_members(&self, type_: &Type /*TypeReference*/) {
+    pub(super) fn resolve_type_reference_members(
+        &self,
+        type_: &Type, /*TypeReference*/
+    ) -> io::Result<()> {
         let type_as_type_reference = type_.as_type_reference_interface();
-        let source = self.resolve_declared_members(&type_as_type_reference.target());
+        let source = self.resolve_declared_members(&type_as_type_reference.target())?;
         let source_as_interface_type = source.as_interface_type();
         let type_parameters = maybe_concatenate(
             source_as_interface_type
@@ -597,6 +608,8 @@ impl TypeChecker {
             concatenate(type_arguments, vec![type_.type_wrapper()])
         };
         self.resolve_object_type_members(type_, &source, type_parameters, padded_type_arguments);
+
+        Ok(())
     }
 
     pub(super) fn create_signature(
@@ -722,14 +735,15 @@ impl TypeChecker {
         &self,
         sig: &Signature,
         skip_union_expanding: Option<bool>,
-    ) -> Vec<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Vec<Vec<Gc<Symbol>>>> {
         let skip_union_expanding = skip_union_expanding.unwrap_or(false);
         if signature_has_rest_parameter(sig) {
             let rest_index = sig.parameters().len() - 1;
-            let rest_type = self.get_type_of_symbol(&sig.parameters()[rest_index]);
+            let rest_type = self.get_type_of_symbol(&sig.parameters()[rest_index])?;
             if self.is_tuple_type(&rest_type) {
-                return vec![self
-                    .expand_signature_parameters_with_tuple_members(sig, &rest_type, rest_index)];
+                return Ok(vec![self.expand_signature_parameters_with_tuple_members(
+                    sig, &rest_type, rest_index,
+                )]);
             } else if !skip_union_expanding
                 && rest_type.flags().intersects(TypeFlags::Union)
                 && every(
@@ -737,15 +751,15 @@ impl TypeChecker {
                     |type_: &Gc<Type>, _| self.is_tuple_type(type_),
                 )
             {
-                return map(
+                return Ok(map(
                     rest_type.as_union_or_intersection_type_interface().types(),
                     |t: &Gc<Type>, _| {
                         self.expand_signature_parameters_with_tuple_members(sig, t, rest_index)
                     },
-                );
+                ));
             }
         }
-        return vec![sig.parameters().to_owned()];
+        Ok(vec![sig.parameters().to_owned()])
     }
 
     pub(super) fn expand_signature_parameters_with_tuple_members(
@@ -794,14 +808,14 @@ impl TypeChecker {
     pub(super) fn get_default_construct_signatures(
         &self,
         class_type: &Type, /*InterfaceType*/
-    ) -> Vec<Gc<Signature>> {
-        let base_constructor_type = self.get_base_constructor_type_of_class(class_type);
+    ) -> io::Result<Vec<Gc<Signature>>> {
+        let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
         let base_signatures =
             self.get_signatures_of_type(&base_constructor_type, SignatureKind::Construct);
         let declaration = get_class_like_declaration_of_symbol(&class_type.symbol());
         let is_abstract = matches!(declaration.as_ref(), Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract));
         if base_signatures.is_empty() {
-            return vec![Gc::new(
+            return Ok(vec![Gc::new(
                 self.create_signature(
                     None,
                     class_type
@@ -819,11 +833,11 @@ impl TypeChecker {
                         SignatureFlags::None
                     },
                 ),
-            )];
+            )]);
         }
         let base_type_node = self.get_base_type_node_of_class(class_type).unwrap();
         let is_java_script = is_in_js_file(Some(&*base_type_node));
-        let type_arguments = self.type_arguments_from_type_reference_node(&base_type_node);
+        let type_arguments = self.type_arguments_from_type_reference_node(&base_type_node)?;
         let type_arg_count = length(type_arguments.as_deref());
         let mut result: Vec<Gc<Signature>> = vec![];
         let class_type_as_interface_type = class_type.as_interface_type();
@@ -860,7 +874,7 @@ impl TypeChecker {
                 result.push(Gc::new(sig));
             }
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn find_matching_signature(
@@ -931,12 +945,12 @@ impl TypeChecker {
     pub(super) fn get_union_signatures(
         &self,
         signature_lists: &[Vec<Gc<Signature>>],
-    ) -> Vec<Gc<Signature>> {
+    ) -> io::Result<Vec<Gc<Signature>>> {
         let mut result: Option<Vec<Gc<Signature>>> = None;
         let mut index_with_length_over_one: Option<isize> = None;
         for (i, signature_list) in signature_lists.iter().enumerate() {
             if signature_list.is_empty() {
-                return vec![];
+                return Ok(vec![]);
             }
             if signature_list.len() > 1 {
                 index_with_length_over_one = Some(if index_with_length_over_one.is_none() {
@@ -966,19 +980,19 @@ impl TypeChecker {
                                 first_this_parameter_of_union_signatures
                             {
                                 let this_type = self.get_intersection_type(
-                                    &map_defined(
+                                    &try_map_defined(
                                         Some(&union_signatures),
                                         |sig: &Gc<Signature>, _| {
-                                            sig.maybe_this_parameter().as_ref().map(
+                                            sig.maybe_this_parameter().as_ref().try_map(
                                                 |this_parameter| {
                                                     self.get_type_of_symbol(this_parameter)
                                                 },
                                             )
                                         },
-                                    ),
+                                    )?,
                                     Option::<&Symbol>::None,
                                     None,
-                                );
+                                )?;
                                 this_parameter = Some(self.create_symbol_with_type(
                                     &first_this_parameter_of_union_signatures,
                                     Some(this_type),
@@ -1040,19 +1054,19 @@ impl TypeChecker {
             }
             result = results;
         }
-        result.unwrap_or_else(|| vec![])
+        Ok(result.unwrap_or_else(|| vec![]))
     }
 
     pub(super) fn compare_type_parameters_identical(
         &self,
         source_params: Option<&[Gc<Type /*TypeParameter*/>]>,
         target_params: Option<&[Gc<Type /*TypeParameter*/>]>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if length(source_params) != length(target_params) {
-            return false;
+            return Ok(false);
         }
         if source_params.is_none() || target_params.is_none() {
-            return true;
+            return Ok(true);
         }
         let source_params = source_params.unwrap();
         let target_params = target_params.unwrap();
@@ -1069,17 +1083,17 @@ impl TypeChecker {
                 &self
                     .get_constraint_from_type_parameter(source)
                     .unwrap_or_else(|| self.unknown_type()),
-                &self.instantiate_type(
+                &*self.instantiate_type(
                     &self
                         .get_constraint_from_type_parameter(target)
                         .unwrap_or_else(|| self.unknown_type()),
                     Some(mapper.clone()),
-                ),
+                )?,
             ) {
-                return false;
+                return Ok(false);
             }
         }
 
-        true
+        Ok(true)
     }
 }

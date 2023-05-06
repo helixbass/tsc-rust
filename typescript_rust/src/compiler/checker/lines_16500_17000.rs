@@ -158,7 +158,7 @@ impl TypeChecker {
                 self.instantiate_type(type_variable, Some(mapper.clone()))?;
             if !Gc::ptr_eq(type_variable, &mapped_type_variable) {
                 let type_as_mapped_type = type_.as_mapped_type();
-                return Ok(self.map_type_with_alias(
+                return self.try_map_type_with_alias(
                     &self.get_reduced_type(&mapped_type_variable),
                     &mut |t| {
                         if t.flags().intersects(TypeFlags::AnyOrUnknown | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object | TypeFlags::Intersection) && !ptr::eq(t, &*self.wildcard_type()) && !self.is_error_type(t) {
@@ -181,11 +181,11 @@ impl TypeChecker {
                             }
                             return self.instantiate_anonymous_type(type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))), Option::<&Symbol>::None, None);
                         }
-                        t.type_wrapper()
+                        Ok(t.type_wrapper())
                     },
                     alias_symbol,
                     alias_type_arguments,
-                ));
+                );
             }
         }
         Ok(
@@ -198,7 +198,7 @@ impl TypeChecker {
             ) {
                 self.wildcard_type()
             } else {
-                self.instantiate_anonymous_type(type_, mapper, alias_symbol, alias_type_arguments)
+                self.instantiate_anonymous_type(type_, mapper, alias_symbol, alias_type_arguments)?
             },
         )
     }
@@ -223,7 +223,7 @@ impl TypeChecker {
         mapped_type: &Type,   /*MappedType*/
         type_variable: &Type, /*TypeVariable*/
         mapper: Gc<TypeMapper>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference();
         let element_flags = &tuple_type_as_type_reference
             .target
@@ -248,12 +248,12 @@ impl TypeChecker {
             tuple_type_as_type_reference.target.as_tuple_type().readonly,
             self.get_mapped_type_modifiers(mapped_type),
         );
-        self.create_tuple_type(
+        Ok(self.create_tuple_type(
             &element_types,
             Some(&map(&element_types, |_, _| ElementFlags::Variadic)),
             Some(new_readonly),
             None,
-        )
+        ))
     }
 
     pub(super) fn instantiate_mapped_array_type(
@@ -370,11 +370,11 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn instantiate_anonymous_type<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn instantiate_anonymous_type(
         &self,
         type_: &Type, /*AnonymousType*/
         mut mapper: Gc<TypeMapper>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> io::Result<Gc<Type /*AnonymousType*/>> {
         let type_as_object_flags_type = type_.as_object_flags_type();
@@ -649,7 +649,7 @@ impl TypeChecker {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
-                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))
+                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))?
             };
             return Ok(
                 if flags.intersects(TypeFlags::Intersection)

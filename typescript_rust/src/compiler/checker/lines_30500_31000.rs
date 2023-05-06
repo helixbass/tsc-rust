@@ -130,7 +130,8 @@ impl TypeChecker {
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
-        let tag_type = self.check_expression(&node_as_tagged_template_expression.tag, None, None);
+        let tag_type =
+            self.check_expression(&node_as_tagged_template_expression.tag, None, None)?;
         let apparent_type = self.get_apparent_type(&tag_type);
 
         if self.is_error_type(&apparent_type) {
@@ -210,7 +211,7 @@ impl TypeChecker {
         check_mode: CheckMode,
     ) -> io::Result<Gc<Signature>> {
         let node_as_decorator = node.as_decorator();
-        let func_type = self.check_expression(&node_as_decorator.expression, None, None);
+        let func_type = self.check_expression(&node_as_decorator.expression, None, None)?;
         let apparent_type = self.get_apparent_type(&func_type);
         if self.is_error_type(&apparent_type) {
             return Ok(self.resolve_error_call(node));
@@ -431,7 +432,7 @@ impl TypeChecker {
             return Ok(fake_signature);
         }
         let expr_types =
-            self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None);
+            self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None)?;
         let apparent_type = self.get_apparent_type(&expr_types);
         if self.is_error_type(&apparent_type) {
             return Ok(self.resolve_error_call(node));

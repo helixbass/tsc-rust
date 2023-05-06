@@ -291,14 +291,14 @@ impl TypeChecker {
         type_: &Type,
         is_property: Option<bool>,
         is_optional: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let is_property = is_property.unwrap_or(false);
         let is_optional = is_optional.unwrap_or(true);
-        if self.strict_null_checks && is_optional {
-            self.get_optional_type_(type_, Some(is_property))
+        Ok(if self.strict_null_checks && is_optional {
+            self.get_optional_type_(type_, Some(is_property))?
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn get_type_for_variable_like_declaration(
@@ -311,7 +311,7 @@ impl TypeChecker {
         {
             let index_type = self.get_index_type(
                 &self.get_non_nullable_type_if_needed(
-                    &self.check_expression(
+                    &*self.check_expression(
                         &declaration
                             .parent()
                             .parent()
@@ -319,7 +319,7 @@ impl TypeChecker {
                             .expression,
                         None,
                         None,
-                    ),
+                    )?,
                 ),
                 None,
                 None,

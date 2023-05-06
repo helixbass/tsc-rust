@@ -469,7 +469,9 @@ impl TypeChecker {
             if this_type.is_none() {
                 let class_name = self.get_class_name_from_prototype_method(&container);
                 if let Some(class_name) = class_name.as_ref().filter(|_| is_in_js) {
-                    let class_symbol = self.check_expression(class_name, None, None).maybe_symbol();
+                    let class_symbol = self
+                        .check_expression(class_name, None, None)?
+                        .maybe_symbol();
                     if let Some(class_symbol) = class_symbol.as_ref().filter(|class_symbol| {
                         class_symbol.maybe_members().is_some()
                             && class_symbol.flags().intersects(SymbolFlags::Function)

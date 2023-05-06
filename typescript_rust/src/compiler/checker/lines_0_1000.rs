@@ -141,8 +141,11 @@ pub(crate) struct IterationTypesResolver {
         fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
     pub get_global_generator_type:
         fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
-    pub resolve_iteration_type:
-        fn(&TypeChecker, type_: &Type, error_node: Option<Gc<Node>>) -> Option<Gc<Type>>,
+    pub resolve_iteration_type: fn(
+        &TypeChecker,
+        type_: &Type,
+        error_node: Option<Gc<Node>>,
+    ) -> io::Result<Option<Gc<Type>>>,
     pub must_have_a_next_method_diagnostic: &'static DiagnosticMessage,
     pub must_be_a_method_diagnostic: &'static DiagnosticMessage,
     pub must_have_a_value_diagnostic: &'static DiagnosticMessage,
@@ -1038,7 +1041,7 @@ pub fn create_type_checker(
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
-    ));
+    )?);
     type_checker.es_symbol_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::ESSymbol, "symbol", None)
@@ -1370,7 +1373,7 @@ fn async_iteration_types_resolver_resolve_iteration_type(
     type_checker: &TypeChecker,
     type_: &Type,
     error_node: Option<Gc<Node>>,
-) -> Option<Gc<Type>> {
+) -> io::Result<Option<Gc<Type>>> {
     type_checker.get_awaited_type_(type_, error_node, None, None)
 }
 
@@ -1672,12 +1675,15 @@ impl TypeChecker {
         left_type: &Type,
         name: &str,
         location: &Node,
-    ) -> Option<Gc<Symbol>> {
-        let node = get_parse_tree_node(Some(location), Option::<fn(&Node) -> bool>::None)?;
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
+            Some(location),
+            Option::<fn(&Node) -> bool>::None
+        ));
         let prop_name = escape_leading_underscores(name);
         let lexically_scoped_identifier =
             self.lookup_symbol_for_private_identifier_declaration(&prop_name, &node);
-        lexically_scoped_identifier.and_then(|lexically_scoped_identifier| {
+        lexically_scoped_identifier.try_and_then(|lexically_scoped_identifier| {
             self.get_private_identifier_property_of_type_(left_type, &lexically_scoped_identifier)
         })
     }
@@ -1728,7 +1734,7 @@ impl TypeChecker {
         self.get_type_at_position(signature, parameter_index)
     }
 
-    pub fn get_awaited_type(&self, type_: &Type) -> Option<Gc<Type>> {
+    pub fn get_awaited_type(&self, type_: &Type) -> io::Result<Option<Gc<Type>>> {
         self.get_awaited_type_(type_, Option::<&Node>::None, None, None)
     }
 
@@ -2073,7 +2079,10 @@ impl TypeChecker {
         node_in: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Gc<Type>>> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_expression(node)))?;
+        let node = return_ok_none_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_expression(node))
+        ));
         let containing_call =
             find_ancestor(Some(&*node), |node: &Node| is_call_like_expression(node));
         let containing_call_resolved_signature: Option<Gc<Signature>> =
@@ -2253,7 +2262,7 @@ impl TypeChecker {
         self.resolve_alias(symbol)
     }
 
-    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
+    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> io::Result<Vec<Gc<Symbol>>> {
         self.get_exports_of_module_as_array(module_symbol)
     }
 
@@ -2273,7 +2282,7 @@ impl TypeChecker {
         &self,
         name: &str,
         symbol: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.try_get_member_in_module_exports_(&escape_leading_underscores(name), symbol)
     }
 
@@ -2398,13 +2407,13 @@ impl TypeChecker {
         }
     }
 
-    pub fn resolve_name<TLocation: Borrow<Node>>(
+    pub fn resolve_name(
         &self,
         name: &str,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         exclude_globals: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.resolve_name_(
             location,
             &escape_leading_underscores(name),

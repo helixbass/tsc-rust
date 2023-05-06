@@ -331,7 +331,10 @@ impl TypeChecker {
         (effective_left, effective_right)
     }
 
-    pub(super) fn check_yield_expression(&self, node: &Node /*YieldExpression*/) -> Gc<Type> {
+    pub(super) fn check_yield_expression(
+        &self,
+        node: &Node, /*YieldExpression*/
+    ) -> io::Result<Gc<Type>> {
         if self.produce_diagnostics {
             if !node.flags().intersects(NodeFlags::YieldContext) {
                 self.grammar_error_on_first_token(
@@ -352,13 +355,13 @@ impl TypeChecker {
 
         let func = get_containing_function(node);
         if func.is_none() {
-            return self.any_type();
+            return Ok(self.any_type());
         }
         let func = func.unwrap();
         let function_flags = get_function_flags(Some(&*func));
 
         if !function_flags.intersects(FunctionFlags::Generator) {
-            return self.any_type();
+            return Ok(self.any_type());
         }
 
         let is_async = function_flags.intersects(FunctionFlags::Async);
@@ -376,7 +379,7 @@ impl TypeChecker {
             }
         }
 
-        let return_type = self.get_return_type_from_annotation(&func);
+        let return_type = self.get_return_type_from_annotation(&func)?;
         let iteration_types = return_type.as_ref().and_then(|return_type| {
             self.get_iteration_types_of_generator_function_return_type(return_type, is_async)
         });
@@ -396,7 +399,7 @@ impl TypeChecker {
         };
         let yield_expression_type =
             if let Some(node_expression) = node_as_yield_expression.expression.as_ref() {
-                self.check_expression(node_expression, None, None)
+                self.check_expression(node_expression, None, None)?
             } else {
                 self.undefined_widening_type()
             };
@@ -430,22 +433,22 @@ impl TypeChecker {
             } else {
                 IterationUse::YieldStar
             };
-            return self
+            return Ok(self
                 .get_iteration_type_of_iterable(
                     use_,
                     IterationTypeKind::Return,
                     &yield_expression_type,
                     node_as_yield_expression.expression.as_deref(),
                 )
-                .unwrap_or_else(|| self.any_type());
+                .unwrap_or_else(|| self.any_type()));
         } else if let Some(return_type) = return_type.as_ref() {
-            return self
+            return Ok(self
                 .get_iteration_type_of_generator_function_return_type(
                     IterationTypeKind::Next,
                     return_type,
                     is_async,
                 )
-                .unwrap_or_else(|| self.any_type());
+                .unwrap_or_else(|| self.any_type()));
         }
         let mut type_ = self.get_contextual_iteration_type(IterationTypeKind::Next, &func);
         if type_.is_none() {
@@ -467,14 +470,14 @@ impl TypeChecker {
                 }
             }
         }
-        type_.unwrap()
+        Ok(type_.unwrap())
     }
 
     pub(super) fn check_conditional_expression(
         &self,
         node: &Node, /*ConditionalExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_conditional_expression = node.as_conditional_expression();
         let type_ =
             self.check_truthiness_expression(&node_as_conditional_expression.condition, None);
@@ -484,9 +487,9 @@ impl TypeChecker {
             Some(&*node_as_conditional_expression.when_true),
         );
         let type1 =
-            self.check_expression(&node_as_conditional_expression.when_true, check_mode, None);
+            self.check_expression(&node_as_conditional_expression.when_true, check_mode, None)?;
         let type2 =
-            self.check_expression(&node_as_conditional_expression.when_false, check_mode, None);
+            self.check_expression(&node_as_conditional_expression.when_false, check_mode, None)?;
         self.get_union_type(
             &[type1, type2],
             Some(UnionReduction::Subtype),
@@ -509,7 +512,7 @@ impl TypeChecker {
     pub(super) fn check_template_expression(
         &self,
         node: &Node, /*TemplateExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_template_expression = node.as_template_expression();
         let mut texts = vec![node_as_template_expression
             .head
@@ -518,7 +521,7 @@ impl TypeChecker {
         let mut types = vec![];
         for span in node_as_template_expression.template_spans.iter() {
             let span = span.as_template_span();
-            let type_ = self.check_expression(&span.expression, None, None);
+            let type_ = self.check_expression(&span.expression, None, None)?;
             if self.maybe_type_of_kind(&type_, TypeFlags::ESSymbolLike) {
                 self.error(
                     Some(&*span.expression),
@@ -535,25 +538,27 @@ impl TypeChecker {
                 },
             );
         }
-        if self.is_const_context(node)
-            || self.is_template_literal_context(node)
-            || self.some_type(
-                &self
-                    .get_contextual_type_(node, None)
-                    .unwrap_or_else(|| self.unknown_type()),
-                |type_: &Type| self.is_template_literal_contextual_type(type_),
-            )
-        {
-            self.get_template_literal_type(
-                &texts
-                    .into_iter()
-                    .map(|text| text.clone())
-                    .collect::<Vec<_>>(),
-                &types,
-            )
-        } else {
-            self.string_type()
-        }
+        Ok(
+            if self.is_const_context(node)
+                || self.is_template_literal_context(node)
+                || self.some_type(
+                    &self
+                        .get_contextual_type_(node, None)
+                        .unwrap_or_else(|| self.unknown_type()),
+                    |type_: &Type| self.is_template_literal_contextual_type(type_),
+                )
+            {
+                self.get_template_literal_type(
+                    &texts
+                        .into_iter()
+                        .map(|text| text.clone())
+                        .collect::<Vec<_>>(),
+                    &types,
+                )
+            } else {
+                self.string_type()
+            },
+        )
     }
 
     pub(super) fn is_template_literal_contextual_type(&self, type_: &Type) -> bool {
@@ -585,7 +590,7 @@ impl TypeChecker {
         contextual_type: &Type,
         inference_context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let context = self.get_context_node(node);
         let save_contextual_type = context.maybe_contextual_type().clone();
         let save_inference_context = context.maybe_inference_context().clone();
@@ -604,7 +609,7 @@ impl TypeChecker {
                     },
             ),
             None,
-        );
+        )?;
         let result = if self.maybe_type_of_kind(&type_, TypeFlags::Literal)
             && self.is_literal_of_contextual_type(
                 &type_,
@@ -619,14 +624,14 @@ impl TypeChecker {
         *context.maybe_contextual_type() = save_contextual_type;
         *context.maybe_inference_context() = save_inference_context;
         // }
-        result
+        Ok(result)
     }
 
     pub(super) fn check_expression_cached(
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         let links_resolved_type_is_none = (*links).borrow().resolved_type.is_none();
         if links_resolved_type_is_none {
@@ -638,12 +643,12 @@ impl TypeChecker {
             let save_flow_loop_start = self.flow_loop_start();
             let save_flow_type_cache = self.maybe_flow_type_cache().take();
             self.set_flow_loop_start(self.flow_loop_count());
-            let resolved_type = self.check_expression(node, check_mode, None);
+            let resolved_type = self.check_expression(node, check_mode, None)?;
             links.borrow_mut().resolved_type = Some(resolved_type);
             *self.maybe_flow_type_cache() = save_flow_type_cache;
             self.set_flow_loop_start(save_flow_loop_start);
         }
         let resolved_type = (*links).borrow().resolved_type.clone().unwrap();
-        resolved_type
+        Ok(resolved_type)
     }
 }

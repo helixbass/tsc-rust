@@ -11,7 +11,7 @@ use crate::{
     is_identifier, is_jsdoc_type_expression, is_jsdoc_type_literal, is_literal_import_type_node,
     is_optional_type_node, is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node,
     is_type_alias, is_type_operator_node, length, map, maybe_concatenate, maybe_filter,
-    node_is_missing, same_map, try_maybe_filter, AccessFlags, CheckFlags, ConditionalRoot,
+    node_is_missing, same_map, try_map, try_maybe_filter, AccessFlags, CheckFlags, ConditionalRoot,
     ConditionalType, Diagnostics, IndexInfo, InferenceFlags, InferencePriority, MappedType,
     ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags,
     ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
@@ -186,7 +186,7 @@ impl TypeChecker {
                     &(*root).borrow().extends_type.clone(),
                 ),
                 mapper.clone(),
-            );
+            )?;
             if Gc::ptr_eq(&check_type, &self.wildcard_type())
                 || Gc::ptr_eq(&extends_type, &self.wildcard_type())
             {
@@ -224,7 +224,7 @@ impl TypeChecker {
                         &(*root).borrow().extends_type.clone(),
                     ),
                     Some(combined_mapper.clone()),
-                )
+                )?
             } else {
                 extends_type.clone()
             };
@@ -234,8 +234,8 @@ impl TypeChecker {
                     .intersects(TypeFlags::AnyOrUnknown)
                     && (check_type.flags().intersects(TypeFlags::Any) && !is_unwrapped
                         || !self.is_type_assignable_to(
-                            &self.get_permissive_instantiation(&check_type),
-                            &self.get_permissive_instantiation(&inferred_extends_type),
+                            &*self.get_permissive_instantiation(&check_type)?,
+                            &*self.get_permissive_instantiation(&inferred_extends_type)?,
                         ))
                 {
                     if check_type.flags().intersects(TypeFlags::Any) && !is_unwrapped {
@@ -285,7 +285,7 @@ impl TypeChecker {
                             &mut tail_count,
                             &false_type,
                             mapper_clone,
-                        ) {
+                        )? {
                             continue;
                         }
                     }
@@ -296,8 +296,8 @@ impl TypeChecker {
                     .flags()
                     .intersects(TypeFlags::AnyOrUnknown)
                     || self.is_type_assignable_to(
-                        &self.get_restrictive_instantiation(&check_type),
-                        &self.get_restrictive_instantiation(&inferred_extends_type),
+                        &*self.get_restrictive_instantiation(&check_type)?,
+                        &*self.get_restrictive_instantiation(&inferred_extends_type)?,
                     )
                 {
                     let true_type = self.get_type_from_type_node_(
@@ -317,7 +317,7 @@ impl TypeChecker {
                         &mut tail_count,
                         &true_type,
                         true_mapper.clone(),
-                    ) {
+                    )? {
                         continue;
                     }
                     result = self.instantiate_type(&true_type, true_mapper)?;
@@ -343,7 +343,7 @@ impl TypeChecker {
                 self.instantiate_types(
                     (*root).borrow().alias_type_arguments.clone().as_deref(),
                     mapper.clone(),
-                )
+                )?
             };
             break;
         }
@@ -370,7 +370,7 @@ impl TypeChecker {
         tail_count: &mut usize,
         new_type: &Type,
         new_mapper: Option<Gc<TypeMapper>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if new_type.flags().intersects(TypeFlags::Conditional) {
             if let Some(new_mapper) = new_mapper {
                 let new_type_as_conditional_type = new_type.as_conditional_type();
@@ -384,9 +384,10 @@ impl TypeChecker {
                         new_type_as_conditional_type.mapper.clone(),
                         new_mapper,
                     );
-                    let type_arguments = map(new_root_outer_type_parameters, |t: &Gc<Type>, _| {
-                        self.get_mapped_type(t, &type_param_mapper)
-                    });
+                    let type_arguments =
+                        try_map(new_root_outer_type_parameters, |t: &Gc<Type>, _| {
+                            self.get_mapped_type(t, &type_param_mapper)
+                        })?;
                     let new_root_mapper = Gc::new(self.create_type_mapper(
                         new_root_outer_type_parameters.clone(),
                         Some(type_arguments),
@@ -395,7 +396,7 @@ impl TypeChecker {
                         Some(self.get_mapped_type(
                             &(*new_root).borrow().clone().check_type,
                             &new_root_mapper,
-                        ))
+                        )?)
                     } else {
                         None
                     };
@@ -415,12 +416,12 @@ impl TypeChecker {
                         if (*new_root).borrow().alias_symbol.is_some() {
                             *tail_count += 1;
                         }
-                        return true;
+                        return Ok(true);
                     }
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_true_type_from_conditional_type(
@@ -719,7 +720,7 @@ impl TypeChecker {
                         )?
                     } else {
                         self.get_symbol(
-                            &(*self.get_exports_of_symbol(&merged_resolved_symbol)).borrow(),
+                            &(*self.get_exports_of_symbol(&merged_resolved_symbol)?).borrow(),
                             &current.as_identifier().escaped_text,
                             meaning,
                         )?

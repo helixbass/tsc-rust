@@ -786,15 +786,15 @@ impl TypeChecker {
                     }
                 }
                 if is_in_expression_context(node) {
-                    return Ok(self.check_expression(node, None, None).maybe_symbol());
+                    return Ok(self.check_expression(node, None, None)?.maybe_symbol());
                 }
 
-                self.get_type_from_this_type_node(node).maybe_symbol()
+                self.get_type_from_this_type_node(node)?.maybe_symbol()
             }
 
-            SyntaxKind::ThisType => self.get_type_from_this_type_node(node).maybe_symbol(),
+            SyntaxKind::ThisType => self.get_type_from_this_type_node(node)?.maybe_symbol(),
 
-            SyntaxKind::SuperKeyword => self.check_expression(node, None, None).maybe_symbol(),
+            SyntaxKind::SuperKeyword => self.check_expression(node, None, None)?.maybe_symbol(),
 
             SyntaxKind::ConstructorKeyword => {
                 let constructor_declaration = node.maybe_parent();
@@ -940,7 +940,7 @@ impl TypeChecker {
                     None
                 }
             }
-            SyntaxKind::MetaProperty => self.check_expression(node, None, None).maybe_symbol(),
+            SyntaxKind::MetaProperty => self.check_expression(node, None, None)?.maybe_symbol(),
 
             _ => None,
         })

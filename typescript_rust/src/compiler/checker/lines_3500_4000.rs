@@ -343,7 +343,7 @@ impl TypeChecker {
         &self,
         module_symbol: &Symbol,
     ) -> io::Result<Vec<Gc<Symbol>>> {
-        let mut exports = self.get_exports_of_module_as_array(module_symbol);
+        let mut exports = self.get_exports_of_module_as_array(module_symbol)?;
         let export_equals = self
             .resolve_external_module_symbol(Some(module_symbol), None)?
             .unwrap();
@@ -404,7 +404,7 @@ impl TypeChecker {
         member_name: &str, /*__String*/
         module_symbol: &Symbol,
     ) -> io::Result<Option<Gc<Symbol>>> {
-        let symbol = self.try_get_member_in_module_exports_(member_name, module_symbol);
+        let symbol = self.try_get_member_in_module_exports_(member_name, module_symbol)?;
         if symbol.is_some() {
             return Ok(symbol);
         }
@@ -829,8 +829,9 @@ impl TypeChecker {
                 return Ok(Some(res));
             }
         }
-        let candidates =
-            try_map_defined(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>, _| {
+        let candidates = try_map_defined(
+            symbol.maybe_declarations().as_deref(),
+            |d: &Gc<Node>, _| -> io::Result<_> {
                 if !is_ambient_module(d) {
                     if let Some(d_parent) = d.maybe_parent() {
                         if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
@@ -867,13 +868,14 @@ impl TypeChecker {
                     }
                 }
                 Ok(None)
-            })?;
+            },
+        )?;
         if length(Some(&candidates)) == 0 {
             return Ok(None);
         }
         Ok(Some(try_map_defined(
             Some(candidates),
-            |candidate: Gc<Symbol>, _| {
+            |candidate: Gc<Symbol>, _| -> io::Result<_> {
                 Ok(
                     if self
                         .get_alias_for_symbol_in_container(&candidate, symbol)?

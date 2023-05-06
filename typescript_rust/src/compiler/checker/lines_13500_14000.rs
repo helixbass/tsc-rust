@@ -98,7 +98,7 @@ impl TypeChecker {
             let type_ = if is_this_identifier(Some(&*node_as_type_query_node.expr_name)) {
                 self.check_this_expression(&node_as_type_query_node.expr_name)?
             } else {
-                self.check_expression(&node_as_type_query_node.expr_name, None, None)
+                self.check_expression(&node_as_type_query_node.expr_name, None, None)?
             };
             links.borrow_mut().resolved_type =
                 Some(self.get_regular_type_of_literal_type(&self.get_widened_type(&type_)));

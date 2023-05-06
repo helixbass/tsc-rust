@@ -533,25 +533,27 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.check_grammar_jsx_expression(node);
         let node_as_jsx_expression = node.as_jsx_expression();
-        if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
-            let type_ = self.check_expression(node_expression, check_mode, None);
-            if node_as_jsx_expression.dot_dot_dot_token.is_some()
-                && !Gc::ptr_eq(&type_, &self.any_type())
-                && !self.is_array_type(&type_)
-            {
-                self.error(
-                    Some(node),
-                    &Diagnostics::JSX_spread_child_must_be_an_array_type,
-                    None,
-                );
-            }
-            type_
-        } else {
-            self.error_type()
-        }
+        Ok(
+            if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
+                let type_ = self.check_expression(node_expression, check_mode, None)?;
+                if node_as_jsx_expression.dot_dot_dot_token.is_some()
+                    && !Gc::ptr_eq(&type_, &self.any_type())
+                    && !self.is_array_type(&type_)
+                {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::JSX_spread_child_must_be_an_array_type,
+                        None,
+                    );
+                }
+                type_
+            } else {
+                self.error_type()
+            },
+        )
     }
 
     pub(super) fn get_declaration_node_flags_from_symbol(&self, s: &Symbol) -> NodeFlags {

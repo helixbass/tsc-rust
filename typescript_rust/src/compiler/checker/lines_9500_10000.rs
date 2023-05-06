@@ -748,7 +748,7 @@ impl TypeChecker {
                     .expression,
                 None,
                 None,
-            );
+            )?;
             if let Some(extended) = extended
                 .as_ref()
                 .filter(|extended| !Gc::ptr_eq(&base_type_node, *extended))
@@ -764,7 +764,7 @@ impl TypeChecker {
                     &extended.as_expression_with_type_arguments().expression,
                     None,
                     None,
-                );
+                )?;
             }
             if base_constructor_type
                 .flags()

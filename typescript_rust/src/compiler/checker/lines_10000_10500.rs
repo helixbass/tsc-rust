@@ -544,7 +544,7 @@ impl TypeChecker {
             return Ok(Some(self.get_declared_type_of_enum(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::EnumMember) {
-            return Ok(Some(self.get_declared_type_of_enum_member(symbol)));
+            return Ok(Some(self.get_declared_type_of_enum_member(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::Alias) {
             return Ok(Some(self.get_declared_type_of_alias(symbol)?));

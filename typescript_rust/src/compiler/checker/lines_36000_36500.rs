@@ -213,7 +213,7 @@ impl TypeChecker {
                 .as_ref()
                 .and_then(|type_tag| type_tag.as_jsdoc_type_like_tag().maybe_type_expression())
                 .as_ref()
-                .try_filter(|type_tag_type_expression| {
+                .try_filter(|type_tag_type_expression| -> io::Result<_> {
                     Ok(self
                         .get_contextual_call_signature(
                             &*self.get_type_from_type_node_(type_tag_type_expression)?,

@@ -634,30 +634,32 @@ impl TypeChecker {
         &self,
         declared_type: &Type,
         declaration: &Node, /*VariableLikeDeclaration (actually also includes BindingElement)*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let declaration_as_has_initializer = declaration.as_has_initializer();
-        if self.push_type_resolution(
-            &declaration.symbol().into(),
-            TypeSystemPropertyName::DeclaredType,
-        ) {
-            let annotation_includes_undefined = self.strict_null_checks
-                && declaration.kind() == SyntaxKind::Parameter
-                && matches!(
-                    declaration_as_has_initializer.maybe_initializer().as_ref(),
-                    Some(declaration_initializer) if self.get_falsy_flags(declared_type).intersects(TypeFlags::Undefined) &&
-                        !self.get_falsy_flags(&self.check_expression(declaration_initializer, None, None)).intersects(TypeFlags::Undefined)
-                );
-            self.pop_type_resolution();
+        Ok(
+            if self.push_type_resolution(
+                &declaration.symbol().into(),
+                TypeSystemPropertyName::DeclaredType,
+            ) {
+                let annotation_includes_undefined = self.strict_null_checks
+                    && declaration.kind() == SyntaxKind::Parameter
+                    && matches!(
+                        declaration_as_has_initializer.maybe_initializer().as_ref(),
+                        Some(declaration_initializer) if self.get_falsy_flags(declared_type).intersects(TypeFlags::Undefined) &&
+                            !self.get_falsy_flags(&*self.check_expression(declaration_initializer, None, None)?).intersects(TypeFlags::Undefined)
+                    );
+                self.pop_type_resolution();
 
-            if annotation_includes_undefined {
-                self.get_type_with_facts(declared_type, TypeFacts::NEUndefined)
+                if annotation_includes_undefined {
+                    self.get_type_with_facts(declared_type, TypeFacts::NEUndefined)
+                } else {
+                    declared_type.type_wrapper()
+                }
             } else {
+                self.report_circularity_error(&declaration.symbol());
                 declared_type.type_wrapper()
-            }
-        } else {
-            self.report_circularity_error(&declaration.symbol());
-            declared_type.type_wrapper()
-        }
+            },
+        )
     }
 
     pub(super) fn is_constraint_position(&self, type_: &Type, node: &Node) -> bool {

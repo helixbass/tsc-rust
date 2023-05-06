@@ -213,9 +213,9 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         contextual_type: Option<impl Borrow<Type>>,
         force_tuple: Option<bool>,
-    ) -> Gc<Type> {
-        let type_ = self.check_expression(node, check_mode, force_tuple);
-        if self.is_const_context(node) {
+    ) -> io::Result<Gc<Type>> {
+        let type_ = self.check_expression(node, check_mode, force_tuple)?;
+        Ok(if self.is_const_context(node) {
             self.get_regular_type_of_literal_type(&type_)
         } else if self.is_type_assertion(node) {
             type_.type_wrapper()
@@ -232,7 +232,7 @@ impl TypeChecker {
                     None,
                 ),
             )
-        }
+        })
     }
 
     pub(super) fn check_property_assignment(
@@ -553,36 +553,39 @@ impl TypeChecker {
     pub(super) fn get_return_type_of_single_non_generic_signature_of_call_chain(
         &self,
         expr: &Node, /*CallChain*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let expr_as_call_expression = expr.as_call_expression();
-        let func_type = self.check_expression(&expr_as_call_expression.expression, None, None);
+        let func_type = self.check_expression(&expr_as_call_expression.expression, None, None)?;
         let non_optional_type =
             self.get_optional_expression_type(&func_type, &expr_as_call_expression.expression);
         let return_type = self.get_return_type_of_single_non_generic_call_signature(&func_type);
-        return_type.as_ref().map(|return_type| {
+        Ok(return_type.as_ref().map(|return_type| {
             self.propagate_optional_type_marker(
                 return_type,
                 expr,
                 !Gc::ptr_eq(&non_optional_type, &func_type),
             )
-        })
+        }))
     }
 
-    pub(super) fn get_type_of_expression(&self, node: &Node /*Expression*/) -> Gc<Type> {
+    pub(super) fn get_type_of_expression(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> io::Result<Gc<Type>> {
         let quick_type = self.get_quick_type_of_expression(node);
         if let Some(quick_type) = quick_type {
-            return quick_type;
+            return Ok(quick_type);
         }
         if node.flags().intersects(NodeFlags::TypeCached) {
             if let Some(flow_type_cache) = self.maybe_flow_type_cache().as_ref() {
                 let cached_type = flow_type_cache.get(&get_node_id(node));
                 if let Some(cached_type) = cached_type {
-                    return cached_type.clone();
+                    return Ok(cached_type.clone());
                 }
             }
         }
         let start_invocation_count = self.flow_invocation_count();
-        let type_ = self.check_expression(node, None, None);
+        let type_ = self.check_expression(node, None, None)?;
         if self.flow_invocation_count() != start_invocation_count {
             let mut flow_type_cache = self.maybe_flow_type_cache();
             if flow_type_cache.is_none() {
@@ -592,7 +595,7 @@ impl TypeChecker {
             cache.insert(get_node_id(node), type_.clone());
             set_node_flags(Some(node), node.flags() | NodeFlags::TypeCached);
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn get_quick_type_of_expression(
@@ -635,7 +638,7 @@ impl TypeChecker {
                 | SyntaxKind::TrueKeyword
                 | SyntaxKind::FalseKeyword
         ) {
-            return Ok(Some(self.check_expression(node, None, None)));
+            return Ok(Some(self.check_expression(node, None, None)?));
         }
         Ok(None)
     }
@@ -643,21 +646,21 @@ impl TypeChecker {
     pub(super) fn get_context_free_type_of_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if let Some(links_context_free_type) = (*links).borrow().context_free_type.clone() {
-            return links_context_free_type;
+            return Ok(links_context_free_type);
         }
         let save_contextual_type = node.maybe_contextual_type().clone();
         *node.maybe_contextual_type() = Some(self.any_type());
         // try {
-        let type_ = self.check_expression(node, Some(CheckMode::SkipContextSensitive), None);
+        let type_ = self.check_expression(node, Some(CheckMode::SkipContextSensitive), None)?;
         links.borrow_mut().context_free_type = Some(type_.clone());
         // }
         // finally {
         *node.maybe_contextual_type() = save_contextual_type;
         // }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn check_expression(
@@ -665,12 +668,12 @@ impl TypeChecker {
         node: &Node, /*Expression | QualifiedName*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         // tracing?.push(tracing.Phase.Check, "checkExpression", { kind: node.kind, pos: node.pos, end: node.end });
         let save_current_node = self.maybe_current_node();
         self.set_current_node(Some(node.node_wrapper()));
         self.set_instantiation_count(0);
-        let uninstantiated_type = self.check_expression_worker(node, check_mode, force_tuple);
+        let uninstantiated_type = self.check_expression_worker(node, check_mode, force_tuple)?;
         let type_ = self.instantiate_type_with_single_generic_call_signature(
             node,
             &uninstantiated_type,
@@ -681,7 +684,7 @@ impl TypeChecker {
         }
         self.set_current_node(save_current_node);
         // tracing?.pop();
-        type_
+        Ok(type_)
     }
 
     pub(super) fn check_const_enum_access(
@@ -738,7 +741,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ParenthesizedExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
         if has_jsdoc_nodes(node) && is_jsdoc_type_assertion(node) {
             let type_ = get_jsdoc_type_assertion_type(node);
@@ -761,7 +764,7 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let kind = node.kind();
         if let Some(cancellation_token) = self.maybe_cancellation_token() {
             match kind {
@@ -773,8 +776,8 @@ impl TypeChecker {
                 _ => (),
             }
         }
-        match kind {
-            SyntaxKind::Identifier => self.check_identifier(node, check_mode),
+        Ok(match kind {
+            SyntaxKind::Identifier => self.check_identifier(node, check_mode)?,
             SyntaxKind::PrivateIdentifier => self.check_private_identifier_expression(node),
             SyntaxKind::ThisKeyword => self.check_this_expression(node),
             SyntaxKind::SuperKeyword => self.check_super_expression(node),
@@ -803,11 +806,11 @@ impl TypeChecker {
             SyntaxKind::TemplateExpression => self.check_template_expression(node),
             SyntaxKind::RegularExpressionLiteral => self.global_reg_exp_type(),
             SyntaxKind::ArrayLiteralExpression => {
-                self.check_array_literal(node, check_mode, force_tuple)
+                self.check_array_literal(node, check_mode, force_tuple)?
             }
             SyntaxKind::ObjectLiteralExpression => self.check_object_literal(node, check_mode),
             SyntaxKind::PropertyAccessExpression => {
-                self.check_property_access_expression(node, check_mode)
+                self.check_property_access_expression(node, check_mode)?
             }
             SyntaxKind::QualifiedName => self.check_qualified_name(node, check_mode),
             SyntaxKind::ElementAccessExpression => self.check_indexed_access(node, check_mode),
@@ -848,7 +851,7 @@ impl TypeChecker {
             SyntaxKind::JsxExpression => self.check_jsx_expression(node, check_mode),
             SyntaxKind::JsxElement => self.check_jsx_element(node, check_mode),
             SyntaxKind::JsxSelfClosingElement => {
-                self.check_jsx_self_closing_element(node, check_mode)
+                self.check_jsx_self_closing_element(node, check_mode)?
             }
             SyntaxKind::JsxFragment => self.check_jsx_fragment(node),
             SyntaxKind::JsxAttributes => self.check_jsx_attributes(node, check_mode),
@@ -856,6 +859,6 @@ impl TypeChecker {
                 Debug_.fail(Some("Shouldn't ever directly check a JsxOpeningElement"))
             }
             _ => self.error_type(),
-        }
+        })
     }
 }

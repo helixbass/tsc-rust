@@ -131,7 +131,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn format_union_types(&self, types: &[Gc<Type>]) -> Vec<Gc<Type>> {
+    pub(super) fn format_union_types(&self, types: &[Gc<Type>]) -> io::Result<Vec<Gc<Type>>> {
         let mut result: Vec<Gc<Type>> = vec![];
         let mut flags: TypeFlags = TypeFlags::None;
         let mut i = 0;
@@ -145,7 +145,7 @@ impl TypeChecker {
                     let base_type = if t.flags().intersects(TypeFlags::BooleanLiteral) {
                         self.boolean_type()
                     } else {
-                        self.get_base_type_of_enum_literal_type(t)
+                        self.get_base_type_of_enum_literal_type(t)?
                     };
                     if base_type.flags().intersects(TypeFlags::Union) {
                         let base_type_as_union_type = base_type.as_union_type();
@@ -174,7 +174,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Undefined) {
             result.push(self.undefined_type());
         }
-        result /*|| types*/
+        Ok(result) /*|| types*/
     }
 
     pub(super) fn visibility_to_string(&self, flags: ModifierFlags) -> &'static str /*>*/ {
@@ -473,7 +473,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> Option<Vec<Gc<Node>>> {
+    ) -> io::Result<Option<Vec<Gc<Node>>>> {
         let mut export_symbol: Option<Gc<Symbol>> = None;
         if
         /*node.parent &&*/
@@ -489,7 +489,7 @@ impl TypeChecker {
                 Some(node.node_wrapper()),
                 false,
                 None,
-            );
+            )?;
         } else if node.parent().kind() == SyntaxKind::ExportSpecifier {
             export_symbol = self.get_target_of_export_specifier(
                 &node.parent(),
@@ -498,7 +498,7 @@ impl TypeChecker {
                     | SymbolFlags::Namespace
                     | SymbolFlags::Alias,
                 None,
-            );
+            )?;
         }
         let result: RefCell<Option<Vec<Gc<Node>>>> = RefCell::new(None);
         if let Some(export_symbol) = export_symbol {
@@ -511,7 +511,7 @@ impl TypeChecker {
                 export_symbol.maybe_declarations().as_deref(),
             );
         }
-        result.into_inner()
+        Ok(result.into_inner())
     }
 
     pub(super) fn build_visible_node_list(

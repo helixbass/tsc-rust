@@ -648,11 +648,11 @@ impl TypeChecker {
     pub(super) fn get_literal_type_from_property_name(
         &self,
         name: &Node, /*PropertyName*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if is_private_identifier(name) {
-            return self.never_type();
+            return Ok(self.never_type());
         }
-        if is_identifier(name) {
+        Ok(if is_identifier(name) {
             self.get_string_literal_type(&unescape_leading_underscores(
                 &name.as_identifier().escaped_text,
             ))
@@ -660,9 +660,9 @@ impl TypeChecker {
             self.get_regular_type_of_literal_type(&*if is_computed_property_name(name) {
                 self.check_computed_property_name(name)
             } else {
-                self.check_expression(name, None, None)
+                self.check_expression(name, None, None)?
             })
-        }
+        })
     }
 
     pub(super) fn get_literal_type_from_property(

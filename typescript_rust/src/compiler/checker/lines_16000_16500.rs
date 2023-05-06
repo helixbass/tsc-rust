@@ -310,19 +310,19 @@ impl TypeChecker {
     pub(super) fn get_type_from_literal_type_node(
         &self,
         node: &Node, /*LiteralTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_literal_type_node = node.as_literal_type_node();
         if node_as_literal_type_node.literal.kind() == SyntaxKind::NullKeyword {
-            return self.null_type();
+            return Ok(self.null_type());
         }
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(self.get_regular_type_of_literal_type(
-                &self.check_expression(&node_as_literal_type_node.literal, None, None),
+                &*self.check_expression(&node_as_literal_type_node.literal, None, None)?,
             ));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn create_unique_es_symbol_type(
@@ -546,7 +546,7 @@ impl TypeChecker {
             }
             SyntaxKind::IntrinsicKeyword => self.intrinsic_marker_type(),
             SyntaxKind::ThisType | SyntaxKind::ThisKeyword => {
-                self.get_type_from_this_type_node(node)
+                self.get_type_from_this_type_node(node)?
             }
             SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node),
             SyntaxKind::TypeReference => self.get_type_from_type_reference(node),
@@ -589,7 +589,7 @@ impl TypeChecker {
             | SyntaxKind::JSDocSignature => {
                 self.get_type_from_type_literal_or_function_or_constructor_type_node(node)
             }
-            SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node),
+            SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node)?,
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
             SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
             SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node),
@@ -1149,7 +1149,7 @@ impl TypeChecker {
                             new_mapper,
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),
-                        )
+                        )?
                     },
                 );
                 target_as_object_type

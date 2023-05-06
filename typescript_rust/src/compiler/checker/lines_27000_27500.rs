@@ -126,7 +126,10 @@ impl TypeChecker {
         self.get_jsx_element_type_at(node) /*|| anyType*/
     }
 
-    pub(super) fn check_jsx_element_deferred(&self, node: &Node /*JsxElement*/) {
+    pub(super) fn check_jsx_element_deferred(
+        &self,
+        node: &Node, /*JsxElement*/
+    ) -> io::Result<()> {
         let node_as_jsx_element = node.as_jsx_element();
         self.check_jsx_opening_like_element_or_opening_fragment(
             &node_as_jsx_element.opening_element,
@@ -147,10 +150,12 @@ impl TypeChecker {
                     .tag_name,
                 None,
                 None,
-            );
+            )?;
         }
 
         self.check_jsx_children(node, None);
+
+        Ok(())
     }
 
     pub(super) fn check_jsx_element(

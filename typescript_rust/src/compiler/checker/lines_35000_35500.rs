@@ -292,9 +292,9 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Type>>> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref())?;
-        Ok(promised_type.as_ref().and_then(|promised_type| {
+        promised_type.as_ref().try_and_then(|promised_type| {
             self.get_awaited_type_(promised_type, error_node, diagnostic_message, args)
-        }))
+        })
     }
 
     pub(super) fn get_promised_type_of_promise(

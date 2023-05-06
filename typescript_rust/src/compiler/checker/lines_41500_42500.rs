@@ -30,22 +30,22 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn is_alias_resolved_to_value<TSymbol: Borrow<Symbol>>(
+    pub(super) fn is_alias_resolved_to_value(
         &self,
-        symbol: Option<TSymbol>,
-    ) -> bool {
+        symbol: Option<impl Borrow<Symbol>>,
+    ) -> io::Result<bool> {
         if symbol.is_none() {
-            return false;
+            return Ok(false);
         }
         let symbol = symbol.unwrap();
         let symbol = symbol.borrow();
-        let ref target = self.resolve_alias(symbol);
+        let ref target = self.resolve_alias(symbol)?;
         if Gc::ptr_eq(target, &self.unknown_symbol()) {
-            return true;
+            return Ok(true);
         }
-        target.flags().intersects(SymbolFlags::Value)
+        Ok(target.flags().intersects(SymbolFlags::Value)
             && (should_preserve_const_enums(&self.compiler_options)
-                || !self.is_const_enum_or_const_enum_only_module(target))
+                || !self.is_const_enum_or_const_enum_only_module(target)))
     }
 
     pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: &Symbol) -> bool {
@@ -157,22 +157,25 @@ impl TypeChecker {
                 .is_none()
     }
 
-    pub(super) fn is_expando_function_declaration(&self, node: &Node /*Declaration*/) -> bool {
+    pub(super) fn is_expando_function_declaration(
+        &self,
+        node: &Node, /*Declaration*/
+    ) -> io::Result<bool> {
         let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
         if declaration.is_none() {
-            return false;
+            return Ok(false);
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration);
         if symbol.is_none() {
-            return false;
+            return Ok(false);
         }
         let symbol = symbol.as_ref().unwrap();
         if !symbol.flags().intersects(SymbolFlags::Function) {
-            return false;
+            return Ok(false);
         }
-        for_each_entry_bool(
-            &*(*self.get_exports_of_symbol(symbol)).borrow(),
+        Ok(for_each_entry_bool(
+            &*(*self.get_exports_of_symbol(symbol)?).borrow(),
             |p: &Gc<Symbol>, _| {
                 p.flags().intersects(SymbolFlags::Value)
                     && matches!(
@@ -180,7 +183,7 @@ impl TypeChecker {
                         Some(p_value_declaration) if is_property_access_expression(p_value_declaration)
                     )
             },
-        )
+        ))
     }
 
     pub(super) fn get_properties_of_container_function(
@@ -269,10 +272,10 @@ impl TypeChecker {
         &self,
         type_name_in: &Node, /*EntityName*/
         location: Option<impl Borrow<Node>>,
-    ) -> TypeReferenceSerializationKind {
+    ) -> io::Result<TypeReferenceSerializationKind> {
         let type_name = get_parse_tree_node(Some(type_name_in), Some(is_entity_name));
         if type_name.is_none() {
-            return TypeReferenceSerializationKind::Unknown;
+            return Ok(TypeReferenceSerializationKind::Unknown);
         }
         let type_name = type_name.as_ref().unwrap();
 
@@ -280,7 +283,7 @@ impl TypeChecker {
         if location.is_some() {
             location = get_parse_tree_node(location.as_deref(), Option::<fn(&Node) -> bool>::None);
             if location.is_none() {
-                return TypeReferenceSerializationKind::Unknown;
+                return Ok(TypeReferenceSerializationKind::Unknown);
             }
         }
 
@@ -292,7 +295,7 @@ impl TypeChecker {
                 Some(true),
                 Some(true),
                 location.as_deref(),
-            );
+            )?;
             is_type_only = matches!(
                 root_value_symbol.as_ref(),
                 Some(root_value_symbol) if matches!(
@@ -309,12 +312,12 @@ impl TypeChecker {
             Some(true),
             Some(true),
             location.as_deref(),
-        );
+        )?;
         let resolved_symbol = if let Some(value_symbol) = value_symbol
             .as_ref()
             .filter(|value_symbol| value_symbol.flags().intersects(SymbolFlags::Alias))
         {
-            Some(self.resolve_alias(value_symbol))
+            Some(self.resolve_alias(value_symbol)?)
         } else {
             value_symbol.clone()
         };
@@ -335,7 +338,7 @@ impl TypeChecker {
             Some(true),
             Some(false),
             location.as_deref(),
-        );
+        )?;
         if let Some(resolved_symbol) = resolved_symbol.as_ref().filter(|resolved_symbol| {
             matches!(
                 type_symbol.as_ref(),
@@ -353,31 +356,31 @@ impl TypeChecker {
                     global_promise_symbol
                 )
             ) {
-                return TypeReferenceSerializationKind::Promise;
+                return Ok(TypeReferenceSerializationKind::Promise);
             }
 
-            let ref constructor_type = self.get_type_of_symbol(resolved_symbol);
+            let ref constructor_type = self.get_type_of_symbol(resolved_symbol)?;
             if
             /*constructorType &&*/
             self.is_constructor_type(constructor_type) {
-                return if is_type_only {
+                return Ok(if is_type_only {
                     TypeReferenceSerializationKind::TypeWithCallSignature
                 } else {
                     TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue
-                };
+                });
             }
         }
 
         if type_symbol.is_none() {
-            return if is_type_only {
+            return Ok(if is_type_only {
                 TypeReferenceSerializationKind::ObjectType
             } else {
                 TypeReferenceSerializationKind::Unknown
-            };
+            });
         }
         let type_symbol = type_symbol.as_ref().unwrap();
-        let ref type_ = self.get_declared_type_of_symbol(type_symbol);
-        if self.is_error_type(type_) {
+        let ref type_ = self.get_declared_type_of_symbol(type_symbol)?;
+        Ok(if self.is_error_type(type_) {
             if is_type_only {
                 TypeReferenceSerializationKind::ObjectType
             } else {
@@ -409,7 +412,7 @@ impl TypeChecker {
             TypeReferenceSerializationKind::ArrayLikeType
         } else {
             TypeReferenceSerializationKind::ObjectType
-        }
+        })
     }
 
     pub(super) fn create_type_of_declaration(
@@ -436,7 +439,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::TypeLiteral | SymbolFlags::Signature)
         }) {
-            self.get_widened_literal_type(&self.get_type_of_symbol(symbol))
+            self.get_widened_literal_type(&*self.get_type_of_symbol(symbol)?)
         } else {
             self.error_type()
         };
@@ -514,13 +517,13 @@ impl TypeChecker {
         &self,
         reference: &Node, /*Identifier*/
         start_in_declaration_container: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let resolved_symbol = (*self.get_node_links(reference))
             .borrow()
             .resolved_symbol
             .clone();
         if resolved_symbol.is_some() {
-            return resolved_symbol;
+            return Ok(resolved_symbol);
         }
 
         let mut location = reference.node_wrapper();
@@ -553,34 +556,34 @@ impl TypeChecker {
     pub(super) fn get_referenced_value_declaration(
         &self,
         reference_in: &Node, /*Identifier*/
-    ) -> Option<Gc<Node /*Declaration*/>> {
+    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
         if !is_generated_identifier(reference_in) {
             let reference =
                 get_parse_tree_node(Some(reference_in), Some(|node: &Node| is_identifier(node)));
             if let Some(reference) = reference.as_ref() {
-                let symbol = self.get_referenced_value_symbol(reference, None);
+                let symbol = self.get_referenced_value_symbol(reference, None)?;
                 if let Some(symbol) = symbol.as_ref() {
-                    return self
+                    return Ok(self
                         .get_export_symbol_of_value_symbol_if_exported(Some(&**symbol))
                         .as_ref()
-                        .and_then(|export_symbol| export_symbol.maybe_value_declaration());
+                        .and_then(|export_symbol| export_symbol.maybe_value_declaration()));
                 }
             }
         }
 
-        None
+        Ok(None)
     }
 
     pub(super) fn is_literal_const_declaration(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         if is_declaration_readonly(node) || is_variable_declaration(node) && is_var_const(node) {
-            return self.is_fresh_literal_type(
-                &self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap()),
-            );
+            return Ok(self.is_fresh_literal_type(
+                &*self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())?,
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn literal_type_to_node(
@@ -625,8 +628,8 @@ impl TypeChecker {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Gc<Node> {
-        let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap());
+    ) -> io::Result<Gc<Node>> {
+        let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())?;
         self.literal_type_to_node(type_, node, tracker)
     }
 
@@ -1003,7 +1006,7 @@ impl TypeChecker {
         &self,
         location: &Node,
         helpers: ExternalEmitHelpers,
-    ) {
+    ) -> io::Result<()> {
         if self.requested_external_emit_helpers() & helpers != helpers
             && self.compiler_options.import_helpers == Some(true)
         {
@@ -1022,7 +1025,7 @@ impl TypeChecker {
                                 &(*helpers_module.maybe_exports().clone().unwrap()).borrow(),
                                 &escape_leading_underscores(name),
                                 SymbolFlags::Value,
-                            );
+                            )?;
                             match symbol.as_ref() {
                                 None => {
                                     self.error(
@@ -1106,6 +1109,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_helper_name(&self, helper: ExternalEmitHelpers) -> &'static str {

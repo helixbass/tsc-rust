@@ -1,9 +1,10 @@
 use gc::Gc;
 use peekmore::PeekMore;
-use std::borrow::Borrow;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::{IterationTypeKind, TypeFacts};
+use crate::OptionTry;
 use crate::{
     are_option_gcs_equal, compiler::utilities_public::is_expression_of_optional_chain_root,
     create_symbol_table, every, find, get_check_flags, get_object_flags, is_optional_chain,
@@ -23,17 +24,17 @@ impl TypeChecker {
         ignore_this_types: bool,
         ignore_return_types: bool,
         mut compare_types: impl FnMut(&Type, &Type) -> Ternary,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         if Gc::ptr_eq(&source, &target) {
-            return Ternary::True;
+            return Ok(Ternary::True);
         }
         if !self.is_matching_signature(&source, &target, partial_match) {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         if length(source.maybe_type_parameters().as_deref())
             != length(target.maybe_type_parameters().as_deref())
         {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         if let Some(ref target_type_parameters) = target.maybe_type_parameters().clone() {
             let source_type_parameters = source.maybe_type_parameters().clone().unwrap();
@@ -49,7 +50,7 @@ impl TypeChecker {
                             .maybe_instantiate_type(
                                 self.get_constraint_from_type_parameter(s),
                                 Some(mapper.clone()),
-                            )
+                            )?
                             .unwrap_or_else(|| self.unknown_type()),
                         &self
                             .get_constraint_from_type_parameter(t)
@@ -60,14 +61,14 @@ impl TypeChecker {
                                 .maybe_instantiate_type(
                                     self.get_default_from_type_parameter_(s),
                                     Some(mapper.clone()),
-                                )
+                                )?
                                 .unwrap_or_else(|| self.unknown_type()),
                             &self
                                 .get_default_from_type_parameter_(t)
                                 .unwrap_or_else(|| self.unknown_type()),
                         ) != Ternary::False)
                 {
-                    return Ternary::False;
+                    return Ok(Ternary::False);
                 }
             }
             source = Gc::new(self.instantiate_signature(source, mapper, Some(true)));
@@ -80,7 +81,7 @@ impl TypeChecker {
                 if let Some(target_this_type) = target_this_type {
                     let related = compare_types(&source_this_type, &target_this_type);
                     if related == Ternary::False {
-                        return Ternary::False;
+                        return Ok(Ternary::False);
                     }
                     result &= related;
                 }
@@ -92,7 +93,7 @@ impl TypeChecker {
             let t = self.get_type_at_position(&target, i);
             let related = compare_types(&t, &s);
             if related == Ternary::False {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             result &= related;
         }
@@ -112,7 +113,7 @@ impl TypeChecker {
                 )
             };
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn compare_type_predicates_identical<
@@ -164,7 +165,10 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_supertype_or_union<'types, TTypes>(&self, types: TTypes) -> Gc<Type>
+    pub(super) fn get_supertype_or_union<'types, TTypes>(
+        &self,
+        types: TTypes,
+    ) -> io::Result<Gc<Type>>
     where
         TTypes: IntoIterator<Item = &'types Gc<Type>>,
         TTypes::IntoIter: Clone,
@@ -172,16 +176,16 @@ impl TypeChecker {
         let mut types = types.into_iter();
         let mut types_peekmore = types.clone().peekmore();
         if types_peekmore.is_len_equal_to(1) {
-            return types.next().unwrap().clone();
+            return Ok(types.next().unwrap().clone());
         }
-        if self.literal_types_with_same_base_type(types.clone()) {
+        Ok(if self.literal_types_with_same_base_type(types.clone()) {
             self.get_union_type(
                 types,
                 None,
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         } else {
             reduce_left_no_initial_value(
                 &types.cloned().collect::<Vec<_>>(),
@@ -195,24 +199,24 @@ impl TypeChecker {
                 None,
                 None,
             )
-        }
+        })
     }
 
-    pub(super) fn get_common_supertype<'types, TTypes>(&self, types: TTypes) -> Gc<Type>
+    pub(super) fn get_common_supertype<'types, TTypes>(&self, types: TTypes) -> io::Result<Gc<Type>>
     where
         TTypes: IntoIterator<Item = &'types Gc<Type>>,
         TTypes::IntoIter: Clone,
     {
         let types = types.into_iter();
         if !self.strict_null_checks {
-            return self.get_supertype_or_union(types);
+            return Ok(self.get_supertype_or_union(types));
         }
         let mut primary_types = types
             .clone()
             .filter(|t| !t.flags().intersects(TypeFlags::Nullable))
             .cloned()
             .peekable();
-        if !primary_types.is_empty_() {
+        Ok(if !primary_types.is_empty_() {
             self.get_nullable_type(
                 &self.get_supertype_or_union(&primary_types.collect::<Vec<_>>()),
                 self.get_falsy_flags_of_types(types) & TypeFlags::Nullable,
@@ -224,8 +228,8 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn get_common_subtype(&self, types: &[Gc<Type>]) -> Gc<Type> {
@@ -289,22 +293,24 @@ impl TypeChecker {
     pub(super) fn get_single_base_for_non_augmenting_subtype(
         &self,
         type_: &Type,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if !get_object_flags(type_).intersects(ObjectFlags::Reference)
             || !get_object_flags(&type_.as_type_reference_interface().target())
                 .intersects(ObjectFlags::ClassOrInterface)
         {
-            return None;
+            return Ok(None);
         }
         let type_as_type_reference = type_.as_type_reference_interface();
         if get_object_flags(type_).intersects(ObjectFlags::IdenticalBaseTypeCalculated) {
-            return if get_object_flags(type_).intersects(ObjectFlags::IdenticalBaseTypeExists) {
-                type_as_type_reference
-                    .maybe_cached_equivalent_base_type()
-                    .clone()
-            } else {
-                None
-            };
+            return Ok(
+                if get_object_flags(type_).intersects(ObjectFlags::IdenticalBaseTypeExists) {
+                    type_as_type_reference
+                        .maybe_cached_equivalent_base_type()
+                        .clone()
+                } else {
+                    None
+                },
+            );
         }
         type_as_type_reference.set_object_flags(
             type_as_type_reference.object_flags() | ObjectFlags::IdenticalBaseTypeCalculated,
@@ -319,18 +325,18 @@ impl TypeChecker {
                     SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression
                 )
             ) {
-                return None;
+                return Ok(None);
             }
         }
         let bases = self.get_base_types(target);
         if bases.len() != 1 {
-            return None;
+            return Ok(None);
         }
         if !(*self.get_members_of_symbol(&type_.symbol()))
             .borrow()
             .is_empty()
         {
-            return None;
+            return Ok(None);
         }
         let target_as_interface_type = target.as_interface_type();
         let mut instantiated_base = if length(target_as_interface_type.maybe_type_parameters()) == 0
@@ -348,7 +354,7 @@ impl TypeChecker {
                     target_type_parameters,
                     Some(self.get_type_arguments(type_)[0..target_type_parameters_len].to_owned()),
                 ))),
-            )
+            )?
         };
         if length(Some(&self.get_type_arguments(type_)))
             > length(target_as_interface_type.maybe_type_parameters())
@@ -364,7 +370,7 @@ impl TypeChecker {
         );
         *type_as_type_reference.maybe_cached_equivalent_base_type() =
             Some(instantiated_base.clone());
-        Some(instantiated_base)
+        Ok(Some(instantiated_base))
     }
 
     pub(super) fn is_empty_literal_type(&self, type_: &Type) -> bool {
@@ -391,13 +397,17 @@ impl TypeChecker {
         self.is_array_like_type(type_) || self.is_tuple_like_type(type_)
     }
 
-    pub(super) fn get_tuple_element_type(&self, type_: &Type, index: usize) -> Option<Gc<Type>> {
-        let prop_type = self.get_type_of_property_of_type_(type_, &index.to_string());
+    pub(super) fn get_tuple_element_type(
+        &self,
+        type_: &Type,
+        index: usize,
+    ) -> io::Result<Option<Gc<Type>>> {
+        let prop_type = self.get_type_of_property_of_type_(type_, &index.to_string())?;
         if prop_type.is_some() {
-            return prop_type;
+            return Ok(prop_type);
         }
         if self.every_type(type_, |type_: &Type| self.is_tuple_type(type_)) {
-            return self.map_type(
+            return Ok(self.map_type(
                 type_,
                 &mut |t: &Type| {
                     Some(
@@ -406,9 +416,9 @@ impl TypeChecker {
                     )
                 },
                 None,
-            );
+            ));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn is_neither_unit_type_nor_never(&self, type_: &Type) -> bool {
@@ -460,9 +470,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_base_type_of_literal_type(&self, type_: &Type) -> Gc<Type> {
-        if type_.flags().intersects(TypeFlags::EnumLiteral) {
-            self.get_base_type_of_enum_literal_type(type_)
+    pub(super) fn get_base_type_of_literal_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(if type_.flags().intersects(TypeFlags::EnumLiteral) {
+            self.get_base_type_of_enum_literal_type(type_)?
         } else if type_.flags().intersects(TypeFlags::StringLiteral) {
             self.string_type()
         } else if type_.flags().intersects(TypeFlags::NumberLiteral) {
@@ -480,31 +490,41 @@ impl TypeChecker {
             .unwrap()
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
-    pub(super) fn get_widened_literal_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_widened_literal_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
         let flags = type_.flags();
-        if flags.intersects(TypeFlags::EnumLiteral) && self.is_fresh_literal_type(type_) {
-            self.get_base_type_of_enum_literal_type(type_)
-        } else if flags.intersects(TypeFlags::StringLiteral) && self.is_fresh_literal_type(type_) {
-            self.string_type()
-        } else if flags.intersects(TypeFlags::NumberLiteral) && self.is_fresh_literal_type(type_) {
-            self.number_type()
-        } else if flags.intersects(TypeFlags::BigIntLiteral) && self.is_fresh_literal_type(type_) {
-            self.bigint_type()
-        } else if flags.intersects(TypeFlags::BooleanLiteral) && self.is_fresh_literal_type(type_) {
-            self.boolean_type()
-        } else if flags.intersects(TypeFlags::Union) {
-            self.map_type(
-                type_,
-                &mut |type_| Some(self.get_widened_literal_type(type_)),
-                None,
-            )
-            .unwrap()
-        } else {
-            type_.type_wrapper()
-        }
+        Ok(
+            if flags.intersects(TypeFlags::EnumLiteral) && self.is_fresh_literal_type(type_) {
+                self.get_base_type_of_enum_literal_type(type_)?
+            } else if flags.intersects(TypeFlags::StringLiteral)
+                && self.is_fresh_literal_type(type_)
+            {
+                self.string_type()
+            } else if flags.intersects(TypeFlags::NumberLiteral)
+                && self.is_fresh_literal_type(type_)
+            {
+                self.number_type()
+            } else if flags.intersects(TypeFlags::BigIntLiteral)
+                && self.is_fresh_literal_type(type_)
+            {
+                self.bigint_type()
+            } else if flags.intersects(TypeFlags::BooleanLiteral)
+                && self.is_fresh_literal_type(type_)
+            {
+                self.boolean_type()
+            } else if flags.intersects(TypeFlags::Union) {
+                self.map_type(
+                    type_,
+                    &mut |type_| Some(self.get_widened_literal_type(type_)),
+                    None,
+                )
+                .unwrap()
+            } else {
+                type_.type_wrapper()
+            },
+        )
     }
 
     pub(super) fn get_widened_unique_es_symbol_type(&self, type_: &Type) -> Gc<Type> {
@@ -542,29 +562,30 @@ impl TypeChecker {
         type_: Option<TType>,
         contextual_signature_return_type: Option<TContextualSignatureReturnType>,
         is_async: bool,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let mut type_ = type_.map(|type_| type_.borrow().type_wrapper());
         if let Some(type_present) = type_.as_ref().filter(|type_| self.is_unit_type(type_)) {
-            let contextual_type =
-                contextual_signature_return_type.and_then(|contextual_signature_return_type| {
+            let contextual_type = contextual_signature_return_type.try_and_then(
+                |contextual_signature_return_type| {
                     let contextual_signature_return_type =
                         contextual_signature_return_type.borrow();
-                    if is_async {
+                    Ok(if is_async {
                         self.get_promised_type_of_promise(
                             contextual_signature_return_type,
                             Option::<&Node>::None,
-                        )
+                        )?
                     } else {
                         Some(contextual_signature_return_type.type_wrapper())
-                    }
-                });
+                    })
+                },
+            )?;
             type_ =
                 Some(self.get_widened_literal_like_type_for_contextual_type(
                     type_present,
                     contextual_type,
                 ));
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn get_widened_literal_like_type_for_contextual_iteration_type_if_needed<
@@ -661,7 +682,7 @@ impl TypeChecker {
         index: usize,
         end_skip_count: Option<usize>,
         writing: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let end_skip_count = end_skip_count.unwrap_or(0);
         let writing = writing.unwrap_or(false);
         let length = self.get_type_reference_arity(type_) - end_skip_count;
@@ -691,8 +712,8 @@ impl TypeChecker {
                     },
                 );
             }
-            return Some(if writing {
-                self.get_intersection_type(&element_types, Option::<&Symbol>::None, None)
+            return Ok(Some(if writing {
+                self.get_intersection_type(&element_types, Option::<&Symbol>::None, None)?
             } else {
                 self.get_union_type(
                     &element_types,
@@ -700,10 +721,10 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                )
-            });
+                )?
+            }));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn is_tuple_type_structure_matching(
@@ -815,9 +836,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_nullable_type(&self, type_: &Type, flags: TypeFlags) -> Gc<Type> {
+    pub(super) fn get_nullable_type(&self, type_: &Type, flags: TypeFlags) -> io::Result<Gc<Type>> {
         let missing = (flags & !type_.flags()) & (TypeFlags::Undefined | TypeFlags::Null);
-        if missing == TypeFlags::None {
+        Ok(if missing == TypeFlags::None {
             type_.type_wrapper()
         } else if missing == TypeFlags::Undefined {
             self.get_union_type(
@@ -826,7 +847,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         } else if missing == TypeFlags::Null {
             self.get_union_type(
                 &[type_.type_wrapper(), self.null_type()],
@@ -834,7 +855,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         } else {
             self.get_union_type(
                 &[
@@ -846,14 +867,18 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
-        }
+            )?
+        })
     }
 
-    pub(super) fn get_optional_type_(&self, type_: &Type, is_property: Option<bool>) -> Gc<Type> {
+    pub(super) fn get_optional_type_(
+        &self,
+        type_: &Type,
+        is_property: Option<bool>,
+    ) -> io::Result<Gc<Type>> {
         let is_property = is_property.unwrap_or(false);
         Debug_.assert(self.strict_null_checks, None);
-        if type_.flags().intersects(TypeFlags::Undefined) {
+        Ok(if type_.flags().intersects(TypeFlags::Undefined) {
             type_.type_wrapper()
         } else {
             self.get_union_type(
@@ -869,8 +894,8 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn get_global_non_nullable_type_instantiation(&self, type_: &Type) -> Gc<Type> {
@@ -914,18 +939,18 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn add_optional_type_marker(&self, type_: &Type) -> Gc<Type> {
-        if self.strict_null_checks {
+    pub(super) fn add_optional_type_marker(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(if self.strict_null_checks {
             self.get_union_type(
                 &[type_.type_wrapper(), self.optional_type()],
                 None,
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn remove_optional_type_marker(&self, type_: &Type) -> Gc<Type> {
@@ -1047,14 +1072,14 @@ impl TypeChecker {
         symbol
     }
 
-    pub(super) fn transform_type_of_members<TCallback: FnMut(&Type) -> Gc<Type>>(
+    pub(super) fn transform_type_of_members(
         &self,
         type_: &Type,
-        mut f: TCallback,
-    ) -> SymbolTable {
+        mut f: impl FnMut(&Type) -> Gc<Type>,
+    ) -> io::Result<SymbolTable> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for ref property in self.get_properties_of_object_type(type_) {
-            let original = self.get_type_of_symbol(property);
+            let original = self.get_type_of_symbol(property)?;
             let updated = f(&original);
             members.insert(
                 property.escaped_name().to_owned(),
@@ -1065,6 +1090,6 @@ impl TypeChecker {
                 },
             );
         }
-        members
+        Ok(members)
     }
 }

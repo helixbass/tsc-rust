@@ -408,7 +408,7 @@ impl TypeChecker {
         expression: &Node, /*UnaryExpression | Expression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Gc<Type>> {
-        let mut expr_type = self.check_expression(expression, check_mode, None);
+        let mut expr_type = self.check_expression(expression, check_mode, None)?;
         if is_const_type_reference(type_) {
             if !self.is_valid_const_assertion_argument(expression) {
                 self.error(
@@ -438,30 +438,34 @@ impl TypeChecker {
         Ok(target_type)
     }
 
-    pub(super) fn check_non_null_chain(&self, node: &Node /*NonNullChain*/) -> Gc<Type> {
-        let left_type = self.check_expression(&node.as_has_expression().expression(), None, None);
+    pub(super) fn check_non_null_chain(
+        &self,
+        node: &Node, /*NonNullChain*/
+    ) -> io::Result<Gc<Type>> {
+        let left_type =
+            self.check_expression(&node.as_has_expression().expression(), None, None)?;
         let non_optional_type =
             self.get_optional_expression_type(&left_type, &node.as_has_expression().expression());
-        self.propagate_optional_type_marker(
+        Ok(self.propagate_optional_type_marker(
             &self.get_non_nullable_type(&non_optional_type),
             node,
             !Gc::ptr_eq(&non_optional_type, &left_type),
-        )
+        ))
     }
 
     pub(super) fn check_non_null_assertion(
         &self,
         node: &Node, /*NonNullExpression*/
-    ) -> Gc<Type> {
-        if node.flags().intersects(NodeFlags::OptionalChain) {
+    ) -> io::Result<Gc<Type>> {
+        Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
             self.check_non_null_chain(node)
         } else {
-            self.get_non_nullable_type(&self.check_expression(
+            self.get_non_nullable_type(&*self.check_expression(
                 &node.as_has_expression().expression(),
                 None,
                 None,
-            ))
-        }
+            )?)
+        })
     }
 
     pub(super) fn check_meta_property(&self, node: &Node /*MetaProperty*/) -> Gc<Type> {

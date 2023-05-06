@@ -91,11 +91,11 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
-        self.check_truthiness_of_type(&self.check_expression(node, check_mode, None), node)
+    ) -> io::Result<Gc<Type>> {
+        Ok(self.check_truthiness_of_type(&self.check_expression(node, check_mode, None)?, node))
     }
 
-    pub(super) fn check_for_statement(&self, node: &Node /*ForStatement*/) {
+    pub(super) fn check_for_statement(&self, node: &Node /*ForStatement*/) -> io::Result<()> {
         let node_as_for_statement = node.as_for_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
             if let Some(node_initializer) =
@@ -120,7 +120,7 @@ impl TypeChecker {
                     },
                 );
             } else {
-                self.check_expression(node_initializer, None, None);
+                self.check_expression(node_initializer, None, None)?;
             }
         }
 
@@ -128,15 +128,20 @@ impl TypeChecker {
             self.check_truthiness_expression(node_condition, None);
         }
         if let Some(node_incrementor) = node_as_for_statement.incrementor.as_ref() {
-            self.check_expression(node_incrementor, None, None);
+            self.check_expression(node_incrementor, None, None)?;
         }
         self.check_source_element(Some(&*node_as_for_statement.statement));
         if node.maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
+
+        Ok(())
     }
 
-    pub(super) fn check_for_of_statement(&self, node: &Node /*ForOfStatement*/) {
+    pub(super) fn check_for_of_statement(
+        &self,
+        node: &Node, /*ForOfStatement*/
+    ) -> io::Result<()> {
         self.check_grammar_for_in_or_for_of_statement(node);
 
         let container = get_containing_function_or_class_static_block(node);
@@ -183,7 +188,7 @@ impl TypeChecker {
                     None,
                 );
             } else {
-                let left_type = self.check_expression(var_expr, None, None);
+                let left_type = self.check_expression(var_expr, None, None)?;
                 self.check_reference_expression(
                     var_expr,
                     &Diagnostics::The_left_hand_side_of_a_for_of_statement_must_be_a_variable_or_a_property_access,
@@ -207,6 +212,8 @@ impl TypeChecker {
         if node.maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(node);
         }
+
+        Ok(())
     }
 
     pub(super) fn check_for_in_statement(
@@ -216,11 +223,11 @@ impl TypeChecker {
         self.check_grammar_for_in_or_for_of_statement(node);
 
         let node_as_for_in_statement = node.as_for_in_statement();
-        let right_type = self.get_non_nullable_type_if_needed(&self.check_expression(
+        let right_type = self.get_non_nullable_type_if_needed(&*self.check_expression(
             &node_as_for_in_statement.expression,
             None,
             None,
-        ));
+        )?);
         if node_as_for_in_statement.initializer.kind() == SyntaxKind::VariableDeclarationList {
             let variable = node_as_for_in_statement
                 .initializer
@@ -239,7 +246,7 @@ impl TypeChecker {
             self.check_for_in_or_for_of_variable_declaration(node);
         } else {
             let var_expr = &node_as_for_in_statement.initializer;
-            let left_type = self.check_expression(var_expr, None, None);
+            let left_type = self.check_expression(var_expr, None, None)?;
             if matches!(
                 var_expr.kind(),
                 SyntaxKind::ArrayLiteralExpression | SyntaxKind::ObjectLiteralExpression

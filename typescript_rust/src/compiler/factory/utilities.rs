@@ -1,8 +1,8 @@
 use gc::{Finalize, Gc, Trace};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, io};
 
 use crate::{
     first_or_undefined, get_emit_flags, get_jsdoc_type, get_jsdoc_type_tag, get_original_node,
@@ -669,7 +669,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         node: &Node, /*BinaryExpression*/
         prev: Option<Self::TState>,
         outer_state: Self::TOuterState,
-    ) -> Self::TState;
+    ) -> io::Result<Self::TState>;
 
     fn on_left(
         &self,

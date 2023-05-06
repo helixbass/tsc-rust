@@ -37,7 +37,7 @@ impl TypeChecker {
         {
             return Ok(Some(container.symbol_wrapper()));
         }
-        let exports = self.get_exports_of_symbol(container);
+        let exports = self.get_exports_of_symbol(container)?;
         let exports = (*exports).borrow();
         let quick = exports.get(symbol.escaped_name());
         if let Some(quick) = quick {
@@ -791,7 +791,7 @@ impl TypeChecker {
             return Ok(Some(vec![symbol_from_symbol_table.symbol_wrapper()]));
         }
 
-        let candidate_table = self.get_exports_of_symbol(resolved_import_symbol);
+        let candidate_table = self.get_exports_of_symbol(resolved_import_symbol)?;
         let accessible_symbols_from_exports = /*candidateTable &&*/
             self.get_accessible_symbol_chain_from_symbol_table(
                 visited_symbol_tables,

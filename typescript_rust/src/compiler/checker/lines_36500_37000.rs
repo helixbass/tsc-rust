@@ -765,10 +765,15 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn check_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
+    pub(super) fn check_expression_statement(
+        &self,
+        node: &Node, /*ExpressionStatement*/
+    ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
-        self.check_expression(&node.as_expression_statement().expression, None, None);
+        self.check_expression(&node.as_expression_statement().expression, None, None)?;
+
+        Ok(())
     }
 
     pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) {

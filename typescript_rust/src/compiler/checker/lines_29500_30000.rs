@@ -170,7 +170,7 @@ impl TypeChecker {
                 let arg = &args[i];
                 let spread_type = if arg.kind() == SyntaxKind::SpreadElement {
                     Some(if self.flow_loop_count() > 0 {
-                        self.check_expression(&arg.as_spread_element().expression, None, None)
+                        self.check_expression(&arg.as_spread_element().expression, None, None)?
                     } else {
                         self.check_expression_cached(&arg.as_spread_element().expression, None)
                     })

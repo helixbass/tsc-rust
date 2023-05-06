@@ -842,10 +842,10 @@ impl TypeChecker {
         let module_symbol_exports = (*module_symbol_exports).borrow();
         let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
         let export_symbol = if let Some(export_value) = export_value {
-            self.get_property_of_type(&*self.get_type_of_symbol(&export_value)?, name)
+            self.get_property_of_type(&*self.get_type_of_symbol(&export_value)?, name)?
         } else {
             module_symbol_exports.get(name).cloned()
-        }?;
+        };
         let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias))?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             source_node,
@@ -1271,7 +1271,7 @@ impl TypeChecker {
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Gc<Symbol>>> {
         if symbol.flags().intersects(SymbolFlags::Module) {
-            let export_symbol = (*self.get_exports_of_symbol(symbol))
+            let export_symbol = (*self.get_exports_of_symbol(symbol)?)
                 .borrow()
                 .get(&name.as_identifier().escaped_text)
                 .cloned();

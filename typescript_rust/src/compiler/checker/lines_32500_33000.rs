@@ -291,7 +291,7 @@ impl TypeChecker {
         source_type: &Type,
         check_mode: Option<CheckMode>,
         right_is_this: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let mut target: Gc<Node>;
         let mut source_type = source_type.type_wrapper();
         if expr_or_assignment.kind() == SyntaxKind::ShorthandPropertyAssignment {
@@ -301,11 +301,11 @@ impl TypeChecker {
             {
                 if self.strict_null_checks
                     && !self
-                        .get_falsy_flags(&self.check_expression(
+                        .get_falsy_flags(&*self.check_expression(
                             prop_object_assignment_initializer,
                             None,
                             None,
-                        ))
+                        )?)
                         .intersects(TypeFlags::Undefined)
                 {
                     source_type = self.get_type_with_facts(&source_type, TypeFacts::NEUndefined);
@@ -330,12 +330,12 @@ impl TypeChecker {
             target = target.as_binary_expression().left.clone();
         }
         if target.kind() == SyntaxKind::ObjectLiteralExpression {
-            return self.check_object_literal_assignment(&target, &source_type, right_is_this);
+            return Ok(self.check_object_literal_assignment(&target, &source_type, right_is_this));
         }
         if target.kind() == SyntaxKind::ArrayLiteralExpression {
-            return self.check_array_literal_assignment(&target, &source_type, check_mode);
+            return Ok(self.check_array_literal_assignment(&target, &source_type, check_mode));
         }
-        self.check_reference_assignment(&target, &source_type, check_mode)
+        Ok(self.check_reference_assignment(&target, &source_type, check_mode))
     }
 
     pub(super) fn check_reference_assignment(
@@ -343,8 +343,8 @@ impl TypeChecker {
         target: &Node, /*Expression*/
         source_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
-        let target_type = self.check_expression(target, check_mode, None);
+    ) -> io::Result<Gc<Type>> {
+        let target_type = self.check_expression(target, check_mode, None)?;
         let error = if target.parent().kind() == SyntaxKind::SpreadAssignment {
             &*Diagnostics::The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access
         } else {
@@ -371,7 +371,7 @@ impl TypeChecker {
                 ExternalEmitHelpers::ClassPrivateFieldSet,
             );
         }
-        source_type.type_wrapper()
+        Ok(source_type.type_wrapper())
     }
 
     pub(super) fn is_side_effect_free(&self, node: &Node) -> bool {
@@ -485,14 +485,14 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_binary_like_expression<TErrorNode: Borrow<Node>>(
+    pub(super) fn check_binary_like_expression(
         &self,
         left: &Node, /*Expression*/
         operator_token: &Node,
         right: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-        error_node: Option<TErrorNode>,
-    ) -> Gc<Type> {
+        error_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<Gc<Type>> {
         let operator = operator_token.kind();
         if operator == SyntaxKind::EqualsToken
             && matches!(
@@ -500,12 +500,12 @@ impl TypeChecker {
                 SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
             )
         {
-            return self.check_destructuring_assignment(
+            return Ok(self.check_destructuring_assignment(
                 left,
-                &self.check_expression(right, check_mode, None),
+                &*self.check_expression(right, check_mode, None)?,
                 check_mode,
                 Some(right.kind() == SyntaxKind::ThisKeyword),
-            );
+            ));
         }
         let left_type: Gc<Type>;
         if matches!(
@@ -516,18 +516,18 @@ impl TypeChecker {
         ) {
             left_type = self.check_truthiness_expression(left, check_mode);
         } else {
-            left_type = self.check_expression(left, check_mode, None);
+            left_type = self.check_expression(left, check_mode, None)?;
         }
 
-        let right_type = self.check_expression(right, check_mode, None);
-        self.check_binary_like_expression_worker(
+        let right_type = self.check_expression(right, check_mode, None)?;
+        Ok(self.check_binary_like_expression_worker(
             left,
             operator_token,
             right,
             &left_type,
             &right_type,
             error_node,
-        )
+        ))
     }
 
     pub(super) fn check_binary_like_expression_worker(
@@ -994,15 +994,15 @@ impl CheckBinaryExpressionStateMachine {
         &self,
         state: Rc<RefCell<WorkArea>>,
         node: &Node, /*Expression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         if is_binary_expression(node) {
-            return Some(node.node_wrapper());
+            return Ok(Some(node.node_wrapper()));
         }
         let type_ = self
             .type_checker
-            .check_expression(node, (*state).borrow().check_mode, None);
+            .check_expression(node, (*state).borrow().check_mode, None)?;
         self.set_last_result(&mut state.borrow_mut(), Some(type_));
-        None
+        Ok(None)
     }
 
     pub fn get_left_type(&self, state: Rc<RefCell<WorkArea>>) -> Option<Gc<Type>> {
@@ -1050,7 +1050,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         node: &Node, /*BinaryExpression*/
         mut state: Option<Rc<RefCell<WorkArea>>>,
         check_mode: Option<CheckMode>,
-    ) -> Rc<RefCell<WorkArea>> {
+    ) -> io::Result<Rc<RefCell<WorkArea>>> {
         if let Some(state) = state.as_ref() {
             let mut state = state.borrow_mut();
             state.stack_index += 1;
@@ -1078,10 +1078,10 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         &node_as_binary_expression.right,
                         check_mode,
                         None,
-                    )),
+                    )?),
                 );
             }
-            return state;
+            return Ok(state);
         }
 
         self.type_checker
@@ -1101,20 +1101,20 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                     &mut state,
                     Some(self.type_checker.check_destructuring_assignment(
                         &node_as_binary_expression.left,
-                        &self.type_checker.check_expression(
+                        &*self.type_checker.check_expression(
                             &node_as_binary_expression.right,
                             check_mode,
                             None,
-                        ),
+                        )?,
                         check_mode,
                         Some(node_as_binary_expression.right.kind() == SyntaxKind::ThisKeyword),
                     )),
                 );
             }
-            return state;
+            return Ok(state);
         }
 
-        state
+        Ok(state)
     }
 
     fn on_left(

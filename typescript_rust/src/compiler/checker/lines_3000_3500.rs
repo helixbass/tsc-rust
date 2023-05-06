@@ -77,7 +77,7 @@ impl TypeChecker {
                 self.get_target_of_namespace_import(node, dont_recursively_resolve)?
             }
             SyntaxKind::NamespaceExport => {
-                self.get_target_of_namespace_export(node, dont_recursively_resolve)
+                self.get_target_of_namespace_export(node, dont_recursively_resolve)?
             }
             SyntaxKind::ImportSpecifier | SyntaxKind::BindingElement => {
                 self.get_target_of_import_specifier(node, dont_recursively_resolve)?
@@ -99,20 +99,20 @@ impl TypeChecker {
                 Some(true),
                 Some(dont_recursively_resolve),
                 Option::<&Node>::None,
-            ),
+            )?,
             SyntaxKind::PropertyAssignment => {
-                self.get_target_of_property_assignment(node, dont_recursively_resolve)
+                self.get_target_of_property_assignment(node, dont_recursively_resolve)?
             }
             SyntaxKind::ElementAccessExpression | SyntaxKind::PropertyAccessExpression => {
-                self.get_target_of_access_expression(node, dont_recursively_resolve)
+                self.get_target_of_access_expression(node, dont_recursively_resolve)?
             }
             _ => Debug_.fail(None),
         })
     }
 
-    pub(super) fn is_non_local_alias<TSymbol: Borrow<Symbol>>(
+    pub(super) fn is_non_local_alias(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
         excludes: Option<SymbolFlags>,
     ) -> bool {
         let excludes =
@@ -578,7 +578,7 @@ impl TypeChecker {
                 }
             }
             symbol = self.get_merged_symbol(self.get_symbol(
-                &(*self.get_exports_of_symbol(&namespace)).borrow(),
+                &(*self.get_exports_of_symbol(&namespace)?).borrow(),
                 &right.as_identifier().escaped_text,
                 meaning,
             )?);
@@ -635,7 +635,7 @@ impl TypeChecker {
                         && is_qualified_name(&name.parent())
                     {
                         let exported_type_symbol = self.get_merged_symbol(self.get_symbol(
-                            &(*self.get_exports_of_symbol(&namespace)).borrow(),
+                            &(*self.get_exports_of_symbol(&namespace)?).borrow(),
                             &right.as_identifier().escaped_text,
                             SymbolFlags::Type,
                         )?);

@@ -42,8 +42,8 @@ impl TypeChecker {
     pub(super) fn check_non_null_expression(
         &self,
         node: &Node, /*Expression | QualifiedName*/
-    ) -> Gc<Type> {
-        self.check_non_null_type(&self.check_expression(node, None, None), node)
+    ) -> io::Result<Gc<Type>> {
+        Ok(self.check_non_null_type(&*self.check_expression(node, None, None)?, node))
     }
 
     pub(super) fn is_nullable_type(&self, type_: &Type) -> bool {
@@ -170,7 +170,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let node_as_property_access_expression = node.as_property_access_expression();
         let left_type =
-            self.check_expression(&node_as_property_access_expression.expression, None, None);
+            self.check_expression(&node_as_property_access_expression.expression, None, None)?;
         let non_optional_type = self.get_optional_expression_type(
             &left_type,
             &node_as_property_access_expression.expression,

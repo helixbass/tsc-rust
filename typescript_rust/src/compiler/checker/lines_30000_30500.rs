@@ -315,7 +315,7 @@ impl TypeChecker {
             let super_type = self.check_super_expression(&node_as_call_expression.expression);
             if self.is_type_any(Some(&*super_type)) {
                 for arg in &node_as_call_expression.arguments {
-                    self.check_expression(arg, None, None);
+                    self.check_expression(arg, None, None)?;
                 }
                 return Ok(self.any_signature());
             }
@@ -345,7 +345,8 @@ impl TypeChecker {
         }
 
         let call_chain_flags: SignatureFlags;
-        let mut func_type = self.check_expression(&node_as_call_expression.expression, None, None);
+        let mut func_type =
+            self.check_expression(&node_as_call_expression.expression, None, None)?;
         if is_call_chain(node) {
             let non_optional_type =
                 self.get_optional_expression_type(&func_type, &node_as_call_expression.expression);

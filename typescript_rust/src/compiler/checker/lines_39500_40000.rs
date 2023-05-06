@@ -752,7 +752,7 @@ impl TypeChecker {
                 );
             } else {
                 self.mark_export_as_referenced(node);
-                let target = symbol.as_ref().try_map(|symbol| {
+                let target = symbol.as_ref().try_map(|symbol| -> io::Result<_> {
                     Ok(if symbol.flags().intersects(SymbolFlags::Alias) {
                         self.resolve_alias(symbol)?
                     } else {

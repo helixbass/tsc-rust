@@ -89,7 +89,7 @@ impl TypeChecker {
                     &element_as_binding_element.name(),
                     Some(true),
                     Some(false),
-                )
+                )?
             } else {
                 self.unknown_type()
             };
@@ -103,11 +103,11 @@ impl TypeChecker {
             ));
         }
         if is_binding_pattern(Some(element_as_binding_element.name())) {
-            return Ok(self.get_type_from_binding_pattern(
+            return self.get_type_from_binding_pattern(
                 &element_as_binding_element.name(),
                 include_pattern_in_type,
                 report_errors,
-            ));
+            );
         }
         if matches!(report_errors, Some(true))
             && !self.declaration_belongs_to_private_ambient_member(element)
@@ -406,7 +406,7 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> io::Result<Gc<Type>> {
         if symbol.flags().intersects(SymbolFlags::Prototype) {
-            return Ok(self.get_type_of_prototype_property(symbol));
+            return self.get_type_of_prototype_property(symbol);
         }
         if ptr::eq(symbol, &*self.require_symbol()) {
             return Ok(self.any_type());
@@ -484,13 +484,13 @@ impl TypeChecker {
             }
             return Ok(self.get_widened_type(
                 &self.get_widened_literal_type(
-                    &self.check_expression(
+                    &*self.check_expression(
                         &declaration_as_source_file.statements()[0]
                             .as_expression_statement()
                             .expression,
                         None,
                         None,
-                    ),
+                    )?,
                 ),
             ));
         }
@@ -725,7 +725,7 @@ impl TypeChecker {
 
         if writing {
             if let Some(setter_type) = setter_type.as_ref() {
-                return Ok(Some(self.instantiate_type_if_needed(setter_type, symbol)));
+                return Ok(Some(self.instantiate_type_if_needed(setter_type, symbol)?));
             }
         }
 
@@ -733,14 +733,14 @@ impl TypeChecker {
             if is_in_js_file(Some(getter)) {
                 let js_doc_type = self.get_type_for_declaration_from_jsdoc_comment(getter)?;
                 if let Some(js_doc_type) = js_doc_type {
-                    return Ok(Some(self.instantiate_type_if_needed(&js_doc_type, symbol)));
+                    return Ok(Some(self.instantiate_type_if_needed(&js_doc_type, symbol)?));
                 }
             }
         }
 
         let getter_type = self.get_annotated_accessor_type(getter.as_deref())?;
         if let Some(getter_type) = getter_type.as_ref() {
-            return Ok(Some(self.instantiate_type_if_needed(getter_type, symbol)));
+            return Ok(Some(self.instantiate_type_if_needed(getter_type, symbol)?));
         }
 
         if setter_type.is_some() {
@@ -751,7 +751,7 @@ impl TypeChecker {
             if getter.as_function_like_declaration().maybe_body().is_some() {
                 let return_type_from_body = self.get_return_type_from_body(getter, None);
                 return Ok(Some(
-                    self.instantiate_type_if_needed(&return_type_from_body, symbol),
+                    self.instantiate_type_if_needed(&return_type_from_body, symbol)?,
                 ));
             }
         }

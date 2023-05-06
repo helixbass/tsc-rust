@@ -304,23 +304,23 @@ impl TypeChecker {
         self.get_inferred_types(&context)
     }
 
-    pub(super) fn get_this_argument_type<TThisArgumentNode: Borrow<Node>>(
+    pub(super) fn get_this_argument_type(
         &self,
-        this_argument_node: Option<TThisArgumentNode /*LeftHandSideExpression*/>,
-    ) -> Gc<Type> {
+        this_argument_node: Option<impl Borrow<Node> /*LeftHandSideExpression*/>,
+    ) -> io::Result<Gc<Type>> {
         if this_argument_node.is_none() {
-            return self.void_type();
+            return Ok(self.void_type());
         }
         let this_argument_node = this_argument_node.unwrap();
         let this_argument_node = this_argument_node.borrow();
-        let this_argument_type = self.check_expression(this_argument_node, None, None);
-        if is_optional_chain_root(&this_argument_node.parent()) {
+        let this_argument_type = self.check_expression(this_argument_node, None, None)?;
+        Ok(if is_optional_chain_root(&this_argument_node.parent()) {
             self.get_non_nullable_type(&this_argument_type)
         } else if is_optional_chain(&this_argument_node.parent()) {
             self.remove_optional_type_marker(&this_argument_type)
         } else {
             this_argument_type
-        }
+        })
     }
 
     pub(super) fn infer_type_arguments(
@@ -573,7 +573,7 @@ impl TypeChecker {
                 let spread_type = if arg.kind() == SyntaxKind::SyntheticExpression {
                     arg.as_synthetic_expression().type_.clone()
                 } else {
-                    self.check_expression(&arg.as_spread_element().expression, None, None)
+                    self.check_expression(&arg.as_spread_element().expression, None, None)?
                 };
                 if self.is_array_like_type(&spread_type) {
                     types.push(spread_type);
@@ -708,29 +708,29 @@ impl TypeChecker {
     pub(super) fn get_jsx_reference_kind(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-    ) -> JsxReferenceKind {
+    ) -> io::Result<JsxReferenceKind> {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()) {
-            return JsxReferenceKind::Mixed;
+            return Ok(JsxReferenceKind::Mixed);
         }
-        let tag_type = self.get_apparent_type(&self.check_expression(
+        let tag_type = self.get_apparent_type(&*self.check_expression(
             &node_as_jsx_opening_like_element.tag_name(),
             None,
             None,
-        ));
+        )?);
         if length(Some(
             &self.get_signatures_of_type(&tag_type, SignatureKind::Construct),
         )) > 0
         {
-            return JsxReferenceKind::Component;
+            return Ok(JsxReferenceKind::Component);
         }
         if length(Some(
             &self.get_signatures_of_type(&tag_type, SignatureKind::Call),
         )) > 0
         {
-            return JsxReferenceKind::Function;
+            return Ok(JsxReferenceKind::Function);
         }
-        JsxReferenceKind::Mixed
+        Ok(JsxReferenceKind::Mixed)
     }
 
     pub(super) fn check_applicable_signature_for_jsx_opening_like_element(
@@ -789,7 +789,7 @@ impl TypeChecker {
             || is_jsx_self_closing_element(node)
                 && !self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name())
         {
-            Some(self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None))
+            Some(self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None)?)
         } else {
             None
         };

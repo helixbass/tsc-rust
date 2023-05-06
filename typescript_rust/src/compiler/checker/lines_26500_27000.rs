@@ -526,7 +526,7 @@ impl TypeChecker {
         }
 
         let array_or_iterable_type =
-            self.check_expression(&node.as_spread_element().expression, check_mode, None);
+            self.check_expression(&node.as_spread_element().expression, check_mode, None)?;
         self.check_iterated_type_or_element_type(
             IterationUse::Spread,
             &array_or_iterable_type,
@@ -595,7 +595,7 @@ impl TypeChecker {
                     &e.as_spread_element().expression,
                     check_mode,
                     force_tuple,
-                );
+                )?;
                 if self.is_array_like_type(&spread_type) {
                     element_types.push(spread_type);
                     element_flags.push(ElementFlags::Variadic);
@@ -762,7 +762,7 @@ impl TypeChecker {
     pub(super) fn check_computed_property_name(
         &self,
         node: &Node, /*ComputedPropertyName*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_computed_property_name = node.as_computed_property_name();
         let links = self.get_node_links(&node_as_computed_property_name.expression);
         if (*links).borrow().resolved_type.is_none() {
@@ -779,10 +779,10 @@ impl TypeChecker {
             {
                 let ret = self.error_type();
                 links.borrow_mut().resolved_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             }
             let links_resolved_type =
-                self.check_expression(&node_as_computed_property_name.expression, None, None);
+                self.check_expression(&node_as_computed_property_name.expression, None, None)?;
             links.borrow_mut().resolved_type = Some(links_resolved_type.clone());
             if is_property_declaration(&node.parent())
                 && !has_static_modifier(&node.parent())
@@ -821,7 +821,7 @@ impl TypeChecker {
         }
 
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn is_symbol_with_numeric_name(&self, symbol: &Symbol) -> bool {
@@ -1169,11 +1169,11 @@ impl TypeChecker {
                     has_computed_number_property = false;
                     has_computed_symbol_property = false;
                 }
-                let type_ = self.get_reduced_type(&self.check_expression(
+                let type_ = self.get_reduced_type(&*self.check_expression(
                     &member_decl.as_has_expression().expression(),
                     None,
                     None,
-                ));
+                )?);
                 if self.is_valid_spread_type(&type_) {
                     let merged_type = self
                         .try_merge_union_of_object_type_and_empty_object(&type_, in_const_context);

@@ -67,9 +67,9 @@ impl TypeChecker {
                     }
                     Some(ref source_prop) => {
                         if match_discriminant_properties {
-                            let target_type = self.get_type_of_symbol(target_prop);
+                            let target_type = self.get_type_of_symbol(target_prop)?;
                             if target_type.flags().intersects(TypeFlags::Unit) {
-                                let source_type = self.get_type_of_symbol(source_prop);
+                                let source_type = self.get_type_of_symbol(source_prop)?;
                                 if !(source_type.flags().intersects(TypeFlags::Any)
                                     || Gc::ptr_eq(
                                         &self.get_regular_type_of_literal_type(&source_type),
@@ -93,14 +93,14 @@ impl TypeChecker {
         target: &Type,
         require_optional_properties: bool,
         match_discriminant_properties: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let result = self.get_unmatched_properties(
             source,
             target,
             require_optional_properties,
             match_discriminant_properties,
-        );
-        result.get(0).map(Clone::clone)
+        )?;
+        Ok(result.get(0).cloned())
     }
 
     pub(super) fn tuple_types_definitely_unrelated(
@@ -133,26 +133,31 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_from_inference(&self, inference: &InferenceInfo) -> Option<Gc<Type>> {
-        if let Some(inference_candidates) = inference.maybe_candidates().as_ref() {
-            Some(self.get_union_type(
-                inference_candidates,
-                Some(UnionReduction::Subtype),
-                Option::<&Symbol>::None,
-                None,
-                Option::<&Type>::None,
-            ))
-        } else if let Some(inference_contra_candidates) =
-            inference.maybe_contra_candidates().as_ref()
-        {
-            Some(self.get_intersection_type(
-                inference_contra_candidates,
-                Option::<&Symbol>::None,
-                None,
-            ))
-        } else {
-            None
-        }
+    pub(super) fn get_type_from_inference(
+        &self,
+        inference: &InferenceInfo,
+    ) -> io::Result<Option<Gc<Type>>> {
+        Ok(
+            if let Some(inference_candidates) = inference.maybe_candidates().as_ref() {
+                Some(self.get_union_type(
+                    inference_candidates,
+                    Some(UnionReduction::Subtype),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ))
+            } else if let Some(inference_contra_candidates) =
+                inference.maybe_contra_candidates().as_ref()
+            {
+                Some(self.get_intersection_type(
+                    inference_contra_candidates,
+                    Option::<&Symbol>::None,
+                    None,
+                )?)
+            } else {
+                None
+            },
+        )
     }
 
     pub(super) fn has_skip_direct_inference_flag(&self, node: &Node) -> bool {
@@ -623,16 +628,16 @@ impl InferTypes {
         self.expanding_flags.set(expanding_flags);
     }
 
-    pub(super) fn infer_from_types(&self, source: &Type, target: &Type) {
+    pub(super) fn infer_from_types(&self, source: &Type, target: &Type) -> io::Result<()> {
         if !self.type_checker.could_contain_type_variables(target) {
-            return;
+            return Ok(());
         }
         if ptr::eq(source, &*self.type_checker.wildcard_type()) {
             let save_propagation_type = self.maybe_propagation_type().clone();
             *self.maybe_propagation_type() = Some(source.type_wrapper());
             self.infer_from_types(target, target);
             *self.maybe_propagation_type() = save_propagation_type;
-            return;
+            return Ok(());
         }
         if let Some(ref source_alias_symbol) = source.maybe_alias_symbol().clone().filter(|source_alias_symbol| {
             matches!(
@@ -646,14 +651,14 @@ impl InferTypes {
                     target.maybe_alias_type_arguments().as_ref().unwrap(),
                     &self.type_checker.get_alias_variances(source_alias_symbol),
                 );
-                return;
+                return Ok(());
             }
         }
         if ptr::eq(source, target) && source.flags().intersects(TypeFlags::UnionOrIntersection) {
             for t in source.as_union_or_intersection_type_interface().types() {
                 self.infer_from_types(t, t);
             }
-            return;
+            return Ok(());
         }
         let mut target = target.type_wrapper();
         let mut source = source.type_wrapper();
@@ -676,7 +681,7 @@ impl InferTypes {
                 |s: &Type, t: &Type| self.type_checker.is_type_closely_matched_by(s, t),
             );
             if targets.is_empty() {
-                return;
+                return Ok(());
             }
             target = self.type_checker.get_union_type(
                 &targets,
@@ -684,10 +689,10 @@ impl InferTypes {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            );
+            )?;
             if sources.is_empty() {
                 self.infer_with_priority(&source, &target, InferencePriority::NakedTypeVariable);
-                return;
+                return Ok(());
             }
             source = self.type_checker.get_union_type(
                 &sources,
@@ -695,7 +700,7 @@ impl InferTypes {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            );
+            )?;
         } else if target.flags().intersects(TypeFlags::Intersection)
             && some(
                 Some(target.as_union_or_intersection_type_interface().types()),
@@ -727,18 +732,18 @@ impl InferTypes {
                     |s: &Type, t: &Type| self.type_checker.is_type_identical_to(s, t),
                 );
                 if sources.is_empty() || targets.is_empty() {
-                    return;
+                    return Ok(());
                 }
                 source = self.type_checker.get_intersection_type(
                     &sources,
                     Option::<&Symbol>::None,
                     None,
-                );
+                )?;
                 target = self.type_checker.get_intersection_type(
                     &targets,
                     Option::<&Symbol>::None,
                     None,
-                );
+                )?;
             }
         } else if target
             .flags()
@@ -755,7 +760,7 @@ impl InferTypes {
                         || Gc::ptr_eq(&source, &self.type_checker.auto_array_type()))
                 || self.type_checker.is_from_inference_blocked_source(&source)
             {
-                return;
+                return Ok(());
             }
             let inference = self.get_inference_info_for_type(&target);
             if let Some(inference) = inference.as_ref() {
@@ -814,7 +819,7 @@ impl InferTypes {
                     }
                 }
                 self.set_inference_priority(cmp::min(self.inference_priority(), self.priority()));
-                return;
+                return Ok(());
             } else {
                 let simplified = self.type_checker.get_simplified_type(&target, false);
                 if !Gc::ptr_eq(&simplified, &target) {
@@ -924,9 +929,9 @@ impl InferTypes {
             self.infer_from_types(&source_as_substitution_type.substitute, &target);
             self.set_priority(old_priority);
         } else if target.flags().intersects(TypeFlags::Conditional) {
-            self.invoke_once(&source, &target, |source: &Type, target: &Type| {
+            self.try_invoke_once(&source, &target, |source: &Type, target: &Type| {
                 self.infer_to_conditional_type(source, target)
-            });
+            })?;
         } else if target.flags().intersects(TypeFlags::UnionOrIntersection) {
             self.infer_to_multiple_types(
                 &source,
@@ -963,11 +968,13 @@ impl InferTypes {
                 .flags()
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
             {
-                self.invoke_once(&source, &target, |source: &Type, target: &Type| {
+                self.try_invoke_once(&source, &target, |source: &Type, target: &Type| {
                     self.infer_from_object_types(source, target)
-                });
+                })?;
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn infer_with_priority(
@@ -982,12 +989,22 @@ impl InferTypes {
         self.set_priority(save_priority);
     }
 
-    pub(super) fn invoke_once<TAction: FnMut(&Type, &Type)>(
+    pub(super) fn invoke_once(
         &self,
         source: &Type,
         target: &Type,
-        mut action: TAction,
+        mut action: impl FnMut(&Type, &Type),
     ) {
+        self.try_invoke_once(source, target, |a: &Type, b: &Type| Ok(action(a, b)))
+            .unwrap()
+    }
+
+    pub(super) fn try_invoke_once(
+        &self,
+        source: &Type,
+        target: &Type,
+        mut action: impl FnMut(&Type, &Type) -> io::Result<()>,
+    ) -> io::Result<()> {
         let key = format!("{},{}", source.id(), target.id());
         let status = self
             .maybe_visited()
@@ -995,7 +1012,7 @@ impl InferTypes {
             .and_then(|visited| visited.get(&key).copied());
         if let Some(status) = status {
             self.set_inference_priority(cmp::min(self.inference_priority(), status));
-            return;
+            return Ok(());
         }
         if self.maybe_visited().is_none() {
             *self.maybe_visited() = Some(HashMap::new());
@@ -1030,7 +1047,7 @@ impl InferTypes {
                 .as_mut()
                 .unwrap()
                 .push(target_identity);
-            action(source, target);
+            action(source, target)?;
             self.maybe_target_stack().as_mut().unwrap().pop();
             self.maybe_source_stack().as_mut().unwrap().pop();
         } else {
@@ -1042,6 +1059,8 @@ impl InferTypes {
             .unwrap()
             .insert(key, self.inference_priority());
         self.set_inference_priority(cmp::min(self.inference_priority(), save_inference_priority));
+
+        Ok(())
     }
 
     pub(super) fn infer_from_matching_types(

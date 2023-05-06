@@ -571,7 +571,7 @@ impl TypeChecker {
                 let yield_expression_type = if let Some(yield_expression_expression) =
                     yield_expression_as_yield_expression.expression.as_ref()
                 {
-                    self.check_expression(yield_expression_expression, check_mode, None)
+                    self.check_expression(yield_expression_expression, check_mode, None)?
                 } else {
                     self.undefined_widening_type()
                 };

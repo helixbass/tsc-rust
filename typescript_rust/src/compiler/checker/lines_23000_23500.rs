@@ -480,13 +480,13 @@ impl TypeChecker {
         .unwrap()
     }
 
-    pub(super) fn try_map_type_with_alias<TError>(
+    pub(super) fn try_map_type_with_alias(
         &self,
         type_: &Type,
-        mapper: &mut impl FnMut(&Type) -> Result<Gc<Type>, TError>,
+        mapper: &mut impl FnMut(&Type) -> io::Result<Gc<Type>>,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Result<Gc<Type>, TError> {
+    ) -> io::Result<Gc<Type>> {
         Ok(
             if type_.flags().intersects(TypeFlags::Union) && alias_symbol.is_some() {
                 self.get_union_type(
@@ -946,7 +946,11 @@ impl TypeChecker {
                 if is_optional_chain(node) {
                     func_type = Some(self.check_non_null_type(
                         &self.get_optional_expression_type(
-                            &self.check_expression(&node_as_call_expression.expression, None, None),
+                            &*self.check_expression(
+                                &node_as_call_expression.expression,
+                                None,
+                                None,
+                            )?,
                             &node_as_call_expression.expression,
                         ),
                         &node_as_call_expression.expression,

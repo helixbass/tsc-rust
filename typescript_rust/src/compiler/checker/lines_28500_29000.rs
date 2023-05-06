@@ -16,10 +16,11 @@ use crate::{
     is_property_access_expression, is_static, is_string_literal_like,
     is_tagged_template_expression, is_write_only_access, map_defined, maybe_for_each,
     skip_parentheses, starts_with, symbol_name, try_get_property_access_or_identifier_to_string,
-    unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags, Debug_, Diagnostics,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Signature,
-    SignatureFlags, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    try_maybe_for_each, unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags,
+    Debug_, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    OptionTry, Signature, SignatureFlags, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -478,8 +479,8 @@ impl TypeChecker {
         &self,
         node: &Node,         /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         property_name: &str, /*__String*/
-    ) -> bool {
-        match node.kind() {
+    ) -> io::Result<bool> {
+        Ok(match node.kind() {
             SyntaxKind::PropertyAccessExpression => {
                 let node_as_property_access_expression = node.as_property_access_expression();
                 self.is_valid_property_access_with_type(
@@ -487,22 +488,22 @@ impl TypeChecker {
                     node_as_property_access_expression.expression.kind()
                         == SyntaxKind::SuperKeyword,
                     property_name,
-                    &self.get_widened_type(&self.check_expression(
+                    &self.get_widened_type(&*self.check_expression(
                         &node_as_property_access_expression.expression,
                         None,
                         None,
-                    )),
+                    )?),
                 )
             }
             SyntaxKind::QualifiedName => self.is_valid_property_access_with_type(
                 node,
                 false,
                 property_name,
-                &self.get_widened_type(&self.check_expression(
+                &self.get_widened_type(&*self.check_expression(
                     &node.as_qualified_name().left,
                     None,
                     None,
-                )),
+                )?),
             ),
             SyntaxKind::ImportType => self.is_valid_property_access_with_type(
                 node,
@@ -511,7 +512,7 @@ impl TypeChecker {
                 &self.get_type_from_type_node_(node),
             ),
             _ => unreachable!(),
-        }
+        })
     }
 
     pub fn is_valid_property_access_for_completions_(
@@ -682,15 +683,15 @@ impl TypeChecker {
         &self,
         node: &Node, /*ElementAccessChain*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_element_access_expression = node.as_element_access_expression();
         let expr_type =
-            self.check_expression(&node_as_element_access_expression.expression, None, None);
+            self.check_expression(&node_as_element_access_expression.expression, None, None)?;
         let non_optional_type = self.get_optional_expression_type(
             &expr_type,
             &node_as_element_access_expression.expression,
         );
-        self.propagate_optional_type_marker(
+        Ok(self.propagate_optional_type_marker(
             &self.check_element_access_expression(
                 node,
                 &self.check_non_null_type(
@@ -701,7 +702,7 @@ impl TypeChecker {
             ),
             node,
             !Gc::ptr_eq(&non_optional_type, &expr_type),
-        )
+        ))
     }
 
     pub(super) fn check_element_access_expression(
@@ -709,7 +710,7 @@ impl TypeChecker {
         node: &Node, /*ElementAccessExpression*/
         expr_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let object_type = if get_assignment_target_kind(node) != AssignmentKind::None
             || self.is_method_access_for_call(node)
         {
@@ -719,10 +720,10 @@ impl TypeChecker {
         };
         let node_as_element_access_expression = node.as_element_access_expression();
         let index_expression = &node_as_element_access_expression.argument_expression;
-        let index_type = self.check_expression(index_expression, None, None);
+        let index_type = self.check_expression(index_expression, None, None)?;
 
         if self.is_error_type(&object_type) || Gc::ptr_eq(&object_type, &self.silent_never_type()) {
-            return object_type;
+            return Ok(object_type);
         }
 
         if self.is_const_enum_object_type(&object_type) && !is_string_literal_like(index_expression)
@@ -732,7 +733,7 @@ impl TypeChecker {
                 &Diagnostics::A_const_enum_member_can_only_be_accessed_using_a_string_literal,
                 None,
             );
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
         let effective_index_type =
@@ -763,7 +764,7 @@ impl TypeChecker {
                 None,
             )
             .unwrap_or_else(|| self.error_type());
-        self.check_indexed_access_index_type(
+        Ok(self.check_indexed_access_index_type(
             &self.get_flow_type_of_access_expression(
                 node,
                 (*self.get_node_links(node))
@@ -775,7 +776,7 @@ impl TypeChecker {
                 check_mode,
             ),
             node,
-        )
+        ))
     }
 
     pub(super) fn call_like_expression_may_have_type_arguments(
@@ -790,7 +791,7 @@ impl TypeChecker {
     pub(super) fn resolve_untyped_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         if self.call_like_expression_may_have_type_arguments(node) {
             maybe_for_each(
                 node.as_has_type_arguments().maybe_type_arguments().as_ref(),
@@ -802,19 +803,19 @@ impl TypeChecker {
         }
 
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
-            self.check_expression(&node.as_tagged_template_expression().template, None, None);
+            self.check_expression(&node.as_tagged_template_expression().template, None, None)?;
         } else if is_jsx_opening_like_element(node) {
-            self.check_expression(&node.as_jsx_opening_like_element().attributes(), None, None);
+            self.check_expression(&node.as_jsx_opening_like_element().attributes(), None, None)?;
         } else if node.kind() != SyntaxKind::Decorator {
-            maybe_for_each(
+            try_maybe_for_each(
                 node.as_has_arguments().maybe_arguments().as_deref(),
-                |argument: &Gc<Node>, _| -> Option<()> {
-                    self.check_expression(argument, None, None);
-                    None
+                |argument: &Gc<Node>, _| -> io::Result<Option<()>> {
+                    self.check_expression(argument, None, None)?;
+                    Ok(None)
                 },
-            );
+            )?;
         }
-        self.any_signature()
+        Ok(self.any_signature())
     }
 
     pub(super) fn resolve_error_call(

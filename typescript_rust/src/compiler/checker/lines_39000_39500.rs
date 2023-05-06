@@ -390,7 +390,7 @@ impl TypeChecker {
                 None,
             );
         } else {
-            let source = self.check_expression(initializer, None, None);
+            let source = self.check_expression(initializer, None, None)?;
             if !self.is_type_assignable_to_kind(&source, TypeFlags::NumberLike, None) {
                 self.error(
                     Some(&**initializer),

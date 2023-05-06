@@ -21,7 +21,10 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn check_with_statement(&self, node: &Node /*WithStatement*/) {
+    pub(super) fn check_with_statement(
+        &self,
+        node: &Node, /*WithStatement*/
+    ) -> io::Result<()> {
         if !self.check_grammar_statement_in_ambient_context(node) {
             if node.flags().intersects(NodeFlags::AwaitContext) {
                 self.grammar_error_on_first_token(
@@ -33,7 +36,7 @@ impl TypeChecker {
         }
 
         let node_as_with_statement = node.as_with_statement();
-        self.check_expression(&node_as_with_statement.expression, None, None);
+        self.check_expression(&node_as_with_statement.expression, None, None)?;
 
         let source_file = get_source_file_of_node(node);
         if !self.has_parse_diagnostics(&source_file) {
@@ -48,9 +51,14 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 
-    pub(super) fn check_switch_statement(&self, node: &Node /*SwitchStatement*/) {
+    pub(super) fn check_switch_statement(
+        &self,
+        node: &Node, /*SwitchStatement*/
+    ) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
 
         let mut first_default_clause: Option<Gc<Node /*CaseOrDefaultClause*/>> = None;
@@ -58,7 +66,7 @@ impl TypeChecker {
 
         let node_as_switch_statement = node.as_switch_statement();
         let expression_type =
-            self.check_expression(&node_as_switch_statement.expression, None, None);
+            self.check_expression(&node_as_switch_statement.expression, None, None)?;
         let expression_is_literal = self.is_literal_type(&expression_type);
         for_each(
             &node_as_switch_statement.case_block.as_case_block().clauses,
@@ -79,7 +87,7 @@ impl TypeChecker {
                 if self.produce_diagnostics && clause.kind() == SyntaxKind::CaseClause {
                     let clause_as_case_clause = clause.as_case_clause();
                     let mut case_type =
-                        self.check_expression(&clause_as_case_clause.expression, None, None);
+                        self.check_expression(&clause_as_case_clause.expression, None, None)?;
                     let case_is_literal = self.is_literal_type(&case_type);
                     let mut compared_expression_type = expression_type.clone();
                     if !case_is_literal || !expression_is_literal {
@@ -129,6 +137,8 @@ impl TypeChecker {
         if node_as_switch_statement.case_block.maybe_locals().is_some() {
             self.register_for_unused_identifiers_check(&node_as_switch_statement.case_block);
         }
+
+        Ok(())
     }
 
     pub(super) fn check_labeled_statement(&self, node: &Node /*LabeledStatement*/) {
@@ -164,7 +174,10 @@ impl TypeChecker {
         self.check_source_element(Some(&*node_as_labeled_statement.statement));
     }
 
-    pub(super) fn check_throw_statement(&self, node: &Node /*ThrowStatement*/) {
+    pub(super) fn check_throw_statement(
+        &self,
+        node: &Node, /*ThrowStatement*/
+    ) -> io::Result<()> {
         let node_as_throw_statement = node.as_throw_statement();
         if !self.check_grammar_statement_in_ambient_context(node) {
             if is_identifier(&node_as_throw_statement.expression)
@@ -183,8 +196,10 @@ impl TypeChecker {
         }
 
         // if (node.expression) {
-        self.check_expression(&node_as_throw_statement.expression, None, None);
+        self.check_expression(&node_as_throw_statement.expression, None, None)?;
         // }
+
+        Ok(())
     }
 
     pub(super) fn check_try_statement(&self, node: &Node /*TryStatement*/) {
@@ -742,7 +757,10 @@ impl TypeChecker {
         self.register_for_unused_identifiers_check(node);
     }
 
-    pub(super) fn check_class_like_declaration(&self, node: &Node /*ClassLikeDeclaration*/) {
+    pub(super) fn check_class_like_declaration(
+        &self,
+        node: &Node, /*ClassLikeDeclaration*/
+    ) -> io::Result<()> {
         self.check_grammar_class_like_declaration(node);
         self.check_decorators(node);
         let node_as_class_like_declaration = node.as_class_like_declaration();
@@ -794,7 +812,7 @@ impl TypeChecker {
                     &extends_node.as_expression_with_type_arguments().expression,
                     None,
                     None,
-                );
+                )?;
             }
 
             let base_types = self.get_base_types(&type_);
@@ -994,5 +1012,7 @@ impl TypeChecker {
             self.check_type_for_duplicate_index_signatures(node);
             self.check_property_initialization(node);
         }
+
+        Ok(())
     }
 }
