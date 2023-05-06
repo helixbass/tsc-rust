@@ -29,3 +29,15 @@ macro_rules! return_ok_false_if_none {
         }
     };
 }
+
+#[macro_export]
+macro_rules! return_ok_default_if_none {
+    ($expr:expr $(,)?) => {
+        match $expr {
+            None => {
+                return Ok(Default::default());
+            }
+            Some(expr) => expr,
+        }
+    };
+}

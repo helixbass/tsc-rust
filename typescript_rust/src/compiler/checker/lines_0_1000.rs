@@ -2241,12 +2241,12 @@ impl TypeChecker {
     pub fn get_signature_from_declaration(
         &self,
         declaration_in: &Node, /*SignatureDeclaration*/
-    ) -> Option<Gc<Signature>> {
-        let declaration = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Signature>>> {
+        let declaration = return_ok_none_if_none!(get_parse_tree_node(
             Some(declaration_in),
             Some(|node: &Node| is_function_like(Some(node))),
-        )?;
-        Some(self.get_signature_from_declaration_(&declaration))
+        ));
+        Ok(Some(self.get_signature_from_declaration_(&declaration)?))
     }
 
     pub fn is_implementation_of_overload(

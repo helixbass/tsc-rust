@@ -1,7 +1,7 @@
 use gc::Gc;
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
+use std::{collections::HashMap, io};
 
 use crate::{
     add_related_info, create_diagnostic_for_node, first, get_containing_function,

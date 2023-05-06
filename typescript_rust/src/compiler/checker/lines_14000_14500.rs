@@ -863,11 +863,11 @@ impl TypeChecker {
         &self,
         signatures: &[Gc<Signature>],
         kind: Option<TypeFlags>,
-    ) -> Option<TypePredicate> {
+    ) -> io::Result<Option<TypePredicate>> {
         let mut first: Option<Gc<TypePredicate>> = None;
         let mut types: Vec<Gc<Type>> = vec![];
         for sig in signatures {
-            let pred = self.get_type_predicate_of_signature(sig);
+            let pred = self.get_type_predicate_of_signature(sig)?;
             if match pred.as_ref() {
                 None => true,
                 Some(pred) => matches!(
@@ -878,14 +878,14 @@ impl TypeChecker {
                 if !matches!(kind, Some(TypeFlags::Intersection)) {
                     continue;
                 } else {
-                    return None;
+                    return Ok(None);
                 }
             }
             let pred = pred.unwrap();
 
             if let Some(first) = first.as_ref() {
                 if !self.type_predicate_kinds_match(first, &pred) {
-                    return None;
+                    return Ok(None);
                 }
             } else {
                 first = Some(pred.clone());
@@ -893,13 +893,13 @@ impl TypeChecker {
             types.push(pred.type_.clone().unwrap());
         }
         let first = first?;
-        let composite_type = self.get_union_or_intersection_type(&types, kind, None);
-        Some(self.create_type_predicate(
+        let composite_type = self.get_union_or_intersection_type(&types, kind, None)?;
+        Ok(Some(self.create_type_predicate(
             first.kind,
             first.parameter_name.clone(),
             first.parameter_index,
             Some(composite_type),
-        ))
+        )))
     }
 
     pub(super) fn type_predicate_kinds_match(&self, a: &TypePredicate, b: &TypePredicate) -> bool {

@@ -739,7 +739,7 @@ impl TypeChecker {
                 if is_identifier(&common_js_property_access_as_property_access_expression.name) {
                     self.resolve_symbol(
                         self.get_property_of_type(
-                            &self.resolve_external_module_type_by_literal(name),
+                            &*self.resolve_external_module_type_by_literal(name)?,
                             &common_js_property_access_as_property_access_expression
                                 .name
                                 .as_identifier()

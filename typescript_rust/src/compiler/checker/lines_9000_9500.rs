@@ -559,7 +559,7 @@ impl TypeChecker {
         } else if is_property_assignment(declaration) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
-                .unwrap_or_else(|| self.check_property_assignment(declaration, None));
+                .try_unwrap_or_else(|| self.check_property_assignment(declaration, None))?;
         } else if is_jsx_attribute(declaration) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
@@ -654,8 +654,8 @@ impl TypeChecker {
     pub(super) fn get_this_type_of_declaration(
         &self,
         declaration: &Node, /*SignatureDeclaration*/
-    ) -> Option<Gc<Type>> {
-        self.get_this_type_of_signature(&self.get_signature_from_declaration_(declaration))
+    ) -> io::Result<Option<Gc<Type>>> {
+        self.get_this_type_of_signature(&*self.get_signature_from_declaration_(declaration)?)
     }
 
     pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {

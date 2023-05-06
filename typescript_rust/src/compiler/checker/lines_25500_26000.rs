@@ -314,15 +314,17 @@ impl TypeChecker {
             .unwrap_or_else(|| declaration_as_binding_element.name());
         let parent_type = self
             .get_contextual_type_for_variable_like_declaration(&parent)?
-            .or_else(|| {
-                if parent.kind() != SyntaxKind::BindingElement
-                    && parent.as_has_initializer().maybe_initializer().is_some()
-                {
-                    Some(self.check_declaration_initializer(&parent, Option::<&Type>::None)?)
-                } else {
-                    None
-                }
-            });
+            .try_or_else(|| {
+                Ok(
+                    if parent.kind() != SyntaxKind::BindingElement
+                        && parent.as_has_initializer().maybe_initializer().is_some()
+                    {
+                        Some(self.check_declaration_initializer(&parent, Option::<&Type>::None)?)
+                    } else {
+                        None
+                    },
+                )
+            })?;
         if parent_type.is_none()
             || is_binding_pattern(Some(&*name))
             || is_computed_non_literal_name(&name)
@@ -413,11 +415,12 @@ impl TypeChecker {
                     } else {
                         IterationUse::GeneratorReturnType
                     };
-                    let iteration_types = self.get_iteration_types_of_iterable(
-                        &contextual_return_type,
-                        use_,
-                        Option::<&Node>::None,
-                    )?;
+                    let iteration_types = return_ok_none_if_none!(self
+                        .get_iteration_types_of_iterable(
+                            &contextual_return_type,
+                            use_,
+                            Option::<&Node>::None,
+                        ));
                     contextual_return_type = iteration_types.return_type();
                 }
 

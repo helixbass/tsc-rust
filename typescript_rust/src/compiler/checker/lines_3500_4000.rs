@@ -447,7 +447,7 @@ impl TypeChecker {
                 self.get_resolved_members_or_exports_of_symbol(
                     symbol,
                     MembersOrExportsResolutionKind::resolved_exports,
-                )
+                )?
             } else if symbol.flags().intersects(SymbolFlags::Module) {
                 self.get_exports_of_module_(symbol)?
             } else {

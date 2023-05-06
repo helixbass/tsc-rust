@@ -17,8 +17,8 @@ use crate::{
     is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
     is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map,
     map_defined, maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment,
-    return_ok_false_if_none, some, try_map, CheckFlags, Debug_, Diagnostics,
-    HasInitializerInterface, HasTypeInterface, IndexInfo, InterfaceTypeInterface,
+    return_ok_default_if_none, return_ok_false_if_none, some, try_map, CheckFlags, Debug_,
+    Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo, InterfaceTypeInterface,
     InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeInterface, ObjectFlags,
     OptionTry, ReadonlyTextRange, Signature, SignatureDeclarationInterface, SignatureFlags, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
@@ -392,15 +392,12 @@ impl TypeChecker {
     pub(super) fn get_signatures_of_symbol(
         &self,
         symbol: Option<impl Borrow<Symbol>>,
-    ) -> Vec<Gc<Signature>> {
-        if symbol.is_none() {
-            return vec![];
-        }
-        let symbol = symbol.unwrap();
+    ) -> io::Result<Vec<Gc<Signature>>> {
+        let symbol = return_ok_default_if_none!(symbol);
         let symbol = symbol.borrow();
         let symbol_declarations = symbol.maybe_declarations();
         if symbol_declarations.is_none() {
-            return vec![];
+            return Ok(vec![]);
         }
         let symbol_declarations = symbol_declarations.as_ref().unwrap();
         let mut result: Vec<Gc<Signature>> = vec![];
@@ -422,9 +419,9 @@ impl TypeChecker {
                     continue;
                 }
             }
-            result.push(self.get_signature_from_declaration_(decl));
+            result.push(self.get_signature_from_declaration_(decl)?);
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn resolve_external_module_type_by_literal(
@@ -488,17 +485,17 @@ impl TypeChecker {
                 let mut jsdoc_predicate: Option<Gc<TypePredicate>> = None;
                 if type_.is_none() && is_in_js_file(signature.declaration.as_deref()) {
                     let jsdoc_signature =
-                        self.get_signature_of_type_tag(signature.declaration.as_ref().unwrap());
+                        self.get_signature_of_type_tag(signature.declaration.as_ref().unwrap())?;
                     if let Some(jsdoc_signature) = jsdoc_signature
                         .filter(|jsdoc_signature| !ptr::eq(signature, &**jsdoc_signature))
                     {
-                        jsdoc_predicate = self.get_type_predicate_of_signature(&jsdoc_signature);
+                        jsdoc_predicate = self.get_type_predicate_of_signature(&jsdoc_signature)?;
                     }
                 }
                 *signature.maybe_resolved_type_predicate_mut() = Some(
                     if let Some(type_) = type_.filter(|type_| is_type_predicate_node(type_)) {
                         Gc::new(
-                            self.create_type_predicate_from_type_predicate_node(&type_, signature),
+                            self.create_type_predicate_from_type_predicate_node(&type_, signature)?,
                         )
                     } else {
                         jsdoc_predicate.unwrap_or_else(|| self.no_type_predicate())
@@ -601,7 +598,7 @@ impl TypeChecker {
                 signature.composite_signatures.as_deref()
             {
                 self.instantiate_type(
-                    &self.get_union_or_intersection_type(
+                    &*self.get_union_or_intersection_type(
                         &try_map(
                             signature_composite_signatures,
                             |signature: &Gc<Signature>, _| {
@@ -610,7 +607,7 @@ impl TypeChecker {
                         )?,
                         signature.composite_kind,
                         Some(UnionReduction::Subtype),
-                    ),
+                    )?,
                     signature.mapper.clone(),
                 )?
             } else {
@@ -716,7 +713,7 @@ impl TypeChecker {
                 return Ok(setter_type);
             }
         }
-        Ok(self.get_return_type_of_type_tag(declaration))
+        self.get_return_type_of_type_tag(declaration)
     }
 
     pub(super) fn is_resolving_return_type_of_signature(&self, signature: Gc<Signature>) -> bool {
@@ -769,7 +766,7 @@ impl TypeChecker {
                     signature.maybe_type_parameters().as_deref(),
                     self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref()),
                     is_javascript,
-                )
+                )?
                 .as_deref(),
             );
         if let Some(inferred_type_parameters) = inferred_type_parameters {
@@ -865,7 +862,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_canonical_signature(&self, signature: Gc<Signature>) -> Gc<Signature> {
+    pub(super) fn create_canonical_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Gc<Signature>> {
         self.get_signature_instantiation(
             signature.clone(),
             maybe_map(

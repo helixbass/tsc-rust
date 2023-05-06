@@ -378,7 +378,10 @@ impl InferTypes {
                 return Ok(());
             }
         }
-        if !self.type_checker.types_definitely_unrelated(source, target) {
+        if !self
+            .type_checker
+            .types_definitely_unrelated(source, target)?
+        {
             if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
                 if self.type_checker.is_tuple_type(target) {
                     let source_arity = self.type_checker.get_type_reference_arity(source);
@@ -658,11 +661,11 @@ impl InferTypes {
                 let mut prop_types: Vec<Gc<Type>> = vec![];
                 for ref prop in self.type_checker.get_properties_of_type(source) {
                     if self.type_checker.is_applicable_index_type(
-                        &self.type_checker.get_literal_type_from_property(
+                        &*self.type_checker.get_literal_type_from_property(
                             prop,
                             TypeFlags::StringOrNumberLiteralOrUnique,
                             None,
-                        ),
+                        )?,
                         &target_info.key_type,
                     ) {
                         let prop_type = self.type_checker.get_type_of_symbol(prop)?;
@@ -935,11 +938,11 @@ impl TypeChecker {
                     Some(inferred_type) => {
                         context.compare_types.call(
                             inferred_type,
-                            &self.get_type_with_this_argument(
+                            &*self.get_type_with_this_argument(
                                 &instantiated_constraint,
                                 Some(&**inferred_type),
                                 None,
-                            ),
+                            )?,
                             None,
                         ) == Ternary::False
                     }

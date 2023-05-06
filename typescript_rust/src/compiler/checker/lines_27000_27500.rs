@@ -263,7 +263,7 @@ impl TypeChecker {
         for attribute_decl in &attributes.as_jsx_attributes().properties {
             let member = attribute_decl.maybe_symbol();
             if is_jsx_attribute(attribute_decl) {
-                let expr_type = self.check_jsx_attribute(attribute_decl, check_mode);
+                let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
                 object_flags |= get_object_flags(&expr_type) & ObjectFlags::PropagatingFlags;
 
                 let member = member.unwrap();
@@ -396,7 +396,7 @@ impl TypeChecker {
                 opening_like_element,
             ) && !parent_as_jsx_element.children.is_empty()
         }) {
-            let children_types = self.check_jsx_children(parent, check_mode);
+            let children_types = self.check_jsx_children(parent, check_mode)?;
 
             if !has_spread_any_type {
                 if let Some(jsx_children_property_name) = jsx_children_property_name

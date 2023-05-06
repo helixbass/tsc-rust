@@ -449,7 +449,7 @@ impl TypeChecker {
             flags |= NodeBuilderFlags::AllowUniqueESSymbolType;
         }
         if add_undefined == Some(true) {
-            type_ = self.get_optional_type_(&type_, None);
+            type_ = self.get_optional_type_(&type_, None)?;
         }
         self.node_builder().type_to_type_node(
             &type_,
@@ -476,7 +476,7 @@ impl TypeChecker {
             ));
         }
         let signature_declaration = signature_declaration.as_ref().unwrap();
-        let signature = self.get_signature_from_declaration_(signature_declaration);
+        let signature = self.get_signature_from_declaration_(signature_declaration)?;
         self.node_builder().type_to_type_node(
             &*self.get_return_type_of_signature(signature)?,
             Some(enclosing_declaration),

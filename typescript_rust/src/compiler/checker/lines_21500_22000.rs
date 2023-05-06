@@ -131,7 +131,7 @@ impl TypeChecker {
             if self.is_tuple_type(source) && self.is_tuple_type(target) {
                 self.tuple_types_definitely_unrelated(source, target)
             } else {
-                self.get_unmatched_property(source, target, false, true)
+                self.get_unmatched_property(source, target, false, true)?
                     .is_some()
                     && self
                         .get_unmatched_property(target, source, false, false)?

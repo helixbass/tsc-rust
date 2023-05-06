@@ -550,7 +550,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Type>>> {
         let container = get_this_container(node, false);
         if is_function_like(Some(&*container)) {
-            let signature = self.get_signature_from_declaration_(&container);
+            let signature = self.get_signature_from_declaration_(&container)?;
             let signature_this_parameter = signature.maybe_this_parameter().clone();
             if let Some(signature_this_parameter) = signature_this_parameter.as_ref() {
                 return self.get_explicit_type_of_symbol(signature_this_parameter, None);
@@ -932,7 +932,7 @@ impl TypeChecker {
                 &base_class_type,
                 class_type.as_interface_type().maybe_this_type(),
                 None,
-            )
+            )?
         })
     }
 }

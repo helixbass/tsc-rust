@@ -75,9 +75,9 @@ impl TypeChecker {
         }
         let mut result = Ternary::True;
         if !ignore_this_types {
-            let source_this_type = self.get_this_type_of_signature(&source);
+            let source_this_type = self.get_this_type_of_signature(&source)?;
             if let Some(source_this_type) = source_this_type {
-                let target_this_type = self.get_this_type_of_signature(&target);
+                let target_this_type = self.get_this_type_of_signature(&target)?;
                 if let Some(target_this_type) = target_this_type {
                     let related = compare_types(&source_this_type, &target_this_type);
                     if related == Ternary::False {
@@ -98,8 +98,8 @@ impl TypeChecker {
             result &= related;
         }
         if !ignore_return_types {
-            let source_type_predicate = self.get_type_predicate_of_signature(&source);
-            let target_type_predicate = self.get_type_predicate_of_signature(&target);
+            let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
+            let target_type_predicate = self.get_type_predicate_of_signature(&target)?;
             result &= if source_type_predicate.is_some() || target_type_predicate.is_some() {
                 self.compare_type_predicates_identical(
                     source_type_predicate,
@@ -178,7 +178,7 @@ impl TypeChecker {
         if types_peekmore.is_len_equal_to(1) {
             return Ok(types.next().unwrap().clone());
         }
-        Ok(if self.literal_types_with_same_base_type(types.clone()) {
+        Ok(if self.literal_types_with_same_base_type(types.clone())? {
             self.get_union_type(
                 types,
                 None,
@@ -363,7 +363,7 @@ impl TypeChecker {
                 &instantiated_base,
                 Some(&**last(&self.get_type_arguments(type_))),
                 None,
-            );
+            )?;
         }
         type_as_type_reference.set_object_flags(
             type_as_type_reference.object_flags() | ObjectFlags::IdenticalBaseTypeExists,
@@ -407,16 +407,16 @@ impl TypeChecker {
             return Ok(prop_type);
         }
         if self.every_type(type_, |type_: &Type| self.is_tuple_type(type_)) {
-            return Ok(self.map_type(
+            return self.try_map_type(
                 type_,
                 &mut |t: &Type| {
-                    Some(
-                        self.get_rest_type_of_tuple_type(t)
+                    Ok(Some(
+                        self.get_rest_type_of_tuple_type(t)?
                             .unwrap_or_else(|| self.undefined_type()),
-                    )
+                    ))
                 },
                 None,
-            ));
+            );
         }
         Ok(None)
     }
@@ -517,7 +517,7 @@ impl TypeChecker {
             } else if flags.intersects(TypeFlags::Union) {
                 self.try_map_type(
                     type_,
-                    &mut |type_| Some(self.get_widened_literal_type(type_)),
+                    &mut |type_| Ok(Some(self.get_widened_literal_type(type_)?)),
                     None,
                 )?
                 .unwrap()
@@ -546,22 +546,19 @@ impl TypeChecker {
         &self,
         type_: &Type,
         contextual_type: Option<impl Borrow<Type>>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let mut type_ = type_.type_wrapper();
         if !self.is_literal_of_contextual_type(&type_, contextual_type) {
             type_ =
                 self.get_widened_unique_es_symbol_type(&*self.get_widened_literal_type(&type_)?);
         }
-        type_
+        Ok(type_)
     }
 
-    pub(super) fn get_widened_literal_like_type_for_contextual_return_type_if_needed<
-        TType: Borrow<Type>,
-        TContextualSignatureReturnType: Borrow<Type>,
-    >(
+    pub(super) fn get_widened_literal_like_type_for_contextual_return_type_if_needed(
         &self,
-        type_: Option<TType>,
-        contextual_signature_return_type: Option<TContextualSignatureReturnType>,
+        type_: Option<impl Borrow<Type>>,
+        contextual_signature_return_type: Option<impl Borrow<Type>>,
         is_async: bool,
     ) -> io::Result<Option<Gc<Type>>> {
         let mut type_ = type_.map(|type_| type_.borrow().type_wrapper());
@@ -670,11 +667,11 @@ impl TypeChecker {
     pub(super) fn get_rest_array_type_of_tuple_type(
         &self,
         type_: &Type, /*TupleTypeReference*/
-    ) -> Option<Gc<Type>> {
-        let rest_type = self.get_rest_type_of_tuple_type(type_);
-        rest_type
+    ) -> io::Result<Option<Gc<Type>>> {
+        let rest_type = self.get_rest_type_of_tuple_type(type_)?;
+        Ok(rest_type
             .as_ref()
-            .map(|rest_type| self.create_array_type(rest_type, None))
+            .map(|rest_type| self.create_array_type(rest_type, None)))
     }
 
     pub(super) fn get_element_type_of_slice_of_tuple_type(

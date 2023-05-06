@@ -712,7 +712,7 @@ impl TypeChecker {
                 self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned()),
             );
             type_as_interface_type
-                .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol));
+                .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol)?);
         }
         Ok(type_.type_wrapper())
     }

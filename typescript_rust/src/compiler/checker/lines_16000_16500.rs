@@ -572,7 +572,7 @@ impl TypeChecker {
                 )?,
                 None,
                 None,
-            ),
+            )?,
             SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node)?,
             SyntaxKind::ParenthesizedType
             | SyntaxKind::JSDocNonNullableType

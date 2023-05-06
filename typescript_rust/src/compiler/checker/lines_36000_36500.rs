@@ -203,7 +203,7 @@ impl TypeChecker {
             if function_flags.intersects(FunctionFlags::Generator)
                 && node_is_present(body.as_deref())
             {
-                self.get_return_type_of_signature(self.get_signature_from_declaration_(node));
+                self.get_return_type_of_signature(self.get_signature_from_declaration_(node)?);
             }
         }
 

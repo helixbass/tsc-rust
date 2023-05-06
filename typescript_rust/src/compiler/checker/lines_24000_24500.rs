@@ -426,7 +426,7 @@ impl GetFlowTypeOfReference {
                             operator,
                             &right,
                             assume_true,
-                        );
+                        )?;
                     } else if self
                         .type_checker
                         .optional_chain_contains_reference(&right, &self.reference)
@@ -436,7 +436,7 @@ impl GetFlowTypeOfReference {
                             operator,
                             &left,
                             assume_true,
-                        );
+                        )?;
                     }
                 }
                 let left_access = self.get_discriminant_property_access(&left, &type_);

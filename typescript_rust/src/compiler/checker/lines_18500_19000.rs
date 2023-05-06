@@ -1423,11 +1423,11 @@ impl CheckTypeRelatedTo {
                     return Ok(result);
                 } else if {
                     result = self.is_related_to(
-                        &self.type_checker.get_type_with_this_argument(
+                        &*self.type_checker.get_type_with_this_argument(
                             constraint.as_ref().unwrap(),
                             Some(&*source),
                             None,
-                        ),
+                        )?,
                         target,
                         Some(RecursionFlags::Source),
                         Some(
