@@ -249,13 +249,13 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if self
             .type_checker
             .has_matching_argument(call_expression, &self.reference)
         {
             let signature = if assume_true || !is_call_chain(call_expression) {
-                self.type_checker.get_effects_signature(call_expression)
+                self.type_checker.get_effects_signature(call_expression)?
             } else {
                 None
             };
@@ -268,12 +268,12 @@ impl GetFlowTypeOfReference {
                     TypePredicateKind::This | TypePredicateKind::Identifier
                 )
             }) {
-                return self.narrow_type_by_type_predicate(
+                return Ok(self.narrow_type_by_type_predicate(
                     type_,
                     predicate,
                     call_expression,
                     assume_true,
-                );
+                ));
             }
         }
         let call_expression_as_call_expression = call_expression.as_call_expression();
@@ -304,18 +304,18 @@ impl GetFlowTypeOfReference {
                         Some(accessed_property_name) if accessed_property_name == &escape_leading_underscores(&argument.as_literal_like_node().text())
                     )
                 {
-                    return self.type_checker.get_type_with_facts(
+                    return Ok(self.type_checker.get_type_with_facts(
                         type_,
                         if assume_true {
                             TypeFacts::NEUndefined
                         } else {
                             TypeFacts::EQUndefined
                         },
-                    );
+                    ));
                 }
             }
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn narrow_type_by_type_predicate(
@@ -692,7 +692,7 @@ impl TypeChecker {
     pub(super) fn has_non_binding_pattern_contextual_type_with_no_generic_types(
         &self,
         node: &Node,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let contextual_type = if (is_identifier(node)
             || is_property_access_expression(node)
             || is_element_access_expression(node))
@@ -702,14 +702,14 @@ impl TypeChecker {
                     &*node.parent().as_jsx_opening_like_element().tag_name(),
                     node,
                 )) {
-            self.get_contextual_type_(node, Some(ContextFlags::SkipBindingPatterns))
+            self.get_contextual_type_(node, Some(ContextFlags::SkipBindingPatterns))?
         } else {
             None
         };
-        matches!(
+        Ok(matches!(
             contextual_type.as_ref(),
             Some(contextual_type) if !self.is_generic_type(contextual_type)
-        )
+        ))
     }
 
     pub(super) fn get_narrowable_type_for_reference(
@@ -922,7 +922,7 @@ impl TypeChecker {
 
         self.check_nested_block_scoped_binding(node, &symbol);
 
-        let mut type_ = self.get_type_of_symbol(&local_or_export_symbol);
+        let mut type_ = self.get_type_of_symbol(&local_or_export_symbol)?;
         let assignment_kind = get_assignment_target_kind(node);
 
         if assignment_kind != AssignmentKind::None {

@@ -723,7 +723,7 @@ impl TypeChecker {
                             .as_ref()
                     {
                         self.for_each_type(
-                            &self.get_type_from_type_node_(declaration_parameters_0_type)?,
+                            &*self.get_type_from_type_node_(declaration_parameters_0_type)?,
                             |type_: &Type| -> Option<()> {
                                 let entry = index_signature_map
                                     .entry(self.get_type_id(type_))

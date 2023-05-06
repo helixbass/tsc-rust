@@ -278,12 +278,16 @@ impl TypeChecker {
     pub(super) fn class_declaration_extends_null(
         &self,
         class_decl: &Node, /*ClassDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let class_symbol = self.get_symbol_of_node(class_decl).unwrap();
-        let class_instance_type = self.get_declared_type_of_symbol(&class_symbol);
-        let base_constructor_type = self.get_base_constructor_type_of_class(&class_instance_type);
+        let class_instance_type = self.get_declared_type_of_symbol(&class_symbol)?;
+        let base_constructor_type =
+            self.get_base_constructor_type_of_class(&class_instance_type)?;
 
-        Gc::ptr_eq(&base_constructor_type, &self.null_widening_type())
+        Ok(Gc::ptr_eq(
+            &base_constructor_type,
+            &self.null_widening_type(),
+        ))
     }
 
     pub(super) fn check_this_before_super(
@@ -291,12 +295,12 @@ impl TypeChecker {
         node: &Node,
         container: &Node,
         diagnostic_message: &DiagnosticMessage,
-    ) {
+    ) -> io::Result<()> {
         let containing_class_decl = container.parent();
         let base_type_node = get_class_extends_heritage_element(&containing_class_decl);
 
         if base_type_node.is_some() {
-            if !self.class_declaration_extends_null(&containing_class_decl) {
+            if !self.class_declaration_extends_null(&containing_class_decl)? {
                 if matches!(
                     node.maybe_flow_node().as_ref(),
                     Some(node_flow_node) if !self.is_post_super_flow_node(node_flow_node.clone(), false)
@@ -305,6 +309,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_this_in_static_class_field_initializer_in_decorated_class(
@@ -386,7 +392,7 @@ impl TypeChecker {
 
         let type_ = self.try_get_this_type_at_(node, Some(true), Some(&*container))?;
         if self.no_implicit_this {
-            let global_this_type = self.get_type_of_symbol(&self.global_this_symbol());
+            let global_this_type = self.get_type_of_symbol(&self.global_this_symbol())?;
             if matches!(
                 type_.as_ref(),
                 Some(type_) if Gc::ptr_eq(
@@ -469,7 +475,7 @@ impl TypeChecker {
                             && class_symbol.flags().intersects(SymbolFlags::Function)
                     }) {
                         this_type = self
-                            .get_declared_type_of_symbol(class_symbol)
+                            .get_declared_type_of_symbol(class_symbol)?
                             .maybe_as_interface_type()
                             .and_then(|interface_type| interface_type.maybe_this_type());
                     }
@@ -477,7 +483,7 @@ impl TypeChecker {
                     this_type = self
                         .get_declared_type_of_symbol(
                             &self.get_merged_symbol(Some(container.symbol())).unwrap(),
-                        )
+                        )?
                         .maybe_as_interface_type()
                         .and_then(|interface_type| interface_type.maybe_this_type());
                 }
@@ -492,16 +498,16 @@ impl TypeChecker {
                     this_type,
                     Option::<&Type>::None,
                     Option::<&Node>::None,
-                )));
+                )?));
             }
         }
 
         if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
             let type_ = if is_static(&container) {
-                self.get_type_of_symbol(&symbol)
+                self.get_type_of_symbol(&symbol)?
             } else {
-                self.get_declared_type_of_symbol(&symbol)
+                self.get_declared_type_of_symbol(&symbol)?
                     .as_interface_type()
                     .maybe_this_type()
                     .unwrap()
@@ -511,7 +517,7 @@ impl TypeChecker {
                 &type_,
                 Option::<&Type>::None,
                 Option::<&Node>::None,
-            )));
+            )?));
         }
 
         if is_source_file(&container) {
@@ -521,16 +527,16 @@ impl TypeChecker {
                 .is_some()
             {
                 let file_symbol = self.get_symbol_of_node(&container);
-                return Ok(file_symbol
+                return file_symbol
                     .as_ref()
-                    .map(|file_symbol| self.get_type_of_symbol(file_symbol)));
+                    .try_map(|file_symbol| self.get_type_of_symbol(file_symbol));
             } else if container_as_source_file
                 .maybe_external_module_indicator()
                 .is_some()
             {
                 return Ok(Some(self.undefined_type()));
             } else if include_global_this {
-                return Ok(Some(self.get_type_of_symbol(&self.global_this_symbol())));
+                return Ok(Some(self.get_type_of_symbol(&self.global_this_symbol())?));
             }
         }
         Ok(None)
@@ -551,9 +557,9 @@ impl TypeChecker {
         if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
             return Ok(if is_static(&container) {
-                Some(self.get_type_of_symbol(&symbol))
+                Some(self.get_type_of_symbol(&symbol)?)
             } else {
-                self.get_declared_type_of_symbol(&symbol)
+                self.get_declared_type_of_symbol(&symbol)?
                     .as_interface_type()
                     .maybe_this_type()
             });
@@ -755,7 +761,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn check_super_expression(&self, node: &Node) -> Gc<Type> {
+    pub(super) fn check_super_expression(&self, node: &Node) -> io::Result<Gc<Type>> {
         let is_call_expression = node.parent().kind() == SyntaxKind::CallExpression
             && ptr::eq(&*node.parent().as_call_expression().expression, node);
 
@@ -825,7 +831,7 @@ impl TypeChecker {
                     None,
                 );
             }
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
         if !is_call_expression && immediate_container.kind() == SyntaxKind::Constructor {
@@ -880,9 +886,9 @@ impl TypeChecker {
                     &Diagnostics::super_is_only_allowed_in_members_of_object_literal_expressions_when_option_target_is_ES2015_or_higher,
                     None,
                 );
-                return self.error_type();
+                return Ok(self.error_type());
             } else {
-                return self.any_type();
+                return Ok(self.any_type());
             }
         }
 
@@ -893,16 +899,16 @@ impl TypeChecker {
                 &Diagnostics::super_can_only_be_referenced_in_a_derived_class,
                 None,
             );
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
         let class_type = self.get_declared_type_of_symbol(
             &self.get_symbol_of_node(&class_like_declaration).unwrap(),
-        );
+        )?;
         let base_class_type = /*classType &&*/
             self.get_base_types(&class_type).get(0).cloned();
         if base_class_type.is_none() {
-            return self.error_type();
+            return Ok(self.error_type());
         }
         let base_class_type = base_class_type.unwrap();
 
@@ -914,17 +920,17 @@ impl TypeChecker {
                 &Diagnostics::super_cannot_be_referenced_in_constructor_arguments,
                 None,
             );
-            return self.error_type();
+            return Ok(self.error_type());
         }
 
-        if node_check_flag == NodeCheckFlags::SuperStatic {
-            self.get_base_constructor_type_of_class(&class_type)
+        Ok(if node_check_flag == NodeCheckFlags::SuperStatic {
+            self.get_base_constructor_type_of_class(&class_type)?
         } else {
             self.get_type_with_this_argument(
                 &base_class_type,
                 class_type.as_interface_type().maybe_this_type(),
                 None,
             )
-        }
+        })
     }
 }

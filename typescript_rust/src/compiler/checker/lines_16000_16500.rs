@@ -37,11 +37,15 @@ impl TypeChecker {
             ))
     }
 
-    pub(super) fn get_spread_symbol(&self, prop: &Symbol, readonly: bool) -> Gc<Symbol> {
+    pub(super) fn get_spread_symbol(
+        &self,
+        prop: &Symbol,
+        readonly: bool,
+    ) -> io::Result<Gc<Symbol>> {
         let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
             && !prop.flags().intersects(SymbolFlags::GetAccessor);
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
-            return prop.symbol_wrapper();
+            return Ok(prop.symbol_wrapper());
         }
         let flags = SymbolFlags::Property | (prop.flags() & SymbolFlags::Optional);
         let result: Gc<Symbol> = self
@@ -63,14 +67,14 @@ impl TypeChecker {
         result_links.type_ = Some(if is_setonly_accessor {
             self.undefined_type()
         } else {
-            self.get_type_of_symbol(prop)
+            self.get_type_of_symbol(prop)?
         });
         if let Some(prop_declarations) = prop.maybe_declarations().clone() {
             result.set_declarations(prop_declarations);
         }
         result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
         result_links.synthetic_origin = Some(prop.symbol_wrapper());
-        result
+        Ok(result)
     }
 
     pub(super) fn get_index_info_with_readonly(
@@ -559,8 +563,8 @@ impl TypeChecker {
             }
             SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node)?,
             SyntaxKind::UnionType => self.get_type_from_union_type_node(node)?,
-            SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node),
-            SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node),
+            SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node)?,
+            SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node)?,
             SyntaxKind::JSDocOptionalType => self.add_optionality(
                 &*self.get_type_from_type_node_(
                     node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
@@ -596,7 +600,7 @@ impl TypeChecker {
             | SyntaxKind::PropertyAccessExpression => {
                 let symbol = self.get_symbol_at_location_(node, None)?;
                 if let Some(symbol) = symbol.as_ref() {
-                    self.get_declared_type_of_symbol(symbol)
+                    self.get_declared_type_of_symbol(symbol)?
                 } else {
                     self.error_type()
                 }
@@ -605,14 +609,11 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn instantiate_list<
-        TItem: Trace + Finalize,
-        TInstantiator: FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
-    >(
+    pub(super) fn instantiate_list<TItem: Trace + Finalize>(
         &self,
-        items: Option<&[Gc<TItem>]>,
+        items: Option<&[Gc<impl Trace + Finalize>]>,
         mapper: Option<Gc<TypeMapper>>,
-        mut instantiator: TInstantiator,
+        mut instantiator: impl FnMut(&Gc<TItem>, Option<Gc<TypeMapper>>) -> Gc<TItem>,
     ) -> Option<Vec<Gc<TItem>>> {
         let items = items?;
         if !items.is_empty() {
@@ -976,13 +977,13 @@ impl TypeChecker {
         result.into()
     }
 
-    pub(super) fn get_object_type_instantiation<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn get_object_type_instantiation(
         &self,
         type_: &Type, /*AnonymousType | DeferredTypeReference*/
         mapper: Gc<TypeMapper>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_object_type = type_.as_object_type();
         let declaration = if type_as_object_type
             .object_flags()
@@ -1139,9 +1140,9 @@ impl TypeChecker {
                     .unwrap()
                     .insert(id, result.clone().unwrap());
             }
-            return result.unwrap();
+            return Ok(result.unwrap());
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 }
 

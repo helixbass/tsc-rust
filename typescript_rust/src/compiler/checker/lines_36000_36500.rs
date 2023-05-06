@@ -140,7 +140,7 @@ impl TypeChecker {
     pub(super) fn check_function_or_method_declaration(
         &self,
         node: &Node, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
-    ) {
+    ) -> io::Result<()> {
         self.check_decorators(node);
         self.check_signature_declaration(node);
         let function_flags = get_function_flags(Some(node));
@@ -215,7 +215,7 @@ impl TypeChecker {
                 .as_ref()
                 .filter(|type_tag_type_expression| {
                     self.get_contextual_call_signature(
-                        &self.get_type_from_type_node_(type_tag_type_expression),
+                        &self.get_type_from_type_node_(type_tag_type_expression)?,
                         node,
                     )
                     .is_none()
@@ -228,6 +228,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn register_for_unused_identifiers_check(

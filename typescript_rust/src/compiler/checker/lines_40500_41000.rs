@@ -240,11 +240,22 @@ impl TypeChecker {
         node.parent().kind() == SyntaxKind::ExpressionWithTypeArguments
     }
 
-    pub(super) fn for_each_enclosing_class<TReturn, TCallback: FnMut(&Node) -> Option<TReturn>>(
+    pub(super) fn for_each_enclosing_class<TReturn>(
         &self,
         node: &Node,
-        mut callback: TCallback,
+        mut callback: impl FnMut(&Node) -> Option<TReturn>,
     ) -> Option<TReturn> {
+        self.try_for_each_enclosing_class(node, |node: &Node| -> Result<_, ()> {
+            Ok(callback(node))
+        })
+        .unwrap()
+    }
+
+    pub(super) fn try_for_each_enclosing_class<TReturn, TError>(
+        &self,
+        node: &Node,
+        mut callback: impl FnMut(&Node) -> Result<Option<TReturn>, TError>,
+    ) -> Result<Option<TReturn>, TError> {
         let mut result: Option<TReturn> = None;
 
         let mut node = Some(node.node_wrapper());
@@ -254,13 +265,13 @@ impl TypeChecker {
                 break;
             }
             let node = node.as_ref().unwrap();
-            result = callback(node);
+            result = callback(node)?;
             if result.is_some() {
                 break;
             }
         }
 
-        result
+        Ok(result)
     }
 
     pub(super) fn for_each_enclosing_class_bool<TCallback: FnMut(&Node) -> bool>(
@@ -665,14 +676,14 @@ impl TypeChecker {
         };
         if let Some(left) = left.as_ref() {
             let proto = if left.flags().intersects(SymbolFlags::Value) {
-                self.get_property_of_type_(&self.get_type_of_symbol(left), "prototype", None)
+                self.get_property_of_type_(&self.get_type_of_symbol(left)?, "prototype", None)
             } else {
                 None
             };
             let t = if let Some(proto) = proto.as_ref() {
-                self.get_type_of_symbol(proto)
+                self.get_type_of_symbol(proto)?
             } else {
-                self.get_declared_type_of_symbol(left)
+                self.get_declared_type_of_symbol(left)?
             };
             return Ok(self.get_property_of_type_(&t, &right, None));
         }

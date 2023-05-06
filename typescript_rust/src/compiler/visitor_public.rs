@@ -4082,6 +4082,32 @@ pub fn visit_each_child(
     }
 }
 
+pub fn try_visit_each_child<TError>(
+    node: Option<impl Borrow<Node>>,
+    mut visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
+    context: &(impl TransformationContext + ?Sized),
+    mut nodes_visitor: Option<
+        impl FnMut(
+            Option<&NodeArray>,
+            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+            Option<&dyn Fn(&Node) -> bool>,
+            Option<usize>,
+            Option<usize>,
+        ) -> Result<Option<Gc<NodeArray>>, TError>,
+    >,
+    token_visitor: Option<impl Fn(&Node) -> Result<VisitResult, TError>>,
+    mut node_visitor: Option<
+        impl FnMut(
+            Option<&Node>,
+            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+            Option<&dyn Fn(&Node) -> bool>,
+            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+        ) -> Result<Option<Gc<Node>>, TError>,
+    >,
+) -> Result<Option<Gc<Node>>, TError> {
+    unimplemented!()
+}
+
 fn extract_single_node(nodes: &[Gc<Node>]) -> Option<Gc<Node>> {
     Debug_.assert(nodes.len() <= 1, Some("Too many nodes written to output."));
     single_or_undefined(Some(nodes)).cloned()

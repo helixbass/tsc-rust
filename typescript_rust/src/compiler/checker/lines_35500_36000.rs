@@ -84,7 +84,7 @@ impl TypeChecker {
             );
             let promise_constructor_type =
                 if let Some(promise_constructor_symbol) = promise_constructor_symbol.as_ref() {
-                    self.get_type_of_symbol(promise_constructor_symbol)
+                    self.get_type_of_symbol(promise_constructor_symbol)?
                 } else {
                     self.error_type()
                 };
@@ -168,12 +168,12 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_decorator(&self, node: &Node /*Decorator*/) {
+    pub(super) fn check_decorator(&self, node: &Node /*Decorator*/) -> io::Result<()> {
         let signature = self.get_resolved_signature_(node, None, None);
         self.check_deprecated_signature(signature.clone(), node);
         let return_type = self.get_return_type_of_signature(signature.clone());
         if return_type.flags().intersects(TypeFlags::Any) {
-            return;
+            return Ok(());
         }
 
         let expected_return_type: Gc<Type>;
@@ -182,7 +182,7 @@ impl TypeChecker {
         match node.parent().kind() {
             SyntaxKind::ClassDeclaration => {
                 let class_symbol = self.get_symbol_of_node(&node.parent()).unwrap();
-                let class_constructor_type = self.get_type_of_symbol(&class_symbol);
+                let class_constructor_type = self.get_type_of_symbol(&class_symbol)?;
                 expected_return_type = self.get_union_type(
                     &[class_constructor_type, self.void_type()],
                     None,
@@ -239,6 +239,8 @@ impl TypeChecker {
             )))),
             None,
         );
+
+        Ok(())
     }
 
     pub(super) fn mark_type_node_as_referenced(&self, node: &Node /*TypeNode*/) {

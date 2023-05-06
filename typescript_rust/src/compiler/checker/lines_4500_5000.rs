@@ -941,7 +941,7 @@ impl NodeBuilder {
             if Gc::ptr_eq(
                 &self
                     .type_checker
-                    .get_declared_type_of_symbol(&parent_symbol),
+                    .get_declared_type_of_symbol(&parent_symbol)?,
                 &type_,
             ) {
                 return Ok(Some(parent_name));
@@ -1087,7 +1087,7 @@ impl NodeBuilder {
                 if self.type_checker.is_value_symbol_accessible(
                     &type_.symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
-                ) {
+                )? {
                     context.increment_approximate_length_by(6);
                     return Ok(Some(self.symbol_to_type_node(
                         &type_.symbol(),

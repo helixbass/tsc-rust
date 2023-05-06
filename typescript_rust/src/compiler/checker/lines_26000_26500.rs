@@ -430,7 +430,7 @@ impl TypeChecker {
         &self,
         node: &Node,  /*JsxElement*/
         child: &Node, /*JsxChild*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let node_as_jsx_element = node.as_jsx_element();
         let attributes_type = self.get_apparent_type_of_contextual_type(
             &node_as_jsx_element
@@ -440,7 +440,7 @@ impl TypeChecker {
             None,
         );
         let jsx_children_property_name =
-            self.get_jsx_element_children_property_name(self.get_jsx_namespace_at(Some(node)));
+            self.get_jsx_element_children_property_name(self.get_jsx_namespace_at(Some(node))?);
         if !(matches!(
             attributes_type.as_ref(),
             Some(attributes_type) if !self.is_type_any(Some(&**attributes_type))
@@ -448,7 +448,7 @@ impl TypeChecker {
             jsx_children_property_name.as_ref(),
             Some(jsx_children_property_name) if !jsx_children_property_name.is_empty()
         )) {
-            return None;
+            return Ok(None);
         }
         let attributes_type = attributes_type.unwrap();
         let jsx_children_property_name = jsx_children_property_name.unwrap();
@@ -459,7 +459,7 @@ impl TypeChecker {
             .unwrap();
         let child_field_type = self
             .get_type_of_property_of_contextual_type(&attributes_type, &jsx_children_property_name);
-        child_field_type.as_ref().and_then(|child_field_type| {
+        Ok(child_field_type.as_ref().and_then(|child_field_type| {
             if real_children.len() == 1 {
                 Some(child_field_type.clone())
             } else {
@@ -482,7 +482,7 @@ impl TypeChecker {
                     Some(true),
                 )
             }
-        })
+        }))
     }
 
     pub(super) fn get_contextual_type_for_jsx_expression(
@@ -965,12 +965,12 @@ impl TypeChecker {
         &self,
         sig: &Signature,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let mut props_type =
             self.get_type_of_first_parameter_of_signature_with_fallback(sig, &self.unknown_type());
         props_type = self.get_jsx_managed_attributes_from_located_attributes(
             context,
-            self.get_jsx_namespace_at(Some(context)),
+            self.get_jsx_namespace_at(Some(context))?,
             &props_type,
         );
         let intrinsic_attribs = self.get_jsx_type(&JsxNames::IntrinsicAttributes, Some(context));
@@ -979,7 +979,7 @@ impl TypeChecker {
                 .intersect_types(Some(intrinsic_attribs), Some(&*props_type))
                 .unwrap();
         }
-        props_type
+        Ok(props_type)
     }
 
     pub(super) fn get_jsx_props_type_for_signature_from_member(

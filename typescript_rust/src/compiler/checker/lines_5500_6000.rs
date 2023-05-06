@@ -663,7 +663,7 @@ impl NodeBuilder {
                 get_declaration_of_kind(parameter_symbol, SyntaxKind::JSDocParameterTag);
         }
 
-        let mut parameter_type = self.type_checker.get_type_of_symbol(parameter_symbol);
+        let mut parameter_type = self.type_checker.get_type_of_symbol(parameter_symbol)?;
         if matches!(
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if self.type_checker.is_required_initialized_parameter(parameter_declaration)
@@ -946,7 +946,7 @@ impl NodeBuilder {
                 .flags()
                 .intersects(NodeBuilderFlags::UseOnlyExternalAliasing),
             None,
-        );
+        )?;
         let parent_specifiers: Vec<Option<String>>;
         if match accessible_symbol_chain.as_ref() {
             None => true,
@@ -1025,12 +1025,14 @@ impl NodeBuilder {
                             accessible_symbol_chain = Some(parent_chain);
                             break;
                         }
-                        parent_chain.append(&mut accessible_symbol_chain.unwrap_or_else(|| {
-                            vec![self
-                                .type_checker
-                                .get_alias_for_symbol_in_container(parent, symbol)?
-                                .unwrap_or_else(|| symbol.symbol_wrapper())]
-                        }));
+                        parent_chain.append(&mut accessible_symbol_chain.try_unwrap_or_else(
+                            || -> io::Result<_> {
+                                Ok(vec![self
+                                    .type_checker
+                                    .get_alias_for_symbol_in_container(parent, symbol)?
+                                    .unwrap_or_else(|| symbol.symbol_wrapper())])
+                            },
+                        )?);
                         accessible_symbol_chain = Some(parent_chain);
                         break;
                     }

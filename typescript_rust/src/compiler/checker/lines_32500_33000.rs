@@ -530,18 +530,18 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_binary_like_expression_worker<TErrorNode: Borrow<Node>>(
+    pub(super) fn check_binary_like_expression_worker(
         &self,
         left: &Node, /*Expression*/
         operator_token: &Node,
         right: &Node, /*Expression*/
         left_type: &Type,
         right_type: &Type,
-        error_node: Option<TErrorNode>,
-    ) -> Gc<Type> {
+        error_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<Gc<Type>> {
         let operator = operator_token.kind();
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
-        match operator {
+        Ok(match operator {
             SyntaxKind::AsteriskToken
             | SyntaxKind::AsteriskAsteriskToken
             | SyntaxKind::AsteriskEqualsToken
@@ -828,7 +828,7 @@ impl TypeChecker {
                         Option::<&Symbol>::None,
                         None,
                         Option::<&Type>::None,
-                    )
+                    )?
                 } else {
                     left_type.type_wrapper()
                 };
@@ -851,7 +851,7 @@ impl TypeChecker {
                         Option::<&Symbol>::None,
                         None,
                         Option::<&Type>::None,
-                    )
+                    )?
                 } else {
                     left_type.type_wrapper()
                 };
@@ -874,7 +874,7 @@ impl TypeChecker {
                         Option::<&Symbol>::None,
                         None,
                         Option::<&Type>::None,
-                    )
+                    )?
                 } else {
                     left_type.type_wrapper()
                 };
@@ -948,7 +948,7 @@ impl TypeChecker {
             }
 
             _ => Debug_.fail(None),
-        }
+        })
     }
 }
 

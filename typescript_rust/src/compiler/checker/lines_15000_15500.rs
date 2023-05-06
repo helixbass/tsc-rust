@@ -6,19 +6,18 @@ use std::rc::Rc;
 
 use super::{get_symbol_id, intrinsic_type_kinds, IntrinsicTypeKind};
 use crate::{
-    append, capitalize, chain_diagnostic_messages, create_diagnostic_for_node,
+    TemplateLiteralType, Type, TypeChecker, UnionOrIntersectionTypeInterface, UnionReduction,
+    __String, append, capitalize, chain_diagnostic_messages, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, every, find_ancestor,
     get_assignment_target_kind, get_combined_node_flags, get_object_flags,
     get_property_name_for_property_name_node, get_text_of_node, is_access_expression,
     is_assignment_target, is_call_like_expression, is_call_or_new_expression, is_delete_target,
     is_function_like, is_identifier, is_indexed_access_type_node, is_private_identifier,
-    is_property_name, map, maybe_every, reduce_left, some, uncapitalize,
-    unescape_leading_underscores, AccessFlags, AssignmentKind, DiagnosticMessageChain, Diagnostics,
-    IndexInfo, IndexedAccessType, LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectTypeInterface, StringMappingType, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TemplateLiteralType, Type, TypeChecker,
-    UnionOrIntersectionTypeInterface, UnionReduction, __String, pseudo_big_int_to_string,
-    TypeFlags, TypeInterface,
+    is_property_name, map, maybe_every, pseudo_big_int_to_string, reduce_left, some, try_map,
+    uncapitalize, unescape_leading_underscores, AccessFlags, AssignmentKind,
+    DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType, LiteralType, Node,
+    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
+    StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -516,10 +515,10 @@ impl TypeChecker {
                             .flags()
                             .intersects(TypeFlags::Number | TypeFlags::String)
                         {
-                            let mut types = map(
+                            let mut types = try_map(
                                 &*object_type.as_resolved_type().properties(),
                                 |property: &Gc<Symbol>, _| self.get_type_of_symbol(property),
-                            );
+                            )?;
                             append(&mut types, Some(self.undefined_type()));
                             return Some(self.get_union_type(
                                 &types,
@@ -527,7 +526,7 @@ impl TypeChecker {
                                 Option::<&Symbol>::None,
                                 None,
                                 Option::<&Type>::None,
-                            ));
+                            )?);
                         }
                     }
 

@@ -246,7 +246,7 @@ impl TypeChecker {
                 self.get_jsx_stateless_element_type_at(opening_like_element)?;
             let class_constraint = self.get_jsx_element_class_type_at(opening_like_element)?;
             if sfc_return_constraint.is_none() || class_constraint.is_none() {
-                return;
+                return Ok(());
             }
             let sfc_return_constraint = sfc_return_constraint.unwrap();
             let class_constraint = class_constraint.unwrap();
@@ -719,19 +719,21 @@ impl TypeChecker {
         }
 
         let mut enclosing_class =
-            self.for_each_enclosing_class(location, |enclosing_declaration: &Node| {
+            self.try_for_each_enclosing_class(location, |enclosing_declaration: &Node| {
                 let enclosing_class = self.get_declared_type_of_symbol(
                     &self.get_symbol_of_node(enclosing_declaration).unwrap(),
-                );
-                if self
-                    .is_class_derived_from_declaring_classes(&enclosing_class, prop, writing)
-                    .is_some()
-                {
-                    Some(enclosing_class)
-                } else {
-                    None
-                }
-            });
+                )?;
+                Ok(
+                    if self
+                        .is_class_derived_from_declaring_classes(&enclosing_class, prop, writing)
+                        .is_some()
+                    {
+                        Some(enclosing_class)
+                    } else {
+                        None
+                    },
+                )
+            })?;
         if enclosing_class.is_none() {
             let mut this_parameter: Option<Gc<Node /*ParameterDeclaration*/>> = None;
             if flags.intersects(ModifierFlags::Static) || {

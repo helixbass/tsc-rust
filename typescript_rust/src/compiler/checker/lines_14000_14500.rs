@@ -9,10 +9,11 @@ use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
     ordered_remove_item_at, push_if_unique_gc, reduce_left, replace_element, same_map, some,
-    try_map, BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType,
-    LiteralTypeInterface, Node, ObjectFlags, PeekMoreExt, Signature, Symbol, SymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, TypePredicate, TypePredicateKind,
-    TypeReferenceInterface, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
+    try_map, BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType, IteratorExt,
+    LiteralTypeInterface, Node, ObjectFlags, OptionTry, PeekMoreExt, Signature, Symbol,
+    SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypePredicate,
+    TypePredicateKind, TypeReferenceInterface, UnionOrIntersectionTypeInterface, UnionReduction,
+    UnionType,
 };
 use local_macros::enum_unwrapped;
 
@@ -481,11 +482,11 @@ impl TypeChecker {
         &self,
         mut types: Vec<Gc<Type>>,
         has_object_types: bool,
-    ) -> Option<Vec<Gc<Type>>> {
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
         let id = self.get_type_list_id(Some(&types));
         let match_ = self.subtype_reduction_cache().get(&id).map(Clone::clone);
         if match_.is_some() {
-            return match_;
+            return Ok(match_);
         }
         let has_empty_object = has_object_types
             && some(
@@ -513,13 +514,14 @@ impl TypeChecker {
                         | TypeFlags::InstantiableNonPrimitive,
                 ) {
                     self.get_properties_of_type(&source)
-                        .find(|p| self.is_unit_type(&self.get_type_of_symbol(p)))
+                        .try_find_(|p| Ok(self.is_unit_type(&*self.get_type_of_symbol(p)?)))?
                 } else {
                     None
                 };
-                let key_property_type = key_property.as_ref().map(|key_property| {
-                    self.get_regular_type_of_literal_type(&self.get_type_of_symbol(key_property))
-                });
+                let key_property_type = key_property.as_ref().try_map(|key_property| {
+                    Ok(self
+                        .get_regular_type_of_literal_type(&*self.get_type_of_symbol(key_property)?))
+                })?;
                 for target in &types.clone() {
                     if !Gc::ptr_eq(&source, target) {
                         if count == 100000 {
@@ -531,7 +533,7 @@ impl TypeChecker {
                                     &Diagnostics::Expression_produces_a_union_type_that_is_too_complex_to_represent,
                                     None
                                 );
-                                return None;
+                                return Ok(None);
                             }
                         }
                         count += 1;
@@ -574,7 +576,7 @@ impl TypeChecker {
             }
         }
         self.subtype_reduction_cache().insert(id, types.clone());
-        Some(types)
+        Ok(Some(types))
     }
 
     pub(super) fn remove_redundant_literal_types(
@@ -698,7 +700,7 @@ impl TypeChecker {
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
         origin: Option<impl Borrow<Type>>,
-    ) -> Gc<Type>
+    ) -> io::Result<Gc<Type>>
     where
         TTypesItem: Borrow<Gc<Type>>,
         TTypes: IntoIterator<Item = TTypesItem>,
@@ -708,16 +710,16 @@ impl TypeChecker {
         let mut types = types.into_iter();
         let mut types_peekmore = types.clone().peekmore();
         if types_peekmore.is_empty() {
-            return self.never_type();
+            return Ok(self.never_type());
         }
         if types_peekmore.is_len_equal_to(1) {
-            return types.next().unwrap().borrow().clone();
+            return Ok(types.next().unwrap().borrow().clone());
         }
         let mut type_set: Vec<Gc<Type>> = vec![];
         let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, types.clone());
         if union_reduction != UnionReduction::None {
             if includes.intersects(TypeFlags::AnyOrUnknown) {
-                return if includes.intersects(TypeFlags::Any) {
+                return Ok(if includes.intersects(TypeFlags::Any) {
                     if includes.intersects(TypeFlags::IncludesWildcard) {
                         self.wildcard_type()
                     } else {
@@ -731,7 +733,7 @@ impl TypeChecker {
                     } else {
                         self.non_null_unknown_type()
                     }
-                };
+                });
             }
             if matches!(self.exact_optional_property_types, Some(true))
                 && includes.intersects(TypeFlags::Undefined)
@@ -768,18 +770,18 @@ impl TypeChecker {
             }
             if union_reduction == UnionReduction::Subtype {
                 let maybe_type_set =
-                    self.remove_subtypes(type_set, includes.intersects(TypeFlags::Object));
+                    self.remove_subtypes(type_set, includes.intersects(TypeFlags::Object))?;
                 match maybe_type_set {
                     Some(maybe_type_set) => {
                         type_set = maybe_type_set;
                     }
                     None => {
-                        return self.error_type();
+                        return Ok(self.error_type());
                     }
                 }
             }
             if type_set.is_empty() {
-                return if includes.intersects(TypeFlags::Null) {
+                return Ok(if includes.intersects(TypeFlags::Null) {
                     if includes.intersects(TypeFlags::IncludesNonWideningType) {
                         self.null_type()
                     } else {
@@ -793,7 +795,7 @@ impl TypeChecker {
                     }
                 } else {
                     self.never_type()
-                };
+                });
             }
         }
         let mut origin = origin.map(|origin| origin.borrow().type_wrapper());
@@ -810,7 +812,7 @@ impl TypeChecker {
                 }
             }
             if alias_symbol.is_none() && named_unions.len() == 1 && reduced_types.is_empty() {
-                return named_unions[0].clone();
+                return Ok(named_unions[0].clone());
             }
             let named_types_count = reduce_left(
                 &named_unions,
@@ -837,13 +839,13 @@ impl TypeChecker {
         } else {
             ObjectFlags::None
         });
-        self.get_union_type_from_sorted_list(
+        Ok(self.get_union_type_from_sorted_list(
             type_set,
             object_flags,
             alias_symbol,
             alias_type_arguments,
             origin,
-        )
+        ))
     }
 
     pub(super) fn get_union_or_intersection_type_predicate(

@@ -296,13 +296,13 @@ impl TypeChecker {
         node: &Node, /*JsxOpeningLikeElement*/
         result: &Type,
     ) -> io::Result<Gc<Signature>> {
-        let namespace = self.get_jsx_namespace_at(Some(node));
+        let namespace = self.get_jsx_namespace_at(Some(node))?;
         let exports = namespace
             .as_ref()
             .map(|namespace| self.get_exports_of_symbol(namespace));
-        let type_symbol = exports.as_ref().and_then(|exports| {
+        let type_symbol = exports.as_ref().try_and_then(|exports| {
             self.get_symbol(&(**exports).borrow(), &JsxNames::Element, SymbolFlags::Type)
-        });
+        })?;
         let return_node = type_symbol.as_ref().try_and_then(|type_symbol| {
             self.node_builder().symbol_to_entity_name(
                 type_symbol,

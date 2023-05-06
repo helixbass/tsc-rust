@@ -813,7 +813,7 @@ impl SymbolTableToDeclarationStatements {
             && !is_const_merged_with_ns_printable_as_signature_merge
         {
             if property_as_alias {
-                let created_export = self.serialize_maybe_alias_assignment(symbol);
+                let created_export = self.serialize_maybe_alias_assignment(symbol)?;
                 if created_export {
                     needs_export_declaration = false;
                     needs_post_export_default = false;
@@ -999,7 +999,7 @@ impl SymbolTableToDeclarationStatements {
         if symbol
             .flags()
             .intersects(SymbolFlags::ValueModule | SymbolFlags::NamespaceModule)
-            && (!is_const_merged_with_ns || self.is_type_only_namespace(symbol))
+            && (!is_const_merged_with_ns || self.is_type_only_namespace(symbol)?)
             || is_const_merged_with_ns_printable_as_signature_merge
         {
             self.serialize_module(symbol, symbol_name, modifier_flags);
@@ -1158,6 +1158,10 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         let accessible_result =
             self.type_checker
                 .is_symbol_accessible(Some(sym), decl.as_deref(), meaning, false);
+        let accessible_result = match accessible_result {
+            Err(accessible_result) => return Some(accessible_result),
+            Ok(accessible_result) => accessible_result,
+        };
         if accessible_result.accessibility == SymbolAccessibility::Accessible {
             let chain = match self.node_builder.lookup_symbol_chain_worker(
                 sym,

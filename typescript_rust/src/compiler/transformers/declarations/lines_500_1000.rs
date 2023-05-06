@@ -96,7 +96,7 @@ impl TransformDeclarations {
                     declaration_emit_node_builder_flags(),
                     self.symbol_tracker(),
                     None,
-                ),
+                )?,
             )));
         }
         if matches!(
@@ -112,7 +112,7 @@ impl TransformDeclarations {
                         declaration_emit_node_builder_flags(),
                         self.symbol_tracker(),
                         Some(should_use_resolver_type),
-                    ),
+                    )?,
                 )));
             }
             return Ok(Some(
@@ -144,7 +144,7 @@ impl TransformDeclarations {
                 &self.enclosing_declaration(),
                 declaration_emit_node_builder_flags(),
                 self.symbol_tracker(),
-            ),
+            )?,
         )))
     }
 

@@ -30,7 +30,7 @@ impl TypeChecker {
         is_js_object_literal: bool,
         pattern_with_computed_properties: bool,
         in_destructuring_pattern: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         if has_computed_string_property {
             index_infos.push(Gc::new(self.get_object_literal_index_info(
@@ -38,7 +38,7 @@ impl TypeChecker {
                 offset,
                 &properties_array,
                 &self.string_type(),
-            )));
+            )?));
         }
         if has_computed_number_property {
             index_infos.push(Gc::new(self.get_object_literal_index_info(
@@ -46,7 +46,7 @@ impl TypeChecker {
                 offset,
                 &properties_array,
                 &self.number_type(),
-            )));
+            )?));
         }
         if has_computed_symbol_property {
             index_infos.push(Gc::new(self.get_object_literal_index_info(
@@ -54,7 +54,7 @@ impl TypeChecker {
                 offset,
                 &properties_array,
                 &self.es_symbol_type(),
-            )));
+            )?));
         }
         let result = self.create_anonymous_type(
             node.maybe_symbol(),
@@ -84,7 +84,7 @@ impl TypeChecker {
         if in_destructuring_pattern {
             *result.maybe_pattern() = Some(node.node_wrapper());
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn is_valid_spread_type(&self, type_: &Type) -> bool {
@@ -121,7 +121,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxSelfClosingElement*/
         _check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.check_node_deferred(node);
         self.get_jsx_element_type_at(node) /*|| anyType*/
     }
@@ -157,13 +157,16 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxElement*/
         _check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.check_node_deferred(node);
 
         self.get_jsx_element_type_at(node) /*|| anyType*/
     }
 
-    pub(super) fn check_jsx_fragment(&self, node: &Node /*JsxFragment*/) -> Gc<Type> {
+    pub(super) fn check_jsx_fragment(
+        &self,
+        node: &Node, /*JsxFragment*/
+    ) -> io::Result<Gc<Type>> {
         let node_as_jsx_fragment = node.as_jsx_fragment();
         self.check_jsx_opening_like_element_or_opening_fragment(
             &node_as_jsx_fragment.opening_fragment,
@@ -248,7 +251,7 @@ impl TypeChecker {
         let mut object_flags = ObjectFlags::JsxAttributes;
         let jsx_children_property_name = self.get_jsx_element_children_property_name(
             self.get_jsx_namespace_at(Some(opening_like_element))?,
-        );
+        )?;
 
         for attribute_decl in &attributes.as_jsx_attributes().properties {
             let member = attribute_decl.maybe_symbol();
@@ -316,7 +319,7 @@ impl TypeChecker {
                         attributes.maybe_symbol(),
                         object_flags,
                         false,
-                    );
+                    )?;
                     *attributes_table.borrow_mut() =
                         create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 }
@@ -334,7 +337,7 @@ impl TypeChecker {
                         attributes.maybe_symbol(),
                         object_flags,
                         false,
-                    );
+                    )?;
                     if let Some(all_attributes_table) = all_attributes_table.as_ref() {
                         self.check_spread_prop_overrides(
                             &expr_type,
@@ -370,7 +373,7 @@ impl TypeChecker {
                     attributes.maybe_symbol(),
                     object_flags,
                     false,
-                );
+                )?;
             }
         }
 
@@ -437,13 +440,13 @@ impl TypeChecker {
                         self.create_tuple_type(&children_types, None, None, None)
                     } else {
                         self.create_array_type(
-                            &self.get_union_type(
+                            &*self.get_union_type(
                                 &children_types,
                                 None,
                                 Option::<&Symbol>::None,
                                 None,
                                 Option::<&Type>::None,
-                            ),
+                            )?,
                             None,
                         )
                     });
@@ -485,7 +488,7 @@ impl TypeChecker {
                         attributes.maybe_symbol(),
                         object_flags,
                         false,
-                    );
+                    )?;
                 }
             }
         }
@@ -621,7 +624,7 @@ impl TypeChecker {
             self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type)
         })?;
         Ok(if let Some(type_symbol) = type_symbol.as_ref() {
-            self.get_declared_type_of_symbol(type_symbol)
+            self.get_declared_type_of_symbol(type_symbol)?
         } else {
             self.error_type()
         })
@@ -716,7 +719,11 @@ impl TypeChecker {
         let runtime_import_specifier = get_jsx_runtime_import(
             get_jsx_implicit_import_base(&self.compiler_options, file.as_deref()).as_deref(),
             &self.compiler_options,
-        )?;
+        );
+        if runtime_import_specifier.is_none() {
+            return Ok(None);
+        }
+        let runtime_import_specifier = runtime_import_specifier.unwrap();
         let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
             == ModuleResolutionKind::Classic;
         let error_message = if is_classic {
@@ -734,7 +741,7 @@ impl TypeChecker {
         let result = mod_
             .as_ref()
             .filter(|mod_| !Gc::ptr_eq(mod_, &self.unknown_symbol()))
-            .try_map(|mod_| {
+            .try_map(|mod_| -> io::Result<_> {
                 Ok(self
                     .get_merged_symbol(self.resolve_symbol(Some(&**mod_), None)?)
                     .unwrap())
@@ -768,7 +775,7 @@ impl TypeChecker {
             _ => true,
         } {
             let mut resolved_namespace =
-                self.get_jsx_namespace_container_for_implicit_import(location.as_deref());
+                self.get_jsx_namespace_container_for_implicit_import(location.as_deref())?;
 
             if match resolved_namespace.as_ref() {
                 None => true,

@@ -22,7 +22,7 @@ use crate::{
     is_tuple_type_node, is_type_reference_node, length, map, map_defined,
     maybe_get_source_file_of_node, maybe_map, node_is_synthesized, null_transformation_context,
     set_emit_flags, set_original_node, set_text_range, some, starts_with, try_for_each_entry_bool,
-    try_map, try_map_defined, try_maybe_map, try_visit_node, try_visit_nodes,
+    try_map, try_map_defined, try_maybe_map, try_visit_each_child, try_visit_node, try_visit_nodes,
     unescape_leading_underscores, visit_each_child, visit_node, visit_nodes,
     with_synthetic_factory_and_factory, AsDoubleDeref, CharacterCodes, Debug_, EmitFlags,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InternalSymbolName,
@@ -74,7 +74,7 @@ impl NodeBuilder {
                 let exports = self.type_checker.get_exports_of_symbol(parent);
                 try_for_each_entry_bool(
                     &*(*exports).borrow(),
-                    |ex: &Gc<Symbol>, name: &__String| {
+                    |ex: &Gc<Symbol>, name: &__String| -> io::Result<_> {
                         if self
                             .type_checker
                             .get_symbol_if_same_reference(ex, symbol)?
@@ -104,8 +104,8 @@ impl NodeBuilder {
             .flags()
             .intersects(NodeBuilderFlags::ForbidIndexedAccessSymbolReferences)
         {
-            if parent.matches(|parent| {
-                matches!(
+            if parent.try_matches(|parent| -> io::Result<_> {
+                Ok(matches!(
                     (*self.type_checker.get_members_of_symbol(parent))
                         .borrow()
                         .get(symbol.escaped_name()),
@@ -113,8 +113,8 @@ impl NodeBuilder {
                         got_member_of_symbol,
                         symbol,
                     )?.is_some()
-                )
-            }) {
+                ))
+            })? {
                 let ref lhs = self.create_access_from_symbol_chain(
                     context,
                     override_type_arguments,
@@ -902,7 +902,7 @@ impl NodeBuilder {
                     context.maybe_enclosing_declaration(),
                     SymbolFlags::All,
                     false,
-                )
+                )?
                 .accessibility
                 != SymbolAccessibility::Accessible
             {
@@ -920,7 +920,7 @@ impl NodeBuilder {
             if is_identifier(node) {
                 let name = if sym.flags().intersects(SymbolFlags::TypeParameter) {
                     self.type_parameter_to_name(
-                        &self.type_checker.get_declared_type_of_symbol(sym),
+                        &*self.type_checker.get_declared_type_of_symbol(sym)?,
                         context,
                     )?
                 } else {
@@ -1119,12 +1119,12 @@ impl NodeBuilder {
                                 t_as_jsdoc_property_like_tag.name.as_qualified_name().right.clone()
                             };
                             let type_via_parent = self.type_checker.get_type_of_property_of_type_(
-                                &self.type_checker.get_type_from_type_node_(
+                                &*self.type_checker.get_type_from_type_node_(
                                     node
                                 )?,
                                 &name.as_identifier().escaped_text
                             );
-                            let override_type_node = type_via_parent.as_ref().try_filter(|type_via_parent| {
+                            let override_type_node = type_via_parent.as_ref().try_filter(|type_via_parent| -> io::Result<_> {
                                 Ok(matches!(
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref(),
                                     Some(t_type_expression) if !Gc::ptr_eq(
@@ -1394,7 +1394,7 @@ impl NodeBuilder {
         if is_type_reference_node(node) && is_in_jsdoc(Some(node)) && (
             !self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
                 node,
-                &self.type_checker.get_type_from_type_node_(node)?
+                &*self.type_checker.get_type_from_type_node_(node)?
             ) || self.type_checker.get_intended_type_from_jsdoc_type_reference(node).is_some() ||
             Gc::ptr_eq(
                 &self.type_checker.unknown_symbol(),
@@ -1480,7 +1480,7 @@ impl NodeBuilder {
         }
 
         Ok(Some(
-            visit_each_child(
+            try_visit_each_child(
                 Some(node),
                 |node: &Node| {
                     self.visit_existing_node_tree_symbols(
@@ -1499,18 +1499,18 @@ impl NodeBuilder {
                         Option<&dyn Fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
+                    ) -> io::Result<Option<Gc<NodeArray>>>,
                 >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
+                Option::<fn(&Node) -> io::Result<VisitResult>>::None,
                 Option::<
                     fn(
                         Option<&Node>,
                         Option<&mut dyn FnMut(&Node) -> VisitResult>,
                         Option<&dyn Fn(&Node) -> bool>,
                         Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
+                    ) -> io::Result<Option<Gc<Node>>>,
                 >::None,
-            )
+            )?
             .unwrap()
             .into(),
         ))

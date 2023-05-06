@@ -238,7 +238,7 @@ impl TypeChecker {
                     self.create_synthetic_expression(
                         expr,
                         &*if parent.parent().kind() == SyntaxKind::Constructor {
-                            self.get_type_of_symbol(&self.get_symbol_of_node(&func).unwrap())
+                            self.get_type_of_symbol(&self.get_symbol_of_node(&func).unwrap())?
                         } else {
                             self.error_type()
                         },
@@ -438,16 +438,16 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         signatures: &[Gc<Signature>],
         args: &[Gc<Node /*Expression*/>],
-    ) -> Gc<Diagnostic> {
+    ) -> io::Result<Gc<Diagnostic>> {
         let spread_index = self.get_spread_argument_index(args);
         if let Some(spread_index) = spread_index {
-            return Gc::new(
+            return Ok(Gc::new(
                 create_diagnostic_for_node(
                     &args[spread_index],
                     &Diagnostics::A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter,
                     None,
                 ).into()
-            );
+            ));
         }
         let mut min = usize::MAX;
         let mut max = UsizeOrNegativeInfinity::NegativeInfinity;
@@ -500,19 +500,20 @@ impl TypeChecker {
             &*Diagnostics::Expected_at_least_0_arguments_but_got_1
         } else if parameter_range == "1"
             && args.is_empty()
-            && self.is_promise_resolve_arity_error(node)
+            && self.is_promise_resolve_arity_error(node)?
         {
             &*Diagnostics::Expected_0_arguments_but_got_1_Did_you_forget_to_include_void_in_your_type_argument_to_Promise
         } else {
             &*Diagnostics::Expected_0_arguments_but_got_1
         };
-        if min < args.len()
-            && match max {
-                UsizeOrNegativeInfinity::NegativeInfinity => false,
-                UsizeOrNegativeInfinity::Usize(max) => args.len() < max,
-            }
-        {
-            self.get_diagnostic_for_call_node(
+        Ok(
+            if min < args.len()
+                && match max {
+                    UsizeOrNegativeInfinity::NegativeInfinity => false,
+                    UsizeOrNegativeInfinity::Usize(max) => args.len() < max,
+                }
+            {
+                self.get_diagnostic_for_call_node(
                 node,
                 &Diagnostics::No_overload_expects_0_arguments_but_overloads_do_exist_that_expect_either_1_or_2_arguments,
                 Some(vec![
@@ -521,83 +522,85 @@ impl TypeChecker {
                     min_above.to_string()
                 ])
             )
-        } else if args.len() < min {
-            let diagnostic = self.get_diagnostic_for_call_node(
-                node,
-                error,
-                Some(vec![parameter_range, args.len().to_string()]),
-            );
-            let parameter = closest_signature
-                .as_ref()
-                .and_then(|closest_signature| closest_signature.declaration.as_ref())
-                .and_then(|closest_signature_declaration| {
-                    closest_signature_declaration
-                        .as_signature_declaration()
-                        .parameters()
-                        .get(
-                            if closest_signature
-                                .as_ref()
-                                .unwrap()
-                                .maybe_this_parameter()
-                                .is_some()
-                            {
-                                args.len() + 1
-                            } else {
-                                args.len()
-                            },
-                        )
-                        .cloned()
-                });
-            if let Some(parameter) = parameter.as_ref() {
-                let parameter_error = create_diagnostic_for_node(
-                    parameter,
-                    if is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
-                        &*Diagnostics::An_argument_matching_this_binding_pattern_was_not_provided
-                    } else if is_rest_parameter(parameter) {
-                        &*Diagnostics::Arguments_for_the_rest_parameter_0_were_not_provided
-                    } else {
-                        &*Diagnostics::An_argument_for_0_was_not_provided
-                    },
-                    if parameter.as_named_declaration().maybe_name().is_none() {
-                        Some(vec![args.len().to_string()])
-                    } else if !is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
-                        Some(vec![id_text(&get_first_identifier(
-                            &parameter.as_named_declaration().name(),
-                        ))
-                        .to_owned()])
-                    } else {
-                        None
-                    },
-                );
-                add_related_info(&diagnostic, vec![Gc::new(parameter_error.into())]);
-            }
-            diagnostic
-        } else {
-            let error_span = factory.with(|factory_| {
-                factory_.create_node_array(
-                    Some(match max {
-                        UsizeOrNegativeInfinity::NegativeInfinity => args.to_owned(),
-                        UsizeOrNegativeInfinity::Usize(max) => args[max..].to_owned(),
-                    }),
-                    None,
-                )
-            });
-            let pos = first(&error_span).pos();
-            let mut end = last(&error_span).end();
-            if end == pos {
-                end += 1;
-            }
-            set_text_range_pos_end(&*error_span, pos, end);
-            Gc::new(
-                create_diagnostic_for_node_array(
-                    &get_source_file_of_node(node),
-                    &error_span,
+            } else if args.len() < min {
+                let diagnostic = self.get_diagnostic_for_call_node(
+                    node,
                     error,
                     Some(vec![parameter_range, args.len().to_string()]),
+                );
+                let parameter = closest_signature
+                    .as_ref()
+                    .and_then(|closest_signature| closest_signature.declaration.as_ref())
+                    .and_then(|closest_signature_declaration| {
+                        closest_signature_declaration
+                            .as_signature_declaration()
+                            .parameters()
+                            .get(
+                                if closest_signature
+                                    .as_ref()
+                                    .unwrap()
+                                    .maybe_this_parameter()
+                                    .is_some()
+                                {
+                                    args.len() + 1
+                                } else {
+                                    args.len()
+                                },
+                            )
+                            .cloned()
+                    });
+                if let Some(parameter) = parameter.as_ref() {
+                    let parameter_error = create_diagnostic_for_node(
+                        parameter,
+                        if is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
+                            &*Diagnostics::An_argument_matching_this_binding_pattern_was_not_provided
+                        } else if is_rest_parameter(parameter) {
+                            &*Diagnostics::Arguments_for_the_rest_parameter_0_were_not_provided
+                        } else {
+                            &*Diagnostics::An_argument_for_0_was_not_provided
+                        },
+                        if parameter.as_named_declaration().maybe_name().is_none() {
+                            Some(vec![args.len().to_string()])
+                        } else if !is_binding_pattern(parameter.as_named_declaration().maybe_name())
+                        {
+                            Some(vec![id_text(&get_first_identifier(
+                                &parameter.as_named_declaration().name(),
+                            ))
+                            .to_owned()])
+                        } else {
+                            None
+                        },
+                    );
+                    add_related_info(&diagnostic, vec![Gc::new(parameter_error.into())]);
+                }
+                diagnostic
+            } else {
+                let error_span = factory.with(|factory_| {
+                    factory_.create_node_array(
+                        Some(match max {
+                            UsizeOrNegativeInfinity::NegativeInfinity => args.to_owned(),
+                            UsizeOrNegativeInfinity::Usize(max) => args[max..].to_owned(),
+                        }),
+                        None,
+                    )
+                });
+                let pos = first(&error_span).pos();
+                let mut end = last(&error_span).end();
+                if end == pos {
+                    end += 1;
+                }
+                set_text_range_pos_end(&*error_span, pos, end);
+                Gc::new(
+                    create_diagnostic_for_node_array(
+                        &get_source_file_of_node(node),
+                        &error_span,
+                        error,
+                        Some(vec![parameter_range, args.len().to_string()]),
+                    )
+                    .into(),
                 )
-                .into(),
-            )
-        }
+            },
+        )
     }
 
     pub(super) fn get_type_argument_arity_error(
@@ -726,7 +729,7 @@ impl TypeChecker {
             return Ok(self.resolve_error_call(node));
         }
 
-        let args = self.get_effective_call_arguments(node);
+        let args = self.get_effective_call_arguments(node)?;
 
         let is_single_non_generic_candidate =
             candidates.len() == 1 && candidates[0].maybe_type_parameters().is_none();
@@ -973,7 +976,7 @@ impl TypeChecker {
                     node,
                     &[candidate_for_argument_arity_error],
                     &args,
-                ));
+                )?);
             } else if let Some(candidate_for_type_argument_error) =
                 candidate_for_type_argument_error.as_ref()
             {
@@ -1002,7 +1005,7 @@ impl TypeChecker {
                         node,
                         &signatures_with_correct_type_argument_arity,
                         &args,
-                    ));
+                    )?);
                 } else if let Some(fallback_error) = fallback_error {
                     self.diagnostics().add(self.get_diagnostic_for_call_node(
                         node,
@@ -1169,7 +1172,7 @@ impl TypeChecker {
                     Option::<fn(&Gc<Node>) -> bool>::None,
                 ) {
                     type_argument_types =
-                        self.check_type_arguments(candidate, type_arguments.unwrap(), false, None);
+                        self.check_type_arguments(candidate, type_arguments.unwrap(), false, None)?;
                     if type_argument_types.is_none() {
                         *candidate_for_type_argument_error = Some(candidate.clone());
                         continue;

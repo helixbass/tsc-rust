@@ -13,8 +13,8 @@ use crate::{
     CharacterCodes, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
     HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    ObjectFlagsTypeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypeReferenceInterface, TypeSystemPropertyName, UnionReduction, __String,
 };
 
@@ -276,10 +276,10 @@ impl TypeChecker {
             } else {
                 Some(declaration.as_type_alias_declaration().type_.clone())
             };
-            let mut type_ = type_node.map_or_else(
-                || self.error_type(),
+            let mut type_ = type_node.try_map_or_else(
+                || Ok(self.error_type()),
                 |type_node| self.get_type_from_type_node_(&type_node),
-            );
+            )?;
 
             if self.pop_type_resolution() {
                 let type_parameters =
@@ -503,14 +503,15 @@ impl TypeChecker {
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
             return Ok(links_declared_type);
         }
-        let declared_type = self.get_declared_type_of_symbol(&self.resolve_alias(symbol)?);
+        let declared_type = self.get_declared_type_of_symbol(&*self.resolve_alias(symbol)?);
         links.borrow_mut().declared_type = Some(declared_type.clone());
         Ok(declared_type)
     }
 
-    pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> Gc<Type> {
-        self.try_get_declared_type_of_symbol(symbol)
-            .unwrap_or_else(|| self.error_type())
+    pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
+        Ok(self
+            .try_get_declared_type_of_symbol(symbol)?
+            .unwrap_or_else(|| self.error_type()))
     }
 
     pub(super) fn try_get_declared_type_of_symbol(
@@ -536,7 +537,7 @@ impl TypeChecker {
             return Ok(Some(self.get_declared_type_of_enum_member(symbol)));
         }
         if symbol.flags().intersects(SymbolFlags::Alias) {
-            return Ok(Some(self.get_declared_type_of_alias(symbol)));
+            return Ok(Some(self.get_declared_type_of_alias(symbol)?));
         }
         Ok(None)
     }

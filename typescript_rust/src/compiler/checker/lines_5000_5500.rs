@@ -230,7 +230,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         type_id: TypeId,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let is_static_method_symbol = symbol.flags().intersects(SymbolFlags::Method)
             && some(
                 symbol.maybe_declarations().as_deref(),
@@ -248,7 +248,7 @@ impl NodeBuilder {
                     },
                 ));
         if is_static_method_symbol || is_non_local_function_symbol {
-            return (context
+            return Ok((context
                 .flags()
                 .intersects(NodeBuilderFlags::UseTypeOfFunction)
                 || matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id)))
@@ -258,9 +258,9 @@ impl NodeBuilder {
                     || self.type_checker.is_value_symbol_accessible(
                         symbol,
                         context.maybe_enclosing_declaration().as_deref(),
-                    ));
+                    )?));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn try_visit_and_transform_type(
@@ -766,7 +766,7 @@ impl NodeBuilder {
                 && !self.type_checker.is_value_symbol_accessible(
                     &type_.symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
-                )
+                )?
             {
                 Some(self.create_anonymous_type_node(context, type_)?)
             } else {

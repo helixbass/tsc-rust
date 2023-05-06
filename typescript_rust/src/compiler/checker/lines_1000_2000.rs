@@ -44,10 +44,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_jsx_namespace_<TLocation: Borrow<Node>>(
-        &self,
-        location: Option<TLocation>,
-    ) -> __String {
+    pub(super) fn get_jsx_namespace_(&self, location: Option<impl Borrow<Node>>) -> __String {
         if let Some(location) = location {
             let location = location.borrow();
             let file = maybe_get_source_file_of_node(Some(location));
@@ -247,9 +244,9 @@ impl TypeChecker {
         self.emit_resolver()
     }
 
-    pub(super) fn lookup_or_issue_error<TLocation: Borrow<Node>>(
+    pub(super) fn lookup_or_issue_error(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
@@ -267,10 +264,10 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn error_skipped_on<TLocation: Borrow<Node>>(
+    pub(super) fn error_skipped_on(
         &self,
         key: String, /*keyof CompilerOptions*/
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
@@ -862,7 +859,7 @@ impl TypeChecker {
         target: Gc<GcCell<SymbolTable>>,
         source: &SymbolTable,
         unidirectional: Option<bool>,
-    ) {
+    ) -> io::Result<()> {
         let unidirectional = unidirectional.unwrap_or(false);
         for (id, source_symbol) in source {
             let target_symbol = {
@@ -870,12 +867,14 @@ impl TypeChecker {
                 value
             };
             let value = if let Some(target_symbol) = target_symbol.as_ref() {
-                self.merge_symbol(target_symbol, source_symbol, Some(unidirectional))
+                self.merge_symbol(target_symbol, source_symbol, Some(unidirectional))?
             } else {
                 source_symbol.clone()
             };
             target.borrow_mut().insert(id.clone(), value);
         }
+
+        Ok(())
     }
 
     pub(super) fn merge_module_augmentation(

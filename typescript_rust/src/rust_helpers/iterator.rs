@@ -13,6 +13,10 @@ pub trait IteratorExt {
         self,
         callback: impl FnMut(Self::Item) -> Result<bool, TError>,
     ) -> Result<bool, TError>;
+    fn try_find_<TError>(
+        self,
+        callback: impl FnMut(&Self::Item) -> Result<bool, TError>,
+    ) -> Result<Option<Self::Item>, TError>;
 }
 
 impl<TIterator> IteratorExt for TIterator
@@ -35,6 +39,18 @@ where
             }
         }
         Ok(true)
+    }
+
+    fn try_find_<TError>(
+        self,
+        callback: impl FnMut(&Self::Item) -> Result<bool, TError>,
+    ) -> Result<Option<Self::Item>, TError> {
+        for item in self {
+            if callback(&item)? {
+                return Ok(Some(item));
+            }
+        }
+        Ok(None)
     }
 }
 

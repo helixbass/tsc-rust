@@ -1,8 +1,8 @@
 use gc::{Gc, GcCell};
 use itertools::Itertools;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
+use std::{borrow::Borrow, io};
 
 use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{
@@ -96,33 +96,40 @@ impl TypeChecker {
         &self,
         module_symbol: Option<impl Borrow<Symbol>>,
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
-        let module_symbol = module_symbol?;
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        if module_symbol.is_none() {
+            return Ok(None);
+        }
+        let module_symbol = module_symbol.unwrap();
         let module_symbol = module_symbol.borrow();
         let module_symbol_exports = module_symbol.maybe_exports();
-        let module_symbol_exports = module_symbol_exports.as_ref()?;
+        let module_symbol_exports = module_symbol_exports.as_ref();
+        if module_symbol_exports.is_none() {
+            return Ok(None);
+        }
+        let module_symbol_exports = module_symbol_exports.unwrap();
         let export_equals = self.resolve_symbol(
             (**module_symbol_exports)
                 .borrow()
                 .get(InternalSymbolName::ExportEquals)
                 .cloned(),
             dont_resolve_alias,
-        );
+        )?;
         let exported = self.get_common_js_export_equals(
             self.get_merged_symbol(export_equals),
             &self.get_merged_symbol(Some(module_symbol)).unwrap(),
-        );
-        Some(
+        )?;
+        Ok(Some(
             self.get_merged_symbol(exported)
                 .unwrap_or_else(|| module_symbol.symbol_wrapper()),
-        )
+        ))
     }
 
-    pub(super) fn get_common_js_export_equals<TExported: Borrow<Symbol>>(
+    pub(super) fn get_common_js_export_equals(
         &self,
-        exported: Option<TExported>,
+        exported: Option<impl Borrow<Symbol>>,
         module_symbol: &Symbol,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let exported = exported?;
         let exported = exported.borrow();
         if ptr::eq(exported, &*self.unknown_symbol())
@@ -130,7 +137,7 @@ impl TypeChecker {
             || (*module_symbol.exports()).borrow().len() == 1
             || exported.flags().intersects(SymbolFlags::Alias)
         {
-            return Some(exported.symbol_wrapper());
+            return Ok(Some(exported.symbol_wrapper()));
         }
         let links = self.get_symbol_links(exported);
         if let Some(links_cjs_export_merged) = (*links)
@@ -139,7 +146,7 @@ impl TypeChecker {
             .as_ref()
             .map(|cjs_export_merged| cjs_export_merged.clone())
         {
-            return Some(links_cjs_export_merged);
+            return Ok(Some(links_cjs_export_merged));
         }
         let merged = if exported.flags().intersects(SymbolFlags::Transient) {
             exported.symbol_wrapper()
@@ -160,7 +167,7 @@ impl TypeChecker {
                 continue;
             }
             let value = if (*merged_exports).borrow().contains_key(name) {
-                self.merge_symbol((*merged_exports).borrow().get(name).unwrap(), s, None)
+                self.merge_symbol((*merged_exports).borrow().get(name).unwrap(), s, None)?
             } else {
                 s.symbol_wrapper()
             };
@@ -170,7 +177,7 @@ impl TypeChecker {
             .borrow_mut()
             .cjs_export_merged = Some(merged.clone());
         links.borrow_mut().cjs_export_merged = Some(merged.clone());
-        Some(merged.clone())
+        Ok(Some(merged.clone()))
     }
 
     pub(super) fn resolve_es_module_symbol<TModuleSymbol: Borrow<Symbol>>(

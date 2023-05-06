@@ -723,7 +723,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportEqualsDeclaration | VariableDeclaration*/
         dont_resolve_alias: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let common_js_property_access = self.get_common_js_property_access(node);
         if let Some(common_js_property_access) = common_js_property_access {
             let common_js_property_access_as_property_access_expression =
@@ -732,20 +732,22 @@ impl TypeChecker {
                 &common_js_property_access_as_property_access_expression.expression,
             );
             let name = &leftmost.as_call_expression().arguments[0];
-            return if is_identifier(&common_js_property_access_as_property_access_expression.name) {
-                self.resolve_symbol(
-                    self.get_property_of_type(
-                        &self.resolve_external_module_type_by_literal(name),
-                        &common_js_property_access_as_property_access_expression
-                            .name
-                            .as_identifier()
-                            .escaped_text,
-                    ),
-                    None,
-                )
-            } else {
-                None
-            };
+            return Ok(
+                if is_identifier(&common_js_property_access_as_property_access_expression.name) {
+                    self.resolve_symbol(
+                        self.get_property_of_type(
+                            &self.resolve_external_module_type_by_literal(name),
+                            &common_js_property_access_as_property_access_expression
+                                .name
+                                .as_identifier()
+                                .escaped_text,
+                        ),
+                        None,
+                    )
+                } else {
+                    None
+                },
+            );
         }
         if is_variable_declaration(node)
             || node.as_import_equals_declaration().module_reference.kind()
@@ -758,32 +760,30 @@ impl TypeChecker {
                 }),
                 None,
             );
-            let resolved = self.resolve_external_module_symbol(immediate.as_deref(), None);
+            let resolved = self.resolve_external_module_symbol(immediate.as_deref(), None)?;
             self.mark_symbol_of_alias_declaration_if_type_only(
                 Some(node),
                 immediate,
                 resolved.as_deref(),
                 false,
             );
-            return resolved;
+            return Ok(resolved);
         }
         let resolved = self.get_symbol_of_part_of_right_hand_side_of_import_equals(
             &node.as_import_equals_declaration().module_reference,
             Some(dont_resolve_alias),
-        );
+        )?;
         self.check_and_report_error_for_resolving_import_alias_to_type_only_symbol(
             node,
             resolved.as_deref(),
         );
-        resolved
+        Ok(resolved)
     }
 
-    pub(super) fn check_and_report_error_for_resolving_import_alias_to_type_only_symbol<
-        TResolved: Borrow<Symbol>,
-    >(
+    pub(super) fn check_and_report_error_for_resolving_import_alias_to_type_only_symbol(
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
-        resolved: Option<TResolved>,
+        resolved: Option<impl Borrow<Symbol>>,
     ) {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         if self.mark_symbol_of_alias_declaration_if_type_only(
@@ -828,13 +828,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn resolve_export_by_name<TSourceNode: Borrow<Node>>(
+    pub(super) fn resolve_export_by_name(
         &self,
         module_symbol: &Symbol,
         name: &str, /*__String*/
-        source_node: Option<TSourceNode /*TypeOnlyCompatibleAliasDeclaration*/>,
+        source_node: Option<impl Borrow<Node> /*TypeOnlyCompatibleAliasDeclaration*/>,
         dont_resolve_alias: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let module_symbol_exports = module_symbol.exports();
         let module_symbol_exports = (*module_symbol_exports).borrow();
         let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
@@ -843,14 +843,14 @@ impl TypeChecker {
         } else {
             module_symbol_exports.get(name).cloned()
         };
-        let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias));
+        let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias))?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             source_node,
             export_symbol,
             resolved.as_deref(),
             false,
         );
-        resolved
+        Ok(resolved)
     }
 
     pub(super) fn is_syntactic_default(&self, node: &Node) -> bool {
@@ -1048,8 +1048,10 @@ impl TypeChecker {
             }
         } else if has_synthetic_default || has_default_only {
             let resolved = self
-                .resolve_external_module_symbol(Some(&*module_symbol), Some(dont_resolve_alias))
-                .or_else(|| self.resolve_symbol(Some(&*module_symbol), Some(dont_resolve_alias)));
+                .resolve_external_module_symbol(Some(&*module_symbol), Some(dont_resolve_alias))?
+                .try_or_else(|| {
+                    self.resolve_symbol(Some(&*module_symbol), Some(dont_resolve_alias))
+                })?;
             self.mark_symbol_of_alias_declaration_if_type_only(
                 Some(node),
                 Some(&*module_symbol),
@@ -1249,29 +1251,30 @@ impl TypeChecker {
         name: &Node,      /*Identifier*/
         specifier: &Node, /*Declaration*/
         dont_resolve_alias: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if symbol.flags().intersects(SymbolFlags::Module) {
             let export_symbol = (*self.get_exports_of_symbol(symbol))
                 .borrow()
                 .get(&name.as_identifier().escaped_text)
                 .cloned();
-            let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias));
+            let resolved =
+                self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias))?;
             self.mark_symbol_of_alias_declaration_if_type_only(
                 Some(specifier),
                 export_symbol,
                 resolved.as_deref(),
                 false,
             );
-            return resolved;
+            return Ok(resolved);
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_property_of_variable(
         &self,
         symbol: &Symbol,
         name: &str, /*__String*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if symbol.flags().intersects(SymbolFlags::Variable) {
             let type_annotation = symbol
                 .maybe_value_declaration()
@@ -1289,7 +1292,7 @@ impl TypeChecker {
                 );
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_external_module_member(
@@ -1353,14 +1356,14 @@ impl TypeChecker {
                     Some(true),
                 );
             } else {
-                symbol_from_variable =
-                    self.get_property_of_variable(&target_symbol, &name_as_identifier.escaped_text);
+                symbol_from_variable = self
+                    .get_property_of_variable(&target_symbol, &name_as_identifier.escaped_text)?;
             }
             symbol_from_variable =
-                self.resolve_symbol(symbol_from_variable, Some(dont_resolve_alias));
+                self.resolve_symbol(symbol_from_variable, Some(dont_resolve_alias))?;
 
             let mut symbol_from_module =
-                self.get_export_of_module(&target_symbol, &name, specifier, dont_resolve_alias);
+                self.get_export_of_module(&target_symbol, &name, specifier, dont_resolve_alias)?;
             if symbol_from_module.is_none()
                 && name_as_identifier.escaped_text == InternalSymbolName::Default
             {

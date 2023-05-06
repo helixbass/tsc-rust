@@ -10,9 +10,9 @@ use crate::{
     get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
     is_computed_property_name, is_entity_name_expression, is_export_assignment,
     is_private_identifier, is_property_name_literal, is_static, maybe_for_each, node_is_missing,
-    node_is_present, Debug_, DiagnosticMessage, Diagnostics, ModifierFlags, ModuleInstanceState,
-    Node, NodeArray, NodeInterface, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    node_is_present, try_maybe_for_each, Debug_, DiagnosticMessage, Diagnostics, ModifierFlags,
+    ModuleInstanceState, Node, NodeArray, NodeInterface, ReadonlyTextRange, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -250,13 +250,13 @@ impl TypeChecker {
                 let d = expression;
                 let mut result = DeclarationSpaces::None;
                 let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap())?;
-                maybe_for_each(
+                try_maybe_for_each(
                     target.maybe_declarations().as_deref(),
-                    |d: &Gc<Node>, _| -> Option<()> {
+                    |d: &Gc<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
-                        None
+                        Ok(None)
                     },
-                );
+                )?;
                 result
             }
             SyntaxKind::ImportEqualsDeclaration
@@ -264,13 +264,13 @@ impl TypeChecker {
             | SyntaxKind::ImportClause => {
                 let mut result = DeclarationSpaces::None;
                 let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap())?;
-                maybe_for_each(
+                try_maybe_for_each(
                     target.maybe_declarations().as_deref(),
-                    |d: &Gc<Node>, _| -> Option<()> {
+                    |d: &Gc<Node>, _| -> io::Result<Option<()>> {
                         result |= self.get_declaration_spaces(d)?;
-                        None
+                        Ok(None)
                     },
-                );
+                )?;
                 result
             }
             SyntaxKind::VariableDeclaration
@@ -282,10 +282,10 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_awaited_type_of_promise<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_awaited_type_of_promise(
         &self,
         type_: &Type,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> Option<Gc<Type>> {

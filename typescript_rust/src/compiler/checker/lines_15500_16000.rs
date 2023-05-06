@@ -244,7 +244,7 @@ impl TypeChecker {
                         }
                         extra_types.as_mut().unwrap().push(
                             self.instantiate_type(
-                                &self.get_type_from_type_node_(
+                                &*self.get_type_from_type_node_(
                                     &(*root)
                                         .borrow()
                                         .node
@@ -434,7 +434,7 @@ impl TypeChecker {
         {
             *type_as_conditional_type.maybe_resolved_true_type() = Some(
                 self.instantiate_type(
-                    &self.get_type_from_type_node_(
+                    &*self.get_type_from_type_node_(
                         &(*type_as_conditional_type.root)
                             .borrow()
                             .node
@@ -463,7 +463,7 @@ impl TypeChecker {
         {
             *type_as_conditional_type.maybe_resolved_false_type() = Some(
                 self.instantiate_type(
-                    &self.get_type_from_type_node_(
+                    &*self.get_type_from_type_node_(
                         &(*type_as_conditional_type.root)
                             .borrow()
                             .node
@@ -505,7 +505,7 @@ impl TypeChecker {
                         Some(type_combined_mapper),
                     )
                 } else {
-                    self.get_true_type_from_conditional_type(type_)
+                    self.get_true_type_from_conditional_type(type_)?
                 },
             );
         }
@@ -686,7 +686,7 @@ impl TypeChecker {
             }
             let inner_module_symbol = inner_module_symbol.unwrap();
             let module_symbol = self
-                .resolve_external_module_symbol(Some(&*inner_module_symbol), Some(false))
+                .resolve_external_module_symbol(Some(&*inner_module_symbol), Some(false))?
                 .unwrap();
             if !node_is_missing(node_as_import_type_node.qualifier.as_deref()) {
                 let mut name_stack: Vec<Gc<Node /*Identifier*/>> =
@@ -708,7 +708,7 @@ impl TypeChecker {
                         target_meaning
                     };
                     let merged_resolved_symbol = self
-                        .get_merged_symbol(self.resolve_symbol(Some(&*current_namespace), None))
+                        .get_merged_symbol(self.resolve_symbol(Some(&*current_namespace), None)?)
                         .unwrap();
                     let next = if node_as_import_type_node.is_type_of() {
                         self.get_property_of_type_(
@@ -721,7 +721,7 @@ impl TypeChecker {
                             &(*self.get_exports_of_symbol(&merged_resolved_symbol)).borrow(),
                             &current.as_identifier().escaped_text,
                             meaning,
-                        )
+                        )?
                     };
                     if next.is_none() {
                         self.error(
@@ -795,14 +795,14 @@ impl TypeChecker {
         links: &GcCell<NodeLinks>,
         symbol: &Symbol,
         meaning: SymbolFlags,
-    ) -> Gc<Type> {
-        let resolved_symbol = self.resolve_symbol(Some(symbol), None).unwrap();
+    ) -> io::Result<Gc<Type>> {
+        let resolved_symbol = self.resolve_symbol(Some(symbol), None).unwrap()?;
         links.borrow_mut().resolved_symbol = Some(resolved_symbol.clone());
-        if meaning == SymbolFlags::Value {
+        Ok(if meaning == SymbolFlags::Value {
             self.get_type_of_symbol(symbol)
         } else {
             self.get_type_reference_type(node, &resolved_symbol)
-        }
+        })
     }
 
     pub(super) fn get_type_from_type_literal_or_function_or_constructor_type_node(
@@ -972,70 +972,74 @@ impl TypeChecker {
         spread
     }
 
-    pub(super) fn get_spread_type<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_spread_type(
         &self,
         left: &Type,
         right: &Type,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
         object_flags: ObjectFlags,
         readonly: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if left.flags().intersects(TypeFlags::Any) || right.flags().intersects(TypeFlags::Any) {
-            return self.any_type();
+            return Ok(self.any_type());
         }
         if left.flags().intersects(TypeFlags::Unknown)
             || right.flags().intersects(TypeFlags::Unknown)
         {
-            return self.unknown_type();
+            return Ok(self.unknown_type());
         }
         if left.flags().intersects(TypeFlags::Never) {
-            return right.type_wrapper();
+            return Ok(right.type_wrapper());
         }
         if right.flags().intersects(TypeFlags::Never) {
-            return left.type_wrapper();
+            return Ok(left.type_wrapper());
         }
         let left = self.try_merge_union_of_object_type_and_empty_object(left, readonly);
         let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
         if left.flags().intersects(TypeFlags::Union) {
-            return if self.check_cross_product_union(&[left.clone(), right.type_wrapper()]) {
-                self.map_type(
-                    &left,
-                    &mut |t| {
-                        Some(self.get_spread_type(
-                            t,
-                            right,
-                            symbol.as_deref(),
-                            object_flags,
-                            readonly,
-                        ))
-                    },
-                    None,
-                )
-                .unwrap()
-            } else {
-                self.error_type()
-            };
+            return Ok(
+                if self.check_cross_product_union(&[left.clone(), right.type_wrapper()]) {
+                    self.map_type(
+                        &left,
+                        &mut |t| {
+                            Some(self.get_spread_type(
+                                t,
+                                right,
+                                symbol.as_deref(),
+                                object_flags,
+                                readonly,
+                            ))
+                        },
+                        None,
+                    )
+                    .unwrap()
+                } else {
+                    self.error_type()
+                },
+            );
         }
         let right = self.try_merge_union_of_object_type_and_empty_object(right, readonly);
         if right.flags().intersects(TypeFlags::Union) {
-            return if self.check_cross_product_union(&[left.clone(), right.clone()]) {
-                self.map_type(
-                    &right,
-                    &mut |t| {
-                        Some(self.get_spread_type(
-                            &left,
-                            t,
-                            symbol.as_deref(),
-                            object_flags,
-                            readonly,
-                        ))
-                    },
-                    None,
-                )
-                .unwrap()
-            } else {
-                self.error_type()
-            };
+            return Ok(
+                if self.check_cross_product_union(&[left.clone(), right.clone()]) {
+                    self.map_type(
+                        &right,
+                        &mut |t| {
+                            Some(self.get_spread_type(
+                                &left,
+                                t,
+                                symbol.as_deref(),
+                                object_flags,
+                                readonly,
+                            ))
+                        },
+                        None,
+                    )
+                    .unwrap()
+                } else {
+                    self.error_type()
+                },
+            );
         }
         if right.flags().intersects(
             TypeFlags::BooleanLike
@@ -1046,12 +1050,12 @@ impl TypeChecker {
                 | TypeFlags::NonPrimitive
                 | TypeFlags::Index,
         ) {
-            return left;
+            return Ok(left);
         }
 
         if self.is_generic_object_type(&left) || self.is_generic_object_type(&right) {
             if self.is_empty_object_type(&left) {
-                return right;
+                return Ok(right);
             }
             if left.flags().intersects(TypeFlags::Intersection) {
                 let types = left.as_intersection_type().types();
@@ -1059,7 +1063,7 @@ impl TypeChecker {
                 if self.is_non_generic_object_type(last_left)
                     && self.is_non_generic_object_type(&right)
                 {
-                    return self.get_intersection_type(
+                    return Ok(self.get_intersection_type(
                         &concatenate(
                             types[0..types.len() - 1].to_owned(),
                             vec![self.get_spread_type(
@@ -1072,10 +1076,14 @@ impl TypeChecker {
                         ),
                         Option::<&Symbol>::None,
                         None,
-                    );
+                    ));
                 }
             }
-            return self.get_intersection_type(&vec![left, right], Option::<&Symbol>::None, None);
+            return Ok(self.get_intersection_type(
+                &vec![left, right],
+                Option::<&Symbol>::None,
+                None,
+            ));
         }
 
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
@@ -1107,7 +1115,7 @@ impl TypeChecker {
             }
             if members.contains_key(left_prop.escaped_name()) {
                 let right_prop = members.get(left_prop.escaped_name()).unwrap();
-                let right_type = self.get_type_of_symbol(right_prop);
+                let right_type = self.get_type_of_symbol(right_prop)?;
                 if right_prop.flags().intersects(SymbolFlags::Optional) {
                     let declarations = maybe_concatenate(
                         left_prop.maybe_declarations().clone(),
@@ -1121,7 +1129,7 @@ impl TypeChecker {
                     let mut result_links = result_links.borrow_mut();
                     result_links.type_ = Some(self.get_union_type(
                         &[
-                            self.get_type_of_symbol(&left_prop),
+                            self.get_type_of_symbol(&left_prop)?,
                             self.remove_missing_or_undefined_type(&right_type),
                         ],
                         None,
@@ -1165,6 +1173,6 @@ impl TypeChecker {
                 | ObjectFlags::ContainsSpread
                 | object_flags,
         );
-        spread
+        Ok(spread)
     }
 }

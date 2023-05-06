@@ -158,6 +158,10 @@ pub trait Matches {
     type Unwrapped;
 
     fn matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool;
+    fn try_matches<TError>(
+        self,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<bool, TError>,
+    ) -> Result<bool, TError>;
 }
 
 impl<TValue> Matches for Option<TValue> {
@@ -165,6 +169,16 @@ impl<TValue> Matches for Option<TValue> {
 
     fn matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool {
         self.map(predicate) == Some(true)
+    }
+
+    fn try_matches<TError>(
+        self,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<bool, TError>,
+    ) -> Result<bool, TError> {
+        match self {
+            None => Ok(false),
+            Some(value) => Ok(predicate(value)?),
+        }
     }
 }
 
@@ -221,6 +235,12 @@ pub trait OptionTry {
         self,
         predicate: impl FnOnce(&Self::Unwrapped) -> Result<bool, TError>,
     ) -> Result<Option<Self::Unwrapped>, TError>;
+
+    fn try_map_or_else<TMapped, TError>(
+        self,
+        default: impl FnOnce() -> Result<TMapped, TError>,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
+    ) -> Result<TMapped, TError>;
 }
 
 impl<TValue> OptionTry for Option<TValue> {
@@ -293,5 +313,16 @@ impl<TValue> OptionTry for Option<TValue> {
                 }
             }
         })
+    }
+
+    fn try_map_or_else<TMapped, TError>(
+        self,
+        default: impl FnOnce() -> Result<TMapped, TError>,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
+    ) -> Result<TMapped, TError> {
+        match self {
+            None => default(),
+            Some(value) => predicate(value),
+        }
     }
 }

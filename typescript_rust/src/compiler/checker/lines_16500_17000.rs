@@ -533,9 +533,9 @@ impl TypeChecker {
         mapper: Gc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if !self.could_contain_type_variables(type_) {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         if self.instantiation_depth() == 100 || self.instantiation_count() >= 5000000 {
             // tracing?.instant(tracing.Phase.CheckTypes, "instantiateType_DepthLimit", { typeId: type.id, instantiationDepth, instantiationCount });
@@ -544,27 +544,27 @@ impl TypeChecker {
                 &Diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
                 None,
             );
-            return self.error_type();
+            return Ok(self.error_type());
         }
         self.set_total_instantiation_count(self.total_instantiation_count() + 1);
         self.set_instantiation_count(self.instantiation_count() + 1);
         self.set_instantiation_depth(self.instantiation_depth() + 1);
         let result =
-            self.instantiate_type_worker(type_, mapper, alias_symbol, alias_type_arguments);
+            self.instantiate_type_worker(type_, mapper, alias_symbol, alias_type_arguments)?;
         self.set_instantiation_depth(self.instantiation_depth() - 1);
-        result
+        Ok(result)
     }
 
-    pub(super) fn instantiate_type_worker<TSymbol: Borrow<Symbol>>(
+    pub(super) fn instantiate_type_worker(
         &self,
         type_: &Type,
         mapper: Gc<TypeMapper>,
-        alias_symbol: Option<TSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::TypeParameter) {
-            return self.get_mapped_type(type_, &mapper);
+            return Ok(self.get_mapped_type(type_, &mapper));
         }
         if flags.intersects(TypeFlags::Object) {
             let object_flags = type_.as_object_flags_type().object_flags();
@@ -580,23 +580,25 @@ impl TypeChecker {
                     let resolved_type_arguments = resolved_type_arguments.as_deref();
                     let new_type_arguments =
                         self.instantiate_types(resolved_type_arguments, Some(mapper));
-                    return if !match (resolved_type_arguments, new_type_arguments.as_deref()) {
-                        (None, None) => true,
-                        (Some(resolved_type_arguments), Some(new_type_arguments)) => {
-                            are_gc_slices_equal(new_type_arguments, resolved_type_arguments)
-                        }
-                        _ => false,
-                    } {
-                        self.create_normalized_type_reference(
-                            &type_as_type_reference.target(),
-                            new_type_arguments,
-                        )
-                    } else {
-                        type_.type_wrapper()
-                    };
+                    return Ok(
+                        if !match (resolved_type_arguments, new_type_arguments.as_deref()) {
+                            (None, None) => true,
+                            (Some(resolved_type_arguments), Some(new_type_arguments)) => {
+                                are_gc_slices_equal(new_type_arguments, resolved_type_arguments)
+                            }
+                            _ => false,
+                        } {
+                            self.create_normalized_type_reference(
+                                &type_as_type_reference.target(),
+                                new_type_arguments,
+                            )
+                        } else {
+                            type_.type_wrapper()
+                        },
+                    );
                 }
                 if object_flags.intersects(ObjectFlags::ReverseMapped) {
-                    return self.instantiate_reverse_mapped_type(type_, mapper);
+                    return Ok(self.instantiate_reverse_mapped_type(type_, mapper));
                 }
                 return self.get_object_type_instantiation(
                     type_,
@@ -605,7 +607,7 @@ impl TypeChecker {
                     alias_type_arguments,
                 );
             }
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         if flags.intersects(TypeFlags::UnionOrIntersection) {
@@ -634,7 +636,7 @@ impl TypeChecker {
             if are_gc_slices_equal(&new_types, &types)
                 && are_option_gcs_equal(alias_symbol.as_ref(), type_.maybe_alias_symbol().as_ref())
             {
-                return type_.type_wrapper();
+                return Ok(type_.type_wrapper());
             }
             let new_alias_symbol = alias_symbol
                 .clone()
@@ -644,47 +646,50 @@ impl TypeChecker {
             } else {
                 self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))
             };
-            return if flags.intersects(TypeFlags::Intersection)
-                || matches!(
-                    origin.as_ref(),
-                    Some(origin) if origin.flags().intersects(TypeFlags::Intersection)
-                ) {
-                self.get_intersection_type(
-                    &new_types,
-                    new_alias_symbol,
-                    new_alias_type_arguments.as_deref(),
-                )
-            } else {
-                self.get_union_type(
-                    &new_types,
-                    Some(UnionReduction::Literal),
-                    new_alias_symbol,
-                    new_alias_type_arguments.as_deref(),
-                    Option::<&Type>::None,
-                )
-            };
+            return Ok(
+                if flags.intersects(TypeFlags::Intersection)
+                    || matches!(
+                        origin.as_ref(),
+                        Some(origin) if origin.flags().intersects(TypeFlags::Intersection)
+                    )
+                {
+                    self.get_intersection_type(
+                        &new_types,
+                        new_alias_symbol,
+                        new_alias_type_arguments.as_deref(),
+                    )
+                } else {
+                    self.get_union_type(
+                        &new_types,
+                        Some(UnionReduction::Literal),
+                        new_alias_symbol,
+                        new_alias_type_arguments.as_deref(),
+                        Option::<&Type>::None,
+                    )
+                },
+            );
         }
         if flags.intersects(TypeFlags::Index) {
-            return self.get_index_type(
+            return Ok(self.get_index_type(
                 &self.instantiate_type(&type_.as_index_type().type_, Some(mapper)),
                 None,
                 None,
-            );
+            ));
         }
         if flags.intersects(TypeFlags::TemplateLiteral) {
             let type_as_template_literal_type = type_.as_template_literal_type();
-            return self.get_template_literal_type(
+            return Ok(self.get_template_literal_type(
                 &type_as_template_literal_type.texts,
                 &self
                     .instantiate_types(Some(&type_as_template_literal_type.types), Some(mapper))
                     .unwrap(),
-            );
+            ));
         }
         if flags.intersects(TypeFlags::StringMapping) {
-            return self.get_string_mapping_type(
+            return Ok(self.get_string_mapping_type(
                 &type_.symbol(),
                 &self.instantiate_type(&type_.as_string_mapping_type().type_, Some(mapper)),
-            );
+            ));
         }
         if flags.intersects(TypeFlags::IndexedAccess) {
             let new_alias_symbol = alias_symbol
@@ -699,7 +704,7 @@ impl TypeChecker {
                 )
             };
             let type_as_indexed_access_type = type_.as_indexed_access_type();
-            return self.get_indexed_access_type(
+            return Ok(self.get_indexed_access_type(
                 &self.instantiate_type(
                     &type_as_indexed_access_type.object_type,
                     Some(mapper.clone()),
@@ -709,7 +714,7 @@ impl TypeChecker {
                 Option::<&Node>::None,
                 new_alias_symbol,
                 new_alias_type_arguments.as_deref(),
-            );
+            ));
         }
         if flags.intersects(TypeFlags::Conditional) {
             return self.get_conditional_type_instantiation(
@@ -727,10 +732,10 @@ impl TypeChecker {
             let maybe_variable =
                 self.instantiate_type(&type_as_substitution_type.base_type, Some(mapper.clone()));
             if maybe_variable.flags().intersects(TypeFlags::TypeVariable) {
-                return self.get_substitution_type(
+                return Ok(self.get_substitution_type(
                     &maybe_variable,
                     &self.instantiate_type(&type_as_substitution_type.substitute, Some(mapper)),
-                );
+                ));
             } else {
                 let sub =
                     self.instantiate_type(&type_as_substitution_type.substitute, Some(mapper));
@@ -740,12 +745,12 @@ impl TypeChecker {
                         &self.get_restrictive_instantiation(&sub),
                     )
                 {
-                    return maybe_variable;
+                    return Ok(maybe_variable);
                 }
-                return sub;
+                return Ok(sub);
             }
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn instantiate_reverse_mapped_type(
@@ -898,14 +903,14 @@ impl TypeChecker {
     pub(super) fn is_context_sensitive_function_like_declaration(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
-    ) -> bool {
-        (!is_function_declaration(node)
+    ) -> io::Result<bool> {
+        Ok((!is_function_declaration(node)
             || is_in_js_file(Some(node))
                 && self
-                    .get_type_for_declaration_from_jsdoc_comment(node)
+                    .get_type_for_declaration_from_jsdoc_comment(node)?
                     .is_some())
             && (has_context_sensitive_parameters(node)
-                || self.has_context_sensitive_return_expression(node))
+                || self.has_context_sensitive_return_expression(node)))
     }
 
     pub(super) fn has_context_sensitive_return_expression(

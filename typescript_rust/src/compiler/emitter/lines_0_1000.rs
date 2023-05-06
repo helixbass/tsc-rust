@@ -1,6 +1,7 @@
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
+use std::io;
 use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
@@ -1417,7 +1418,7 @@ impl EmitResolver for NotImplementedResolver {
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
         _add_undefined: Option<bool>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 
@@ -1427,7 +1428,7 @@ impl EmitResolver for NotImplementedResolver {
         _enclosing_declaration: &Node,
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 
@@ -1437,7 +1438,7 @@ impl EmitResolver for NotImplementedResolver {
         _enclosing_declaration: &Node,
         _flags: crate::NodeBuilderFlags,
         _tracker: Gc<Box<dyn crate::SymbolTracker>>,
-    ) -> Option<Gc<Node /*TypeNode*/>> {
+    ) -> io::Result<Option<Gc<Node /*TypeNode*/>>> {
         unimplemented!()
     }
 

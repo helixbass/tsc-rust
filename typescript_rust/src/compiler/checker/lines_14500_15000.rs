@@ -155,17 +155,17 @@ impl TypeChecker {
         types: &[Gc<Type>],
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let mut type_membership_map: IndexMap<TypeId, Gc<Type>> = IndexMap::new();
         let includes =
             self.add_types_to_intersection(&mut type_membership_map, TypeFlags::None, types);
         let mut type_set: Vec<Gc<Type>> = type_membership_map.values().map(Clone::clone).collect();
         if includes.intersects(TypeFlags::Never) {
-            return if contains_gc(Some(&type_set), &self.silent_never_type()) {
+            return Ok(if contains_gc(Some(&type_set), &self.silent_never_type()) {
                 self.silent_never_type()
             } else {
                 self.never_type()
-            };
+            });
         }
         if self.strict_null_checks
             && includes.intersects(TypeFlags::Nullable)
@@ -185,27 +185,27 @@ impl TypeChecker {
             || includes.intersects(TypeFlags::VoidLike)
                 && includes.intersects(TypeFlags::DisjointDomains & !TypeFlags::VoidLike)
         {
-            return self.never_type();
+            return Ok(self.never_type());
         }
         if includes.intersects(TypeFlags::TemplateLiteral)
             && includes.intersects(TypeFlags::StringLiteral)
             && self.extract_redundant_template_literals(&mut type_set)
         {
-            return self.never_type();
+            return Ok(self.never_type());
         }
         if includes.intersects(TypeFlags::Any) {
-            return if includes.intersects(TypeFlags::IncludesWildcard) {
+            return Ok(if includes.intersects(TypeFlags::IncludesWildcard) {
                 self.wildcard_type()
             } else {
                 self.any_type()
-            };
+            });
         }
         if !self.strict_null_checks && includes.intersects(TypeFlags::Nullable) {
-            return if includes.intersects(TypeFlags::Undefined) {
+            return Ok(if includes.intersects(TypeFlags::Undefined) {
                 self.undefined_type()
             } else {
                 self.null_type()
-            };
+            });
         }
         if includes.intersects(TypeFlags::String) && includes.intersects(TypeFlags::StringLiteral)
             || includes.intersects(TypeFlags::Number)
@@ -235,10 +235,10 @@ impl TypeChecker {
             type_set[index] = self.missing_type();
         }
         if type_set.is_empty() {
-            return self.unknown_type();
+            return Ok(self.unknown_type());
         }
         if type_set.len() == 1 {
-            return type_set[0].clone();
+            return Ok(type_set[0].clone());
         }
         let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         let id = format!(
@@ -297,7 +297,7 @@ impl TypeChecker {
                     ));
                 } else {
                     if !self.check_cross_product_union(&type_set) {
-                        return self.error_type();
+                        return Ok(self.error_type());
                     }
                     let constituents = self.get_cross_product_intersections(&type_set);
                     let origin = if some(
@@ -317,7 +317,7 @@ impl TypeChecker {
                         alias_symbol.as_deref(),
                         alias_type_arguments,
                         origin,
-                    ));
+                    )?);
                 }
             } else {
                 result = Some(self.create_intersection_type(
@@ -329,7 +329,7 @@ impl TypeChecker {
             self.intersection_types()
                 .insert(id, result.clone().unwrap());
         }
-        result.unwrap()
+        Ok(result.unwrap())
     }
 
     pub(super) fn get_cross_product_union_size(&self, types: &[Gc<Type>]) -> usize {
@@ -473,7 +473,7 @@ impl TypeChecker {
         type_: &Type, /*MappedType*/
         strings_only: bool,
         no_index_signatures: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_parameter = self.get_type_parameter_from_mapped_type(type_);
         let constraint_type = self.get_constraint_type_from_mapped_type(type_);
         let name_type = self.get_name_type_from_mapped_type(
@@ -483,7 +483,7 @@ impl TypeChecker {
                 .unwrap_or_else(|| type_.type_wrapper()),
         );
         if name_type.is_none() && !matches!(no_index_signatures, Some(true)) {
-            return constraint_type;
+            return Ok(constraint_type);
         }
         let mut key_types: Vec<Gc<Type>> = vec![];
         if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
@@ -505,7 +505,7 @@ impl TypeChecker {
                     },
                 );
             } else {
-                return self.get_index_type_for_generic_type(type_, strings_only);
+                return Ok(self.get_index_type_for_generic_type(type_, strings_only));
             }
         } else {
             self.for_each_type(&self.get_lower_bound_of_key_type(&constraint_type), |t| {
@@ -533,13 +533,13 @@ impl TypeChecker {
         }
         let result = if matches!(no_index_signatures, Some(true)) {
             self.filter_type(
-                &self.get_union_type(
+                &*self.get_union_type(
                     &key_types,
                     None,
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                ),
+                )?,
                 |t| !t.flags().intersects(TypeFlags::Any | TypeFlags::String),
             )
         } else {
@@ -549,16 +549,16 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         };
         if result.flags().intersects(TypeFlags::Union)
             && constraint_type.flags().intersects(TypeFlags::Union)
             && self.get_type_list_id(Some(result.as_union_type().types()))
                 == self.get_type_list_id(Some(constraint_type.as_union_type().types()))
         {
-            return constraint_type;
+            return Ok(constraint_type);
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn add_member_for_key_type_get_index_type_for_mapped_type(
@@ -712,7 +712,7 @@ impl TypeChecker {
         type_: &Type,
         include: TypeFlags,
         include_origin: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let origin = if include_origin
             && (get_object_flags(type_)
                 .intersects(ObjectFlags::ClassOrInterface | ObjectFlags::Reference)
@@ -755,10 +755,10 @@ impl TypeChecker {
         type_: &Type,
         strings_only: Option<bool>,
         no_index_signatures: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let strings_only = strings_only.unwrap_or(self.keyof_strings_only);
         let type_ = self.get_reduced_type(type_);
-        if type_.flags().intersects(TypeFlags::Union) {
+        Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.get_intersection_type(
                 &map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
                     self.get_index_type(t, Some(strings_only), no_index_signatures)
@@ -775,7 +775,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         } else if type_
             .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
@@ -806,7 +806,7 @@ impl TypeChecker {
                 strings_only == self.keyof_strings_only
                     && !matches!(no_index_signatures, Some(true)),
             )
-        }
+        })
     }
 
     pub(super) fn get_extract_string_type(&self, type_: &Type) -> Gc<Type> {

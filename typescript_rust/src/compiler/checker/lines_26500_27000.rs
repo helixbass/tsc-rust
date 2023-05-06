@@ -78,8 +78,8 @@ impl TypeChecker {
         &self,
         sig: Gc<Signature>,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> Gc<Type> {
-        let ns = self.get_jsx_namespace_at(Some(context));
+    ) -> io::Result<Gc<Type>> {
+        let ns = self.get_jsx_namespace_at(Some(context))?;
         let forced_lookup_location = self.get_jsx_element_properties_name(ns.as_deref());
         let attributes_type = match forced_lookup_location.as_ref() {
             None => Some(self.get_type_of_first_parameter_of_signature_with_fallback(
@@ -117,7 +117,7 @@ impl TypeChecker {
                     );
                 }
             }
-            return self.unknown_type();
+            return Ok(self.unknown_type());
         }
         let mut attributes_type = attributes_type.unwrap();
 
@@ -127,7 +127,7 @@ impl TypeChecker {
             &attributes_type,
         );
 
-        if self.is_type_any(Some(&*attributes_type)) {
+        Ok(if self.is_type_any(Some(&*attributes_type)) {
             attributes_type
         } else {
             let mut apparent_attributes_type = attributes_type.clone();
@@ -168,7 +168,7 @@ impl TypeChecker {
             }
 
             apparent_attributes_type
-        }
+        })
     }
 
     pub(super) fn get_intersected_signatures(
@@ -204,22 +204,22 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn combine_intersection_this_param<TLeft: Borrow<Symbol>, TRight: Borrow<Symbol>>(
+    pub(super) fn combine_intersection_this_param(
         &self,
-        left: Option<TLeft>,
-        right: Option<TRight>,
+        left: Option<impl Borrow<Symbol>>,
+        right: Option<impl Borrow<Symbol>>,
         mapper: Option<Gc<TypeMapper>>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
         let right = right.map(|right| right.borrow().symbol_wrapper());
         if left.is_none() || right.is_none() {
-            return left.or(right);
+            return Ok(left.or(right));
         }
         let left = left.unwrap();
         let right = right.unwrap();
         let this_type = self.get_union_type(
             &[
-                self.get_type_of_symbol(&left),
+                self.get_type_of_symbol(&left)?,
                 self.instantiate_type(&self.get_type_of_symbol(&right), mapper),
             ],
             None,
@@ -227,7 +227,7 @@ impl TypeChecker {
             None,
             Option::<&Type>::None,
         );
-        Some(self.create_symbol_with_type(&left, Some(this_type)))
+        Ok(Some(self.create_symbol_with_type(&left, Some(this_type))))
     }
 
     pub(super) fn combine_intersection_parameters(
@@ -694,7 +694,7 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                )
+                )?
             } else if self.strict_null_checks {
                 self.implicit_never_type()
             } else {
@@ -859,7 +859,7 @@ impl TypeChecker {
         offset: usize,
         properties: &[Gc<Symbol>],
         key_type: &Type,
-    ) -> IndexInfo {
+    ) -> io::Result<IndexInfo> {
         let mut prop_types: Vec<Gc<Type>> = vec![];
         for i in offset..properties.len() {
             let prop = &properties[i];
@@ -878,16 +878,16 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            )
+            )?
         } else {
             self.undefined_type()
         };
-        self.create_index_info(
+        Ok(self.create_index_info(
             key_type.type_wrapper(),
             union_type,
             self.is_const_context(node),
             None,
-        )
+        ))
     }
 
     pub(super) fn get_immediate_aliased_symbol(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {

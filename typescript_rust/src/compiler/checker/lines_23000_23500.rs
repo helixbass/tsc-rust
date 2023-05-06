@@ -650,8 +650,8 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_final_array_type(&self, element_type: &Type) -> Gc<Type> {
-        if element_type.flags().intersects(TypeFlags::Never) {
+    pub(super) fn create_final_array_type(&self, element_type: &Type) -> io::Result<Gc<Type>> {
+        Ok(if element_type.flags().intersects(TypeFlags::Never) {
             self.auto_array_type()
         } else {
             self.create_array_type(
@@ -662,13 +662,13 @@ impl TypeChecker {
                         Option::<&Symbol>::None,
                         None,
                         Option::<&Type>::None,
-                    )
+                    )?
                 } else {
                     element_type.type_wrapper()
                 },
                 None,
             )
-        }
+        })
     }
 
     pub(super) fn get_final_array_type(

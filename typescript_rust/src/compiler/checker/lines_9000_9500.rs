@@ -80,7 +80,7 @@ impl TypeChecker {
         element: &Node, /*BindingElement*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let element_as_binding_element = element.as_binding_element();
         if element_as_binding_element.maybe_initializer().is_some() {
             let contextual_type = if is_binding_pattern(Some(element_as_binding_element.name())) {
@@ -92,32 +92,32 @@ impl TypeChecker {
             } else {
                 self.unknown_type()
             };
-            return self.add_optionality(
+            return Ok(self.add_optionality(
                 &self.widen_type_inferred_from_initializer(
                     element,
-                    &self.check_declaration_initializer(element, Some(contextual_type)),
+                    &*self.check_declaration_initializer(element, Some(contextual_type))?,
                 ),
                 None,
                 None,
-            );
+            ));
         }
         if is_binding_pattern(Some(element_as_binding_element.name())) {
-            return self.get_type_from_binding_pattern(
+            return Ok(self.get_type_from_binding_pattern(
                 &element_as_binding_element.name(),
                 include_pattern_in_type,
                 report_errors,
-            );
+            ));
         }
         if matches!(report_errors, Some(true))
             && !self.declaration_belongs_to_private_ambient_member(element)
         {
             self.report_implicit_any(element, &self.any_type(), None);
         }
-        if matches!(include_pattern_in_type, Some(true)) {
+        Ok(if matches!(include_pattern_in_type, Some(true)) {
             self.non_inferrable_any_type()
         } else {
             self.any_type()
-        }
+        })
     }
 
     pub(super) fn get_type_from_object_binding_pattern(
@@ -294,12 +294,12 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         report_errors: Option<bool>,
-    ) -> Gc<Type> {
-        self.widen_type_for_variable_like_declaration(
-            self.get_type_for_variable_like_declaration(declaration, true),
+    ) -> io::Result<Gc<Type>> {
+        Ok(self.widen_type_for_variable_like_declaration(
+            self.get_type_for_variable_like_declaration(declaration, true)?,
             declaration,
             report_errors,
-        )
+        ))
     }
 
     pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> bool {
@@ -311,9 +311,9 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn widen_type_for_variable_like_declaration<TType: Borrow<Type>>(
+    pub(super) fn widen_type_for_variable_like_declaration(
         &self,
-        type_: Option<TType>,
+        type_: Option<impl Borrow<Type>>,
         declaration: &Node,
         report_errors: Option<bool>,
     ) -> Gc<Type> {

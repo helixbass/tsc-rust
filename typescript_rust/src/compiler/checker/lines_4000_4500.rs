@@ -358,7 +358,7 @@ impl TypeChecker {
              b: Option<bool>,
              c: Option<bool>,
              d: Option<&Node>|
-             -> Result<TReturn, ()> { Ok(callback(a, b, c, d)) },
+             -> Result<Option<TReturn>, ()> { Ok(callback(a, b, c, d)) },
         )
         .unwrap()
     }
@@ -471,14 +471,14 @@ impl TypeChecker {
         visited_symbol_tables_map: Option<
             &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         >,
-    ) -> Option<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
         let mut visited_symbol_tables_map_default = HashMap::new();
         let visited_symbol_tables_map =
             visited_symbol_tables_map.unwrap_or(&mut visited_symbol_tables_map_default);
         let symbol = symbol?;
         let symbol = symbol.borrow();
         if self.is_property_or_method_declaration_symbol(symbol) {
-            return None;
+            return Ok(None);
         }
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().accessible_chain_cache.is_none() {
@@ -504,7 +504,7 @@ impl TypeChecker {
             let mut links = (*links).borrow_mut();
             let cache = links.accessible_chain_cache.as_mut().unwrap();
             if cache.contains_key(&key) {
-                return cache.get(&key).unwrap().clone();
+                return Ok(cache.get(&key).unwrap().clone());
             }
         }
 
@@ -513,7 +513,7 @@ impl TypeChecker {
             visited_symbol_tables_map.insert(id, Gc::new(GcCell::new(vec![])));
         }
         let visited_symbol_tables = visited_symbol_tables_map.get(&id).unwrap().clone();
-        let result = self.for_each_symbol_table_in_scope(
+        let result = self.try_for_each_symbol_table_in_scope(
             enclosing_declaration.as_deref(),
             |symbols, ignore_qualification, is_local_name_lookup, _| {
                 self.get_accessible_symbol_chain_from_symbol_table(
@@ -528,14 +528,14 @@ impl TypeChecker {
                     is_local_name_lookup,
                 )
             },
-        );
+        )?;
         (*links)
             .borrow_mut()
             .accessible_chain_cache
             .as_mut()
             .unwrap()
             .insert(key, result.clone());
-        result
+        Ok(result)
     }
 
     pub(super) fn get_accessible_symbol_chain_from_symbol_table(
@@ -601,12 +601,12 @@ impl TypeChecker {
         symbol_from_symbol_table: Option<impl Borrow<Symbol>>,
         resolved_alias_symbol: Option<impl Borrow<Symbol>>,
         ignore_qualification: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let symbol_from_symbol_table = symbol_from_symbol_table
             .map(|symbol_from_symbol_table| symbol_from_symbol_table.borrow().symbol_wrapper());
         let resolved_alias_symbol = resolved_alias_symbol
             .map(|resolved_alias_symbol| resolved_alias_symbol.borrow().symbol_wrapper());
-        (matches!(
+        Ok((matches!(
             resolved_alias_symbol
                 .as_deref()
                 .or_else(|| symbol_from_symbol_table.as_deref()),
@@ -641,7 +641,7 @@ impl TypeChecker {
                 visited_symbol_tables_map,
                 &self.get_merged_symbol(symbol_from_symbol_table).unwrap(),
                 meaning,
-            ))
+            )?))
     }
 
     pub(super) fn try_symbol_table(
@@ -771,7 +771,7 @@ impl TypeChecker {
         symbol_from_symbol_table: &Symbol,
         resolved_import_symbol: &Symbol,
         ignore_qualification: Option<bool>,
-    ) -> Option<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
         if self.is_accessible(
             symbol,
             meaning,
@@ -782,7 +782,7 @@ impl TypeChecker {
             Some(resolved_import_symbol),
             ignore_qualification,
         ) {
-            return Some(vec![symbol_from_symbol_table.symbol_wrapper()]);
+            return Ok(Some(vec![symbol_from_symbol_table.symbol_wrapper()]));
         }
 
         let candidate_table = self.get_exports_of_symbol(resolved_import_symbol);
@@ -805,13 +805,13 @@ impl TypeChecker {
                 visited_symbol_tables_map,
                 symbol_from_symbol_table,
                 self.get_qualified_left_meaning(meaning),
-            ) {
+            )? {
                 let mut ret = vec![symbol_from_symbol_table.symbol_wrapper()];
                 ret.append(&mut accessible_symbols_from_exports);
-                return Some(ret);
+                return Ok(Some(ret));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn needs_qualification(
@@ -822,12 +822,16 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let mut qualify = false;
         self.try_for_each_symbol_table_in_scope(enclosing_declaration, |symbol_table, _, _, _| {
-            let mut symbol_from_symbol_table = self.get_merged_symbol(
+            let symbol_from_symbol_table = self.get_merged_symbol(
                 (*symbol_table)
                     .borrow()
                     .get(symbol.escaped_name())
                     .map(Clone::clone),
-            )?;
+            );
+            if symbol_from_symbol_table.is_none() {
+                return Ok(None);
+            }
+            let mut symbol_from_symbol_table = symbol_from_symbol_table.unwrap();
             if ptr::eq(&*symbol_from_symbol_table, symbol) {
                 return Ok(Some(()));
             }
@@ -892,19 +896,19 @@ impl TypeChecker {
         Ok(access.accessibility == SymbolAccessibility::Accessible)
     }
 
-    pub(super) fn is_value_symbol_accessible<TEnclosingDeclaration: Borrow<Node>>(
+    pub(super) fn is_value_symbol_accessible(
         &self,
         type_symbol: &Symbol,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
-    ) -> bool {
+        enclosing_declaration: Option<impl Borrow<Node>>,
+    ) -> io::Result<bool> {
         let access = self.is_symbol_accessible_worker(
             Some(type_symbol),
             enclosing_declaration,
             SymbolFlags::Value,
             false,
             true,
-        );
-        access.accessibility == SymbolAccessibility::Accessible
+        )?;
+        Ok(access.accessibility == SymbolAccessibility::Accessible)
     }
 
     pub(super) fn is_symbol_accessible_by_flags(
@@ -912,15 +916,15 @@ impl TypeChecker {
         type_symbol: &Symbol,
         enclosing_declaration: Option<impl Borrow<Node>>,
         flags: SymbolFlags,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let access = self.is_symbol_accessible_worker(
             Some(type_symbol),
             enclosing_declaration,
             flags,
             false,
             false,
-        );
-        access.accessibility == SymbolAccessibility::Accessible
+        )?;
+        Ok(access.accessibility == SymbolAccessibility::Accessible)
     }
 
     pub(super) fn is_any_symbol_accessible(
@@ -995,7 +999,7 @@ impl TypeChecker {
                 },
                 should_compute_aliases_to_make_visible,
                 allow_modules,
-            );
+            )?;
             if parent_result.is_some() {
                 return Ok(parent_result);
             }
@@ -1021,7 +1025,7 @@ impl TypeChecker {
                     Some(meaning),
                     None,
                     None,
-                )),
+                )?),
                 error_node: None,
                 error_module_name: if !ptr::eq(&*had_accessible_chain, initial_symbol) {
                     Some(self.symbol_to_string_(
@@ -1046,7 +1050,7 @@ impl TypeChecker {
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
         should_compute_aliases_to_make_visible: bool,
-    ) -> SymbolAccessibilityResult {
+    ) -> io::Result<SymbolAccessibilityResult> {
         self.is_symbol_accessible_worker(
             symbol,
             enclosing_declaration,
@@ -1075,7 +1079,7 @@ impl TypeChecker {
                     meaning,
                     should_compute_aliases_to_make_visible,
                     allow_modules,
-                );
+                )?;
                 if let Some(result) = result {
                     return Ok(result);
                 }
