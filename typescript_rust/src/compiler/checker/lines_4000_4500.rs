@@ -229,14 +229,14 @@ impl TypeChecker {
     pub(super) fn get_named_or_index_signature_members(
         &self,
         members: &SymbolTable,
-    ) -> Vec<Gc<Symbol>> {
-        let result = self.get_named_members(members);
+    ) -> io::Result<Vec<Gc<Symbol>>> {
+        let result = self.get_named_members(members)?;
         let index = self.get_index_symbol_from_symbol_table(members);
-        if let Some(index) = index {
+        Ok(if let Some(index) = index {
             concatenate(result, vec![index])
         } else {
             result
-        }
+        })
     }
 
     pub(super) fn set_structured_type_members(
@@ -246,8 +246,7 @@ impl TypeChecker {
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
-    ) /*-> BaseObjectType*/
-    {
+    ) -> io::Result<()> /*-> BaseObjectType*/ {
         type_.resolve(
             members.clone(),
             vec![].into(),
@@ -256,9 +255,11 @@ impl TypeChecker {
             index_infos,
         );
         if !Gc::ptr_eq(&members, &self.empty_symbols()) {
-            type_.set_properties(self.get_named_members(&(*members).borrow()).into());
+            type_.set_properties(self.get_named_members(&(*members).borrow())?.into());
         }
         // type_
+
+        Ok(())
     }
 
     // extracted this because it's easy to do BaseObjectType.into() -> Gc<Type> to incorrectly wrap

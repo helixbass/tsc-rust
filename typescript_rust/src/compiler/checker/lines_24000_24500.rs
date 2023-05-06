@@ -144,15 +144,15 @@ impl GetFlowTypeOfReference {
             prop_type
         };
         let narrowed_prop_type = narrow_type(&prop_type)?;
-        Ok(self.type_checker.filter_type(type_, |t: &Type| {
+        self.type_checker.try_filter_type(type_, |t: &Type| {
             let discriminant_type = self
                 .type_checker
-                .get_type_of_property_or_index_signature(t, &prop_name);
-            !narrowed_prop_type.flags().intersects(TypeFlags::Never)
+                .get_type_of_property_or_index_signature(t, &prop_name)?;
+            Ok(!narrowed_prop_type.flags().intersects(TypeFlags::Never)
                 && self
                     .type_checker
-                    .is_type_comparable_to(&narrowed_prop_type, &discriminant_type)
-        }))
+                    .is_type_comparable_to(&narrowed_prop_type, &discriminant_type))
+        })
     }
 
     pub(super) fn narrow_type_by_discriminant_property(
@@ -334,7 +334,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         name: &str, /*__String*/
         assume_true: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if type_.flags().intersects(TypeFlags::Union)
             || type_.flags().intersects(TypeFlags::Object) && !ptr::eq(&*self.declared_type, type_)
             || self.type_checker.is_this_type_parameter(type_)
@@ -349,11 +349,11 @@ impl GetFlowTypeOfReference {
                     )
                 })
         {
-            return self.type_checker.filter_type(type_, |t: &Type| {
+            return self.type_checker.try_filter_type(type_, |t: &Type| {
                 self.is_type_presence_possible(t, name, assume_true)
             });
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn narrow_type_by_binary_expression(
@@ -460,24 +460,14 @@ impl GetFlowTypeOfReference {
                     );
                 }
                 if self.is_matching_constructor_reference(&left) {
-                    return Ok(self.narrow_type_by_constructor(
-                        &type_,
-                        operator,
-                        &right,
-                        assume_true,
-                    ));
+                    return self.narrow_type_by_constructor(&type_, operator, &right, assume_true);
                 }
                 if self.is_matching_constructor_reference(&right) {
-                    return Ok(self.narrow_type_by_constructor(
-                        &type_,
-                        operator,
-                        &left,
-                        assume_true,
-                    ));
+                    return self.narrow_type_by_constructor(&type_, operator, &left, assume_true);
                 }
             }
             SyntaxKind::InstanceOfKeyword => {
-                return Ok(self.narrow_type_by_instanceof(&type_, expr, assume_true));
+                return self.narrow_type_by_instanceof(&type_, expr, assume_true);
             }
             SyntaxKind::InKeyword => {
                 if is_private_identifier(&expr_as_binary_expression.left) {
@@ -522,7 +512,7 @@ impl GetFlowTypeOfReference {
                         .type_checker
                         .is_matching_reference(&self.reference, &target)
                     {
-                        return Ok(self.narrow_by_in_keyword(&type_, &name, assume_true));
+                        return self.narrow_by_in_keyword(&type_, &name, assume_true);
                     }
                 }
             }

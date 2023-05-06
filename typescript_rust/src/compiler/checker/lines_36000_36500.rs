@@ -20,7 +20,7 @@ use crate::{
     is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
     range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, CharacterCodes,
     Debug_, Diagnostic, Diagnostics, FunctionFlags, JSDocTagInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget,
     SignatureDeclarationInterface, SymbolFlags, SymbolInterface, SyntaxKind, TextRange,
     TypeChecker,
 };
@@ -213,13 +213,14 @@ impl TypeChecker {
                 .as_ref()
                 .and_then(|type_tag| type_tag.as_jsdoc_type_like_tag().maybe_type_expression())
                 .as_ref()
-                .filter(|type_tag_type_expression| {
-                    self.get_contextual_call_signature(
-                        &*self.get_type_from_type_node_(type_tag_type_expression)?,
-                        node,
-                    )
-                    .is_none()
-                })
+                .try_filter(|type_tag_type_expression| {
+                    Ok(self
+                        .get_contextual_call_signature(
+                            &*self.get_type_from_type_node_(type_tag_type_expression)?,
+                            node,
+                        )
+                        .is_none())
+                })?
             {
                 self.error(
                     Some(&*type_tag_type_expression.as_jsdoc_type_expression().type_),

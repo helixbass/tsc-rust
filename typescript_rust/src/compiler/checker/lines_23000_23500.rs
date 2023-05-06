@@ -15,7 +15,7 @@ use crate::{
     is_in_js_file, is_optional_chain, is_parameter, is_private_identifier,
     is_property_access_expression, is_property_declaration, is_property_signature,
     is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map,
-    skip_parentheses, some, try_for_each, try_map, CheckFlags, Diagnostic, Diagnostics,
+    skip_parentheses, some, try_filter, try_for_each, try_map, CheckFlags, Diagnostic, Diagnostics,
     EvolvingArrayType, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasInitializerInterface,
     IncompleteType, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolFlags,
@@ -325,12 +325,21 @@ impl TypeChecker {
     }
 
     pub(super) fn filter_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> Gc<Type> {
+        self.try_filter_type(type_, |type_: &Type| Ok(f(type_)))
+            .unwrap()
+    }
+
+    pub(super) fn try_filter_type(
+        &self,
+        type_: &Type,
+        mut f: impl FnMut(&Type) -> io::Result<bool>,
+    ) -> io::Result<Gc<Type>> {
         if type_.flags().intersects(TypeFlags::Union) {
             let type_as_union_type = type_.as_union_type();
             let types = type_as_union_type.types();
-            let filtered = filter(types, |type_: &Gc<Type>| f(type_));
+            let filtered = try_filter(types, |type_: &Gc<Type>| f(type_))?;
             if filtered.len() == types.len() {
-                return type_.type_wrapper();
+                return Ok(type_.type_wrapper());
             }
             let origin = type_as_union_type.origin.as_ref();
             let mut new_origin: Option<Gc<Type>> = None;
@@ -339,12 +348,12 @@ impl TypeChecker {
                 .filter(|origin| origin.flags().intersects(TypeFlags::Union))
             {
                 let origin_types = origin.as_union_type().types();
-                let origin_filtered = filter(origin_types, |t: &Gc<Type>| {
-                    t.flags().intersects(TypeFlags::Union) || f(t)
+                let origin_filtered = try_filter(origin_types, |t: &Gc<Type>| -> io::Result<_> {
+                    Ok(t.flags().intersects(TypeFlags::Union) || f(t)?)
                 });
                 if origin_types.len() - origin_filtered.len() == types.len() - filtered.len() {
                     if origin_filtered.len() == 1 {
-                        return origin_filtered[0].clone();
+                        return Ok(origin_filtered[0].clone());
                     }
                     new_origin = Some(self.create_origin_union_or_intersection_type(
                         TypeFlags::Union,
@@ -352,19 +361,19 @@ impl TypeChecker {
                     ));
                 }
             }
-            return self.get_union_type_from_sorted_list(
+            return Ok(self.get_union_type_from_sorted_list(
                 filtered,
                 type_as_union_type.object_flags(),
                 Option::<&Symbol>::None,
                 None,
                 new_origin.as_deref(),
-            );
+            ));
         }
-        if type_.flags().intersects(TypeFlags::Never) || f(type_) {
+        Ok(if type_.flags().intersects(TypeFlags::Never) || f(type_)? {
             type_.type_wrapper()
         } else {
             self.never_type()
-        }
+        })
     }
 
     pub(super) fn remove_type(&self, type_: &Type, target_type: &Type) -> Gc<Type> {

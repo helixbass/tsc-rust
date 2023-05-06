@@ -224,7 +224,7 @@ impl TypeChecker {
                 self.any_array_type()
             });
         }
-        let element_types = try_map(elements, |e: &Gc<Node>, _| {
+        let element_types = try_map(elements, |e: &Gc<Node>, _| -> io::Result<_> {
             Ok(if is_omitted_expression(e) {
                 self.any_type()
             } else {
@@ -273,22 +273,22 @@ impl TypeChecker {
         pattern: &Node, /*BindingPattern*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let include_pattern_in_type = include_pattern_in_type.unwrap_or(false);
         let report_errors = report_errors.unwrap_or(false);
-        if pattern.kind() == SyntaxKind::ObjectBindingPattern {
+        Ok(if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             self.get_type_from_object_binding_pattern(
                 pattern,
                 include_pattern_in_type,
                 report_errors,
-            )
+            )?
         } else {
             self.get_type_from_array_binding_pattern(
                 pattern,
                 include_pattern_in_type,
                 report_errors,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn get_widened_type_for_variable_like_declaration(
@@ -510,7 +510,7 @@ impl TypeChecker {
         if declaration.kind() == SyntaxKind::ExportAssignment {
             type_ = self.widen_type_for_variable_like_declaration(
                 Some(
-                    self.try_get_type_from_effective_type_node(declaration)
+                    self.try_get_type_from_effective_type_node(declaration)?
                         .unwrap_or_else(|| {
                             self.check_expression_cached(
                                 &declaration.as_export_assignment().expression,
@@ -553,20 +553,20 @@ impl TypeChecker {
             type_ = if is_binary_expression(&declaration.parent()) {
                 self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)?
             } else {
-                self.try_get_type_from_effective_type_node(declaration)
+                self.try_get_type_from_effective_type_node(declaration)?
                     .unwrap_or_else(|| self.any_type())
             };
         } else if is_property_assignment(declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(declaration)
+                .try_get_type_from_effective_type_node(declaration)?
                 .unwrap_or_else(|| self.check_property_assignment(declaration, None));
         } else if is_jsx_attribute(declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(declaration)
+                .try_get_type_from_effective_type_node(declaration)?
                 .unwrap_or_else(|| self.check_jsx_attribute(declaration, None));
         } else if is_shorthand_property_assignment(declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(declaration)
+                .try_get_type_from_effective_type_node(declaration)?
                 .unwrap_or_else(|| {
                     self.check_expression_for_mutable_location(
                         &declaration.as_shorthand_property_assignment().name(),
@@ -577,7 +577,7 @@ impl TypeChecker {
                 });
         } else if is_object_literal_method(declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(declaration)
+                .try_get_type_from_effective_type_node(declaration)?
                 .unwrap_or_else(|| {
                     self.check_object_literal_method(declaration, Some(CheckMode::Normal))
                 });
@@ -721,7 +721,7 @@ impl TypeChecker {
         let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
         let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor);
 
-        let setter_type = self.get_annotated_accessor_type(setter.as_deref());
+        let setter_type = self.get_annotated_accessor_type(setter.as_deref())?;
 
         if writing {
             if let Some(setter_type) = setter_type.as_ref() {
@@ -738,7 +738,7 @@ impl TypeChecker {
             }
         }
 
-        let getter_type = self.get_annotated_accessor_type(getter.as_deref());
+        let getter_type = self.get_annotated_accessor_type(getter.as_deref())?;
         if let Some(getter_type) = getter_type.as_ref() {
             return Ok(Some(self.instantiate_type_if_needed(getter_type, symbol)));
         }
@@ -785,12 +785,16 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn instantiate_type_if_needed(&self, type_: &Type, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn instantiate_type_if_needed(
+        &self,
+        type_: &Type,
+        symbol: &Symbol,
+    ) -> io::Result<Gc<Type>> {
         if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
             return self.instantiate_type(type_, (*links).borrow().mapper.clone());
         }
 
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 }

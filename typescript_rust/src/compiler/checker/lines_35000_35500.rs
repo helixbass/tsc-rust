@@ -10,9 +10,10 @@ use crate::{
     get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
     is_computed_property_name, is_entity_name_expression, is_export_assignment,
     is_private_identifier, is_property_name_literal, is_static, maybe_for_each, node_is_missing,
-    node_is_present, try_maybe_for_each, Debug_, DiagnosticMessage, Diagnostics, ModifierFlags,
-    ModuleInstanceState, Node, NodeArray, NodeInterface, ReadonlyTextRange, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    node_is_present, return_ok_none_if_none, try_maybe_for_each, Debug_, DiagnosticMessage,
+    Diagnostics, ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, OptionTry,
+    ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -395,13 +396,13 @@ impl TypeChecker {
         error_node: &Node,
         diagnostic_message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let awaited_type = if with_alias {
-            self.get_awaited_type_(type_, Some(error_node), Some(diagnostic_message), args)
+            self.get_awaited_type_(type_, Some(error_node), Some(diagnostic_message), args)?
         } else {
-            self.get_awaited_type_no_alias(type_, Some(error_node), Some(diagnostic_message), args)
+            self.get_awaited_type_no_alias(type_, Some(error_node), Some(diagnostic_message), args)?
         };
-        awaited_type.unwrap_or_else(|| self.error_type())
+        Ok(awaited_type.unwrap_or_else(|| self.error_type()))
     }
 
     pub(super) fn is_thenable_type(&self, type_: &Type) -> io::Result<bool> {
@@ -470,7 +471,7 @@ impl TypeChecker {
                 Some(base_constraint) => {
                     base_constraint.flags().intersects(TypeFlags::AnyOrUnknown)
                         || self.is_empty_object_type(base_constraint)
-                        || self.is_thenable_type(base_constraint)
+                        || self.is_thenable_type(base_constraint)?
                 }
             } {
                 let awaited_symbol = self.get_global_awaited_symbol(true);
@@ -499,12 +500,12 @@ impl TypeChecker {
         error_node: Option<impl Borrow<Node>>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let awaited_type =
-            self.get_awaited_type_no_alias(type_, error_node, diagnostic_message, args);
+            self.get_awaited_type_no_alias(type_, error_node, diagnostic_message, args)?;
         awaited_type
             .as_ref()
-            .map(|awaited_type| self.create_awaited_type_if_needed(awaited_type))
+            .try_map(|awaited_type| self.create_awaited_type_if_needed(awaited_type))
     }
 
     pub(super) fn get_awaited_type_no_alias(
@@ -548,7 +549,7 @@ impl TypeChecker {
                     )
                 }
             };
-            let ret = self.map_type(type_, &mut mapper, None);
+            let ret = self.try_map_type(type_, &mut mapper, None)?;
             *type_as_awaitable.maybe_awaited_type_of_type() = ret.clone();
             return Ok(ret);
         }
@@ -579,16 +580,16 @@ impl TypeChecker {
                 error_node.as_deref(),
                 diagnostic_message,
                 args.clone(),
-            );
+            )?;
             self.awaited_type_stack().pop();
 
-            let awaited_type = awaited_type?;
+            let awaited_type = return_ok_none_if_none!(awaited_type);
 
             *type_as_awaitable.maybe_awaited_type_of_type() = Some(awaited_type.clone());
             return Ok(Some(awaited_type));
         }
 
-        if self.is_thenable_type(type_) {
+        if self.is_thenable_type(type_)? {
             if error_node.is_some() {
                 Debug_.assert_is_defined(&diagnostic_message, None);
                 self.error(error_node.as_deref(), diagnostic_message.unwrap(), args);

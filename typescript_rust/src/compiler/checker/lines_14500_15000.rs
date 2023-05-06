@@ -493,7 +493,7 @@ impl TypeChecker {
             if !self.is_generic_index_type(&constraint_type) {
                 let modifiers_type =
                     self.get_apparent_type(&self.get_modifiers_type_from_mapped_type(type_));
-                self.for_each_mapped_type_property_key_type_and_index_signature_key_type(
+                self.try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
                     &modifiers_type,
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     strings_only,
@@ -506,7 +506,7 @@ impl TypeChecker {
                             t,
                         )
                     },
-                );
+                )?;
             } else {
                 return Ok(self.get_index_type_for_generic_type(type_, strings_only));
             }
@@ -571,7 +571,7 @@ impl TypeChecker {
         key_types: &mut Vec<Gc<Type>>,
         type_: &Type,
         key_type: &Type,
-    ) {
+    ) -> io::Result<()> {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
                 name_type,
@@ -580,7 +580,7 @@ impl TypeChecker {
                     type_parameter,
                     &key_type,
                 ))),
-            )
+            )?
         } else {
             key_type.type_wrapper()
         };
@@ -589,6 +589,8 @@ impl TypeChecker {
         } else {
             prop_name_type
         });
+
+        Ok(())
     }
 
     pub(super) fn has_distributive_name_type(

@@ -141,7 +141,7 @@ impl TypeChecker {
                                 Some(base_symbol) => {
                                     !base_symbol.flags().intersects(SymbolFlags::Interface)
                                         || self
-                                            .get_declared_type_of_class_or_interface(&base_symbol)
+                                            .get_declared_type_of_class_or_interface(&base_symbol)?
                                             .as_interface_type()
                                             .maybe_this_type()
                                             .is_some()
@@ -482,18 +482,18 @@ impl TypeChecker {
         Ok(enum_type)
     }
 
-    pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> Gc<Type> {
+    pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             let enum_type =
-                self.get_declared_type_of_enum(&self.get_parent_of_symbol(symbol).unwrap());
+                self.get_declared_type_of_enum(&self.get_parent_of_symbol(symbol).unwrap())?;
             let mut links = links.borrow_mut();
             if links.declared_type.is_none() {
                 links.declared_type = Some(enum_type);
             }
         }
         let ret = (*links).borrow().declared_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_declared_type_of_type_parameter(
@@ -532,7 +532,7 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
-            return Ok(Some(self.get_declared_type_of_class_or_interface(symbol)));
+            return Ok(Some(self.get_declared_type_of_class_or_interface(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::TypeAlias) {
             return Ok(Some(self.get_declared_type_of_type_alias(symbol)?));
@@ -541,7 +541,7 @@ impl TypeChecker {
             return Ok(Some(self.get_declared_type_of_type_parameter(symbol)));
         }
         if symbol.flags().intersects(SymbolFlags::Enum) {
-            return Ok(Some(self.get_declared_type_of_enum(symbol)));
+            return Ok(Some(self.get_declared_type_of_enum(symbol)?));
         }
         if symbol.flags().intersects(SymbolFlags::EnumMember) {
             return Ok(Some(self.get_declared_type_of_enum_member(symbol)));
@@ -691,13 +691,16 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn resolve_declared_members(&self, type_: &Type /*InterfaceType*/) -> Gc<Type> {
+    pub(super) fn resolve_declared_members(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> io::Result<Gc<Type>> {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_declared_properties().is_none() {
             let symbol = type_.symbol();
             let members = self.get_members_of_symbol(&symbol);
             let members = (*members).borrow();
-            type_as_interface_type.set_declared_properties(self.get_named_members(&*members));
+            type_as_interface_type.set_declared_properties(self.get_named_members(&*members)?);
             type_as_interface_type.set_declared_call_signatures(vec![]);
             type_as_interface_type.set_declared_construct_signatures(vec![]);
             type_as_interface_type.set_declared_index_infos(vec![]);
@@ -711,7 +714,7 @@ impl TypeChecker {
             type_as_interface_type
                 .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol));
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn is_type_usable_as_property_name(&self, type_: &Type) -> bool {

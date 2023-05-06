@@ -33,7 +33,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAssignment*/
         dont_recursively_resolve: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let expression = &node.as_property_assignment().initializer;
         self.get_target_of_alias_like_expression(expression, dont_recursively_resolve)
     }
@@ -42,16 +42,16 @@ impl TypeChecker {
         &self,
         node: &Node, /*AccessExpression*/
         dont_recursively_resolve: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let node_parent = node.parent();
         if !(is_binary_expression(&node_parent)) {
-            return None;
+            return Ok(None);
         }
         let node_parent_as_binary_expression = node_parent.as_binary_expression();
         if !(ptr::eq(&*node_parent_as_binary_expression.left, node)
             && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken)
         {
-            return None;
+            return Ok(None);
         }
 
         self.get_target_of_alias_like_expression(
@@ -74,13 +74,13 @@ impl TypeChecker {
                 self.get_target_of_import_clause(node, dont_recursively_resolve)?
             }
             SyntaxKind::NamespaceImport => {
-                self.get_target_of_namespace_import(node, dont_recursively_resolve)
+                self.get_target_of_namespace_import(node, dont_recursively_resolve)?
             }
             SyntaxKind::NamespaceExport => {
                 self.get_target_of_namespace_export(node, dont_recursively_resolve)
             }
             SyntaxKind::ImportSpecifier | SyntaxKind::BindingElement => {
-                self.get_target_of_import_specifier(node, dont_recursively_resolve)
+                self.get_target_of_import_specifier(node, dont_recursively_resolve)?
             }
             SyntaxKind::ExportSpecifier => self.get_target_of_export_specifier(
                 node,
@@ -88,10 +88,10 @@ impl TypeChecker {
                 Some(dont_recursively_resolve),
             )?,
             SyntaxKind::ExportAssignment | SyntaxKind::BinaryExpression => {
-                self.get_target_of_export_assignment(node, dont_recursively_resolve)
+                self.get_target_of_export_assignment(node, dont_recursively_resolve)?
             }
             SyntaxKind::NamespaceExportDeclaration => Some(
-                self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve),
+                self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve)?,
             ),
             SyntaxKind::ShorthandPropertyAssignment => self.resolve_entity_name(
                 &node.as_shorthand_property_assignment().name(),
@@ -498,7 +498,7 @@ impl TypeChecker {
             };
             let symbol_from_js_prototype =
                 if is_in_js_file(Some(name)) && !node_is_synthesized(name) {
-                    self.resolve_entity_name_from_assignment_declaration(name, meaning)
+                    self.resolve_entity_name_from_assignment_declaration(name, meaning)?
                 } else {
                     None
                 };
@@ -514,7 +514,7 @@ impl TypeChecker {
                 Some(name.node_wrapper()),
                 true,
                 Some(false),
-            ));
+            )?);
             if symbol.is_none() {
                 return Ok(self.get_merged_symbol(symbol_from_js_prototype));
             }
@@ -693,7 +693,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*Identifier*/
         meaning: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if self.is_jsdoc_type_reference(&name.parent()) {
             let secondary_location = self.get_assignment_declaration_location(&name.parent());
             if let Some(secondary_location) = secondary_location {
@@ -708,7 +708,7 @@ impl TypeChecker {
                 );
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_assignment_declaration_location(

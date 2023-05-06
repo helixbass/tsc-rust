@@ -725,7 +725,7 @@ impl TypeChecker {
                 Option::<Gc<Node>>::None,
                 true,
                 None,
-            );
+            )?;
             if matches!(
                 symbol.as_ref(),
                 Some(symbol) if Gc::ptr_eq(
@@ -927,7 +927,7 @@ impl TypeChecker {
     pub(super) fn check_external_module_exports(
         &self,
         node: &Node, /*SourceFile | ModuleDeclaration*/
-    ) {
+    ) -> io::Result<()> {
         let ref module_symbol = self.get_symbol_of_node(node).unwrap();
         let links = self.get_symbol_links(module_symbol);
         if (*links).borrow().exports_checked != Some(true) {
@@ -949,7 +949,7 @@ impl TypeChecker {
                     }
                 }
             }
-            let exports = self.get_exports_of_module_(module_symbol);
+            let exports = self.get_exports_of_module_(module_symbol)?;
             // if (exports) {
             let exports = (*exports).borrow();
             for (id, symbol) in &*exports {
@@ -990,5 +990,7 @@ impl TypeChecker {
             // }
             links.borrow_mut().exports_checked = Some(true);
         }
+
+        Ok(())
     }
 }

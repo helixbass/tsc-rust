@@ -204,7 +204,10 @@ impl TypeChecker {
                 let class_symbol = class_symbol.unwrap();
 
                 let constructor_type = self.get_type_of_symbol(&class_symbol)?;
-                if self.get_property_of_type(&constructor_type, name).is_some() {
+                if self
+                    .get_property_of_type(&constructor_type, name)?
+                    .is_some()
+                {
                     self.error(
                         Some(error_location),
                         &Diagnostics::Cannot_find_name_0_Did_you_mean_the_static_member_1_0,
@@ -226,7 +229,7 @@ impl TypeChecker {
                     let declared_type = self.get_declared_type_of_symbol(&class_symbol)?;
                     let instance_type =
                         declared_type.as_interface_type().maybe_this_type().unwrap();
-                    if self.get_property_of_type(&instance_type, name).is_some() {
+                    if self.get_property_of_type(&instance_type, name)?.is_some() {
                         self.error(
                             Some(error_location),
                             &Diagnostics::Cannot_find_name_0_Did_you_mean_the_instance_member_this_0,
@@ -311,7 +314,7 @@ impl TypeChecker {
                     Option::<Gc<Node>>::None,
                     false,
                     None,
-                ),
+                )?,
                 None,
             )?;
             let parent = error_location.parent();
@@ -326,7 +329,7 @@ impl TypeChecker {
                     let prop_type = self.get_property_of_type(
                         &*self.get_declared_type_of_symbol(&symbol)?,
                         prop_name,
-                    );
+                    )?;
                     if prop_type.is_some() {
                         self.error(
                             Some(&*parent),
@@ -367,7 +370,7 @@ impl TypeChecker {
                     Option::<Gc<Node>>::None,
                     false,
                     None,
-                ),
+                )?,
                 None,
             )?;
             if matches!(symbol, Some(symbol) if !symbol.flags().intersects(SymbolFlags::Namespace))
@@ -432,7 +435,7 @@ impl TypeChecker {
                     Option::<Gc<Node>>::None,
                     false,
                     None,
-                ),
+                )?,
                 None,
             )?;
             if let Some(symbol) = symbol {
@@ -515,7 +518,7 @@ impl TypeChecker {
                     Option::<Gc<Node>>::None,
                     false,
                     None,
-                ),
+                )?,
                 None,
             )?;
             if symbol.is_some() {
@@ -538,7 +541,7 @@ impl TypeChecker {
                     Option::<Gc<Node>>::None,
                     false,
                     None,
-                ),
+                )?,
                 None,
             )?;
             if symbol.is_some() {
@@ -741,7 +744,7 @@ impl TypeChecker {
                                 .name
                                 .as_identifier()
                                 .escaped_text,
-                        ),
+                        )?,
                         None,
                     )?
                 } else {
@@ -839,10 +842,10 @@ impl TypeChecker {
         let module_symbol_exports = (*module_symbol_exports).borrow();
         let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
         let export_symbol = if let Some(export_value) = export_value {
-            self.get_property_of_type(&self.get_type_of_symbol(&export_value)?, name)
+            self.get_property_of_type(&*self.get_type_of_symbol(&export_value)?, name)
         } else {
             module_symbol_exports.get(name).cloned()
-        };
+        }?;
         let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias))?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             source_node,
@@ -1013,7 +1016,7 @@ impl TypeChecker {
             &module_symbol,
             dont_resolve_alias,
             &node_parent_as_import_declaration.module_specifier,
-        );
+        )?;
         if export_default_symbol.is_none() && !has_synthetic_default && !has_default_only {
             if self.has_export_assignment_symbol(&module_symbol) {
                 let compiler_option_name = if self.module_kind >= ModuleKind::ES2015 {
@@ -1045,7 +1048,17 @@ impl TypeChecker {
                 if let Some(export_assignment) = export_assignment {
                     add_related_info(
                         &err,
-                        vec![create_diagnostic_for_node(&export_assignment, &Diagnostics::This_module_is_declared_with_using_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag, Some(vec![compiler_option_name.to_owned()])).into()]
+                        vec![
+                            create_diagnostic_for_node(
+                                &export_assignment,
+                                &Diagnostics::This_module_is_declared_with_using_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag,
+                                Some(
+                                    vec![
+                                        compiler_option_name.to_owned(),
+                                    ]
+                                )
+                            ).into()
+                        ]
                     );
                 }
             } else {
@@ -1170,7 +1183,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NamespaceExport*/
         dont_resolve_alias: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let module_specifier = node
             .parent()
             .as_export_declaration()
@@ -1179,21 +1192,21 @@ impl TypeChecker {
         let immediate = module_specifier.as_ref().and_then(|module_specifier| {
             self.resolve_external_module_name_(node, module_specifier, None)
         });
-        let resolved = module_specifier.as_ref().and_then(|module_specifier| {
+        let resolved = module_specifier.as_ref().try_and_then(|module_specifier| {
             self.resolve_es_module_symbol(
                 immediate.as_deref(),
                 &module_specifier,
                 dont_resolve_alias,
                 false,
             )
-        });
+        })?;
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             immediate,
             resolved.as_deref(),
             false,
         );
-        resolved
+        Ok(resolved)
     }
 
     pub(super) fn combine_value_and_type_symbols(
@@ -1391,7 +1404,7 @@ impl TypeChecker {
                         &module_symbol,
                         dont_resolve_alias,
                         &module_specifier,
-                    )
+                    )?
                 {
                     symbol_from_module = self
                         .resolve_external_module_symbol(
@@ -1526,17 +1539,18 @@ impl TypeChecker {
                     );
                 }
             } else {
-                let exported_symbol = exports.as_ref().try_and_then(|exports| {
-                    Ok(try_find(
-                        &self.symbols_to_array(&(**exports).borrow()),
-                        |symbol: &Gc<Symbol>, _| -> io::Result<_> {
-                            Ok(self
-                                .get_symbol_if_same_reference(symbol, &local_symbol)?
-                                .is_some())
-                        },
-                    )?
-                    .cloned())
-                })?;
+                let exported_symbol =
+                    exports.as_ref().try_and_then(|exports| -> io::Result<_> {
+                        Ok(try_find(
+                            &self.symbols_to_array(&(**exports).borrow()),
+                            |symbol: &Gc<Symbol>, _| -> io::Result<_> {
+                                Ok(self
+                                    .get_symbol_if_same_reference(symbol, &local_symbol)?
+                                    .is_some())
+                            },
+                        )?
+                        .cloned())
+                    })?;
                 let diagnostic = if let Some(exported_symbol) = exported_symbol {
                     self.error(
                         Some(name),

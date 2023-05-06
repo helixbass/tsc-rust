@@ -17,14 +17,15 @@ use crate::{
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
     parse_node_factory, push_if_unique_gc, return_ok_none_if_none, set_parent, set_text_range,
-    starts_with, symbol_name, try_add_to_set, try_using_single_line_string_writer,
-    using_single_line_string_writer, walk_up_parenthesized_types, CharacterCodes, CheckFlags,
-    EmitHint, EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol,
-    SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
-    TypeSystemEntity, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    starts_with, symbol_name, try_add_to_set, try_maybe_for_each,
+    try_using_single_line_string_writer, using_single_line_string_writer,
+    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
+    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol, SymbolFlags,
+    SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -519,8 +520,8 @@ impl TypeChecker {
         result: &RefCell<Option<Vec<Gc<Node>>>>,
         visited: &mut HashSet<SymbolId>,
         declarations: Option<&[Gc<Node /*Declaration*/>]>,
-    ) {
-        maybe_for_each(declarations, |declaration: &Gc<Node>, _| {
+    ) -> io::Result<()> {
+        try_maybe_for_each(declarations, |declaration: &Gc<Node>, _| -> io::Result<_> {
             let result_node = self
                 .get_any_import_syntax(declaration)
                 .unwrap_or_else(|| declaration.node_wrapper());
@@ -546,7 +547,7 @@ impl TypeChecker {
                     Option::<Gc<Node>>::None,
                     false,
                     None,
-                );
+                )?;
                 if let Some(import_symbol) = import_symbol
                 /*&& visited*/
                 {
@@ -560,8 +561,10 @@ impl TypeChecker {
                     }
                 }
             }
-            Option::<()>::None
-        });
+            Ok(Option::<()>::None)
+        })?;
+
+        Ok(())
     }
 
     pub(super) fn push_type_resolution(
@@ -678,21 +681,26 @@ impl TypeChecker {
         .parent()
     }
 
-    pub(super) fn get_type_of_prototype_property(&self, prototype: &Symbol) -> Gc<Type> {
+    pub(super) fn get_type_of_prototype_property(
+        &self,
+        prototype: &Symbol,
+    ) -> io::Result<Gc<Type>> {
         let class_type =
-            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype).unwrap());
-        if let Some(class_type_type_parameters) = class_type
-            .as_interface_type()
-            .maybe_type_parameters()
-            .as_deref()
-        {
-            self.create_type_reference(
-                &class_type,
-                Some(map(class_type_type_parameters, |_, _| self.any_type())),
-            )
-        } else {
-            class_type
-        }
+            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype).unwrap())?;
+        Ok(
+            if let Some(class_type_type_parameters) = class_type
+                .as_interface_type()
+                .maybe_type_parameters()
+                .as_deref()
+            {
+                self.create_type_reference(
+                    &class_type,
+                    Some(map(class_type_type_parameters, |_, _| self.any_type())),
+                )
+            } else {
+                class_type
+            },
+        )
     }
 
     pub(super) fn get_type_of_property_of_type_(
@@ -708,13 +716,14 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Gc<Type> {
-        self.get_type_of_property_of_type_(type_, name)
+    ) -> io::Result<Gc<Type>> {
+        Ok(self
+            .get_type_of_property_of_type_(type_, name)?
             .or_else(|| {
                 self.get_applicable_index_info_for_name(type_, name)
                     .map(|index_info| index_info.type_.clone())
             })
-            .unwrap_or_else(|| self.unknown_type())
+            .unwrap_or_else(|| self.unknown_type()))
     }
 
     pub(super) fn is_type_any(&self, type_: Option<impl Borrow<Type>>) -> bool {
@@ -756,11 +765,17 @@ impl TypeChecker {
         let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
         if source.flags().intersects(TypeFlags::Union) {
             return Ok(self
-                .map_type(
+                .try_map_type(
                     &source,
-                    &mut |t| Some(self.get_rest_type(t, properties, symbol.as_deref())),
+                    &mut |t| {
+                        Ok(Some(self.get_rest_type(
+                            t,
+                            properties,
+                            symbol.as_deref(),
+                        )?))
+                    },
                     None,
-                )
+                )?
                 .unwrap());
         }
         let omit_key_type = self.get_union_type(

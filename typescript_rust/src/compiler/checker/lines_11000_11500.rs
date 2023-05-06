@@ -819,20 +819,34 @@ impl TypeChecker {
         get_check_flags(s) & CheckFlags::Late
     }
 
-    pub(super) fn for_each_mapped_type_property_key_type_and_index_signature_key_type<
-        TCallback: FnMut(&Type),
-    >(
+    pub(super) fn for_each_mapped_type_property_key_type_and_index_signature_key_type(
         &self,
         type_: &Type,
         include: TypeFlags,
         strings_only: bool,
-        mut cb: TCallback,
+        mut cb: impl FnMut(&Type),
     ) {
+        self.try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
+            type_,
+            include,
+            strings_only,
+            |type_: &Type| Ok(cb(type_)),
+        )
+        .unwrap()
+    }
+
+    pub(super) fn try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
+        &self,
+        type_: &Type,
+        include: TypeFlags,
+        strings_only: bool,
+        mut cb: impl FnMut(&Type) -> io::Result<()>,
+    ) -> io::Result<()> {
         for prop in self.get_properties_of_type(type_) {
-            cb(&self.get_literal_type_from_property(&prop, include, None));
+            cb(&self.get_literal_type_from_property(&prop, include, None))?;
         }
         if type_.flags().intersects(TypeFlags::Any) {
-            cb(&self.string_type());
+            cb(&self.string_type())?;
         } else {
             for info in self.get_index_infos_of_type(type_) {
                 if !strings_only
@@ -841,10 +855,12 @@ impl TypeChecker {
                         .flags()
                         .intersects(TypeFlags::String | TypeFlags::TemplateLiteral)
                 {
-                    cb(&info.key_type);
+                    cb(&info.key_type)?;
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn resolve_mapped_type_members(&self, type_: &Type /*MappedType*/) {

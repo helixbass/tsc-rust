@@ -18,8 +18,8 @@ use crate::{
     is_variable_declaration, length, mangle_scoped_package_name, map_defined, node_is_synthesized,
     push_if_unique_gc, return_ok_none_if_none, try_for_each_entry, try_map_defined,
     unescape_leading_underscores, Diagnostics, HasInitializerInterface, HasTypeInterface,
-    InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags, ResolvedModuleFull,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry,
+    ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
 };
 
 impl TypeChecker {
@@ -332,8 +332,11 @@ impl TypeChecker {
             .is_some()
     }
 
-    pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
-        self.symbols_to_array(&(*self.get_exports_of_module_(module_symbol)).borrow())
+    pub(super) fn get_exports_of_module_as_array(
+        &self,
+        module_symbol: &Symbol,
+    ) -> io::Result<Vec<Gc<Symbol>>> {
+        Ok(self.symbols_to_array(&(*self.get_exports_of_module_(module_symbol)?).borrow()))
     }
 
     pub fn get_exports_and_properties_of_module(
@@ -363,7 +366,7 @@ impl TypeChecker {
         module_symbol: &Symbol,
         mut cb: impl FnMut(&Symbol, &__String),
     ) -> io::Result<()> {
-        let exports = self.get_exports_of_module_(module_symbol);
+        let exports = self.get_exports_of_module_(module_symbol)?;
         for (key, symbol) in &*(*exports).borrow() {
             if !self.is_reserved_member_name(key) {
                 cb(symbol, key);
@@ -388,11 +391,11 @@ impl TypeChecker {
         &self,
         member_name: &str, /*__String*/
         module_symbol: &Symbol,
-    ) -> Option<Gc<Symbol>> {
-        let symbol_table = self.get_exports_of_module_(module_symbol);
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        let symbol_table = self.get_exports_of_module_(module_symbol)?;
         // if (symbolTable) {
         let ret = (*symbol_table).borrow().get(member_name).cloned();
-        ret
+        Ok(ret)
         // }
     }
 
@@ -435,20 +438,25 @@ impl TypeChecker {
             || self.is_tuple_type(resolved_external_module_type))
     }
 
-    pub(super) fn get_exports_of_symbol(&self, symbol: &Symbol) -> Gc<GcCell<SymbolTable>> {
-        if symbol.flags().intersects(SymbolFlags::LateBindingContainer) {
-            self.get_resolved_members_or_exports_of_symbol(
-                symbol,
-                MembersOrExportsResolutionKind::resolved_exports,
-            )
-        } else if symbol.flags().intersects(SymbolFlags::Module) {
-            self.get_exports_of_module_(symbol)
-        } else {
-            symbol
-                .maybe_exports()
-                .as_ref()
-                .map_or_else(|| self.empty_symbols(), |exports| exports.clone())
-        }
+    pub(super) fn get_exports_of_symbol(
+        &self,
+        symbol: &Symbol,
+    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
+        Ok(
+            if symbol.flags().intersects(SymbolFlags::LateBindingContainer) {
+                self.get_resolved_members_or_exports_of_symbol(
+                    symbol,
+                    MembersOrExportsResolutionKind::resolved_exports,
+                )
+            } else if symbol.flags().intersects(SymbolFlags::Module) {
+                self.get_exports_of_module_(symbol)?
+            } else {
+                symbol
+                    .maybe_exports()
+                    .as_ref()
+                    .map_or_else(|| self.empty_symbols(), |exports| exports.clone())
+            },
+        )
     }
 
     pub(super) fn get_exports_of_module_(
@@ -821,44 +829,45 @@ impl TypeChecker {
                 return Ok(Some(res));
             }
         }
-        let candidates = map_defined(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>, _| {
-            if !is_ambient_module(d) {
-                if let Some(d_parent) = d.maybe_parent() {
-                    if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
-                        return self.get_symbol_of_node(&d_parent);
-                    }
-                }
-            }
-            if is_class_expression(d) {
-                let d_parent = d.parent();
-                if is_binary_expression(&d_parent) {
-                    let d_parent_as_binary_expression = d_parent.as_binary_expression();
-                    if d_parent_as_binary_expression.operator_token.kind()
-                        == SyntaxKind::EqualsToken
-                        && is_access_expression(&d_parent_as_binary_expression.left)
-                    {
-                        let d_parent_left_expression = d_parent_as_binary_expression
-                            .left
-                            .as_has_expression()
-                            .expression();
-                        if is_entity_name_expression(&d_parent_left_expression) {
-                            if is_module_exports_access_expression(
-                                &d_parent_as_binary_expression.left,
-                            ) || is_exports_identifier(&d_parent_left_expression)
-                            {
-                                return Ok(self.get_symbol_of_node(&get_source_file_of_node(d)));
-                            }
-                            self.check_expression_cached(&d_parent_left_expression, None);
-                            return Ok((*self.get_node_links(&d_parent_left_expression))
-                                .borrow()
-                                .resolved_symbol
-                                .clone());
+        let candidates =
+            try_map_defined(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>, _| {
+                if !is_ambient_module(d) {
+                    if let Some(d_parent) = d.maybe_parent() {
+                        if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
+                            return Ok(self.get_symbol_of_node(&d_parent));
                         }
                     }
                 }
-            }
-            None
-        });
+                if is_class_expression(d) {
+                    let d_parent = d.parent();
+                    if is_binary_expression(&d_parent) {
+                        let d_parent_as_binary_expression = d_parent.as_binary_expression();
+                        if d_parent_as_binary_expression.operator_token.kind()
+                            == SyntaxKind::EqualsToken
+                            && is_access_expression(&d_parent_as_binary_expression.left)
+                        {
+                            let d_parent_left_expression = d_parent_as_binary_expression
+                                .left
+                                .as_has_expression()
+                                .expression();
+                            if is_entity_name_expression(&d_parent_left_expression) {
+                                if is_module_exports_access_expression(
+                                    &d_parent_as_binary_expression.left,
+                                ) || is_exports_identifier(&d_parent_left_expression)
+                                {
+                                    return Ok(self.get_symbol_of_node(&get_source_file_of_node(d)));
+                                }
+                                self.check_expression_cached(&d_parent_left_expression, None);
+                                return Ok((*self.get_node_links(&d_parent_left_expression))
+                                    .borrow()
+                                    .resolved_symbol
+                                    .clone());
+                            }
+                        }
+                    }
+                }
+                Ok(None)
+            })?;
         if length(Some(&candidates)) == 0 {
             return Ok(None);
         }

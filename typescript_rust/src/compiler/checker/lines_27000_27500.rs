@@ -411,12 +411,12 @@ impl TypeChecker {
                         None,
                     );
                     let children_contextual_type =
-                        contextual_type.as_ref().and_then(|contextual_type| {
+                        contextual_type.as_ref().try_and_then(|contextual_type| {
                             self.get_type_of_property_of_contextual_type(
                                 contextual_type,
                                 jsx_children_property_name,
                             )
-                        });
+                        })?;
                     let children_prop_symbol: Gc<Symbol> = self
                         .create_symbol(
                             SymbolFlags::Property,
@@ -619,7 +619,7 @@ impl TypeChecker {
         let namespace = self.get_jsx_namespace_at(location.as_deref())?;
         let exports = namespace
             .as_ref()
-            .map(|namespace| self.get_exports_of_symbol(namespace));
+            .try_map(|namespace| self.get_exports_of_symbol(namespace))?;
         let type_symbol = exports.as_ref().try_and_then(|exports| {
             self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type)
         })?;
@@ -790,7 +790,7 @@ impl TypeChecker {
                     Some(&*namespace_name),
                     false,
                     None,
-                );
+                )?;
             }
 
             if let Some(resolved_namespace) = resolved_namespace.as_ref() {
@@ -800,7 +800,7 @@ impl TypeChecker {
                             &self
                                 .resolve_symbol(Some(&**resolved_namespace), None)?
                                 .unwrap(),
-                        ))
+                        )?)
                         .borrow(),
                         &JsxNames::JSX,
                         SymbolFlags::Namespace,

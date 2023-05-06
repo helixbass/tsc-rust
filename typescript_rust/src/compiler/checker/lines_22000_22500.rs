@@ -906,7 +906,7 @@ impl TypeChecker {
                                 Some(Gc::new(self.create_backreference_mapper(context, index))),
                                 context.non_fixing_mapper().clone(),
                             )),
-                        ));
+                        )?);
                     }
                 }
             } else {
@@ -923,7 +923,7 @@ impl TypeChecker {
             let constraint = self.get_constraint_of_type_parameter(&inference.type_parameter);
             if let Some(constraint) = constraint.as_ref() {
                 let instantiated_constraint =
-                    self.instantiate_type(constraint, Some(context.non_fixing_mapper()));
+                    self.instantiate_type(constraint, Some(context.non_fixing_mapper()))?;
                 if match inferred_type.as_ref() {
                     None => true,
                     Some(inferred_type) => {
