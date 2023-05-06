@@ -37,18 +37,18 @@ impl TypeChecker {
         let initializer = get_effective_initializer(declaration).unwrap();
         let type_ = self
             .get_quick_type_of_expression(&initializer)?
-            .unwrap_or_else(|| {
-                if let Some(contextual_type) = contextual_type {
+            .try_unwrap_or_else(|| {
+                Ok(if let Some(contextual_type) = contextual_type {
                     self.check_expression_with_contextual_type(
                         &initializer,
                         contextual_type.borrow(),
                         None,
                         CheckMode::Normal,
-                    )
+                    )?
                 } else {
-                    self.check_expression_cached(&initializer, None)
-                }
-            });
+                    self.check_expression_cached(&initializer, None)?
+                })
+            })?;
         Ok(
             if is_parameter(declaration)
                 && declaration.as_parameter_declaration().name().kind()
@@ -78,7 +78,7 @@ impl TypeChecker {
         &self,
         type_: &Type,   /*TupleTypeReference*/
         pattern: &Node, /*ArrayBindingPattern*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_);
         let type_target_as_tuple_type = type_.as_type_reference().target.as_tuple_type();
@@ -90,7 +90,7 @@ impl TypeChecker {
                     && e.as_binding_element().dot_dot_dot_token.is_some())
             {
                 element_types.push(if !is_omitted_expression(e) && self.has_default_value(e) {
-                    self.get_type_from_binding_element(e, Some(false), Some(false))
+                    self.get_type_from_binding_element(e, Some(false), Some(false))?
                 } else {
                     self.any_type()
                 });
@@ -100,36 +100,36 @@ impl TypeChecker {
                 }
             }
         }
-        self.create_tuple_type(
+        Ok(self.create_tuple_type(
             &element_types,
             Some(&element_flags),
             Some(type_target_as_tuple_type.readonly),
             None,
-        )
+        ))
     }
 
     pub(super) fn widen_type_inferred_from_initializer(
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
         type_: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const)
             || is_declaration_readonly(declaration)
         {
             type_.type_wrapper()
         } else {
-            self.get_widened_literal_type(type_)
+            self.get_widened_literal_type(type_)?
         };
         if is_in_js_file(Some(declaration)) {
             if self.is_empty_literal_type(&widened) {
                 self.report_implicit_any(declaration, &self.any_type(), None);
-                return self.any_type();
+                return Ok(self.any_type());
             } else if self.is_empty_array_literal_type(&widened) {
                 self.report_implicit_any(declaration, &self.any_array_type(), None);
-                return self.any_array_type();
+                return Ok(self.any_array_type());
             }
         }
-        widened
+        Ok(widened)
     }
 
     pub(super) fn is_literal_of_contextual_type(
@@ -257,7 +257,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*MethodDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.check_grammar_method(node);
 
         let node_as_method_declaration = node.as_method_declaration();
@@ -561,7 +561,7 @@ impl TypeChecker {
         let func_type = self.check_expression(&expr_as_call_expression.expression, None, None)?;
         let non_optional_type =
             self.get_optional_expression_type(&func_type, &expr_as_call_expression.expression);
-        let return_type = self.get_return_type_of_single_non_generic_call_signature(&func_type);
+        let return_type = self.get_return_type_of_single_non_generic_call_signature(&func_type)?;
         Ok(return_type.as_ref().map(|return_type| {
             self.propagate_optional_type_marker(
                 return_type,
@@ -623,7 +623,7 @@ impl TypeChecker {
             } else {
                 self.get_return_type_of_single_non_generic_call_signature(
                     &*self.check_non_null_expression(&expr.as_call_expression().expression)?,
-                )
+                )?
             };
             if type_.is_some() {
                 return Ok(type_);
@@ -681,7 +681,7 @@ impl TypeChecker {
             node,
             &uninstantiated_type,
             check_mode,
-        );
+        )?;
         if self.is_const_enum_object_type(&type_) {
             self.check_const_enum_access(node, &type_);
         }
@@ -783,7 +783,7 @@ impl TypeChecker {
             SyntaxKind::Identifier => self.check_identifier(node, check_mode)?,
             SyntaxKind::PrivateIdentifier => self.check_private_identifier_expression(node),
             SyntaxKind::ThisKeyword => self.check_this_expression(node)?,
-            SyntaxKind::SuperKeyword => self.check_super_expression(node),
+            SyntaxKind::SuperKeyword => self.check_super_expression(node)?,
             SyntaxKind::NullKeyword => self.null_widening_type(),
             SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::StringLiteral => self
                 .get_fresh_type_of_literal_type(

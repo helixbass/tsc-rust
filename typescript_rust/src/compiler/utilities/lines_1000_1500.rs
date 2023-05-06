@@ -2,6 +2,7 @@ use gc::Gc;
 use regex::Regex;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
+use std::io;
 
 use crate::{
     concatenate, contains_gc, create_file_diagnostic, create_scanner, create_text_span,
@@ -14,7 +15,7 @@ use crate::{
     is_literal_type_node, is_meta_property, is_parameter_property_declaration,
     is_property_declaration, is_property_signature, is_string_literal, is_variable_declaration,
     is_variable_statement, maybe_filter, maybe_text_char_at_index, node_is_missing,
-    single_or_undefined, skip_trivia, AsDoubleDeref, BaseDiagnostic,
+    single_or_undefined, skip_trivia, try_for_each_child, AsDoubleDeref, BaseDiagnostic,
     BaseDiagnosticRelatedInformation, CharacterCodes, ClassLikeDeclarationInterface, CommentRange,
     Debug_, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
@@ -724,45 +725,57 @@ fn for_each_return_statement_bool_traverse(
 }
 
 pub fn for_each_yield_expression(body: &Node /*Block*/, mut visitor: impl FnMut(&Node)) {
-    for_each_yield_expression_traverse(body, &mut visitor)
+    try_for_each_yield_expression(body, |node: &Node| -> Result<(), ()> { Ok(visitor()) }).unwrap()
 }
 
-fn for_each_yield_expression_traverse(node: &Node, visitor: &mut impl FnMut(&Node)) {
+pub fn try_for_each_yield_expression<TError>(
+    body: &Node, /*Block*/
+    mut visitor: impl FnMut(&Node) -> Result<(), TError>,
+) -> Result<(), TError> {
+    try_for_each_yield_expression_traverse(body, &mut visitor)
+}
+
+fn try_for_each_yield_expression_traverse<TError>(
+    node: &Node,
+    visitor: &mut impl FnMut(&Node) -> Result<(), TError>,
+) -> Result<(), TError> {
     match node.kind() {
         SyntaxKind::YieldExpression => {
-            visitor(node);
+            visitor(node)?;
             let operand = node.as_yield_expression().expression.as_ref();
             if let Some(operand) = operand {
-                for_each_yield_expression_traverse(operand, visitor);
+                try_for_each_yield_expression_traverse(operand, visitor);
             }
-            return;
+            return Ok(());
         }
         SyntaxKind::EnumDeclaration
         | SyntaxKind::InterfaceDeclaration
         | SyntaxKind::ModuleDeclaration
         | SyntaxKind::TypeAliasDeclaration => {
-            return;
+            return Ok(());
         }
         _ => {
             if is_function_like(Some(node)) {
                 if let Some(node_name) = node.as_signature_declaration().maybe_name() {
                     if node_name.kind() == SyntaxKind::ComputedPropertyName {
-                        for_each_yield_expression_traverse(
+                        try_for_each_yield_expression_traverse(
                             &node_name.as_computed_property_name().expression,
                             visitor,
                         );
-                        return;
+                        return Ok(());
                     }
                 }
             } else if !is_part_of_type_node(node) {
-                for_each_child(
+                try_for_each_child(
                     node,
-                    |node| for_each_yield_expression_traverse(node, visitor),
-                    Option::<fn(&NodeArray)>::None,
-                );
+                    |node| try_for_each_yield_expression_traverse(node, visitor),
+                    Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                )?;
             }
         }
     };
+
+    Ok(())
 }
 
 pub fn get_rest_parameter_element_type(

@@ -188,16 +188,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn report_operator_error_unless<
-        TErrorNode: Borrow<Node>,
-        TTypesAreCompatible: FnMut(&Type, &Type) -> bool,
-    >(
+    pub(super) fn report_operator_error_unless(
         &self,
         left_type: &Type,
         right_type: &Type,
         operator_token: &Node,
-        error_node: Option<TErrorNode>,
-        mut types_are_compatible: TTypesAreCompatible,
+        error_node: Option<impl Borrow<Node>>,
+        mut types_are_compatible: impl FnMut(&Type, &Type) -> bool,
     ) -> bool {
         if !types_are_compatible(left_type, right_type) {
             self.report_operator_error(

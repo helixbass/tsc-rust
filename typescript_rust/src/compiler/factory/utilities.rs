@@ -676,7 +676,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         _left: &Node, /*Expression*/
         _user_state: Self::TState,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         panic!("Shouldn't call default on_left()")
     }
 
@@ -694,7 +694,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         _right: &Node, /*Expression*/
         _user_state: Self::TState,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         panic!("Shouldn't call default on_left()")
     }
 
@@ -702,7 +702,7 @@ pub trait BinaryExpressionStateMachine: Trace + Finalize {
         &self,
         node: &Node, /*BinaryExpression*/
         user_state: Self::TState,
-    ) -> Self::TResult;
+    ) -> io::Result<Self::TResult>;
 
     fn fold_state(
         &self,

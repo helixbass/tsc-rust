@@ -13,13 +13,17 @@ use crate::{
     get_symbol_id, is_access_expression, is_assignment_expression, is_binary_expression,
     is_binding_element, is_identifier, is_optional_chain, is_string_or_numeric_literal_like,
     is_this_in_type_query, is_variable_declaration, is_write_only_access, node_is_missing,
-    FindAncestorCallbackReturn, FlowNode, HasInitializerInterface, HasTypeInterface, Node,
-    NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface,
+    return_ok_default_if_none, try_for_each, FindAncestorCallbackReturn, FlowNode,
+    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
+    TypeInterface,
 };
 
 impl TypeChecker {
-    pub(super) fn get_resolved_symbol(&self, node: &Node /*Identifier*/) -> Gc<Symbol> {
+    pub(super) fn get_resolved_symbol(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> io::Result<Gc<Symbol>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_symbol.is_none() {
             links.borrow_mut().resolved_symbol = Some(if !node_is_missing(Some(node)) {
@@ -31,14 +35,14 @@ impl TypeChecker {
                     Some(node.node_wrapper()),
                     !is_write_only_access(node),
                     Some(false),
-                )
+                )?
                 .unwrap_or_else(|| self.unknown_symbol())
             } else {
                 self.unknown_symbol()
             });
         }
         let ret = (*links).borrow().resolved_symbol.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn is_in_type_query(&self, node: &Node) -> bool {
@@ -348,7 +352,7 @@ impl TypeChecker {
         &self,
         type_: Option<TType>,
         name: &str, /*__String*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         if let Some(type_) = type_ {
             let type_ = type_.borrow();
             if type_.flags().intersects(TypeFlags::Union) {
@@ -367,17 +371,17 @@ impl TypeChecker {
                         prop_symbol_links.borrow_mut().is_discriminant_property = Some(
                             prop_as_transient_symbol.check_flags() & CheckFlags::Discriminant
                                 == CheckFlags::Discriminant
-                                && !self.is_generic_type(&self.get_type_of_symbol(&prop)),
+                                && !self.is_generic_type(&*self.get_type_of_symbol(&prop)?),
                         );
                     }
-                    return (*prop_symbol_links)
+                    return Ok((*prop_symbol_links)
                         .borrow()
                         .is_discriminant_property
-                        .unwrap();
+                        .unwrap());
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn find_discriminant_properties(
@@ -403,17 +407,17 @@ impl TypeChecker {
         &self,
         types: &[Gc<Type>],
         name: &str, /*__String*/
-    ) -> Option<HashMap<TypeId, Gc<Type>>> {
+    ) -> io::Result<Option<HashMap<TypeId, Gc<Type>>>> {
         let mut map: HashMap<TypeId, Gc<Type>> = HashMap::new();
         let mut count = 0;
         for type_ in types {
             if type_.flags().intersects(
                 TypeFlags::Object | TypeFlags::Intersection | TypeFlags::InstantiableNonPrimitive,
             ) {
-                let discriminant = self.get_type_of_property_of_type_(type_, name);
+                let discriminant = self.get_type_of_property_of_type_(type_, name)?;
                 if let Some(discriminant) = discriminant.as_ref() {
                     if !self.is_literal_type(discriminant) {
-                        return None;
+                        return Ok(None);
                     }
                     let mut duplicate = false;
                     self.for_each_type(discriminant, |t: &Type| -> Option<()> {
@@ -438,17 +442,17 @@ impl TypeChecker {
                 }
             }
         }
-        if count >= 10 && count * 2 >= types.len() {
+        Ok(if count >= 10 && count * 2 >= types.len() {
             Some(map)
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn get_key_property_name(
         &self,
         union_type: &Type, /*UnionType*/
-    ) -> Option<__String> {
+    ) -> io::Result<Option<__String>> {
         let union_type_as_union_type = union_type.as_union_type();
         let types = union_type_as_union_type.types();
         if types.len() < 10
@@ -458,24 +462,27 @@ impl TypeChecker {
                     .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
             }) < 10
         {
-            return None;
+            return Ok(None);
         }
         if union_type_as_union_type.maybe_key_property_name().is_none() {
-            let key_property_name = for_each(types, |t: &Gc<Type>, _| {
+            let key_property_name = try_for_each(types, |t: &Gc<Type>, _| -> io::Result<_> {
                 if t.flags()
                     .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
                 {
-                    for_each(self.get_properties_of_type(t), |ref p: Gc<Symbol>, _| {
-                        if self.is_unit_type(&self.get_type_of_symbol(p)) {
-                            Some(p.escaped_name().to_owned())
-                        } else {
-                            None
-                        }
-                    })
+                    try_for_each(
+                        self.get_properties_of_type(t),
+                        |ref p: Gc<Symbol>, _| -> io::Result<_> {
+                            Ok(if self.is_unit_type(&*self.get_type_of_symbol(p)?) {
+                                Some(p.escaped_name().to_owned())
+                            } else {
+                                None
+                            })
+                        },
+                    )?
                 } else {
                     None
                 }
-            });
+            })?;
             let map_by_key_property = key_property_name.as_ref().and_then(|key_property_name| {
                 self.map_types_by_key_property(types, key_property_name)
             });
@@ -490,11 +497,11 @@ impl TypeChecker {
             .maybe_key_property_name()
             .clone()
             .unwrap();
-        if !union_type_key_property_name.is_empty() {
+        Ok(if !union_type_key_property_name.is_empty() {
             Some(union_type_key_property_name)
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn get_constituent_type_for_key_type(
@@ -518,21 +525,23 @@ impl TypeChecker {
         &self,
         union_type: &Type, /*UnionType*/
         type_: &Type,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let key_property_name = self.get_key_property_name(union_type);
-        let prop_type = key_property_name.as_ref().and_then(|key_property_name| {
-            self.get_type_of_property_of_type(type_, key_property_name)
-        });
-        prop_type
+        let prop_type = key_property_name
             .as_ref()
-            .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type))
+            .try_and_then(|key_property_name| {
+                self.get_type_of_property_of_type(type_, key_property_name)
+            })?;
+        Ok(prop_type
+            .as_ref()
+            .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type)))
     }
 
     pub(super) fn get_matching_union_constituent_for_object_literal(
         &self,
         union_type: &Type, /*UnionType*/
         node: &Node,       /*ObjectLiteralExpression*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let key_property_name = self.get_key_property_name(union_type);
         let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
             find(
@@ -540,11 +549,11 @@ impl TypeChecker {
                 |p: &Gc<Node>, _| {
                     let p_symbol = p.maybe_symbol();
                     if p_symbol.is_none() {
-                        return false;
+                        return Ok(false);
                     }
                     let p_symbol = p_symbol.unwrap();
                     if p.kind() != SyntaxKind::PropertyAssignment {
-                        return false;
+                        return Ok(false);
                     }
                     p_symbol.escaped_name() == key_property_name
                         && self.is_possibly_discriminant_value(
@@ -554,14 +563,14 @@ impl TypeChecker {
             )
             .map(Clone::clone)
         });
-        let prop_type = prop_node.map(|prop_node| {
+        let prop_type = prop_node.try_map(|prop_node| {
             self.get_context_free_type_of_expression(
                 &prop_node.as_has_initializer().maybe_initializer().unwrap(),
             )
-        });
-        prop_type
+        })?;
+        Ok(prop_type
             .as_ref()
-            .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type))
+            .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type)))
     }
 
     pub(super) fn is_or_contains_matching_reference(&self, source: &Node, target: &Node) -> bool {
@@ -849,12 +858,12 @@ impl TypeChecker {
         &self,
         type_: &Type,
         default_expression: &Node, /*Expression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         /*defaultExpression ? */
         self.get_union_type(
             &[
                 self.get_non_undefined_type(type_),
-                self.get_type_of_expression(default_expression),
+                self.get_type_of_expression(default_expression)?,
             ],
             None,
             Option::<&Symbol>::None,
@@ -868,20 +877,21 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &Node, /*PropertyName*/
-    ) -> Gc<Type> {
-        let name_type = self.get_literal_type_from_property_name(name);
+    ) -> io::Result<Gc<Type>> {
+        let name_type = self.get_literal_type_from_property_name(name)?;
         if !self.is_type_usable_as_property_name(&name_type) {
-            return self.error_type();
+            return Ok(self.error_type());
         }
         let text = self.get_property_name_from_type(&name_type);
-        self.get_type_of_property_of_type_(type_, &text)
+        Ok(self
+            .get_type_of_property_of_type_(type_, &text)?
             .or_else(|| {
                 self.include_undefined_in_index_signature(
                     self.get_applicable_index_info_for_name(type_, &text)
                         .map(|applicable_index_info| applicable_index_info.type_.clone()),
                 )
             })
-            .unwrap_or_else(|| self.error_type())
+            .unwrap_or_else(|| self.error_type()))
     }
 
     pub(super) fn get_type_of_destructured_array_element(
@@ -890,21 +900,21 @@ impl TypeChecker {
         index: usize,
     ) -> io::Result<Gc<Type>> {
         Ok(
-            if self.every_type(type_, |type_: &Type| self.is_tuple_like_type(type_)) {
-                self.get_tuple_element_type(type_, index)
+            if self.try_every_type(type_, |type_: &Type| self.is_tuple_like_type(type_))? {
+                self.get_tuple_element_type(type_, index)?
             } else {
                 None
             }
-            .or_else(|| {
-                self.include_undefined_in_index_signature(Some(
+            .try_or_else(|| {
+                Ok(self.include_undefined_in_index_signature(Some(
                     self.check_iterated_type_or_element_type(
                         IterationUse::Destructuring,
                         type_,
                         &self.undefined_type(),
                         Option::<&Node>::None,
                     )?,
-                ))
-            })
+                )))
+            })?
             .unwrap_or_else(|| self.error_type()),
         )
     }
@@ -912,10 +922,10 @@ impl TypeChecker {
     pub(super) fn include_undefined_in_index_signature(
         &self,
         type_: Option<impl Borrow<Type>>,
-    ) -> Option<Gc<Type>> {
-        let type_ = type_?;
+    ) -> io::Result<Option<Gc<Type>>> {
+        let type_ = return_ok_default_if_none!(type_);
         let type_ = type_.borrow();
-        Some(
+        Ok(Some(
             if self.compiler_options.no_unchecked_indexed_access == Some(true) {
                 self.get_union_type(
                     &[type_.type_wrapper(), self.undefined_type()],
@@ -923,42 +933,45 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                )
+                )?
             } else {
                 type_.type_wrapper()
             },
-        )
+        ))
     }
 
-    pub(super) fn get_type_of_destructured_spread_expression(&self, type_: &Type) -> Gc<Type> {
-        self.create_array_type(
-            &self.check_iterated_type_or_element_type(
+    pub(super) fn get_type_of_destructured_spread_expression(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Gc<Type>> {
+        Ok(self.create_array_type(
+            &*self.check_iterated_type_or_element_type(
                 IterationUse::Destructuring,
                 type_,
                 &self.undefined_type(),
                 Option::<&Node>::None,
-            ), /* || errorType */
+            )?, /* || errorType */
             None,
-        )
+        ))
     }
 
     pub(super) fn get_assigned_type_of_binary_expression(
         &self,
         node: &Node, /*BinaryExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let is_destructuring_default_assignment = node.parent().kind()
             == SyntaxKind::ArrayLiteralExpression
             && self.is_destructuring_assignment_target(&node.parent())
             || node.parent().kind() == SyntaxKind::PropertyAssignment
                 && self.is_destructuring_assignment_target(&node.parent().parent());
-        if is_destructuring_default_assignment {
+        Ok(if is_destructuring_default_assignment {
             self.get_type_with_default(
                 &self.get_assigned_type(node),
                 &node.as_binary_expression().right,
             )
         } else {
-            self.get_type_of_expression(&node.as_binary_expression().right)
-        }
+            self.get_type_of_expression(&node.as_binary_expression().right)?
+        })
     }
 
     pub(super) fn is_destructuring_assignment_target(&self, parent: &Node) -> bool {
@@ -972,7 +985,7 @@ impl TypeChecker {
         &self,
         node: &Node,    /*ArrayLiteralExpression*/
         element: &Node, /*Expression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.get_type_of_destructured_array_element(
             &self.get_assigned_type(node),
             node.as_array_literal_expression()

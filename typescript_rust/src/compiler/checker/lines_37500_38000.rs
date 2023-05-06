@@ -854,9 +854,12 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_return_statement(&self, node: &Node /*ReturnStatement*/) {
+    pub(super) fn check_return_statement(
+        &self,
+        node: &Node, /*ReturnStatement*/
+    ) -> io::Result<()> {
         if self.check_grammar_statement_in_ambient_context(node) {
-            return;
+            return Ok(());
         }
 
         let container = get_containing_function_or_class_static_block(node);
@@ -869,7 +872,7 @@ impl TypeChecker {
                 &Diagnostics::A_return_statement_cannot_be_used_inside_a_class_static_block,
                 None,
             );
-            return;
+            return Ok(());
         }
 
         if container.is_none() {
@@ -878,12 +881,12 @@ impl TypeChecker {
                 &Diagnostics::A_return_statement_can_only_be_used_within_a_function_body,
                 None,
             );
-            return;
+            return Ok(());
         }
         let container = container.unwrap();
 
         let signature = self.get_signature_from_declaration_(&container);
-        let return_type = self.get_return_type_of_signature(signature);
+        let return_type = self.get_return_type_of_signature(signature)?;
         let function_flags = get_function_flags(Some(&*container));
         let node_as_return_statement = node.as_return_statement();
         if self.strict_null_checks
@@ -929,7 +932,7 @@ impl TypeChecker {
                         node,
                         &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
                         None,
-                    )
+                    )?
                 } else {
                     expr_type
                 };
@@ -954,5 +957,7 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 }

@@ -9,12 +9,12 @@ use super::get_node_id;
 use crate::{
     __String, count_where, create_symbol_table, find, is_assertion_expression,
     is_const_type_reference, is_this_identifier, is_type_alias_declaration, is_type_operator_node,
-    length, map, maybe_map, some, symbol_name, try_maybe_map, AsDoubleDeref, BaseInterfaceType,
-    CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface,
-    HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    Node, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, TupleType, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceInterface,
+    length, map, maybe_map, some, symbol_name, try_map, try_maybe_map, AsDoubleDeref,
+    BaseInterfaceType, CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags,
+    GenericableTypeInterface, HasTypeArgumentsInterface, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
 };
 
 impl TypeChecker {
@@ -25,7 +25,7 @@ impl TypeChecker {
         let type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap())?;
         Ok(if self.strict_null_checks {
-            self.get_nullable_type(&type_, TypeFlags::Null)
+            self.get_nullable_type(&type_, TypeFlags::Null)?
         } else {
             type_
         })
@@ -34,15 +34,17 @@ impl TypeChecker {
     pub(super) fn get_type_from_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             if is_const_type_reference(node) && is_assertion_expression(&node.parent()) {
                 links.borrow_mut().resolved_symbol = Some(self.unknown_symbol());
-                let ret = self
-                    .check_expression_cached(&node.parent().as_has_expression().expression(), None);
+                let ret = self.check_expression_cached(
+                    &node.parent().as_has_expression().expression(),
+                    None,
+                )?;
                 links.borrow_mut().resolved_type = Some(ret.clone());
-                return ret;
+                return Ok(ret);
             }
             let mut symbol: Option<Gc<Symbol>> = None;
             let mut type_: Option<Gc<Type>> = None;
@@ -74,7 +76,7 @@ impl TypeChecker {
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn type_arguments_from_type_reference_node(
@@ -111,28 +113,28 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
         arity: usize,
-    ) -> Gc<Type /*ObjectType*/> {
+    ) -> io::Result<Gc<Type /*ObjectType*/>> {
         if symbol.is_none() {
-            return if arity != 0 {
+            return Ok(if arity != 0 {
                 self.empty_generic_type()
             } else {
                 self.empty_object_type()
-            };
+            });
         }
         let symbol = symbol.unwrap();
         let symbol = symbol.borrow();
-        let type_ = self.get_declared_type_of_symbol(symbol);
+        let type_ = self.get_declared_type_of_symbol(symbol)?;
         if !type_.flags().intersects(TypeFlags::Object) {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
                 Some(vec![symbol_name(symbol).into_owned()]),
             );
-            return if arity != 0 {
+            return Ok(if arity != 0 {
                 self.empty_generic_type()
             } else {
                 self.empty_object_type()
-            };
+            });
         }
         if length(
             type_
@@ -145,13 +147,13 @@ impl TypeChecker {
                 &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
                 Some(vec![symbol_name(symbol).into_owned(), arity.to_string()]),
             );
-            return if arity != 0 {
+            return Ok(if arity != 0 {
                 self.empty_generic_type()
             } else {
                 self.empty_object_type()
-            };
+            });
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn get_type_declaration(&self, symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
@@ -252,7 +254,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         meaning: SymbolFlags,
         diagnostic: Option<&DiagnosticMessage>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.resolve_name_(
             Option::<&Node>::None,
             name,
@@ -889,13 +891,13 @@ impl TypeChecker {
                 let element_types = if node.kind() == SyntaxKind::ArrayType {
                     vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)?]
                 } else {
-                    map(
+                    try_map(
                         &node.as_tuple_type_node().elements,
                         |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
-                    )
+                    )?
                 };
                 links.borrow_mut().resolved_type =
-                    Some(self.create_normalized_type_reference(&target, Some(element_types)));
+                    Some(self.create_normalized_type_reference(&target, Some(element_types))?);
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
@@ -913,7 +915,7 @@ impl TypeChecker {
         element_flags: Option<&[ElementFlags]>,
         readonly: Option<bool>,
         named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let readonly = readonly.unwrap_or(false);
         let tuple_target = self.get_tuple_target_type(
             &element_flags
@@ -922,13 +924,13 @@ impl TypeChecker {
             readonly,
             named_member_declarations,
         );
-        if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+        Ok(if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
             self.empty_object_type()
         } else if !element_types.is_empty() {
-            self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))
+            self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))?
         } else {
             tuple_target
-        }
+        })
     }
 
     pub(super) fn get_tuple_target_type(
@@ -994,7 +996,7 @@ impl TypeChecker {
         element_flags: &[ElementFlags],
         readonly: bool,
         named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Gc<Type /*TupleType*/> {
+    ) -> io::Result<Gc<Type /*TupleType*/>> {
         let arity = element_flags.len();
         let min_length = count_where(Some(element_flags), |f: &ElementFlags, _| {
             f.intersects(ElementFlags::Required | ElementFlags::Variadic)
@@ -1063,7 +1065,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            ));
+            )?);
         }
         properties.push(length_symbol);
         let type_ = self.create_object_type(
@@ -1105,6 +1107,6 @@ impl TypeChecker {
         type_as_interface_type.set_declared_construct_signatures(vec![]);
         type_as_interface_type.set_declared_index_infos(vec![]);
         type_as_interface_type.genericize(instantiations);
-        type_
+        Ok(type_)
     }
 }

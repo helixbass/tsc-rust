@@ -115,6 +115,16 @@ pub fn every<TItem>(array: &[TItem], mut predicate: impl FnMut(&TItem, usize) ->
         .all(|(index, value)| predicate(value, index))
 }
 
+pub fn try_every<TItem, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<bool, TError> {
+    array
+        .into_iter()
+        .enumerate()
+        .try_all(|(index, value)| predicate(value, index))
+}
+
 pub fn maybe_every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: Option<&[TItem]>,
     predicate: TCallback,

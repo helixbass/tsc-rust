@@ -17,13 +17,13 @@ use crate::{
     is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
     is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map,
     map_defined, maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment,
-    return_ok_default_if_none, return_ok_false_if_none, some, try_map, CheckFlags, Debug_,
-    Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo, InterfaceTypeInterface,
-    InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeInterface, ObjectFlags,
-    OptionTry, ReadonlyTextRange, Signature, SignatureDeclarationInterface, SignatureFlags, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypePredicateKind,
-    TypeSystemPropertyName, UnionReduction,
+    return_ok_default_if_none, return_ok_false_if_none, some, try_for_each_child_bool, try_map,
+    CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
+    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
+    NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
+    SignatureDeclarationInterface, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,
 };
 
 impl TypeChecker {
@@ -207,7 +207,7 @@ impl TypeChecker {
             };
             if has_rest_parameter(declaration)
                 || is_in_js_file(Some(declaration))
-                    && self.maybe_add_js_synthetic_rest_parameter(declaration, &mut parameters)
+                    && self.maybe_add_js_synthetic_rest_parameter(declaration, &mut parameters)?
             {
                 flags |= SignatureFlags::HasRestParameter;
             }
@@ -319,14 +319,14 @@ impl TypeChecker {
         &self,
         node: &Node, /*SignatureDeclaration | JSDocSignature*/
     ) -> io::Result<Option<Gc<Type>>> {
-        let signature = self.get_signature_of_type_tag(node);
+        let signature = self.get_signature_of_type_tag(node)?;
         signature.try_map(|signature| self.get_return_type_of_signature(signature))
     }
 
     pub(super) fn contains_arguments_reference(
         &self,
         declaration: &Node, /*SignatureDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let links = self.get_node_links(declaration);
         if (*links).borrow().contains_arguments_reference.is_none() {
             let contains_arguments_reference = if (*links)
@@ -340,12 +340,12 @@ impl TypeChecker {
                     declaration
                         .maybe_as_function_like_declaration()
                         .and_then(|declaration| declaration.maybe_body()),
-                )
+                )?
             };
             links.borrow_mut().contains_arguments_reference = Some(contains_arguments_reference);
         }
         let ret = (*links).borrow().contains_arguments_reference.unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn contains_arguments_reference_traverse(
@@ -369,7 +369,7 @@ impl TypeChecker {
             | SyntaxKind::SetAccessor => {
                 let name = node.as_named_declaration().name();
                 name.kind() == SyntaxKind::ComputedPropertyName
-                    && self.contains_arguments_reference_traverse(Some(name))
+                    && self.contains_arguments_reference_traverse(Some(name))?
             }
 
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => self
@@ -380,10 +380,10 @@ impl TypeChecker {
             _ => {
                 !node_starts_new_lexical_environment(node)
                     && !is_part_of_type_node(node)
-                    && for_each_child_bool(
+                    && try_for_each_child_bool(
                         node,
                         |child| self.contains_arguments_reference_traverse(Some(child)),
-                        Option::<fn(&NodeArray) -> bool>::None,
+                        Option::<fn(&NodeArray) -> io::Result<bool>>::None,
                     )
             }
         })

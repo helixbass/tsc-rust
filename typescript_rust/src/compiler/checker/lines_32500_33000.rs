@@ -15,7 +15,7 @@ use crate::{
     walk_up_parenthesized_expressions, AccessFlags, AssignmentDeclarationKind,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_,
     DiagnosticRelatedInformationInterface, Diagnostics, ExternalEmitHelpers, LeftOrRight,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ObjectFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ObjectFlags, OptionTry,
     ReadonlyTextRange, ScriptTarget, SourceFileLike, Symbol, SyntaxKind, TextSpan, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
@@ -57,7 +57,7 @@ impl TypeChecker {
         Ok(match property.kind() {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 let name = property.as_named_declaration().name();
-                let expr_type = self.get_literal_type_from_property_name(&name);
+                let expr_type = self.get_literal_type_from_property_name(&name)?;
                 if self.is_type_usable_as_property_name(&expr_type) {
                     let text = self.get_property_name_from_type(&expr_type);
                     let prop = self.get_property_of_type_(object_literal_type, &text, None)?;
@@ -81,7 +81,7 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                 );
-                let type_ = self.get_flow_type_of_destructuring(property, &element_type);
+                let type_ = self.get_flow_type_of_destructuring(property, &element_type)?;
                 Some(self.check_destructuring_assignment(
                     &*if property.kind() == SyntaxKind::ShorthandPropertyAssignment {
                         property.clone()
@@ -91,7 +91,7 @@ impl TypeChecker {
                     &type_,
                     None,
                     None,
-                ))
+                )?)
             }
             SyntaxKind::SpreadAssignment => {
                 if property_index < properties.len() - 1 {
@@ -117,7 +117,7 @@ impl TypeChecker {
                         object_literal_type,
                         &non_rest_names,
                         object_literal_type.maybe_symbol(),
-                    );
+                    )?;
                     self.check_grammar_for_disallowed_trailing_comma(
                         all_properties,
                         Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
@@ -127,7 +127,7 @@ impl TypeChecker {
                         &type_,
                         None,
                         None,
-                    ))
+                    )?)
                 }
             }
             _ => {
@@ -169,14 +169,14 @@ impl TypeChecker {
         for i in 0..elements.len() {
             let mut type_ = possibly_out_of_bounds_type.clone();
             if node_as_array_literal_expression.elements[i].kind() == SyntaxKind::SpreadElement {
-                in_bounds_type = Some(in_bounds_type.unwrap_or_else(|| {
+                in_bounds_type = Some(in_bounds_type.try_unwrap_or_else(|| {
                     self.check_iterated_type_or_element_type(
                         IterationUse::Destructuring,
                         source_type,
                         &self.undefined_type(),
                         Some(node),
                     ) /*|| errorType*/
-                }));
+                })?);
                 type_ = in_bounds_type.clone().unwrap();
             }
             self.check_array_literal_destructuring_element_assignment(
@@ -197,7 +197,7 @@ impl TypeChecker {
         element_index: usize,
         element_type: &Type,
         check_mode: Option<CheckMode>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let node_as_array_literal_expression = node.as_array_literal_expression();
         let elements = &node_as_array_literal_expression.elements;
         let element = &elements[element_index];
@@ -231,17 +231,17 @@ impl TypeChecker {
                     } else {
                         element_type.clone()
                     };
-                    let type_ = self.get_flow_type_of_destructuring(element, &assigned_type);
-                    return Some(
-                        self.check_destructuring_assignment(element, &type_, check_mode, None),
-                    );
+                    let type_ = self.get_flow_type_of_destructuring(element, &assigned_type)?;
+                    return Ok(Some(self.check_destructuring_assignment(
+                        element, &type_, check_mode, None,
+                    )?));
                 }
-                return Some(self.check_destructuring_assignment(
+                return Ok(Some(self.check_destructuring_assignment(
                     element,
                     element_type,
                     check_mode,
                     None,
-                ));
+                )?));
             }
             if element_index < elements.len() - 1 {
                 self.error(
@@ -261,7 +261,10 @@ impl TypeChecker {
                         None,
                     );
                 } else {
-                    self.check_grammar_for_disallowed_trailing_comma(Some(&node_as_array_literal_expression.elements), Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma));
+                    self.check_grammar_for_disallowed_trailing_comma(
+                        Some(&node_as_array_literal_expression.elements),
+                        Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
+                    );
                     let type_ =
                         if self.every_type(source_type, |type_: &Type| self.is_tuple_type(type_)) {
                             self.map_type(
@@ -273,16 +276,16 @@ impl TypeChecker {
                         } else {
                             self.create_array_type(element_type, None)
                         };
-                    return Some(self.check_destructuring_assignment(
+                    return Ok(Some(self.check_destructuring_assignment(
                         rest_expression,
                         &type_,
                         check_mode,
                         None,
-                    ));
+                    )?));
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn check_destructuring_assignment(
@@ -333,9 +336,9 @@ impl TypeChecker {
             return Ok(self.check_object_literal_assignment(&target, &source_type, right_is_this));
         }
         if target.kind() == SyntaxKind::ArrayLiteralExpression {
-            return Ok(self.check_array_literal_assignment(&target, &source_type, check_mode));
+            return self.check_array_literal_assignment(&target, &source_type, check_mode);
         }
-        Ok(self.check_reference_assignment(&target, &source_type, check_mode))
+        self.check_reference_assignment(&target, &source_type, check_mode)
     }
 
     pub(super) fn check_reference_assignment(
@@ -500,12 +503,12 @@ impl TypeChecker {
                 SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
             )
         {
-            return Ok(self.check_destructuring_assignment(
+            return self.check_destructuring_assignment(
                 left,
                 &*self.check_expression(right, check_mode, None)?,
                 check_mode,
                 Some(right.kind() == SyntaxKind::ThisKeyword),
-            ));
+            );
         }
         let left_type: Gc<Type>;
         if matches!(
@@ -514,20 +517,20 @@ impl TypeChecker {
                 | SyntaxKind::BarBarToken
                 | SyntaxKind::QuestionQuestionToken
         ) {
-            left_type = self.check_truthiness_expression(left, check_mode);
+            left_type = self.check_truthiness_expression(left, check_mode)?;
         } else {
             left_type = self.check_expression(left, check_mode, None)?;
         }
 
         let right_type = self.check_expression(right, check_mode, None)?;
-        Ok(self.check_binary_like_expression_worker(
+        self.check_binary_like_expression_worker(
             left,
             operator_token,
             right,
             &left_type,
             &right_type,
             error_node,
-        ))
+        )
     }
 
     pub(super) fn check_binary_like_expression_worker(
@@ -766,11 +769,12 @@ impl TypeChecker {
                 if self.check_for_disallowed_es_symbol_operand(
                     left_type, right_type, left, right, operator,
                 ) {
-                    let left_type = self
-                        .get_base_type_of_literal_type(&self.check_non_null_type(left_type, left));
+                    let left_type = self.get_base_type_of_literal_type(
+                        &self.check_non_null_type(left_type, left),
+                    )?;
                     let right_type = self.get_base_type_of_literal_type(
                         &self.check_non_null_type(right_type, right),
-                    );
+                    )?;
                     self.report_operator_error_unless(
                         &left_type,
                         &right_type,
@@ -820,7 +824,7 @@ impl TypeChecker {
                             self.extract_definitely_falsy_types(&*if self.strict_null_checks {
                                 left_type.type_wrapper()
                             } else {
-                                self.get_base_type_of_literal_type(right_type)
+                                self.get_base_type_of_literal_type(right_type)?
                             }),
                             right_type.type_wrapper(),
                         ],
@@ -1108,7 +1112,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         )?,
                         check_mode,
                         Some(node_as_binary_expression.right.kind() == SyntaxKind::ThisKeyword),
-                    )),
+                    )?),
                 );
             }
             return Ok(state);
@@ -1122,11 +1126,11 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         left: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return self.maybe_check_expression(state, left);
         }
-        None
+        Ok(None)
     }
 
     fn on_operator(
@@ -1173,18 +1177,18 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         right: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Gc<Node /*BinaryExpression*/>> {
+    ) -> io::Result<Option<Gc<Node /*BinaryExpression*/>>> {
         if !(*state).borrow().skip {
             return self.maybe_check_expression(state, right);
         }
-        None
+        Ok(None)
     }
 
     fn on_exit(
         &self,
         node: &Node, /*BinaryExpression*/
         state: Rc<RefCell<WorkArea>>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let result: Option<Gc<Type>>;
         if (*state).borrow().skip {
             result = self.get_last_result(state.clone());
@@ -1205,7 +1209,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 &left_type,
                 &right_type,
                 Some(node),
-            ));
+            )?);
         }
 
         {
@@ -1215,7 +1219,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
             self.set_last_result(&mut state, Option::<&Type>::None);
             state.stack_index -= 1;
         }
-        result
+        Ok(result)
     }
 
     fn fold_state(
