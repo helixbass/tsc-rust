@@ -658,7 +658,7 @@ impl TypeChecker {
             ))
         } else {
             self.get_regular_type_of_literal_type(&*if is_computed_property_name(name) {
-                self.check_computed_property_name(name)
+                self.check_computed_property_name(name)?
             } else {
                 self.check_expression(name, None, None)?
             })
@@ -670,7 +670,7 @@ impl TypeChecker {
         prop: &Symbol,
         include: TypeFlags,
         include_non_public: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let include_non_public = include_non_public.unwrap_or(false);
         if include_non_public
             || !get_declaration_modifier_flags_from_symbol(prop, None)
@@ -685,7 +685,7 @@ impl TypeChecker {
                 type_ = if prop.escaped_name() == InternalSymbolName::Default {
                     Some(self.get_string_literal_type("default"))
                 } else if let Some(name) = name {
-                    Some(self.get_literal_type_from_property_name(&name))
+                    Some(self.get_literal_type_from_property_name(&name)?)
                 } else {
                     if !is_known_symbol(prop) {
                         Some(self.get_string_literal_type(&symbol_name(prop)))
@@ -696,11 +696,11 @@ impl TypeChecker {
             }
             if let Some(type_) = type_ {
                 if type_.flags().intersects(include) {
-                    return type_;
+                    return Ok(type_);
                 }
             }
         }
-        self.never_type()
+        Ok(self.never_type())
     }
 
     pub(super) fn is_key_type_included(&self, key_type: &Type, include: TypeFlags) -> bool {

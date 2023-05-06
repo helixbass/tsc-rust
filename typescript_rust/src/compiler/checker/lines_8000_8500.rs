@@ -17,7 +17,7 @@ use crate::{
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
     parse_node_factory, push_if_unique_gc, return_ok_none_if_none, set_parent, set_text_range,
-    starts_with, symbol_name, try_add_to_set, try_maybe_for_each,
+    starts_with, symbol_name, try_add_to_set, try_map, try_maybe_for_each,
     try_using_single_line_string_writer, using_single_line_string_writer,
     walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
     InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
@@ -779,9 +779,9 @@ impl TypeChecker {
                 .unwrap());
         }
         let omit_key_type = self.get_union_type(
-            &map(properties, |property: &Gc<Node>, _| {
+            &try_map(properties, |property: &Gc<Node>, _| {
                 self.get_literal_type_from_property_name(property)
-            }),
+            })?,
             None,
             Option::<&Symbol>::None,
             None,

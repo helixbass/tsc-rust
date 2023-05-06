@@ -108,8 +108,8 @@ impl TypeChecker {
                 )
             } else {
                 compare_types(
-                    &self.get_return_type_of_signature(source),
-                    &self.get_return_type_of_signature(target),
+                    &*self.get_return_type_of_signature(source)?,
+                    &*self.get_return_type_of_signature(target)?,
                 )
             };
         }
@@ -149,20 +149,20 @@ impl TypeChecker {
     pub(super) fn literal_types_with_same_base_type<'types>(
         &self,
         types: impl IntoIterator<Item = &'types Gc<Type>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let mut common_base_type: Option<Gc<Type>> = None;
         for t in types {
-            let base_type = self.get_base_type_of_literal_type(t);
+            let base_type = self.get_base_type_of_literal_type(t)?;
             if common_base_type.is_none() {
                 common_base_type = Some(base_type.clone());
             }
             if Gc::ptr_eq(&base_type, t)
                 || !Gc::ptr_eq(&base_type, common_base_type.as_ref().unwrap())
             {
-                return false;
+                return Ok(false);
             }
         }
-        true
+        Ok(true)
     }
 
     pub(super) fn get_supertype_or_union<'types, TTypes>(
@@ -209,7 +209,7 @@ impl TypeChecker {
     {
         let types = types.into_iter();
         if !self.strict_null_checks {
-            return Ok(self.get_supertype_or_union(types));
+            return self.get_supertype_or_union(types);
         }
         let mut primary_types = types
             .clone()
@@ -218,9 +218,9 @@ impl TypeChecker {
             .peekable();
         Ok(if !primary_types.is_empty_() {
             self.get_nullable_type(
-                &self.get_supertype_or_union(&primary_types.collect::<Vec<_>>()),
+                &*self.get_supertype_or_union(&primary_types.collect::<Vec<_>>())?,
                 self.get_falsy_flags_of_types(types) & TypeFlags::Nullable,
-            )
+            )?
         } else {
             self.get_union_type(
                 types,
@@ -393,8 +393,8 @@ impl TypeChecker {
         Ok(self.is_tuple_type(type_) || self.get_property_of_type_(type_, "0", None)?.is_some())
     }
 
-    pub(super) fn is_array_or_tuple_like_type(&self, type_: &Type) -> bool {
-        self.is_array_like_type(type_) || self.is_tuple_like_type(type_)
+    pub(super) fn is_array_or_tuple_like_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(self.is_array_like_type(type_) || self.is_tuple_like_type(type_)?)
     }
 
     pub(super) fn get_tuple_element_type(
@@ -482,11 +482,11 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::BooleanLiteral) {
             self.boolean_type()
         } else if type_.flags().intersects(TypeFlags::Union) {
-            self.map_type(
+            self.try_map_type(
                 type_,
-                &mut |type_| Some(self.get_base_type_of_literal_type(type_)),
+                &mut |type_| Ok(Some(self.get_base_type_of_literal_type(type_)?)),
                 None,
-            )
+            )?
             .unwrap()
         } else {
             type_.type_wrapper()
@@ -515,11 +515,11 @@ impl TypeChecker {
             {
                 self.boolean_type()
             } else if flags.intersects(TypeFlags::Union) {
-                self.map_type(
+                self.try_map_type(
                     type_,
                     &mut |type_| Some(self.get_widened_literal_type(type_)),
                     None,
-                )
+                )?
                 .unwrap()
             } else {
                 type_.type_wrapper()
@@ -549,7 +549,8 @@ impl TypeChecker {
     ) -> Gc<Type> {
         let mut type_ = type_.type_wrapper();
         if !self.is_literal_of_contextual_type(&type_, contextual_type) {
-            type_ = self.get_widened_unique_es_symbol_type(&self.get_widened_literal_type(&type_));
+            type_ =
+                self.get_widened_unique_es_symbol_type(&*self.get_widened_literal_type(&type_)?);
         }
         type_
     }
@@ -566,7 +567,7 @@ impl TypeChecker {
         let mut type_ = type_.map(|type_| type_.borrow().type_wrapper());
         if let Some(type_present) = type_.as_ref().filter(|type_| self.is_unit_type(type_)) {
             let contextual_type = contextual_signature_return_type.try_and_then(
-                |contextual_signature_return_type| {
+                |contextual_signature_return_type| -> io::Result<_> {
                     let contextual_signature_return_type =
                         contextual_signature_return_type.borrow();
                     Ok(if is_async {
@@ -653,7 +654,7 @@ impl TypeChecker {
     pub(super) fn get_rest_type_of_tuple_type(
         &self,
         type_: &Type, /*TupleTypeReference*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         self.get_element_type_of_slice_of_tuple_type(
             type_,
             type_
@@ -966,16 +967,16 @@ impl TypeChecker {
         type_: &Type,
         node: &Node, /*OptionalChain*/
         was_optional: bool,
-    ) -> Gc<Type> {
-        if was_optional {
+    ) -> io::Result<Gc<Type>> {
+        Ok(if was_optional {
             if is_outermost_optional_chain(node) {
-                self.get_optional_type_(type_, None)
+                self.get_optional_type_(type_, None)?
             } else {
-                self.add_optional_type_marker(type_)
+                self.add_optional_type_marker(type_)?
             }
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn get_optional_expression_type(

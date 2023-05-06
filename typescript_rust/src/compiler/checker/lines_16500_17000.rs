@@ -358,7 +358,7 @@ impl TypeChecker {
                 && modifiers.intersects(MappedTypeModifiers::IncludeOptional)
                 && !self.maybe_type_of_kind(&prop_type, TypeFlags::Undefined | TypeFlags::Void)
             {
-                self.get_optional_type_(&prop_type, Some(true))
+                self.get_optional_type_(&prop_type, Some(true))?
             } else if self.strict_null_checks
                 && modifiers.intersects(MappedTypeModifiers::ExcludeOptional)
                 && is_optional

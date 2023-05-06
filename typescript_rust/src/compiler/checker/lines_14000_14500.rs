@@ -382,11 +382,11 @@ impl TypeChecker {
         &self,
         node: &Node, /*OptionalTypeNode*/
     ) -> io::Result<Gc<Type>> {
-        Ok(self.add_optionality(
+        self.add_optionality(
             &*self.get_type_from_type_node_(&node.as_optional_type_node().type_)?,
             Some(true),
             None,
-        ))
+        )
     }
 
     pub(super) fn get_type_id(&self, type_: &Type) -> TypeId {

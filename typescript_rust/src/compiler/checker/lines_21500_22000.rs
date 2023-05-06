@@ -20,7 +20,7 @@ impl TypeChecker {
         source_type: &Type,
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_parameter = self.get_indexed_access_type(
             &constraint.as_index_type().type_,
             &self.get_type_parameter_from_mapped_type(target),
@@ -38,8 +38,9 @@ impl TypeChecker {
             None,
             None,
         );
-        self.get_type_from_inference(&inference)
-            .unwrap_or_else(|| self.unknown_type())
+        Ok(self
+            .get_type_from_inference(&inference)?
+            .unwrap_or_else(|| self.unknown_type()))
     }
 
     pub(super) fn get_unmatched_properties(
@@ -121,16 +122,22 @@ impl TypeChecker {
                         < source_target_as_tuple_type.fixed_length)
     }
 
-    pub(super) fn types_definitely_unrelated(&self, source: &Type, target: &Type) -> bool {
-        if self.is_tuple_type(source) && self.is_tuple_type(target) {
-            self.tuple_types_definitely_unrelated(source, target)
-        } else {
-            self.get_unmatched_property(source, target, false, true)
-                .is_some()
-                && self
-                    .get_unmatched_property(target, source, false, false)
+    pub(super) fn types_definitely_unrelated(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> io::Result<bool> {
+        Ok(
+            if self.is_tuple_type(source) && self.is_tuple_type(target) {
+                self.tuple_types_definitely_unrelated(source, target)
+            } else {
+                self.get_unmatched_property(source, target, false, true)
                     .is_some()
-        }
+                    && self
+                        .get_unmatched_property(target, source, false, false)?
+                        .is_some()
+            },
+        )
     }
 
     pub(super) fn get_type_from_inference(
@@ -145,7 +152,7 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                ))
+                )?)
             } else if let Some(inference_contra_candidates) =
                 inference.maybe_contra_candidates().as_ref()
             {
@@ -823,9 +830,9 @@ impl InferTypes {
             } else {
                 let simplified = self.type_checker.get_simplified_type(&target, false);
                 if !Gc::ptr_eq(&simplified, &target) {
-                    self.invoke_once(&source, &simplified, |source: &Type, target: &Type| {
+                    self.try_invoke_once(&source, &simplified, |source: &Type, target: &Type| {
                         self.infer_from_types(source, target)
-                    });
+                    })?;
                 } else if target.flags().intersects(TypeFlags::IndexedAccess) {
                     let target_as_indexed_access_type = target.as_indexed_access_type();
                     let index_type = self
@@ -844,13 +851,13 @@ impl InferTypes {
                             .as_ref()
                             .filter(|simplified| !Gc::ptr_eq(simplified, &target))
                         {
-                            self.invoke_once(
+                            self.try_invoke_once(
                                 &source,
                                 simplified,
                                 |source: &Type, target: &Type| {
                                     self.infer_from_types(source, target)
                                 },
-                            );
+                            )?;
                         }
                     }
                 }

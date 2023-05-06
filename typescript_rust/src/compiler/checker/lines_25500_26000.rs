@@ -155,7 +155,7 @@ impl TypeChecker {
                     &*if let Some(contextual_type) = contextual_type.as_ref() {
                         self.get_non_nullable_type(contextual_type)
                     } else {
-                        self.check_expression_cached(containing_literal, None)
+                        self.check_expression_cached(containing_literal, None)?
                     },
                 )));
             }
@@ -185,7 +185,7 @@ impl TypeChecker {
                         }
 
                         return Ok(Some(self.get_widened_type(
-                            &self.check_expression_cached(&expression, None),
+                            &*self.check_expression_cached(&expression, None)?,
                         )));
                     }
                 }
@@ -235,7 +235,7 @@ impl TypeChecker {
                     &args[index_of_parameter],
                     None,
                     None,
-                )?))
+                )?)?)
             } else if parameter_as_parameter_declaration
                 .maybe_initializer()
                 .is_some()
@@ -287,16 +287,14 @@ impl TypeChecker {
         }
         match declaration.kind() {
             SyntaxKind::Parameter => {
-                return Ok(self.get_contextually_typed_parameter_type(declaration));
+                return self.get_contextually_typed_parameter_type(declaration);
             }
             SyntaxKind::BindingElement => {
-                return Ok(self.get_contextual_type_for_binding_element(declaration));
+                return self.get_contextual_type_for_binding_element(declaration);
             }
             SyntaxKind::PropertyDeclaration => {
                 if is_static(declaration) {
-                    return Ok(
-                        self.get_contextual_type_for_static_property_declaration(declaration)
-                    );
+                    return self.get_contextual_type_for_static_property_declaration(declaration);
                 }
             }
             _ => (),
@@ -315,7 +313,7 @@ impl TypeChecker {
             .clone()
             .unwrap_or_else(|| declaration_as_binding_element.name());
         let parent_type = self
-            .get_contextual_type_for_variable_like_declaration(&parent)
+            .get_contextual_type_for_variable_like_declaration(&parent)?
             .or_else(|| {
                 if parent.kind() != SyntaxKind::BindingElement
                     && parent.as_has_initializer().maybe_initializer().is_some()
@@ -343,10 +341,10 @@ impl TypeChecker {
             let index: usize = index.try_into().unwrap();
             return self.get_contextual_type_for_element_expression(Some(&*parent_type), index);
         }
-        let name_type = self.get_literal_type_from_property_name(&name);
+        let name_type = self.get_literal_type_from_property_name(&name)?;
         if self.is_type_usable_as_property_name(&name_type) {
             let text = self.get_property_name_from_type(&name_type);
-            return Ok(self.get_type_of_property_of_type_(&parent_type, &text));
+            return self.get_type_of_property_of_type_(&parent_type, &text);
         }
         Ok(None)
     }
@@ -381,7 +379,7 @@ impl TypeChecker {
                 )
             )
         {
-            let result = self.get_contextual_type_for_variable_like_declaration(&declaration);
+            let result = self.get_contextual_type_for_variable_like_declaration(&declaration)?;
             if result.is_some() {
                 return Ok(result);
             }
@@ -406,7 +404,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Type>>> {
         let func = get_containing_function(node);
         if let Some(func) = func.as_ref() {
-            let contextual_return_type = self.get_contextual_return_type(func);
+            let contextual_return_type = self.get_contextual_return_type(func)?;
             if let Some(mut contextual_return_type) = contextual_return_type {
                 let function_flags = get_function_flags(Some(&**func));
                 if function_flags.intersects(FunctionFlags::Generator) {
@@ -462,9 +460,9 @@ impl TypeChecker {
         if let Some(contextual_type) = contextual_type.as_ref() {
             let contextual_awaited_type =
                 self.get_awaited_type_no_alias(contextual_type, Option::<&Node>::None, None, None)?;
-            return Ok(contextual_awaited_type
+            return contextual_awaited_type
                 .as_ref()
-                .map(|contextual_awaited_type| {
+                .try_map(|contextual_awaited_type| {
                     self.get_union_type(
                         &[
                             contextual_awaited_type.clone(),
@@ -475,7 +473,7 @@ impl TypeChecker {
                         None,
                         Option::<&Type>::None,
                     )
-                }));
+                });
         }
         Ok(None)
     }
@@ -483,13 +481,13 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_yield_operand(
         &self,
         node: &Node, /*YieldExpression*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let func = get_containing_function(node);
         if let Some(func) = func.as_ref() {
             let function_flags = get_function_flags(Some(&**func));
-            let contextual_return_type = self.get_contextual_return_type(func);
+            let contextual_return_type = self.get_contextual_return_type(func)?;
             if let Some(contextual_return_type) = contextual_return_type.as_ref() {
-                return if node.as_yield_expression().asterisk_token.is_some() {
+                return Ok(if node.as_yield_expression().asterisk_token.is_some() {
                     Some(contextual_return_type.clone())
                 } else {
                     self.get_iteration_type_of_generator_function_return_type(
@@ -497,11 +495,11 @@ impl TypeChecker {
                         contextual_return_type,
                         function_flags.intersects(FunctionFlags::Async),
                     )
-                };
+                });
             }
         }
 
-        None
+        Ok(None)
     }
 
     pub(super) fn is_in_parameter_initializer_before_containing_function(
@@ -549,25 +547,25 @@ impl TypeChecker {
         &self,
         kind: IterationTypeKind,
         function_decl: &Node, /*SignatureDeclaration*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let is_async = get_function_flags(Some(function_decl)).intersects(FunctionFlags::Async);
-        let contextual_return_type = self.get_contextual_return_type(function_decl);
+        let contextual_return_type = self.get_contextual_return_type(function_decl)?;
         if let Some(contextual_return_type) = contextual_return_type.as_ref() {
-            return self.get_iteration_type_of_generator_function_return_type(
+            return Ok(self.get_iteration_type_of_generator_function_return_type(
                 kind,
                 contextual_return_type,
                 is_async,
-            );
+            ));
         }
 
-        None
+        Ok(None)
     }
 
     pub(super) fn get_contextual_return_type(
         &self,
         function_decl: &Node, /*SignatureDeclaration*/
     ) -> io::Result<Option<Gc<Type>>> {
-        let return_type = self.get_return_type_from_annotation(function_decl);
+        let return_type = self.get_return_type_from_annotation(function_decl)?;
         if return_type.is_some() {
             return Ok(return_type);
         }
@@ -576,7 +574,7 @@ impl TypeChecker {
             .as_ref()
             .filter(|signature| !self.is_resolving_return_type_of_signature((*signature).clone()))
         {
-            return Ok(Some(self.get_return_type_of_signature(signature.clone())));
+            return Ok(Some(self.get_return_type_of_signature(signature.clone())?));
         }
         let iife = get_immediately_invoked_function_expression(function_decl);
         if let Some(iife) = iife.as_ref() {
@@ -653,13 +651,13 @@ impl TypeChecker {
         &self,
         template: &Node,                /*TemplateExpression*/
         substitution_expression: &Node, /*Expression*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if template.parent().kind() == SyntaxKind::TaggedTemplateExpression {
             return self
                 .get_contextual_type_for_argument(&template.parent(), substitution_expression);
         }
 
-        None
+        Ok(None)
     }
 
     pub(super) fn get_contextual_type_for_binary_operand(
@@ -691,7 +689,7 @@ impl TypeChecker {
                         None => !is_defaulted_expando_initializer(&binary_expression),
                     }
                 {
-                    Some(self.get_type_of_expression(left))
+                    Some(self.get_type_of_expression(left)?)
                 } else {
                     type_
                 }
@@ -719,13 +717,14 @@ impl TypeChecker {
         }
         if is_property_access_expression(e) {
             let e_as_property_access_expression = e.as_property_access_expression();
-            let lhs_type = self.get_type_of_expression(&e_as_property_access_expression.expression);
+            let lhs_type =
+                self.get_type_of_expression(&e_as_property_access_expression.expression)?;
             return Ok(
                 if is_private_identifier(&e_as_property_access_expression.name) {
                     self.try_get_private_identifier_property_of_type(
                         &lhs_type,
                         &e_as_property_access_expression.name,
-                    )
+                    )?
                 } else {
                     self.get_property_of_type_(
                         &lhs_type,

@@ -1,6 +1,6 @@
 use gc::{Finalize, Gc, Trace};
-use std::cell::RefCell;
 use std::rc::Rc;
+use std::{cell::RefCell, io};
 
 use super::PipelinePhase;
 use crate::{
@@ -1033,7 +1033,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         node: &Node, /*BinaryExpression*/
         mut state: Option<Rc<RefCell<WorkArea>>>,
         _: (),
-    ) -> Rc<RefCell<WorkArea>> {
+    ) -> io::Result<Rc<RefCell<WorkArea>>> {
         if let Some(state) = state.as_ref() {
             let mut state = state.borrow_mut();
             state.stack_index += 1;
@@ -1069,7 +1069,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             })));
         }
         let state = state.unwrap();
-        state
+        Ok(state)
     }
 
     fn on_left(

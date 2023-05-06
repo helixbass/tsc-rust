@@ -439,7 +439,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::TypeLiteral | SymbolFlags::Signature)
         }) {
-            self.get_widened_literal_type(&*self.get_type_of_symbol(symbol)?)
+            self.get_widened_literal_type(&*self.get_type_of_symbol(symbol)?)?
         } else {
             self.error_type()
         };
@@ -478,7 +478,7 @@ impl TypeChecker {
         let signature_declaration = signature_declaration.as_ref().unwrap();
         let signature = self.get_signature_from_declaration_(signature_declaration);
         self.node_builder().type_to_type_node(
-            &self.get_return_type_of_signature(signature),
+            &*self.get_return_type_of_signature(signature)?,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
             Some(tracker),

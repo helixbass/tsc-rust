@@ -15,13 +15,13 @@ use crate::{
     is_in_js_file, is_optional_chain, is_parameter, is_private_identifier,
     is_property_access_expression, is_property_declaration, is_property_signature,
     is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map,
-    skip_parentheses, some, try_filter, try_for_each, try_map, CheckFlags, Diagnostic, Diagnostics,
-    EvolvingArrayType, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasInitializerInterface,
-    IncompleteType, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    skip_parentheses, some, try_filter, try_for_each, try_map, try_some, CheckFlags, Diagnostic,
+    Diagnostics, EvolvingArrayType, FlowFlags, FlowNode, FlowNodeBase, FlowType,
+    HasInitializerInterface, IncompleteType, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ReadonlyTextRange, Signature,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate, TypePredicateKind,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -288,14 +288,23 @@ impl TypeChecker {
     }
 
     pub(super) fn some_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> bool {
-        if type_.flags().intersects(TypeFlags::Union) {
-            some(
+        self.try_some_type(type_, |type_: &Type| Ok(f(type_)))
+            .unwrap()
+    }
+
+    pub(super) fn try_some_type(
+        &self,
+        type_: &Type,
+        mut f: impl FnMut(&Type) -> io::Result<bool>,
+    ) -> io::Result<bool> {
+        Ok(if type_.flags().intersects(TypeFlags::Union) {
+            try_some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
                 Some(|type_: &Gc<Type>| f(type_)),
-            )
+            )?
         } else {
-            f(type_)
-        }
+            f(type_)?
+        })
     }
 
     pub(super) fn every_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> bool {

@@ -445,7 +445,7 @@ impl TypeChecker {
         if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
             return Ok(self.create_array_type(type_, None));
         }
-        Ok(self.add_optionality(type_, None, None))
+        self.add_optionality(type_, None, None)
     }
 
     pub(super) fn check_node_deferred(&self, node: &Node) {

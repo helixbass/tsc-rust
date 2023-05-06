@@ -411,9 +411,9 @@ impl GetFlowTypeOfReference {
                 let flow_type =
                     self.get_type_at_flow_node(flow_as_flow_assignment.antecedent.clone())?;
                 return Ok(Some(self.type_checker.create_flow_type(
-                    &self.type_checker.get_base_type_of_literal_type(
+                    &*self.type_checker.get_base_type_of_literal_type(
                         &self.type_checker.get_type_from_flow_type(&flow_type),
-                    ),
+                    )?,
                     self.type_checker.is_incomplete(&flow_type),
                 )));
             }
@@ -429,7 +429,7 @@ impl GetFlowTypeOfReference {
                 }
                 let assigned_type = self
                     .type_checker
-                    .get_widened_literal_type(&self.get_initial_or_assigned_type(&flow));
+                    .get_widened_literal_type(&self.get_initial_or_assigned_type(&flow))?;
                 return Ok(
                     if self
                         .type_checker
@@ -583,7 +583,7 @@ impl GetFlowTypeOfReference {
             }
             if self
                 .type_checker
-                .get_return_type_of_signature(signature.clone())
+                .get_return_type_of_signature(signature.clone())?
                 .flags()
                 .intersects(TypeFlags::Never)
             {
@@ -637,7 +637,7 @@ impl GetFlowTypeOfReference {
                                 .left
                                 .as_element_access_expression()
                                 .argument_expression,
-                        );
+                        )?;
                         if self.type_checker.is_type_assignable_to_kind(
                             &index_type,
                             TypeFlags::NumberLike,

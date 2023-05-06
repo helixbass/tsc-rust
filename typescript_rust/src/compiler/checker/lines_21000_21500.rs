@@ -617,6 +617,16 @@ impl TypeChecker {
         target: Gc<Signature>,
         mut callback: impl FnMut(&Type, &Type),
     ) {
+        self.try_apply_to_return_types(source, target, |a: &Type, b: &Type| Ok(callback(a, b)))
+            .unwrap()
+    }
+
+    pub(super) fn try_apply_to_return_types(
+        &self,
+        source: Gc<Signature>,
+        target: Gc<Signature>,
+        mut callback: impl FnMut(&Type, &Type) -> io::Result<()>,
+    ) -> io::Result<()> {
         let source_type_predicate = self.get_type_predicate_of_signature(&source);
         let target_type_predicate = self.get_type_predicate_of_signature(&target);
         let mut took_if_branch = false;
@@ -627,7 +637,7 @@ impl TypeChecker {
                         if let Some(target_type_predicate_type) =
                             target_type_predicate.type_.as_ref()
                         {
-                            callback(source_type_predicate_type, target_type_predicate_type);
+                            callback(source_type_predicate_type, target_type_predicate_type)?;
                             took_if_branch = true;
                         }
                     }
@@ -638,8 +648,10 @@ impl TypeChecker {
             callback(
                 &self.get_return_type_of_signature(source),
                 &self.get_return_type_of_signature(target),
-            );
+            )?;
         }
+
+        Ok(())
     }
 
     pub(super) fn create_inference_context(

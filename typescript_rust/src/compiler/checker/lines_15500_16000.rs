@@ -951,7 +951,7 @@ impl TypeChecker {
                 result_links.type_ = Some(if is_setonly_accessor {
                     self.undefined_type()
                 } else {
-                    self.add_optionality(&*self.get_type_of_symbol(&prop)?, Some(true), None)
+                    self.add_optionality(&*self.get_type_of_symbol(&prop)?, Some(true), None)?
                 });
                 let prop_declarations = prop.maybe_declarations();
                 if let Some(prop_declarations) = prop_declarations.as_ref() {

@@ -526,15 +526,12 @@ impl InferTypes {
                                     start_length,
                                     Some(end_length),
                                     None,
-                                )
+                                )?
                             } else {
-                                self.type_checker
-                                    .get_type_arguments(source)
-                                    .get(0)
-                                    .map(Clone::clone)
+                                self.type_checker.get_type_arguments(source).get(0).cloned()
                             };
                             if let Some(rest_type) = rest_type.as_ref() {
-                                self.infer_from_types(rest_type, &element_types[start_length]);
+                                self.infer_from_types(rest_type, &element_types[start_length])?;
                             }
                         }
                     }
@@ -579,7 +576,12 @@ impl InferTypes {
         Ok(())
     }
 
-    pub(super) fn infer_from_signatures(&self, source: &Type, target: &Type, kind: SignatureKind) {
+    pub(super) fn infer_from_signatures(
+        &self,
+        source: &Type,
+        target: &Type,
+        kind: SignatureKind,
+    ) -> io::Result<()> {
         let source_signatures = self.type_checker.get_signatures_of_type(source, kind);
         let target_signatures = self.type_checker.get_signatures_of_type(target, kind);
         let source_len = source_signatures.len();
@@ -593,12 +595,14 @@ impl InferTypes {
         for i in 0..len {
             self.infer_from_signature(
                 self.type_checker
-                    .get_base_signature(source_signatures[source_len - len + i].clone()),
+                    .get_base_signature(source_signatures[source_len - len + i].clone())?,
                 self.type_checker
                     .get_erased_signature(target_signatures[target_len - len + i].clone()),
                 skip_parameters,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn infer_from_signature(
@@ -606,7 +610,7 @@ impl InferTypes {
         source: Gc<Signature>,
         target: Gc<Signature>,
         skip_parameters: bool,
-    ) {
+    ) -> io::Result<()> {
         if !skip_parameters {
             let save_bivariant = self.bivariant();
             let kind = if let Some(target_declaration) = target.declaration.as_ref() {
@@ -630,9 +634,11 @@ impl InferTypes {
             self.set_bivariant(save_bivariant);
         }
         self.type_checker
-            .apply_to_return_types(source, target, |s: &Type, t: &Type| {
+            .try_apply_to_return_types(source, target, |s: &Type, t: &Type| {
                 self.infer_from_types(s, t)
-            });
+            })?;
+
+        Ok(())
     }
 
     pub(super) fn infer_from_index_types(&self, source: &Type, target: &Type) -> io::Result<()> {
@@ -825,7 +831,7 @@ impl TypeChecker {
             && inference.top_level()
             && (inference.is_fixed()
                 || !self.is_type_parameter_at_top_level(
-                    &self.get_return_type_of_signature(signature),
+                    &*self.get_return_type_of_signature(signature)?,
                     &inference.type_parameter,
                 ));
         let base_candidates: Vec<_> = if primitive_constraint {
@@ -835,7 +841,7 @@ impl TypeChecker {
         } else if widen_literal_types {
             candidates
                 .map(|candidate| self.get_widened_literal_type(&candidate))
-                .collect()
+                .collect::<Result<Vec<_>, _>>()?
         } else {
             candidates.collect()
         };
@@ -851,7 +857,7 @@ impl TypeChecker {
                 Option::<&Type>::None,
             )?
         } else {
-            self.get_common_supertype(&base_candidates)
+            self.get_common_supertype(&base_candidates)?
         };
         Ok(self.get_widened_type(&unwidened_type))
     }
@@ -910,7 +916,7 @@ impl TypeChecker {
                     }
                 }
             } else {
-                inferred_type = self.get_type_from_inference(&inference);
+                inferred_type = self.get_type_from_inference(&inference)?;
             }
 
             *inference.maybe_inferred_type_mut() =

@@ -139,7 +139,7 @@ impl GetFlowTypeOfReference {
         }
         let mut prop_type = prop_type.unwrap();
         prop_type = if remove_nullable {
-            self.type_checker.get_optional_type_(&prop_type, None)
+            self.type_checker.get_optional_type_(&prop_type, None)?
         } else {
             prop_type
         };
@@ -179,7 +179,7 @@ impl GetFlowTypeOfReference {
             {
                 let candidate = self.type_checker.get_constituent_type_for_key_type(
                     type_,
-                    &self.type_checker.get_type_of_expression(value),
+                    &*self.type_checker.get_type_of_expression(value)?,
                 );
                 if let Some(candidate) = candidate.as_ref() {
                     return Ok(
@@ -617,7 +617,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         value: &Node, /*Expression*/
         assume_true: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let equals_operator = matches!(
             operator,
             SyntaxKind::EqualsEqualsToken | SyntaxKind::EqualsEqualsEqualsToken
@@ -630,7 +630,7 @@ impl GetFlowTypeOfReference {
         } else {
             TypeFlags::Undefined
         };
-        let value_type = self.type_checker.get_type_of_expression(value);
+        let value_type = self.type_checker.get_type_of_expression(value)?;
         let remove_nullable = equals_operator != assume_true
             && self
                 .type_checker
@@ -640,12 +640,12 @@ impl GetFlowTypeOfReference {
                     !t.flags()
                         .intersects(TypeFlags::AnyOrUnknown | nullable_flags)
                 });
-        if remove_nullable {
+        Ok(if remove_nullable {
             self.type_checker
                 .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn narrow_type_by_equality(
@@ -664,7 +664,7 @@ impl GetFlowTypeOfReference {
         ) {
             assume_true = !assume_true;
         }
-        let value_type = self.type_checker.get_type_of_expression(value);
+        let value_type = self.type_checker.get_type_of_expression(value)?;
         if assume_true
             && type_.flags().intersects(TypeFlags::Unknown)
             && matches!(

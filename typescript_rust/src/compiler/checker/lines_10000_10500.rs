@@ -723,21 +723,24 @@ impl TypeChecker {
             .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
     }
 
-    pub(super) fn is_late_bindable_name(&self, node: &Node /*DeclarationName*/) -> bool {
+    pub(super) fn is_late_bindable_name(
+        &self,
+        node: &Node, /*DeclarationName*/
+    ) -> io::Result<bool> {
         if !is_computed_property_name(node) && !is_element_access_expression(node) {
-            return false;
+            return Ok(false);
         }
         let expr = if is_computed_property_name(node) {
             &node.as_computed_property_name().expression
         } else {
             &node.as_element_access_expression().argument_expression
         };
-        is_entity_name_expression(expr)
+        Ok(is_entity_name_expression(expr)
             && self.is_type_usable_as_property_name(&*if is_computed_property_name(node) {
-                self.check_computed_property_name(node)
+                self.check_computed_property_name(node)?
             } else {
-                self.check_expression_cached(expr, None)
-            })
+                self.check_expression_cached(expr, None)?
+            }))
     }
 
     pub(super) fn is_late_bound_name(&self, name: &str /*__String*/) -> bool {

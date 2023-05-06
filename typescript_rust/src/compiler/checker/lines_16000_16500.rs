@@ -504,7 +504,7 @@ impl TypeChecker {
                         &*self.get_type_from_type_node_(&node_as_named_tuple_member.type_)?,
                         Some(true),
                         Some(node_as_named_tuple_member.question_token.is_some()),
-                    )
+                    )?
                 });
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
@@ -548,7 +548,7 @@ impl TypeChecker {
             SyntaxKind::ThisType | SyntaxKind::ThisKeyword => {
                 self.get_type_from_this_type_node(node)?
             }
-            SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node),
+            SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node)?,
             SyntaxKind::TypeReference => self.get_type_from_type_reference(node),
             SyntaxKind::TypePredicate => {
                 if node.as_type_predicate_node().asserts_modifier.is_some() {

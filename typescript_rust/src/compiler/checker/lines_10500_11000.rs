@@ -21,7 +21,7 @@ use crate::{
     Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
     SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
     Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    __String,
+    __String, try_some,
 };
 
 impl TypeChecker {
@@ -109,7 +109,7 @@ impl TypeChecker {
         early_symbols: Option<&SymbolTable>,
         late_symbols: &mut SymbolTable,
         decl: &Node, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
-    ) -> Gc<Symbol> {
+    ) -> io::Result<Gc<Symbol>> {
         Debug_.assert(
             decl.maybe_symbol().is_some(),
             Some("The member is expected to have a symbol."),
@@ -126,9 +126,9 @@ impl TypeChecker {
                 self.check_expression_cached(
                     &decl_name.as_element_access_expression().argument_expression,
                     None,
-                )
+                )?
             } else {
-                self.check_computed_property_name(&decl_name)
+                self.check_computed_property_name(&decl_name)?
             };
             if self.is_type_usable_as_property_name(&type_) {
                 let member_name = self.get_property_name_from_type(&type_);
@@ -208,18 +208,18 @@ impl TypeChecker {
                     late_symbol.set_parent(Some(parent.symbol_wrapper()));
                 }
                 links.borrow_mut().resolved_symbol = Some(late_symbol.clone());
-                return late_symbol;
+                return Ok(late_symbol);
             }
         }
         let ret = (*links).borrow().resolved_symbol.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_resolved_members_or_exports_of_symbol(
         &self,
         symbol: &Symbol,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> Gc<GcCell<SymbolTable>> {
+    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
         let links = self.get_symbol_links(symbol);
         if self
             .get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
@@ -229,7 +229,7 @@ impl TypeChecker {
             let early_symbols: Option<Gc<GcCell<SymbolTable>>> = if !is_static {
                 symbol.maybe_members().clone()
             } else if symbol.flags().intersects(SymbolFlags::Module) {
-                Some(self.get_exports_of_module_worker(symbol))
+                Some(self.get_exports_of_module_worker(symbol)?)
             } else {
                 symbol.maybe_exports().clone()
             };
@@ -307,8 +307,9 @@ impl TypeChecker {
                 )
             }
         }
-        self.get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
-            .unwrap()
+        Ok(self
+            .get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
+            .unwrap())
     }
 
     pub(super) fn get_symbol_links_members_or_exports_resolution_field_value(
@@ -392,7 +393,7 @@ impl TypeChecker {
         type_: &Type,
         this_argument: Option<impl Borrow<Type>>,
         need_apparent_type: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let this_argument =
             this_argument.map(|this_argument| this_argument.borrow().type_wrapper());
         if get_object_flags(type_).intersects(ObjectFlags::Reference) {
@@ -411,11 +412,11 @@ impl TypeChecker {
                         })],
                     )),
                 );
-                return if matches!(need_apparent_type, Some(true)) {
+                return Ok(if matches!(need_apparent_type, Some(true)) {
                     self.get_apparent_type(&ref_)
                 } else {
                     ref_
-                };
+                });
             }
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             let types = same_map(
@@ -428,20 +429,22 @@ impl TypeChecker {
                     )
                 },
             );
-            return if !are_gc_slices_equal(
-                &types,
-                type_.as_union_or_intersection_type_interface().types(),
-            ) {
-                self.get_intersection_type(&types, Option::<&Symbol>::None, None)
-            } else {
-                type_.type_wrapper()
-            };
+            return Ok(
+                if !are_gc_slices_equal(
+                    &types,
+                    type_.as_union_or_intersection_type_interface().types(),
+                ) {
+                    self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
+                } else {
+                    type_.type_wrapper()
+                },
+            );
         }
-        if matches!(need_apparent_type, Some(true)) {
+        Ok(if matches!(need_apparent_type, Some(true)) {
             self.get_apparent_type(type_)
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn resolve_object_type_members(
@@ -884,7 +887,7 @@ impl TypeChecker {
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         for s in signature_list {
             if self.compare_signatures_identical(
                 s.clone(),
@@ -899,12 +902,12 @@ impl TypeChecker {
                         self.compare_types_identical(source, target)
                     }
                 },
-            ) != Ternary::False
+            )? != Ternary::False
             {
-                return Some(s.clone());
+                return Ok(Some(s.clone()));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn find_matching_signatures(
@@ -1027,16 +1030,20 @@ impl TypeChecker {
                     let signature = signature.unwrap();
                     results = if matches!(
                         signature.maybe_type_parameters().as_ref(),
-                        Some(signature_type_parameters) if some(
+                        Some(signature_type_parameters) if try_some(
                             results.as_deref(),
-                            Some(|s: &Gc<Signature>| matches!(
-                                s.maybe_type_parameters().as_ref(),
-                                Some(s_type_parameters) if !self.compare_type_parameters_identical(
-                                    Some(signature_type_parameters),
-                                    Some(s_type_parameters),
+                            Some(|s: &Gc<Signature>| -> io::Result<bool> {
+                                Ok(
+                                    matches!(
+                                        s.maybe_type_parameters().as_ref(),
+                                        Some(s_type_parameters) if !self.compare_type_parameters_identical(
+                                            Some(signature_type_parameters),
+                                            Some(s_type_parameters),
+                                        )?
+                                    )
                                 )
-                            ))
-                        )
+                            })
+                        )?
                     ) {
                         None
                     } else {

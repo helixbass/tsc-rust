@@ -759,11 +759,11 @@ impl TypeChecker {
         cached_types
     }
 
-    pub(super) fn get_iteration_types_of_iterable<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_iteration_types_of_iterable(
         &self,
         type_: &Type,
         use_: IterationUse,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
     ) -> Option<Gc<IterationTypes>> {
         if self.is_type_any(Some(type_)) {
             return Some(self.any_iteration_types());

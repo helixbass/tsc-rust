@@ -15,8 +15,9 @@ use crate::{
     is_shorthand_property_assignment, is_spread_element, is_template_span, map,
     parse_pseudo_big_int, skip_parentheses, some, ContextFlags, Diagnostics, ElementFlags,
     InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Matches,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, PseudoBigInt, SignatureKind, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, PseudoBigInt,
+    SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -131,10 +132,10 @@ impl TypeChecker {
         widened
     }
 
-    pub(super) fn is_literal_of_contextual_type<TContextualType: Borrow<Type>>(
+    pub(super) fn is_literal_of_contextual_type(
         &self,
         candidate_type: &Type,
-        contextual_type: Option<TContextualType>,
+        contextual_type: Option<impl Borrow<Type>>,
     ) -> bool {
         if let Some(contextual_type) = contextual_type {
             let contextual_type = contextual_type.borrow();
@@ -224,7 +225,7 @@ impl TypeChecker {
                 &type_,
                 self.instantiate_contextual_type(
                     if contextual_type.is_none() {
-                        self.get_contextual_type_(node, None)
+                        self.get_contextual_type_(node, None)?
                     } else {
                         Some(contextual_type.unwrap().borrow().type_wrapper())
                     },
@@ -239,10 +240,10 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAssignment*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_property_assignment = node.as_property_assignment();
         if node_as_property_assignment.name().kind() == SyntaxKind::ComputedPropertyName {
-            self.check_computed_property_name(&node_as_property_assignment.name());
+            self.check_computed_property_name(&node_as_property_assignment.name())?;
         }
         self.check_expression_for_mutable_location(
             &node_as_property_assignment.initializer,
@@ -278,7 +279,7 @@ impl TypeChecker {
         node: &Node, /*Expression | MethodDeclaration | QualifiedName*/
         type_: &Type,
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if let Some(check_mode) = check_mode.filter(|check_mode| {
             check_mode.intersects(CheckMode::Inferential | CheckMode::SkipGenericFunctions)
         }) {
@@ -313,12 +314,13 @@ impl TypeChecker {
                     {
                         if check_mode.intersects(CheckMode::SkipGenericFunctions) {
                             self.skipped_generic_function(node, check_mode);
-                            return self.any_function_type();
+                            return Ok(self.any_function_type());
                         }
                         let context = self.get_inference_context(node).unwrap();
-                        let return_type = context.signature.as_ref().map(|context_signature| {
-                            self.get_return_type_of_signature(context_signature.clone())
-                        });
+                        let return_type =
+                            context.signature.as_ref().try_map(|context_signature| {
+                                self.get_return_type_of_signature(context_signature.clone())
+                            })?;
                         let return_signature = return_type.as_ref().and_then(|return_type| {
                             self.get_single_call_or_construct_signature(return_type)
                         });
@@ -387,24 +389,25 @@ impl TypeChecker {
                                             unique_type_parameters,
                                         ));
                                     }
-                                    return self
-                                        .get_or_create_type_from_signature(instantiated_signature);
+                                    return Ok(self.get_or_create_type_from_signature(
+                                        instantiated_signature,
+                                    ));
                                 }
                             }
                         }
-                        return self.get_or_create_type_from_signature(
+                        return Ok(self.get_or_create_type_from_signature(
                             self.instantiate_signature_in_context_of(
                                 signature.clone(),
                                 contextual_signature.clone(),
                                 Some(&context),
                                 None,
                             ),
-                        );
+                        ));
                     }
                 }
             }
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn skipped_generic_function(&self, node: &Node, check_mode: CheckMode) {
@@ -543,11 +546,11 @@ impl TypeChecker {
     pub(super) fn get_return_type_of_single_non_generic_call_signature(
         &self,
         func_type: &Type,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let signature = self.get_single_call_signature(func_type);
         signature
             .filter(|signature| signature.maybe_type_parameters().is_none())
-            .map(|signature| self.get_return_type_of_signature(signature))
+            .try_map(|signature| self.get_return_type_of_signature(signature))
     }
 
     pub(super) fn get_return_type_of_single_non_generic_signature_of_call_chain(
@@ -572,7 +575,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
     ) -> io::Result<Gc<Type>> {
-        let quick_type = self.get_quick_type_of_expression(node);
+        let quick_type = self.get_quick_type_of_expression(node)?;
         if let Some(quick_type) = quick_type {
             return Ok(quick_type);
         }
@@ -616,10 +619,10 @@ impl TypeChecker {
             && !self.is_symbol_or_symbol_for_call(&expr)
         {
             let type_ = if is_call_chain(&expr) {
-                self.get_return_type_of_single_non_generic_signature_of_call_chain(&expr)
+                self.get_return_type_of_single_non_generic_signature_of_call_chain(&expr)?
             } else {
                 self.get_return_type_of_single_non_generic_call_signature(
-                    &self.check_non_null_expression(&expr.as_call_expression().expression),
+                    &*self.check_non_null_expression(&expr.as_call_expression().expression)?,
                 )
             };
             if type_.is_some() {
@@ -779,7 +782,7 @@ impl TypeChecker {
         Ok(match kind {
             SyntaxKind::Identifier => self.check_identifier(node, check_mode)?,
             SyntaxKind::PrivateIdentifier => self.check_private_identifier_expression(node),
-            SyntaxKind::ThisKeyword => self.check_this_expression(node),
+            SyntaxKind::ThisKeyword => self.check_this_expression(node)?,
             SyntaxKind::SuperKeyword => self.check_super_expression(node),
             SyntaxKind::NullKeyword => self.null_widening_type(),
             SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::StringLiteral => self
@@ -823,7 +826,7 @@ impl TypeChecker {
             SyntaxKind::NewExpression => self.check_call_expression(node, check_mode),
             SyntaxKind::TaggedTemplateExpression => self.check_tagged_template_expression(node),
             SyntaxKind::ParenthesizedExpression => {
-                self.check_parenthesized_expression(node, check_mode)
+                self.check_parenthesized_expression(node, check_mode)?
             }
             SyntaxKind::ClassExpression => self.check_class_expression(node),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
@@ -842,7 +845,7 @@ impl TypeChecker {
             SyntaxKind::PostfixUnaryExpression => self.check_postfix_unary_expression(node),
             SyntaxKind::BinaryExpression => self.check_binary_expression().call(node, check_mode),
             SyntaxKind::ConditionalExpression => {
-                self.check_conditional_expression(node, check_mode)
+                self.check_conditional_expression(node, check_mode)?
             }
             SyntaxKind::SpreadElement => self.check_spread_expression(node, check_mode),
             SyntaxKind::OmittedExpression => self.undefined_widening_type(),

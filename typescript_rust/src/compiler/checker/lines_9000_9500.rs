@@ -93,14 +93,14 @@ impl TypeChecker {
             } else {
                 self.unknown_type()
             };
-            return Ok(self.add_optionality(
+            return self.add_optionality(
                 &self.widen_type_inferred_from_initializer(
                     element,
                     &*self.check_declaration_initializer(element, Some(contextual_type))?,
                 ),
                 None,
                 None,
-            ));
+            );
         }
         if is_binding_pattern(Some(element_as_binding_element.name())) {
             return self.get_type_from_binding_pattern(
@@ -149,7 +149,7 @@ impl TypeChecker {
                     return Ok(Option::<()>::None);
                 }
 
-                let expr_type = self.get_literal_type_from_property_name(&name);
+                let expr_type = self.get_literal_type_from_property_name(&name)?;
                 if !self.is_type_usable_as_property_name(&expr_type) {
                     object_flags |= ObjectFlags::ObjectLiteralPatternWithComputedProperties;
                     return Ok(Option::<()>::None);
@@ -483,7 +483,7 @@ impl TypeChecker {
                 return Ok(self.empty_object_type());
             }
             return Ok(self.get_widened_type(
-                &self.get_widened_literal_type(
+                &*self.get_widened_literal_type(
                     &*self.check_expression(
                         &declaration_as_source_file.statements()[0]
                             .as_expression_statement()
@@ -491,7 +491,7 @@ impl TypeChecker {
                         None,
                         None,
                     )?,
-                ),
+                )?,
             ));
         }
 
@@ -511,12 +511,12 @@ impl TypeChecker {
             type_ = self.widen_type_for_variable_like_declaration(
                 Some(
                     self.try_get_type_from_effective_type_node(declaration)?
-                        .unwrap_or_else(|| {
+                        .try_unwrap_or_else(|| {
                             self.check_expression_cached(
                                 &declaration.as_export_assignment().expression,
                                 None,
                             )
-                        }),
+                        })?,
                 ),
                 declaration,
                 None,
@@ -563,18 +563,18 @@ impl TypeChecker {
         } else if is_jsx_attribute(declaration) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
-                .unwrap_or_else(|| self.check_jsx_attribute(declaration, None));
+                .try_unwrap_or_else(|| self.check_jsx_attribute(declaration, None))?;
         } else if is_shorthand_property_assignment(declaration) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
-                .unwrap_or_else(|| {
+                .try_unwrap_or_else(|| {
                     self.check_expression_for_mutable_location(
                         &declaration.as_shorthand_property_assignment().name(),
                         Some(CheckMode::Normal),
                         Option::<&Type>::None,
                         None,
                     )
-                });
+                })?;
         } else if is_object_literal_method(declaration) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?

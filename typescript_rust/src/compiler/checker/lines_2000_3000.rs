@@ -1786,7 +1786,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Symbol>>> {
         if is_class_expression(expression) {
             return Ok(self
-                .check_expression_cached(expression, None)
+                .check_expression_cached(expression, None)?
                 .maybe_symbol());
         }
         if !is_entity_name(expression) && !is_entity_name_expression(expression) {

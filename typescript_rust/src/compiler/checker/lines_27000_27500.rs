@@ -220,17 +220,19 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxAttribute*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
-        if let Some(node_initializer) = node.as_jsx_attribute().initializer.as_ref() {
-            self.check_expression_for_mutable_location(
-                node_initializer,
-                check_mode,
-                Option::<&Type>::None,
-                None,
-            )
-        } else {
-            self.true_type()
-        }
+    ) -> io::Result<Gc<Type>> {
+        Ok(
+            if let Some(node_initializer) = node.as_jsx_attribute().initializer.as_ref() {
+                self.check_expression_for_mutable_location(
+                    node_initializer,
+                    check_mode,
+                    Option::<&Type>::None,
+                    None,
+                )?
+            } else {
+                self.true_type()
+            },
+        )
     }
 
     pub(super) fn create_jsx_attributes_type_from_attributes_property(
@@ -328,10 +330,10 @@ impl TypeChecker {
                     *attributes_table.borrow_mut() =
                         create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 }
-                let expr_type = self.get_reduced_type(&self.check_expression_cached(
+                let expr_type = self.get_reduced_type(&*self.check_expression_cached(
                     &attribute_decl.as_jsx_spread_attribute().expression,
                     check_mode,
-                ));
+                )?);
                 if self.is_type_any(Some(&*expr_type)) {
                     has_spread_any_type = true;
                 }
@@ -437,10 +439,10 @@ impl TypeChecker {
                         children_types[0].clone()
                     } else if matches!(
                         children_contextual_type.as_ref(),
-                        Some(children_contextual_type) if self.some_type(
+                        Some(children_contextual_type) if self.try_some_type(
                             children_contextual_type,
                             |type_: &Type| self.is_tuple_like_type(type_)
-                        )
+                        )?
                     ) {
                         self.create_tuple_type(&children_types, None, None, None)
                     } else {
@@ -551,7 +553,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxElement | JsxFragment*/
         check_mode: Option<CheckMode>,
-    ) -> Vec<Gc<Type>> {
+    ) -> io::Result<Vec<Gc<Type>>> {
         let mut children_types: Vec<Gc<Type>> = vec![];
         for child in &node.as_has_children().children() {
             if child.kind() == SyntaxKind::JsxText {
@@ -568,10 +570,10 @@ impl TypeChecker {
                     check_mode,
                     Option::<&Type>::None,
                     None,
-                ));
+                )?);
             }
         }
-        children_types
+        Ok(children_types)
     }
 
     pub(super) fn check_spread_prop_overrides(

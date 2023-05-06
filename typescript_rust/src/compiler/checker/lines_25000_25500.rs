@@ -490,7 +490,7 @@ impl TypeChecker {
                         .and_then(|interface_type| interface_type.maybe_this_type());
                 }
                 if this_type.is_none() {
-                    this_type = self.get_contextual_this_parameter_type(&container);
+                    this_type = self.get_contextual_this_parameter_type(&container)?;
                 }
             }
 

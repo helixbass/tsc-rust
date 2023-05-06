@@ -854,7 +854,7 @@ impl TypeChecker {
                     ) {
                         Some(self.get_type_of_expression(
                             &parent_as_element_access_expression.expression,
-                        ))
+                        )?)
                     } else {
                         None
                     }
@@ -884,7 +884,7 @@ impl TypeChecker {
                     ) {
                         Some(self.get_type_of_expression(
                             &parent_as_element_access_expression.expression,
-                        ))
+                        )?)
                     } else {
                         None
                     }

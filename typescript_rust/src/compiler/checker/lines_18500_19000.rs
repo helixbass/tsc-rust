@@ -361,9 +361,9 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         if self.overflow() {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         let id = self.type_checker.get_relation_key(
             source,
@@ -408,11 +408,11 @@ impl CheckTypeRelatedTo {
                         );
                     }
                 }
-                return if entry.intersects(RelationComparisonResult::Succeeded) {
+                return Ok(if entry.intersects(RelationComparisonResult::Succeeded) {
                     Ternary::True
                 } else {
                     Ternary::False
-                };
+                });
             }
         }
         if self.maybe_keys().is_none() {
@@ -442,12 +442,12 @@ impl CheckTypeRelatedTo {
                     self.maybe_keys().as_ref().unwrap().get(i),
                     Some(maybe_key) if &id == maybe_key || &broadest_equivalent_id == maybe_key
                 ) {
-                    return Ternary::Maybe;
+                    return Ok(Ternary::Maybe);
                 }
             }
             if self.source_depth() == 100 || self.target_depth() == 100 {
                 self.set_overflow(true);
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
         let maybe_start = self.maybe_count();
@@ -516,7 +516,7 @@ impl CheckTypeRelatedTo {
         }
 
         let result = if self.expanding_flags() != ExpandingFlags::Both {
-            self.structured_type_related_to(source, target, report_errors, intersection_state)
+            self.structured_type_related_to(source, target, report_errors, intersection_state)?
         } else {
             Ternary::Maybe
         };
@@ -575,7 +575,7 @@ impl CheckTypeRelatedTo {
                 .unwrap()
                 .truncate(self.maybe_count());
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn structured_type_related_to(
@@ -1011,7 +1011,7 @@ impl CheckTypeRelatedTo {
                         );
                         let mut mapped_keys: Vec<Gc<Type>> = vec![];
                         self.type_checker
-                            .for_each_mapped_type_property_key_type_and_index_signature_key_type(
+                            .try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
                                 &modifiers_type,
                                 TypeFlags::StringOrNumberLiteralOrUnique,
                                 false,
@@ -1032,8 +1032,10 @@ impl CheckTypeRelatedTo {
                                             )),
                                         )?,
                                     );
+
+                                    Ok(())
                                 },
-                            );
+                            )?;
                         mapped_keys.push(name_type.clone());
                         target_keys = self.type_checker.get_union_type(
                             &mapped_keys,

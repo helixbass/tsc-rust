@@ -192,7 +192,7 @@ impl TypeChecker {
         self.check_source_element(body.as_deref());
         self.check_all_code_paths_in_non_void_function_return_or_throw(
             node,
-            self.get_return_type_from_annotation(node),
+            self.get_return_type_from_annotation(node)?,
         );
 
         if self.produce_diagnostics && get_effective_return_type_node(node).is_none() {

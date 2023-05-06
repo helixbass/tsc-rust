@@ -793,7 +793,10 @@ impl TypeChecker {
             }
     }
 
-    pub(super) fn is_simple_literal_enum_reference(&self, expr: &Node /*Expression*/) -> bool {
+    pub(super) fn is_simple_literal_enum_reference(
+        &self,
+        expr: &Node, /*Expression*/
+    ) -> io::Result<bool> {
         if (is_property_access_expression(expr)
             || is_element_access_expression(expr)
                 && self.is_string_or_number_literal_expression(
@@ -801,12 +804,11 @@ impl TypeChecker {
                 ))
             && is_entity_name_expression(&expr.as_has_expression().expression())
         {
-            return self
-                .check_expression_cached(expr, None)
+            return Ok(self.check_expression_cached(expr, None))?
                 .flags()
                 .intersects(TypeFlags::EnumLiteral);
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_ambient_initializer(

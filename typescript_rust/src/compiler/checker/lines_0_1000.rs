@@ -1381,8 +1381,8 @@ fn sync_iteration_types_resolver_resolve_iteration_type(
     _type_checker: &TypeChecker,
     type_: &Type,
     _error_node: Option<Gc<Node>>,
-) -> Option<Gc<Type>> {
-    Some(type_.type_wrapper())
+) -> io::Result<Option<Gc<Type>>> {
+    Ok(Some(type_.type_wrapper()))
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -2145,12 +2145,14 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*CallLikeExpression*/
         arg_index: usize,
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_none_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_call_like_expression(node)),
-        )?;
-        Some(self.get_contextual_type_for_argument_at_index_(&node, arg_index))
+        ));
+        Ok(Some(self.get_contextual_type_for_argument_at_index_(
+            &node, arg_index,
+        )?))
     }
 
     pub fn get_contextual_type_for_jsx_attribute(
@@ -2207,17 +2209,17 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*QualifiedName | PropertyAccessExpression | ImportTypeNode*/
         property_name: &str,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_property_access_or_qualified_name_or_import_type_node(node)),
         );
-        match node {
+        Ok(match node {
             None => false,
             Some(node) => {
-                self.is_valid_property_access_(&node, &escape_leading_underscores(property_name))
+                self.is_valid_property_access_(&node, &escape_leading_underscores(property_name))?
             }
-        }
+        })
     }
 
     pub fn is_valid_property_access_for_completions(
