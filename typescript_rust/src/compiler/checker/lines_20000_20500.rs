@@ -11,7 +11,7 @@ use crate::{
     OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
     for_each_bool, get_check_flags, get_selected_effective_modifier_flags, maybe_map, some,
     try_filter, CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node, ObjectFlags,
-    ObjectFlagsTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags,
+    ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, Signature, Symbol, SymbolFlags,
     SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, VarianceFlags,
 };
@@ -269,15 +269,15 @@ impl TypeChecker {
         if self.is_tuple_type(source) && self.is_tuple_type(target) {
             return Ok(vec![]);
         }
-        Ok(try_filter(
-            &self.get_properties_of_type(target),
+        try_filter(
+            &self.get_properties_of_type(target)?,
             |target_prop: &Gc<Symbol>| -> io::Result<_> {
                 Ok(self.is_exact_optional_property_mismatch(
                     self.get_type_of_property_of_type_(source, target_prop.escaped_name())?,
                     Some(self.get_type_of_symbol(target_prop)?),
                 ))
             },
-        ))
+        )
     }
 
     pub(super) fn is_exact_optional_property_mismatch<
@@ -298,13 +298,13 @@ impl TypeChecker {
         self.maybe_type_of_kind(source, TypeFlags::Undefined) && self.contains_missing_type(target)
     }
 
-    pub fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Gc<Symbol>> {
-        self.get_properties_of_type(type_)
-            .into_iter()
-            .filter(|target_prop: &Gc<Symbol>| {
-                self.contains_missing_type(&self.get_type_of_symbol(target_prop))
-            })
-            .collect()
+    pub fn get_exact_optional_properties(&self, type_: &Type) -> io::Result<Vec<Gc<Symbol>>> {
+        try_filter(
+            &self.get_properties_of_type(type_)?,
+            |target_prop: &Gc<Symbol>| {
+                Ok(self.contains_missing_type(&*self.get_type_of_symbol(target_prop)?))
+            },
+        )
     }
 
     pub(super) fn get_best_matching_type(
@@ -331,7 +331,7 @@ impl TypeChecker {
         mut related: impl FnMut(&Type, &Type) -> bool,
         default_value: Option<impl Borrow<Type>>,
         skip_partial: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let target_as_union_type = target.as_union_type();
         let target_types = target_as_union_type.types();
         let mut discriminable: Vec<Option<bool>> = target_types
@@ -350,7 +350,7 @@ impl TypeChecker {
             }
             let mut i = 0;
             for type_ in target_types {
-                let target_type = self.get_type_of_property_of_type_(type_, property_name);
+                let target_type = self.get_type_of_property_of_type_(type_, property_name)?;
                 if matches!(
                     target_type.as_ref(),
                     Some(target_type) if related(&get_discriminating_type(), target_type)
@@ -370,7 +370,7 @@ impl TypeChecker {
         let default_value =
             default_value.map(|default_value| default_value.borrow().type_wrapper());
         if match_.is_none() {
-            return default_value;
+            return Ok(default_value);
         }
         let match_ = match_.unwrap();
         let mut next_match = discriminable
@@ -381,7 +381,7 @@ impl TypeChecker {
         while let Some(next_match_present) = next_match {
             if !self.is_type_identical_to(&target_types[match_], &target_types[next_match_present])
             {
-                return default_value;
+                return Ok(default_value);
             }
             next_match = discriminable
                 .iter()
@@ -389,7 +389,7 @@ impl TypeChecker {
                 .position(|item| *item == Some(true))
                 .map(|position| position + next_match_present + 1);
         }
-        Some(target_types[match_].clone())
+        Ok(Some(target_types[match_].clone()))
     }
 
     pub(super) fn is_weak_type(&self, type_: &Type) -> bool {
@@ -419,13 +419,13 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         is_comparing_jsx_attributes: bool,
-    ) -> bool {
-        for ref prop in self.get_properties_of_type(source) {
+    ) -> io::Result<bool> {
+        for ref prop in self.get_properties_of_type(source)? {
             if self.is_known_property(target, prop.escaped_name(), is_comparing_jsx_attributes) {
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_marker_type_reference(
@@ -453,13 +453,16 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_alias_variances(&self, symbol: &Symbol) -> Vec<VarianceFlags> {
+    pub(super) fn get_alias_variances(&self, symbol: &Symbol) -> io::Result<Vec<VarianceFlags>> {
         let links = self.get_symbol_links(symbol);
         let links_type_parameters = (*links).borrow().type_parameters.clone();
-        let ret = self.get_variances_worker(
+        let ret = self.try_get_variances_worker(
             links_type_parameters.as_deref(),
             links.clone(),
-            |_links: &GetVariancesCache, param: &Type /*TypeParameter*/, marker: &Type| {
+            |_links: &GetVariancesCache,
+             param: &Type, /*TypeParameter*/
+             marker: &Type|
+             -> io::Result<_> {
                 let type_ = self.get_type_alias_instantiation(
                     symbol,
                     self.instantiate_types(
@@ -469,27 +472,48 @@ impl TypeChecker {
                         }
                         .as_deref(),
                         Some(Gc::new(self.make_unary_type_mapper(param, marker))),
-                    )
+                    )?
                     .as_deref(),
                     Option::<&Symbol>::None,
                     None,
                 );
                 type_.set_alias_type_arguments_contains_marker(Some(true));
-                type_
+                Ok(type_)
             },
-        );
-        ret
+        )?;
+        Ok(ret)
     }
 
-    pub(super) fn get_variances_worker<
-        TCache: Into<GetVariancesCache>,
-        TCreateMarkerType: FnMut(&GetVariancesCache, &Type /*TypeParameter*/, &Type) -> Gc<Type>,
-    >(
+    pub(super) fn get_variances_worker(
         &self,
         type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
-        cache: TCache,
-        mut create_marker_type: TCreateMarkerType,
+        cache: impl Into<GetVariancesCache>,
+        mut create_marker_type: impl FnMut(
+            &GetVariancesCache,
+            &Type, /*TypeParameter*/
+            &Type,
+        ) -> Gc<Type>,
     ) -> Vec<VarianceFlags> {
+        self.try_get_variances_worker(
+            type_parameters,
+            cache,
+            |a: &GetVariancesCache, b: &Type, c: &Type| -> Result<_, ()> {
+                Ok(create_marker_type(a, b, c))
+            },
+        )
+        .unwrap()
+    }
+
+    pub(super) fn try_get_variances_worker(
+        &self,
+        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
+        cache: impl Into<GetVariancesCache>,
+        mut create_marker_type: impl FnMut(
+            &GetVariancesCache,
+            &Type, /*TypeParameter*/
+            &Type,
+        ) -> io::Result<Gc<Type>>,
+    ) -> io::Result<Vec<VarianceFlags>> {
         let type_parameters = type_parameters.map_or_else(|| vec![], ToOwned::to_owned);
         let cache = cache.into();
         if (*cache.maybe_variances()).borrow().is_none() {
@@ -506,8 +530,8 @@ impl TypeChecker {
                         unreliable.clone(),
                     ),
                 ))));
-                let type_with_super = create_marker_type(&cache, tp, &self.marker_super_type());
-                let type_with_sub = create_marker_type(&cache, tp, &self.marker_sub_type());
+                let type_with_super = create_marker_type(&cache, tp, &self.marker_super_type())?;
+                let type_with_sub = create_marker_type(&cache, tp, &self.marker_sub_type())?;
                 let mut variance =
                     if self.is_type_assignable_to(&type_with_sub, &type_with_super) {
                         VarianceFlags::Covariant
@@ -520,7 +544,7 @@ impl TypeChecker {
                     };
                 if variance == VarianceFlags::Bivariant
                     && self.is_type_assignable_to(
-                        &create_marker_type(&cache, tp, &self.marker_other_type()),
+                        &create_marker_type(&cache, tp, &self.marker_other_type())?,
                         &type_with_super,
                     )
                 {
@@ -541,7 +565,7 @@ impl TypeChecker {
             // tracing?.pop();
         }
         let ret = (*cache.maybe_variances()).borrow().clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_variances(&self, type_: &Type /*GenericType*/) -> Vec<VarianceFlags> {
@@ -690,7 +714,9 @@ impl TypeChecker {
                 .types()
             {
                 let p = self.get_property_of_type_(t, prop.escaped_name(), None)?;
-                let result = p.as_ref().and_then(|p| self.for_each_property(p, callback));
+                let result = p
+                    .as_ref()
+                    .try_and_then(|p| self.for_each_property(p, callback))?;
                 if result.is_some() {
                     return Ok(result);
                 }
@@ -704,31 +730,38 @@ impl TypeChecker {
         &self,
         prop: &Symbol,
         callback: &mut impl FnMut(&Symbol) -> bool,
-    ) -> bool {
-        self.for_each_property(prop, &mut |symbol: &Symbol| {
-            if callback(symbol) {
-                Some(())
-            } else {
-                None
-            }
-        })
-        .is_some()
+    ) -> io::Result<bool> {
+        Ok(self
+            .for_each_property(prop, &mut |symbol: &Symbol| {
+                if callback(symbol) {
+                    Some(())
+                } else {
+                    None
+                }
+            })?
+            .is_some())
     }
 
-    pub(super) fn get_declaring_class(&self, prop: &Symbol) -> Option<Gc<Type /*InterfaceType*/>> {
+    pub(super) fn get_declaring_class(
+        &self,
+        prop: &Symbol,
+    ) -> io::Result<Option<Gc<Type /*InterfaceType*/>>> {
         prop.maybe_parent()
             .filter(|prop_parent| prop_parent.flags().intersects(SymbolFlags::Class))
-            .map(|_prop_parent| {
+            .try_map(|_prop_parent| {
                 self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prop).unwrap())
             })
     }
 
-    pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Gc<Type>> {
+    pub(super) fn get_type_of_property_in_base_class(
+        &self,
+        property: &Symbol,
+    ) -> io::Result<Option<Gc<Type>>> {
         let class_type = self.get_declaring_class(property);
         let base_class_type = class_type
             .as_ref()
             .and_then(|class_type| self.get_base_types(class_type).get(0).map(Clone::clone));
-        base_class_type.as_ref().and_then(|base_class_type| {
+        base_class_type.as_ref().try_and_then(|base_class_type| {
             self.get_type_of_property_of_type_(base_class_type, property.escaped_name())
         })
     }
@@ -854,14 +887,14 @@ impl TypeChecker {
         }) != Ternary::False
     }
 
-    pub(super) fn compare_properties<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
+    pub(super) fn compare_properties(
         &self,
         source_prop: &Symbol,
         target_prop: &Symbol,
-        mut compare_types: TCompareTypes,
-    ) -> Ternary {
+        mut compare_types: impl FnMut(&Type, &Type) -> Ternary,
+    ) -> io::Result<Ternary> {
         if ptr::eq(source_prop, target_prop) {
-            return Ternary::True;
+            return Ok(Ternary::True);
         }
         let source_prop_accessibility =
             get_declaration_modifier_flags_from_symbol(source_prop, None)
@@ -870,29 +903,29 @@ impl TypeChecker {
             get_declaration_modifier_flags_from_symbol(target_prop, None)
                 & ModifierFlags::NonPublicAccessibilityModifier;
         if source_prop_accessibility != target_prop_accessibility {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         if source_prop_accessibility != ModifierFlags::None {
             if !Gc::ptr_eq(
                 &self.get_target_symbol(source_prop),
                 &self.get_target_symbol(target_prop),
             ) {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         } else {
             if source_prop.flags() & SymbolFlags::Optional
                 != target_prop.flags() & SymbolFlags::Optional
             {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
         if self.is_readonly_symbol(source_prop) != self.is_readonly_symbol(target_prop) {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
-        return compare_types(
-            &self.get_type_of_symbol(source_prop),
-            &self.get_type_of_symbol(target_prop),
-        );
+        Ok(compare_types(
+            &*self.get_type_of_symbol(source_prop)?,
+            &*self.get_type_of_symbol(target_prop)?,
+        ))
     }
 
     pub(super) fn is_matching_signature(

@@ -66,7 +66,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         symbols: &mut SymbolTable,
         is_static_symbol: &mut bool,
-    ) {
+    ) -> io::Result<()> {
         while let Some(location_present) = location.as_ref() {
             if let Some(location_locals) = location_present.maybe_locals().clone() {
                 if !self.is_global_source_file(location_present) {
@@ -110,7 +110,7 @@ impl TypeChecker {
                             symbols,
                             &(*self.get_members_of_symbol(
                                 &self.get_symbol_of_node(location_present).unwrap(),
-                            ))
+                            )?)
                             .borrow(),
                             meaning & SymbolFlags::Type,
                         );
@@ -122,7 +122,7 @@ impl TypeChecker {
                             symbols,
                             &(*self.get_members_of_symbol(
                                 &self.get_symbol_of_node(location_present).unwrap(),
-                            ))
+                            )?)
                             .borrow(),
                             meaning & SymbolFlags::Type,
                         );
@@ -146,6 +146,8 @@ impl TypeChecker {
         }
 
         self.copy_symbols(symbols, &self.globals(), meaning);
+
+        Ok(())
     }
 
     pub(super) fn copy_symbol(

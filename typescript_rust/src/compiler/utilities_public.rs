@@ -447,21 +447,28 @@ pub fn find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>>(
     node: Option<impl Borrow<Node>>,
     mut callback: impl FnMut(&Node) -> TCallbackReturn,
 ) -> Option<Gc<Node>> {
+    try_find_ancestor(node, |node: &Node| -> Result<_, ()> { Ok(callback(node)) }).unwrap()
+}
+
+pub fn try_find_ancestor<TCallbackReturn: Into<FindAncestorCallbackReturn>, TError>(
+    node: Option<impl Borrow<Node>>,
+    mut callback: impl FnMut(&Node) -> Result<TCallbackReturn, TError>,
+) -> Result<Option<Gc<Node>>, TError> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
     while let Some(rc_node_ref) = node.as_ref() {
-        let result = callback(&**rc_node_ref).into();
+        let result = callback(&**rc_node_ref)?.into();
         match result {
             FindAncestorCallbackReturn::Quit => {
-                return None;
+                return Ok(None);
             }
             FindAncestorCallbackReturn::Bool(result) if result => {
-                return node;
+                return Ok(node);
             }
             _ => (),
         }
         node = rc_node_ref.maybe_parent();
     }
-    None
+    Ok(None)
 }
 
 pub fn is_parse_tree_node(node: &Node) -> bool {

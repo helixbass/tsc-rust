@@ -556,11 +556,11 @@ impl TypeChecker {
         &self,
         node: &Node, /*DeclarationName*/
         message: &'static DiagnosticMessage,
-    ) -> bool {
-        if self.is_non_bindable_dynamic_name(node) {
-            return self.grammar_error_on_node(node, message, None);
+    ) -> io::Result<bool> {
+        if self.is_non_bindable_dynamic_name(node)? {
+            return Ok(self.grammar_error_on_node(node, message, None));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_grammar_method(
@@ -804,9 +804,10 @@ impl TypeChecker {
                 ))
             && is_entity_name_expression(&expr.as_has_expression().expression())
         {
-            return Ok(self.check_expression_cached(expr, None))?
+            return Ok(self
+                .check_expression_cached(expr, None)?
                 .flags()
-                .intersects(TypeFlags::EnumLiteral);
+                .intersects(TypeFlags::EnumLiteral));
         }
         Ok(false)
     }
@@ -814,12 +815,12 @@ impl TypeChecker {
     pub(super) fn check_ambient_initializer(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let initializer = node.as_has_initializer().maybe_initializer();
         if let Some(initializer) = initializer.as_ref() {
             let is_invalid_initializer = !(self
                 .is_string_or_number_literal_expression(initializer)
-                || self.is_simple_literal_enum_reference(initializer)
+                || self.is_simple_literal_enum_reference(initializer)?
                 || matches!(
                     initializer.kind(),
                     SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword
@@ -829,28 +830,28 @@ impl TypeChecker {
                 || is_variable_declaration(node) && is_var_const(node);
             if is_const_or_readonly && node.as_has_type().maybe_type().is_none() {
                 if is_invalid_initializer {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         initializer,
                         &Diagnostics::A_const_initializer_in_an_ambient_context_must_be_a_string_or_numeric_literal_or_literal_enum_reference,
                         None,
-                    );
+                    ));
                 }
             } else {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     initializer,
                     &Diagnostics::Initializers_are_not_allowed_in_ambient_contexts,
                     None,
-                );
+                ));
             }
             if !is_const_or_readonly || is_invalid_initializer {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     initializer,
                     &Diagnostics::Initializers_are_not_allowed_in_ambient_contexts,
                     None,
-                );
+                ));
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_grammar_variable_declaration(

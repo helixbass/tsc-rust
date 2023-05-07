@@ -50,7 +50,7 @@ impl TypeChecker {
         require_optional_properties: bool,
         match_discriminant_properties: bool,
     ) -> io::Result<Vec<Gc<Symbol>>> {
-        let properties = self.get_properties_of_type(target);
+        let properties = self.get_properties_of_type(target)?;
         let mut ret: Vec<Gc<Symbol>> = vec![];
         for ref target_prop in properties {
             if self.is_static_private_identifier_property(target_prop) {

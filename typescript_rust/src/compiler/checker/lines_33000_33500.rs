@@ -122,7 +122,7 @@ impl TypeChecker {
         left_type: &Type,
         right: &Node,
         value_type: &Type,
-    ) {
+    ) -> io::Result<()> {
         if self.produce_diagnostics && is_assignment_operator(operator) {
             if self.check_reference_expression(
                 left,
@@ -141,7 +141,7 @@ impl TypeChecker {
                     let target = self.get_type_of_property_of_type_(
                         &self.get_type_of_expression(&left_as_property_access_expression.expression),
                         &left_as_property_access_expression.name.as_member_name().escaped_text()
-                    );
+                    )?;
                     if self.is_exact_optional_property_mismatch(
                         Some(value_type),
                         target
@@ -159,6 +159,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_assignment_declaration(
@@ -389,7 +391,7 @@ impl TypeChecker {
             .map(|iteration_types| iteration_types.next_type())
             .unwrap_or_else(|| self.any_type());
         let resolved_signature_next_type = if is_async {
-            self.get_awaited_type_(&signature_next_type, Option::<&Node>::None, None, None)
+            self.get_awaited_type_(&signature_next_type, Option::<&Node>::None, None, None)?
                 .unwrap_or_else(|| self.any_type())
         } else {
             signature_next_type
@@ -447,7 +449,7 @@ impl TypeChecker {
                 )
                 .unwrap_or_else(|| self.any_type()));
         }
-        let mut type_ = self.get_contextual_iteration_type(IterationTypeKind::Next, &func);
+        let mut type_ = self.get_contextual_iteration_type(IterationTypeKind::Next, &func)?;
         if type_.is_none() {
             type_ = Some(self.any_type());
             if self.produce_diagnostics

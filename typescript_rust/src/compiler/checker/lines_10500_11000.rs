@@ -15,12 +15,13 @@ use crate::{
     get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
     is_binary_expression, is_dynamic_name, is_element_access_expression, is_in_js_file,
     last_or_undefined, length, map, map_defined, maybe_concatenate, maybe_for_each, maybe_map,
-    range_equals_gc, range_equals_rc, same_map, some, try_map, try_map_defined, try_some,
-    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
-    ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry,
-    Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
+    range_equals_gc, range_equals_rc, return_ok_default_if_none, same_map, some, try_map,
+    try_map_defined, try_some, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
+    Debug_, Diagnostics, ElementFlags, IndexInfo, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    Node, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
+    SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
+    SymbolTable, Ternary, TransientSymbolInterface,
 };
 
 impl TypeChecker {
@@ -35,8 +36,8 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn has_bindable_name(&self, node: &Node /*Declaration*/) -> bool {
-        !has_dynamic_name(node) || self.has_late_bindable_name(node)
+    pub(super) fn has_bindable_name(&self, node: &Node /*Declaration*/) -> io::Result<bool> {
+        Ok(!has_dynamic_name(node) || self.has_late_bindable_name(node)?)
     }
 
     pub(super) fn is_non_bindable_dynamic_name(
@@ -256,7 +257,7 @@ impl TypeChecker {
                     if let Some(members) = members {
                         for member in &members {
                             if is_static == has_static_modifier(member)
-                                && self.has_late_bindable_name(member)
+                                && self.has_late_bindable_name(member)?
                             {
                                 self.late_bind_member(
                                     symbol,
@@ -285,7 +286,7 @@ impl TypeChecker {
                                 AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                                     | AssignmentDeclarationKind::Prototype
                             );
-                        if is_static != is_instance_member && self.has_late_bindable_name(member) {
+                        if is_static != is_instance_member && self.has_late_bindable_name(member)? {
                             self.late_bind_member(
                                 symbol,
                                 early_symbols_ref.as_deref(),
@@ -372,10 +373,10 @@ impl TypeChecker {
             if {
                 let value = (*links).borrow().late_symbol.is_none();
                 value
-            } && some(
+            } && try_some(
                 symbol.maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.has_late_bindable_name(declaration)),
-            ) {
+            )? {
                 let parent = self.get_merged_symbol(symbol.maybe_parent()).unwrap();
                 if some(
                     symbol.maybe_declarations().as_deref(),
@@ -470,7 +471,7 @@ impl TypeChecker {
             source.as_interface_type_with_declared_members();
         if range_equals_gc(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
-                self.get_members_of_symbol(&source_symbol)
+                self.get_members_of_symbol(&source_symbol)?
             } else {
                 Gc::new(GcCell::new(create_symbol_table(
                     source_as_interface_type_with_declared_members
@@ -518,7 +519,7 @@ impl TypeChecker {
         }
         let base_types = self.get_base_types(source);
         if !base_types.is_empty() {
-            if matches!(source.maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(&symbol)))
+            if matches!(source.maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &*self.get_members_of_symbol(&symbol)?))
             {
                 members = Gc::new(GcCell::new(create_symbol_table(
                     source_as_interface_type_with_declared_members
@@ -544,7 +545,7 @@ impl TypeChecker {
                 } else {
                     base_type.clone()
                 };
-                let properties = self.get_properties_of_type(&instantiated_base_type);
+                let properties = self.get_properties_of_type(&instantiated_base_type)?;
                 self.add_inherited_members(&mut members.borrow_mut(), properties);
                 call_signatures = concatenate(
                     call_signatures,
@@ -945,11 +946,11 @@ impl TypeChecker {
         }
         let mut result: Option<Vec<Gc<Signature>>> = None;
         for (i, signature_list) in signature_lists.iter().enumerate() {
-            let match_ = if i == list_index {
+            let match_ = return_ok_default_if_none!(if i == list_index {
                 Some(signature.clone())
             } else {
                 self.find_matching_signature(signature_list, signature.clone(), true, false, true)?
-            }?;
+            });
             if result.is_none() {
                 result = Some(vec![]);
             }
@@ -983,7 +984,7 @@ impl TypeChecker {
                         .is_none(),
                 } {
                     let union_signatures =
-                        self.find_matching_signatures(signature_lists, signature.clone(), i);
+                        self.find_matching_signatures(signature_lists, signature.clone(), i)?;
                     if let Some(union_signatures) = union_signatures {
                         let mut s = signature.clone();
                         if union_signatures.len() > 1 {

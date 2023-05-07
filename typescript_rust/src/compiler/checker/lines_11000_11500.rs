@@ -452,7 +452,10 @@ impl TypeChecker {
         append(index_infos, Some(new_info.clone()));
     }
 
-    pub(super) fn resolve_anonymous_type_members(&self, type_: &Type /*AnonymousType*/) {
+    pub(super) fn resolve_anonymous_type_members(
+        &self,
+        type_: &Type, /*AnonymousType*/
+    ) -> io::Result<()> {
         let symbol = self.get_merged_symbol(type_.maybe_symbol()).unwrap();
         let type_as_object_type = type_.as_object_type();
         if let Some(type_target) = type_as_object_type.maybe_target() {
@@ -545,7 +548,7 @@ impl TypeChecker {
                     members = members_new;
                     self.add_inherited_members(
                         &mut members.borrow_mut(),
-                        self.get_properties_of_type(&base_constructor_type),
+                        self.get_properties_of_type(&base_constructor_type)?,
                     );
                 } else if Gc::ptr_eq(&base_constructor_type, &self.any_type()) {
                     base_constructor_index_info = Some(Gc::new(self.create_index_info(
@@ -641,6 +644,8 @@ impl TypeChecker {
                 type_as_object_type.set_construct_signatures(construct_signatures);
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn replace_indexed_access(
@@ -648,7 +653,7 @@ impl TypeChecker {
         instantiable: &Type,
         type_: &Type, /*ReplaceableIndexedAccessType*/
         replacement: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         self.instantiate_type(
             instantiable,
@@ -668,7 +673,7 @@ impl TypeChecker {
     pub(super) fn resolve_reverse_mapped_type_members(
         &self,
         type_: &Type, /*ReverseMappedType*/
-    ) {
+    ) -> io::Result<()> {
         let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
         let index_info =
             self.get_index_info_of_type_(&type_as_reverse_mapped_type.source, &self.string_type());
@@ -698,7 +703,7 @@ impl TypeChecker {
             vec![]
         };
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-        for prop in self.get_properties_of_type(&type_as_reverse_mapped_type.source) {
+        for prop in self.get_properties_of_type(&type_as_reverse_mapped_type.source)? {
             let check_flags = CheckFlags::ReverseMapped
                 | if readonly_mask && self.is_readonly_symbol(&prop) {
                     CheckFlags::Readonly
@@ -762,6 +767,8 @@ impl TypeChecker {
             vec![],
             index_infos,
         );
+
+        Ok(())
     }
 
     pub(super) fn get_lower_bound_of_key_type(&self, type_: &Type) -> Gc<Type> {
@@ -842,7 +849,7 @@ impl TypeChecker {
         strings_only: bool,
         mut cb: impl FnMut(&Type) -> io::Result<()>,
     ) -> io::Result<()> {
-        for prop in self.get_properties_of_type(type_) {
+        for prop in self.get_properties_of_type(type_)? {
             cb(&self.get_literal_type_from_property(&prop, include, None))?;
         }
         if type_.flags().intersects(TypeFlags::Any) {

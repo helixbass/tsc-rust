@@ -13,7 +13,7 @@ use crate::{
     get_symbol_id, is_access_expression, is_assignment_expression, is_binary_expression,
     is_binding_element, is_identifier, is_optional_chain, is_string_or_numeric_literal_like,
     is_this_in_type_query, is_variable_declaration, is_write_only_access, node_is_missing,
-    return_ok_default_if_none, try_for_each, FindAncestorCallbackReturn, FlowNode,
+    return_ok_default_if_none, try_find, try_for_each, FindAncestorCallbackReturn, FlowNode,
     HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
     TypeInterface,
@@ -58,20 +58,20 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn get_flow_cache_key<TFlowContainer: Borrow<Node>>(
+    pub(super) fn get_flow_cache_key(
         &self,
         node: &Node,
         declared_type: &Type,
         initial_type: &Type,
-        flow_container: Option<TFlowContainer>,
-    ) -> Option<String> {
+        flow_container: Option<impl Borrow<Node>>,
+    ) -> io::Result<Option<String>> {
         let flow_container =
             flow_container.map(|flow_container| flow_container.borrow().node_wrapper());
         match node.kind() {
             SyntaxKind::Identifier => {
                 if !is_this_in_type_query(node) {
-                    let symbol = self.get_resolved_symbol(node);
-                    return if !Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
+                    let symbol = self.get_resolved_symbol(node)?;
+                    return Ok(if !Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
                         Some(format!(
                             "{}|{}|{}|{}",
                             if let Some(flow_container) = flow_container.as_ref() {
@@ -85,9 +85,9 @@ impl TypeChecker {
                         ))
                     } else {
                         None
-                    };
+                    });
                 }
-                return Some(format!(
+                return Ok(Some(format!(
                     "0|{}|{}|{}",
                     if let Some(flow_container) = flow_container.as_ref() {
                         get_node_id(flow_container).to_string()
@@ -96,10 +96,10 @@ impl TypeChecker {
                     },
                     self.get_type_id(declared_type),
                     self.get_type_id(initial_type),
-                ));
+                )));
             }
             SyntaxKind::ThisKeyword => {
-                return Some(format!(
+                return Ok(Some(format!(
                     "0|{}|{}|{}",
                     if let Some(flow_container) = flow_container.as_ref() {
                         get_node_id(flow_container).to_string()
@@ -108,15 +108,15 @@ impl TypeChecker {
                     },
                     self.get_type_id(declared_type),
                     self.get_type_id(initial_type),
-                ));
+                )));
             }
             SyntaxKind::NonNullExpression | SyntaxKind::ParenthesizedExpression => {
-                return self.get_flow_cache_key(
+                return Ok(self.get_flow_cache_key(
                     &node.as_has_expression().expression(),
                     declared_type,
                     initial_type,
                     flow_container,
-                );
+                ));
             }
             SyntaxKind::QualifiedName => {
                 let node_as_qualified_name = node.as_qualified_name();
@@ -126,13 +126,13 @@ impl TypeChecker {
                     initial_type,
                     flow_container.as_deref(),
                 );
-                return left.map(|left| {
+                return Ok(left.map(|left| {
                     format!(
                         "{}.{}",
                         left,
                         &*node_as_qualified_name.right.as_identifier().escaped_text,
                     )
-                });
+                }));
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 let prop_name = self.get_accessed_property_name(node);
@@ -143,43 +143,44 @@ impl TypeChecker {
                         initial_type,
                         flow_container.as_deref(),
                     );
-                    return key.map(|key| format!("{}.{}", key, &**prop_name));
+                    return Ok(key.map(|key| format!("{}.{}", key, &**prop_name)));
                 }
             }
             _ => (),
         }
-        None
+        Ok(None)
     }
 
-    pub(super) fn is_matching_reference(&self, source: &Node, target: &Node) -> bool {
+    pub(super) fn is_matching_reference(&self, source: &Node, target: &Node) -> io::Result<bool> {
         match target.kind() {
             SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
-                return self
-                    .is_matching_reference(source, &target.as_has_expression().expression());
+                return Ok(
+                    self.is_matching_reference(source, &target.as_has_expression().expression())
+                );
             }
             SyntaxKind::BinaryExpression => {
                 let target_as_binary_expression = target.as_binary_expression();
-                return is_assignment_expression(target, None)
+                return Ok(is_assignment_expression(target, None)
                     && self.is_matching_reference(source, &target_as_binary_expression.left)
                     || is_binary_expression(target)
                         && target_as_binary_expression.operator_token.kind()
                             == SyntaxKind::CommaToken
-                        && self.is_matching_reference(source, &target_as_binary_expression.right);
+                        && self.is_matching_reference(source, &target_as_binary_expression.right));
             }
             _ => (),
         }
         match source.kind() {
             SyntaxKind::MetaProperty => {
-                return target.kind() == SyntaxKind::MetaProperty && {
+                return Ok(target.kind() == SyntaxKind::MetaProperty && {
                     let source_as_meta_property = source.as_meta_property();
                     let target_as_meta_property = target.as_meta_property();
                     source_as_meta_property.keyword_token == target_as_meta_property.keyword_token
                         && source_as_meta_property.name.as_identifier().escaped_text
                             == target_as_meta_property.name.as_identifier().escaped_text
-                };
+                });
             }
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
-                return if is_this_in_type_query(source) {
+                return Ok(if is_this_in_type_query(source) {
                     target.kind() == SyntaxKind::ThisKeyword
                 } else {
                     target.kind() == SyntaxKind::Identifier
@@ -192,35 +193,36 @@ impl TypeChecker {
                             SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
                         ) && are_option_gcs_equal(
                             self.get_export_symbol_of_value_symbol_if_exported(Some(
-                                self.get_resolved_symbol(source),
+                                self.get_resolved_symbol(source)?,
                             ))
                             .as_ref(),
                             self.get_symbol_of_node(target).as_ref(),
                         )
-                };
+                });
             }
             SyntaxKind::ThisKeyword => {
-                return target.kind() == SyntaxKind::ThisKeyword;
+                return Ok(target.kind() == SyntaxKind::ThisKeyword);
             }
             SyntaxKind::SuperKeyword => {
-                return target.kind() == SyntaxKind::SuperKeyword;
+                return Ok(target.kind() == SyntaxKind::SuperKeyword);
             }
             SyntaxKind::NonNullExpression | SyntaxKind::ParenthesizedExpression => {
-                return self
-                    .is_matching_reference(&source.as_has_expression().expression(), target);
+                return Ok(
+                    self.is_matching_reference(&source.as_has_expression().expression(), target)
+                );
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                return is_access_expression(target)
+                return Ok(is_access_expression(target)
                     && self.get_accessed_property_name(source)
                         == self.get_accessed_property_name(target)
                     && self.is_matching_reference(
                         &source.as_has_expression().expression(),
                         &target.as_has_expression().expression(),
-                    );
+                    ));
             }
             SyntaxKind::QualifiedName => {
                 let source_as_qualified_name = source.as_qualified_name();
-                return is_access_expression(target)
+                return Ok(is_access_expression(target)
                     && matches!(
                         self.get_accessed_property_name(target).as_ref(),
                         Some(accessed_property_name) if &source_as_qualified_name.right.as_identifier().escaped_text == accessed_property_name
@@ -228,26 +230,29 @@ impl TypeChecker {
                     && self.is_matching_reference(
                         &source_as_qualified_name.left,
                         &target.as_has_expression().expression(),
-                    );
+                    ));
             }
             SyntaxKind::BinaryExpression => {
-                return is_binary_expression(source) && {
+                return Ok(is_binary_expression(source) && {
                     let source_as_binary_expression = source.as_binary_expression();
                     source_as_binary_expression.operator_token.kind() == SyntaxKind::CommaToken
                         && self.is_matching_reference(&source_as_binary_expression.right, target)
-                };
+                });
             }
             _ => (),
         }
-        false
+        Ok(false)
     }
 
-    pub(super) fn get_property_access(&self, expr: &Node /*Expression*/) -> Option<Gc<Node>> {
+    pub(super) fn get_property_access(
+        &self,
+        expr: &Node, /*Expression*/
+    ) -> io::Result<Option<Gc<Node>>> {
         if is_access_expression(expr) {
-            return Some(expr.node_wrapper());
+            return Ok(Some(expr.node_wrapper()));
         }
         if is_identifier(expr) {
-            let symbol = self.get_resolved_symbol(expr);
+            let symbol = self.get_resolved_symbol(expr)?;
             if self.is_const_variable(&symbol) {
                 let declaration = symbol.maybe_value_declaration().unwrap();
                 if is_variable_declaration(&declaration) {
@@ -259,7 +264,7 @@ impl TypeChecker {
                                 is_access_expression(declaration_initializer)
                             })
                         {
-                            return Some(declaration_initializer);
+                            return Ok(Some(declaration_initializer));
                         }
                     }
                 }
@@ -278,13 +283,13 @@ impl TypeChecker {
                                 Some(parent_initializer) if is_identifier(parent_initializer) || is_access_expression(parent_initializer)
                             )
                         {
-                            return Some(declaration);
+                            return Ok(Some(declaration));
                         }
                     }
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_accessed_property_name(
@@ -388,11 +393,11 @@ impl TypeChecker {
         &self,
         source_properties: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
         target: &Type,
-    ) -> Option<Vec<Gc<Symbol>>> {
+    ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
         let mut result: Option<Vec<Gc<Symbol>>> = None;
         for source_property in source_properties {
             let source_property: &Gc<Symbol> = source_property.borrow();
-            if self.is_discriminant_property(Some(target), source_property.escaped_name()) {
+            if self.is_discriminant_property(Some(target), source_property.escaped_name())? {
                 if result.is_some() {
                     result.as_mut().unwrap().push(source_property.clone());
                     continue;
@@ -400,7 +405,7 @@ impl TypeChecker {
                 result = Some(vec![source_property.clone()]);
             }
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn map_types_by_key_property(
@@ -466,26 +471,31 @@ impl TypeChecker {
         }
         if union_type_as_union_type.maybe_key_property_name().is_none() {
             let key_property_name = try_for_each(types, |t: &Gc<Type>, _| -> io::Result<_> {
-                if t.flags()
-                    .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
-                {
-                    try_for_each(
-                        self.get_properties_of_type(t),
-                        |ref p: Gc<Symbol>, _| -> io::Result<_> {
-                            Ok(if self.is_unit_type(&*self.get_type_of_symbol(p)?) {
-                                Some(p.escaped_name().to_owned())
-                            } else {
-                                None
-                            })
-                        },
-                    )?
-                } else {
-                    None
-                }
+                Ok(
+                    if t.flags()
+                        .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
+                    {
+                        try_for_each(
+                            self.get_properties_of_type(t)?,
+                            |ref p: Gc<Symbol>, _| -> io::Result<_> {
+                                Ok(if self.is_unit_type(&*self.get_type_of_symbol(p)?) {
+                                    Some(p.escaped_name().to_owned())
+                                } else {
+                                    None
+                                })
+                            },
+                        )?
+                    } else {
+                        None
+                    },
+                )
             })?;
-            let map_by_key_property = key_property_name.as_ref().and_then(|key_property_name| {
-                self.map_types_by_key_property(types, key_property_name)
-            });
+            let map_by_key_property =
+                key_property_name
+                    .as_ref()
+                    .try_and_then(|key_property_name| {
+                        self.map_types_by_key_property(types, key_property_name)
+                    })?;
             *union_type_as_union_type.maybe_key_property_name() = if map_by_key_property.is_some() {
                 key_property_name
             } else {
@@ -526,7 +536,7 @@ impl TypeChecker {
         union_type: &Type, /*UnionType*/
         type_: &Type,
     ) -> io::Result<Option<Gc<Type>>> {
-        let key_property_name = self.get_key_property_name(union_type);
+        let key_property_name = self.get_key_property_name(union_type)?;
         let prop_type = key_property_name
             .as_ref()
             .try_and_then(|key_property_name| {
@@ -542,18 +552,18 @@ impl TypeChecker {
         union_type: &Type, /*UnionType*/
         node: &Node,       /*ObjectLiteralExpression*/
     ) -> io::Result<Option<Gc<Type>>> {
-        let key_property_name = self.get_key_property_name(union_type);
+        let key_property_name = self.get_key_property_name(union_type)?;
         let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
             find(
                 &node.as_object_literal_expression().properties,
                 |p: &Gc<Node>, _| {
                     let p_symbol = p.maybe_symbol();
                     if p_symbol.is_none() {
-                        return Ok(false);
+                        return false;
                     }
                     let p_symbol = p_symbol.unwrap();
                     if p.kind() != SyntaxKind::PropertyAssignment {
-                        return Ok(false);
+                        return false;
                     }
                     p_symbol.escaped_name() == key_property_name
                         && self.is_possibly_discriminant_value(
@@ -561,7 +571,7 @@ impl TypeChecker {
                         )
                 },
             )
-            .map(Clone::clone)
+            .cloned()
         });
         let prop_type = prop_node.try_map(|prop_node| {
             self.get_context_free_type_of_expression(
@@ -885,12 +895,12 @@ impl TypeChecker {
         let text = self.get_property_name_from_type(&name_type);
         Ok(self
             .get_type_of_property_of_type_(type_, &text)?
-            .or_else(|| {
+            .try_or_else(|| {
                 self.include_undefined_in_index_signature(
                     self.get_applicable_index_info_for_name(type_, &text)
                         .map(|applicable_index_info| applicable_index_info.type_.clone()),
                 )
-            })
+            })?
             .unwrap_or_else(|| self.error_type()))
     }
 
@@ -906,14 +916,14 @@ impl TypeChecker {
                 None
             }
             .try_or_else(|| {
-                Ok(self.include_undefined_in_index_signature(Some(
+                self.include_undefined_in_index_signature(Some(
                     self.check_iterated_type_or_element_type(
                         IterationUse::Destructuring,
                         type_,
                         &self.undefined_type(),
                         Option::<&Node>::None,
                     )?,
-                )))
+                ))
             })?
             .unwrap_or_else(|| self.error_type()),
         )
@@ -968,7 +978,7 @@ impl TypeChecker {
             self.get_type_with_default(
                 &self.get_assigned_type(node),
                 &node.as_binary_expression().right,
-            )
+            )?
         } else {
             self.get_type_of_expression(&node.as_binary_expression().right)?
         })

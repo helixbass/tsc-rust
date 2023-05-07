@@ -330,7 +330,7 @@ impl TypeChecker {
         lexically_scoped_identifier: Option<impl Borrow<Symbol>>,
     ) -> io::Result<bool> {
         let mut property_on_type: Option<Gc<Symbol>> = None;
-        let properties = self.get_properties_of_type(left_type);
+        let properties = self.get_properties_of_type(left_type)?;
         // if (properties) {
         let right_as_private_identifier = right.as_private_identifier();
         for_each(properties, |ref symbol: Gc<Symbol>, _| {
@@ -881,7 +881,7 @@ impl TypeChecker {
             node,
             &prop_type,
             Some(if assume_uninitialized {
-                self.get_optional_type_(&prop_type, None)
+                self.get_optional_type_(&prop_type, None)?
             } else {
                 prop_type.clone()
             }),
@@ -1021,7 +1021,7 @@ impl TypeChecker {
         }
         let mut class_type: Option<Gc<Type>> =
             Some(self.get_type_of_symbol(&prop.maybe_parent().unwrap()));
-        Ok(loop {
+        loop {
             let class_type_present = class_type.as_ref().unwrap();
             class_type = if class_type_present.maybe_symbol().is_some() {
                 self.get_super_class(class_type_present)
@@ -1029,7 +1029,7 @@ impl TypeChecker {
                 None
             };
             if class_type.is_none() {
-                return false;
+                return Ok(false);
             }
             let class_type_present = class_type.as_ref().unwrap();
             let super_property =
@@ -1039,9 +1039,9 @@ impl TypeChecker {
                 .and_then(|super_property| super_property.maybe_value_declaration())
                 .is_some()
             {
-                return true;
+                return Ok(true);
             }
-        })
+        }
     }
 
     pub(super) fn get_super_class(

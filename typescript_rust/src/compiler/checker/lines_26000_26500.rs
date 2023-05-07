@@ -188,10 +188,10 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*BinaryExpression*/
         kind: Option<AssignmentDeclarationKind>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let kind = kind.unwrap_or_else(|| get_assignment_declaration_kind(declaration));
         if kind == AssignmentDeclarationKind::ThisProperty {
-            return true;
+            return Ok(true);
         }
         let declaration_as_binary_expression = declaration.as_binary_expression();
         if !is_in_js_file(Some(declaration))
@@ -203,7 +203,7 @@ impl TypeChecker {
                     .expression(),
             )
         {
-            return false;
+            return Ok(false);
         }
         let name = &declaration_as_binary_expression
             .left
@@ -220,12 +220,12 @@ impl TypeChecker {
             Option::<Gc<Node>>::None,
             true,
             Some(true),
-        );
-        is_this_initialized_declaration(
+        )?;
+        Ok(is_this_initialized_declaration(
             symbol
                 .as_ref()
                 .and_then(|symbol| symbol.maybe_value_declaration()),
-        )
+        ))
     }
 
     pub(super) fn get_contextual_type_for_this_property_assignment(
@@ -346,27 +346,27 @@ impl TypeChecker {
         &self,
         element: &Node, /*ObjectLiteralElementLike*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let object_literal = element.parent();
         let property_assignment_type = if is_property_assignment(element) {
-            self.get_contextual_type_for_variable_like_declaration(element)
+            self.get_contextual_type_for_variable_like_declaration(element)?
         } else {
             None
         };
         if property_assignment_type.is_some() {
-            return property_assignment_type;
+            return Ok(property_assignment_type);
         }
         let type_ = self.get_apparent_type_of_contextual_type(&object_literal, context_flags);
         if let Some(type_) = type_.as_ref() {
             if self.has_bindable_name(element) {
-                return self.get_type_of_property_of_contextual_type(
+                return Ok(self.get_type_of_property_of_contextual_type(
                     type_,
                     self.get_symbol_of_node(element).unwrap().escaped_name(),
-                );
+                ));
             }
             if let Some(element_name) = element.as_named_declaration().maybe_name() {
                 let name_type = self.get_literal_type_from_property_name(&element_name);
-                return self.map_type(
+                return Ok(self.map_type(
                     type_,
                     &mut |t: &Type| {
                         self.find_applicable_index_info(
@@ -376,10 +376,10 @@ impl TypeChecker {
                         .map(|index_info| index_info.type_.clone())
                     },
                     Some(true),
-                );
+                ));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_contextual_type_for_element_expression(
@@ -457,8 +457,10 @@ impl TypeChecker {
             .iter()
             .position(|real_child| ptr::eq(&**real_child, child))
             .unwrap();
-        let child_field_type = self
-            .get_type_of_property_of_contextual_type(&attributes_type, &jsx_children_property_name);
+        let child_field_type = self.get_type_of_property_of_contextual_type(
+            &attributes_type,
+            &jsx_children_property_name,
+        )?;
         Ok(child_field_type.as_ref().and_then(|child_field_type| {
             if real_children.len() == 1 {
                 Some(child_field_type.clone())
@@ -548,12 +550,12 @@ impl TypeChecker {
         &self,
         node: &Node,            /*ObjectLiteralExpression*/
         contextual_type: &Type, /*UnionType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.get_matching_union_constituent_for_object_literal(
             contextual_type,
             node,
-        ).unwrap_or_else(|| {
-            self.discriminate_type_by_discriminable_items(
+        )?.try_unwrap_or_else(|| {
+            Ok(self.discriminate_type_by_discriminable_items(
                 contextual_type,
                 node.as_object_literal_expression().properties.owned_iter()
                     .filter(
@@ -577,7 +579,7 @@ impl TypeChecker {
                             )
                         }
                     ).chain(
-                        self.get_properties_of_type(contextual_type)
+                        self.get_properties_of_type(contextual_type)?
                             .filter(
                                 |s| {
                                     s.flags().intersects(SymbolFlags::Optional) &&
@@ -610,7 +612,7 @@ impl TypeChecker {
                 |source: &Type, target: &Type| self.is_type_assignable_to(source, target),
                 Some(contextual_type),
                 None,
-            ).unwrap()
+            )?.unwrap())
         })
     }
 
@@ -618,8 +620,8 @@ impl TypeChecker {
         &self,
         node: &Node,            /*JsxAttributes*/
         contextual_type: &Type, /*UnionType*/
-    ) -> Gc<Type> {
-        self.discriminate_type_by_discriminable_items(
+    ) -> io::Result<Gc<Type>> {
+        Ok(self.discriminate_type_by_discriminable_items(
             contextual_type,
             node.as_jsx_attributes().properties.owned_iter()
                 .filter(
@@ -657,7 +659,7 @@ impl TypeChecker {
                     }
                 )
                 .chain(
-                    self.get_properties_of_type(contextual_type)
+                    self.get_properties_of_type(contextual_type)?
                         .filter(
                             |s| {
                                 s.flags().intersects(SymbolFlags::Optional) &&
@@ -691,7 +693,7 @@ impl TypeChecker {
             |source: &Type, target: &Type| self.is_type_assignable_to(source, target),
             Some(contextual_type),
             None,
-        ).unwrap()
+        ).unwrap())
     }
 
     pub(super) fn get_apparent_type_of_contextual_type(

@@ -95,17 +95,17 @@ impl TypeChecker {
     pub(super) fn is_implementation_of_overload_(
         &self,
         node: &Node, /*SignatureDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         if node_is_present(
             node.maybe_as_function_like_declaration()
                 .and_then(|node| node.maybe_body()),
         ) {
             if is_get_accessor(node) || is_set_accessor(node) {
-                return false;
+                return Ok(false);
             }
             let symbol = self.get_symbol_of_node(node);
-            let signatures_of_symbol = self.get_signatures_of_symbol(symbol.as_deref());
-            return signatures_of_symbol.len() > 1
+            let signatures_of_symbol = self.get_signatures_of_symbol(symbol.as_deref())?;
+            return Ok(signatures_of_symbol.len() > 1
                 || signatures_of_symbol.len() == 1
                     && !matches!(
                         signatures_of_symbol[0].declaration.as_ref(),
@@ -113,9 +113,9 @@ impl TypeChecker {
                             &**declaration,
                             node,
                         )
-                    );
+                    ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_required_initialized_parameter(
@@ -197,7 +197,7 @@ impl TypeChecker {
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration);
         Ok(if let Some(symbol) = symbol.as_ref() {
-            Some(self.get_properties_of_type(&*self.get_type_of_symbol(symbol)?))
+            Some(self.get_properties_of_type(&*self.get_type_of_symbol(symbol)?)?)
         } else {
             None
         }
@@ -499,7 +499,7 @@ impl TypeChecker {
             ));
         }
         let expr = expr.as_ref().unwrap();
-        let ref type_ = self.get_widened_type(&self.get_regular_type_of_expression(expr));
+        let ref type_ = self.get_widened_type(&*self.get_regular_type_of_expression(expr)?);
         self.node_builder().type_to_type_node(
             &type_,
             Some(enclosing_declaration),
@@ -1041,7 +1041,7 @@ impl TypeChecker {
                                     if helper.intersects(ExternalEmitHelpers::ClassPrivateFieldGet)
                                     {
                                         if !some(
-                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
+                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
                                             Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 3
                                             }),
@@ -1060,7 +1060,7 @@ impl TypeChecker {
                                         .intersects(ExternalEmitHelpers::ClassPrivateFieldSet)
                                     {
                                         if !some(
-                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
+                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
                                             Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 4
                                             }),
@@ -1077,7 +1077,7 @@ impl TypeChecker {
                                         }
                                     } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
                                         if !some(
-                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
+                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
                                             Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 2
                                             }),

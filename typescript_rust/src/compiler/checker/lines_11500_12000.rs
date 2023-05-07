@@ -1,7 +1,7 @@
 use gc::Gc;
 use itertools::Either;
 use std::rc::Rc;
-use std::{iter, ptr};
+use std::{io, iter, ptr};
 
 use super::MappedTypeModifiers;
 use crate::{
@@ -287,7 +287,7 @@ impl TypeChecker {
     pub(super) fn get_properties_of_union_or_intersection_type(
         &self,
         type_: &Type, /*UnionOrIntersectionType*/
-    ) -> impl ExactSizeIterator<Item = Gc<Symbol>> + Clone {
+    ) -> io::Result<impl ExactSizeIterator<Item = Gc<Symbol>> + Clone> {
         let type_as_union_or_intersection_type = type_.as_union_or_intersection_type_interface();
         if type_as_union_or_intersection_type
             .maybe_resolved_properties()
@@ -295,7 +295,7 @@ impl TypeChecker {
         {
             let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             for current in type_as_union_or_intersection_type.types() {
-                for prop in self.get_properties_of_type(current) {
+                for prop in self.get_properties_of_type(current)? {
                     if !members.contains_key(prop.escaped_name()) {
                         let combined_prop = self.get_property_of_union_or_intersection_type(
                             type_,
@@ -314,24 +314,26 @@ impl TypeChecker {
                 }
             }
             *type_as_union_or_intersection_type.maybe_resolved_properties_mut() =
-                Some(self.get_named_members(&members).into());
+                Some(self.get_named_members(&members)?.into());
         }
-        type_as_union_or_intersection_type
+        Ok(type_as_union_or_intersection_type
             .maybe_resolved_properties()
             .unwrap()
-            .owned_iter()
+            .owned_iter())
     }
 
     pub(super) fn get_properties_of_type(
         &self,
         type_: &Type,
-    ) -> impl ExactSizeIterator<Item = Gc<Symbol>> + Clone {
+    ) -> io::Result<impl ExactSizeIterator<Item = Gc<Symbol>> + Clone> {
         let type_ = self.get_reduced_apparent_type(type_);
-        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            Either::Left(self.get_properties_of_union_or_intersection_type(&type_))
-        } else {
-            Either::Right(self.get_properties_of_object_type(&type_))
-        }
+        Ok(
+            if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+                Either::Left(self.get_properties_of_union_or_intersection_type(&type_)?)
+            } else {
+                Either::Right(self.get_properties_of_object_type(&type_))
+            },
+        )
     }
 
     pub(super) fn for_each_property_of_type(

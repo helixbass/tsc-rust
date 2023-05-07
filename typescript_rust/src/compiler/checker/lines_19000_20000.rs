@@ -188,7 +188,7 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target: &Type, /*UnionType*/
     ) -> io::Result<Ternary> {
-        let source_properties = self.type_checker.get_properties_of_type(source);
+        let source_properties = self.type_checker.get_properties_of_type(source)?;
         let source_properties_filtered = self
             .type_checker
             .find_discriminant_properties(source_properties, target);
@@ -1030,7 +1030,7 @@ impl CheckTypeRelatedTo {
             for source_prop in &self.exclude_properties(
                 &self
                     .type_checker
-                    .get_properties_of_type(source)
+                    .get_properties_of_type(source)?
                     .collect_vec(),
                 excluded_properties,
             ) {
@@ -1066,7 +1066,7 @@ impl CheckTypeRelatedTo {
                 }
             }
         }
-        let properties = self.type_checker.get_properties_of_type(target);
+        let properties = self.type_checker.get_properties_of_type(target)?;
         let numeric_names_only =
             self.type_checker.is_tuple_type(source) && self.type_checker.is_tuple_type(target);
         for target_prop in &self.exclude_properties(&properties.collect_vec(), excluded_properties)

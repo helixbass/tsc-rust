@@ -15,7 +15,7 @@ use crate::{
     FunctionFlags, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
     NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
-    __String,
+    __String, try_for_each_yield_expression,
 };
 
 impl TypeChecker {

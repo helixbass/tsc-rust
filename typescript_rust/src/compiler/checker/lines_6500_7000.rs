@@ -756,7 +756,7 @@ impl SymbolTableToDeclarationStatements {
                 || symbol.flags().intersects(SymbolFlags::Function)
                     && self
                         .type_checker
-                        .get_properties_of_type(&self.type_checker.get_type_of_symbol(symbol))
+                        .get_properties_of_type(&self.type_checker.get_type_of_symbol(symbol))?
                         .len()
                         > 0)
             && !symbol.flags().intersects(SymbolFlags::Alias);

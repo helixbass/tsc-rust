@@ -271,9 +271,10 @@ impl SymbolTableToDeclarationStatements {
         &self,
         type_to_serialize: &Type,
         host_symbol: &Symbol,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let ctx_src = maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration());
-        get_object_flags(type_to_serialize).intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
+        Ok(get_object_flags(type_to_serialize)
+            .intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
             && self
                 .type_checker
                 .get_index_infos_of_type(type_to_serialize)
@@ -281,7 +282,7 @@ impl SymbolTableToDeclarationStatements {
             && !self.type_checker.is_class_instance_side(type_to_serialize)
             && (!self
                 .type_checker
-                .get_properties_of_type(type_to_serialize)
+                .get_properties_of_type(type_to_serialize)?
                 .into_iter()
                 .filter(|property| self.is_namespace_member(property))
                 .empty()
@@ -312,11 +313,11 @@ impl SymbolTableToDeclarationStatements {
             )
             && !self
                 .type_checker
-                .get_properties_of_type(type_to_serialize)
+                .get_properties_of_type(type_to_serialize)?
                 .any(|ref p| self.type_checker.is_late_bound_name(p.escaped_name()))
             && !self
                 .type_checker
-                .get_properties_of_type(type_to_serialize)
+                .get_properties_of_type(type_to_serialize)?
                 .any(|ref p| {
                     some(
                         p.maybe_declarations().as_deref(),
@@ -330,14 +331,14 @@ impl SymbolTableToDeclarationStatements {
                 })
             && self
                 .type_checker
-                .get_properties_of_type(type_to_serialize)
+                .get_properties_of_type(type_to_serialize)?
                 .all(|ref p| {
                     is_identifier_text(
                         &symbol_name(p),
                         Some(self.type_checker.language_version),
                         None,
                     )
-                })
+                }))
     }
 
     pub(super) fn make_serialize_property_symbol(

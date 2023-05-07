@@ -57,7 +57,7 @@ impl GetFlowTypeOfReference {
         &self,
         expr: &Node, /*Expression*/
         computed_type: &Type,
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let mut access: Option<Gc<Node>> = None;
         let mut name: Option<__String> = None;
         let type_ = if self.declared_type.flags().intersects(TypeFlags::Union) {
@@ -65,38 +65,40 @@ impl GetFlowTypeOfReference {
         } else {
             computed_type
         };
-        if type_.flags().intersects(TypeFlags::Union)
-            && {
-                access = self.type_checker.get_property_access(expr);
-                access.is_some()
-            }
-            && {
-                name = self
-                    .type_checker
-                    .get_accessed_property_name(access.as_ref().unwrap());
-                name.is_some()
-            }
-            && self.type_checker.is_matching_reference(&self.reference, &*{
-                let access = access.as_ref().unwrap();
-                if is_access_expression(access) {
-                    access.as_has_expression().expression()
-                } else {
-                    access
-                        .parent()
-                        .parent()
-                        .as_has_initializer()
-                        .maybe_initializer()
-                        .unwrap()
+        Ok(
+            if type_.flags().intersects(TypeFlags::Union)
+                && {
+                    access = self.type_checker.get_property_access(expr);
+                    access.is_some()
                 }
-            })
-            && self
-                .type_checker
-                .is_discriminant_property(Some(&*type_), name.as_ref().unwrap())
-        {
-            access
-        } else {
-            None
-        }
+                && {
+                    name = self
+                        .type_checker
+                        .get_accessed_property_name(access.as_ref().unwrap());
+                    name.is_some()
+                }
+                && self.type_checker.is_matching_reference(&self.reference, &*{
+                    let access = access.as_ref().unwrap();
+                    if is_access_expression(access) {
+                        access.as_has_expression().expression()
+                    } else {
+                        access
+                            .parent()
+                            .parent()
+                            .as_has_initializer()
+                            .maybe_initializer()
+                            .unwrap()
+                    }
+                })
+                && self
+                    .type_checker
+                    .is_discriminant_property(Some(&*type_), name.as_ref().unwrap())?
+            {
+                access
+            } else {
+                None
+            },
+        )
     }
 
     pub(super) fn narrow_type_by_discriminant(
@@ -168,7 +170,7 @@ impl GetFlowTypeOfReference {
             SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
         ) && type_.flags().intersects(TypeFlags::Union)
         {
-            let key_property_name = self.type_checker.get_key_property_name(type_);
+            let key_property_name = self.type_checker.get_key_property_name(type_)?;
             if let Some(key_property_name) =
                 key_property_name.as_ref().filter(|key_property_name| {
                     matches!(
@@ -220,7 +222,7 @@ impl GetFlowTypeOfReference {
     ) -> io::Result<Gc<Type>> {
         if clause_start < clause_end
             && type_.flags().intersects(TypeFlags::Union)
-            && self.type_checker.get_key_property_name(type_)
+            && self.type_checker.get_key_property_name(type_)?
                 == self.type_checker.get_accessed_property_name(access)
         {
             let clause_types = self.type_checker.get_switch_clause_types(switch_statement);

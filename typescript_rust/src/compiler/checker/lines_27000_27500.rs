@@ -444,7 +444,7 @@ impl TypeChecker {
                             |type_: &Type| self.is_tuple_like_type(type_)
                         )?
                     ) {
-                        self.create_tuple_type(&children_types, None, None, None)
+                        self.create_tuple_type(&children_types, None, None, None)?
                     } else {
                         self.create_array_type(
                             &*self.get_union_type(
@@ -581,8 +581,8 @@ impl TypeChecker {
         type_: &Type,
         props: &SymbolTable,
         spread: &Node, /*SpreadAssignment | JsxSpreadAttribute*/
-    ) {
-        for ref right in self.get_properties_of_type(type_) {
+    ) -> io::Result<()> {
+        for ref right in self.get_properties_of_type(type_)? {
             if !right.flags().intersects(SymbolFlags::Optional) {
                 let left = props.get(right.escaped_name());
                 if let Some(left) = left {
@@ -607,6 +607,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_jsx_attributes(
@@ -829,7 +831,7 @@ impl TypeChecker {
             }
         }
         let s = self.resolve_symbol(
-            self.get_global_symbol(&JsxNames::JSX, SymbolFlags::Namespace, None),
+            self.get_global_symbol(&JsxNames::JSX, SymbolFlags::Namespace, None)?,
             None,
         )?;
         if matches!(

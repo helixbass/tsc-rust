@@ -235,7 +235,7 @@ impl TypeChecker {
             } else if element_flags[i].intersects(ElementFlags::Rest) {
                 self.create_array_type(t, None)
             } else {
-                self.create_tuple_type(&[t.clone()], Some(&[element_flags[i]]), None, None)
+                self.create_tuple_type(&[t.clone()], Some(&[element_flags[i]]), None, None)?
             };
             self.instantiate_mapped_type(
                 mapped_type,
@@ -248,12 +248,12 @@ impl TypeChecker {
             tuple_type_as_type_reference.target.as_tuple_type().readonly,
             self.get_mapped_type_modifiers(mapped_type),
         );
-        Ok(self.create_tuple_type(
+        self.create_tuple_type(
             &element_types,
             Some(&map(&element_types, |_, _| ElementFlags::Variadic)),
             Some(new_readonly),
             None,
-        ))
+        )
     }
 
     pub(super) fn instantiate_mapped_array_type(
@@ -327,7 +327,7 @@ impl TypeChecker {
                     .as_tuple_type()
                     .labeled_element_declarations
                     .as_deref(),
-            )
+            )?
         })
     }
 

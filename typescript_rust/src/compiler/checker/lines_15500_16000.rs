@@ -810,11 +810,11 @@ impl TypeChecker {
     pub(super) fn get_type_from_type_literal_or_function_or_constructor_type_node(
         &self,
         node: &Node, /*TypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
-            if (*self.get_members_of_symbol(&node.symbol()))
+            if (*self.get_members_of_symbol(&node.symbol())?)
                 .borrow()
                 .is_empty()
                 && alias_symbol.is_none()
@@ -834,7 +834,7 @@ impl TypeChecker {
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_alias_symbol_for_type_node(&self, node: &Node) -> Option<Gc<Symbol>> {
@@ -924,7 +924,7 @@ impl TypeChecker {
         type_: &Type,
     ) -> io::Result<Gc<Type>> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
-        for prop in self.get_properties_of_type(type_) {
+        for prop in self.get_properties_of_type(type_)? {
             if get_declaration_modifier_flags_from_symbol(&prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
@@ -1096,7 +1096,7 @@ impl TypeChecker {
             self.get_union_index_infos(&[left.clone(), right.clone()])
         };
 
-        for right_prop in self.get_properties_of_type(&right) {
+        for right_prop in self.get_properties_of_type(&right)? {
             if get_declaration_modifier_flags_from_symbol(&right_prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
@@ -1109,7 +1109,7 @@ impl TypeChecker {
             }
         }
 
-        for left_prop in self.get_properties_of_type(&left) {
+        for left_prop in self.get_properties_of_type(&left)? {
             if skipped_private_members.contains(left_prop.escaped_name())
                 || !self.is_spreadable_property(&left_prop)
             {

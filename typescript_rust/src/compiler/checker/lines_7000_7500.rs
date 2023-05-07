@@ -264,7 +264,7 @@ impl SymbolTableToDeclarationStatements {
         };
         let members = self
             .type_checker
-            .get_properties_of_type(interface_type)
+            .get_properties_of_type(interface_type)?
             .flat_map(|ref p| {
                 self.serialize_property_symbol_for_interface(p, base_type.as_deref())
             });
@@ -519,7 +519,7 @@ impl SymbolTableToDeclarationStatements {
                     &*self.get_internal_symbol_name(symbol, symbol_name),
                     Some(
                         self.type_checker
-                            .get_properties_of_type(&self.type_checker.get_type_of_symbol(symbol))
+                            .get_properties_of_type(&self.type_checker.get_type_of_symbol(symbol))?
                             .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
                             .map(|p| -> Gc<Node> {
                                 let initialized_value = p
@@ -615,7 +615,7 @@ impl SymbolTableToDeclarationStatements {
         {
             let props = self
                 .type_checker
-                .get_properties_of_type(type_)
+                .get_properties_of_type(type_)?
                 .filter(|property| self.is_namespace_member(property));
             self.serialize_as_namespace_declaration(
                 &props.collect_vec(),
@@ -963,7 +963,7 @@ impl SymbolTableToDeclarationStatements {
         let mut symbol_props = self.type_checker.get_non_interhited_properties(
             class_type,
             &base_types,
-            self.type_checker.get_properties_of_type(class_type),
+            self.type_checker.get_properties_of_type(class_type)?,
         );
         let public_symbol_props = symbol_props.clone().filter(|s| {
             let value_decl = s.maybe_value_declaration();
@@ -1004,7 +1004,7 @@ impl SymbolTableToDeclarationStatements {
         });
         let static_members = self
             .type_checker
-            .get_properties_of_type(static_type)
+            .get_properties_of_type(static_type)?
             .filter(|p| {
                 !p.flags().intersects(SymbolFlags::Prototype)
                     && p.escaped_name() != "prototype"

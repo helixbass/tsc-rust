@@ -19,20 +19,21 @@ use crate::{
     is_function_like, is_identifier, is_jsx_attribute_like, is_object_literal_element_like,
     is_parameter, is_property_access_expression,
     is_property_access_or_qualified_name_or_import_type_node, is_source_file, is_type_node,
-    object_allocator, parse_pseudo_big_int, return_ok_none_if_none, skip_type_checking, sum,
-    unescape_leading_underscores, BaseInterfaceType, CancellationTokenDebuggable,
-    CheckBinaryExpression, CheckFlags, ContextFlags, Debug_, Diagnostic, DiagnosticCategory,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    EmitResolver, EmitTextWriter, Extension, ExternalEmitHelpers, FlowNode, FlowType,
-    FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName,
-    IterationTypeCacheKey, IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray,
-    NodeBuilder, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, NodeLinks,
-    Number, ObjectFlags, OptionTry, OutofbandVarianceMarkerHandler, Path, PatternAmbientModule,
-    PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags, SignatureKind,
-    StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags,
+    object_allocator, parse_pseudo_big_int, return_ok_default_if_none, return_ok_none_if_none,
+    skip_type_checking, sum, unescape_leading_underscores, BaseInterfaceType,
+    CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
+    Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
+    ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface,
+    IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey, IterationTypes, JsxEmit,
+    ModuleInstanceState, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
+    NodeId, NodeInterface, NodeLinks, Number, ObjectFlags, OptionTry,
+    OutofbandVarianceMarkerHandler, Path, PatternAmbientModule, PseudoBigInt,
+    RelationComparisonResult, Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol,
+    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback, TypePredicate,
+    TypePredicateKind, VarianceFlags,
 };
 
 lazy_static! {
@@ -1881,8 +1882,14 @@ impl TypeChecker {
         self.get_symbol_at_location_(&node, Some(true))
     }
 
-    pub fn get_index_infos_at_location(&self, node_in: &Node) -> Option<Vec<Gc<IndexInfo>>> {
-        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
+    pub fn get_index_infos_at_location(
+        &self,
+        node_in: &Node,
+    ) -> io::Result<Option<Vec<Gc<IndexInfo>>>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Option::<fn(&Node) -> bool>::None
+        ));
         self.get_index_infos_at_location_(&node)
     }
 
@@ -2252,12 +2259,12 @@ impl TypeChecker {
     pub fn is_implementation_of_overload(
         &self,
         node_in: &Node, /*SignatureDeclaration*/
-    ) -> Option<bool> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<bool>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_function_like(Some(node))),
-        )?;
-        Some(self.is_implementation_of_overload_(&node))
+        ));
+        Ok(Some(self.is_implementation_of_overload_(&node)?))
     }
 
     pub fn get_aliased_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Symbol>> {

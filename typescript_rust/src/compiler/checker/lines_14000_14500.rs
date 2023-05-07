@@ -8,12 +8,12 @@ use std::{io, ptr};
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
-    ordered_remove_item_at, push_if_unique_gc, reduce_left, replace_element, same_map, some,
-    try_map, BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType, IteratorExt,
-    LiteralTypeInterface, Node, ObjectFlags, OptionTry, PeekMoreExt, Signature, Symbol,
-    SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypePredicate,
-    TypePredicateKind, TypeReferenceInterface, UnionOrIntersectionTypeInterface, UnionReduction,
-    UnionType,
+    ordered_remove_item_at, push_if_unique_gc, reduce_left, replace_element,
+    return_ok_default_if_none, same_map, some, try_map, BaseUnionOrIntersectionType, Diagnostics,
+    ElementFlags, IntersectionType, IteratorExt, LiteralTypeInterface, Node, ObjectFlags,
+    OptionTry, PeekMoreExt, Signature, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeId, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
 };
 use local_macros::enum_unwrapped;
 
@@ -295,13 +295,13 @@ impl TypeChecker {
         type_: &Type, /*TupleTypeReference*/
         index: usize,
         end_skip_count: Option<usize>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let end_skip_count = end_skip_count.unwrap_or(0);
         let target = type_.as_type_reference().target();
         let end_index = self.get_type_reference_arity(type_) - end_skip_count;
         let target_as_tuple_type = target.as_tuple_type();
-        if index > target_as_tuple_type.fixed_length {
-            self.get_rest_array_type_of_tuple_type(type_)
+        Ok(if index > target_as_tuple_type.fixed_length {
+            self.get_rest_array_type_of_tuple_type(type_)?
                 .unwrap_or_else(|| self.create_tuple_type(&[], None, None, None))
         } else {
             self.create_tuple_type(
@@ -315,8 +315,8 @@ impl TypeChecker {
                         labeled_element_declarations[index..end_index].to_owned()
                     })
                     .as_deref(),
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn get_known_keys_of_tuple_type(
@@ -518,7 +518,7 @@ impl TypeChecker {
                         | TypeFlags::Intersection
                         | TypeFlags::InstantiableNonPrimitive,
                 ) {
-                    self.get_properties_of_type(&source)
+                    self.get_properties_of_type(&source)?
                         .try_find_(|p| -> io::Result<_> {
                             Ok(self.is_unit_type(&*self.get_type_of_symbol(p)?))
                         })?
@@ -892,7 +892,7 @@ impl TypeChecker {
             }
             types.push(pred.type_.clone().unwrap());
         }
-        let first = first?;
+        let first = return_ok_default_if_none!(first);
         let composite_type = self.get_union_or_intersection_type(&types, kind, None)?;
         Ok(Some(self.create_type_predicate(
             first.kind,

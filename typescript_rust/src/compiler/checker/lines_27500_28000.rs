@@ -44,7 +44,7 @@ impl TypeChecker {
         let properties_of_jsx_element_attrib_prop_interface =
             jsx_element_attrib_prop_interface_type.as_ref().map(
                 |jsx_element_attrib_prop_interface_type| {
-                    self.get_properties_of_type(jsx_element_attrib_prop_interface_type)
+                    self.get_properties_of_type(jsx_element_attrib_prop_interface_type)?
                 },
             );
         Ok(properties_of_jsx_element_attrib_prop_interface.and_then(
@@ -367,9 +367,7 @@ impl TypeChecker {
     ) -> io::Result<impl Iterator<Item = Gc<Symbol>>> {
         let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         /*intrinsics ?*/
-        Ok(
-            self.get_properties_of_type(&intrinsics), /*: emptyArray*/
-        )
+        self.get_properties_of_type(&intrinsics) /*: emptyArray*/
     }
 
     pub(super) fn check_jsx_preconditions(&self, error_node: &Node) {

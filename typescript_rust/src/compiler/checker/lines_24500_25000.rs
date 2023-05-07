@@ -62,7 +62,7 @@ impl GetFlowTypeOfReference {
         }
         let prototype_property = prototype_property.unwrap();
 
-        let prototype_type = self.type_checker.get_type_of_symbol(&prototype_property);
+        let prototype_type = self.type_checker.get_type_of_symbol(&prototype_property)?;
         let candidate = if !self.type_checker.is_type_any(Some(&*prototype_type)) {
             Some(prototype_type)
         } else {
@@ -88,10 +88,10 @@ impl GetFlowTypeOfReference {
                 || target.flags().intersects(TypeFlags::Object)
                     && get_object_flags(target).intersects(ObjectFlags::Class)
             {
-                return Ok(are_option_gcs_equal(
+                return are_option_gcs_equal(
                     source.maybe_symbol().as_ref(),
                     target.maybe_symbol().as_ref(),
-                ));
+                );
             }
 
             self.type_checker.is_type_subtype_of(source, target)
@@ -1085,7 +1085,7 @@ impl TypeChecker {
             || declaration.flags().intersects(NodeFlags::Ambient);
         let initial_type = if assume_initialized {
             if is_parameter {
-                self.remove_optionality_from_declared_type(&type_, &declaration)
+                self.remove_optionality_from_declared_type(&type_, &declaration)?
             } else {
                 type_.clone()
             }
@@ -1094,7 +1094,7 @@ impl TypeChecker {
         {
             self.undefined_type()
         } else {
-            self.get_optional_type_(&type_, None)
+            self.get_optional_type_(&type_, None)?
         };
         let flow_type = self.get_flow_type_of_reference(
             node,

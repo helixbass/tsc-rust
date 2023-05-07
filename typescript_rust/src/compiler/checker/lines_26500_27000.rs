@@ -1244,7 +1244,7 @@ impl TypeChecker {
         }
 
         if contextual_type_has_pattern && node.parent().kind() != SyntaxKind::SpreadAssignment {
-            for ref prop in self.get_properties_of_type(contextual_type.as_ref().unwrap()) {
+            for ref prop in self.get_properties_of_type(contextual_type.as_ref().unwrap())? {
                 if !properties_table.contains_key(prop.escaped_name())
                     && self
                         .get_property_of_type_(&spread, prop.escaped_name(), None)?

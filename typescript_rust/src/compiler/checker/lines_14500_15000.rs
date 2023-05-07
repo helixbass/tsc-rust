@@ -728,7 +728,7 @@ impl TypeChecker {
             None
         };
         let property_types = self
-            .get_properties_of_type(type_)
+            .get_properties_of_type(type_)?
             .map(|ref prop| self.get_literal_type_from_property(prop, include, None))
             .collect::<Result<Vec<_>, _>>()?;
         let index_infos = self.get_index_infos_of_type(type_);

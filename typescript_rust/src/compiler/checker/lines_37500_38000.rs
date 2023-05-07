@@ -10,8 +10,8 @@ use crate::{
     append, is_class_static_block_declaration, map, some, ObjectTypeInterface, Signature,
     SignatureKind, SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
     get_containing_function_or_class_static_block, get_function_flags, Diagnostics, FunctionFlags,
-    IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node, NodeInterface, Symbol,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node, NodeInterface, OptionTry,
+    Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -441,9 +441,9 @@ impl TypeChecker {
     pub(super) fn get_iteration_types_of_iterator_result(
         &self,
         type_: &Type,
-    ) -> Gc<IterationTypes> {
+    ) -> io::Result<Gc<IterationTypes>> {
         if self.is_type_any(Some(type_)) {
-            return self.any_iteration_types();
+            return Ok(self.any_iteration_types());
         }
 
         let cached_types = self.get_cached_iteration_types(
@@ -451,24 +451,24 @@ impl TypeChecker {
             IterationTypeCacheKey::IterationTypesOfIteratorResult,
         );
         if let Some(cached_types) = cached_types {
-            return cached_types;
+            return Ok(cached_types);
         }
 
         if self.is_reference_to_type(type_, &self.get_global_iterator_yield_result_type(false)) {
             let yield_type = self.get_type_arguments(type_)[0].clone();
-            return self.set_cached_iteration_types(
+            return Ok(self.set_cached_iteration_types(
                 type_,
                 IterationTypeCacheKey::IterationTypesOfIteratorResult,
                 self.create_iteration_types(Some(yield_type), None, None),
-            );
+            ));
         }
         if self.is_reference_to_type(type_, &self.get_global_iterator_return_result_type(false)) {
             let return_type = self.get_type_arguments(type_)[0].clone();
-            return self.set_cached_iteration_types(
+            return Ok(self.set_cached_iteration_types(
                 type_,
                 IterationTypeCacheKey::IterationTypesOfIteratorResult,
                 self.create_iteration_types(None, Some(return_type), None),
-            );
+            ));
         }
 
         let yield_iterator_result =
@@ -482,20 +482,20 @@ impl TypeChecker {
         let return_iterator_result =
             self.filter_type(type_, |type_| self.is_return_iterator_result(type_));
         let return_type = if !Gc::ptr_eq(&return_iterator_result, &self.never_type()) {
-            self.get_type_of_property_of_type_(&return_iterator_result, "value")
+            self.get_type_of_property_of_type_(&return_iterator_result, "value")?
         } else {
             None
         };
 
         if yield_type.is_none() && return_type.is_none() {
-            return self.set_cached_iteration_types(
+            return Ok(self.set_cached_iteration_types(
                 type_,
                 IterationTypeCacheKey::IterationTypesOfIteratorResult,
                 self.no_iteration_types(),
-            );
+            ));
         }
 
-        self.set_cached_iteration_types(
+        Ok(self.set_cached_iteration_types(
             type_,
             IterationTypeCacheKey::IterationTypesOfIteratorResult,
             self.create_iteration_types(
@@ -503,7 +503,7 @@ impl TypeChecker {
                 Some(return_type.unwrap_or_else(|| self.void_type())),
                 None,
             ),
-        )
+        ))
     }
 
     pub(super) fn get_iteration_types_of_method(
@@ -524,16 +524,16 @@ impl TypeChecker {
             .filter(|method| {
                 !(method_name == "next" && method.flags().intersects(SymbolFlags::Optional))
             })
-            .map(|method| {
-                if method_name == "next" {
-                    self.get_type_of_symbol(method)
+            .try_map(|method| {
+                Ok(if method_name == "next" {
+                    self.get_type_of_symbol(method)?
                 } else {
                     self.get_type_with_facts(
                         &self.get_type_of_symbol(method),
                         TypeFacts::NEUndefinedOrNull,
                     )
-                }
-            });
+                })
+            })?;
 
         if self.is_type_any(method_type.as_deref()) {
             return Ok(Some(if method_name == "next" {
@@ -680,7 +680,7 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                )
+                )?
             } else {
                 self.unknown_type()
             };
@@ -706,7 +706,7 @@ impl TypeChecker {
 
         let yield_type: Gc<Type>;
         let method_return_type = if let Some(method_return_types) = method_return_types.as_ref() {
-            self.get_intersection_type(method_return_types, Option::<&Symbol>::None, None)
+            self.get_intersection_type(method_return_types, Option::<&Symbol>::None, None)?
         } else {
             self.never_type()
         };
@@ -894,7 +894,7 @@ impl TypeChecker {
             || return_type.flags().intersects(TypeFlags::Never)
         {
             let expr_type = match node_as_return_statement.expression.as_ref() {
-                Some(expression) => self.check_expression_cached(&expression, None),
+                Some(expression) => self.check_expression_cached(&expression, None)?,
                 None => self.undefined_type(),
             };
             if container.kind() == SyntaxKind::SetAccessor {

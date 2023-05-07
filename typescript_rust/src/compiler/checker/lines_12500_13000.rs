@@ -239,7 +239,7 @@ impl TypeChecker {
         declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
         parameters: &mut Vec<Gc<Symbol>>,
     ) -> io::Result<bool> {
-        if is_jsdoc_signature(declaration) || !self.contains_arguments_reference(declaration) {
+        if is_jsdoc_signature(declaration) || !self.contains_arguments_reference(declaration)? {
             return Ok(false);
         }
         let last_param =
@@ -384,7 +384,7 @@ impl TypeChecker {
                         node,
                         |child| self.contains_arguments_reference_traverse(Some(child)),
                         Option::<fn(&NodeArray) -> io::Result<bool>>::None,
-                    )
+                    )?
             }
         })
     }
@@ -474,7 +474,7 @@ impl TypeChecker {
                     self.get_union_or_intersection_type_predicate(
                         signature_composite_signatures,
                         signature.composite_kind,
-                    )
+                    )?
                     .map_or_else(|| self.no_type_predicate(), Gc::new),
                 );
             } else {
@@ -623,7 +623,7 @@ impl TypeChecker {
                         ) {
                             self.any_type()
                         } else {
-                            self.get_return_type_from_body(signature_declaration, None)
+                            self.get_return_type_from_body(signature_declaration, None)?
                         }
                     })
             };
@@ -850,16 +850,19 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_canonical_signature(&self, signature: Gc<Signature>) -> Gc<Signature> {
-        if signature.maybe_type_parameters().is_some() {
+    pub(super) fn get_canonical_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Gc<Signature>> {
+        Ok(if signature.maybe_type_parameters().is_some() {
             if signature.maybe_canonical_signature_cache().is_none() {
                 *signature.maybe_canonical_signature_cache() =
-                    Some(self.create_canonical_signature(signature.clone()));
+                    Some(self.create_canonical_signature(signature.clone())?);
             }
             signature.maybe_canonical_signature_cache().clone().unwrap()
         } else {
             signature
-        }
+        })
     }
 
     pub(super) fn create_canonical_signature(

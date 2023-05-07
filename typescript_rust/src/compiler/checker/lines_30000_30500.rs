@@ -532,7 +532,7 @@ impl TypeChecker {
         }
 
         let mut expression_type =
-            self.check_non_null_expression(&node_as_new_expression.expression);
+            self.check_non_null_expression(&node_as_new_expression.expression)?;
         if Gc::ptr_eq(&expression_type, &self.silent_never_type()) {
             return Ok(self.silent_never_signature());
         }

@@ -112,12 +112,12 @@ impl TypeChecker {
         &self,
         name: &str,
         base_type: &Type,
-    ) -> Option<Gc<Symbol>> {
-        self.get_spelling_suggestion_for_name(
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        Ok(self.get_spelling_suggestion_for_name(
             name,
-            self.get_properties_of_type(base_type),
+            self.get_properties_of_type(base_type)?,
             SymbolFlags::ClassMember,
-        )
+        ))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_property<
@@ -127,8 +127,8 @@ impl TypeChecker {
         &self,
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
-    ) -> Option<Gc<Symbol>> {
-        let props = self.get_properties_of_type(containing_type);
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        let props = self.get_properties_of_type(containing_type)?;
         let mut name = name.into();
         let name_inner_rc_node = match name.clone() {
             StrOrRcNode::RcNode(name) => Some(name),
@@ -151,7 +151,7 @@ impl TypeChecker {
         }
         let props = props_.unwrap();
         let name = enum_unwrapped!(name, [StrOrRcNode, Str]);
-        self.get_spelling_suggestion_for_name(name, props, SymbolFlags::Value)
+        Ok(self.get_spelling_suggestion_for_name(name, props, SymbolFlags::Value))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<
@@ -161,13 +161,13 @@ impl TypeChecker {
         &self,
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let name = name.into();
         let str_name = match &name {
             StrOrRcNode::Str(name) => *name,
             StrOrRcNode::RcNode(name) => id_text(name),
         };
-        let mut properties = self.get_properties_of_type(containing_type);
+        let mut properties = self.get_properties_of_type(containing_type)?;
         let jsx_specific = if str_name == "for" {
             properties.find(|x| symbol_name(x) == "htmlFor")
         } else if str_name == "class" {
@@ -175,9 +175,9 @@ impl TypeChecker {
         } else {
             None
         };
-        jsx_specific.or_else(|| {
+        Ok(jsx_specific.or_else(|| {
             self.get_spelling_suggestion_for_name(&str_name, properties, SymbolFlags::Value)
-        })
+        }))
     }
 
     pub(super) fn get_suggestion_for_nonexistent_property<

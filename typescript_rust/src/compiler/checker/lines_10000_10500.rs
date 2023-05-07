@@ -698,7 +698,7 @@ impl TypeChecker {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_declared_properties().is_none() {
             let symbol = type_.symbol();
-            let members = self.get_members_of_symbol(&symbol);
+            let members = self.get_members_of_symbol(&symbol)?;
             let members = (*members).borrow();
             type_as_interface_type.set_declared_properties(self.get_named_members(&*members)?);
             type_as_interface_type.set_declared_call_signatures(vec![]);
@@ -706,10 +706,10 @@ impl TypeChecker {
             type_as_interface_type.set_declared_index_infos(vec![]);
 
             type_as_interface_type.set_declared_call_signatures(
-                self.get_signatures_of_symbol(members.get(InternalSymbolName::Call).cloned()),
+                self.get_signatures_of_symbol(members.get(InternalSymbolName::Call).cloned())?,
             );
             type_as_interface_type.set_declared_construct_signatures(
-                self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned()),
+                self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned())?,
             );
             type_as_interface_type
                 .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol)?);

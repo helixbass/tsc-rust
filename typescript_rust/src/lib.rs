@@ -681,7 +681,7 @@ pub use compiler::utilities_public::{
     text_change_range_new_span, text_span_contains_position, text_span_contains_text_span,
     text_span_end, text_span_intersection, text_span_intersects_with,
     text_span_intersects_with_position, text_span_intersects_with_text_span, text_span_is_empty,
-    text_span_overlap, text_span_overlaps_with, unchanged_text_change_range,
+    text_span_overlap, text_span_overlaps_with, try_find_ancestor, unchanged_text_change_range,
     unescape_leading_underscores, validate_locale_and_set_language,
     walk_up_binding_elements_and_patterns, FindAncestorCallbackReturn, StrOrNodeArray,
 };

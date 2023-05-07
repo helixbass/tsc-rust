@@ -109,9 +109,9 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_type_of_global_symbol<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_type_of_global_symbol(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
         arity: usize,
     ) -> io::Result<Gc<Type /*ObjectType*/>> {
         if symbol.is_none() {
@@ -177,7 +177,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_global_symbol(
             name,
             SymbolFlags::Value,
@@ -193,7 +193,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_global_symbol(
             name,
             SymbolFlags::Type,
@@ -210,7 +210,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let symbol = self.get_global_symbol(
             name,
             SymbolFlags::Type,
@@ -219,7 +219,7 @@ impl TypeChecker {
             } else {
                 None
             },
-        );
+        )?;
         if let Some(symbol) = symbol.as_ref() {
             self.get_declared_type_of_symbol(symbol);
             if length(
@@ -243,10 +243,10 @@ impl TypeChecker {
                     &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
                     Some(vec![symbol_name(symbol).into_owned(), arity.to_string()]),
                 );
-                return None;
+                return Ok(None);
             }
         }
-        symbol
+        Ok(symbol)
     }
 
     pub(super) fn get_global_symbol(
@@ -271,13 +271,13 @@ impl TypeChecker {
         name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let symbol = self.get_global_type_symbol(name, report_errors);
-        if symbol.is_some() || report_errors {
-            Some(self.get_type_of_global_symbol(symbol, arity))
+        Ok(if symbol.is_some() || report_errors {
+            Some(self.get_type_of_global_symbol(symbol, arity)?)
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn get_global_typed_property_descriptor_type(&self) -> Gc<Type> {
@@ -582,10 +582,10 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         arity: Option<usize>,
-    ) -> Option<Gc<Type /*ObjectType*/>> {
+    ) -> io::Result<Option<Gc<Type /*ObjectType*/>>> {
         let arity = arity.unwrap_or(0);
-        let symbol = self.get_global_symbol(name, SymbolFlags::Type, None);
-        symbol.map(|symbol| self.get_type_of_global_symbol(Some(symbol), arity))
+        let symbol = self.get_global_symbol(name, SymbolFlags::Type, None)?;
+        symbol.try_map(|symbol| self.get_type_of_global_symbol(Some(symbol), arity))
     }
 
     pub(super) fn get_global_extract_symbol(&self) -> Option<Gc<Symbol>> {
@@ -938,13 +938,13 @@ impl TypeChecker {
         element_flags: &[ElementFlags],
         readonly: bool,
         named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Gc<Type /*GenericType*/> {
+    ) -> io::Result<Gc<Type /*GenericType*/>> {
         if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::Rest) {
-            return if readonly {
+            return Ok(if readonly {
                 self.global_readonly_array_type()
             } else {
                 self.global_array_type()
-            };
+            });
         }
         let key = format!(
             "{}{}{}",
@@ -985,10 +985,10 @@ impl TypeChecker {
                 element_flags,
                 readonly,
                 named_member_declarations,
-            ));
+            )?);
             self.tuple_types().insert(key, type_.clone().unwrap());
         }
-        type_.unwrap()
+        Ok(type_.unwrap())
     }
 
     pub(super) fn create_tuple_target_type(

@@ -94,10 +94,10 @@ impl TypeChecker {
                 self.unknown_type()
             };
             return self.add_optionality(
-                &self.widen_type_inferred_from_initializer(
+                &*self.widen_type_inferred_from_initializer(
                     element,
                     &*self.check_declaration_initializer(element, Some(contextual_type))?,
-                ),
+                )?,
                 None,
                 None,
             );
@@ -256,7 +256,7 @@ impl TypeChecker {
             }
         });
         let mut result: Gc<Type> =
-            self.create_tuple_type(&element_types, Some(&element_flags), None, None);
+            self.create_tuple_type(&element_types, Some(&element_flags), None, None)?;
         if include_pattern_in_type {
             result = self.clone_type_reference(&result);
             *result.maybe_pattern() = Some(pattern.node_wrapper());
@@ -578,9 +578,9 @@ impl TypeChecker {
         } else if is_object_literal_method(declaration) {
             type_ = self
                 .try_get_type_from_effective_type_node(declaration)?
-                .unwrap_or_else(|| {
+                .try_unwrap_or_else(|| {
                     self.check_object_literal_method(declaration, Some(CheckMode::Normal))
-                });
+                })?;
         } else if is_parameter(declaration)
             || is_property_declaration(declaration)
             || is_property_signature(declaration)
@@ -749,7 +749,7 @@ impl TypeChecker {
 
         if let Some(getter) = getter.as_ref() {
             if getter.as_function_like_declaration().maybe_body().is_some() {
-                let return_type_from_body = self.get_return_type_from_body(getter, None);
+                let return_type_from_body = self.get_return_type_from_body(getter, None)?;
                 return Ok(Some(
                     self.instantiate_type_if_needed(&return_type_from_body, symbol)?,
                 ));

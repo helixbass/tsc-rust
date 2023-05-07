@@ -175,10 +175,10 @@ impl TypeChecker {
                 ))
     }
 
-    pub(super) fn is_string_index_signature_only_type(&self, type_: &Type) -> bool {
-        type_.flags().intersects(TypeFlags::Object)
+    pub(super) fn is_string_index_signature_only_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(type_.flags().intersects(TypeFlags::Object)
             && !self.is_generic_mapped_type(type_)
-            && self.get_properties_of_type(type_).len() == 0
+            && self.get_properties_of_type(type_)?.len() == 0
             && self.get_index_infos_of_type(type_).len() == 1
             && self
                 .get_index_info_of_type_(type_, &self.string_type())
@@ -188,7 +188,7 @@ impl TypeChecker {
                     type_.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.is_string_index_signature_only_type(type_),
                 )
-            || false
+            || false)
     }
 
     pub(super) fn is_enum_type_related_to(
@@ -224,7 +224,7 @@ impl TypeChecker {
             return Ok(false);
         }
         let target_enum_type = self.get_type_of_symbol(target_symbol);
-        for property in self.get_properties_of_type(&self.get_type_of_symbol(source_symbol)) {
+        for property in self.get_properties_of_type(&self.get_type_of_symbol(source_symbol))? {
             if property.flags().intersects(SymbolFlags::EnumMember) {
                 let target_property =
                     self.get_property_of_type_(&target_enum_type, property.escaped_name(), None)?;

@@ -889,7 +889,7 @@ impl TypeChecker {
         target: &Type,
         mut is_related_to: TIsRelatedTo,
         skip_partial: Option<bool>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if target.flags().intersects(TypeFlags::Union)
             && source
                 .flags()
@@ -897,14 +897,14 @@ impl TypeChecker {
         {
             let match_ = self.get_matching_union_constituent_for_type(target, source);
             if match_.is_some() {
-                return match_;
+                return Ok(match_);
             }
-            let source_properties = self.get_properties_of_type(source);
+            let source_properties = self.get_properties_of_type(source)?;
             // if (sourceProperties) {
             let source_properties_filtered =
                 self.find_discriminant_properties(source_properties, target);
             if let Some(source_properties_filtered) = source_properties_filtered.as_ref() {
-                return self.discriminate_type_by_discriminable_items(
+                return Ok(self.discriminate_type_by_discriminable_items(
                     target,
                     source_properties_filtered.into_iter().map(|p| {
                         let p_clone = p.clone();
@@ -918,11 +918,11 @@ impl TypeChecker {
                     |source: &Type, target: &Type| is_related_to(source, target) != Ternary::False,
                     Option::<&Type>::None,
                     skip_partial,
-                );
+                ));
             }
             // }
         }
-        None
+        Ok(None)
     }
 }
 

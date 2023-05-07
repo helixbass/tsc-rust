@@ -332,7 +332,7 @@ impl TypeChecker {
         if bases.len() != 1 {
             return Ok(None);
         }
-        if !(*self.get_members_of_symbol(&type_.symbol()))
+        if !(*self.get_members_of_symbol(&type_.symbol())?)
             .borrow()
             .is_empty()
         {
@@ -577,25 +577,21 @@ impl TypeChecker {
                     })
                 },
             )?;
-            type_ =
-                Some(self.get_widened_literal_like_type_for_contextual_type(
-                    type_present,
-                    contextual_type,
-                ));
+            type_ = Some(self.get_widened_literal_like_type_for_contextual_type(
+                type_present,
+                contextual_type,
+            )?);
         }
         Ok(type_)
     }
 
-    pub(super) fn get_widened_literal_like_type_for_contextual_iteration_type_if_needed<
-        TType: Borrow<Type>,
-        TContextualSignatureReturnType: Borrow<Type>,
-    >(
+    pub(super) fn get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
         &self,
-        type_: Option<TType>,
-        contextual_signature_return_type: Option<TContextualSignatureReturnType>,
+        type_: Option<impl Borrow<Type>>,
+        contextual_signature_return_type: Option<impl Borrow<Type>>,
         kind: IterationTypeKind,
         is_async_generator: bool,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let mut type_ = type_.map(|type_| type_.borrow().type_wrapper());
         if let Some(type_present) = type_.as_ref().filter(|type_| self.is_unit_type(type_)) {
             let contextual_type =
@@ -608,13 +604,12 @@ impl TypeChecker {
                         is_async_generator,
                     )
                 });
-            type_ =
-                Some(self.get_widened_literal_like_type_for_contextual_type(
-                    type_present,
-                    contextual_type,
-                ));
+            type_ = Some(self.get_widened_literal_like_type_for_contextual_type(
+                type_present,
+                contextual_type,
+            )?);
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn is_tuple_type(&self, type_: &Type) -> bool {
@@ -896,37 +891,42 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_global_non_nullable_type_instantiation(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_global_non_nullable_type_instantiation(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Gc<Type>> {
         let reduced_type = self.get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull);
         if self
             .maybe_deferred_global_non_nullable_type_alias()
             .is_none()
         {
             *self.maybe_deferred_global_non_nullable_type_alias() = Some(
-                self.get_global_symbol("NonNullable", SymbolFlags::TypeAlias, None)
+                self.get_global_symbol("NonNullable", SymbolFlags::TypeAlias, None)?
                     .unwrap_or_else(|| self.unknown_symbol()),
             );
         }
-        if let Some(deferred_global_non_nullable_type_alias) = self
-            .maybe_deferred_global_non_nullable_type_alias()
-            .clone()
-            .as_ref()
-            .filter(|deferred_global_non_nullable_type_alias| {
-                !Gc::ptr_eq(
+        Ok(
+            if let Some(deferred_global_non_nullable_type_alias) = self
+                .maybe_deferred_global_non_nullable_type_alias()
+                .clone()
+                .as_ref()
+                .filter(|deferred_global_non_nullable_type_alias| {
+                    !Gc::ptr_eq(
+                        deferred_global_non_nullable_type_alias,
+                        &self.unknown_symbol(),
+                    )
+                })
+            {
+                self.get_type_alias_instantiation(
                     deferred_global_non_nullable_type_alias,
-                    &self.unknown_symbol(),
+                    Some(&vec![reduced_type]),
+                    Option::<&Symbol>::None,
+                    None,
                 )
-            })
-        {
-            self.get_type_alias_instantiation(
-                deferred_global_non_nullable_type_alias,
-                Some(&vec![reduced_type]),
-                Option::<&Symbol>::None,
-                None,
-            )
-        } else {
-            reduced_type
-        }
+            } else {
+                reduced_type
+            },
+        )
     }
 
     pub(super) fn get_non_nullable_type(&self, type_: &Type) -> Gc<Type> {

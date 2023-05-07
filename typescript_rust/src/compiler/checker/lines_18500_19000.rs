@@ -56,15 +56,15 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target: &Type, /*UnionOrIntersectionType*/
         report_errors: bool,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let target_types = target.as_union_or_intersection_type_interface().types();
         if target.flags().intersects(TypeFlags::Union) {
             if self.type_checker.contains_type(target_types, source) {
-                return Ternary::True;
+                return Ok(Ternary::True);
             }
             let match_ = self
                 .type_checker
-                .get_matching_union_constituent_for_type(target, source);
+                .get_matching_union_constituent_for_type(target, source)?;
             if let Some(match_) = match_.as_ref() {
                 let related = self.is_related_to(
                     source,
@@ -75,7 +75,7 @@ impl CheckTypeRelatedTo {
                     None,
                 );
                 if related != Ternary::False {
-                    return related;
+                    return Ok(related);
                 }
             }
         }
@@ -89,7 +89,7 @@ impl CheckTypeRelatedTo {
                 None,
             );
             if related != Ternary::False {
-                return related;
+                return Ok(related);
             }
         }
         if report_errors {
@@ -109,7 +109,7 @@ impl CheckTypeRelatedTo {
                 None,
             );
         }
-        Ternary::False
+        Ok(Ternary::False)
     }
 
     pub(super) fn type_related_to_each_type(

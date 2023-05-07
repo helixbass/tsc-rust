@@ -427,7 +427,7 @@ impl TypeChecker {
         type_: &Type,     /*InterfaceType*/
         base_type: &Type, /*BaseType*/
     ) -> io::Result<()> {
-        let base_properties = self.get_properties_of_type(base_type);
+        let base_properties = self.get_properties_of_type(base_type)?;
         'base_property_check: for ref base_property in base_properties {
             let base = self.get_target_symbol(base_property);
 
@@ -671,7 +671,7 @@ impl TypeChecker {
         type_: &Type, /*InterfaceType*/
         base_types: &[Gc<Type /*BaseType*/>],
         properties: TProperties,
-    ) -> impl Iterator<Item = Gc<Symbol>> + Clone
+    ) -> io::Result<impl Iterator<Item = Gc<Symbol>> + Clone>
     where
         TProperties: IntoIterator<Item = TPropertiesItem> + Clone,
         TPropertiesItem: Borrow<Gc<Symbol>>,
@@ -679,7 +679,9 @@ impl TypeChecker {
     {
         let properties = properties.into_iter();
         if length(Some(base_types)) == 0 {
-            return Either::Left(properties.map(|property| property.borrow().clone()));
+            return Ok(Either::Left(
+                properties.map(|property| property.borrow().clone()),
+            ));
         }
         let mut seen: HashMap<__String, Gc<Symbol>> = Default::default();
         for_each(properties, |p, _| -> Option<()> {
@@ -690,11 +692,11 @@ impl TypeChecker {
 
         let type_as_interface_type = type_.as_interface_type();
         for base in base_types {
-            let properties = self.get_properties_of_type(&self.get_type_with_this_argument(
+            let properties = self.get_properties_of_type(&*self.get_type_with_this_argument(
                 base,
                 type_as_interface_type.maybe_this_type(),
                 None,
-            ));
+            )?)?;
             for ref prop in properties {
                 let existing = seen.get(prop.escaped_name());
                 if matches!(
@@ -709,7 +711,7 @@ impl TypeChecker {
             }
         }
 
-        Either::Right(GcHashMap::from(seen).owned_values())
+        Ok(Either::Right(GcHashMap::from(seen).owned_values()))
     }
 
     pub(super) fn check_inherited_properties_are_identical(
@@ -747,7 +749,7 @@ impl TypeChecker {
                 base,
                 type_as_interface_type.maybe_this_type(),
                 None,
-            ));
+            ))?;
             for ref prop in properties {
                 let existing = seen.get(prop.escaped_name());
                 match existing {

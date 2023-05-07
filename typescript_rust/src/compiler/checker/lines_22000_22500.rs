@@ -213,7 +213,7 @@ impl InferTypes {
             }
             let prop_types = self
                 .type_checker
-                .get_properties_of_type(source)
+                .get_properties_of_type(source)?
                 .map(|ref property| self.type_checker.get_type_of_symbol(property))
                 .collect::<Result<Vec<_>, _>>()?;
             let index_infos = self.type_checker.get_index_infos_of_type(source);
@@ -474,22 +474,22 @@ impl InferTypes {
                                 .filter(|target_info| target_info.maybe_implied_arity().is_some())
                             {
                                 self.infer_from_types(
-                                    &self.type_checker.slice_tuple_type(
+                                    &*self.type_checker.slice_tuple_type(
                                         source,
                                         start_length,
                                         Some(
                                             end_length + source_arity
                                                 - target_info.maybe_implied_arity().unwrap(),
                                         ),
-                                    ),
+                                    )?,
                                     &element_types[start_length],
                                 );
                                 self.infer_from_types(
-                                    &self.type_checker.slice_tuple_type(
+                                    &*self.type_checker.slice_tuple_type(
                                         source,
                                         start_length + target_info.maybe_implied_arity().unwrap(),
                                         Some(end_length),
-                                    ),
+                                    )?,
                                     &element_types[start_length + 1],
                                 );
                             }
@@ -504,7 +504,7 @@ impl InferTypes {
                                     source,
                                     start_length,
                                     Some(end_length),
-                                )
+                                )?
                             } else {
                                 self.type_checker.create_array_type(
                                     &self.type_checker.get_type_arguments(source)[0],
@@ -659,7 +659,7 @@ impl InferTypes {
         {
             for target_info in &index_infos {
                 let mut prop_types: Vec<Gc<Type>> = vec![];
-                for ref prop in self.type_checker.get_properties_of_type(source) {
+                for ref prop in self.type_checker.get_properties_of_type(source)? {
                     if self.type_checker.is_applicable_index_type(
                         &*self.type_checker.get_literal_type_from_property(
                             prop,

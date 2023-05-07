@@ -39,7 +39,7 @@ impl TypeChecker {
                     .property_name
                     .clone()
                     .unwrap_or_else(|| node_as_binding_element.name()),
-            )
+            )?
         } else if node_as_binding_element.dot_dot_dot_token.is_none() {
             self.get_type_of_destructured_array_element(
                 &parent_type,
@@ -51,12 +51,12 @@ impl TypeChecker {
                     .unwrap(),
             )?
         } else {
-            self.get_type_of_destructured_spread_expression(&parent_type)
+            self.get_type_of_destructured_spread_expression(&parent_type)?
         };
-        Ok(self.get_type_with_default(
+        self.get_type_with_default(
             &type_,
             &node_as_binding_element.maybe_initializer().unwrap(),
-        ))
+        )
     }
 
     pub(super) fn get_type_of_initializer(
@@ -1117,7 +1117,7 @@ impl TypeChecker {
         mut flow: Gc<FlowNode>,
         mut no_cache_check: bool,
     ) -> io::Result<bool> {
-        Ok(loop {
+        loop {
             if matches!(
                 self.maybe_last_flow_node().as_ref(),
                 Some(last_flow_node) if Gc::ptr_eq(
@@ -1132,13 +1132,13 @@ impl TypeChecker {
                 if !no_cache_check {
                     let id = self.get_flow_node_id(&flow);
                     let reachable = self.flow_node_reachable().get(&id).copied();
-                    return if let Some(reachable) = reachable {
+                    return Ok(if let Some(reachable) = reachable {
                         reachable
                     } else {
                         let ret = self.is_reachable_flow_node_worker(flow.clone(), true);
                         self.flow_node_reachable().insert(id, ret);
                         ret
-                    };
+                    });
                 }
                 no_cache_check = false;
             }
@@ -1161,7 +1161,7 @@ impl TypeChecker {
                         if
                         /*predicateArgument &&*/
                         self.is_false_expression(predicate_argument) {
-                            return false;
+                            return Ok(false);
                         }
                     }
                     if self
@@ -1169,23 +1169,23 @@ impl TypeChecker {
                         .flags()
                         .intersects(TypeFlags::Never)
                     {
-                        return false;
+                        return Ok(false);
                     }
                 }
                 flow = flow_as_flow_call.antecedent.clone();
             } else if flags.intersects(FlowFlags::BranchLabel) {
-                return some(
+                return Ok(some(
                     flow.as_flow_label().maybe_antecedents().as_deref(),
                     Some(|f: &Gc<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
-                );
+                ));
             } else if flags.intersects(FlowFlags::LoopLabel) {
                 let antecedents = flow.as_flow_label().maybe_antecedents().clone();
                 if antecedents.is_none() {
-                    return false;
+                    return Ok(false);
                 }
                 let antecedents = antecedents.unwrap();
                 if antecedents.is_empty() {
-                    return false;
+                    return Ok(false);
                 }
                 flow = antecedents[0].clone();
             } else if flags.intersects(FlowFlags::SwitchClause) {
@@ -1195,7 +1195,7 @@ impl TypeChecker {
                         &flow_as_flow_switch_clause.switch_statement,
                     )
                 {
-                    return false;
+                    return Ok(false);
                 }
                 flow = flow_as_flow_switch_clause.antecedent.clone();
             } else if flags.intersects(FlowFlags::ReduceLabel) {
@@ -1209,12 +1209,12 @@ impl TypeChecker {
                 let result = self.is_reachable_flow_node_worker(
                     flow_as_flow_reduce_label.antecedent.clone(),
                     false,
-                );
+                )?;
                 *target_as_flow_label.maybe_antecedents_mut() = save_antecedents;
-                return result;
+                return Ok(result);
             } else {
-                return !flags.intersects(FlowFlags::Unreachable);
+                return Ok(!flags.intersects(FlowFlags::Unreachable));
             }
-        })
+        }
     }
 }

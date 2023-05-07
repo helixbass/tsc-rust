@@ -14,31 +14,31 @@ use crate::{
     TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, for_each_bool,
     get_name_of_declaration, get_object_flags, get_source_file_of_node,
     is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
-    DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo, Node,
-    NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
+    DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo, IteratorExt,
+    Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
     TypeFlags, TypeInterface, UnionReduction, WideningContext,
 };
 
 impl TypeChecker {
-    pub(super) fn get_regular_type_of_object_literal(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_regular_type_of_object_literal(&self, type_: &Type) -> io::Result<Gc<Type>> {
         if !(self.is_object_literal_type(type_)
             && get_object_flags(type_).intersects(ObjectFlags::FreshLiteral))
         {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
         let regular_type = type_
             .as_fresh_object_literal_type()
             .maybe_regular_type()
             .clone();
         if let Some(regular_type) = regular_type {
-            return regular_type;
+            return Ok(regular_type);
         }
 
         let resolved = type_.type_wrapper();
         let resolved_as_resolved_type = resolved.as_resolved_type();
         let members = self.transform_type_of_members(type_, |type_: &Type| {
             self.get_regular_type_of_object_literal(type_)
-        });
+        })?;
         let regular_new = self.create_anonymous_type(
             resolved.maybe_symbol(),
             Gc::new(GcCell::new(members)),
@@ -53,7 +53,7 @@ impl TypeChecker {
                 | resolved_as_resolved_type.object_flags() & !ObjectFlags::FreshLiteral,
         );
         *type_.as_fresh_object_literal_type().maybe_regular_type() = Some(regular_new.clone());
-        regular_new
+        Ok(regular_new)
     }
 
     pub(super) fn create_widening_context(
@@ -73,7 +73,7 @@ impl TypeChecker {
     pub(super) fn get_siblings_of_context(
         &self,
         context: Rc<RefCell<WideningContext>>,
-    ) -> Vec<Gc<Type>> {
+    ) -> io::Result<Vec<Gc<Type>>> {
         if (*context).borrow().siblings.is_none() {
             let mut siblings: Vec<Gc<Type>> = vec![];
             for type_ in &self.get_siblings_of_context((*context).borrow().parent.clone().unwrap())
@@ -84,7 +84,7 @@ impl TypeChecker {
                         (*context).borrow().property_name.as_ref().unwrap(),
                     );
                     if let Some(prop) = prop.as_ref() {
-                        self.for_each_type(&self.get_type_of_symbol(prop), |t: &Type| {
+                        self.for_each_type(&*self.get_type_of_symbol(prop)?, |t: &Type| {
                             siblings.push(t.type_wrapper());
                             Option::<()>::None
                         });
@@ -93,20 +93,20 @@ impl TypeChecker {
             }
             context.borrow_mut().siblings = Some(siblings);
         }
-        (*context).borrow().siblings.clone().unwrap()
+        Ok((*context).borrow().siblings.clone().unwrap())
     }
 
     pub(super) fn get_properties_of_context(
         &self,
         context: Rc<RefCell<WideningContext>>,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         if (*context).borrow().resolved_properties.is_none() {
             let mut names: HashMap<__String, Gc<Symbol>> = HashMap::new();
             for t in &self.get_siblings_of_context(context.clone()) {
                 if self.is_object_literal_type(t)
                     && !get_object_flags(t).intersects(ObjectFlags::ContainsSpread)
                 {
-                    for prop in self.get_properties_of_type(t) {
+                    for prop in self.get_properties_of_type(t)? {
                         names.insert(prop.escaped_name().to_owned(), prop);
                     }
                 }
@@ -114,18 +114,18 @@ impl TypeChecker {
             context.borrow_mut().resolved_properties =
                 Some(names.values().map(Clone::clone).collect());
         }
-        (*context).borrow().resolved_properties.clone().unwrap()
+        Ok((*context).borrow().resolved_properties.clone().unwrap())
     }
 
     pub(super) fn get_widened_property(
         &self,
         prop: &Symbol,
         context: Option<Rc<RefCell<WideningContext>>>,
-    ) -> Gc<Symbol> {
+    ) -> io::Result<Gc<Symbol>> {
         if !prop.flags().intersects(SymbolFlags::Property) {
-            return prop.symbol_wrapper();
+            return Ok(prop.symbol_wrapper());
         }
-        let original = self.get_type_of_symbol(prop);
+        let original = self.get_type_of_symbol(prop)?;
         let prop_context = context.map(|context| {
             Rc::new(RefCell::new(self.create_widening_context(
                 Some(context),
@@ -134,11 +134,11 @@ impl TypeChecker {
             )))
         });
         let widened = self.get_widened_type_with_context(&original, prop_context);
-        if Gc::ptr_eq(&widened, &original) {
+        Ok(if Gc::ptr_eq(&widened, &original) {
             prop.symbol_wrapper()
         } else {
             self.create_symbol_with_type(prop, Some(widened))
-        }
+        })
     }
 
     pub(super) fn get_undefined_property(&self, prop: &Symbol) -> Gc<Symbol> {
@@ -212,11 +212,11 @@ impl TypeChecker {
         &self,
         type_: &Type,
         context: Option<Rc<RefCell<WideningContext>>>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if get_object_flags(type_).intersects(ObjectFlags::RequiresWidening) {
             if context.is_none() {
                 if let Some(type_widened) = type_.maybe_widened().clone() {
-                    return type_widened;
+                    return Ok(type_widened);
                 }
             }
             let mut result: Option<Gc<Type>> = None;
@@ -266,7 +266,7 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                ));
+                )?);
             } else if type_.flags().intersects(TypeFlags::Intersection) {
                 result = Some(self.get_intersection_type(
                     &same_map(
@@ -275,7 +275,7 @@ impl TypeChecker {
                     ),
                     Option::<&Symbol>::None,
                     None,
-                ));
+                )?);
             } else if self.is_array_type(type_) || self.is_tuple_type(type_) {
                 result = Some(self.create_type_reference(
                     &type_.as_type_reference().target,
@@ -288,9 +288,9 @@ impl TypeChecker {
             if result.is_some() && context.is_none() {
                 *type_.maybe_widened() = result.clone();
             }
-            return result.unwrap_or_else(|| type_.type_wrapper());
+            return Ok(result.unwrap_or_else(|| type_.type_wrapper()));
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn report_widening_errors_in_type(&self, type_: &Type) -> io::Result<bool> {
@@ -319,7 +319,7 @@ impl TypeChecker {
             }
             if self.is_object_literal_type(type_) {
                 for ref p in self.get_properties_of_object_type(type_) {
-                    let t = self.get_type_of_symbol(p);
+                    let t = self.get_type_of_symbol(p)?;
                     if get_object_flags(&t).intersects(ObjectFlags::ContainsWideningType) {
                         if !self.report_widening_errors_in_type(&t)? {
                             self.error(
@@ -412,7 +412,7 @@ impl TypeChecker {
                             ),
                             true,
                             None,
-                        )
+                        )?
                         .is_some()
                         || matches!(
                             param_as_parameter_declaration.name().as_identifier().original_keyword_kind,
@@ -575,7 +575,7 @@ impl TypeChecker {
         source: &Signature,
         target: &Signature,
         mut callback: impl FnMut(&Type, &Type),
-    ) {
+    ) -> io::Result<()> {
         let source_count = self.get_parameter_count(source);
         let target_count = self.get_parameter_count(target);
         let source_rest_type = self.get_effective_rest_type(source);
@@ -590,9 +590,9 @@ impl TypeChecker {
         } else {
             cmp::min(source_count, target_non_rest_count)
         };
-        let source_this_type = self.get_this_type_of_signature(source);
+        let source_this_type = self.get_this_type_of_signature(source)?;
         if let Some(source_this_type) = source_this_type.as_ref() {
-            let target_this_type = self.get_this_type_of_signature(target);
+            let target_this_type = self.get_this_type_of_signature(target)?;
             if let Some(target_this_type) = target_this_type.as_ref() {
                 callback(source_this_type, target_this_type);
             }
@@ -609,6 +609,8 @@ impl TypeChecker {
                 target_rest_type,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn apply_to_return_types(
@@ -627,8 +629,8 @@ impl TypeChecker {
         target: Gc<Signature>,
         mut callback: impl FnMut(&Type, &Type) -> io::Result<()>,
     ) -> io::Result<()> {
-        let source_type_predicate = self.get_type_predicate_of_signature(&source);
-        let target_type_predicate = self.get_type_predicate_of_signature(&target);
+        let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
+        let target_type_predicate = self.get_type_predicate_of_signature(&target)?;
         let mut took_if_branch = false;
         if let Some(source_type_predicate) = source_type_predicate.as_ref() {
             if let Some(target_type_predicate) = target_type_predicate.as_ref() {
@@ -646,8 +648,8 @@ impl TypeChecker {
         }
         if !took_if_branch {
             callback(
-                &self.get_return_type_of_signature(source),
-                &self.get_return_type_of_signature(target),
+                &*self.get_return_type_of_signature(source)?,
+                &*self.get_return_type_of_signature(target)?,
             )?;
         }
 
@@ -730,7 +732,7 @@ impl TypeChecker {
         context: &InferenceContext,
         t: &Type,
         fix: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let inferences = context.inferences();
         let inferences = &*inferences;
         for (i, inference) in inferences.into_iter().enumerate() {
@@ -742,7 +744,7 @@ impl TypeChecker {
                 return self.get_inferred_type(context, i);
             }
         }
-        t.type_wrapper()
+        Ok(t.type_wrapper())
     }
 
     pub(super) fn clear_cached_inferences(&self, inferences: &[Gc<InferenceInfo>]) {
@@ -888,8 +890,8 @@ impl TypeChecker {
         &self,
         type_: &Type,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> bool {
-        ptr::eq(type_, type_parameter)
+    ) -> io::Result<bool> {
+        Ok(ptr::eq(type_, type_parameter)
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
@@ -897,12 +899,12 @@ impl TypeChecker {
                 )
             || type_.flags().intersects(TypeFlags::Conditional)
                 && (ptr::eq(
-                    &*self.get_true_type_from_conditional_type(type_),
+                    &*self.get_true_type_from_conditional_type(type_)?,
                     type_parameter,
                 ) || ptr::eq(
-                    &*self.get_false_type_from_conditional_type(type_),
+                    &*self.get_false_type_from_conditional_type(type_)?,
                     type_parameter,
-                ))
+                )))
     }
 
     pub(super) fn create_empty_object_type_from_string_literal(&self, type_: &Type) -> Gc<Type> {
@@ -974,21 +976,23 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn is_partially_inferable_type(&self, type_: &Type) -> bool {
-        !get_object_flags(type_).intersects(ObjectFlags::NonInferrableType)
-            || self.is_object_literal_type(type_)
-                && self
-                    .get_properties_of_type(type_)
-                    .any(|ref prop: Gc<Symbol>| {
-                        self.is_partially_inferable_type(&self.get_type_of_symbol(prop))
-                    })
-            || self.is_tuple_type(type_)
-                && some(
-                    Some(&self.get_type_arguments(type_)),
-                    Some(|type_argument: &Gc<Type>| {
-                        self.is_partially_inferable_type(type_argument)
-                    }),
-                )
+    pub(super) fn is_partially_inferable_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(
+            !get_object_flags(type_).intersects(ObjectFlags::NonInferrableType)
+                || self.is_object_literal_type(type_)
+                    && self
+                        .get_properties_of_type(type_)?
+                        .try_any(|ref prop: Gc<Symbol>| {
+                            Ok(self.is_partially_inferable_type(&*self.get_type_of_symbol(prop)?))
+                        })?
+                || self.is_tuple_type(type_)
+                    && some(
+                        Some(&self.get_type_arguments(type_)),
+                        Some(|type_argument: &Gc<Type>| {
+                            self.is_partially_inferable_type(type_argument)
+                        }),
+                    ),
+        )
     }
 
     pub(super) fn create_reverse_mapped_type(
@@ -996,24 +1000,24 @@ impl TypeChecker {
         source: &Type,
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if !(self
             .get_index_info_of_type_(source, &self.string_type())
             .is_some()
             || self.get_properties_of_type(source).len() != 0
                 && self.is_partially_inferable_type(source))
         {
-            return None;
+            return Ok(None);
         }
         if self.is_array_type(source) {
-            return Some(self.create_array_type(
-                &self.infer_reverse_mapped_type(
+            return Ok(Some(self.create_array_type(
+                &*self.infer_reverse_mapped_type(
                     &self.get_type_arguments(source)[0],
                     target,
                     constraint,
-                ),
+                )?,
                 Some(self.is_readonly_array_type(source)),
-            ));
+            )));
         }
         if self.is_tuple_type(source) {
             let element_types = map(&self.get_type_arguments(source), |t: &Gc<Type>, _| {
@@ -1045,7 +1049,7 @@ impl TypeChecker {
                     .element_flags
                     .clone()
             };
-            return Some(
+            return Ok(Some(
                 self.create_tuple_type(
                     &element_types,
                     Some(&element_flags),
@@ -1056,14 +1060,14 @@ impl TypeChecker {
                         .as_tuple_type()
                         .labeled_element_declarations
                         .as_deref(),
-                ),
-            );
+                )?,
+            ));
         }
         let reversed = self.create_object_type(
             ObjectFlags::ReverseMapped | ObjectFlags::Anonymous,
             Option::<&Symbol>::None,
         );
-        Some(
+        Ok(Some(
             ReverseMappedType::new(
                 reversed,
                 source.type_wrapper(),
@@ -1071,13 +1075,13 @@ impl TypeChecker {
                 constraint.type_wrapper(),
             )
             .into(),
-        )
+        ))
     }
 
     pub(super) fn get_type_of_reverse_mapped_symbol(
         &self,
         symbol: &Symbol, /*ReverseMappedSymbol*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
             let symbol_as_reverse_mapped_symbol = symbol.as_reverse_mapped_symbol();
@@ -1085,10 +1089,10 @@ impl TypeChecker {
                 &symbol_as_reverse_mapped_symbol.property_type,
                 &symbol_as_reverse_mapped_symbol.mapped_type,
                 &symbol_as_reverse_mapped_symbol.constraint_type,
-            ));
+            )?);
         }
         let ret = (*links).borrow().type_.clone().unwrap();
-        ret
+        Ok(ret)
     }
 }
 

@@ -778,7 +778,7 @@ impl CheckTypeRelatedTo {
         report_errors: Option<bool>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         intersection_state: Option<IntersectionState>,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let original_source = original_source.type_wrapper();
         let original_target = original_target.type_wrapper();
         let recursion_flags = recursion_flags.unwrap_or(RecursionFlags::Both);
@@ -803,7 +803,7 @@ impl CheckTypeRelatedTo {
                     None
                 },
             ) {
-                return Ternary::True;
+                return Ok(Ternary::True);
             }
             self.report_error_results(
                 report_errors,
@@ -815,7 +815,7 @@ impl CheckTypeRelatedTo {
                 Ternary::False,
                 get_object_flags(&original_source).intersects(ObjectFlags::JsxAttributes),
             );
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
 
         let source = self
@@ -826,11 +826,11 @@ impl CheckTypeRelatedTo {
             .get_normalized_type(&original_target, true);
 
         if Gc::ptr_eq(&source, &target) {
-            return Ternary::True;
+            return Ok(Ternary::True);
         }
 
         if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
-            return self.is_identical_to(&source, &target, recursion_flags);
+            return Ok(self.is_identical_to(&source, &target, recursion_flags));
         }
 
         if source.flags().intersects(TypeFlags::TypeParameter)
@@ -839,7 +839,7 @@ impl CheckTypeRelatedTo {
                 Some(constraint) if Gc::ptr_eq(&constraint, &target)
             )
         {
-            return Ternary::True;
+            return Ok(Ternary::True);
         }
 
         if target.flags().intersects(TypeFlags::Union)
@@ -865,7 +865,7 @@ impl CheckTypeRelatedTo {
                     .get_normalized_type(&null_stripped_target, true);
             }
             if Gc::ptr_eq(&source, &null_stripped_target) {
-                return Ternary::True;
+                return Ok(Ternary::True);
             }
         }
 
@@ -888,7 +888,7 @@ impl CheckTypeRelatedTo {
                 },
             )
         {
-            return Ternary::True;
+            return Ok(Ternary::True);
         }
 
         let is_comparing_jsx_attributes =
@@ -910,7 +910,7 @@ impl CheckTypeRelatedTo {
                         },
                     );
                 }
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
 
@@ -925,7 +925,7 @@ impl CheckTypeRelatedTo {
                     .flags()
                     .intersects(TypeFlags::Object | TypeFlags::Intersection)
                 && self.type_checker.is_weak_type(&target)
-                && (!self.type_checker.get_properties_of_type(&source).len() == 0
+                && (!self.type_checker.get_properties_of_type(&source)?.len() == 0
                     || self
                         .type_checker
                         .type_has_call_or_construct_signatures(&source));
@@ -1000,7 +1000,7 @@ impl CheckTypeRelatedTo {
                     );
                 }
             }
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
 
         self.trace_unions_or_intersections_too_large(&source, &target);
@@ -1132,7 +1132,7 @@ impl CheckTypeRelatedTo {
             result,
             is_comparing_jsx_attributes,
         );
-        result
+        Ok(result)
     }
 
     pub(super) fn report_error_results(
@@ -1340,12 +1340,12 @@ impl CheckTypeRelatedTo {
         source: &Type, /*FreshObjectLiteralType*/
         target: &Type,
         report_errors: bool,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if !self.type_checker.is_excess_property_check_target(target)
             || !self.type_checker.no_implicit_any
                 && get_object_flags(target).intersects(ObjectFlags::JSLiteral)
         {
-            return false;
+            return Ok(false);
         }
         let is_comparing_jsx_attributes =
             get_object_flags(source).intersects(ObjectFlags::JsxAttributes);
@@ -1356,7 +1356,7 @@ impl CheckTypeRelatedTo {
                 .is_type_subset_of(&self.type_checker.global_object_type(), target)
                 || !is_comparing_jsx_attributes && self.type_checker.is_empty_object_type(target))
         {
-            return false;
+            return Ok(false);
         }
         let mut reduced_target = target.type_wrapper();
         let mut check_types: Option<Vec<Gc<Type>>> = None;
@@ -1382,7 +1382,7 @@ impl CheckTypeRelatedTo {
                 vec![reduced_target.clone()]
             });
         }
-        for prop in self.type_checker.get_properties_of_type(source) {
+        for prop in self.type_checker.get_properties_of_type(source)? {
             if self.should_check_as_excess_property(&prop, &source.symbol())
                 && !self.type_checker.is_ignored_jsx_property(source, &prop)
             {
@@ -1543,7 +1543,7 @@ impl CheckTypeRelatedTo {
                             }
                         }
                     }
-                    return true;
+                    return Ok(true);
                 }
                 if matches!(
                     check_types.as_ref(),
@@ -1567,11 +1567,11 @@ impl CheckTypeRelatedTo {
                             )]),
                         );
                     }
-                    return true;
+                    return Ok(true);
                 }
             }
         }
-        false
+        Ok(false)
     }
 }
 

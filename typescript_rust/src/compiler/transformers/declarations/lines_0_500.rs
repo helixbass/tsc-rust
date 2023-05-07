@@ -1131,7 +1131,7 @@ impl TransformDeclarations {
         p: &Node, /*ParameterDeclaration*/
         modifier_mask: Option<ModifierFlags>,
         type_: Option<&Node /*TypeNode*/>,
-    ) -> Gc<Node /*ParameterDeclaration*/> {
+    ) -> io::Result<Gc<Node /*ParameterDeclaration*/>> {
         let p_as_parameter_declaration = p.as_parameter_declaration();
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
@@ -1168,14 +1168,14 @@ impl TransformDeclarations {
                         .or_else(|| p_as_parameter_declaration.maybe_type())
                         .as_deref(),
                     Some(true),
-                ),
+                )?,
                 self.ensure_no_initializer(p),
             )
         ;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             self.set_get_symbol_accessibility_diagnostic(old_diag.unwrap());
         }
-        new_param
+        Ok(new_param)
     }
 
     pub(super) fn should_print_with_initializer(&self, node: &Node) -> bool {

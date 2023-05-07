@@ -37,10 +37,10 @@ use crate::{
     PragmaName, ReadonlyTextRange, ScriptTarget, VisitResult, __String, create_diagnostic_for_node,
     escape_leading_underscores, factory, get_first_identifier, get_or_update_indexmap,
     get_source_file_of_node, is_jsx_opening_fragment, maybe_get_source_file_of_node,
-    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    parse_isolated_entity_name, try_find_ancestor, unescape_leading_underscores, visit_node,
+    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
+    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
+    TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -557,7 +557,7 @@ impl TypeChecker {
                 return Ok(target);
             }
             if !target.flags().intersects(SymbolFlags::Transient) {
-                let resolved_target = self.resolve_symbol(Some(&*target), None).unwrap();
+                let resolved_target = self.resolve_symbol(Some(&*target), None)?.unwrap();
                 if Gc::ptr_eq(&resolved_target, &self.unknown_symbol()) {
                     return Ok(source.symbol_wrapper());
                 }
@@ -880,14 +880,14 @@ impl TypeChecker {
     pub(super) fn merge_module_augmentation(
         &self,
         module_name: &Node, /*StringLiteral | Identifier*/
-    ) {
+    ) -> io::Result<()> {
         let module_augmentation = module_name.parent();
         if !matches!(
             module_augmentation.symbol().maybe_declarations().as_ref().and_then(|declarations| declarations.get(0)),
             Some(declaration) if Gc::ptr_eq(declaration, &module_augmentation)
         ) {
             Debug_.assert(matches!(module_augmentation.symbol().maybe_declarations().as_ref(), Some(declarations) if declarations.len() > 1), None);
-            return;
+            return Ok(());
         }
 
         if is_global_scope_augmentation(&module_augmentation) {
@@ -914,11 +914,11 @@ impl TypeChecker {
                 Some(true),
             );
             if main_module.is_none() {
-                return;
+                return Ok(());
             }
             let main_module = main_module.unwrap();
             let main_module = self
-                .resolve_external_module_symbol(Some(&*main_module), None)
+                .resolve_external_module_symbol(Some(&*main_module), None)?
                 .unwrap();
             if main_module.flags().intersects(SymbolFlags::Namespace) {
                 if some(
@@ -928,7 +928,7 @@ impl TypeChecker {
                     }),
                 ) {
                     let merged =
-                        self.merge_symbol(&module_augmentation.symbol(), &main_module, Some(true));
+                        self.merge_symbol(&module_augmentation.symbol(), &main_module, Some(true))?;
                     let mut pattern_ambient_module_augmentations =
                         self.maybe_pattern_ambient_module_augmentations();
                     if pattern_ambient_module_augmentations.is_none() {
@@ -957,7 +957,7 @@ impl TypeChecker {
                         let resolved_exports = self.get_resolved_members_or_exports_of_symbol(
                             &main_module,
                             MembersOrExportsResolutionKind::resolved_exports,
-                        );
+                        )?;
                         let resolved_exports = (*resolved_exports).borrow();
                         let main_module_exports = main_module.exports();
                         let main_module_exports = (*main_module_exports).borrow();
@@ -979,6 +979,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn add_to_symbol_table(
@@ -1259,47 +1261,77 @@ impl TypeChecker {
         decl_container: &Node,
         usage: &Node,
         declaration: &Node,
-    ) -> bool {
-        find_ancestor(Some(usage), |current| {
+    ) -> io::Result<bool> {
+        Ok(try_find_ancestor(Some(usage), |current| {
             if ptr::eq(current, decl_container) {
-                return FindAncestorCallbackReturn::Quit;
+                return Ok(FindAncestorCallbackReturn::Quit);
             }
             if is_function_like(Some(current)) {
-                return true.into();
+                return Ok(true.into());
             }
             if is_class_static_block_declaration(current) {
-                return (declaration.pos() < usage.pos()).into();
+                return Ok((declaration.pos() < usage.pos()).into());
             }
 
-            let property_declaration = current.maybe_parent().and_then(|parent| try_cast(parent, |node: &Gc<Node>| is_property_declaration(node)));
+            let property_declaration = current.maybe_parent().and_then(|parent| {
+                try_cast(parent, |node: &Gc<Node>| is_property_declaration(node))
+            });
             if let Some(property_declaration) = property_declaration {
-                let initializer_of_property = matches!(property_declaration.as_property_declaration().maybe_initializer(), Some(initializer) if ptr::eq(&*initializer, current));
+                let initializer_of_property = matches!(
+                    property_declaration.as_property_declaration().maybe_initializer(),
+                    Some(initializer) if ptr::eq(&*initializer, current)
+                );
                 if initializer_of_property {
                     if is_static(&current.parent()) {
                         if declaration.kind() == SyntaxKind::MethodDeclaration {
-                            return true.into();
+                            return Ok(true.into());
                         }
-                        if is_property_declaration(declaration) && are_option_gcs_equal(get_containing_class(usage).as_ref(), get_containing_class(declaration).as_ref()) {
+                        if is_property_declaration(declaration)
+                            && are_option_gcs_equal(
+                                get_containing_class(usage).as_ref(),
+                                get_containing_class(declaration).as_ref(),
+                            )
+                        {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
-                                let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(declaration).unwrap());
-                                let static_blocks = declaration.parent().as_class_like_declaration().members().owned_iter().filter(|node| is_class_static_block_declaration(node));
-                                if self.is_property_initialized_in_static_blocks(&prop_name, &type_, static_blocks, declaration.parent().pos(), current.pos()) {
-                                    return true.into();
+                                let type_ = self.get_type_of_symbol(
+                                    &self.get_symbol_of_node(declaration).unwrap(),
+                                )?;
+                                let static_blocks = declaration
+                                    .parent()
+                                    .as_class_like_declaration()
+                                    .members()
+                                    .owned_iter()
+                                    .filter(|node| is_class_static_block_declaration(node));
+                                if self.is_property_initialized_in_static_blocks(
+                                    &prop_name,
+                                    &type_,
+                                    static_blocks,
+                                    declaration.parent().pos(),
+                                    current.pos(),
+                                ) {
+                                    return Ok(true.into());
                                 }
                             }
                         }
                     } else {
-                        let is_declaration_instance_property = declaration.kind() == SyntaxKind::PropertyDeclaration && !is_static(declaration);
-                        if !is_declaration_instance_property || !are_option_gcs_equal(get_containing_class(usage).as_ref(), get_containing_class(declaration).as_ref()) {
-                            return true.into();
+                        let is_declaration_instance_property = declaration.kind()
+                            == SyntaxKind::PropertyDeclaration
+                            && !is_static(declaration);
+                        if !is_declaration_instance_property
+                            || !are_option_gcs_equal(
+                                get_containing_class(usage).as_ref(),
+                                get_containing_class(declaration).as_ref(),
+                            )
+                        {
+                            return Ok(true.into());
                         }
                     }
                 }
             }
-            false.into()
-        })
-        .is_some()
+            Ok(false.into())
+        })?
+        .is_some())
     }
 
     pub(super) fn is_property_immediately_referenced_within_declaration(
@@ -1468,7 +1500,11 @@ impl TypeChecker {
         name_arg: Option<impl Into<ResolveNameNameArg<'name_arg>> + Clone>,
         is_use: bool,
         exclude_globals: bool,
-        mut lookup: impl FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Gc<Symbol>>,
+        mut lookup: impl FnMut(
+            &SymbolTable,
+            &str, /*__String*/
+            SymbolFlags,
+        ) -> io::Result<Option<Gc<Symbol>>>,
     ) -> io::Result<Option<Gc<Symbol>>> {
         if name == "TextNode" {
             panic!("resolve_name_helper() TextNode");
@@ -1492,7 +1528,7 @@ impl TypeChecker {
                 let location_maybe_locals = location_unwrapped.maybe_locals();
                 if let Some(location_locals) = location_maybe_locals.as_ref() {
                     if !self.is_global_source_file(&*location_unwrapped) {
-                        result = lookup(&(**location_locals).borrow(), name, meaning);
+                        result = lookup(&(**location_locals).borrow(), name, meaning)?;
                         if let Some(result_unwrapped) = result.as_ref() {
                             let mut use_result = true;
                             if is_function_like(Some(&*location_unwrapped))
@@ -1626,7 +1662,7 @@ impl TypeChecker {
                                     &module_exports,
                                     name,
                                     meaning & SymbolFlags::ModuleMember,
-                                );
+                                )?;
                                 if let Some(result_unwrapped) = result.as_ref() {
                                     if is_source_file(&location_unwrapped)
                                         && location_unwrapped
@@ -1656,7 +1692,7 @@ impl TypeChecker {
                         .borrow(),
                         name,
                         meaning & SymbolFlags::EnumMember,
-                    );
+                    )?;
                     if result.is_some() {
                         break;
                     }
@@ -1670,7 +1706,7 @@ impl TypeChecker {
                                     &(**ctor_locals).borrow(),
                                     name,
                                     meaning & SymbolFlags::Value,
-                                )
+                                )?
                                 .is_some()
                                 {
                                     property_with_invalid_initializer =
@@ -1693,7 +1729,7 @@ impl TypeChecker {
                         .borrow(),
                         name,
                         meaning & SymbolFlags::Type,
-                    );
+                    )?;
                     let mut should_skip_rest_of_match_arm = false;
                     if let Some(result_unwrapped) = result.as_ref() {
                         if !self.is_type_parameter_symbol_declared_in_container(
@@ -1747,7 +1783,7 @@ impl TypeChecker {
                                 &(*self.get_symbol_of_node(&container).unwrap().members()).borrow(),
                                 name,
                                 meaning & SymbolFlags::Type,
-                            );
+                            )?;
                             if result.is_some() {
                                 if name_not_found_message.is_some() {
                                     self.error(error_location.as_deref(), &Diagnostics::Base_class_expressions_cannot_reference_class_type_parameters, None);
@@ -1766,7 +1802,7 @@ impl TypeChecker {
                             &(*self.get_symbol_of_node(&grandparent).unwrap().members()).borrow(),
                             name,
                             meaning & SymbolFlags::Type,
-                        );
+                        )?;
                         if result.is_some() {
                             self.error(error_location.as_deref(), &Diagnostics::A_computed_property_name_cannot_reference_a_type_parameter_from_its_containing_type, None);
                             return Ok(None);
@@ -1912,7 +1948,7 @@ impl TypeChecker {
             }
 
             if !exclude_globals {
-                result = lookup(&self.globals(), name, meaning);
+                result = lookup(&self.globals(), name, meaning)?;
             }
         }
         if result.is_none() {
@@ -1934,12 +1970,12 @@ impl TypeChecker {
                         error_location,
                         name,
                         name_arg.clone().unwrap().into(),
-                    )? && !self.check_and_report_error_for_extending_interface(error_location)
+                    )? && !self.check_and_report_error_for_extending_interface(error_location)?
                         && !self.check_and_report_error_for_using_type_as_namespace(
                             error_location,
                             name,
                             meaning,
-                        )
+                        )?
                         && !self.check_and_report_error_for_exporting_primitive_type(
                             error_location,
                             name,
@@ -1948,17 +1984,17 @@ impl TypeChecker {
                             error_location,
                             name,
                             meaning,
-                        )
+                        )?
                         && !self.check_and_report_error_for_using_namespace_module_as_value(
                             error_location,
                             name,
                             meaning,
-                        )
+                        )?
                         && !self.check_and_report_error_for_using_value_as_type(
                             error_location,
                             name,
                             meaning,
-                        )
+                        )?
                 } {
                     let mut suggestion: Option<Gc<Symbol>> = None;
                     if self.suggestion_count() < self.maximum_suggestion_count {
@@ -2152,7 +2188,7 @@ impl TypeChecker {
                         Some(value_declaration) if value_declaration.pos() > associated_declaration_for_containing_initializer_or_binding_name.pos() &&
                             matches!(
                                 root.parent().maybe_locals().as_ref(),
-                                Some(locals) if are_option_gcs_equal(lookup(&(**locals).borrow(), candidate.escaped_name(), meaning).as_ref(), Some(&candidate))
+                                Some(locals) if are_option_gcs_equal(lookup(&(**locals).borrow(), candidate.escaped_name(), meaning)?.as_ref(), Some(&candidate))
                             )
                     ) {
                         self.error(

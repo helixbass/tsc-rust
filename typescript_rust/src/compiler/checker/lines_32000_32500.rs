@@ -183,7 +183,7 @@ impl TypeChecker {
         );
 
         let function_flags = get_function_flags(Some(node));
-        let return_type = self.get_return_type_from_annotation(node);
+        let return_type = self.get_return_type_from_annotation(node)?;
         self.check_all_code_paths_in_non_void_function_return_or_throw(
             node,
             return_type.as_deref(),
@@ -241,11 +241,11 @@ impl TypeChecker {
         type_: &Type,
         diagnostic: &DiagnosticMessage,
         is_await_valid: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let is_await_valid = is_await_valid.unwrap_or(false);
         if !self.is_type_assignable_to(type_, &self.number_or_big_int_type()) {
             let awaited_type = if is_await_valid {
-                self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)
+                self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
             } else {
                 None
             };
@@ -258,9 +258,9 @@ impl TypeChecker {
                 diagnostic,
                 None,
             );
-            return false;
+            return Ok(false);
         }
-        true
+        Ok(true)
     }
 
     pub(super) fn is_readonly_assignment_declaration(

@@ -82,27 +82,29 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_constant_reference(&self, node: &Node) -> bool {
+    pub(super) fn is_constant_reference(&self, node: &Node) -> io::Result<bool> {
         match node.kind() {
             SyntaxKind::Identifier => {
-                let symbol = self.get_resolved_symbol(node);
-                return self.is_const_variable(&symbol)
+                let symbol = self.get_resolved_symbol(node)?;
+                return Ok(self.is_const_variable(&symbol)
                     || is_parameter_or_catch_clause_variable(&symbol)
-                        && !self.is_symbol_assigned(&symbol);
+                        && !self.is_symbol_assigned(&symbol));
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                return self.is_constant_reference(&node.as_has_expression().expression())
-                    && self.is_readonly_symbol(
-                        &(*self.get_node_links(node))
-                            .borrow()
-                            .resolved_symbol
-                            .clone()
-                            .unwrap_or_else(|| self.unknown_symbol()),
-                    );
+                return Ok(
+                    self.is_constant_reference(&node.as_has_expression().expression())
+                        && self.is_readonly_symbol(
+                            &(*self.get_node_links(node))
+                                .borrow()
+                                .resolved_symbol
+                                .clone()
+                                .unwrap_or_else(|| self.unknown_symbol()),
+                        ),
+                );
             }
             _ => (),
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_flow_type_of_reference(
@@ -206,7 +208,7 @@ impl GetFlowTypeOfReference {
         let result_type = if get_object_flags(&evolved_type).intersects(ObjectFlags::EvolvingArray)
             && self
                 .type_checker
-                .is_evolving_array_operation_target(&self.reference)
+                .is_evolving_array_operation_target(&self.reference)?
         {
             self.type_checker.auto_array_type()
         } else {
@@ -378,20 +380,20 @@ impl GetFlowTypeOfReference {
     pub(super) fn get_initial_or_assigned_type(
         &self,
         flow: &FlowNode, /*FlowAssignment*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node = &flow.as_flow_assignment().node;
-        self.type_checker.get_narrowable_type_for_reference(
+        Ok(self.type_checker.get_narrowable_type_for_reference(
             &*if matches!(
                 node.kind(),
                 SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
             ) {
-                self.type_checker.get_initial_type(node)
+                self.type_checker.get_initial_type(node)?
             } else {
                 self.type_checker.get_assigned_type(node)
             },
             &self.reference,
             None,
-        )
+        ))
     }
 
     pub(super) fn get_type_at_flow_assignment(
@@ -630,7 +632,7 @@ impl GetFlowTypeOfReference {
                         for arg in &node.as_call_expression().arguments {
                             evolved_type = self
                                 .type_checker
-                                .add_evolving_array_element_type(&evolved_type, arg);
+                                .add_evolving_array_element_type(&evolved_type, arg)?;
                         }
                     } else {
                         let node_as_binary_expression = node.as_binary_expression();
@@ -648,7 +650,7 @@ impl GetFlowTypeOfReference {
                             evolved_type = self.type_checker.add_evolving_array_element_type(
                                 &evolved_type,
                                 &node_as_binary_expression.right,
-                            );
+                            )?;
                         }
                     }
                     return Ok(if Gc::ptr_eq(&evolved_type, &type_) {

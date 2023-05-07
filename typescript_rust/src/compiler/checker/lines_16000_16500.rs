@@ -549,7 +549,7 @@ impl TypeChecker {
                 self.get_type_from_this_type_node(node)?
             }
             SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node)?,
-            SyntaxKind::TypeReference => self.get_type_from_type_reference(node),
+            SyntaxKind::TypeReference => self.get_type_from_type_reference(node)?,
             SyntaxKind::TypePredicate => {
                 if node.as_type_predicate_node().asserts_modifier.is_some() {
                     self.void_type()
@@ -557,7 +557,7 @@ impl TypeChecker {
                     self.boolean_type()
                 }
             }
-            SyntaxKind::ExpressionWithTypeArguments => self.get_type_from_type_reference(node),
+            SyntaxKind::ExpressionWithTypeArguments => self.get_type_from_type_reference(node)?,
             SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node)?,
             SyntaxKind::ArrayType | SyntaxKind::TupleType => {
                 self.get_type_from_array_or_tuple_type_node(node)?
@@ -587,7 +587,7 @@ impl TypeChecker {
             | SyntaxKind::JSDocTypeLiteral
             | SyntaxKind::JSDocFunctionType
             | SyntaxKind::JSDocSignature => {
-                self.get_type_from_type_literal_or_function_or_constructor_type_node(node)
+                self.get_type_from_type_literal_or_function_or_constructor_type_node(node)?
             }
             SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node)?,
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
