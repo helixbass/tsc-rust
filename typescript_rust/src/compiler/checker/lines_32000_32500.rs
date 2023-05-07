@@ -13,10 +13,10 @@ use crate::{
     is_class_static_block_declaration, is_effective_external_module, is_function_expression,
     is_in_top_level_context, is_object_literal_method, is_private_identifier,
     is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
-    skip_outer_expressions, skip_parentheses, some, token_to_string, AssignmentKind, CheckFlags,
-    Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
+    skip_outer_expressions, skip_parentheses, some, token_to_string, try_some, AssignmentKind,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
     ExternalEmitHelpers, FunctionFlags, LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node,
-    NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OuterExpressionKinds,
+    NodeCheckFlags, NodeFlags, NodeInterface, Number, ObjectFlags, OptionTry, OuterExpressionKinds,
     PseudoBigInt, ReadonlyTextRange, ScriptTarget, SignatureFlags, SignatureKind, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionOrIntersectionTypeInterface,
@@ -27,7 +27,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
             None,
@@ -44,7 +44,7 @@ impl TypeChecker {
         if matches!(
             check_mode,
             Some(check_mode) if check_mode.intersects(CheckMode::SkipContextSensitive)
-        ) && self.is_context_sensitive(node)
+        ) && self.is_context_sensitive(node)?
         {
             if get_effective_return_type_node(node).is_none()
                 && !has_context_sensitive_parameters(node)
@@ -52,15 +52,15 @@ impl TypeChecker {
                 let contextual_signature = self.get_contextual_signature(node);
                 if matches!(
                     contextual_signature.as_ref(),
-                    Some(contextual_signature) if self.could_contain_type_variables(&self.get_return_type_of_signature(contextual_signature.clone()))
+                    Some(contextual_signature) if self.could_contain_type_variables(&*self.get_return_type_of_signature(contextual_signature.clone())?)
                 ) {
                     let links = self.get_node_links(node);
                     if let Some(links_context_free_type) =
                         (*links).borrow().context_free_type.clone()
                     {
-                        return links_context_free_type;
+                        return Ok(links_context_free_type);
                     }
-                    let return_type = self.get_return_type_from_body(node, check_mode);
+                    let return_type = self.get_return_type_from_body(node, check_mode)?;
                     let return_only_signature = Gc::new(self.create_signature(
                         None,
                         None,
@@ -85,10 +85,10 @@ impl TypeChecker {
                             | ObjectFlags::NonInferrableType,
                     );
                     links.borrow_mut().context_free_type = Some(return_only_type.clone());
-                    return return_only_type;
+                    return Ok(return_only_type);
                 }
             }
-            return self.any_function_type();
+            return Ok(self.any_function_type());
         }
 
         let has_grammar_error = self.check_grammar_function_like_declaration(node);
@@ -98,14 +98,14 @@ impl TypeChecker {
 
         self.contextually_check_function_expression_or_object_literal_method(node, check_mode);
 
-        self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())
+        self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())
     }
 
     pub(super) fn contextually_check_function_expression_or_object_literal_method(
         &self,
         node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
         check_mode: Option<CheckMode>,
-    ) {
+    ) -> io::Result<()> {
         let links = self.get_node_links(node);
         if !(*links)
             .borrow()
@@ -120,7 +120,7 @@ impl TypeChecker {
             {
                 links.borrow_mut().flags |= NodeCheckFlags::ContextChecked;
                 let signatures_of_type = self.get_signatures_of_type(
-                    &self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap()),
+                    &*self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
                     SignatureKind::Call,
                 );
                 let signature = first_or_undefined(&signatures_of_type);
@@ -128,7 +128,7 @@ impl TypeChecker {
                     return;
                 }
                 let signature = signature.unwrap();
-                if self.is_context_sensitive(node) {
+                if self.is_context_sensitive(node)? {
                     if let Some(contextual_signature) = contextual_signature.as_ref() {
                         let inference_context = self.get_inference_context(node);
                         if matches!(
@@ -160,10 +160,10 @@ impl TypeChecker {
                     }
                 }
                 if contextual_signature.is_some()
-                    && self.get_return_type_from_annotation(node).is_none()
+                    && self.get_return_type_from_annotation(node)?.is_none()
                     && signature.maybe_resolved_return_type().is_none()
                 {
-                    let return_type = self.get_return_type_from_body(node, check_mode);
+                    let return_type = self.get_return_type_from_body(node, check_mode)?;
                     if signature.maybe_resolved_return_type().is_none() {
                         *signature.maybe_resolved_return_type_mut() = Some(return_type);
                     }
@@ -171,6 +171,8 @@ impl TypeChecker {
                 self.check_signature_declaration(node);
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_function_expression_or_object_literal_method_deferred(
@@ -191,7 +193,7 @@ impl TypeChecker {
 
         if let Some(node_body) = node.as_function_like_declaration().maybe_body().as_ref() {
             if get_effective_return_type_node(node).is_none() {
-                self.get_return_type_of_signature(self.get_signature_from_declaration_(node));
+                self.get_return_type_of_signature(self.get_signature_from_declaration_(node)?)?;
             }
 
             if node_body.kind() == SyntaxKind::Block {
@@ -200,7 +202,7 @@ impl TypeChecker {
                 let expr_type = self.check_expression(node_body, None, None)?;
                 let return_or_promised_type = return_type
                     .as_ref()
-                    .map(|return_type| self.unwrap_return_type(return_type, function_flags));
+                    .try_map(|return_type| self.unwrap_return_type(return_type, function_flags))?;
                 if let Some(return_or_promised_type) = return_or_promised_type.as_ref() {
                     if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::Async {
                         let awaited_type = self.check_awaited_type(
@@ -209,7 +211,7 @@ impl TypeChecker {
                             node_body,
                             &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
                             None,
-                        );
+                        )?;
                         self.check_type_assignable_to_and_optionally_elaborate(
                             &awaited_type,
                             return_or_promised_type,
@@ -275,13 +277,13 @@ impl TypeChecker {
         }
         let d_as_call_expression = d.as_call_expression();
         let object_lit_type =
-            self.check_expression_cached(&d_as_call_expression.arguments[2], None);
-        let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value");
+            self.check_expression_cached(&d_as_call_expression.arguments[2], None)?;
+        let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value")?;
         if value_type.is_some() {
             let writable_prop = self.get_property_of_type_(&object_lit_type, "writable", None)?;
             let writable_type = writable_prop
                 .as_ref()
-                .map(|writable_prop| self.get_type_of_symbol(writable_prop));
+                .try_map(|writable_prop| self.get_type_of_symbol(writable_prop))?;
             if match writable_type.as_ref() {
                 None => true,
                 Some(writable_type) => {
@@ -314,8 +316,8 @@ impl TypeChecker {
         Ok(set_prop.is_none())
     }
 
-    pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> bool {
-        get_check_flags(symbol).intersects(CheckFlags::Readonly)
+    pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> io::Result<bool> {
+        Ok(get_check_flags(symbol).intersects(CheckFlags::Readonly)
             || symbol.flags().intersects(SymbolFlags::Property)
                 && get_declaration_modifier_flags_from_symbol(symbol, None)
                     .intersects(ModifierFlags::Readonly)
@@ -326,10 +328,10 @@ impl TypeChecker {
             || symbol.flags().intersects(SymbolFlags::Accessor)
                 && !symbol.flags().intersects(SymbolFlags::SetAccessor)
             || symbol.flags().intersects(SymbolFlags::EnumMember)
-            || some(
+            || try_some(
                 symbol.maybe_declarations().as_deref(),
                 Some(|declaration: &Gc<Node>| self.is_readonly_assignment_declaration(declaration)),
-            )
+            )?)
     }
 
     pub(super) fn is_assignment_to_readonly_entity(
@@ -478,8 +480,8 @@ impl TypeChecker {
         &self,
         expr: &Node, /*AccessExpression*/
         symbol: &Symbol,
-    ) {
-        let type_ = self.get_type_of_symbol(symbol);
+    ) -> io::Result<()> {
+        let type_ = self.get_type_of_symbol(symbol)?;
         if self.strict_null_checks
             && !type_
                 .flags()
@@ -497,6 +499,8 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn check_type_of_expression(
@@ -632,7 +636,7 @@ impl TypeChecker {
             node,
             &Diagnostics::Type_of_await_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
             None,
-        );
+        )?;
         if Gc::ptr_eq(&awaited_type, &operand_type)
             && !self.is_error_type(&awaited_type)
             && !operand_type.flags().intersects(TypeFlags::AnyOrUnknown)
@@ -732,7 +736,7 @@ impl TypeChecker {
                                     .unwrap()
                                     .to_owned(),
                                 self.type_to_string_(
-                                    &self.get_base_type_of_literal_type(&operand_type),
+                                    &*self.get_base_type_of_literal_type(&operand_type)?,
                                     Option::<&Node>::None,
                                     None,
                                     None,
@@ -755,7 +759,12 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken => {
-                let ok = self.check_arithmetic_operand_type(&node_as_prefix_unary_expression.operand, &self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type, None);
+                let ok = self.check_arithmetic_operand_type(
+                    &node_as_prefix_unary_expression.operand,
+                    &self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand),
+                    &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
+                    None
+                )?;
                 if ok {
                     self.check_reference_expression(
                         &node_as_prefix_unary_expression.operand,
@@ -784,7 +793,7 @@ impl TypeChecker {
             &self.check_non_null_type(&operand_type, &node_as_postfix_unary_expression.operand),
             &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
             None,
-        );
+        )?;
         if ok {
             self.check_reference_expression(
                 &node_as_postfix_unary_expression.operand,

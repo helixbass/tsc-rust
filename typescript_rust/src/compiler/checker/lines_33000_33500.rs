@@ -26,10 +26,10 @@ impl TypeChecker {
         &self,
         kind: AssignmentDeclarationKind,
         right_type: &Type,
-    ) {
+    ) -> io::Result<()> {
         if kind == AssignmentDeclarationKind::ModuleExports {
             for ref prop in self.get_properties_of_object_type(right_type) {
-                let prop_type = self.get_type_of_symbol(prop);
+                let prop_type = self.get_type_of_symbol(prop)?;
                 if matches!(
                     prop_type.maybe_symbol().as_ref(),
                     Some(prop_type_symbol) if prop_type_symbol.flags().intersects(SymbolFlags::Class)
@@ -43,7 +43,7 @@ impl TypeChecker {
                         Some(name),
                         false,
                         None,
-                    );
+                    )?;
                     if matches!(
                         symbol.as_ref().and_then(|symbol| symbol.maybe_declarations().clone()).as_ref(),
                         Some(symbol_declarations) if symbol_declarations.iter().any(|symbol_declaration| is_jsdoc_typedef_tag(symbol_declaration))
@@ -64,6 +64,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_eval_node(&self, node: &Node /*Expression*/) -> bool {
@@ -139,7 +141,7 @@ impl TypeChecker {
                 ) {
                     let left_as_property_access_expression = left.as_property_access_expression();
                     let target = self.get_type_of_property_of_type_(
-                        &self.get_type_of_expression(&left_as_property_access_expression.expression),
+                        &*self.get_type_of_expression(&left_as_property_access_expression.expression)?,
                         &left_as_property_access_expression.name.as_member_name().escaped_text()
                     )?;
                     if self.is_exact_optional_property_mismatch(
@@ -168,15 +170,15 @@ impl TypeChecker {
         left: &Node,
         right: &Node,
         kind: AssignmentDeclarationKind,
-    ) -> bool {
-        match kind {
+    ) -> io::Result<bool> {
+        Ok(match kind {
             AssignmentDeclarationKind::ModuleExports => true,
             AssignmentDeclarationKind::ExportsProperty
             | AssignmentDeclarationKind::Property
             | AssignmentDeclarationKind::Prototype
             | AssignmentDeclarationKind::PrototypeProperty
             | AssignmentDeclarationKind::ThisProperty => {
-                let symbol = self.get_symbol_of_node(left);
+                let symbol = self.get_symbol_of_node(left)?;
                 let init = get_assigned_expando_initializer(Some(right));
                 matches!(
                     init.as_ref(),
@@ -187,7 +189,7 @@ impl TypeChecker {
                 )
             }
             _ => false,
-        }
+        })
     }
 
     pub(super) fn report_operator_error_unless(
@@ -226,9 +228,9 @@ impl TypeChecker {
         );
         if let Some(is_related) = is_related.as_mut() {
             let awaited_left_type =
-                self.get_awaited_type_no_alias(left_type, Option::<&Node>::None, None, None);
+                self.get_awaited_type_no_alias(left_type, Option::<&Node>::None, None, None)?;
             let awaited_right_type =
-                self.get_awaited_type_no_alias(right_type, Option::<&Node>::None, None, None);
+                self.get_awaited_type_no_alias(right_type, Option::<&Node>::None, None, None)?;
             would_work_with_await = !(are_option_gcs_equal(
                 awaited_left_type.as_ref(),
                 Some(&left_type.type_wrapper()),
@@ -313,21 +315,21 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_base_types_if_unrelated<TIsRelated: FnMut(&Type, &Type) -> bool>(
+    pub(super) fn get_base_types_if_unrelated(
         &self,
         left_type: &Type,
         right_type: &Type,
-        is_related: &mut TIsRelated,
-    ) -> (Gc<Type>, Gc<Type>) {
+        is_related: &mut impl FnMut(&Type, &Type) -> bool,
+    ) -> io::Result<(Gc<Type>, Gc<Type>)> {
         let mut effective_left = left_type.type_wrapper();
         let mut effective_right = right_type.type_wrapper();
-        let left_base = self.get_base_type_of_literal_type(left_type);
-        let right_base = self.get_base_type_of_literal_type(right_type);
+        let left_base = self.get_base_type_of_literal_type(left_type)?;
+        let right_base = self.get_base_type_of_literal_type(right_type)?;
         if !is_related(&left_base, &right_base) {
             effective_left = left_base;
             effective_right = right_base;
         }
-        (effective_left, effective_right)
+        Ok((effective_left, effective_right))
     }
 
     pub(super) fn check_yield_expression(
@@ -407,7 +409,7 @@ impl TypeChecker {
             &yield_expression_type,
             &resolved_signature_next_type,
             is_async,
-        );
+        )?;
         if return_type.is_some() {
             if let Some(yielded_type) = yielded_type.as_ref() {
                 self.check_type_assignable_to_and_optionally_elaborate(
@@ -456,7 +458,7 @@ impl TypeChecker {
                 && self.no_implicit_any
                 && !expression_result_is_unused(node)
             {
-                let contextual_type = self.get_contextual_type_(node, None);
+                let contextual_type = self.get_contextual_type_(node, None)?;
                 if match contextual_type.as_ref() {
                     None => true,
                     Some(contextual_type) => self.is_type_any(Some(&**contextual_type)),
@@ -479,7 +481,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let node_as_conditional_expression = node.as_conditional_expression();
         let type_ =
-            self.check_truthiness_expression(&node_as_conditional_expression.condition, None);
+            self.check_truthiness_expression(&node_as_conditional_expression.condition, None)?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
             &node_as_conditional_expression.condition,
             &type_,
@@ -542,7 +544,7 @@ impl TypeChecker {
                 || self.is_template_literal_context(node)
                 || self.some_type(
                     &self
-                        .get_contextual_type_(node, None)
+                        .get_contextual_type_(node, None)?
                         .unwrap_or_else(|| self.unknown_type()),
                     |type_: &Type| self.is_template_literal_contextual_type(type_),
                 )

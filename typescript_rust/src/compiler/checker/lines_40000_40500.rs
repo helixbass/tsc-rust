@@ -31,15 +31,17 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_source_element<TNode: Borrow<Node>>(&self, node: Option<TNode>) {
+    pub(super) fn check_source_element(&self, node: Option<impl Borrow<Node>>) -> io::Result<()> {
         if let Some(node) = node {
             let node = node.borrow();
             let save_current_node = self.maybe_current_node();
             self.set_current_node(Some(node.node_wrapper()));
             self.set_instantiation_count(0);
-            self.check_source_element_worker(node);
+            self.check_source_element_worker(node)?;
             self.set_current_node(save_current_node);
         }
+
+        Ok(())
     }
 
     pub(super) fn check_source_element_worker(&self, node: &Node) -> io::Result<()> {

@@ -454,10 +454,10 @@ impl TypeChecker {
         .set_is_referenced(Some(SymbolFlags::All));
     }
 
-    pub(super) fn is_self_type_access<TParent: Borrow<Symbol>>(
+    pub(super) fn is_self_type_access(
         &self,
         name: &Node, /*Expression | QualifiedName*/
-        parent: Option<TParent>,
+        parent: Option<impl Borrow<Symbol>>,
     ) -> io::Result<bool> {
         let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
         Ok(name.kind() == SyntaxKind::ThisKeyword

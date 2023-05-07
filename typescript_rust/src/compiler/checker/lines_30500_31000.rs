@@ -78,10 +78,10 @@ impl TypeChecker {
         apparent_type: &Type,
         kind: SignatureKind,
         diagnostic: &Diagnostic,
-    ) {
+    ) -> io::Result<()> {
         let apparent_type_symbol = apparent_type.maybe_symbol();
         if apparent_type_symbol.is_none() {
-            return;
+            return Ok(());
         }
         let apparent_type_symbol = apparent_type_symbol.unwrap();
         let import_node = (*self.get_symbol_links(&apparent_type_symbol))
@@ -93,13 +93,13 @@ impl TypeChecker {
             .filter(|import_node| !is_import_call(import_node))
         {
             let sigs = self.get_signatures_of_type(
-                &self.get_type_of_symbol(
+                &*self.get_type_of_symbol(
                     &(*self.get_symbol_links(&apparent_type_symbol))
                         .borrow()
                         .target
                         .clone()
                         .unwrap(),
-                ),
+                )?,
                 kind,
             );
             if
@@ -121,6 +121,8 @@ impl TypeChecker {
                 ]
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn resolve_tagged_template_expression(
@@ -149,7 +151,7 @@ impl TypeChecker {
             call_signatures.len(),
             num_construct_signatures,
         ) {
-            return Ok(self.resolve_untyped_call(node));
+            return self.resolve_untyped_call(node);
         }
 
         if call_signatures.is_empty() {
@@ -227,7 +229,7 @@ impl TypeChecker {
             call_signatures.len(),
             num_construct_signatures,
         ) {
-            return Ok(self.resolve_untyped_call(node));
+            return self.resolve_untyped_call(node);
         }
 
         if self.is_potentially_uncalled_decorator(node, &call_signatures) {
@@ -300,7 +302,7 @@ impl TypeChecker {
         let namespace = self.get_jsx_namespace_at(Some(node))?;
         let exports = namespace
             .as_ref()
-            .map(|namespace| self.get_exports_of_symbol(namespace));
+            .try_map(|namespace| self.get_exports_of_symbol(namespace))?;
         let type_symbol = exports.as_ref().try_and_then(|exports| {
             self.get_symbol(&(**exports).borrow(), &JsxNames::Element, SymbolFlags::Type)
         })?;
@@ -357,7 +359,7 @@ impl TypeChecker {
             None,
             vec![parameter_symbol],
             Some(if let Some(type_symbol) = type_symbol.as_ref() {
-                self.get_declared_type_of_symbol(type_symbol)
+                self.get_declared_type_of_symbol(type_symbol)?
             } else {
                 self.error_type()
             }),
@@ -375,7 +377,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Signature>> {
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()) {
-            let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node);
+            let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node)?;
             let fake_signature = self.create_signature_for_jsx_intrinsic(node, &result)?;
             self.check_type_assignable_to_and_optionally_elaborate(
                 &self.check_expression_with_contextual_type(
@@ -392,7 +394,7 @@ impl TypeChecker {
                 Some(node_as_jsx_opening_like_element.attributes()),
                 None,
                 None,
-            );
+            )?;
             if length(
                 node_as_jsx_opening_like_element
                     .maybe_type_arguments()
@@ -440,7 +442,7 @@ impl TypeChecker {
 
         let signatures = self.get_uninstantiated_jsx_signatures_of_type(&expr_types, node)?;
         if self.is_untyped_function_call(&expr_types, &apparent_type, signatures.len(), 0) {
-            return Ok(self.resolve_untyped_call(node));
+            return self.resolve_untyped_call(node);
         }
 
         if signatures.is_empty() {
@@ -456,14 +458,14 @@ impl TypeChecker {
             return Ok(self.resolve_error_call(node));
         }
 
-        Ok(self.resolve_call(
+        self.resolve_call(
             node,
             &signatures,
             candidates_out_array,
             check_mode,
             SignatureFlags::None,
             None,
-        ))
+        )
     }
 
     pub(super) fn is_potentially_uncalled_decorator(
@@ -485,26 +487,26 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
-    ) -> Gc<Signature> {
-        match node.kind() {
+    ) -> io::Result<Gc<Signature>> {
+        Ok(match node.kind() {
             SyntaxKind::CallExpression => {
-                self.resolve_call_expression(node, candidates_out_array, check_mode)
+                self.resolve_call_expression(node, candidates_out_array, check_mode)?
             }
             SyntaxKind::NewExpression => {
-                self.resolve_new_expression(node, candidates_out_array, check_mode)
+                self.resolve_new_expression(node, candidates_out_array, check_mode)?
             }
             SyntaxKind::TaggedTemplateExpression => {
-                self.resolve_tagged_template_expression(node, candidates_out_array, check_mode)
+                self.resolve_tagged_template_expression(node, candidates_out_array, check_mode)?
             }
             SyntaxKind::Decorator => self.resolve_decorator(node, candidates_out_array, check_mode),
             SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
-                self.resolve_jsx_opening_like_element(node, candidates_out_array, check_mode)
+                self.resolve_jsx_opening_like_element(node, candidates_out_array, check_mode)?
             }
             _ => Debug_.assert_never(
                 node,
                 Some("Branch in 'resolveSignature' should be unreachable."),
             ),
-        }
+        })
     }
 
     pub(super) fn get_resolved_signature_(
@@ -537,14 +539,14 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn is_js_constructor<TNode: Borrow<Node>>(&self, node: Option<TNode>) -> bool {
+    pub(super) fn is_js_constructor(&self, node: Option<impl Borrow<Node>>) -> io::Result<bool> {
         if node.is_none() {
-            return false;
+            return Ok(false);
         }
         let node = node.unwrap();
         let node = node.borrow();
         if !is_in_js_file(Some(node)) {
-            return false;
+            return Ok(false);
         }
         let func = if is_function_declaration(node) || is_function_expression(node) {
             Some(node.node_wrapper())
@@ -560,16 +562,16 @@ impl TypeChecker {
         };
         if let Some(func) = func.as_ref() {
             if get_jsdoc_class_tag(node).is_some() {
-                return true;
+                return Ok(true);
             }
 
-            let symbol = self.get_symbol_of_node(func);
-            return matches!(
+            let symbol = self.get_symbol_of_node(func)?;
+            return Ok(matches!(
                 symbol.as_ref().and_then(|symbol| symbol.maybe_members().clone()).as_ref(),
                 Some(symbol_members) if !(**symbol_members).borrow().is_empty(),
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn merge_js_symbols<TSource: Borrow<Symbol>>(
@@ -652,7 +654,7 @@ impl TypeChecker {
     pub(super) fn get_assigned_class_symbol(
         &self,
         decl: &Node, /*Declaration*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true);
         let prototype = assignment_symbol
             .as_ref()
@@ -669,16 +671,17 @@ impl TypeChecker {
             .and_then(|prototype_value_declaration| {
                 self.get_assigned_js_prototype(&prototype_value_declaration)
             });
-        init.as_ref().and_then(|init| self.get_symbol_of_node(init))
+        init.as_ref()
+            .try_and_then(|init| self.get_symbol_of_node(init))
     }
 
     pub(super) fn get_symbol_of_expando(
         &self,
         node: &Node,
         allow_declaration: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if node.maybe_parent().is_none() {
-            return None;
+            return Ok(None);
         }
         let mut name: Option<Gc<Node /*Expression | BindingName*/>> = None;
         let mut decl: Option<Gc<Node>> = None;
@@ -694,7 +697,7 @@ impl TypeChecker {
             if !is_in_js_file(Some(node))
                 && !(is_var_const(&node.parent()) && is_function_like_declaration(node))
             {
-                return None;
+                return Ok(None);
             }
             name = node.parent().as_variable_declaration().maybe_name();
             decl = Some(node.parent());
@@ -746,7 +749,7 @@ impl TypeChecker {
                             || !is_same_entity_name(name, &parent_node.as_binary_expression().left)
                     }
                 } {
-                    return None;
+                    return Ok(None);
                 }
             }
         } else if allow_declaration && is_function_declaration(node) {
@@ -758,7 +761,7 @@ impl TypeChecker {
         let name = name?;
         if !allow_declaration && get_expando_initializer(node, is_prototype_access(&name)).is_none()
         {
-            return None;
+            return Ok(None);
         }
         self.get_symbol_of_node(&decl)
     }
@@ -795,7 +798,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallExpression |} NewExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if !self.check_grammar_type_arguments(
             node,
             node.as_has_type_arguments()
@@ -807,13 +810,13 @@ impl TypeChecker {
 
         let signature = self.get_resolved_signature_(node, None, check_mode);
         if Gc::ptr_eq(&signature, &self.resolving_signature()) {
-            return self.non_inferrable_type();
+            return Ok(self.non_inferrable_type());
         }
 
         self.check_deprecated_signature(signature.clone(), node);
 
         if node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword {
-            return self.void_type();
+            return Ok(self.void_type());
         }
 
         if node.kind() == SyntaxKind::NewExpression {
@@ -835,7 +838,7 @@ impl TypeChecker {
                         None,
                     );
                 }
-                return self.any_type();
+                return Ok(self.any_type());
             }
         }
 
@@ -845,19 +848,19 @@ impl TypeChecker {
             );
         }
 
-        let return_type = self.get_return_type_of_signature(signature.clone());
+        let return_type = self.get_return_type_of_signature(signature.clone())?;
         if return_type.flags().intersects(TypeFlags::ESSymbolLike)
             && self.is_symbol_or_symbol_for_call(node)
         {
-            return self.get_es_symbol_like_type_for_node(
+            return Ok(self.get_es_symbol_like_type_for_node(
                 &walk_up_parenthesized_expressions(&node.parent()).unwrap(),
-            );
+            ));
         }
         if node.kind() == SyntaxKind::CallExpression
             && node.as_call_expression().question_dot_token.is_none()
             && node.parent().kind() == SyntaxKind::ExpressionStatement
             && return_type.flags().intersects(TypeFlags::Void)
-            && self.get_type_predicate_of_signature(&signature).is_some()
+            && self.get_type_predicate_of_signature(&signature)?.is_some()
         {
             let node_as_call_expression = node.as_call_expression();
             if !is_dotted_name(&node_as_call_expression.expression) {
@@ -866,7 +869,7 @@ impl TypeChecker {
                     &Diagnostics::Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name,
                     None,
                 );
-            } else if self.get_effects_signature(node).is_none() {
+            } else if self.get_effects_signature(node)?.is_none() {
                 let diagnostic = self.error(
                     Some(&*node_as_call_expression.expression),
                     &Diagnostics::Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation,
@@ -906,7 +909,7 @@ impl TypeChecker {
             }
         }
 
-        return_type
+        Ok(return_type)
     }
 
     pub(super) fn check_deprecated_signature(

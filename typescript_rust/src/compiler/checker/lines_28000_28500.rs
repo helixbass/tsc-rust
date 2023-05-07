@@ -17,9 +17,9 @@ use crate::{
     is_write_access, maybe_for_each, maybe_get_source_file_of_node, should_preserve_const_enums,
     symbol_name, unescape_leading_underscores, AssignmentDeclarationKind, AssignmentKind, Debug_,
     Diagnostic, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, Node, NodeFlags, NodeInterface, ScriptKind,
-    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, Node, NodeFlags, NodeInterface, OptionTry,
+    ScriptKind, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -33,7 +33,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn symbol_has_non_method_declaration(&self, symbol: &Symbol) -> bool {
+    pub(super) fn symbol_has_non_method_declaration(&self, symbol: &Symbol) -> io::Result<bool> {
         self.for_each_property_bool(symbol, &mut |prop: &Symbol| {
             !prop.flags().intersects(SymbolFlags::Method)
         })
@@ -55,12 +55,12 @@ impl TypeChecker {
         .intersects(TypeFlags::Nullable)
     }
 
-    pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> Gc<Type> {
-        if self.is_nullable_type(type_) {
-            self.get_non_nullable_type(&type_)
+    pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(if self.is_nullable_type(type_) {
+            self.get_non_nullable_type(&type_)?
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn report_object_possibly_null_or_undefined_error(
@@ -103,15 +103,15 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn check_non_null_type_with_reporter<TReportError: FnMut(&Node, TypeFlags)>(
+    pub(super) fn check_non_null_type_with_reporter(
         &self,
         type_: &Type,
         node: &Node,
-        mut report_error: TReportError,
-    ) -> Gc<Type> {
+        mut report_error: impl FnMut(&Node, TypeFlags),
+    ) -> io::Result<Gc<Type>> {
         if self.strict_null_checks && type_.flags().intersects(TypeFlags::Unknown) {
             self.error(Some(node), &Diagnostics::Object_is_of_type_unknown, None);
-            return self.error_type();
+            return Ok(self.error_type());
         }
         let kind = if self.strict_null_checks {
             self.get_falsy_flags(type_)
@@ -120,14 +120,16 @@ impl TypeChecker {
         } & TypeFlags::Nullable;
         if kind != TypeFlags::None {
             report_error(node, kind);
-            let t = self.get_non_nullable_type(type_);
-            return if t.flags().intersects(TypeFlags::Nullable | TypeFlags::Never) {
-                self.error_type()
-            } else {
-                t
-            };
+            let t = self.get_non_nullable_type(type_)?;
+            return Ok(
+                if t.flags().intersects(TypeFlags::Nullable | TypeFlags::Never) {
+                    self.error_type()
+                } else {
+                    t
+                },
+            );
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> Gc<Type> {
@@ -151,12 +153,12 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let node_as_property_access_expression = node.as_property_access_expression();
         Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
-            self.check_property_access_chain(node, check_mode)
+            self.check_property_access_chain(node, check_mode)?
         } else {
             self.check_property_access_expression_or_qualified_name(
                 node,
                 &node_as_property_access_expression.expression,
-                &self.check_non_null_expression(&node_as_property_access_expression.expression),
+                &*self.check_non_null_expression(&node_as_property_access_expression.expression)?,
                 &node_as_property_access_expression.name,
                 check_mode,
             )?
@@ -174,9 +176,9 @@ impl TypeChecker {
         let non_optional_type = self.get_optional_expression_type(
             &left_type,
             &node_as_property_access_expression.expression,
-        );
-        Ok(self.propagate_optional_type_marker(
-            &self.check_property_access_expression_or_qualified_name(
+        )?;
+        self.propagate_optional_type_marker(
+            &*self.check_property_access_expression_or_qualified_name(
                 node,
                 &node_as_property_access_expression.expression,
                 &self.check_non_null_type(
@@ -188,7 +190,7 @@ impl TypeChecker {
             )?,
             node,
             !Gc::ptr_eq(&non_optional_type, &left_type),
-        ))
+        )
     }
 
     pub(super) fn check_qualified_name(
@@ -201,11 +203,11 @@ impl TypeChecker {
             && is_this_identifier(Some(&*node_as_qualified_name.left))
         {
             self.check_non_null_type(
-                &self.check_this_expression(&node_as_qualified_name.left),
+                &*self.check_this_expression(&node_as_qualified_name.left)?,
                 &node_as_qualified_name.left,
             )
         } else {
-            self.check_non_null_expression(&node_as_qualified_name.left)
+            self.check_non_null_expression(&node_as_qualified_name.left)?
         };
         self.check_property_access_expression_or_qualified_name(
             node,
@@ -517,12 +519,12 @@ impl TypeChecker {
             }
             prop = lexically_scoped_symbol
                 .as_ref()
-                .and_then(|lexically_scoped_symbol| {
+                .try_and_then(|lexically_scoped_symbol| {
                     self.get_private_identifier_property_of_type_(
                         left_type,
                         lexically_scoped_symbol,
                     )
-                });
+                })?;
             if prop.is_none()
                 && self.check_private_identifier_property_access(
                     left_type,
@@ -653,7 +655,7 @@ impl TypeChecker {
                         return Ok(self.any_type());
                     }
                     if !right.as_member_name().escaped_text().is_empty()
-                        && !self.check_and_report_error_for_extending_interface(node)
+                        && !self.check_and_report_error_for_extending_interface(node)?
                     {
                         self.report_nonexistent_property(
                             right,
@@ -691,7 +693,7 @@ impl TypeChecker {
                         Option::<&Symbol>::None,
                         None,
                         Option::<&Type>::None,
-                    )
+                    )?
                 } else {
                     index_info.type_.clone()
                 };
@@ -728,7 +730,7 @@ impl TypeChecker {
                 self.mark_property_as_referenced(
                     prop,
                     Some(node),
-                    self.is_self_type_access(left, parent_symbol.as_deref()),
+                    self.is_self_type_access(left, parent_symbol.as_deref())?,
                 );
                 self.get_node_links(node).borrow_mut().resolved_symbol = Some(prop.clone());
                 let writing = is_write_access(node);
@@ -752,20 +754,20 @@ impl TypeChecker {
                 prop_type = if self.is_this_property_access_in_constructor(node, prop) {
                     self.auto_type()
                 } else if writing {
-                    self.get_set_accessor_type_of_symbol(prop)
+                    self.get_set_accessor_type_of_symbol(prop)?
                 } else {
-                    self.get_type_of_symbol(prop)
+                    self.get_type_of_symbol(prop)?
                 };
             }
         }
 
-        Ok(self.get_flow_type_of_access_expression(node, prop, &prop_type, right, check_mode))
+        self.get_flow_type_of_access_expression(node, prop, &prop_type, right, check_mode)
     }
 
-    pub(super) fn is_unchecked_js_suggestion<TNode: Borrow<Node>, TSuggestion: Borrow<Symbol>>(
+    pub(super) fn is_unchecked_js_suggestion(
         &self,
-        node: Option<TNode>,
-        suggestion: Option<TSuggestion>,
+        node: Option<impl Borrow<Node>>,
+        suggestion: Option<impl Borrow<Symbol>>,
         exclude_classes: bool,
     ) -> bool {
         let node = node.map(|node| node.borrow().node_wrapper());
@@ -886,7 +888,7 @@ impl TypeChecker {
                 prop_type.clone()
             }),
             Option::<&Node>::None,
-        );
+        )?;
         if assume_uninitialized
             && !self
                 .get_falsy_flags(&prop_type)
@@ -909,7 +911,7 @@ impl TypeChecker {
             return Ok(prop_type);
         }
         Ok(if assignment_kind != AssignmentKind::None {
-            self.get_base_type_of_literal_type(&flow_type)
+            self.get_base_type_of_literal_type(&flow_type)?
         } else {
             flow_type
         })
@@ -920,14 +922,14 @@ impl TypeChecker {
         prop: &Symbol,
         node: &Node,  /*PropertyAccessExpression | QualifiedName*/
         right: &Node, /*Identifier | PrivateIdentifier*/
-    ) {
+    ) -> io::Result<()> {
         let value_declaration = prop.maybe_value_declaration();
         if value_declaration.is_none()
             || get_source_file_of_node(node)
                 .as_source_file()
                 .is_declaration_file()
         {
-            return;
+            return Ok(());
         }
         let value_declaration = value_declaration.unwrap();
 
@@ -939,7 +941,7 @@ impl TypeChecker {
                 && is_access_expression(&node.as_has_expression().expression()))
             && !self.is_block_scoped_name_declared_before_use(&value_declaration, right)
             && (self.compiler_options.use_define_for_class_fields == Some(true)
-                || !self.is_property_declared_in_ancestor_class(prop))
+                || !self.is_property_declared_in_ancestor_class(prop)?)
         {
             diagnostic_message = Some(self.error(
                 Some(right),
@@ -971,6 +973,8 @@ impl TypeChecker {
                 )],
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn is_in_property_initializer_or_class_static_block(&self, node: &Node) -> bool {
@@ -1020,7 +1024,7 @@ impl TypeChecker {
             return Ok(false);
         }
         let mut class_type: Option<Gc<Type>> =
-            Some(self.get_type_of_symbol(&prop.maybe_parent().unwrap()));
+            Some(self.get_type_of_symbol(&prop.maybe_parent().unwrap())?);
         loop {
             let class_type_present = class_type.as_ref().unwrap();
             class_type = if class_type_present.maybe_symbol().is_some() {
@@ -1047,12 +1051,16 @@ impl TypeChecker {
     pub(super) fn get_super_class(
         &self,
         class_type: &Type, /*InterfaceType*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let x = self.get_base_types(class_type);
         if x.is_empty() {
-            return None;
+            return Ok(None);
         }
-        Some(self.get_intersection_type(&x, Option::<&Symbol>::None, None))
+        Ok(Some(self.get_intersection_type(
+            &x,
+            Option::<&Symbol>::None,
+            None,
+        )?))
     }
 
     pub(super) fn report_nonexistent_property(
@@ -1091,7 +1099,7 @@ impl TypeChecker {
             }
         }
         if self
-            .type_has_static_property(&prop_node.as_member_name().escaped_text(), containing_type)
+            .type_has_static_property(&prop_node.as_member_name().escaped_text(), containing_type)?
         {
             let prop_name = declaration_name_to_string(Some(prop_node)).into_owned();
             let type_name =
@@ -1107,7 +1115,7 @@ impl TypeChecker {
             ));
         } else {
             let promised_type =
-                self.get_promised_type_of_promise(containing_type, Option::<&Node>::None);
+                self.get_promised_type_of_promise(containing_type, Option::<&Node>::None)?;
             if matches!(
                 promised_type.as_ref(),
                 Some(promised_type) if self.get_property_of_type_(
@@ -1154,7 +1162,7 @@ impl TypeChecker {
                     let suggestion = self.get_suggested_symbol_for_nonexistent_property(
                         prop_node.node_wrapper(),
                         containing_type,
-                    );
+                    )?;
                     if let Some(suggestion) = suggestion.as_ref() {
                         let suggested_name = symbol_name(suggestion).into_owned();
                         let message = if is_unchecked_js {

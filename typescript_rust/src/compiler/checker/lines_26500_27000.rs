@@ -968,7 +968,7 @@ impl TypeChecker {
 
         let mut offset = 0;
         for member_decl in &node_as_object_literal_expression.properties {
-            let mut member = self.get_symbol_of_node(member_decl);
+            let mut member = self.get_symbol_of_node(member_decl)?;
             let computed_name_type = member_decl
                 .as_named_declaration()
                 .maybe_name()
@@ -976,7 +976,7 @@ impl TypeChecker {
                 .filter(|member_decl_name| {
                     member_decl_name.kind() == SyntaxKind::ComputedPropertyName
                 })
-                .map(|member_decl_name| self.check_computed_property_name(member_decl_name));
+                .try_map(|member_decl_name| self.check_computed_property_name(member_decl_name))?;
             if matches!(
                 member_decl.kind(),
                 SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
@@ -1146,7 +1146,7 @@ impl TypeChecker {
                 if !properties_array.is_empty() {
                     spread = self.get_spread_type(
                         &spread,
-                        &self.create_object_literal_type(
+                        &*self.create_object_literal_type(
                             has_computed_string_property,
                             node,
                             offset,
@@ -1158,11 +1158,11 @@ impl TypeChecker {
                             is_js_object_literal,
                             pattern_with_computed_properties,
                             in_destructuring_pattern,
-                        ),
+                        )?,
                         node.maybe_symbol(),
                         object_flags,
                         in_const_context,
-                    );
+                    )?;
                     properties_array = vec![];
                     properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                     has_computed_string_property = false;
@@ -1175,14 +1175,16 @@ impl TypeChecker {
                     None,
                 )?);
                 if self.is_valid_spread_type(&type_) {
-                    let merged_type = self
-                        .try_merge_union_of_object_type_and_empty_object(&type_, in_const_context);
+                    let merged_type = self.try_merge_union_of_object_type_and_empty_object(
+                        &type_,
+                        in_const_context,
+                    )?;
                     if let Some(all_properties_table) = all_properties_table.as_ref() {
                         self.check_spread_prop_overrides(
                             &merged_type,
                             all_properties_table,
                             member_decl,
-                        );
+                        )?;
                     }
                     offset = properties_array.len();
                     if self.is_error_type(&spread) {
@@ -1194,7 +1196,7 @@ impl TypeChecker {
                         node.maybe_symbol(),
                         object_flags,
                         in_const_context,
-                    );
+                    )?;
                 } else {
                     self.error(
                         Some(&**member_decl),
@@ -1273,7 +1275,7 @@ impl TypeChecker {
             if !properties_array.is_empty() {
                 spread = self.get_spread_type(
                     &spread,
-                    &self.create_object_literal_type(
+                    &*self.create_object_literal_type(
                         has_computed_string_property,
                         node,
                         offset,
@@ -1285,21 +1287,21 @@ impl TypeChecker {
                         is_js_object_literal,
                         pattern_with_computed_properties,
                         in_destructuring_pattern,
-                    ),
+                    )?,
                     node.maybe_symbol(),
                     object_flags,
                     in_const_context,
-                );
+                )?;
                 properties_array = vec![];
                 properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 has_computed_string_property = false;
                 has_computed_number_property = false;
             }
             return Ok(self
-                .map_type(
+                .try_map_type(
                     &spread,
-                    &mut |t: &Type| {
-                        if ptr::eq(t, &*self.empty_object_type()) {
+                    &mut |t: &Type| -> io::Result<_> {
+                        Ok(if ptr::eq(t, &*self.empty_object_type()) {
                             Some(self.create_object_literal_type(
                                 has_computed_string_property,
                                 node,
@@ -1312,13 +1314,13 @@ impl TypeChecker {
                                 is_js_object_literal,
                                 pattern_with_computed_properties,
                                 in_destructuring_pattern,
-                            ))
+                            )?)
                         } else {
                             Some(t.type_wrapper())
-                        }
+                        })
                     },
                     None,
-                )
+                )?
                 .unwrap());
         }
 

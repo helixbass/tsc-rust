@@ -1074,7 +1074,7 @@ impl TypeChecker {
         &self,
         parameter: &Node,     /*ParameterDeclaration*/
         parameter_name: &str, /*__String*/
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let constructor_declaration = parameter.parent();
         let class_declaration = parameter.parent().parent();
 
@@ -1082,24 +1082,24 @@ impl TypeChecker {
             &(*constructor_declaration.locals()).borrow(),
             parameter_name,
             SymbolFlags::Value,
-        );
+        )?;
         let property_symbol = self.get_symbol(
-            &(*self.get_members_of_symbol(&class_declaration.symbol())).borrow(),
+            &(*self.get_members_of_symbol(&class_declaration.symbol())?).borrow(),
             parameter_name,
             SymbolFlags::Value,
-        );
+        )?;
 
-        match (parameter_symbol, property_symbol) {
+        Ok(match (parameter_symbol, property_symbol) {
             (Some(parameter_symbol), Some(property_symbol)) => vec![parameter_symbol, property_symbol],
             _ => Debug_.fail(Some("There should exist two symbols, one as property declaration and one as parameter declaration")),
-        }
+        })
     }
 
     pub(super) fn is_block_scoped_name_declared_before_use(
         &self,
         declaration: &Node, /*Declaration*/
         usage: &Node,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let declaration_file = get_source_file_of_node(declaration);
         let use_file = get_source_file_of_node(usage);
         let decl_container = get_enclosing_block_scope_container(declaration).unwrap();
@@ -1117,14 +1117,14 @@ impl TypeChecker {
                 || self.is_in_type_query(usage)
                 || declaration.flags().intersects(NodeFlags::Ambient)
             {
-                return true;
+                return Ok(true);
             }
-            if self.is_used_in_function_or_instance_property(&decl_container, usage, declaration) {
-                return true;
+            if self.is_used_in_function_or_instance_property(&decl_container, usage, declaration)? {
+                return Ok(true);
             }
             let source_files = self.host.get_source_files();
-            return index_of_gc(&*source_files, &declaration_file)
-                <= index_of_gc(&*source_files, &use_file);
+            return Ok(index_of_gc(&*source_files, &declaration_file)
+                <= index_of_gc(&*source_files, &use_file));
         }
 
         if declaration.pos() <= usage.pos()
@@ -1141,34 +1141,37 @@ impl TypeChecker {
             if declaration.kind() == SyntaxKind::BindingElement {
                 let error_binding_element = get_ancestor(Some(usage), SyntaxKind::BindingElement);
                 if let Some(error_binding_element) = error_binding_element {
-                    return !are_option_gcs_equal(
+                    return Ok(!are_option_gcs_equal(
                         find_ancestor(Some(&*error_binding_element), is_binding_element).as_ref(),
                         find_ancestor(Some(declaration), is_binding_element).as_ref(),
-                    ) || declaration.pos() < error_binding_element.pos();
+                    ) || declaration.pos() < error_binding_element.pos());
                 }
-                return self.is_block_scoped_name_declared_before_use(
+                return Ok(self.is_block_scoped_name_declared_before_use(
                     &get_ancestor(Some(declaration), SyntaxKind::VariableDeclaration).unwrap(),
                     usage,
-                );
+                ));
             } else if declaration.kind() == SyntaxKind::VariableDeclaration {
-                return !self.is_immediately_used_in_initializer_of_block_scoped_variable(
-                    &decl_container,
-                    declaration,
-                    usage,
+                return Ok(
+                    !self.is_immediately_used_in_initializer_of_block_scoped_variable(
+                        &decl_container,
+                        declaration,
+                        usage,
+                    ),
                 );
             } else if is_class_declaration(declaration) {
-                return find_ancestor(Some(usage), |n| {
+                return Ok(find_ancestor(Some(usage), |n| {
                     is_computed_property_name(n) && ptr::eq(&*n.parent().parent(), declaration)
                 })
-                .is_none();
+                .is_none());
             } else if is_property_declaration(declaration) {
-                return !self.is_property_immediately_referenced_within_declaration(
+                return Ok(!self.is_property_immediately_referenced_within_declaration(
                     declaration,
                     usage,
                     false,
-                );
+                ));
             } else if is_parameter_property_declaration(declaration, &declaration.parent()) {
-                return !(get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
+                return Ok(!(get_emit_script_target(&self.compiler_options)
+                    == ScriptTarget::ESNext
                     && self.use_define_for_class_fields
                     && are_option_gcs_equal(
                         get_containing_class(declaration).as_ref(),
@@ -1178,9 +1181,9 @@ impl TypeChecker {
                         &decl_container,
                         usage,
                         declaration,
-                    ));
+                    )?));
             }
-            return true;
+            return Ok(true);
         }
 
         if usage.parent().kind() == SyntaxKind::ExportSpecifier
@@ -1190,37 +1193,37 @@ impl TypeChecker {
                     Some(true)
                 )
         {
-            return true;
+            return Ok(true);
         }
         if usage.kind() == SyntaxKind::ExportAssignment
             && matches!(usage.as_export_assignment().is_export_equals, Some(true))
         {
-            return true;
+            return Ok(true);
         }
 
         if usage.flags().intersects(NodeFlags::JSDoc)
             || self.is_in_type_query(usage)
             || self.usage_in_type_declaration(usage)
         {
-            return true;
+            return Ok(true);
         }
-        if self.is_used_in_function_or_instance_property(&decl_container, usage, declaration) {
+        if self.is_used_in_function_or_instance_property(&decl_container, usage, declaration)? {
             if get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
                 && self.use_define_for_class_fields
                 && get_containing_class(declaration).is_some()
                 && (is_property_declaration(declaration)
                     || is_parameter_property_declaration(declaration, &declaration.parent()))
             {
-                return !self.is_property_immediately_referenced_within_declaration(
+                return Ok(!self.is_property_immediately_referenced_within_declaration(
                     declaration,
                     usage,
                     true,
-                );
+                ));
             } else {
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn usage_in_type_declaration(&self, usage: &Node) -> bool {
@@ -1295,7 +1298,7 @@ impl TypeChecker {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                                 let type_ = self.get_type_of_symbol(
-                                    &self.get_symbol_of_node(declaration).unwrap(),
+                                    &self.get_symbol_of_node(declaration)?.unwrap(),
                                 )?;
                                 let static_blocks = declaration
                                     .parent()
@@ -1309,7 +1312,7 @@ impl TypeChecker {
                                     static_blocks,
                                     declaration.parent().pos(),
                                     current.pos(),
-                                ) {
+                                )? {
                                     return Ok(true.into());
                                 }
                             }
@@ -1506,9 +1509,6 @@ impl TypeChecker {
             SymbolFlags,
         ) -> io::Result<Option<Gc<Symbol>>>,
     ) -> io::Result<Option<Gc<Symbol>>> {
-        if name == "TextNode" {
-            panic!("resolve_name_helper() TextNode");
-        }
         let mut location: Option<Gc<Node>> = location.map(|node| node.borrow().node_wrapper());
         let original_location = location.clone();
         let mut result: Option<Gc<Symbol>> = None;
@@ -1623,7 +1623,7 @@ impl TypeChecker {
                             is_in_external_module = true;
                         }
                         let module_exports: Gc<GcCell<SymbolTable>> = self
-                            .get_symbol_of_node(&location_unwrapped)
+                            .get_symbol_of_node(&location_unwrapped)?
                             .and_then(|symbol| symbol.maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols());
                         let module_exports = (*module_exports).borrow();
@@ -1686,7 +1686,7 @@ impl TypeChecker {
                 SyntaxKind::EnumDeclaration => {
                     result = lookup(
                         &(*self
-                            .get_symbol_of_node(&location_unwrapped)
+                            .get_symbol_of_node(&location_unwrapped)?
                             .and_then(|symbol| symbol.maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols()))
                         .borrow(),
@@ -1721,7 +1721,7 @@ impl TypeChecker {
                 | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
                         &*(*self
-                            .get_symbol_of_node(&*location_unwrapped)
+                            .get_symbol_of_node(&*location_unwrapped)?
                             .unwrap()
                             .maybe_members()
                             .clone()
@@ -1799,7 +1799,7 @@ impl TypeChecker {
                         || grandparent.kind() == SyntaxKind::InterfaceDeclaration
                     {
                         result = lookup(
-                            &(*self.get_symbol_of_node(&grandparent).unwrap().members()).borrow(),
+                            &(*self.get_symbol_of_node(&grandparent)?.unwrap().members()).borrow(),
                             name,
                             meaning & SymbolFlags::Type,
                         )?;
@@ -2002,7 +2002,7 @@ impl TypeChecker {
                             original_location.as_deref(),
                             name,
                             meaning,
-                        );
+                        )?;
                         let is_global_scope_augmentation_declaration = matches!(
                             suggestion.as_ref().and_then(|suggestion| suggestion.maybe_value_declaration()),
                             Some(value_declaration) if is_ambient_module(&value_declaration) && is_global_scope_augmentation(&value_declaration)
@@ -2161,7 +2161,7 @@ impl TypeChecker {
             {
                 if !within_deferred_context && meaning & SymbolFlags::Value == SymbolFlags::Value {
                     let candidate = self
-                        .get_merged_symbol(Some(self.get_late_bound_symbol(&result)))
+                        .get_merged_symbol(Some(self.get_late_bound_symbol(&result)?))
                         .unwrap();
                     let root = get_root_declaration(
                         associated_declaration_for_containing_initializer_or_binding_name,
@@ -2170,7 +2170,7 @@ impl TypeChecker {
                         Some(&candidate),
                         self.get_symbol_of_node(
                             &associated_declaration_for_containing_initializer_or_binding_name,
-                        )
+                        )?
                         .as_ref(),
                     ) {
                         self.error(
