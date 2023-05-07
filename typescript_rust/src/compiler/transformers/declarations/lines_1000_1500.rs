@@ -24,7 +24,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SingleNodeOrVecNode, StringOrNumber, Symbol,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolInterface, SyntaxKind,
-    VisitResult, VisitResultInterface, get_parse_node_factory, try_flat_map,
+    VisitResult, VisitResultInterface, get_parse_node_factory, try_flat_map, try_visit_nodes, try_map, try_maybe_map, try_visit_node,
 };
 
 impl TransformDeclarations {
@@ -179,7 +179,7 @@ impl TransformDeclarations {
             _ => (),
         }
 
-        let result = self.transform_top_level_declaration(input);
+        let result = self.transform_top_level_declaration(input)?;
         self.late_statement_replacement_map_mut()
             .insert(get_original_node_id(input), result);
         Ok(Some(input.node_wrapper().into()))
@@ -264,7 +264,7 @@ impl TransformDeclarations {
                             Option::<Gc<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_type_alias_declaration.name(),
-                            visit_nodes(
+                            try_visit_nodes(
                                 input_as_type_alias_declaration
                                     .maybe_type_parameters()
                                     .as_deref(),
@@ -272,13 +272,13 @@ impl TransformDeclarations {
                                 Some(is_type_parameter_declaration),
                                 None,
                                 None,
-                            ),
-                            visit_node(
+                            )?,
+                            try_visit_node(
                                 input_as_type_alias_declaration.maybe_type(),
                                 Some(|node: &Node| self.visit_declaration_subtree(node)),
                                 Some(is_type_node),
                                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                            )
+                            )?
                             .unwrap(),
                         )
                     ),
@@ -311,13 +311,13 @@ impl TransformDeclarations {
                                         .as_deref(),
                                 ),
                             ),
-                            visit_nodes(
+                            try_visit_nodes(
                                 Some(&input_as_interface_declaration.members),
                                 Some(|node: &Node| self.visit_declaration_subtree(node)),
                                 Option::<fn(&Node) -> bool>::None,
                                 None,
                                 None,
-                            )
+                            )?
                             .unwrap(),
                         )
                     ),
@@ -396,7 +396,7 @@ impl TransformDeclarations {
                     let mut export_mappings: Vec<(Gc<Node /*Identifier*/>, String)> =
                         Default::default();
                     let mut declarations =
-                        map_defined(Some(&props), |p: &Gc<Symbol>, _| -> Option<Gc<Node>> {
+                        try_map_defined(Some(&props), |p: &Gc<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
                             let ref p_value_declaration =
                                 p.maybe_value_declaration().filter(|p_value_declaration| {
                                     is_property_access_expression(p_value_declaration)
@@ -444,7 +444,7 @@ impl TransformDeclarations {
                                     )
                                     .wrap()
                             ;
-                            Some(
+                            Ok(Some(
                                 self.factory
                                     .create_variable_statement(
                                         if is_non_contextual_keyword_name {
@@ -465,8 +465,8 @@ impl TransformDeclarations {
                                             .wrap(),
                                     )
                                     .wrap()
-                            )
-                        });
+                            ))
+                        })?;
                     if export_mappings.is_empty() {
                         declarations =
                             map_defined(Some(&declarations), |declaration: &Gc<Node>, _| {
@@ -593,13 +593,13 @@ impl TransformDeclarations {
                     let old_has_scope_fix = self.result_has_scope_marker();
                     self.set_result_has_scope_marker(false);
                     self.set_needs_scope_fix_marker(false);
-                    let statements = visit_nodes(
+                    let statements = try_visit_nodes(
                         Some(&inner.as_module_block().statements),
                         Some(|node: &Node| self.visit_declaration_statements(node)),
                         Option::<fn(&Node) -> bool>::None,
                         None,
                         None,
-                    )
+                    )?
                     .unwrap();
                     let mut late_statements =
                         self.transform_and_replace_late_painted_statements(&statements);
@@ -668,12 +668,12 @@ impl TransformDeclarations {
                     self.set_needs_declare(previous_needs_declare);
                     let mods = self.ensure_modifiers(input);
                     self.set_needs_declare(false);
-                    visit_node(
+                    try_visit_node(
                         inner.as_double_deref(),
                         Some(|node: &Node| self.visit_declaration_statements(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    );
+                    )?;
                     let id = maybe_get_original_node_id(inner.as_double_deref());
                     let body = self
                         .late_statement_replacement_map_mut()
@@ -754,7 +754,7 @@ impl TransformDeclarations {
                                 self.walk_binding_pattern(
                                     param,
                                     &param_as_parameter_declaration.name(),
-                                )
+                                )?
                                 .unwrap_or_default()
                             })
                         },
@@ -789,13 +789,13 @@ impl TransformDeclarations {
                 };
                 let member_nodes = maybe_concatenate(
                     maybe_concatenate(private_identifier, parameter_properties),
-                    visit_nodes(
+                    try_visit_nodes(
                         Some(&input_as_class_declaration.members()),
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         None,
                         None,
-                    )
+                    )?
                     .map(|node_array| node_array.to_vec()),
                 );
                 let members = self.factory.create_node_array(member_nodes, None);
@@ -869,9 +869,9 @@ impl TransformDeclarations {
                             .wrap()
                     ;
                     let heritage_clauses = self.factory.create_node_array(
-                        maybe_map(
+                        try_maybe_map(
                             input_as_class_declaration.maybe_heritage_clauses().as_deref(),
-                            |clause: &Gc<Node>, _| {
+                            |clause: &Gc<Node>, _| -> io::Result<_> {
                                 let clause_as_heritage_clause = clause.as_heritage_clause();
                                 if clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
                                     let old_diag = self.get_symbol_accessibility_diagnostic();
@@ -881,54 +881,54 @@ impl TransformDeclarations {
                                     let new_clause = 
                                         self.factory.update_heritage_clause(
                                             clause,
-                                            map(
+                                            try_map(
                                                 &clause_as_heritage_clause.types,
-                                                |t: &Gc<Node>, _| {
-                                                    self.factory.update_expression_with_type_arguments(
+                                                |t: &Gc<Node>, _| -> io::Result<_> {
+                                                    Ok(self.factory.update_expression_with_type_arguments(
                                                         t,
                                                         new_id.clone(),
-                                                        visit_nodes(
+                                                        try_visit_nodes(
                                                             t.as_expression_with_type_arguments().maybe_type_arguments().as_deref(),
                                                             Some(|node: &Node| self.visit_declaration_subtree(node)),
                                                             Option::<fn(&Node) -> bool>::None,
                                                             None,
                                                             None,
-                                                        )
-                                                    )
+                                                        )?
+                                                    ))
                                                 }
-                                            )
+                                            )?
                                         )
                                     ;
                                     self.set_get_symbol_accessibility_diagnostic(
                                         old_diag
                                     );
-                                    return new_clause;
+                                    return Ok(new_clause);
                                 }
-                                    self.factory.update_heritage_clause(
-                                        clause,
-                                        visit_nodes(
-                                            Some(
-                                                &self.factory.create_node_array(
-                                                    Some(
-                                                        clause_as_heritage_clause.types.iter().filter(
-                                                            |t| {
-                                                                let t_as_expression_with_type_arguments = t.as_expression_with_type_arguments();
-                                                                is_entity_name_expression(&t_as_expression_with_type_arguments.expression) ||
-                                                                t_as_expression_with_type_arguments.expression.kind() == SyntaxKind::NullKeyword
-                                                            }
-                                                        ).cloned().collect::<Vec<_>>()
-                                                    ),
-                                                    None,
-                                                )
-                                            ),
-                                            Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                            Option::<fn(&Node) -> bool>::None,
-                                            None,
-                                            None,
-                                        ).unwrap()
-                                    )
+                                Ok(self.factory.update_heritage_clause(
+                                    clause,
+                                    try_visit_nodes(
+                                        Some(
+                                            &self.factory.create_node_array(
+                                                Some(
+                                                    clause_as_heritage_clause.types.iter().filter(
+                                                        |t| {
+                                                            let t_as_expression_with_type_arguments = t.as_expression_with_type_arguments();
+                                                            is_entity_name_expression(&t_as_expression_with_type_arguments.expression) ||
+                                                            t_as_expression_with_type_arguments.expression.kind() == SyntaxKind::NullKeyword
+                                                        }
+                                                    ).cloned().collect::<Vec<_>>()
+                                                ),
+                                                None,
+                                            )
+                                        ),
+                                        Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                        Option::<fn(&Node) -> bool>::None,
+                                        None,
+                                        None,
+                                    )?.unwrap()
+                                ))
                             }
-                        ),
+                        )?,
                         None,
                     );
                     Some(
@@ -1073,7 +1073,7 @@ impl TransformDeclarations {
             if is_binding_pattern(elem_as_binding_element.maybe_name()) {
                 elems = maybe_concatenate(
                     elems,
-                    self.walk_binding_pattern(param, &elem_as_binding_element.name()),
+                    self.walk_binding_pattern(param, &elem_as_binding_element.name())?,
                 );
             }
             elems

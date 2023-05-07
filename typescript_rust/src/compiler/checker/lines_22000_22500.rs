@@ -836,7 +836,7 @@ impl TypeChecker {
                 || !self.is_type_parameter_at_top_level(
                     &*self.get_return_type_of_signature(signature)?,
                     &inference.type_parameter,
-                ));
+                )?);
         let base_candidates: Vec<_> = if primitive_constraint {
             candidates
                 .map(|candidate| self.get_regular_type_of_literal_type(&candidate))

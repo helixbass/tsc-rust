@@ -738,7 +738,8 @@ fn for_each_return_statement_bool_traverse(
 }
 
 pub fn for_each_yield_expression(body: &Node /*Block*/, mut visitor: impl FnMut(&Node)) {
-    try_for_each_yield_expression(body, |node: &Node| -> Result<(), ()> { Ok(visitor()) }).unwrap()
+    try_for_each_yield_expression(body, |node: &Node| -> Result<(), ()> { Ok(visitor(node)) })
+        .unwrap()
 }
 
 pub fn try_for_each_yield_expression<TError>(

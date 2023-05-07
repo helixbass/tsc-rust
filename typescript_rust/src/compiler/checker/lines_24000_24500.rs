@@ -8,7 +8,7 @@ use crate::{
     has_static_modifier, id_text, is_element_access_expression, is_private_identifier,
     is_property_access_expression, is_string_literal_like, Debug_, SymbolFlags, SymbolInterface,
     SyntaxKind, __String, are_rc_slices_equal, is_access_expression, is_optional_chain, map,
-    same_map, Node, NodeInterface, Symbol, Type, TypeFlags, TypeInterface,
+    same_map, try_map, Node, NodeInterface, Symbol, Type, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
@@ -33,9 +33,9 @@ impl GetFlowTypeOfReference {
             ));
         }
         let result = self.type_checker.get_union_type(
-            &same_map(types, |type_: &Gc<Type>, _| {
+            &try_map(types, |type_: &Gc<Type>, _| {
                 self.type_checker.finalize_evolving_array_type(type_)
-            }),
+            })?,
             Some(subtype_reduction),
             Option::<&Symbol>::None,
             None,
@@ -227,7 +227,9 @@ impl GetFlowTypeOfReference {
             && self.type_checker.get_key_property_name(type_)?
                 == self.type_checker.get_accessed_property_name(access)
         {
-            let clause_types = self.type_checker.get_switch_clause_types(switch_statement);
+            let clause_types = self
+                .type_checker
+                .get_switch_clause_types(switch_statement)?;
             let clause_types = &clause_types[clause_start..clause_end];
             let candidate = self.type_checker.get_union_type(
                 &map(clause_types, |t: &Gc<Type>, _| {
@@ -284,7 +286,7 @@ impl GetFlowTypeOfReference {
             && assume_true
             && self
                 .type_checker
-                .optional_chain_contains_reference(expr, &self.reference)
+                .optional_chain_contains_reference(expr, &self.reference)?
         {
             type_ = self
                 .type_checker
@@ -377,11 +379,11 @@ impl GetFlowTypeOfReference {
             | SyntaxKind::BarBarEqualsToken
             | SyntaxKind::AmpersandAmpersandEqualsToken
             | SyntaxKind::QuestionQuestionEqualsToken => {
-                return Ok(self.narrow_type_by_truthiness(
+                return self.narrow_type_by_truthiness(
                     &self.narrow_type(&type_, &expr_as_binary_expression.right, assume_true),
                     &expr_as_binary_expression.left,
                     assume_true,
-                ));
+                );
             }
             SyntaxKind::EqualsEqualsToken
             | SyntaxKind::ExclamationEqualsToken
@@ -427,7 +429,7 @@ impl GetFlowTypeOfReference {
                 if self.type_checker.strict_null_checks {
                     if self
                         .type_checker
-                        .optional_chain_contains_reference(&left, &self.reference)
+                        .optional_chain_contains_reference(&left, &self.reference)?
                     {
                         type_ = self.narrow_type_by_optional_chain_containment(
                             &type_,
@@ -437,7 +439,7 @@ impl GetFlowTypeOfReference {
                         )?;
                     } else if self
                         .type_checker
-                        .optional_chain_contains_reference(&right, &self.reference)
+                        .optional_chain_contains_reference(&right, &self.reference)?
                     {
                         type_ = self.narrow_type_by_optional_chain_containment(
                             &type_,
@@ -467,10 +469,10 @@ impl GetFlowTypeOfReference {
                         assume_true,
                     );
                 }
-                if self.is_matching_constructor_reference(&left) {
+                if self.is_matching_constructor_reference(&left)? {
                     return self.narrow_type_by_constructor(&type_, operator, &right, assume_true);
                 }
-                if self.is_matching_constructor_reference(&right) {
+                if self.is_matching_constructor_reference(&right)? {
                     return self.narrow_type_by_constructor(&type_, operator, &left, assume_true);
                 }
             }
@@ -798,7 +800,7 @@ impl GetFlowTypeOfReference {
             if self.type_checker.strict_null_checks
                 && self
                     .type_checker
-                    .optional_chain_contains_reference(&target, &self.reference)
+                    .optional_chain_contains_reference(&target, &self.reference)?
                 && assume_true == (&**literal_as_literal_like_node.text() != "undefined")
             {
                 return Ok(self
@@ -867,28 +869,27 @@ impl GetFlowTypeOfReference {
         ))
     }
 
-    pub(super) fn narrow_type_by_switch_optional_chain_containment<
-        TClauseCheck: FnMut(&Type) -> bool,
-    >(
+    pub(super) fn narrow_type_by_switch_optional_chain_containment(
         &self,
         type_: &Type,
         switch_statement: &Node, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
-        mut clause_check: TClauseCheck,
-    ) -> Gc<Type> {
+        mut clause_check: impl FnMut(&Type) -> bool,
+    ) -> io::Result<Gc<Type>> {
         let every_clause_checks = clause_start != clause_end
             && every(
-                &self.type_checker.get_switch_clause_types(switch_statement)
-                    [clause_start..clause_end],
+                &self
+                    .type_checker
+                    .get_switch_clause_types(switch_statement)?[clause_start..clause_end],
                 |clause_type: &Gc<Type>, _| clause_check(clause_type),
             );
-        if every_clause_checks {
+        Ok(if every_clause_checks {
             self.type_checker
                 .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn narrow_type_by_switch_on_discriminant(
@@ -898,7 +899,9 @@ impl GetFlowTypeOfReference {
         clause_start: usize,
         clause_end: usize,
     ) -> io::Result<Gc<Type>> {
-        let switch_types = self.type_checker.get_switch_clause_types(switch_statement);
+        let switch_types = self
+            .type_checker
+            .get_switch_clause_types(switch_statement)?;
         if switch_types.is_empty() {
             return Ok(type_.type_wrapper());
         }

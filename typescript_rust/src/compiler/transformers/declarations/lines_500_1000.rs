@@ -17,8 +17,9 @@ use crate::{
     is_omitted_expression, is_private_identifier, is_semicolon_class_element,
     is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
     is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined, maybe_map,
-    needs_scope_marker, set_comment_range_rc, set_emit_flags, some, visit_each_child, visit_node,
-    visit_nodes, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
+    needs_scope_marker, return_ok_default_if_none, set_comment_range_rc, set_emit_flags, some,
+    try_maybe_map, try_visit_each_child, try_visit_node, try_visit_nodes, visit_each_child,
+    visit_node, visit_nodes, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
     GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface, HasTypeArgumentsInterface,
     HasTypeInterface, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node,
     NodeArray, NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange,
@@ -45,22 +46,22 @@ impl TransformDeclarations {
                     .is_optional_uninitialized_parameter_property(node));
         if let Some(type_) = type_ {
             if !should_use_resolver_type {
-                return Ok(visit_node(
+                return try_visit_node(
                     Some(type_),
                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                     Option::<fn(&Node) -> bool>::None,
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                ));
+                );
             }
         }
         if get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).is_none() {
             return Ok(if let Some(type_) = type_ {
-                visit_node(
+                try_visit_node(
                     Some(type_),
                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                     Option::<fn(&Node) -> bool>::None,
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
+                )?
             } else {
                 Some(
                     self.factory
@@ -250,29 +251,30 @@ impl TransformDeclarations {
         node: &Node,
         params: Option<&NodeArray /*<ParameterDeclaration>*/>,
         modifier_mask: Option<ModifierFlags>,
-    ) -> Option<Gc<NodeArray> /*<ParameterDeclaration>*/> {
+    ) -> io::Result<Option<Gc<NodeArray> /*<ParameterDeclaration>*/>> {
         if has_effective_modifier(node, ModifierFlags::Private) {
-            return None;
+            return Ok(None);
         }
-        let new_params = maybe_map(params, |p: &Gc<Node>, _| {
+        let new_params = return_ok_default_if_none!(try_maybe_map(params, |p: &Gc<Node>, _| {
             self.ensure_parameter(p, modifier_mask, None)
-        })?;
-        Some(
-            self.factory
-                .create_node_array(Some(new_params), Some(params.unwrap().has_trailing_comma)),
-        )
+        })
+        .transpose()?);
+        Ok(Some(self.factory.create_node_array(
+            Some(new_params),
+            Some(params.unwrap().has_trailing_comma),
+        )))
     }
 
     pub(super) fn update_accessor_params_list(
         &self,
         input: &Node, /*AccessorDeclaration*/
         is_private: bool,
-    ) -> Gc<NodeArray> {
+    ) -> io::Result<Gc<NodeArray>> {
         let mut new_params: Vec<Gc<Node /*ParameterDeclaration*/>> = Default::default();
         if !is_private {
             let this_parameter = get_this_parameter(input);
             if let Some(this_parameter) = this_parameter {
-                new_params.push(self.ensure_parameter(&this_parameter, None, None));
+                new_params.push(self.ensure_parameter(&this_parameter, None, None)?);
             }
         }
         if is_set_accessor_declaration(input) {
@@ -288,7 +290,7 @@ impl TransformDeclarations {
                         &value_parameter,
                         None,
                         accessor_type.as_deref(),
-                    ));
+                    )?);
                 }
             }
             if new_value_parameter.is_none() {
@@ -309,25 +311,25 @@ impl TransformDeclarations {
             let new_value_parameter = new_value_parameter.unwrap();
             new_params.push(new_value_parameter);
         }
-        self.factory.create_node_array(Some(new_params), None)
+        Ok(self.factory.create_node_array(Some(new_params), None))
     }
 
     pub(super) fn ensure_type_params(
         &self,
         node: &Node,
         params: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
-    ) -> Option<Gc<NodeArray>> {
-        if has_effective_modifier(node, ModifierFlags::Private) {
+    ) -> io::Result<Option<Gc<NodeArray>>> {
+        Ok(if has_effective_modifier(node, ModifierFlags::Private) {
             None
         } else {
-            visit_nodes(
+            try_visit_nodes(
                 params,
                 Some(|node: &Node| self.visit_declaration_subtree(node)),
                 Option::<fn(&Node) -> bool>::None,
                 None,
                 None,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn is_enclosing_declaration(&self, node: &Node) -> bool {
@@ -601,7 +603,7 @@ impl TransformDeclarations {
     pub(super) fn transform_and_replace_late_painted_statements(
         &self,
         statements: &NodeArray, /*<Statement>*/
-    ) -> Gc<NodeArray> /*<Statement>*/ {
+    ) -> io::Result<Gc<NodeArray>> /*<Statement>*/ {
         while length(self.maybe_late_marked_statements().as_deref()) > 0 {
             let ref i = self.late_marked_statements_mut().remove(0);
             if !is_late_visibility_painted_statement(i) {
@@ -621,20 +623,20 @@ impl TransformDeclarations {
                     self.is_bundled_emit()
                 )
             ));
-            let result = self.transform_top_level_declaration(i);
+            let result = self.transform_top_level_declaration(i)?;
             self.set_needs_declare(prior_needs_declare);
             self.late_statement_replacement_map_mut()
                 .insert(get_original_node_id(i), result);
         }
 
-        visit_nodes(
+        Ok(visit_nodes(
             Some(statements),
             Some(|node: &Node| self.visit_late_visibility_marked_statements(node)),
             Option::<fn(&Node) -> bool>::None,
             None,
             None,
         )
-        .unwrap()
+        .unwrap())
     }
 
     pub(super) fn visit_late_visibility_marked_statements(
@@ -782,7 +784,7 @@ impl TransformDeclarations {
                             &self.enclosing_declaration(),
                         );
                     }
-                    let ref node = visit_each_child(
+                    let ref node = try_visit_each_child(
                         Some(input),
                         |node: &Node| self.visit_declaration_subtree(node),
                         &**self.context,
@@ -793,18 +795,18 @@ impl TransformDeclarations {
                                 Option<&dyn Fn(&Node) -> bool>,
                                 Option<usize>,
                                 Option<usize>,
-                            ) -> Option<Gc<NodeArray>>,
+                            ) -> io::Result<Option<Gc<NodeArray>>>,
                         >::None,
-                        Option::<fn(&Node) -> VisitResult>::None,
+                        Option::<fn(&Node) -> io::Result<VisitResult>>::None,
                         Option::<
                             fn(
                                 Option<&Node>,
                                 Option<&mut dyn FnMut(&Node) -> VisitResult>,
                                 Option<&dyn Fn(&Node) -> bool>,
                                 Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                            ) -> Option<Gc<Node>>,
+                            ) -> io::Result<Option<Gc<Node>>>,
                         >::None,
-                    )
+                    )?
                     .unwrap();
                     let node_as_expression_with_type_arguments =
                         node.as_expression_with_type_arguments();
@@ -831,7 +833,7 @@ impl TransformDeclarations {
                         &input.as_type_reference_node().type_name,
                         &self.enclosing_declaration(),
                     );
-                    let ref node = visit_each_child(
+                    let ref node = try_visit_each_child(
                         Some(input),
                         |node: &Node| self.visit_declaration_subtree(node),
                         &**self.context,
@@ -842,18 +844,18 @@ impl TransformDeclarations {
                                 Option<&dyn Fn(&Node) -> bool>,
                                 Option<usize>,
                                 Option<usize>,
-                            ) -> Option<Gc<NodeArray>>,
+                            ) -> io::Result<Option<Gc<NodeArray>>>,
                         >::None,
-                        Option::<fn(&Node) -> VisitResult>::None,
+                        Option::<fn(&Node) -> io::Result<VisitResult>>::None,
                         Option::<
                             fn(
                                 Option<&Node>,
                                 Option<&mut dyn FnMut(&Node) -> VisitResult>,
                                 Option<&dyn Fn(&Node) -> bool>,
                                 Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                            ) -> Option<Gc<Node>>,
+                            ) -> io::Result<Option<Gc<Node>>>,
                         >::None,
-                    )
+                    )?
                     .unwrap();
                     let node_as_type_reference_node = node.as_type_reference_node();
                     self.visit_declaration_subtree_cleanup(
@@ -901,7 +903,7 @@ impl TransformDeclarations {
                                         .maybe_type()
                                         .as_deref(),
                                     None,
-                                ),
+                                )?,
                             ),
                         ),
                     )
@@ -934,7 +936,7 @@ impl TransformDeclarations {
                 SyntaxKind::MethodDeclaration => {
                     let input_as_method_declaration = input.as_method_declaration();
                     if is_private_identifier(&input_as_method_declaration.name()) {
-                        return self.visit_declaration_subtree_cleanup(
+                        return Ok(self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -942,7 +944,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        );
+                        ));
                     }
                     let sig = self
                         .factory
@@ -968,7 +970,7 @@ impl TransformDeclarations {
                                 input,
                                 input_as_method_declaration.maybe_type().as_deref(),
                                 None,
-                            ),
+                            )?,
                             None,
                         )
                         .wrap();
@@ -985,7 +987,7 @@ impl TransformDeclarations {
                 SyntaxKind::GetAccessor => {
                     let input_as_get_accessor_declaration = input.as_get_accessor_declaration();
                     if is_private_identifier(&input_as_get_accessor_declaration.name()) {
-                        return self.visit_declaration_subtree_cleanup(
+                        return Ok(self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -993,7 +995,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        );
+                        ));
                     }
                     let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
                         input,
@@ -1015,7 +1017,7 @@ impl TransformDeclarations {
                                 input,
                                 has_effective_modifier(input, ModifierFlags::Private),
                             ),
-                            self.ensure_type(input, accessor_type.as_deref(), None),
+                            self.ensure_type(input, accessor_type.as_deref(), None)?,
                             None,
                         )),
                     )
@@ -1023,7 +1025,7 @@ impl TransformDeclarations {
                 SyntaxKind::SetAccessor => {
                     let input_as_set_accessor_declaration = input.as_set_accessor_declaration();
                     if is_private_identifier(&input_as_set_accessor_declaration.name()) {
-                        return self.visit_declaration_subtree_cleanup(
+                        return Ok(self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1031,7 +1033,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        );
+                        ));
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1056,7 +1058,7 @@ impl TransformDeclarations {
                 SyntaxKind::PropertyDeclaration => {
                     let input_as_property_declaration = input.as_property_declaration();
                     if is_private_identifier(&input_as_property_declaration.name()) {
-                        return self.visit_declaration_subtree_cleanup(
+                        return Ok(self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1064,7 +1066,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        );
+                        ));
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1083,7 +1085,7 @@ impl TransformDeclarations {
                                 input,
                                 input_as_property_declaration.maybe_type().as_deref(),
                                 None,
-                            ),
+                            )?,
                             self.ensure_no_initializer(input),
                         )),
                     )
@@ -1091,7 +1093,7 @@ impl TransformDeclarations {
                 SyntaxKind::PropertySignature => {
                     let input_as_property_signature = input.as_property_signature();
                     if is_private_identifier(&input_as_property_signature.name()) {
-                        return self.visit_declaration_subtree_cleanup(
+                        return Ok(self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1099,7 +1101,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        );
+                        ));
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1117,14 +1119,14 @@ impl TransformDeclarations {
                                 input,
                                 input_as_property_signature.maybe_type().as_deref(),
                                 None,
-                            ),
+                            )?,
                         )),
                     )
                 }
                 SyntaxKind::MethodSignature => {
                     let input_as_method_signature = input.as_method_signature();
                     if is_private_identifier(&input_as_method_signature.name()) {
-                        return self.visit_declaration_subtree_cleanup(
+                        return Ok(self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1132,7 +1134,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        );
+                        ));
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1161,7 +1163,7 @@ impl TransformDeclarations {
                                     input,
                                     input_as_method_signature.maybe_type().as_deref(),
                                     None,
-                                ),
+                                )?,
                             ),
                         ),
                     )
@@ -1194,7 +1196,7 @@ impl TransformDeclarations {
                                     input,
                                     input_as_call_signature_declaration.maybe_type().as_deref(),
                                     None,
-                                ),
+                                )?,
                             ),
                         ),
                     )
@@ -1220,12 +1222,12 @@ impl TransformDeclarations {
                                     None,
                                 )
                                 .unwrap(),
-                                visit_node(
+                                try_visit_node(
                                     input_as_index_signature_declaration.maybe_type(),
                                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                                     Option::<fn(&Node) -> bool>::None,
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                )
+                                )?
                                 .unwrap_or_else(|| {
                                     self.factory
                                         .create_keyword_type_node(SyntaxKind::AnyKeyword)
@@ -1239,7 +1241,7 @@ impl TransformDeclarations {
                     let input_as_variable_declaration = input.as_variable_declaration();
                     if is_binding_pattern(input_as_variable_declaration.maybe_name()) {
                         return Ok(Some(
-                            self.recreate_binding_pattern(&input_as_variable_declaration.name())
+                            self.recreate_binding_pattern(&input_as_variable_declaration.name())?
                                 .into(),
                         ));
                     }
@@ -1271,7 +1273,7 @@ impl TransformDeclarations {
                         && (input_as_type_parameter_declaration.default.is_some()
                             || input_as_type_parameter_declaration.constraint.is_some())
                     {
-                        return self.visit_declaration_subtree_cleanup(
+                        return Ok(self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1284,7 +1286,7 @@ impl TransformDeclarations {
                                 None,
                                 None,
                             )),
-                        );
+                        ));
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1293,7 +1295,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        visit_each_child(
+                        try_visit_each_child(
                             Some(input),
                             |node: &Node| self.visit_declaration_subtree(node),
                             &**self.context,
@@ -1304,55 +1306,56 @@ impl TransformDeclarations {
                                     Option<&dyn Fn(&Node) -> bool>,
                                     Option<usize>,
                                     Option<usize>,
-                                ) -> Option<Gc<NodeArray>>,
+                                )
+                                    -> io::Result<Option<Gc<NodeArray>>>,
                             >::None,
-                            Option::<fn(&Node) -> VisitResult>::None,
+                            Option::<fn(&Node) -> io::Result<VisitResult>>::None,
                             Option::<
                                 fn(
                                     Option<&Node>,
                                     Option<&mut dyn FnMut(&Node) -> VisitResult>,
                                     Option<&dyn Fn(&Node) -> bool>,
                                     Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                                ) -> Option<Gc<Node>>,
+                                ) -> io::Result<Option<Gc<Node>>>,
                             >::None,
-                        )
+                        )?
                         .as_deref(),
                     )
                 }
                 SyntaxKind::ConditionalType => {
                     let input_as_conditional_type_node = input.as_conditional_type_node();
-                    let check_type = visit_node(
+                    let check_type = try_visit_node(
                         Some(&*input_as_conditional_type_node.check_type),
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap();
-                    let extends_type = visit_node(
+                    let extends_type = try_visit_node(
                         Some(&*input_as_conditional_type_node.extends_type),
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap();
                     let old_enclosing_decl = self.maybe_enclosing_declaration();
                     self.set_enclosing_declaration(Some(
                         input_as_conditional_type_node.true_type.clone(),
                     ));
-                    let true_type = visit_node(
+                    let true_type = try_visit_node(
                         Some(&*input_as_conditional_type_node.true_type),
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap();
                     self.set_enclosing_declaration(old_enclosing_decl);
-                    let false_type = visit_node(
+                    let false_type = try_visit_node(
                         Some(&*input_as_conditional_type_node.false_type),
                         Some(|node: &Node| self.visit_declaration_subtree(node)),
                         Option::<fn(&Node) -> bool>::None,
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap();
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1382,7 +1385,7 @@ impl TransformDeclarations {
                         Some(
                             &self.factory.update_function_type_node(
                                 input,
-                                visit_nodes(
+                                try_visit_nodes(
                                     input_as_function_type_node
                                         .maybe_type_parameters()
                                         .as_deref(),
@@ -1390,19 +1393,19 @@ impl TransformDeclarations {
                                     Option::<fn(&Node) -> bool>::None,
                                     None,
                                     None,
-                                ),
+                                )?,
                                 self.update_params_list(
                                     input,
                                     Some(&input_as_function_type_node.parameters()),
                                     None,
                                 )
                                 .unwrap(),
-                                visit_node(
+                                try_visit_node(
                                     input_as_function_type_node.maybe_type(),
                                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                                     Option::<fn(&Node) -> bool>::None,
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                ),
+                                )?,
                             ),
                         ),
                     )
@@ -1420,7 +1423,7 @@ impl TransformDeclarations {
                             &self.factory.update_constructor_type_node(
                                 input,
                                 self.ensure_modifiers(input),
-                                visit_nodes(
+                                try_visit_nodes(
                                     input_as_constructor_type_node
                                         .maybe_type_parameters()
                                         .as_deref(),
@@ -1428,19 +1431,19 @@ impl TransformDeclarations {
                                     Option::<fn(&Node) -> bool>::None,
                                     None,
                                     None,
-                                ),
+                                )?,
                                 self.update_params_list(
                                     input,
                                     Some(&input_as_constructor_type_node.parameters()),
                                     None,
                                 )
                                 .unwrap(),
-                                visit_node(
+                                try_visit_node(
                                     input_as_constructor_type_node.maybe_type(),
                                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                                     Option::<fn(&Node) -> bool>::None,
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                                ),
+                                )?,
                             ),
                         ),
                     )
@@ -1448,7 +1451,7 @@ impl TransformDeclarations {
                 SyntaxKind::ImportType => {
                     let input_as_import_type_node = input.as_import_type_node();
                     if !is_literal_import_type_node(input) {
-                        return self.visit_declaration_subtree_cleanup(
+                        return Ok(self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1456,7 +1459,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             Some(input),
-                        );
+                        ));
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1482,13 +1485,13 @@ impl TransformDeclarations {
                                     .unwrap(),
                                 ),
                                 input_as_import_type_node.qualifier.clone(),
-                                visit_nodes(
+                                try_visit_nodes(
                                     input_as_import_type_node.maybe_type_arguments().as_deref(),
                                     Some(|node: &Node| self.visit_declaration_subtree(node)),
                                     Some(is_type_node),
                                     None,
                                     None,
-                                ),
+                                )?,
                                 Some(input_as_import_type_node.is_type_of()),
                             ),
                         ),
@@ -1526,7 +1529,7 @@ impl TransformDeclarations {
             &old_diag,
             should_enter_suppress_new_diagnostics_context_context,
             old_within_object_literal_type,
-            visit_each_child(
+            try_visit_each_child(
                 Some(input),
                 |node: &Node| self.visit_declaration_subtree(node),
                 &**self.context,
@@ -1548,7 +1551,7 @@ impl TransformDeclarations {
                         Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
                     ) -> Option<Gc<Node>>,
                 >::None,
-            )
+            )?
             .as_deref(),
         ))
     }

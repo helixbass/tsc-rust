@@ -676,7 +676,7 @@ impl TypeChecker {
             || !get_declaration_modifier_flags_from_symbol(prop, None)
                 .intersects(ModifierFlags::NonPublicAccessibilityModifier)
         {
-            let mut type_ = (*self.get_symbol_links(&self.get_late_bound_symbol(prop)))
+            let mut type_ = (*self.get_symbol_links(&*self.get_late_bound_symbol(prop)?))
                 .borrow()
                 .name_type
                 .clone();
@@ -815,12 +815,12 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_extract_string_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_extract_string_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
         if self.keyof_strings_only {
-            return type_.type_wrapper();
+            return Ok(type_.type_wrapper());
         }
-        let extract_type_alias = self.get_global_extract_symbol();
-        if let Some(extract_type_alias) = extract_type_alias {
+        let extract_type_alias = self.get_global_extract_symbol()?;
+        Ok(if let Some(extract_type_alias) = extract_type_alias {
             self.get_type_alias_instantiation(
                 &extract_type_alias,
                 Some(&[type_.type_wrapper(), self.string_type()]),
@@ -829,7 +829,7 @@ impl TypeChecker {
             )
         } else {
             self.string_type()
-        }
+        })
     }
 
     pub(super) fn get_index_type_or_string(&self, type_: &Type) -> io::Result<Gc<Type>> {

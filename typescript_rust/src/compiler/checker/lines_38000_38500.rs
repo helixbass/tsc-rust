@@ -12,12 +12,12 @@ use crate::{
     get_span_of_token_at_position, get_text_of_node, has_static_modifier, has_syntactic_modifier,
     is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
     is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
-    maybe_for_each, some, AsDoubleDeref, ClassLikeDeclarationInterface, DiagnosticMessage,
-    Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn, HasInitializerInterface,
-    HasTypeArgumentsInterface, IndexInfo, InterfaceTypeInterface, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
-    ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
+    maybe_for_each, some, try_for_each_bool, AsDoubleDeref, ClassLikeDeclarationInterface,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn,
+    HasInitializerInterface, HasTypeArgumentsInterface, IndexInfo, InterfaceTypeInterface,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -770,10 +770,11 @@ impl TypeChecker {
         );
         self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)));
         self.check_exports_on_merged_declarations(node);
-        let symbol = self.get_symbol_of_node(node).unwrap();
-        let type_ = self.get_declared_type_of_symbol(&symbol);
-        let type_with_this = self.get_type_with_this_argument(&type_, Option::<&Type>::None, None);
-        let static_type = self.get_type_of_symbol(&symbol);
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
+        let type_ = self.get_declared_type_of_symbol(&symbol)?;
+        let type_with_this =
+            self.get_type_with_this_argument(&type_, Option::<&Type>::None, None)?;
+        let static_type = self.get_type_of_symbol(&symbol)?;
         self.check_type_parameter_lists_identical(&symbol);
         self.check_function_or_constructor_symbol(&symbol);
         self.check_class_for_duplicate_declarations(node);
@@ -818,7 +819,7 @@ impl TypeChecker {
             let base_types = self.get_base_types(&type_);
             if !base_types.is_empty() && self.produce_diagnostics {
                 let base_type = &base_types[0];
-                let base_constructor_type = self.get_base_constructor_type_of_class(&type_);
+                let base_constructor_type = self.get_base_constructor_type_of_class(&type_)?;
                 let static_base_type = self.get_apparent_type(&base_constructor_type);
                 self.check_base_type_accessibility(&static_base_type, base_type_node);
                 self.check_source_element(Some(
@@ -924,14 +925,17 @@ impl TypeChecker {
                             .maybe_type_arguments()
                             .as_double_deref(),
                         base_type_node,
-                    );
-                    if for_each_bool(&constructors, |sig: &Gc<Signature>, _| {
-                        !self.is_js_constructor(sig.declaration.as_deref())
-                            && !self.is_type_identical_to(
-                                &self.get_return_type_of_signature(sig.clone()),
-                                base_type,
-                            )
-                    }) {
+                    )?;
+                    if try_for_each_bool(
+                        &constructors,
+                        |sig: &Gc<Signature>, _| -> io::Result<_> {
+                            Ok(!self.is_js_constructor(sig.declaration.as_deref())
+                                && !self.is_type_identical_to(
+                                    &*self.get_return_type_of_signature(sig.clone())?,
+                                    base_type,
+                                ))
+                        },
+                    )? {
                         self.error(
                             Some(&*base_type_node_as_expression_with_type_arguments.expression),
                             &Diagnostics::Base_constructors_must_all_have_the_same_return_type,
@@ -939,11 +943,11 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.check_kinds_of_property_member_overrides(&type_, base_type);
+                self.check_kinds_of_property_member_overrides(&type_, base_type)?;
             }
         }
 
-        self.check_members_for_override_modifier(node, &type_, &type_with_this, &static_type);
+        self.check_members_for_override_modifier(node, &type_, &type_with_this, &static_type)?;
 
         let implemented_type_nodes = get_effective_implements_type_nodes(node);
         if let Some(implemented_type_nodes) = implemented_type_nodes.as_ref() {
@@ -963,7 +967,7 @@ impl TypeChecker {
                 }
                 self.check_type_reference_node(type_ref_node);
                 if self.produce_diagnostics {
-                    let t = self.get_reduced_type(&self.get_type_from_type_node_(type_ref_node));
+                    let t = self.get_reduced_type(&*self.get_type_from_type_node_(type_ref_node)?);
                     if !self.is_error_type(&t) {
                         if self.is_valid_base_type(&t) {
                             let generic_diag = if matches!(
@@ -978,7 +982,7 @@ impl TypeChecker {
                                 &t,
                                 type_as_interface_type.maybe_this_type(),
                                 None,
-                            );
+                            )?;
                             if !self.check_type_assignable_to(
                                 &type_with_this,
                                 &base_with_this,
@@ -992,7 +996,7 @@ impl TypeChecker {
                                     &type_with_this,
                                     &base_with_this,
                                     generic_diag,
-                                );
+                                )?;
                             }
                         } else {
                             self.error(

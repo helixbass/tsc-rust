@@ -635,19 +635,19 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_symbol_of_node(&self, node: &Node) -> Option<Gc<Symbol>> {
-        self.get_merged_symbol(
+    pub(super) fn get_symbol_of_node(&self, node: &Node) -> io::Result<Option<Gc<Symbol>>> {
+        Ok(self.get_merged_symbol(
             node.maybe_symbol()
-                .map(|node_symbol| self.get_late_bound_symbol(&node_symbol)),
-        )
+                .try_map(|node_symbol| self.get_late_bound_symbol(&node_symbol))?,
+        ))
     }
 
-    pub(super) fn get_parent_of_symbol(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
-        self.get_merged_symbol(
+    pub(super) fn get_parent_of_symbol(&self, symbol: &Symbol) -> io::Result<Option<Gc<Symbol>>> {
+        Ok(self.get_merged_symbol(
             symbol
                 .maybe_parent()
-                .map(|symbol_parent| self.get_late_bound_symbol(&symbol_parent)),
-        )
+                .try_map(|symbol_parent| self.get_late_bound_symbol(&symbol_parent))?,
+        ))
     }
 
     pub(super) fn get_alternative_containing_modules(

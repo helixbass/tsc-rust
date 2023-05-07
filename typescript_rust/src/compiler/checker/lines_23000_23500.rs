@@ -95,7 +95,7 @@ impl TypeChecker {
         node: &Node, /*VariableDeclaration | BindingElement*/
     ) -> io::Result<Gc<Type>> {
         Ok(if node.kind() == SyntaxKind::VariableDeclaration {
-            self.get_initial_type_of_variable_declaration(node)
+            self.get_initial_type_of_variable_declaration(node)?
         } else {
             self.get_initial_type_of_binding_element(node)?
         })
@@ -659,7 +659,7 @@ impl TypeChecker {
             if self.is_type_subset_of(
                 &element_type,
                 &evolving_array_type_as_evolving_array_type.element_type,
-            ) {
+            )? {
                 evolving_array_type.type_wrapper()
             } else {
                 self.get_evolving_array_type(
@@ -1195,7 +1195,7 @@ impl TypeChecker {
                 if flow_as_flow_switch_clause.clause_start == flow_as_flow_switch_clause.clause_end
                     && self.is_exhaustive_switch_statement(
                         &flow_as_flow_switch_clause.switch_statement,
-                    )
+                    )?
                 {
                     return Ok(false);
                 }

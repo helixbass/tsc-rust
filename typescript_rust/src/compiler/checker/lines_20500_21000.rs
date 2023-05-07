@@ -980,14 +980,14 @@ impl TypeChecker {
         &self,
         expr_type: &Type,
         expression: &Node, /*Expression*/
-    ) -> Gc<Type> {
-        if is_expression_of_optional_chain_root(expression) {
-            self.get_non_nullable_type(expr_type)
+    ) -> io::Result<Gc<Type>> {
+        Ok(if is_expression_of_optional_chain_root(expression) {
+            self.get_non_nullable_type(expr_type)?
         } else if is_optional_chain(expression) {
             self.remove_optional_type_marker(expr_type)
         } else {
             expr_type.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Gc<Type> {

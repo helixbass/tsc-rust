@@ -792,7 +792,7 @@ impl TypeChecker {
                 return Ok(source);
             }
 
-            let omit_type_alias = self.get_global_omit_symbol();
+            let omit_type_alias = self.get_global_omit_symbol()?;
             if omit_type_alias.is_none() {
                 return Ok(self.error_type());
             }

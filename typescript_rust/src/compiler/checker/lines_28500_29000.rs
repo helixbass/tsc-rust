@@ -56,7 +56,7 @@ impl TypeChecker {
                 .as_ref()
                 .try_and_then(|containing_type_symbol| {
                     self.get_property_of_type_(
-                        &self.get_type_of_symbol(containing_type_symbol),
+                        &*self.get_type_of_symbol(containing_type_symbol)?,
                         prop_name,
                         None,
                     )
@@ -120,12 +120,9 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn get_suggested_symbol_for_nonexistent_property<
-        'name,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub(super) fn get_suggested_symbol_for_nonexistent_property<'name>(
         &self,
-        name: TName, /*Identifier | PrivateIdentifier*/
+        name: impl Into<StrOrRcNode<'name>>, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
     ) -> io::Result<Option<Gc<Symbol>>> {
         let props = self.get_properties_of_type(containing_type)?;
@@ -187,19 +184,20 @@ impl TypeChecker {
         &self,
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
-    ) -> Option<String> {
-        let suggestion = self.get_suggested_symbol_for_nonexistent_property(name, containing_type);
-        suggestion
+    ) -> io::Result<Option<String>> {
+        let suggestion =
+            self.get_suggested_symbol_for_nonexistent_property(name, containing_type)?;
+        Ok(suggestion
             .as_ref()
-            .map(|suggestion| symbol_name(suggestion).into_owned())
+            .map(|suggestion| symbol_name(suggestion).into_owned()))
     }
 
-    pub(super) fn get_suggested_symbol_for_nonexistent_symbol_<TLocation: Borrow<Node>>(
+    pub(super) fn get_suggested_symbol_for_nonexistent_symbol_(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         outer_name: &str, /*__String*/
         meaning: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         // Debug.assert(outerName !== undefined, "outername should always be defined");
         let result = self.resolve_name_helper(
             location,
@@ -216,9 +214,9 @@ impl TypeChecker {
                     Some("name should equal outername"),
                     None,
                 );
-                let symbol = self.get_symbol(symbols, name, meaning);
+                let symbol = self.get_symbol(symbols, name, meaning)?;
                 if symbol.is_some() {
-                    return symbol;
+                    return Ok(symbol);
                 }
                 let candidates: Vec<Gc<Symbol>>;
                 if ptr::eq(symbols, &*self.globals()) {
@@ -248,13 +246,13 @@ impl TypeChecker {
                     meaning,
                 )
             },
-        );
-        result
+        )?;
+        Ok(result)
     }
 
-    pub(super) fn get_suggestion_for_nonexistent_symbol_<TLocation: Borrow<Node>>(
+    pub(super) fn get_suggestion_for_nonexistent_symbol_(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         outer_name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> Option<String> {
@@ -269,16 +267,16 @@ impl TypeChecker {
         &self,
         name: &Node, /*Identifier*/
         target_module: &Symbol,
-    ) -> Option<Gc<Symbol>> {
-        if target_module.maybe_exports().is_some() {
+    ) -> io::Result<Option<Gc<Symbol>>> {
+        Ok(if target_module.maybe_exports().is_some() {
             self.get_spelling_suggestion_for_name(
                 &id_text(name),
                 &self.get_exports_of_module_as_array(target_module),
                 SymbolFlags::ModuleMember,
-            )
+            )?
         } else {
             None
-        }
+        })
     }
 
     pub fn get_suggestion_for_nonexistent_export(
@@ -328,17 +326,17 @@ impl TypeChecker {
         object_type: &Type,
         keyed_type: &Type,
         name: &str, /*"set | "get"*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let prop = self.get_property_of_object_type(object_type, name);
         if let Some(prop) = prop.as_ref() {
-            let s = self.get_single_call_signature(&self.get_type_of_symbol(prop));
-            return matches!(
+            let s = self.get_single_call_signature(&*self.get_type_of_symbol(prop)?);
+            return Ok(matches!(
                 s.as_ref(),
                 Some(s) if self.get_min_argument_count(s, None) >= 1 &&
                     self.is_type_assignable_to(keyed_type, &self.get_type_at_position(s, 0))
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_suggested_type_for_nonexistent_string_literal_type(
@@ -365,30 +363,30 @@ impl TypeChecker {
         name: &str,
         symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
         meaning: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let get_candidate_name = |candidate: &Gc<Symbol>| {
             let candidate_name = symbol_name(candidate);
             if starts_with(&candidate_name, "\"") {
-                return None;
+                return Ok(None);
             }
 
             if candidate.flags().intersects(meaning) {
-                return Some(candidate_name.into_owned());
+                return Ok(Some(candidate_name.into_owned()));
             }
 
             if candidate.flags().intersects(SymbolFlags::Alias) {
-                let alias = self.try_resolve_alias(candidate);
+                let alias = self.try_resolve_alias(candidate)?;
                 if matches!(
                     alias.as_ref(),
                     Some(alias) if alias.flags().intersects(meaning)
                 ) {
-                    return Some(candidate_name.into_owned());
+                    return Ok(Some(candidate_name.into_owned()));
                 }
             }
             None
         };
 
-        get_spelling_suggestion(name, symbols, get_candidate_name)
+        Ok(get_spelling_suggestion(name, symbols, get_candidate_name))
     }
 
     pub(super) fn mark_property_as_referenced<TNodeForCheckWriteOnly: Borrow<Node>>(
@@ -460,19 +458,19 @@ impl TypeChecker {
         &self,
         name: &Node, /*Expression | QualifiedName*/
         parent: Option<TParent>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
-        name.kind() == SyntaxKind::ThisKeyword
+        Ok(name.kind() == SyntaxKind::ThisKeyword
             || matches!(
                 parent.as_ref(),
                 Some(parent) if is_entity_name_expression(name) &&
                     Gc::ptr_eq(
                         parent,
-                        &self.get_resolved_symbol(
+                        &*self.get_resolved_symbol(
                             &get_first_identifier(name)
-                        ),
+                        )?,
                     )
-            )
+            ))
     }
 
     pub(super) fn is_valid_property_access_(
@@ -493,7 +491,7 @@ impl TypeChecker {
                         None,
                         None,
                     )?),
-                )
+                )?
             }
             SyntaxKind::QualifiedName => self.is_valid_property_access_with_type(
                 node,
@@ -509,7 +507,7 @@ impl TypeChecker {
                 node,
                 false,
                 property_name,
-                &self.get_type_from_type_node_(node),
+                &*self.get_type_from_type_node_(node)?,
             ),
             _ => unreachable!(),
         })
@@ -520,7 +518,7 @@ impl TypeChecker {
         node: &Node, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
         type_: &Type,
         property: &Symbol,
-    ) -> bool {
+    ) -> io::Result<bool> {
         self.is_property_accessible(
             node,
             node.kind() == SyntaxKind::PropertyAccessExpression
@@ -552,7 +550,7 @@ impl TypeChecker {
                 false,
                 type_,
                 prop,
-            )
+            )?
         ))
     }
 
@@ -602,7 +600,7 @@ impl TypeChecker {
     pub(super) fn get_for_in_variable_symbol(
         &self,
         node: &Node, /*ForInStatement*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let initializer = &node.as_for_in_statement().initializer;
         if initializer.kind() == SyntaxKind::VariableDeclarationList {
             let variable = initializer
@@ -613,12 +611,12 @@ impl TypeChecker {
             if let Some(variable) = variable.as_ref().filter(|variable| {
                 !is_binding_pattern(variable.as_variable_declaration().maybe_name())
             }) {
-                return self.get_symbol_of_node(variable);
+                return Ok(self.get_symbol_of_node(variable));
             }
         } else if initializer.kind() == SyntaxKind::Identifier {
-            return Some(self.get_resolved_symbol(initializer));
+            return Ok(Some(self.get_resolved_symbol(initializer)?));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn has_numeric_property_names(&self, type_: &Type) -> bool {
@@ -631,10 +629,10 @@ impl TypeChecker {
     pub(super) fn is_for_in_variable_for_numeric_property_names(
         &self,
         expr: &Node, /*Expression*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let e = skip_parentheses(expr, None);
         if e.kind() == SyntaxKind::Identifier {
-            let symbol = self.get_resolved_symbol(&e);
+            let symbol = self.get_resolved_symbol(&e)?;
             if symbol.flags().intersects(SymbolFlags::Variable) {
                 let mut child = expr.node_wrapper();
                 let mut node = expr.maybe_parent();
@@ -650,33 +648,35 @@ impl TypeChecker {
                                 )
                             )
                             && self.has_numeric_property_names(
-                                &self.get_type_of_expression(&node_as_for_in_statement.expression),
+                                &*self
+                                    .get_type_of_expression(&node_as_for_in_statement.expression)?,
                             )
                     } {
-                        return true;
+                        return Ok(true);
                     }
                     child = node_present.clone();
                     node = node_present.maybe_parent();
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_indexed_access(
         &self,
         node: &Node, /*ElementAccessExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
-        if node.flags().intersects(NodeFlags::OptionalChain) {
-            self.check_element_access_chain(node, check_mode)
+    ) -> io::Result<Gc<Type>> {
+        Ok(if node.flags().intersects(NodeFlags::OptionalChain) {
+            self.check_element_access_chain(node, check_mode)?
         } else {
             self.check_element_access_expression(
                 node,
-                &self.check_non_null_expression(&node.as_element_access_expression().expression),
+                &*self
+                    .check_non_null_expression(&node.as_element_access_expression().expression)?,
                 check_mode,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn check_element_access_chain(
@@ -691,18 +691,18 @@ impl TypeChecker {
             &expr_type,
             &node_as_element_access_expression.expression,
         );
-        Ok(self.propagate_optional_type_marker(
-            &self.check_element_access_expression(
+        self.propagate_optional_type_marker(
+            &*self.check_element_access_expression(
                 node,
                 &self.check_non_null_type(
                     &non_optional_type,
                     &node_as_element_access_expression.expression,
                 ),
                 check_mode,
-            ),
+            )?,
             node,
             !Gc::ptr_eq(&non_optional_type, &expr_type),
-        ))
+        )
     }
 
     pub(super) fn check_element_access_expression(
@@ -764,8 +764,8 @@ impl TypeChecker {
                 None,
             )
             .unwrap_or_else(|| self.error_type());
-        Ok(self.check_indexed_access_index_type(
-            &self.get_flow_type_of_access_expression(
+        self.check_indexed_access_index_type(
+            &*self.get_flow_type_of_access_expression(
                 node,
                 (*self.get_node_links(node))
                     .borrow()
@@ -774,9 +774,9 @@ impl TypeChecker {
                 &indexed_access_type,
                 index_expression,
                 check_mode,
-            ),
+            )?,
             node,
-        ))
+        )
     }
 
     pub(super) fn call_like_expression_may_have_type_arguments(

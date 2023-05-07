@@ -325,7 +325,7 @@ impl TypeChecker {
             .unwrap())
     }
 
-    pub(super) fn get_global_import_meta_expression_type(&self) -> Gc<Type> {
+    pub(super) fn get_global_import_meta_expression_type(&self) -> io::Result<Gc<Type>> {
         if self
             .maybe_deferred_global_import_meta_expression_type()
             .is_none()
@@ -333,7 +333,7 @@ impl TypeChecker {
             let symbol: Gc<Symbol> = self
                 .create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
                 .into();
-            let import_meta_type = self.get_global_import_meta_type();
+            let import_meta_type = self.get_global_import_meta_type()?;
 
             let meta_property_symbol: Gc<Symbol> = self
                 .create_symbol(
@@ -357,9 +357,10 @@ impl TypeChecker {
             *self.maybe_deferred_global_import_meta_expression_type() =
                 Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![]));
         }
-        self.maybe_deferred_global_import_meta_expression_type()
+        Ok(self
+            .maybe_deferred_global_import_meta_expression_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
     pub(super) fn get_global_import_call_options_type(
@@ -715,18 +716,21 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_typed_property_descriptor_type(&self, property_type: &Type) -> Gc<Type> {
-        self.create_type_from_generic_global_type(
-            &self.get_global_typed_property_descriptor_type(),
+    pub(super) fn create_typed_property_descriptor_type(
+        &self,
+        property_type: &Type,
+    ) -> io::Result<Gc<Type>> {
+        Ok(self.create_type_from_generic_global_type(
+            &*self.get_global_typed_property_descriptor_type()?,
             vec![property_type.type_wrapper()],
-        )
+        ))
     }
 
-    pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> Gc<Type> {
-        self.create_type_from_generic_global_type(
-            &self.get_global_iterable_type(true),
+    pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> io::Result<Gc<Type>> {
+        Ok(self.create_type_from_generic_global_type(
+            &*self.get_global_iterable_type(true)?,
             vec![iterated_type.type_wrapper()],
-        )
+        ))
     }
 
     pub(super) fn create_array_type(
@@ -914,7 +918,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let target = self.get_array_or_tuple_target_type(node);
+            let target = self.get_array_or_tuple_target_type(node)?;
             if Gc::ptr_eq(&target, &self.empty_generic_type()) {
                 links.borrow_mut().resolved_type = Some(self.empty_object_type());
             } else if !(node.kind() == SyntaxKind::TupleType

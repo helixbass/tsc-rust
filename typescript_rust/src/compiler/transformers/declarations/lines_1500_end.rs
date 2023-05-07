@@ -7,8 +7,9 @@ use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, flatten, for_each_bool,
     get_effective_modifier_flags, get_factory, get_parse_tree_node, has_effective_modifier,
     is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
-    is_external_module, is_internal_declaration, map_defined, some, try_map_defined, visit_nodes,
-    with_synthetic_factory, with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
+    is_external_module, is_internal_declaration, map_defined, return_ok_default_if_none, some,
+    try_map_defined, try_visit_nodes, visit_nodes, with_synthetic_factory,
+    with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
     GetSymbolAccessibilityDiagnostic, HasTypeInterface, ModifierFlags, NamedDeclarationInterface,
     Node, NodeArray, NodeArrayOrVec, NodeInterface, OptionTry, SignatureDeclarationInterface,
     SyntaxKind,
@@ -18,7 +19,7 @@ impl TransformDeclarations {
     pub(super) fn transform_variable_statement(
         &self,
         input: &Node, /*VariableStatement*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let input_as_variable_statement = input.as_variable_statement();
         if !for_each_bool(
             &input_as_variable_statement
@@ -27,9 +28,9 @@ impl TransformDeclarations {
                 .declarations,
             |declaration: &Gc<Node>, _| self.get_binding_name_visible(declaration),
         ) {
-            return None;
+            return Ok(None);
         }
-        let nodes = visit_nodes(
+        let nodes = return_ok_default_if_none!(try_visit_nodes(
             Some(
                 &input_as_variable_statement
                     .declaration_list
@@ -40,11 +41,11 @@ impl TransformDeclarations {
             Option::<fn(&Node) -> bool>::None,
             None,
             None,
-        )?;
+        )?);
         if nodes.is_empty() {
-            return None;
+            return Ok(None);
         }
-        Some(
+        Ok(Some(
             self.factory.update_variable_statement(
                 input,
                 Some(
@@ -56,7 +57,7 @@ impl TransformDeclarations {
                     nodes,
                 ),
             ),
-        )
+        ))
     }
 
     pub(super) fn recreate_binding_pattern(
@@ -211,7 +212,7 @@ impl TransformDeclarations {
                         let clause_as_heritage_clause = clause.as_heritage_clause();
                         self.factory.update_heritage_clause(
                             clause,
-                            visit_nodes(
+                            try_visit_nodes(
                                 Some(
                                     &self.factory.create_node_array(
                                         Some(
@@ -241,7 +242,7 @@ impl TransformDeclarations {
                                 Option::<fn(&Node) -> bool>::None,
                                 None,
                                 None,
-                            )
+                            )?
                             .unwrap(),
                         )
                     })

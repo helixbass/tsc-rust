@@ -304,13 +304,13 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> bool {
+    pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> io::Result<bool> {
         let symbol = self.get_symbol_of_node(node);
-        let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false);
-        matches!(
+        let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false)?;
+        Ok(matches!(
             (global_symbol, symbol),
             (Some(global_symbol), Some(symbol)) if Gc::ptr_eq(&symbol, &global_symbol)
-        )
+        ))
     }
 
     pub(super) fn widen_type_for_variable_like_declaration(

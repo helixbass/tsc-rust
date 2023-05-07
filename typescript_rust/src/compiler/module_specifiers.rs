@@ -363,7 +363,7 @@ pub fn get_module_specifiers_with_cache_info(
     user_preferences: &UserPreferences,
 ) -> io::Result<ModuleSpecifiersWithCacheInfo> {
     let mut computed_without_cache = false;
-    let ambient = try_get_module_name_from_ambient_module(module_symbol, checker);
+    let ambient = try_get_module_name_from_ambient_module(module_symbol, checker)?;
     if let Some(ambient) = ambient {
         return Ok(ModuleSpecifiersWithCacheInfo {
             module_specifiers: vec![ambient],
@@ -1057,7 +1057,7 @@ fn try_get_module_name_from_ambient_module(
             )) {
                 return Ok(None);
             }
-            let ref export_assignment = top_namespace
+            let ref export_assignment = return_ok_default_if_none!(top_namespace
                 .parent()
                 .parent()
                 .symbol()
@@ -1079,7 +1079,7 @@ fn try_get_module_name_from_ambient_module(
                             .expression
                             .clone()
                     },
-                )?;
+                ));
             let ref export_symbol =
                 return_ok_default_if_none!(checker.get_symbol_at_location(export_assignment)?);
             let ref original_export_symbol = if export_symbol.flags().intersects(SymbolFlags::Alias)

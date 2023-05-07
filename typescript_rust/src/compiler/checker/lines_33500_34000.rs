@@ -37,7 +37,7 @@ impl TypeChecker {
         let initializer = get_effective_initializer(declaration).unwrap();
         let type_ = self
             .get_quick_type_of_expression(&initializer)?
-            .try_unwrap_or_else(|| {
+            .try_unwrap_or_else(|| -> io::Result<_> {
                 Ok(if let Some(contextual_type) = contextual_type {
                     self.check_expression_with_contextual_type(
                         &initializer,
@@ -297,7 +297,7 @@ impl TypeChecker {
                     .get_apparent_type_of_contextual_type(node, Some(ContextFlags::NoConstraints));
                 if let Some(contextual_type) = contextual_type.as_ref() {
                     let contextual_signature = self.get_single_signature(
-                        &self.get_non_nullable_type(contextual_type),
+                        &*self.get_non_nullable_type(contextual_type)?,
                         if call_signature.is_some() {
                             SignatureKind::Call
                         } else {
@@ -811,7 +811,7 @@ impl TypeChecker {
             SyntaxKind::ArrayLiteralExpression => {
                 self.check_array_literal(node, check_mode, force_tuple)?
             }
-            SyntaxKind::ObjectLiteralExpression => self.check_object_literal(node, check_mode),
+            SyntaxKind::ObjectLiteralExpression => self.check_object_literal(node, check_mode)?,
             SyntaxKind::PropertyAccessExpression => {
                 self.check_property_access_expression(node, check_mode)?
             }

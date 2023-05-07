@@ -596,18 +596,18 @@ impl TypeChecker {
         target: &Node,
     ) -> io::Result<bool> {
         Ok(self.is_matching_reference(source, target)?
-            || self.contains_matching_reference(source, target))
+            || self.contains_matching_reference(source, target)?)
     }
 
     pub(super) fn has_matching_argument(
         &self,
         expression: &Node, /*CallExpression | NewExpression*/
         reference: &Node,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if let Some(expression_arguments) = expression.as_has_arguments().maybe_arguments() {
             for argument in &expression_arguments {
-                if self.is_or_contains_matching_reference(reference, argument) {
-                    return true;
+                if self.is_or_contains_matching_reference(reference, argument)? {
+                    return Ok(true);
                 }
             }
         }
@@ -617,11 +617,11 @@ impl TypeChecker {
                 && self.is_or_contains_matching_reference(
                     reference,
                     &expression_expression.as_has_expression().expression(),
-                )
+                )?
         } {
-            return true;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_flow_node_id(&self, flow: &FlowNode) -> usize {
@@ -987,7 +987,7 @@ impl TypeChecker {
                 && self.is_destructuring_assignment_target(&node.parent().parent());
         Ok(if is_destructuring_default_assignment {
             self.get_type_with_default(
-                &self.get_assigned_type(node),
+                &*self.get_assigned_type(node)?,
                 &node.as_binary_expression().right,
             )?
         } else {
@@ -1008,7 +1008,7 @@ impl TypeChecker {
         element: &Node, /*Expression*/
     ) -> io::Result<Gc<Type>> {
         self.get_type_of_destructured_array_element(
-            &self.get_assigned_type(node),
+            &*self.get_assigned_type(node)?,
             node.as_array_literal_expression()
                 .elements
                 .iter()
@@ -1021,7 +1021,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SpreadElement*/
     ) -> io::Result<Gc<Type>> {
-        self.get_type_of_destructured_spread_expression(&self.get_assigned_type(&node.parent()))
+        self.get_type_of_destructured_spread_expression(&*self.get_assigned_type(&node.parent())?)
     }
 
     pub(super) fn get_assigned_type_of_property_assignment(
@@ -1029,7 +1029,7 @@ impl TypeChecker {
         node: &Node, /*PropertyAssignment | ShorthandPropertyAssignment*/
     ) -> io::Result<Gc<Type>> {
         self.get_type_of_destructured_property(
-            &self.get_assigned_type(&node.parent()),
+            &*self.get_assigned_type(&node.parent())?,
             &node.as_named_declaration().name(),
         )
     }
@@ -1039,7 +1039,7 @@ impl TypeChecker {
         node: &Node, /*ShorthandPropertyAssignment*/
     ) -> io::Result<Gc<Type>> {
         self.get_type_with_default(
-            &self.get_assigned_type_of_property_assignment(node),
+            &*self.get_assigned_type_of_property_assignment(node)?,
             node.as_shorthand_property_assignment()
                 .object_assignment_initializer
                 .as_ref()
@@ -1055,17 +1055,17 @@ impl TypeChecker {
         Ok(match parent.kind() {
             SyntaxKind::ForInStatement => self.string_type(),
             SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(&parent), /*|| errorType*/
-            SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(&parent),
+            SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(&parent)?,
             SyntaxKind::DeleteExpression => self.undefined_type(),
             SyntaxKind::ArrayLiteralExpression => {
                 self.get_assigned_type_of_array_literal_element(&parent, node)?
             }
             SyntaxKind::SpreadElement => self.get_assigned_type_of_spread_expression(&parent),
             SyntaxKind::PropertyAssignment => {
-                self.get_assigned_type_of_property_assignment(&parent)
+                self.get_assigned_type_of_property_assignment(&parent)?
             }
             SyntaxKind::ShorthandPropertyAssignment => {
-                self.get_assigned_type_of_shorthand_property_assignment(&parent)
+                self.get_assigned_type_of_shorthand_property_assignment(&parent)?
             }
             _ => self.error_type(),
         })

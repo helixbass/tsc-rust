@@ -631,21 +631,21 @@ impl TypeChecker {
             } else if node.kind() == SyntaxKind::MethodDeclaration
                 && node.as_method_declaration().maybe_body().is_none()
             {
-                return Ok(self.check_grammar_for_invalid_dynamic_name(
+                return self.check_grammar_for_invalid_dynamic_name(
                     &node_as_named_declaration.name(),
                     &Diagnostics::A_computed_property_name_in_a_method_overload_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
-                ));
+                );
             }
         } else if node.parent().kind() == SyntaxKind::InterfaceDeclaration {
-            return Ok(self.check_grammar_for_invalid_dynamic_name(
+            return self.check_grammar_for_invalid_dynamic_name(
                 &node_as_named_declaration.name(),
                 &Diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
-            ));
+            );
         } else if node.parent().kind() == SyntaxKind::TypeLiteral {
-            return Ok(self.check_grammar_for_invalid_dynamic_name(
+            return self.check_grammar_for_invalid_dynamic_name(
                 &node_as_named_declaration.name(),
                 &Diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
-            ));
+            );
         }
         Ok(false)
     }

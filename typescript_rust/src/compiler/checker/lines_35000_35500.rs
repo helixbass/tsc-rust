@@ -313,7 +313,7 @@ impl TypeChecker {
             return Ok(Some(type_as_promise_promised_type_of_promise.clone()));
         }
 
-        if self.is_reference_to_type(type_, &self.get_global_promise_type(false)) {
+        if self.is_reference_to_type(type_, &*self.get_global_promise_type(false)?) {
             let ret = self.get_type_arguments(type_)[0].clone();
             *type_as_promise.maybe_promised_type_of_promise() = Some(ret.clone());
             return Ok(Some(ret));
@@ -420,10 +420,10 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn is_awaited_type_instantiation(&self, type_: &Type) -> bool {
+    pub(super) fn is_awaited_type_instantiation(&self, type_: &Type) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Conditional) {
-            let awaited_symbol = self.get_global_awaited_symbol(false);
-            return matches!(
+            let awaited_symbol = self.get_global_awaited_symbol(false)?;
+            return Ok(matches!(
                 awaited_symbol.as_ref(),
                 Some(awaited_symbol) if matches!(
                     type_.maybe_alias_symbol().as_ref(),
@@ -435,9 +435,9 @@ impl TypeChecker {
             ) && matches!(
                 type_.maybe_alias_type_arguments().as_ref(),
                 Some(type_alias_type_arguments) if type_alias_type_arguments.len() == 1
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> Gc<Type> {
@@ -474,7 +474,7 @@ impl TypeChecker {
                         || self.is_thenable_type(base_constraint)?
                 }
             } {
-                let awaited_symbol = self.get_global_awaited_symbol(true);
+                let awaited_symbol = self.get_global_awaited_symbol(true)?;
                 if let Some(awaited_symbol) = awaited_symbol.as_ref() {
                     return Ok(self.get_type_alias_instantiation(
                         awaited_symbol,

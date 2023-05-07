@@ -348,7 +348,7 @@ impl TypeChecker {
                 )
             )
         }) {
-            let global_promise_symbol = self.get_global_promise_constructor_symbol(false);
+            let global_promise_symbol = self.get_global_promise_constructor_symbol(false)?;
             if matches!(
                 global_promise_symbol.as_ref(),
                 Some(global_promise_symbol) if Gc::ptr_eq(

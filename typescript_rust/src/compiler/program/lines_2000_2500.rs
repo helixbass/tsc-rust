@@ -1,5 +1,6 @@
 use gc::{Gc, GcCell};
 use regex::Regex;
+use std::io;
 use std::rc::Rc;
 use std::{convert::TryInto, ptr};
 
@@ -48,15 +49,15 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
         // self.run_with_cancellation_token(|| {
         if skip_type_checking(source_file, &self.options, |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
         }) {
-            return vec![];
+            return Ok(vec![]);
         }
 
-        let type_checker = self.get_diagnostics_producing_type_checker();
+        let type_checker = self.get_diagnostics_producing_type_checker()?;
 
         let source_file_as_source_file = source_file.as_source_file();
         Debug_.assert(
@@ -87,7 +88,7 @@ impl Program {
             vec![]
         };
 
-        self.get_merged_bind_and_check_diagnostics(
+        Ok(self.get_merged_bind_and_check_diagnostics(
             source_file,
             include_bind_and_check_diagnostics,
             &[
@@ -101,7 +102,7 @@ impl Program {
                     None
                 },
             ],
-        )
+        ))
         // })
     }
 
@@ -721,18 +722,18 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
-        self.run_with_cancellation_token(|| {
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+        self.run_with_cancellation_token(|| -> io::Result<_> {
             let resolver = self
-                .get_diagnostics_producing_type_checker()
+                .get_diagnostics_producing_type_checker()?
                 .get_emit_resolver(source_file, cancellation_token);
-            get_declaration_diagnostics(
+            Ok(get_declaration_diagnostics(
                 // TODO: should this be eg Some(NoOpWriteFileCallback::new()) instead?
                 self.get_emit_host(None),
                 resolver,
                 source_file,
             )
-            .unwrap_or_default()
+            .unwrap_or_default())
         })
     }
 
@@ -816,16 +817,16 @@ impl Program {
     pub fn get_global_diagnostics(
         &self,
         _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> SortedArray<Gc<Diagnostic>> {
-        if !self.root_names().is_empty() {
+    ) -> io::Result<SortedArray<Gc<Diagnostic>>> {
+        Ok(if !self.root_names().is_empty() {
             sort_and_deduplicate_diagnostics(
                 &self
-                    .get_diagnostics_producing_type_checker()
+                    .get_diagnostics_producing_type_checker()?
                     .get_global_diagnostics(),
             )
         } else {
             vec![].into()
-        }
+        })
     }
 
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Gc<Diagnostic>> {

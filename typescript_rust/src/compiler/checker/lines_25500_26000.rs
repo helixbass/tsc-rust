@@ -153,7 +153,7 @@ impl TypeChecker {
                 }
                 return Ok(Some(self.get_widened_type(
                     &*if let Some(contextual_type) = contextual_type.as_ref() {
-                        self.get_non_nullable_type(contextual_type)
+                        self.get_non_nullable_type(contextual_type)?
                     } else {
                         self.check_expression_cached(containing_literal, None)?
                     },
@@ -607,7 +607,7 @@ impl TypeChecker {
             return Ok(if arg_index == 0 {
                 self.string_type()
             } else if arg_index == 1 {
-                self.get_global_import_call_options_type(false)
+                self.get_global_import_call_options_type(false)?
             } else {
                 self.any_type()
             });

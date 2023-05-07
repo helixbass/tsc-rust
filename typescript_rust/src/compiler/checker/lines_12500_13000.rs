@@ -613,7 +613,7 @@ impl TypeChecker {
             } else {
                 let signature_declaration = signature.declaration.as_ref().unwrap();
                 self.get_return_type_from_annotation(signature_declaration)?
-                    .try_unwrap_or_else(|| {
+                    .try_unwrap_or_else(|| -> io::Result<_> {
                         Ok(
                             if node_is_missing(
                                 signature_declaration

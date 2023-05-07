@@ -741,7 +741,7 @@ impl TypeChecker {
         if let Some(node) = node.as_ref() {
             let symbol = self.get_symbol_of_node(node);
             if let Some(symbol) = symbol.as_ref() {
-                return Ok(self.is_symbol_of_declaration_with_colliding_name(symbol))?;
+                return self.is_symbol_of_declaration_with_colliding_name(symbol);
             }
         }
 

@@ -44,17 +44,24 @@ pub fn try_for_each<TCollection: IntoIterator, TReturn, TError>(
     Ok(None)
 }
 
-pub fn for_each_bool<
-    TCollection: IntoIterator,
-    TCallback: FnMut(TCollection::Item, usize) -> bool,
->(
+pub fn for_each_bool<TCollection: IntoIterator>(
     array: TCollection,
-    mut callback: TCallback,
+    mut callback: impl FnMut(TCollection::Item, usize) -> bool,
 ) -> bool {
     array
         .into_iter()
         .enumerate()
         .any(|(index, item)| callback(item, index))
+}
+
+pub fn try_for_each_bool<TCollection: IntoIterator, TError>(
+    array: TCollection,
+    mut callback: impl FnMut(TCollection::Item, usize) -> Result<bool, TError>,
+) -> Result<bool, TError> {
+    array
+        .into_iter()
+        .enumerate()
+        .try_any(|(index, item)| callback(item, index))
 }
 
 pub fn maybe_for_each<TCollection: IntoIterator, TReturn>(

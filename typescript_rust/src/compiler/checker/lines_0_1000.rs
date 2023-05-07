@@ -136,12 +136,14 @@ pub(crate) struct IterationTypesResolver {
     pub iterable_cache_key: IterationTypeCacheKey, /*"iterationTypesOfAsyncIterable" | "iterationTypesOfIterable"*/
     pub iterator_cache_key: IterationTypeCacheKey, /*"iterationTypesOfAsyncIterator" | "iterationTypesOfIterator"*/
     pub iterator_symbol_name: &'static str,        /*"asyncIterator" | "iterator"*/
-    pub get_global_iterator_type: fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
-    pub get_global_iterable_type: fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
+    pub get_global_iterator_type:
+        fn(&TypeChecker, report_errors: bool) -> io::Result<Gc<Type /*GenericType*/>>,
+    pub get_global_iterable_type:
+        fn(&TypeChecker, report_errors: bool) -> io::Result<Gc<Type /*GenericType*/>>,
     pub get_global_iterable_iterator_type:
-        fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
+        fn(&TypeChecker, report_errors: bool) -> io::Result<Gc<Type /*GenericType*/>>,
     pub get_global_generator_type:
-        fn(&TypeChecker, report_errors: bool) -> Gc<Type /*GenericType*/>,
+        fn(&TypeChecker, report_errors: bool) -> io::Result<Gc<Type /*GenericType*/>>,
     pub resolve_iteration_type: fn(
         &TypeChecker,
         type_: &Type,
@@ -2373,11 +2375,11 @@ impl TypeChecker {
         self.optional_type()
     }
 
-    pub fn get_promise_type(&self) -> Gc<Type> {
+    pub fn get_promise_type(&self) -> io::Result<Gc<Type>> {
         self.get_global_promise_type(false)
     }
 
-    pub fn get_promise_like_type(&self) -> Gc<Type> {
+    pub fn get_promise_like_type(&self) -> io::Result<Gc<Type>> {
         self.get_global_promise_like_type(false)
     }
 

@@ -873,7 +873,7 @@ impl TypeChecker {
                 {
                     self.get_union_type(
                         &[
-                            self.get_non_nullable_type(left_type),
+                            self.get_non_nullable_type(left_type)?,
                             right_type.type_wrapper(),
                         ],
                         Some(UnionReduction::Subtype),

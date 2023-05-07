@@ -241,6 +241,12 @@ pub trait OptionTry {
         default: impl FnOnce() -> Result<TMapped, TError>,
         predicate: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
     ) -> Result<TMapped, TError>;
+
+    fn try_map_or<TMapped, TError>(
+        self,
+        default: TMapped,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
+    ) -> Result<TMapped, TError>;
 }
 
 impl<TValue> OptionTry for Option<TValue> {
@@ -322,6 +328,17 @@ impl<TValue> OptionTry for Option<TValue> {
     ) -> Result<TMapped, TError> {
         match self {
             None => default(),
+            Some(value) => predicate(value),
+        }
+    }
+
+    fn try_map_or<TMapped, TError>(
+        self,
+        default: TMapped,
+        predicate: impl FnOnce(Self::Unwrapped) -> Result<TMapped, TError>,
+    ) -> Result<TMapped, TError> {
+        match self {
+            None => Ok(default),
             Some(value) => predicate(value),
         }
     }

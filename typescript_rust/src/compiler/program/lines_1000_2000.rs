@@ -314,7 +314,7 @@ impl Program {
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
-    ) -> EmitResult {
+    ) -> io::Result<EmitResult> {
         if force_dts_emit != Some(true) {
             let result = handle_no_emit_options(
                 self.rc_wrapper(),
@@ -323,12 +323,12 @@ impl Program {
                 cancellation_token.clone(),
             );
             if let Some(result) = result {
-                return result;
+                return Ok(result);
             }
         }
 
         let emit_resolver = self
-            .get_diagnostics_producing_type_checker()
+            .get_diagnostics_producing_type_checker()?
             .get_emit_resolver(
                 if matches!(
                     out_file(&self.options),
@@ -355,7 +355,7 @@ impl Program {
 
         // performance.mark("afterEmit");
         // performance.measure("Emit", "beforeEmit", "afterEmit");
-        emit_result
+        Ok(emit_result)
     }
 
     pub fn get_current_directory(&self) -> String {

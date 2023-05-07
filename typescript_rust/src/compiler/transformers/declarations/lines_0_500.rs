@@ -35,7 +35,7 @@ use crate::{
     SymbolAccessibility, SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags,
     SymbolInterface, SymbolTracker, SyntaxKind, TextRange, TransformationContext,
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, VisitResult, try_maybe_for_each,
+    TransformerInterface, VisitResult, try_maybe_for_each, try_visit_nodes,
 };
 
 pub fn get_declaration_diagnostics(
@@ -562,9 +562,9 @@ impl TransformDeclarations {
         result
     }
 
-    pub(super) fn transform_root(&self, node: &Node /*SourceFile | Bundle*/) -> Gc<Node> {
+    pub(super) fn transform_root(&self, node: &Node /*SourceFile | Bundle*/) -> io::Result<Gc<Node>> {
         if node.kind() == SyntaxKind::SourceFile && node.as_source_file().is_declaration_file() {
-            return node.node_wrapper();
+            return Ok(node.node_wrapper());
         }
 
         if node.kind() == SyntaxKind::Bundle {
@@ -581,7 +581,7 @@ impl TransformDeclarations {
                             let source_file = source_file.as_ref().unwrap();
                             let source_file_as_source_file = source_file.as_source_file();
                             if source_file_as_source_file.is_declaration_file() {
-                                return None
+                                return Ok(None)
                             }
                             has_no_default_lib = has_no_default_lib || source_file_as_source_file.has_no_default_lib();
                             self.set_current_source_file(
@@ -618,13 +618,13 @@ impl TransformDeclarations {
                                         None,
                                     )
                                 } else {
-                                    visit_nodes(
+                                    try_visit_nodes(
                                         Some(&source_file_as_source_file.statements()),
                                         Some(|node: &Node| self.visit_declaration_statements(node)),
                                         Option::<fn(&Node) -> bool>::None,
                                         None,
                                         None,
-                                    ).unwrap()
+                                    )?.unwrap()
                                 };
                                 let new_file = 
                                     self.factory.update_source_file(
@@ -671,7 +671,7 @@ impl TransformDeclarations {
                                         Some(Default::default()),
                                     )
                                 ;
-                                return Some(new_file);
+                                return Ok(Some(new_file));
                             }
                             self.set_needs_declare(true);
                             let updated = if is_source_file_js(source_file) {
@@ -680,13 +680,13 @@ impl TransformDeclarations {
                                     None,
                                 )
                             } else {
-                                visit_nodes(
+                                try_visit_nodes(
                                     Some(&source_file_as_source_file.statements()),
                                     Some(|node: &Node| self.visit_declaration_statements(node)),
                                     Option::<fn(&Node) -> bool>::None,
                                     None,
                                     None,
-                                ).unwrap()
+                                )?.unwrap()
                             };
                             Some(
                                 self.factory.update_source_file(
@@ -725,7 +725,7 @@ impl TransformDeclarations {
                                     &source_file,
                                     &mut self.libs_mut(),
                                 );
-                                return Some(source_file);
+                                return Ok(Some(source_file));
                             }
                             Some(prepend.clone())
                         }
@@ -753,7 +753,7 @@ impl TransformDeclarations {
                     reference_visitor(ref_);
                 });
             }
-            return bundle.wrap();
+            return Ok(bundle.wrap());
         }
         let node_as_source_file = node.as_source_file();
 
@@ -801,13 +801,13 @@ impl TransformDeclarations {
                 |statement: &Gc<Node>| is_any_import_syntax(statement),
             )));
         } else {
-            let statements = visit_nodes(
+            let statements = try_visit_nodes(
                 Some(&node_as_source_file.statements()),
                 Some(|node: &Node| self.visit_declaration_statements(node)),
                 Option::<fn(&Node) -> bool>::None,
                 None,
                 None,
-            )
+            )?
             .unwrap();
             combined_statements = set_text_range_node_array(
                 self.factory.create_node_array(
@@ -858,7 +858,7 @@ impl TransformDeclarations {
             .as_source_file()
             .maybe_exported_modules_from_declaration_emit() =
             self.maybe_exported_modules_from_declaration_emit().clone();
-        updated
+        Ok(updated)
     }
 
     pub(super) fn get_lib_references(&self) -> Vec<FileReference> {

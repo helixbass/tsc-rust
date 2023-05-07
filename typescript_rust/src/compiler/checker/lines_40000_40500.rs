@@ -42,7 +42,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_source_element_worker(&self, node: &Node) {
+    pub(super) fn check_source_element_worker(&self, node: &Node) -> io::Result<()> {
         if is_in_js_file(Some(node)) {
             maybe_for_each(
                 node.maybe_js_doc().as_ref(),
@@ -73,7 +73,7 @@ impl TypeChecker {
             && kind <= SyntaxKind::LastStatement
             && matches!(
                 node.maybe_flow_node().as_ref(),
-                Some(node_flow_node) if !self.is_reachable_flow_node(node_flow_node.clone())
+                Some(node_flow_node) if !self.is_reachable_flow_node(node_flow_node.clone())?
             )
         {
             self.error_or_suggestion(
@@ -314,6 +314,8 @@ impl TypeChecker {
             }
             _ => (),
         }
+
+        Ok(())
     }
 
     pub(super) fn check_jsdoc_type_is_in_js_file(&self, node: &Node) {

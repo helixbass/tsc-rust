@@ -205,7 +205,7 @@ impl TypeChecker {
     }
 
     pub(super) fn create_promise_type(&self, promised_type: &Type) -> io::Result<Gc<Type>> {
-        let global_promise_type = self.get_global_promise_type(true);
+        let global_promise_type = self.get_global_promise_type(true)?;
         if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type()) {
             let promised_type = self
                 .get_awaited_type_no_alias(
@@ -222,7 +222,7 @@ impl TypeChecker {
     }
 
     pub(super) fn create_promise_like_type(&self, promised_type: &Type) -> io::Result<Gc<Type>> {
-        let global_promise_like_type = self.get_global_promise_like_type(true);
+        let global_promise_like_type = self.get_global_promise_like_type(true)?;
         if !Gc::ptr_eq(&global_promise_like_type, &self.empty_generic_type()) {
             let promised_type = self
                 .get_awaited_type_no_alias(
@@ -257,7 +257,7 @@ impl TypeChecker {
                 None
             );
             return Ok(self.error_type());
-        } else if self.get_global_promise_constructor_symbol(true).is_none() {
+        } else if self.get_global_promise_constructor_symbol(true)?.is_none() {
             self.error(
                 Some(func),
                 if is_import_call(func) {
@@ -376,7 +376,7 @@ impl TypeChecker {
             let types = self.check_and_aggregate_return_expression_types(func, check_mode)?;
             if types.is_none() {
                 return Ok(if function_flags.intersects(FunctionFlags::Async) {
-                    self.create_promise_return_type(func, &self.never_type())
+                    self.create_promise_return_type(func, &self.never_type())?
                 } else {
                     self.never_type()
                 });
@@ -384,7 +384,7 @@ impl TypeChecker {
             let types = types.unwrap();
             if types.is_empty() {
                 return Ok(if function_flags.intersects(FunctionFlags::Async) {
-                    self.create_promise_return_type(func, &self.void_type())
+                    self.create_promise_return_type(func, &self.void_type())?
                 } else {
                     self.void_type()
                 });
@@ -784,7 +784,7 @@ impl TypeChecker {
         if !self.is_literal_type(&type_) {
             return Ok(false);
         }
-        let switch_types = self.get_switch_clause_types(node);
+        let switch_types = self.get_switch_clause_types(node)?;
         if switch_types.is_empty()
             || some(
                 Some(&switch_types),
@@ -808,11 +808,11 @@ impl TypeChecker {
     pub(super) fn function_has_implicit_return(
         &self,
         func: &Node, /*FunctionLikeDeclaration*/
-    ) -> bool {
-        matches!(
+    ) -> io::Result<bool> {
+        Ok(matches!(
             func.as_function_like_declaration().maybe_end_flow_node().as_ref(),
-            Some(func_end_flow_node) if self.is_reachable_flow_node(func_end_flow_node.clone())
-        )
+            Some(func_end_flow_node) if self.is_reachable_flow_node(func_end_flow_node.clone())?
+        ))
     }
 
     pub(super) fn check_and_aggregate_return_expression_types(

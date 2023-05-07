@@ -635,7 +635,7 @@ impl CheckTypeRelatedTo {
             }
             if target.flags().intersects(TypeFlags::Union) {
                 return self.type_related_to_some_type(
-                    &self
+                    &*self
                         .type_checker
                         .get_regular_type_of_object_literal(&source)?,
                     target,
@@ -646,7 +646,7 @@ impl CheckTypeRelatedTo {
             }
             if target.flags().intersects(TypeFlags::Intersection) {
                 return Ok(self.type_related_to_each_type(
-                    &self
+                    &*self
                         .type_checker
                         .get_regular_type_of_object_literal(&source)?,
                     target,

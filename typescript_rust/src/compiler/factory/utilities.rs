@@ -745,7 +745,7 @@ impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine
         &self,
         node: &Node, /*BinaryExpression*/
         outer_state: TMachine::TOuterState,
-    ) -> TMachine::TResult {
+    ) -> io::Result<TMachine::TResult> {
         let result_holder: Rc<RefCell<Option<TMachine::TResult>>> = Rc::new(RefCell::new(None));
         let mut state_stack: Vec<BinaryExpressionState> = vec![BinaryExpressionState::Enter];
         let mut node_stack: Vec<Gc<Node /*BinaryExpression*/>> = vec![node.node_wrapper()];
@@ -761,10 +761,10 @@ impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine
                 &mut user_state_stack,
                 result_holder.clone(),
                 outer_state.clone(),
-            );
+            )?;
         }
         Debug_.assert_equal(&stack_index, &0, None, None);
         let ret = (*result_holder).borrow().clone().unwrap();
-        ret
+        Ok(ret)
     }
 }
