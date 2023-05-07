@@ -655,13 +655,24 @@ pub fn for_each_return_statement(
     body: &Node, /*Block | Statement*/
     mut visitor: impl FnMut(&Node),
 ) {
-    for_each_return_statement_traverse(body, &mut visitor)
+    try_for_each_return_statement(body, |node: &Node| -> Result<_, ()> { Ok(visitor(node)) })
+        .unwrap()
 }
 
-fn for_each_return_statement_traverse(node: &Node, visitor: &mut impl FnMut(&Node)) {
+pub fn try_for_each_return_statement<TError>(
+    body: &Node, /*Block | Statement*/
+    mut visitor: impl FnMut(&Node) -> Result<(), TError>,
+) -> Result<(), TError> {
+    try_for_each_return_statement_traverse(body, &mut visitor)
+}
+
+fn try_for_each_return_statement_traverse<TError>(
+    node: &Node,
+    visitor: &mut impl FnMut(&Node) -> Result<(), TError>,
+) -> Result<(), TError> {
     match node.kind() {
         SyntaxKind::ReturnStatement => {
-            visitor(node);
+            visitor(node)?;
         }
         SyntaxKind::CaseBlock
         | SyntaxKind::Block
@@ -678,14 +689,16 @@ fn for_each_return_statement_traverse(node: &Node, visitor: &mut impl FnMut(&Nod
         | SyntaxKind::LabeledStatement
         | SyntaxKind::TryStatement
         | SyntaxKind::CatchClause => {
-            for_each_child(
+            try_for_each_child(
                 node,
-                |node| for_each_return_statement_traverse(node, visitor),
-                Option::<fn(&NodeArray)>::None,
-            );
+                |node| try_for_each_return_statement_traverse(node, visitor),
+                Option::<fn(&NodeArray) -> Result<(), TError>>::None,
+            )?;
         }
         _ => (),
     };
+
+    return Ok(());
 }
 
 pub fn for_each_return_statement_bool(
@@ -769,7 +782,7 @@ fn try_for_each_yield_expression_traverse<TError>(
                 try_for_each_child(
                     node,
                     |node| try_for_each_yield_expression_traverse(node, visitor),
-                    Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                    Option::<fn(&NodeArray) -> Result<(), TError>>::None,
                 )?;
             }
         }

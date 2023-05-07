@@ -267,11 +267,13 @@ impl TypeChecker {
                     );
                     let type_ =
                         if self.every_type(source_type, |type_: &Type| self.is_tuple_type(type_)) {
-                            self.map_type(
+                            self.try_map_type(
                                 source_type,
-                                &mut |t: &Type| Some(self.slice_tuple_type(t, element_index, None)),
+                                &mut |t: &Type| -> io::Result<_> {
+                                    Ok(Some(self.slice_tuple_type(t, element_index, None)?))
+                                },
                                 None,
-                            )
+                            )?
                             .unwrap()
                         } else {
                             self.create_array_type(element_type, None)
@@ -602,13 +604,13 @@ impl TypeChecker {
                         &left_type,
                         &Diagnostics::The_left_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
                         Some(true)
-                    );
+                    )?;
                     let right_ok = self.check_arithmetic_operand_type(
                         right,
                         &right_type,
                         &Diagnostics::The_right_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
                         Some(true)
-                    );
+                    )?;
                     let result_type: Gc<Type>;
                     if self.is_type_assignable_to_kind(&left_type, TypeFlags::AnyOrUnknown, None)
                         && self.is_type_assignable_to_kind(
@@ -911,7 +913,7 @@ impl TypeChecker {
                     left_type.type_wrapper()
                 } else {
                     self.check_assignment_operator(operator, left, left_type, right, right_type);
-                    self.get_regular_type_of_object_literal(right_type)
+                    self.get_regular_type_of_object_literal(right_type)?
                 }
             }
             SyntaxKind::CommaToken => {

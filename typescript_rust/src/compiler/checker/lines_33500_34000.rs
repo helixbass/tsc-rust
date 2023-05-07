@@ -67,7 +67,7 @@ impl TypeChecker {
                         .elements
                         .len()
             {
-                self.pad_tuple_type(&type_, &declaration.as_parameter_declaration().name())
+                self.pad_tuple_type(&type_, &declaration.as_parameter_declaration().name())?
             } else {
                 type_
             },
@@ -100,12 +100,12 @@ impl TypeChecker {
                 }
             }
         }
-        Ok(self.create_tuple_type(
+        self.create_tuple_type(
             &element_types,
             Some(&element_flags),
             Some(type_target_as_tuple_type.readonly),
             None,
-        ))
+        )
     }
 
     pub(super) fn widen_type_inferred_from_initializer(
@@ -232,7 +232,7 @@ impl TypeChecker {
                     node,
                     None,
                 ),
-            )
+            )?
         })
     }
 
@@ -562,13 +562,13 @@ impl TypeChecker {
         let non_optional_type =
             self.get_optional_expression_type(&func_type, &expr_as_call_expression.expression);
         let return_type = self.get_return_type_of_single_non_generic_call_signature(&func_type)?;
-        Ok(return_type.as_ref().map(|return_type| {
+        return_type.as_ref().try_map(|return_type| {
             self.propagate_optional_type_marker(
                 return_type,
                 expr,
                 !Gc::ptr_eq(&non_optional_type, &func_type),
             )
-        }))
+        })
     }
 
     pub(super) fn get_type_of_expression(
@@ -806,7 +806,7 @@ impl TypeChecker {
             }
             SyntaxKind::TrueKeyword => self.true_type(),
             SyntaxKind::FalseKeyword => self.false_type(),
-            SyntaxKind::TemplateExpression => self.check_template_expression(node),
+            SyntaxKind::TemplateExpression => self.check_template_expression(node)?,
             SyntaxKind::RegularExpressionLiteral => self.global_reg_exp_type(),
             SyntaxKind::ArrayLiteralExpression => {
                 self.check_array_literal(node, check_mode, force_tuple)?

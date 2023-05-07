@@ -280,7 +280,7 @@ impl TypeChecker {
                                 && self.is_possibly_aliased_this_property(
                                     member,
                                     Some(assignment_kind),
-                                )
+                                )?
                             || matches!(
                                 assignment_kind,
                                 AssignmentDeclarationKind::ObjectDefinePrototypeProperty
@@ -365,7 +365,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_late_bound_symbol(&self, symbol: &Symbol) -> Gc<Symbol> {
+    pub(super) fn get_late_bound_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Symbol>> {
         if symbol.flags().intersects(SymbolFlags::ClassMember)
             && symbol.escaped_name() == InternalSymbolName::Computed
         {
@@ -391,9 +391,9 @@ impl TypeChecker {
             if links.late_symbol.is_none() {
                 links.late_symbol = Some(symbol.symbol_wrapper());
             }
-            return links.late_symbol.clone().unwrap();
+            return Ok(links.late_symbol.clone().unwrap());
         }
-        symbol.symbol_wrapper()
+        Ok(symbol.symbol_wrapper())
     }
 
     pub(super) fn get_type_with_this_argument(
@@ -519,7 +519,7 @@ impl TypeChecker {
         }
         let base_types = self.get_base_types(source);
         if !base_types.is_empty() {
-            if matches!(source.maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &*self.get_members_of_symbol(&symbol)?))
+            if matches!(source.maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(&symbol)?))
             {
                 members = Gc::new(GcCell::new(create_symbol_table(
                     source_as_interface_type_with_declared_members

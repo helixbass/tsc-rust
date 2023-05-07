@@ -2140,11 +2140,11 @@ impl TypeChecker {
     pub fn get_contextual_type_for_object_literal_element(
         &self,
         node_in: &Node, /*ObjectLiteralElementLike*/
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_object_literal_element_like(node)),
-        )?;
+        ));
         self.get_contextual_type_for_object_literal_element_(&node, None)
     }
 

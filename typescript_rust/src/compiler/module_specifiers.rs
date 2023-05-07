@@ -21,14 +21,14 @@ use crate::{
     is_module_declaration, is_non_global_ambient_module, is_rooted_disk_path, is_source_file,
     map_defined, maybe_for_each, node_modules_path_part, normalize_path,
     path_contains_node_modules, path_is_bare_specifier, path_is_relative, remove_file_extension,
-    remove_suffix, remove_trailing_directory_separator, resolve_path, some, starts_with,
-    starts_with_directory, to_path, try_get_extension_from_path, CharacterCodes, Comparison,
-    CompilerOptions, CompilerOptionsBuilder, Debug_, Extension, FileExtensionInfo, FileIncludeKind,
-    FileIncludeReason, JsxEmit, LiteralLikeNodeInterface, ModuleKind, ModulePath,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty,
-    OptionTry, Path, ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
-    UserPreferences,
+    remove_suffix, remove_trailing_directory_separator, resolve_path, return_ok_default_if_none,
+    some, starts_with, starts_with_directory, to_path, try_get_extension_from_path,
+    try_map_defined, CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_,
+    Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason, JsxEmit,
+    LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
+    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, OptionTry, Path,
+    ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -1013,7 +1013,7 @@ fn get_all_module_paths_worker(
 fn try_get_module_name_from_ambient_module(
     module_symbol: &Symbol,
     checker: &TypeChecker,
-) -> Option<String> {
+) -> io::Result<Option<String>> {
     let decl = module_symbol
         .maybe_declarations()
         .as_ref()
@@ -1030,20 +1030,20 @@ fn try_get_module_name_from_ambient_module(
                 .cloned()
         });
     if let Some(decl) = decl {
-        return Some(
+        return Ok(Some(
             decl.as_module_declaration()
                 .name
                 .as_string_literal()
                 .text()
                 .clone(),
-        );
+        ));
     }
 
-    let ambient_module_declare_candidates = map_defined(
+    let ambient_module_declare_candidates = try_map_defined(
         module_symbol.maybe_declarations().as_ref(),
-        |d: &Gc<Node>, _| -> Option<Gc<Node>> {
+        |d: &Gc<Node>, _| -> io::Result<Option<Gc<Node>>> {
             if !is_module_declaration(d) {
-                return None;
+                return Ok(None);
             }
             let top_namespace = get_top_namespace(d);
             if !(matches!(
@@ -1055,7 +1055,7 @@ fn try_get_module_name_from_ambient_module(
                         is_source_file(&top_namespace_parent_parent.parent())
                 )
             )) {
-                return None;
+                return Ok(None);
             }
             let ref export_assignment = top_namespace
                 .parent()
@@ -1080,10 +1080,11 @@ fn try_get_module_name_from_ambient_module(
                             .clone()
                     },
                 )?;
-            let ref export_symbol = checker.get_symbol_at_location(export_assignment)?;
+            let ref export_symbol =
+                return_ok_default_if_none!(checker.get_symbol_at_location(export_assignment)?);
             let ref original_export_symbol = if export_symbol.flags().intersects(SymbolFlags::Alias)
             {
-                checker.get_aliased_symbol(export_symbol)
+                checker.get_aliased_symbol(export_symbol)?
             } else {
                 export_symbol.clone()
             };
@@ -1094,23 +1095,23 @@ fn try_get_module_name_from_ambient_module(
                     d_symbol
                 )
             ) {
-                return Some(top_namespace.parent().parent());
+                return Ok(Some(top_namespace.parent().parent()));
             }
-            None
+            Ok(None)
         },
-    );
+    )?;
     let ambient_module_declare = ambient_module_declare_candidates.get(0);
     if let Some(ambient_module_declare) = ambient_module_declare {
-        return Some(
+        return Ok(Some(
             ambient_module_declare
                 .as_module_declaration()
                 .name
                 .as_string_literal()
                 .text()
                 .clone(),
-        );
+        ));
     }
-    None
+    Ok(None)
 }
 
 fn try_get_module_name_from_paths(

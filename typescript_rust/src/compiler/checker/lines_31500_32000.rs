@@ -8,14 +8,14 @@ use super::{
     IterationUse, TypeFacts, WideningKind,
 };
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, create_symbol_table, for_each_return_statement,
-    for_each_yield_expression, get_effective_return_type_node, get_effective_type_annotation_node,
-    get_function_flags, is_import_call, is_omitted_expression, is_transient_symbol, last,
-    node_is_missing, push_if_unique_gc, push_if_unique_rc, some, CheckFlags, Diagnostics,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction, __String, are_option_gcs_equal, are_option_rcs_equal, create_symbol_table,
+    for_each_return_statement, for_each_yield_expression, get_effective_return_type_node,
+    get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
+    is_transient_symbol, last, node_is_missing, push_if_unique_gc, push_if_unique_rc, some,
+    try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
     FunctionFlags, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
-    __String, try_for_each_yield_expression,
+    NodeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
 };
 
 impl TypeChecker {
@@ -244,8 +244,8 @@ impl TypeChecker {
         &self,
         func: &Node, /*FunctionLikeDeclaration | ImportCall*/
         promised_type: &Type,
-    ) -> Gc<Type> {
-        let promise_type = self.create_promise_type(promised_type);
+    ) -> io::Result<Gc<Type>> {
+        let promise_type = self.create_promise_type(promised_type)?;
         if Gc::ptr_eq(&promise_type, &self.unknown_type()) {
             self.error(
                 Some(func),
@@ -256,7 +256,7 @@ impl TypeChecker {
                 },
                 None
             );
-            return self.error_type();
+            return Ok(self.error_type());
         } else if self.get_global_promise_constructor_symbol(true).is_none() {
             self.error(
                 Some(func),
@@ -269,7 +269,7 @@ impl TypeChecker {
             );
         }
 
-        promise_type
+        Ok(promise_type)
     }
 
     pub(super) fn create_new_target_expression_type(&self, target_type: &Type) -> Gc<Type> {
@@ -334,7 +334,8 @@ impl TypeChecker {
                 ));
             }
         } else if is_generator {
-            let return_types = self.check_and_aggregate_return_expression_types(func, check_mode);
+            let return_types =
+                self.check_and_aggregate_return_expression_types(func, check_mode)?;
             match return_types {
                 None => {
                     fallback_return_type = self.never_type();
@@ -372,7 +373,7 @@ impl TypeChecker {
                 None
             };
         } else {
-            let types = self.check_and_aggregate_return_expression_types(func, check_mode);
+            let types = self.check_and_aggregate_return_expression_types(func, check_mode)?;
             if types.is_none() {
                 return Ok(if function_flags.intersects(FunctionFlags::Async) {
                     self.create_promise_return_type(func, &self.never_type())
@@ -427,24 +428,27 @@ impl TypeChecker {
             {
                 let contextual_signature =
                     self.get_contextual_signature_for_function_like_declaration(func);
-                let contextual_type = contextual_signature.and_then(|contextual_signature| {
-                    if Gc::ptr_eq(
-                        &contextual_signature,
-                        &*self.get_signature_from_declaration_(func)?,
-                    ) {
-                        if is_generator {
-                            None
-                        } else {
-                            return_type.clone()
-                        }
-                    } else {
-                        self.instantiate_contextual_type(
-                            Some(self.get_return_type_of_signature(contextual_signature)?),
-                            func,
-                            None,
+                let contextual_type =
+                    contextual_signature.try_and_then(|contextual_signature| -> io::Result<_> {
+                        Ok(
+                            if Gc::ptr_eq(
+                                &contextual_signature,
+                                &self.get_signature_from_declaration_(func)?,
+                            ) {
+                                if is_generator {
+                                    None
+                                } else {
+                                    return_type.clone()
+                                }
+                            } else {
+                                self.instantiate_contextual_type(
+                                    Some(self.get_return_type_of_signature(contextual_signature)?),
+                                    func,
+                                    None,
+                                )
+                            },
                         )
-                    }
-                });
+                    })?;
                 if is_generator {
                     yield_type = self
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
@@ -452,21 +456,21 @@ impl TypeChecker {
                             contextual_type.as_deref(),
                             IterationTypeKind::Yield,
                             is_async,
-                        );
+                        )?;
                     return_type = self
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
                             return_type.as_deref(),
                             contextual_type.as_deref(),
                             IterationTypeKind::Return,
                             is_async,
-                        );
+                        )?;
                     next_type = self
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
                             next_type.as_deref(),
                             contextual_type.as_deref(),
                             IterationTypeKind::Next,
                             is_async,
-                        );
+                        )?;
                 } else {
                     return_type = self
                         .get_widened_literal_like_type_for_contextual_return_type_if_needed(
@@ -498,10 +502,10 @@ impl TypeChecker {
                     })?
                     .unwrap_or_else(|| self.unknown_type()),
                 is_async,
-            )
+            )?
         } else {
             if is_async {
-                self.create_promise_type(&return_type.unwrap_or(fallback_return_type))
+                self.create_promise_type(&return_type.unwrap_or(fallback_return_type))?
             } else {
                 return_type.unwrap_or(fallback_return_type)
             }
@@ -734,15 +738,15 @@ impl TypeChecker {
     pub(super) fn is_exhaustive_switch_statement(
         &self,
         node: &Node, /*SwitchStatement*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let links = self.get_node_links(node);
         let links_is_exhaustive = (*links).borrow().is_exhaustive;
         if let Some(links_is_exhaustive) = links_is_exhaustive {
-            return links_is_exhaustive;
+            return Ok(links_is_exhaustive);
         }
-        let ret = self.compute_exhaustive_switch_statement(node);
+        let ret = self.compute_exhaustive_switch_statement(node)?;
         links.borrow_mut().is_exhaustive = Some(ret);
-        ret
+        Ok(ret)
     }
 
     pub(super) fn compute_exhaustive_switch_statement(
@@ -820,9 +824,9 @@ impl TypeChecker {
         let mut aggregated_types: Vec<Gc<Type>> = vec![];
         let mut has_return_with_no_expression = self.function_has_implicit_return(func);
         let mut has_return_of_type_never = false;
-        for_each_return_statement(
+        try_for_each_return_statement(
             &func.as_function_like_declaration().maybe_body().unwrap(),
-            |return_statement: &Node| {
+            |return_statement: &Node| -> io::Result<_> {
                 let expr = return_statement.as_return_statement().expression.as_ref();
                 if let Some(expr) = expr {
                     let mut type_ = self.check_expression_cached(
@@ -847,8 +851,10 @@ impl TypeChecker {
                 } else {
                     has_return_with_no_expression = true;
                 }
+
+                Ok(())
             },
-        );
+        )?;
         if aggregated_types.is_empty()
             && !has_return_with_no_expression
             && (has_return_of_type_never || self.may_return_never(func))
@@ -947,7 +953,7 @@ impl TypeChecker {
                     return Ok(());
                 }
                 let inferred_return_type =
-                    self.get_return_type_of_signature(self.get_signature_from_declaration_(func))?;
+                    self.get_return_type_of_signature(self.get_signature_from_declaration_(func)?)?;
                 if self.is_unwrapped_return_type_void_or_any(func, &inferred_return_type) {
                     return Ok(());
                 }

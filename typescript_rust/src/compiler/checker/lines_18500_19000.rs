@@ -38,17 +38,17 @@ impl CheckTypeRelatedTo {
         &self,
         source: &Type, /*UnionOrIntersectionType*/
         target: &Type, /*UnionOrIntersectionType*/
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
         let source_types = source.as_union_or_intersection_type_interface().types();
         for source_type in source_types {
-            let related = self.type_related_to_some_type(source_type, target, false);
+            let related = self.type_related_to_some_type(source_type, target, false)?;
             if related == Ternary::False {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             result &= related;
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn type_related_to_some_type(
@@ -634,21 +634,21 @@ impl CheckTypeRelatedTo {
                 );
             }
             if target.flags().intersects(TypeFlags::Union) {
-                return Ok(self.type_related_to_some_type(
+                return self.type_related_to_some_type(
                     &self
                         .type_checker
-                        .get_regular_type_of_object_literal(&source),
+                        .get_regular_type_of_object_literal(&source)?,
                     target,
                     report_errors
                         && !source.flags().intersects(TypeFlags::Primitive)
                         && !target.flags().intersects(TypeFlags::Primitive),
-                ));
+                );
             }
             if target.flags().intersects(TypeFlags::Intersection) {
                 return Ok(self.type_related_to_each_type(
                     &self
                         .type_checker
-                        .get_regular_type_of_object_literal(&source),
+                        .get_regular_type_of_object_literal(&source)?,
                     target,
                     report_errors,
                     IntersectionState::Target,
@@ -827,8 +827,9 @@ impl CheckTypeRelatedTo {
                             target.maybe_alias_type_arguments_contains_marker(),
                             Some(true)
                         )) {
-                            let variances =
-                                self.type_checker.get_alias_variances(&source_alias_symbol);
+                            let variances = self
+                                .type_checker
+                                .get_alias_variances(&source_alias_symbol)?;
                             if variances.is_empty() {
                                 return Ok(Ternary::Unknown);
                             }

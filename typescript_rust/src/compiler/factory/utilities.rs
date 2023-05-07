@@ -319,8 +319,8 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
     user_state_stack: &mut Vec<Option<TMachine::TState>>,
     result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
     outer_state: TMachine::TOuterState,
-) -> usize {
-    match state {
+) -> io::Result<usize> {
+    Ok(match state {
         BinaryExpressionState::Enter => binary_expression_state_enter(
             machine,
             stack_index,
@@ -329,7 +329,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Left => binary_expression_state_left(
             machine,
             stack_index,
@@ -338,7 +338,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Operator => binary_expression_state_operator(
             machine,
             stack_index,
@@ -356,7 +356,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Exit => binary_expression_state_exit(
             machine,
             stack_index,
@@ -365,7 +365,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             user_state_stack,
             result_holder,
             outer_state,
-        ),
+        )?,
         BinaryExpressionState::Done => binary_expression_state_done(
             machine,
             stack_index,
@@ -375,7 +375,7 @@ fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
             result_holder,
             outer_state,
         ),
-    }
+    })
 }
 
 fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(

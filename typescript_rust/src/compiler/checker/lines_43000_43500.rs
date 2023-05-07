@@ -566,9 +566,9 @@ impl TypeChecker {
     pub(super) fn check_grammar_method(
         &self,
         node: &Node, /*MethodDeclaration | MethodSignature*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         if self.check_grammar_function_like_declaration(node) {
-            return true;
+            return Ok(true);
         }
 
         if node.kind() == SyntaxKind::MethodDeclaration {
@@ -580,35 +580,35 @@ impl TypeChecker {
                         node_modifiers.len() == 1 && first(&*node_modifiers).kind() == SyntaxKind::AsyncKeyword
                     )
                 ) {
-                    return self.grammar_error_on_first_token(
+                    return Ok(self.grammar_error_on_first_token(
                         node,
                         &Diagnostics::Modifiers_cannot_appear_here,
                         None,
-                    );
+                    ));
                 } else if self.check_grammar_for_invalid_question_mark(
                     node_as_method_declaration.maybe_question_token(),
                     &Diagnostics::An_object_member_cannot_be_declared_optional,
                 ) {
-                    return true;
+                    return Ok(true);
                 } else if self.check_grammar_for_invalid_exclamation_token(
                     node_as_method_declaration
                         .maybe_exclamation_token()
                         .as_deref(),
                     &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
                 ) {
-                    return true;
+                    return Ok(true);
                 } else if node_as_method_declaration.maybe_body().is_none() {
-                    return self.grammar_error_at_pos(
+                    return Ok(self.grammar_error_at_pos(
                         node,
                         node.end() - 1,
                         ";".len().try_into().unwrap(),
                         &Diagnostics::_0_expected,
                         Some(vec!["{".to_owned()]),
-                    );
+                    ));
                 }
             }
             if self.check_grammar_for_generator(node) {
-                return true;
+                return Ok(true);
             }
         }
 
@@ -617,11 +617,11 @@ impl TypeChecker {
             if self.language_version < ScriptTarget::ES2015
                 && is_private_identifier(&node_as_named_declaration.name())
             {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     &node_as_named_declaration.name(),
                     &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
                     None,
-                );
+                ));
             }
             if node.flags().intersects(NodeFlags::Ambient) {
                 return self.check_grammar_for_invalid_dynamic_name(
@@ -631,23 +631,23 @@ impl TypeChecker {
             } else if node.kind() == SyntaxKind::MethodDeclaration
                 && node.as_method_declaration().maybe_body().is_none()
             {
-                return self.check_grammar_for_invalid_dynamic_name(
+                return Ok(self.check_grammar_for_invalid_dynamic_name(
                     &node_as_named_declaration.name(),
                     &Diagnostics::A_computed_property_name_in_a_method_overload_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
-                );
+                ));
             }
         } else if node.parent().kind() == SyntaxKind::InterfaceDeclaration {
-            return self.check_grammar_for_invalid_dynamic_name(
+            return Ok(self.check_grammar_for_invalid_dynamic_name(
                 &node_as_named_declaration.name(),
                 &Diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
-            );
+            ));
         } else if node.parent().kind() == SyntaxKind::TypeLiteral {
-            return self.check_grammar_for_invalid_dynamic_name(
+            return Ok(self.check_grammar_for_invalid_dynamic_name(
                 &node_as_named_declaration.name(),
                 &Diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_grammar_break_or_continue_statement(

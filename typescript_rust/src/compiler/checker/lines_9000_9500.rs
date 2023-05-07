@@ -19,11 +19,12 @@ use crate::{
     is_property_access_expression, is_property_assignment, is_property_declaration,
     is_property_signature, is_prototype_property_assignment, is_shorthand_property_assignment,
     is_source_file, is_string_literal_like, is_variable_declaration, last_or_undefined, map,
-    return_ok_none_if_none, try_for_each, try_map, CheckFlags, Debug_, Diagnostics, ElementFlags,
-    HasInitializerInterface, HasStatementsInterface, IndexInfo, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, ScriptTarget,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeSystemPropertyName,
+    return_ok_none_if_none, try_for_each, try_for_each_child_recursively_bool, try_map, CheckFlags,
+    Debug_, Diagnostics, ElementFlags, HasInitializerInterface, HasStatementsInterface, IndexInfo,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -31,18 +32,18 @@ impl TypeChecker {
         &self,
         this_property: &Node, /*Expression*/
         expression: &Node,    /*Expression*/
-    ) -> bool {
-        is_property_access_expression(this_property)
+    ) -> io::Result<bool> {
+        Ok(is_property_access_expression(this_property)
             && this_property
                 .as_property_access_expression()
                 .expression
                 .kind()
                 == SyntaxKind::ThisKeyword
-            && for_each_child_recursively_bool(
+            && try_for_each_child_recursively_bool(
                 expression,
                 |n, _| self.is_matching_reference(this_property, n),
-                Option::<fn(&NodeArray, &Node) -> bool>::None,
-            )
+                Option::<fn(&NodeArray, &Node) -> io::Result<bool>>::None,
+            )?)
     }
 
     pub(super) fn is_declaration_in_constructor(

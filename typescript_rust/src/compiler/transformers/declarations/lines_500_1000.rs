@@ -674,31 +674,32 @@ impl TransformDeclarations {
         Some(statement.node_wrapper().into())
     }
 
-    pub(super) fn visit_declaration_subtree(&self, input: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn visit_declaration_subtree(&self, input: &Node) -> io::Result<VisitResult> /*<Node>*/
+    {
         if self.should_strip_internal(input) {
-            return None;
+            return Ok(None);
         }
         if is_declaration(input) {
             if self.is_declaration_and_not_visible(input) {
-                return None;
+                return Ok(None);
             }
             if has_dynamic_name(input)
                 && !self.resolver.is_late_bound(
                     &get_parse_tree_node(Some(input), Option::<fn(&Node) -> bool>::None).unwrap(),
                 )
             {
-                return None;
+                return Ok(None);
             }
         }
 
         if is_function_like(Some(input))
             && self.resolver.is_implementation_of_overload(input) == Some(true)
         {
-            return None;
+            return Ok(None);
         }
 
         if is_semicolon_class_element(input) {
-            return None;
+            return Ok(None);
         }
 
         let mut previous_enclosing_declaration: Option<Gc<Node>> = Default::default();
@@ -728,9 +729,9 @@ impl TransformDeclarations {
                         )
                     )
                 ) {
-                    return None;
+                    return Ok(None);
                 }
-                return self.visit_declaration_subtree_cleanup(
+                return Ok(self.visit_declaration_subtree_cleanup(
                     input,
                     can_produce_diagnostic,
                     previous_enclosing_declaration.as_ref(),
@@ -745,7 +746,7 @@ impl TransformDeclarations {
                         None,
                         None,
                     )),
-                );
+                ));
             }
         }
 
@@ -767,7 +768,7 @@ impl TransformDeclarations {
         }
 
         if is_processed_component(input) {
-            return match input.kind() {
+            return Ok(match input.kind() {
                 SyntaxKind::ExpressionWithTypeArguments => {
                     let input_as_expression_with_type_arguments =
                         input.as_expression_with_type_arguments();
@@ -1237,10 +1238,10 @@ impl TransformDeclarations {
                 SyntaxKind::VariableDeclaration => {
                     let input_as_variable_declaration = input.as_variable_declaration();
                     if is_binding_pattern(input_as_variable_declaration.maybe_name()) {
-                        return Some(
+                        return Ok(Some(
                             self.recreate_binding_pattern(&input_as_variable_declaration.name())
                                 .into(),
-                        );
+                        ));
                     }
                     should_enter_suppress_new_diagnostics_context_context = true;
                     self.set_suppress_new_diagnostic_contexts(Some(true));
@@ -1259,7 +1260,7 @@ impl TransformDeclarations {
                                 input,
                                 input_as_variable_declaration.maybe_type().as_deref(),
                                 None,
-                            ),
+                            )?,
                             self.ensure_no_initializer(input),
                         )),
                     )
@@ -1500,7 +1501,7 @@ impl TransformDeclarations {
                         input.kind()
                     )),
                 ),
-            };
+            });
         }
 
         if is_tuple_type_node(input)
@@ -1518,7 +1519,7 @@ impl TransformDeclarations {
             set_emit_flags(input, EmitFlags::SingleLine);
         }
 
-        self.visit_declaration_subtree_cleanup(
+        Ok(self.visit_declaration_subtree_cleanup(
             input,
             can_produce_diagnostic,
             previous_enclosing_declaration.as_ref(),
@@ -1549,6 +1550,6 @@ impl TransformDeclarations {
                 >::None,
             )
             .as_deref(),
-        )
+        ))
     }
 }

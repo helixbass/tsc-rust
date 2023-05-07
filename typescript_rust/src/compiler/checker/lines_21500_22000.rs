@@ -656,7 +656,7 @@ impl InferTypes {
                 self.infer_from_type_arguments(
                     source_alias_type_arguments,
                     target.maybe_alias_type_arguments().as_ref().unwrap(),
-                    &self.type_checker.get_alias_variances(source_alias_symbol),
+                    &*self.type_checker.get_alias_variances(source_alias_symbol)?,
                 );
                 return Ok(());
             }
@@ -819,7 +819,7 @@ impl InferTypes {
                         && inference.top_level()
                         && !self
                             .type_checker
-                            .is_type_parameter_at_top_level(&self.original_target, &target)
+                            .is_type_parameter_at_top_level(&self.original_target, &target)?
                     {
                         inference.set_top_level(false);
                         self.type_checker.clear_cached_inferences(&self.inferences);

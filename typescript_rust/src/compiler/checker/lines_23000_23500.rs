@@ -30,7 +30,7 @@ impl TypeChecker {
         node: &Node, /*BindingElement*/
     ) -> io::Result<Gc<Type>> {
         let pattern = node.parent();
-        let parent_type = self.get_initial_type(&pattern.parent());
+        let parent_type = self.get_initial_type(&pattern.parent())?;
         let node_as_binding_element = node.as_binding_element();
         let type_ = if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             self.get_type_of_destructured_property(
@@ -75,19 +75,19 @@ impl TypeChecker {
     pub(super) fn get_initial_type_of_variable_declaration(
         &self,
         node: &Node, /*VariableDeclaration*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         if let Some(node_initializer) = node_as_variable_declaration.maybe_initializer() {
             return self.get_type_of_initializer(&node_initializer);
         }
         if node.parent().parent().kind() == SyntaxKind::ForInStatement {
-            return self.string_type();
+            return Ok(self.string_type());
         }
         if node.parent().parent().kind() == SyntaxKind::ForOfStatement {
-            return self.check_right_hand_side_of_for_of(&node.parent().parent());
+            return Ok(self.check_right_hand_side_of_for_of(&node.parent().parent()));
             /*|| errorType*/
         }
-        self.error_type()
+        Ok(self.error_type())
     }
 
     pub(super) fn get_initial_type(
@@ -176,7 +176,7 @@ impl TypeChecker {
     pub(super) fn get_switch_clause_types(
         &self,
         switch_statement: &Node, /*SwitchStatement*/
-    ) -> Vec<Gc<Type>> {
+    ) -> io::Result<Vec<Gc<Type>>> {
         let links = self.get_node_links(switch_statement);
         if (*links).borrow().switch_types.is_none() {
             let mut switch_types = vec![];
@@ -186,12 +186,12 @@ impl TypeChecker {
                 .as_case_block()
                 .clauses
             {
-                switch_types.push(self.get_type_of_switch_clause(clause));
+                switch_types.push(self.get_type_of_switch_clause(clause)?);
             }
             links.borrow_mut().switch_types = Some(switch_types);
         }
         let ret = (*links).borrow().switch_types.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_switch_clause_type_of_witnesses(
@@ -238,10 +238,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_type_subset_of(&self, source: &Type, target: &Type) -> bool {
-        ptr::eq(source, target)
+    pub(super) fn is_type_subset_of(&self, source: &Type, target: &Type) -> io::Result<bool> {
+        Ok(ptr::eq(source, target)
             || target.flags().intersects(TypeFlags::Union)
-                && self.is_type_subset_of_union(source, target)
+                && self.is_type_subset_of_union(source, target)?)
     }
 
     pub(super) fn is_type_subset_of_union(
@@ -311,7 +311,7 @@ impl TypeChecker {
     }
 
     pub(super) fn every_type(&self, type_: &Type, mut f: impl FnMut(&Type) -> bool) -> bool {
-        self.try_every_type(type_, |type_: &Type| -> Result<_, ()> { Ok(f(type_)) })
+        self.try_every_type(type_, |type_: &Type| Ok(f(type_)))
             .unwrap()
     }
 
@@ -652,7 +652,7 @@ impl TypeChecker {
         let element_type = self
             .get_regular_type_of_object_literal(&*self.get_base_type_of_literal_type(
                 &*self.get_context_free_type_of_expression(node)?,
-            )?);
+            )?)?;
         let evolving_array_type_as_evolving_array_type =
             evolving_array_type.as_evolving_array_type();
         Ok(
@@ -717,12 +717,14 @@ impl TypeChecker {
         Ok(final_array_type.clone().unwrap())
     }
 
-    pub(super) fn finalize_evolving_array_type(&self, type_: &Type) -> Gc<Type> {
-        if get_object_flags(type_).intersects(ObjectFlags::EvolvingArray) {
-            self.get_final_array_type(type_)
-        } else {
-            type_.type_wrapper()
-        }
+    pub(super) fn finalize_evolving_array_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(
+            if get_object_flags(type_).intersects(ObjectFlags::EvolvingArray) {
+                self.get_final_array_type(type_)?
+            } else {
+                type_.type_wrapper()
+            },
+        )
     }
 
     pub(super) fn get_element_type_of_evolving_array_type(&self, type_: &Type) -> Gc<Type> {
@@ -889,7 +891,7 @@ impl TypeChecker {
                 SyntaxKind::Identifier => {
                     let symbol = self
                         .get_export_symbol_of_value_symbol_if_exported(Some(
-                            self.get_resolved_symbol(node),
+                            self.get_resolved_symbol(node)?,
                         ))
                         .unwrap();
                     return Ok(self.get_explicit_type_of_symbol(
@@ -993,20 +995,20 @@ impl TypeChecker {
             let candidate =
                 if signatures.len() == 1 && signatures[0].maybe_type_parameters().is_none() {
                     Some(signatures[0].clone())
-                } else if some(
+                } else if try_some(
                     Some(&signatures),
                     Some(|signature: &Gc<Signature>| {
                         self.has_type_predicate_or_never_return_type(signature)
                     }),
-                ) {
+                )? {
                     Some(self.get_resolved_signature_(node, None, None))
                 } else {
                     None
                 };
             signature = Some(
-                if let Some(candidate) = candidate
-                    .filter(|candidate| self.has_type_predicate_or_never_return_type(candidate))
-                {
+                if let Some(candidate) = candidate.try_filter(|candidate| {
+                    self.has_type_predicate_or_never_return_type(candidate)
+                })? {
                     candidate
                 } else {
                     self.unknown_signature()
@@ -1090,11 +1092,11 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn is_reachable_flow_node(&self, flow: Gc<FlowNode>) -> bool {
-        let result = self.is_reachable_flow_node_worker(flow.clone(), false);
+    pub(super) fn is_reachable_flow_node(&self, flow: Gc<FlowNode>) -> io::Result<bool> {
+        let result = self.is_reachable_flow_node_worker(flow.clone(), false)?;
         *self.maybe_last_flow_node() = Some(flow);
         self.set_last_flow_node_reachable(result);
-        result
+        Ok(result)
     }
 
     pub(super) fn is_false_expression(&self, expr: &Node /*Expression*/) -> bool {
@@ -1135,7 +1137,7 @@ impl TypeChecker {
                     return Ok(if let Some(reachable) = reachable {
                         reachable
                     } else {
-                        let ret = self.is_reachable_flow_node_worker(flow.clone(), true);
+                        let ret = self.is_reachable_flow_node_worker(flow.clone(), true)?;
                         self.flow_node_reachable().insert(id, ret);
                         ret
                     });
@@ -1174,10 +1176,10 @@ impl TypeChecker {
                 }
                 flow = flow_as_flow_call.antecedent.clone();
             } else if flags.intersects(FlowFlags::BranchLabel) {
-                return Ok(some(
+                return try_some(
                     flow.as_flow_label().maybe_antecedents().as_deref(),
                     Some(|f: &Gc<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
-                ));
+                );
             } else if flags.intersects(FlowFlags::LoopLabel) {
                 let antecedents = flow.as_flow_label().maybe_antecedents().clone();
                 if antecedents.is_none() {

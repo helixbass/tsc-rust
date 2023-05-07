@@ -87,14 +87,24 @@ pub fn for_each_child_recursively<
     None
 }
 
-pub fn for_each_child_recursively_bool<
-    TCBNode: FnMut(&Node, &Node) -> bool,
-    TCBNodes: FnMut(&NodeArray, &Node) -> bool,
->(
+pub fn for_each_child_recursively_bool(
     root_node: &Node,
-    mut cb_node: TCBNode,
-    mut cb_nodes: Option<TCBNodes>,
+    mut cb_node: impl FnMut(&Node, &Node) -> bool,
+    mut cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> bool>,
 ) -> bool {
+    try_for_each_child_recursively_bool(
+        root_node,
+        |a: &Node, b: &Node| -> Result<_, ()> { Ok(cb_node(a, b)) },
+        cb_nodes.map(|cb_nodes| |a: &NodeArray, b: &Node| -> Result<_, ()> { Ok(cb_nodes(a, b)) }),
+    )
+    .unwrap()
+}
+
+pub fn try_for_each_child_recursively_bool<TError>(
+    root_node: &Node,
+    mut cb_node: impl FnMut(&Node, &Node) -> Result<bool, TError>,
+    mut cb_nodes: Option<impl FnMut(&NodeArray, &Node) -> Result<bool, TError>>,
+) -> Result<bool, TError> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
     let mut parents: Vec<Gc<Node>> = vec![];
     while parents.len() < queue.len() {
@@ -106,9 +116,9 @@ pub fn for_each_child_recursively_bool<
         match current {
             RcNodeOrNodeArray::NodeArray(current) => {
                 if let Some(cb_nodes) = cb_nodes.as_mut() {
-                    let res = cb_nodes(&current, &parent);
+                    let res = cb_nodes(&current, &parent)?;
                     if res {
-                        return true;
+                        return Ok(true);
                     }
                 }
                 for current_child in current.to_vec().iter().rev() {
@@ -117,9 +127,9 @@ pub fn for_each_child_recursively_bool<
                 }
             }
             RcNodeOrNodeArray::RcNode(current) => {
-                let res = cb_node(&current, &parent);
+                let res = cb_node(&current, &parent)?;
                 if res {
-                    return true;
+                    return Ok(true);
                 }
                 if current.kind() >= SyntaxKind::FirstNode {
                     for child in gather_possible_children(&current) {
@@ -130,7 +140,7 @@ pub fn for_each_child_recursively_bool<
             }
         }
     }
-    false
+    Ok(false)
 }
 
 enum RcNodeOrNodeArray {

@@ -590,7 +590,7 @@ impl TypeChecker {
                 self.get_type_from_type_literal_or_function_or_constructor_type_node(node)?
             }
             SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node)?,
-            SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
+            SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node)?,
             SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
             SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node),
             SyntaxKind::InferType => self.get_type_from_infer_type_node(node),

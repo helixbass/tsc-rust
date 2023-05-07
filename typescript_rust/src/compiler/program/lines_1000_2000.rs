@@ -1217,7 +1217,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub(super) fn get_diagnostics_producing_type_checker(&self) -> Gc<TypeChecker> {
+    pub(super) fn get_diagnostics_producing_type_checker(&self) -> io::Result<Gc<TypeChecker>> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 
@@ -1233,9 +1233,9 @@ impl Program {
             *diagnostics_producing_type_checker = Some(create_type_checker(
                 self.as_dyn_type_checker_host_debuggable(),
                 true,
-            ));
+            )?);
         }
-        diagnostics_producing_type_checker.as_ref().unwrap().clone()
+        Ok(diagnostics_producing_type_checker.as_ref().unwrap().clone())
     }
 
     pub(super) fn get_diagnostics_helper(

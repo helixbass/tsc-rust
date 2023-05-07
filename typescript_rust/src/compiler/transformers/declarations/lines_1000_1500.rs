@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{ptr, io};
 
 use gc::{Finalize, Gc, GcCell, Trace};
 
@@ -24,7 +24,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SingleNodeOrVecNode, StringOrNumber, Symbol,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolInterface, SyntaxKind,
-    VisitResult, VisitResultInterface, get_parse_node_factory,
+    VisitResult, VisitResultInterface, get_parse_node_factory, try_flat_map,
 };
 
 impl TransformDeclarations {
@@ -74,12 +74,12 @@ impl TransformDeclarations {
             && has_effective_modifier(&node.parent(), ModifierFlags::Private)
     }
 
-    pub(super) fn visit_declaration_statements(&self, input: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn visit_declaration_statements(&self, input: &Node) -> io::Result<VisitResult> /*<Node>*/ {
         if !is_preserved_declaration_statement(input) {
-            return None;
+            return Ok(None);
         }
         if self.should_strip_internal(input) {
-            return None;
+            return Ok(None);
         }
 
         match input.kind() {
@@ -89,7 +89,7 @@ impl TransformDeclarations {
                     self.set_result_has_external_module_indicator(true);
                 }
                 self.set_result_has_scope_marker(true);
-                return Some(
+                return Ok(Some(
                         self.factory.update_export_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
@@ -103,7 +103,7 @@ impl TransformDeclarations {
                             None,
                         )
                     .into(),
-                );
+                ));
             }
             SyntaxKind::ExportAssignment => {
                 let input_as_export_assignment = input.as_export_assignment();
@@ -112,7 +112,7 @@ impl TransformDeclarations {
                 }
                 self.set_result_has_scope_marker(true);
                 if input_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
-                    return Some(input.node_wrapper().into());
+                    return Ok(Some(input.node_wrapper().into()));
                 } else {
                     let new_id = 
                         self.factory.create_unique_name(
@@ -134,7 +134,7 @@ impl TransformDeclarations {
                                     input,
                                     declaration_emit_node_builder_flags(),
                                     self.symbol_tracker(),
-                                ),
+                                )?,
                                 None,
                             )
                             .wrap()
@@ -162,7 +162,7 @@ impl TransformDeclarations {
                             )
                             .wrap()
                     ;
-                    return Some(
+                    return Ok(Some(
                         vec![
                             statement,
                                 self.factory.update_export_assignment(
@@ -173,7 +173,7 @@ impl TransformDeclarations {
                                 )
                         ]
                         .into(),
-                    );
+                    ));
                 }
             }
             _ => (),
@@ -182,7 +182,7 @@ impl TransformDeclarations {
         let result = self.transform_top_level_declaration(input);
         self.late_statement_replacement_map_mut()
             .insert(get_original_node_id(input), result);
-        Some(input.node_wrapper().into())
+        Ok(Some(input.node_wrapper().into()))
     }
 
     pub(super) fn strip_export_modifiers(
@@ -209,29 +209,29 @@ impl TransformDeclarations {
     pub(super) fn transform_top_level_declaration(
         &self,
         input: &Node, /*LateVisibilityPaintedStatement*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         if self.should_strip_internal(input) {
-            return None;
+            return Ok(None);
         }
         match input.kind() {
             SyntaxKind::ImportEqualsDeclaration => {
-                return self
+                return Ok(self
                     .transform_import_equals_declaration(input)
-                    .map(Into::into);
+                    .map(Into::into));
             }
             SyntaxKind::ImportDeclaration => {
-                return self.transform_import_declaration(input).map(Into::into);
+                return Ok(self.transform_import_declaration(input).map(Into::into));
             }
             _ => (),
         }
         if is_declaration(input) && self.is_declaration_and_not_visible(input) {
-            return None;
+            return Ok(None);
         }
 
         if is_function_like(Some(input))
             && self.resolver.is_implementation_of_overload(input) == Some(true)
         {
-            return None;
+            return Ok(None);
         }
 
         let mut previous_enclosing_declaration: Option<Gc<Node>> = None;
@@ -249,7 +249,7 @@ impl TransformDeclarations {
         }
 
         let previous_needs_declare = self.needs_declare();
-        match input.kind() {
+        Ok(match input.kind() {
             SyntaxKind::TypeAliasDeclaration => {
                 let input_as_type_alias_declaration = input.as_type_alias_declaration();
                 self.transform_top_level_declaration_cleanup(
@@ -331,33 +331,31 @@ impl TransformDeclarations {
                     can_prodice_diagnostic,
                     &old_diag,
                     previous_needs_declare,
-                    Some(&
-                        self.factory.update_function_declaration(
+                    Some(&self.factory.update_function_declaration(
+                        input,
+                        Option::<Gc<NodeArray>>::None,
+                        self.ensure_modifiers(input),
+                        None,
+                        input_as_function_declaration.maybe_name(),
+                        self.ensure_type_params(
                             input,
-                            Option::<Gc<NodeArray>>::None,
-                            self.ensure_modifiers(input),
-                            None,
-                            input_as_function_declaration.maybe_name(),
-                            self.ensure_type_params(
-                                input,
-                                input_as_function_declaration
-                                    .maybe_type_parameters()
-                                    .as_deref(),
-                            ),
-                            self.update_params_list(
-                                input,
-                                Some(&input_as_function_declaration.parameters()),
-                                None,
-                            )
-                            .unwrap(),
-                            self.ensure_type(
-                                input,
-                                input_as_function_declaration.maybe_type().as_deref(),
-                                None,
-                            ),
+                            input_as_function_declaration
+                                .maybe_type_parameters()
+                                .as_deref(),
+                        ),
+                        self.update_params_list(
+                            input,
+                            Some(&input_as_function_declaration.parameters()),
                             None,
                         )
-                    ),
+                        .unwrap(),
+                        self.ensure_type(
+                            input,
+                            input_as_function_declaration.maybe_type().as_deref(),
+                            None,
+                        )?,
+                        None,
+                    )),
                 );
                 if let Some(clean) = clean.as_ref().filter(|_| {
                     self.resolver.is_expando_function_declaration(input)
@@ -414,7 +412,7 @@ impl TransformDeclarations {
                                 declaration_emit_node_builder_flags(),
                                 self.symbol_tracker(),
                                 None,
-                            );
+                            )?;
                             self.set_get_symbol_accessibility_diagnostic(old_diag.clone());
                             let name_str = unescape_leading_underscores(p.escaped_name());
                             let is_non_contextual_keyword_name =
@@ -523,7 +521,7 @@ impl TransformDeclarations {
                             .wrap()
                     ;
                     if !has_effective_modifier(clean, ModifierFlags::Default) {
-                        return Some(vec![clean.clone(), namespace_decl].into());
+                        return Ok(Some(vec![clean.clone(), namespace_decl].into()));
                     }
 
                     let modifiers = 
@@ -718,40 +716,38 @@ impl TransformDeclarations {
                 if let Some(ref ctor) = ctor {
                     let old_diag = self.get_symbol_accessibility_diagnostic();
                     let ctor_as_constructor_declaration = ctor.as_constructor_declaration();
-                    parameter_properties = Some(/*compact(*/ flat_map(
+                    parameter_properties = Some(/*compact(*/ try_flat_map(
                         Some(&ctor_as_constructor_declaration.parameters()),
-                        |param: &Gc<Node>, _| {
+                        |param: &Gc<Node>, _| -> io::Result<_> {
                             if !has_syntactic_modifier(
                                 param,
                                 ModifierFlags::ParameterPropertyModifier,
                             ) || self.should_strip_internal(param)
                             {
-                                return vec![];
+                                return Ok(vec![]);
                             }
                             self.set_get_symbol_accessibility_diagnostic(
                                 create_get_symbol_accessibility_diagnostic_for_node(param),
                             );
                             let param_as_parameter_declaration = param.as_parameter_declaration();
-                            if param_as_parameter_declaration.name().kind()
+                            Ok(if param_as_parameter_declaration.name().kind()
                                 == SyntaxKind::Identifier
                             {
                                 vec![self.preserve_js_doc(
-                                    &
-                                        self.factory.create_property_declaration(
-                                            Option::<Gc<NodeArray>>::None,
-                                            self.ensure_modifiers(param),
-                                            param_as_parameter_declaration.name(),
-                                            param_as_parameter_declaration.maybe_question_token(),
-                                            self.ensure_type(
-                                                param,
-                                                param_as_parameter_declaration
-                                                    .maybe_type()
-                                                    .as_deref(),
-                                                None,
-                                            ),
-                                            self.ensure_no_initializer(param),
-                                        )
-                                    ,
+                                    &self.factory.create_property_declaration(
+                                        Option::<Gc<NodeArray>>::None,
+                                        self.ensure_modifiers(param),
+                                        param_as_parameter_declaration.name(),
+                                        param_as_parameter_declaration.maybe_question_token(),
+                                        self.ensure_type(
+                                            param,
+                                            param_as_parameter_declaration
+                                                .maybe_type()
+                                                .as_deref(),
+                                            None,
+                                        )?,
+                                        self.ensure_no_initializer(param),
+                                    ),
                                     param,
                                 )]
                             } else {
@@ -760,9 +756,9 @@ impl TransformDeclarations {
                                     &param_as_parameter_declaration.name(),
                                 )
                                 .unwrap_or_default()
-                            }
+                            })
                         },
-                    ) /*)*/);
+                    )? /*)*/);
                     self.set_get_symbol_accessibility_diagnostic(old_diag);
                 }
 
@@ -845,7 +841,7 @@ impl TransformDeclarations {
                                     input,
                                     declaration_emit_node_builder_flags(),
                                     self.symbol_tracker(),
-                                ),
+                                )?,
                                 None,
                             )
                             .wrap()
@@ -1060,14 +1056,14 @@ impl TransformDeclarations {
                     input.kind()
                 )),
             ),
-        }
+        })
     }
 
     pub(super) fn walk_binding_pattern(
         &self,
         param: &Node,
         pattern: &Node, /*BindingPattern*/
-    ) -> Option<Vec<Gc<Node>>> {
+    ) -> io::Result<Option<Vec<Gc<Node>>>> {
         let mut elems: Option<Vec<Gc<Node /*PropertyDeclaration*/>>> = Default::default();
         for elem in &pattern.as_has_elements().elements() {
             let elem_as_binding_element = elem.as_binding_element();
@@ -1088,12 +1084,12 @@ impl TransformDeclarations {
                         self.ensure_modifiers(param),
                         elem_as_binding_element.name(),
                         None,
-                        self.ensure_type(elem, None, None),
+                        self.ensure_type(elem, None, None)?,
                         None,
                     )
                 );
         }
-        elems
+        Ok(elems)
     }
 
     pub(super) fn transform_top_level_declaration_cleanup(

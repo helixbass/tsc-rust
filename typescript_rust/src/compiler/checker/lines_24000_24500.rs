@@ -68,7 +68,7 @@ impl GetFlowTypeOfReference {
         Ok(
             if type_.flags().intersects(TypeFlags::Union)
                 && {
-                    access = self.type_checker.get_property_access(expr);
+                    access = self.type_checker.get_property_access(expr)?;
                     access.is_some()
                 }
                 && {
@@ -77,19 +77,21 @@ impl GetFlowTypeOfReference {
                         .get_accessed_property_name(access.as_ref().unwrap());
                     name.is_some()
                 }
-                && self.type_checker.is_matching_reference(&self.reference, &*{
-                    let access = access.as_ref().unwrap();
-                    if is_access_expression(access) {
-                        access.as_has_expression().expression()
-                    } else {
-                        access
-                            .parent()
-                            .parent()
-                            .as_has_initializer()
-                            .maybe_initializer()
-                            .unwrap()
-                    }
-                })
+                && self
+                    .type_checker
+                    .is_matching_reference(&self.reference, &*{
+                        let access = access.as_ref().unwrap();
+                        if is_access_expression(access) {
+                            access.as_has_expression().expression()
+                        } else {
+                            access
+                                .parent()
+                                .parent()
+                                .as_has_initializer()
+                                .maybe_initializer()
+                                .unwrap()
+                        }
+                    })?
                 && self
                     .type_checker
                     .is_discriminant_property(Some(&*type_), name.as_ref().unwrap())?
@@ -257,23 +259,25 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*Expression*/
         assume_true: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if self
             .type_checker
-            .is_matching_reference(&self.reference, expr)
+            .is_matching_reference(&self.reference, expr)?
         {
-            return if type_.flags().intersects(TypeFlags::Unknown) && assume_true {
-                self.type_checker.non_null_unknown_type()
-            } else {
-                self.type_checker.get_type_with_facts(
-                    type_,
-                    if assume_true {
-                        TypeFacts::Truthy
-                    } else {
-                        TypeFacts::Falsy
-                    },
-                )
-            };
+            return Ok(
+                if type_.flags().intersects(TypeFlags::Unknown) && assume_true {
+                    self.type_checker.non_null_unknown_type()
+                } else {
+                    self.type_checker.get_type_with_facts(
+                        type_,
+                        if assume_true {
+                            TypeFacts::Truthy
+                        } else {
+                            TypeFacts::Falsy
+                        },
+                    )
+                },
+            );
         }
         let mut type_ = type_.type_wrapper();
         if self.type_checker.strict_null_checks
@@ -286,20 +290,22 @@ impl GetFlowTypeOfReference {
                 .type_checker
                 .get_type_with_facts(&type_, TypeFacts::NEUndefinedOrNull);
         }
-        let access = self.get_discriminant_property_access(expr, &type_);
+        let access = self.get_discriminant_property_access(expr, &type_)?;
         if let Some(access) = access.as_ref() {
-            return self.narrow_type_by_discriminant(&type_, access, |t: &Type| {
-                self.type_checker.get_type_with_facts(
-                    t,
-                    if assume_true {
-                        TypeFacts::Truthy
-                    } else {
-                        TypeFacts::Falsy
-                    },
-                )
-            });
+            return Ok(
+                self.narrow_type_by_discriminant(&type_, access, |t: &Type| {
+                    self.type_checker.get_type_with_facts(
+                        t,
+                        if assume_true {
+                            TypeFacts::Truthy
+                        } else {
+                            TypeFacts::Falsy
+                        },
+                    )
+                }),
+            );
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn is_type_presence_possible(
@@ -408,13 +414,13 @@ impl GetFlowTypeOfReference {
                 }
                 if self
                     .type_checker
-                    .is_matching_reference(&self.reference, &left)
+                    .is_matching_reference(&self.reference, &left)?
                 {
                     return self.narrow_type_by_equality(&type_, operator, &right, assume_true);
                 }
                 if self
                     .type_checker
-                    .is_matching_reference(&self.reference, &right)
+                    .is_matching_reference(&self.reference, &right)?
                 {
                     return self.narrow_type_by_equality(&type_, operator, &left, assume_true);
                 }
@@ -441,7 +447,7 @@ impl GetFlowTypeOfReference {
                         )?;
                     }
                 }
-                let left_access = self.get_discriminant_property_access(&left, &type_);
+                let left_access = self.get_discriminant_property_access(&left, &type_)?;
                 if let Some(left_access) = left_access.as_ref() {
                     return self.narrow_type_by_discriminant_property(
                         &type_,
@@ -451,7 +457,7 @@ impl GetFlowTypeOfReference {
                         assume_true,
                     );
                 }
-                let right_access = self.get_discriminant_property_access(&right, &type_);
+                let right_access = self.get_discriminant_property_access(&right, &type_)?;
                 if let Some(right_access) = right_access.as_ref() {
                     return self.narrow_type_by_discriminant_property(
                         &type_,
@@ -493,7 +499,7 @@ impl GetFlowTypeOfReference {
                         && self.type_checker.is_matching_reference(
                             &self.reference.as_has_expression().expression(),
                             &target,
-                        )
+                        )?
                         && matches!(
                             self.type_checker.get_accessed_property_name(
                                 &self.reference
@@ -512,7 +518,7 @@ impl GetFlowTypeOfReference {
                     }
                     if self
                         .type_checker
-                        .is_matching_reference(&self.reference, &target)
+                        .is_matching_reference(&self.reference, &target)?
                     {
                         return self.narrow_by_in_keyword(&type_, &name, assume_true);
                     }
@@ -578,7 +584,7 @@ impl GetFlowTypeOfReference {
             .get_reference_candidate(&expr_as_binary_expression.right);
         if !self
             .type_checker
-            .is_matching_reference(&self.reference, &target)
+            .is_matching_reference(&self.reference, &target)?
         {
             return Ok(type_.type_wrapper());
         }
@@ -787,7 +793,7 @@ impl GetFlowTypeOfReference {
         let literal_as_literal_like_node = literal.as_literal_like_node();
         if !self
             .type_checker
-            .is_matching_reference(&self.reference, &target)
+            .is_matching_reference(&self.reference, &target)?
         {
             if self.type_checker.strict_null_checks
                 && self
@@ -1140,8 +1146,8 @@ impl GetFlowTypeOfReference {
     pub(super) fn is_matching_constructor_reference(
         &self,
         expr: &Node, /*Expression*/
-    ) -> bool {
-        (is_property_access_expression(expr)
+    ) -> io::Result<bool> {
+        Ok((is_property_access_expression(expr)
             && id_text(&expr.as_property_access_expression().name) == "constructor"
             || is_element_access_expression(expr) && {
                 let expr_as_element_access_expression = expr.as_element_access_expression();
@@ -1154,6 +1160,6 @@ impl GetFlowTypeOfReference {
             })
             && self
                 .type_checker
-                .is_matching_reference(&self.reference, &expr.as_has_expression().expression())
+                .is_matching_reference(&self.reference, &expr.as_has_expression().expression())?)
     }
 }

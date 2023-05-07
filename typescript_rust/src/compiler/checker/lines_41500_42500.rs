@@ -717,7 +717,7 @@ impl TypeChecker {
         get_declaration_of_kind(&module_symbol, SyntaxKind::SourceFile)
     }
 
-    pub(super) fn initialize_type_checker(&self) {
+    pub(super) fn initialize_type_checker(&self) -> io::Result<()> {
         for file in &*self.host.get_source_files() {
             bind_source_file(file, self.compiler_options.clone());
             // println!("post-binding: {:#?}", file);
@@ -827,7 +827,7 @@ impl TypeChecker {
             .type_ = Some(self.undefined_widening_type());
         self.get_symbol_links(&self.arguments_symbol())
             .borrow_mut()
-            .type_ = self.get_global_type("IArguments", 0, true);
+            .type_ = self.get_global_type("IArguments", 0, true)?;
         self.get_symbol_links(&self.unknown_symbol())
             .borrow_mut()
             .type_ = Some(self.error_type());
@@ -838,12 +838,12 @@ impl TypeChecker {
                 .into(),
         );
 
-        *self.global_array_type.borrow_mut() = self.get_global_type("Array", 1, true);
-        *self.global_object_type.borrow_mut() = self.get_global_type("Object", 0, true);
-        *self.global_function_type.borrow_mut() = self.get_global_type("Function", 0, true);
+        *self.global_array_type.borrow_mut() = self.get_global_type("Array", 1, true)?;
+        *self.global_object_type.borrow_mut() = self.get_global_type("Object", 0, true)?;
+        *self.global_function_type.borrow_mut() = self.get_global_type("Function", 0, true)?;
         *self.global_callable_function_type.borrow_mut() = Some(
             if self.strict_bind_call_apply {
-                self.get_global_type("CallableFunction", 0, true)
+                self.get_global_type("CallableFunction", 0, true)?
             } else {
                 None
             }
@@ -851,16 +851,16 @@ impl TypeChecker {
         );
         *self.global_newable_function_type.borrow_mut() = Some(
             if self.strict_bind_call_apply {
-                self.get_global_type("NewableFunction", 0, true)
+                self.get_global_type("NewableFunction", 0, true)?
             } else {
                 None
             }
             .unwrap_or_else(|| self.global_function_type()),
         );
-        *self.global_string_type.borrow_mut() = self.get_global_type("String", 0, true);
-        *self.global_number_type.borrow_mut() = self.get_global_type("Number", 0, true);
-        *self.global_boolean_type.borrow_mut() = self.get_global_type("Boolean", 0, true);
-        *self.global_reg_exp_type.borrow_mut() = self.get_global_type("RegExp", 0, true);
+        *self.global_string_type.borrow_mut() = self.get_global_type("String", 0, true)?;
+        *self.global_number_type.borrow_mut() = self.get_global_type("Number", 0, true)?;
+        *self.global_boolean_type.borrow_mut() = self.get_global_type("Boolean", 0, true)?;
+        *self.global_reg_exp_type.borrow_mut() = self.get_global_type("RegExp", 0, true)?;
         *self.any_array_type.borrow_mut() = Some(self.create_array_type(&self.any_type(), None));
 
         *self.auto_array_type.borrow_mut() = Some(self.create_array_type(&self.auto_type(), None));
@@ -875,7 +875,7 @@ impl TypeChecker {
         }
 
         *self.global_readonly_array_type.borrow_mut() = self
-            .get_global_type_or_undefined("ReadonlyArray", Some(1))
+            .get_global_type_or_undefined("ReadonlyArray", Some(1))?
             .or_else(|| self.global_array_type.borrow().clone());
         *self.any_readonly_array_type.borrow_mut() = Some(
             if let Some(global_readonly_array_type) =
@@ -890,7 +890,7 @@ impl TypeChecker {
             },
         );
         *self.global_this_type.borrow_mut() =
-            self.get_global_type_or_undefined("ThisType", Some(1));
+            self.get_global_type_or_undefined("ThisType", Some(1))?;
 
         if let Some(augmentations) = augmentations.as_ref() {
             for list in augmentations {
@@ -1000,6 +1000,8 @@ impl TypeChecker {
             }
         }
         *self.maybe_amalgamated_duplicates() = None;
+
+        Ok(())
     }
 
     pub(super) fn check_external_emit_helpers(

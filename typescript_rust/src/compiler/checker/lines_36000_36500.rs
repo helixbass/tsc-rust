@@ -154,7 +154,7 @@ impl TypeChecker {
             self.check_computed_property_name(node_name);
         }
 
-        if self.has_bindable_name(node) {
+        if self.has_bindable_name(node)? {
             let symbol = self.get_symbol_of_node(node).unwrap();
             let local_symbol = node.maybe_local_symbol().unwrap_or_else(|| symbol.clone());
 

@@ -175,7 +175,7 @@ impl TypeChecker {
                                 && matches!(
                                     source_file.maybe_symbol().as_ref(),
                                     Some(source_file_symbol) if Gc::ptr_eq(
-                                        &self.get_resolved_symbol(&expression),
+                                        &self.get_resolved_symbol(&expression)?,
                                         source_file_symbol,
                                     )
                                 )
@@ -314,7 +314,7 @@ impl TypeChecker {
             .unwrap_or_else(|| declaration_as_binding_element.name());
         let parent_type = self
             .get_contextual_type_for_variable_like_declaration(&parent)?
-            .try_or_else(|| {
+            .try_or_else(|| -> io::Result<_> {
                 Ok(
                     if parent.kind() != SyntaxKind::BindingElement
                         && parent.as_has_initializer().maybe_initializer().is_some()
@@ -438,7 +438,7 @@ impl TypeChecker {
                             self.get_union_type(
                                 &[
                                     contextual_awaited_type.clone(),
-                                    self.create_promise_like_type(contextual_awaited_type),
+                                    self.create_promise_like_type(contextual_awaited_type)?,
                                 ],
                                 None,
                                 Option::<&Symbol>::None,
@@ -469,7 +469,7 @@ impl TypeChecker {
                     self.get_union_type(
                         &[
                             contextual_awaited_type.clone(),
-                            self.create_promise_like_type(contextual_awaited_type),
+                            self.create_promise_like_type(contextual_awaited_type)?,
                         ],
                         None,
                         Option::<&Symbol>::None,
@@ -716,7 +716,7 @@ impl TypeChecker {
             return Ok(e.maybe_symbol());
         }
         if is_identifier(e) {
-            return Ok(Some(self.get_resolved_symbol(e)));
+            return Ok(Some(self.get_resolved_symbol(e)?));
         }
         if is_property_access_expression(e) {
             let e_as_property_access_expression = e.as_property_access_expression();

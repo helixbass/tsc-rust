@@ -92,7 +92,7 @@ impl TypeChecker {
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 return Ok(
-                    self.is_constant_reference(&node.as_has_expression().expression())
+                    self.is_constant_reference(&node.as_has_expression().expression())?
                         && self.is_readonly_symbol(
                             &(*self.get_node_links(node))
                                 .borrow()
@@ -237,9 +237,9 @@ impl GetFlowTypeOfReference {
         )
     }
 
-    pub(super) fn get_or_set_cache_key(&self) -> Option<String> {
+    pub(super) fn get_or_set_cache_key(&self) -> io::Result<Option<String>> {
         if self.is_key_set() {
-            return self.maybe_key().clone();
+            return Ok(self.maybe_key().clone());
         }
         self.set_is_key_set(true);
         let ret = self.type_checker.get_flow_cache_key(
@@ -247,9 +247,9 @@ impl GetFlowTypeOfReference {
             &self.declared_type,
             &self.initial_type,
             self.flow_container.as_deref(),
-        );
+        )?;
         *self.maybe_key() = ret.clone();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_at_flow_node(&self, mut flow: Gc<FlowNode>) -> io::Result<FlowType> {
@@ -404,7 +404,7 @@ impl GetFlowTypeOfReference {
         let node = &flow_as_flow_assignment.node;
         if self
             .type_checker
-            .is_matching_reference(&self.reference, node)
+            .is_matching_reference(&self.reference, node)?
         {
             if !self.type_checker.is_reachable_flow_node(flow.clone()) {
                 return Ok(Some(self.type_checker.unreachable_never_type().into()));
@@ -431,7 +431,7 @@ impl GetFlowTypeOfReference {
                 }
                 let assigned_type = self
                     .type_checker
-                    .get_widened_literal_type(&self.get_initial_or_assigned_type(&flow))?;
+                    .get_widened_literal_type(&*self.get_initial_or_assigned_type(&flow)?)?;
                 return Ok(
                     if self
                         .type_checker
@@ -448,7 +448,7 @@ impl GetFlowTypeOfReference {
                     self.type_checker
                         .get_assignment_reduced_type(
                             &self.declared_type,
-                            &self.get_initial_or_assigned_type(&flow),
+                            &*self.get_initial_or_assigned_type(&flow)?,
                         )
                         .into(),
                 ));
@@ -485,7 +485,7 @@ impl GetFlowTypeOfReference {
             && self.type_checker.is_matching_reference(
                 &self.reference,
                 &node.parent().parent().as_for_in_statement().expression,
-            )
+            )?
         {
             return Ok(Some(
                 self.type_checker
@@ -622,7 +622,7 @@ impl GetFlowTypeOfReference {
             if self.type_checker.is_matching_reference(
                 &self.reference,
                 &self.type_checker.get_reference_candidate(&expr),
-            ) {
+            )? {
                 let flow_type =
                     self.get_type_at_flow_node(flow_as_flow_array_mutation.antecedent.clone())?;
                 let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
@@ -707,7 +707,7 @@ impl GetFlowTypeOfReference {
         let mut type_ = self.type_checker.get_type_from_flow_type(&flow_type);
         if self
             .type_checker
-            .is_matching_reference(&self.reference, expr)
+            .is_matching_reference(&self.reference, expr)?
         {
             type_ = self.narrow_type_by_switch_on_discriminant(
                 &type_,
@@ -718,7 +718,7 @@ impl GetFlowTypeOfReference {
         } else if expr.kind() == SyntaxKind::TypeOfExpression
             && self
                 .type_checker
-                .is_matching_reference(&self.reference, &expr.as_type_of_expression().expression)
+                .is_matching_reference(&self.reference, &expr.as_type_of_expression().expression)?
         {
             type_ = self.narrow_by_switch_on_type_of(
                 &type_,
@@ -761,7 +761,7 @@ impl GetFlowTypeOfReference {
                     );
                 }
             }
-            let access = self.get_discriminant_property_access(expr, &type_);
+            let access = self.get_discriminant_property_access(expr, &type_)?;
             if let Some(access) = access.as_ref() {
                 type_ = self.narrow_type_by_switch_on_discriminant_property(
                     &type_,

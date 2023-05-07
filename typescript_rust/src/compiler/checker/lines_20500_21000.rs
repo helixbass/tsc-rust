@@ -929,12 +929,12 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_non_nullable_type(&self, type_: &Type) -> Gc<Type> {
-        if self.strict_null_checks {
-            self.get_global_non_nullable_type_instantiation(type_)
+    pub(super) fn get_non_nullable_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(if self.strict_null_checks {
+            self.get_global_non_nullable_type_instantiation(type_)?
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn add_optional_type_marker(&self, type_: &Type) -> io::Result<Gc<Type>> {

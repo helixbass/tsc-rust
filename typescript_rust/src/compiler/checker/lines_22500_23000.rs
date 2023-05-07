@@ -111,12 +111,12 @@ impl TypeChecker {
                 )));
             }
             SyntaxKind::NonNullExpression | SyntaxKind::ParenthesizedExpression => {
-                return Ok(self.get_flow_cache_key(
+                return self.get_flow_cache_key(
                     &node.as_has_expression().expression(),
                     declared_type,
                     initial_type,
                     flow_container,
-                ));
+                );
             }
             SyntaxKind::QualifiedName => {
                 let node_as_qualified_name = node.as_qualified_name();
@@ -125,7 +125,7 @@ impl TypeChecker {
                     declared_type,
                     initial_type,
                     flow_container.as_deref(),
-                );
+                )?;
                 return Ok(left.map(|left| {
                     format!(
                         "{}.{}",
@@ -142,7 +142,7 @@ impl TypeChecker {
                         declared_type,
                         initial_type,
                         flow_container.as_deref(),
-                    );
+                    )?;
                     return Ok(key.map(|key| format!("{}.{}", key, &**prop_name)));
                 }
             }
@@ -154,18 +154,18 @@ impl TypeChecker {
     pub(super) fn is_matching_reference(&self, source: &Node, target: &Node) -> io::Result<bool> {
         match target.kind() {
             SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
-                return Ok(
-                    self.is_matching_reference(source, &target.as_has_expression().expression())
-                );
+                return self
+                    .is_matching_reference(source, &target.as_has_expression().expression());
             }
             SyntaxKind::BinaryExpression => {
                 let target_as_binary_expression = target.as_binary_expression();
                 return Ok(is_assignment_expression(target, None)
-                    && self.is_matching_reference(source, &target_as_binary_expression.left)
+                    && self.is_matching_reference(source, &target_as_binary_expression.left)?
                     || is_binary_expression(target)
                         && target_as_binary_expression.operator_token.kind()
                             == SyntaxKind::CommaToken
-                        && self.is_matching_reference(source, &target_as_binary_expression.right));
+                        && self
+                            .is_matching_reference(source, &target_as_binary_expression.right)?);
             }
             _ => (),
         }
@@ -185,8 +185,8 @@ impl TypeChecker {
                 } else {
                     target.kind() == SyntaxKind::Identifier
                         && Gc::ptr_eq(
-                            &self.get_resolved_symbol(source),
-                            &self.get_resolved_symbol(target),
+                            &self.get_resolved_symbol(source)?,
+                            &self.get_resolved_symbol(target)?,
                         )
                         || matches!(
                             target.kind(),
@@ -207,9 +207,8 @@ impl TypeChecker {
                 return Ok(target.kind() == SyntaxKind::SuperKeyword);
             }
             SyntaxKind::NonNullExpression | SyntaxKind::ParenthesizedExpression => {
-                return Ok(
-                    self.is_matching_reference(&source.as_has_expression().expression(), target)
-                );
+                return self
+                    .is_matching_reference(&source.as_has_expression().expression(), target);
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 return Ok(is_access_expression(target)
@@ -218,7 +217,7 @@ impl TypeChecker {
                     && self.is_matching_reference(
                         &source.as_has_expression().expression(),
                         &target.as_has_expression().expression(),
-                    ));
+                    )?);
             }
             SyntaxKind::QualifiedName => {
                 let source_as_qualified_name = source.as_qualified_name();
@@ -230,13 +229,13 @@ impl TypeChecker {
                     && self.is_matching_reference(
                         &source_as_qualified_name.left,
                         &target.as_has_expression().expression(),
-                    ));
+                    )?);
             }
             SyntaxKind::BinaryExpression => {
                 return Ok(is_binary_expression(source) && {
                     let source_as_binary_expression = source.as_binary_expression();
                     source_as_binary_expression.operator_token.kind() == SyntaxKind::CommaToken
-                        && self.is_matching_reference(&source_as_binary_expression.right, target)
+                        && self.is_matching_reference(&source_as_binary_expression.right, target)?
                 });
             }
             _ => (),
@@ -331,26 +330,34 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn contains_matching_reference(&self, source: &Node, target: &Node) -> bool {
+    pub(super) fn contains_matching_reference(
+        &self,
+        source: &Node,
+        target: &Node,
+    ) -> io::Result<bool> {
         let mut source = source.node_wrapper();
         while is_access_expression(&source) {
             source = source.as_has_expression().expression();
-            if self.is_matching_reference(&source, target) {
-                return true;
+            if self.is_matching_reference(&source, target)? {
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
-    pub(super) fn optional_chain_contains_reference(&self, source: &Node, target: &Node) -> bool {
+    pub(super) fn optional_chain_contains_reference(
+        &self,
+        source: &Node,
+        target: &Node,
+    ) -> io::Result<bool> {
         let mut source = source.node_wrapper();
         while is_optional_chain(&source) {
             source = source.as_has_expression().expression();
-            if self.is_matching_reference(&source, target) {
-                return true;
+            if self.is_matching_reference(&source, target)? {
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_discriminant_property<TType: Borrow<Type>>(
@@ -583,9 +590,13 @@ impl TypeChecker {
             .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type)))
     }
 
-    pub(super) fn is_or_contains_matching_reference(&self, source: &Node, target: &Node) -> bool {
-        self.is_matching_reference(source, target)
-            || self.contains_matching_reference(source, target)
+    pub(super) fn is_or_contains_matching_reference(
+        &self,
+        source: &Node,
+        target: &Node,
+    ) -> io::Result<bool> {
+        Ok(self.is_matching_reference(source, target)?
+            || self.contains_matching_reference(source, target))
     }
 
     pub(super) fn has_matching_argument(
@@ -1009,14 +1020,14 @@ impl TypeChecker {
     pub(super) fn get_assigned_type_of_spread_expression(
         &self,
         node: &Node, /*SpreadElement*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.get_type_of_destructured_spread_expression(&self.get_assigned_type(&node.parent()))
     }
 
     pub(super) fn get_assigned_type_of_property_assignment(
         &self,
         node: &Node, /*PropertyAssignment | ShorthandPropertyAssignment*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.get_type_of_destructured_property(
             &self.get_assigned_type(&node.parent()),
             &node.as_named_declaration().name(),
@@ -1026,7 +1037,7 @@ impl TypeChecker {
     pub(super) fn get_assigned_type_of_shorthand_property_assignment(
         &self,
         node: &Node, /*ShorthandPropertyAssignment*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         self.get_type_with_default(
             &self.get_assigned_type_of_property_assignment(node),
             node.as_shorthand_property_assignment()
@@ -1036,15 +1047,18 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_assigned_type(&self, node: &Node /*Expression*/) -> Gc<Type> {
+    pub(super) fn get_assigned_type(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> io::Result<Gc<Type>> {
         let parent = node.parent();
-        match parent.kind() {
+        Ok(match parent.kind() {
             SyntaxKind::ForInStatement => self.string_type(),
             SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(&parent), /*|| errorType*/
             SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(&parent),
             SyntaxKind::DeleteExpression => self.undefined_type(),
             SyntaxKind::ArrayLiteralExpression => {
-                self.get_assigned_type_of_array_literal_element(&parent, node)
+                self.get_assigned_type_of_array_literal_element(&parent, node)?
             }
             SyntaxKind::SpreadElement => self.get_assigned_type_of_spread_expression(&parent),
             SyntaxKind::PropertyAssignment => {
@@ -1054,6 +1068,6 @@ impl TypeChecker {
                 self.get_assigned_type_of_shorthand_property_assignment(&parent)
             }
             _ => self.error_type(),
-        }
+        })
     }
 }

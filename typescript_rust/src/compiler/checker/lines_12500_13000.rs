@@ -170,7 +170,7 @@ impl TypeChecker {
             if matches!(
                 declaration.kind(),
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
-            ) && self.has_bindable_name(declaration)
+            ) && self.has_bindable_name(declaration)?
                 && (!has_this_parameter || this_parameter.is_none())
             {
                 let other_kind = if declaration.kind() == SyntaxKind::GetAccessor {
@@ -613,19 +613,21 @@ impl TypeChecker {
             } else {
                 let signature_declaration = signature.declaration.as_ref().unwrap();
                 self.get_return_type_from_annotation(signature_declaration)?
-                    .unwrap_or_else(|| {
-                        if node_is_missing(
-                            signature_declaration
-                                .maybe_as_function_like_declaration()
-                                .and_then(|function_like_declaration| {
-                                    function_like_declaration.maybe_body()
-                                }),
-                        ) {
-                            self.any_type()
-                        } else {
-                            self.get_return_type_from_body(signature_declaration, None)?
-                        }
-                    })
+                    .try_unwrap_or_else(|| {
+                        Ok(
+                            if node_is_missing(
+                                signature_declaration
+                                    .maybe_as_function_like_declaration()
+                                    .and_then(|function_like_declaration| {
+                                        function_like_declaration.maybe_body()
+                                    }),
+                            ) {
+                                self.any_type()
+                            } else {
+                                self.get_return_type_from_body(signature_declaration, None)?
+                            },
+                        )
+                    })?
             };
             if signature.flags.intersects(SignatureFlags::IsInnerCallChain) {
                 type_ = self.add_optional_type_marker(&type_)?;
@@ -695,7 +697,7 @@ impl TypeChecker {
         if let Some(type_node) = type_node {
             return Ok(Some(self.get_type_from_type_node_(&type_node)?));
         }
-        if declaration.kind() == SyntaxKind::GetAccessor && self.has_bindable_name(declaration) {
+        if declaration.kind() == SyntaxKind::GetAccessor && self.has_bindable_name(declaration)? {
             let js_doc_type = if is_in_js_file(Some(declaration)) {
                 self.get_type_for_declaration_from_jsdoc_comment(declaration)?
             } else {

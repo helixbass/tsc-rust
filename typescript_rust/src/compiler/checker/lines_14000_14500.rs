@@ -247,7 +247,7 @@ impl TypeChecker {
             &expanded_flags,
             target_as_tuple_type.readonly,
             expanded_declarations.as_deref(),
-        );
+        )?;
         Ok(if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
             self.empty_object_type()
         } else if !expanded_flags.is_empty() {
@@ -302,7 +302,7 @@ impl TypeChecker {
         let target_as_tuple_type = target.as_tuple_type();
         Ok(if index > target_as_tuple_type.fixed_length {
             self.get_rest_array_type_of_tuple_type(type_)?
-                .unwrap_or_else(|| self.create_tuple_type(&[], None, None, None))
+                .try_unwrap_or_else(|| self.create_tuple_type(&[], None, None, None))?
         } else {
             self.create_tuple_type(
                 &self.get_type_arguments(type_)[index..end_index],
