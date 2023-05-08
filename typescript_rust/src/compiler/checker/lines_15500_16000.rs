@@ -602,19 +602,19 @@ impl TypeChecker {
     pub(super) fn get_type_from_infer_type_node(
         &self,
         node: &Node, /*InferTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(
                 self.get_declared_type_of_type_parameter(
                     &self
-                        .get_symbol_of_node(&node.as_infer_type_node().type_parameter)
+                        .get_symbol_of_node(&node.as_infer_type_node().type_parameter)?
                         .unwrap(),
                 ),
             );
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_identifier_chain(
@@ -837,7 +837,10 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_alias_symbol_for_type_node(&self, node: &Node) -> Option<Gc<Symbol>> {
+    pub(super) fn get_alias_symbol_for_type_node(
+        &self,
+        node: &Node,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let mut host = node.parent();
         while is_parenthesized_type_node(&host)
             || is_jsdoc_type_expression(&host)
@@ -846,11 +849,11 @@ impl TypeChecker {
         {
             host = host.parent();
         }
-        if is_type_alias(&host) {
-            self.get_symbol_of_node(&host)
+        Ok(if is_type_alias(&host) {
+            self.get_symbol_of_node(&host)?
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn get_type_arguments_for_alias_symbol<TSymbol: Borrow<Symbol>>(

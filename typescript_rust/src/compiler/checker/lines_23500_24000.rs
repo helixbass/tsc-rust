@@ -99,7 +99,7 @@ impl TypeChecker {
                                 .resolved_symbol
                                 .clone()
                                 .unwrap_or_else(|| self.unknown_symbol()),
-                        ),
+                        )?,
                 );
             }
             _ => (),
@@ -491,7 +491,7 @@ impl GetFlowTypeOfReference {
                 self.type_checker
                     .get_non_nullable_type_if_needed(&self.type_checker.get_type_from_flow_type(
                         &self.get_type_at_flow_node(flow_as_flow_assignment.antecedent.clone())?,
-                    ))
+                    ))?
                     .into(),
             ));
         }
@@ -741,7 +741,7 @@ impl GetFlowTypeOfReference {
                             !t.flags()
                                 .intersects(TypeFlags::Undefined | TypeFlags::Never)
                         },
-                    );
+                    )?;
                 } else if expr.kind() == SyntaxKind::TypeOfExpression
                     && self.type_checker.optional_chain_contains_reference(
                         &expr.as_type_of_expression().expression,
@@ -758,7 +758,7 @@ impl GetFlowTypeOfReference {
                                 || t.flags().intersects(TypeFlags::StringLiteral)
                                     && t.as_string_literal_type().value == "undefined"
                         },
-                    );
+                    )?;
                 }
             }
             let access = self.get_discriminant_property_access(expr, &type_)?;
@@ -947,7 +947,7 @@ impl GetFlowTypeOfReference {
             push_if_unique_gc(&mut antecedent_types, &type_);
             if !self
                 .type_checker
-                .is_type_subset_of(&type_, &self.declared_type)
+                .is_type_subset_of(&type_, &self.declared_type)?
             {
                 subtype_reduction = true;
             }

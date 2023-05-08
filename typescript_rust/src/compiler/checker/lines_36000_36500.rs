@@ -155,7 +155,7 @@ impl TypeChecker {
         }
 
         if self.has_bindable_name(node)? {
-            let symbol = self.get_symbol_of_node(node).unwrap();
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
             let local_symbol = node.maybe_local_symbol().unwrap_or_else(|| symbol.clone());
 
             let first_declaration =
@@ -339,7 +339,7 @@ impl TypeChecker {
                     if !(member.kind() == SyntaxKind::SetAccessor
                         && member.symbol().flags().intersects(SymbolFlags::GetAccessor))
                     {
-                        let symbol = self.get_symbol_of_node(member).unwrap();
+                        let symbol = self.get_symbol_of_node(member)?.unwrap();
                         if match symbol.maybe_is_referenced() {
                             None => true,
                             Some(symbol_is_referenced) => symbol_is_referenced == SymbolFlags::None,
@@ -431,20 +431,18 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_unused_type_parameters<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
-    >(
+    pub(super) fn check_unused_type_parameters(
         &self,
         node: &Node, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
-        add_diagnostic: &mut TAddDiagnostic,
-    ) {
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        add_diagnostic: &mut impl FnMut(&Node, UnusedKind, Gc<Diagnostic>),
+    ) -> io::Result<()> {
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
         let declarations = symbol.maybe_declarations();
         if match declarations.as_ref() {
             None => true,
             Some(declarations) => !ptr::eq(&**last(declarations), node),
         } {
-            return;
+            return Ok(());
         }
 
         let type_parameters = get_effective_type_parameter_declarations(node);
@@ -528,6 +526,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_type_parameter_unused(

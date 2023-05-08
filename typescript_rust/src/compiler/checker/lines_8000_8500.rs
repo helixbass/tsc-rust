@@ -187,7 +187,10 @@ impl TypeChecker {
         "public"
     }
 
-    pub(super) fn get_type_alias_for_type_literal(&self, type_: &Type) -> Option<Gc<Symbol>> {
+    pub(super) fn get_type_alias_for_type_literal(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if let Some(type_symbol) = type_.maybe_symbol() {
             if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) {
                 if let Some(type_symbol_declarations) = type_symbol.maybe_declarations().as_deref()
@@ -200,7 +203,7 @@ impl TypeChecker {
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn is_top_level_in_external_module_augmentation(&self, node: &Node) -> bool {
@@ -686,7 +689,7 @@ impl TypeChecker {
         prototype: &Symbol,
     ) -> io::Result<Gc<Type>> {
         let class_type =
-            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype).unwrap())?;
+            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype)?.unwrap())?;
         Ok(
             if let Some(class_type_type_parameters) = class_type
                 .as_interface_type()
@@ -745,7 +748,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElementGrandparent*/
     ) -> io::Result<Option<Gc<Type>>> {
-        let symbol = self.get_symbol_of_node(node);
+        let symbol = self.get_symbol_of_node(node)?;
         symbol
             .as_ref()
             .and_then(|symbol| (*self.get_symbol_links(symbol)).borrow().type_.clone())

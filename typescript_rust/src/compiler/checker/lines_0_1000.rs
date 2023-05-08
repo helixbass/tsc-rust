@@ -1656,7 +1656,7 @@ impl TypeChecker {
         &self,
         parameter_in: &Node, /*ParameterDeclaration*/
         parameter_name: &str,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let parameter =
             get_parse_tree_node(Some(parameter_in), Some(|node: &Node| is_parameter(node)));
         if parameter.is_none() {
@@ -1733,7 +1733,11 @@ impl TypeChecker {
         })
     }
 
-    pub fn get_parameter_type(&self, signature: &Signature, parameter_index: usize) -> Gc<Type> {
+    pub fn get_parameter_type(
+        &self,
+        signature: &Signature,
+        parameter_index: usize,
+    ) -> io::Result<Gc<Type>> {
         self.get_type_at_position(signature, parameter_index)
     }
 
@@ -2236,15 +2240,15 @@ impl TypeChecker {
         node_in: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         type_: &Type,
         property: &Symbol,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_property_access_expression(node)),
         );
-        match node {
+        Ok(match node {
             None => false,
-            Some(node) => self.is_valid_property_access_for_completions_(&node, type_, property),
-        }
+            Some(node) => self.is_valid_property_access_for_completions_(&node, type_, property)?,
+        })
     }
 
     pub fn get_signature_from_declaration(
@@ -2388,7 +2392,7 @@ impl TypeChecker {
         location: &Node,
         name: &str,
         meaning: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.get_suggested_symbol_for_nonexistent_symbol_(
             Some(location),
             &escape_leading_underscores(name),
@@ -2481,8 +2485,11 @@ impl TypeChecker {
     pub fn get_type_argument_constraint(
         &self,
         node_in: &Node, /*TypeNode*/
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_type_node(node)))?;
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_type_node(node))
+        ));
         self.get_type_argument_constraint_(&node)
     }
 

@@ -896,7 +896,7 @@ impl TypeChecker {
                     AssignmentDeclarationKind::None
                 };
                 self.check_assignment_declaration(decl_kind, right_type);
-                if self.is_assignment_declaration(left, right, decl_kind) {
+                if self.is_assignment_declaration(left, right, decl_kind)? {
                     if !right_type.flags().intersects(TypeFlags::Object)
                         || !matches!(
                             decl_kind,
@@ -972,10 +972,10 @@ impl CheckBinaryExpression {
         &self,
         node: &Node, /*BinaryExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Gc<Type> {
-        let result = self.trampoline.call(node, check_mode);
+    ) -> io::Result<Gc<Type>> {
+        let result = self.trampoline.call(node, check_mode)?;
         Debug_.assert_is_defined(&result, None);
-        result.unwrap()
+        Ok(result.unwrap())
     }
 }
 

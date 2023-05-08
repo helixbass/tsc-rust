@@ -14,10 +14,11 @@ use crate::{
     is_internal_module_import_equals_declaration, is_module_exports_access_expression,
     is_named_exports, is_namespace_export, is_private_identifier, is_string_literal,
     is_type_only_import_or_export_declaration, length, maybe_get_source_file_of_node,
-    node_is_missing, unescape_leading_underscores, Debug_, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, HasStatementsInterface, LiteralLikeNodeInterface, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker,
+    node_is_missing, try_for_each_import_clause_declaration_bool, unescape_leading_underscores,
+    Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, HasStatementsInterface,
+    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TypeChecker,
 };
 
 impl TypeChecker {
@@ -107,7 +108,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportEqualsDeclaration | VariableDeclaration | ImportClause | NamespaceImport | ImportSpecifier | ExportSpecifier | NamespaceExport*/
     ) -> io::Result<()> {
-        let mut symbol = self.get_symbol_of_node(node).unwrap();
+        let mut symbol = self.get_symbol_of_node(node)?.unwrap();
         let target = self.resolve_alias(&symbol)?;
 
         if !Gc::ptr_eq(&target, &self.unknown_symbol()) {
@@ -395,7 +396,7 @@ impl TypeChecker {
             if node_as_import_equals_declaration.module_reference.kind()
                 != SyntaxKind::ExternalModuleReference
             {
-                let target = self.resolve_alias(&self.get_symbol_of_node(node).unwrap())?;
+                let target = self.resolve_alias(&self.get_symbol_of_node(node)?.unwrap())?;
                 if !Gc::ptr_eq(&target, &self.unknown_symbol()) {
                     if target.flags().intersects(SymbolFlags::Value) {
                         let module_name = get_first_identifier(
@@ -612,28 +613,32 @@ impl TypeChecker {
     pub(super) fn import_clause_contains_referenced_import(
         &self,
         import_clause: &Node, /*ImportClause*/
-    ) -> bool {
-        for_each_import_clause_declaration_bool(import_clause, |declaration| {
-            match self
-                .get_symbol_of_node(declaration)
-                .unwrap()
-                .maybe_is_referenced()
-            {
-                None => false,
-                Some(is_referenced) => is_referenced != SymbolFlags::None,
-            }
+    ) -> io::Result<bool> {
+        try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
+            Ok(
+                match self
+                    .get_symbol_of_node(declaration)?
+                    .unwrap()
+                    .maybe_is_referenced()
+                {
+                    None => false,
+                    Some(is_referenced) => is_referenced != SymbolFlags::None,
+                },
+            )
         })
     }
 
     pub(super) fn import_clause_contains_const_enum_used_as_value(
         &self,
         import_clause: &Node, /*ImportClause*/
-    ) -> bool {
-        for_each_import_clause_declaration_bool(import_clause, |declaration| {
-            (*self.get_symbol_links(&self.get_symbol_of_node(declaration).unwrap()))
-                .borrow()
-                .const_enum_referenced
-                == Some(true)
+    ) -> io::Result<bool> {
+        try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
+            Ok(
+                (*self.get_symbol_links(&self.get_symbol_of_node(declaration)?.unwrap()))
+                    .borrow()
+                    .const_enum_referenced
+                    == Some(true),
+            )
         })
     }
 
@@ -654,21 +659,21 @@ impl TypeChecker {
     pub(super) fn can_convert_import_equals_declaration_to_type_only(
         &self,
         statement: &Node, /*Statement*/
-    ) -> bool {
-        is_import_equals_declaration(statement) && {
+    ) -> io::Result<bool> {
+        Ok(is_import_equals_declaration(statement) && {
             let statement_as_import_equals_declaration = statement.as_import_equals_declaration();
             is_external_module_reference(&statement_as_import_equals_declaration.module_reference)
                 && !statement_as_import_equals_declaration.is_type_only
                 && matches!(
-                    self.get_symbol_of_node(statement).unwrap().maybe_is_referenced(),
+                    self.get_symbol_of_node(statement)?.unwrap().maybe_is_referenced(),
                     Some(is_referenced) if is_referenced != SymbolFlags::None
                 )
                 && !self.is_referenced_alias_declaration(statement, Some(false))
-                && (*self.get_symbol_links(&self.get_symbol_of_node(statement).unwrap()))
+                && (*self.get_symbol_links(&self.get_symbol_of_node(statement)?.unwrap()))
                     .borrow()
                     .const_enum_referenced
                     != Some(true)
-        }
+        })
     }
 
     pub(super) fn check_imports_for_type_only_conversion(
@@ -928,7 +933,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SourceFile | ModuleDeclaration*/
     ) -> io::Result<()> {
-        let ref module_symbol = self.get_symbol_of_node(node).unwrap();
+        let ref module_symbol = self.get_symbol_of_node(node)?.unwrap();
         let links = self.get_symbol_links(module_symbol);
         if (*links).borrow().exports_checked != Some(true) {
             let export_equals_symbol = (*module_symbol.exports()).borrow().get("export=").cloned();

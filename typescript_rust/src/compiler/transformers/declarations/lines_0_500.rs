@@ -1200,7 +1200,7 @@ impl TransformDeclarations {
 }
 
 impl TransformerInterface for TransformDeclarations {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
         self.transform_root(node)
     }
 }

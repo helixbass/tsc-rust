@@ -602,7 +602,7 @@ impl TransformDeclarations {
                     )?
                     .unwrap();
                     let mut late_statements =
-                        self.transform_and_replace_late_painted_statements(&statements);
+                        self.transform_and_replace_late_painted_statements(&statements)?;
                     if input.flags().intersects(NodeFlags::Ambient) {
                         self.set_needs_scope_fix_marker(false);
                     }
@@ -709,7 +709,7 @@ impl TransformDeclarations {
                     input_as_class_declaration
                         .maybe_type_parameters()
                         .as_deref(),
-                );
+                )?;
                 let ctor = get_first_constructor_with_body(input);
                 let mut parameter_properties: Option<Vec<Gc<Node /*PropertyDeclaration*/>>> =
                     Default::default();
@@ -928,7 +928,7 @@ impl TransformDeclarations {
                                     )?.unwrap()
                                 ))
                             }
-                        )?,
+                        ).transpose()?,
                         None,
                     );
                     Some(
@@ -988,7 +988,7 @@ impl TransformDeclarations {
                 can_prodice_diagnostic,
                 &old_diag,
                 previous_needs_declare,
-                self.transform_variable_statement(input).as_deref(),
+                self.transform_variable_statement(input)?.as_deref(),
             ),
             SyntaxKind::EnumDeclaration => {
                 let input_as_enum_declaration = input.as_enum_declaration();

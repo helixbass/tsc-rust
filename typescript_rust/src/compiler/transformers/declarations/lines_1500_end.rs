@@ -203,57 +203,56 @@ impl TransformDeclarations {
     pub(super) fn transform_heritage_clauses(
         &self,
         nodes: Option<&NodeArray /*<HeritageClause>*/>,
-    ) -> Gc<NodeArray> {
-        self.factory.create_node_array(
-            nodes.map(|nodes| {
-                nodes
-                    .into_iter()
-                    .map(|clause| {
-                        let clause_as_heritage_clause = clause.as_heritage_clause();
-                        self.factory.update_heritage_clause(
-                            clause,
-                            try_visit_nodes(
-                                Some(
-                                    &self.factory.create_node_array(
-                                        Some(
-                                            clause_as_heritage_clause
-                                                .types
-                                                .iter()
-                                                .filter(|t| {
-                                                    let t_as_expression_with_type_arguments =
-                                                        t.as_expression_with_type_arguments();
-                                                    is_entity_name_expression(
-                                                        &t_as_expression_with_type_arguments
-                                                            .expression,
-                                                    ) || clause_as_heritage_clause.token
-                                                        == SyntaxKind::ExtendsKeyword
-                                                        && t_as_expression_with_type_arguments
-                                                            .expression
-                                                            .kind()
-                                                            == SyntaxKind::NullKeyword
-                                                })
-                                                .cloned()
-                                                .collect::<Vec<_>>(),
-                                        ),
-                                        None,
+    ) -> io::Result<Gc<NodeArray>> {
+        Ok(self.factory.create_node_array(
+            nodes.try_map(|nodes| {
+                let ret = vec![];
+                for clause in nodes {
+                    let clause_as_heritage_clause = clause.as_heritage_clause();
+                    let clause = self.factory.update_heritage_clause(
+                        clause,
+                        try_visit_nodes(
+                            Some(
+                                &self.factory.create_node_array(
+                                    Some(
+                                        clause_as_heritage_clause
+                                            .types
+                                            .iter()
+                                            .filter(|t| {
+                                                let t_as_expression_with_type_arguments =
+                                                    t.as_expression_with_type_arguments();
+                                                is_entity_name_expression(
+                                                    &t_as_expression_with_type_arguments.expression,
+                                                ) || clause_as_heritage_clause.token
+                                                    == SyntaxKind::ExtendsKeyword
+                                                    && t_as_expression_with_type_arguments
+                                                        .expression
+                                                        .kind()
+                                                        == SyntaxKind::NullKeyword
+                                            })
+                                            .cloned()
+                                            .collect::<Vec<_>>(),
                                     ),
+                                    None,
                                 ),
-                                Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                Option::<fn(&Node) -> bool>::None,
-                                None,
-                                None,
-                            )?
-                            .unwrap(),
-                        )
-                    })
-                    .filter(|clause| {
-                        /*clause.types &&*/
-                        !clause.as_heritage_clause().types.is_empty()
-                    })
-                    .collect::<Vec<_>>()
-            }),
+                            ),
+                            Some(|node: &Node| self.visit_declaration_subtree(node)),
+                            Option::<fn(&Node) -> bool>::None,
+                            None,
+                            None,
+                        )?
+                        .unwrap(),
+                    );
+                    if
+                    /*clause.types &&*/
+                    !clause.as_heritage_clause().types.is_empty() {
+                        ret.push(clause);
+                    }
+                }
+                Ok(ret)
+            })?,
             None,
-        )
+        ))
     }
 }
 

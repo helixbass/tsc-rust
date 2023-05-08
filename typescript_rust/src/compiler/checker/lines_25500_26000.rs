@@ -268,9 +268,9 @@ impl TypeChecker {
                         Some(last) if ptr::eq(&**last, parameter)
                     )
                 {
-                    Some(self.get_rest_type_at_position(contextual_signature, index))
+                    Some(self.get_rest_type_at_position(contextual_signature, index)?)
                 } else {
-                    self.try_get_type_at_position(contextual_signature, index)
+                    self.try_get_type_at_position(contextual_signature, index)?
                 },
             );
         }
@@ -362,7 +362,9 @@ impl TypeChecker {
         });
         self.get_type_of_property_of_contextual_type(
             &parent_type,
-            self.get_symbol_of_node(declaration).unwrap().escaped_name(),
+            self.get_symbol_of_node(declaration)?
+                .unwrap()
+                .escaped_name(),
         )
     }
 
@@ -645,7 +647,7 @@ impl TypeChecker {
                     None,
                 )
             } else {
-                self.get_type_at_position(&signature, arg_index)
+                self.get_type_at_position(&signature, arg_index)?
             },
         )
     }

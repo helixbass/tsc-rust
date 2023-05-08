@@ -1,8 +1,8 @@
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 use local_macros::enum_unwrapped;
-use std::ptr;
 use std::rc::Rc;
+use std::{io, ptr};
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
@@ -267,7 +267,7 @@ pub trait TransformerFactoryInterface: Trace + Finalize {
 pub type Transformer = Gc<Box<dyn TransformerInterface>>;
 
 pub trait TransformerInterface: Trace + Finalize {
-    fn call(&self, node: &Node) -> Gc<Node>;
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>>;
 }
 
 pub type VisitResult = Option<SingleNodeOrVecNode>;

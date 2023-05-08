@@ -266,7 +266,7 @@ impl TypeChecker {
         }
 
         let uninstantiated_type =
-            self.check_function_expression_or_object_literal_method(node, check_mode);
+            self.check_function_expression_or_object_literal_method(node, check_mode)?;
         self.instantiate_type_with_single_generic_call_signature(
             node,
             &uninstantiated_type,
@@ -560,7 +560,7 @@ impl TypeChecker {
         let expr_as_call_expression = expr.as_call_expression();
         let func_type = self.check_expression(&expr_as_call_expression.expression, None, None)?;
         let non_optional_type =
-            self.get_optional_expression_type(&func_type, &expr_as_call_expression.expression);
+            self.get_optional_expression_type(&func_type, &expr_as_call_expression.expression)?;
         let return_type = self.get_return_type_of_single_non_generic_call_signature(&func_type)?;
         return_type.as_ref().try_map(|return_type| {
             self.propagate_optional_type_marker(
@@ -616,7 +616,7 @@ impl TypeChecker {
         if is_call_expression(node)
             && expr.as_call_expression().expression.kind() != SyntaxKind::SuperKeyword
             && !is_require_call(&expr, true)
-            && !self.is_symbol_or_symbol_for_call(&expr)
+            && !self.is_symbol_or_symbol_for_call(&expr)?
         {
             let type_ = if is_call_chain(&expr) {
                 self.get_return_type_of_single_non_generic_signature_of_call_chain(&expr)?
@@ -815,13 +815,13 @@ impl TypeChecker {
             SyntaxKind::PropertyAccessExpression => {
                 self.check_property_access_expression(node, check_mode)?
             }
-            SyntaxKind::QualifiedName => self.check_qualified_name(node, check_mode),
+            SyntaxKind::QualifiedName => self.check_qualified_name(node, check_mode)?,
             SyntaxKind::ElementAccessExpression => self.check_indexed_access(node, check_mode),
             SyntaxKind::CallExpression => {
                 if node.as_call_expression().expression.kind() == SyntaxKind::ImportKeyword {
                     return self.check_import_call_expression(node);
                 }
-                self.check_call_expression(node, check_mode)
+                self.check_call_expression(node, check_mode)?
             }
             SyntaxKind::NewExpression => self.check_call_expression(node, check_mode),
             SyntaxKind::TaggedTemplateExpression => self.check_tagged_template_expression(node),
@@ -830,11 +830,11 @@ impl TypeChecker {
             }
             SyntaxKind::ClassExpression => self.check_class_expression(node),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
-                self.check_function_expression_or_object_literal_method(node, check_mode)
+                self.check_function_expression_or_object_literal_method(node, check_mode)?
             }
             SyntaxKind::TypeOfExpression => self.check_type_of_expression(node),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
-                self.check_assertion(node)
+                self.check_assertion(node)?
             }
             SyntaxKind::NonNullExpression => self.check_non_null_assertion(node),
             SyntaxKind::MetaProperty => self.check_meta_property(node),

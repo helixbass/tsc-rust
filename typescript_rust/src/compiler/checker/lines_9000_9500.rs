@@ -220,7 +220,7 @@ impl TypeChecker {
         });
         if elements.is_empty() || elements.len() == 1 && rest_element.is_some() {
             return Ok(if self.language_version >= ScriptTarget::ES2015 {
-                self.create_iterable_type(&self.any_type())
+                self.create_iterable_type(&self.any_type())?
             } else {
                 self.any_array_type()
             });
@@ -305,7 +305,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> io::Result<bool> {
-        let symbol = self.get_symbol_of_node(node);
+        let symbol = self.get_symbol_of_node(node)?;
         let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false)?;
         Ok(matches!(
             (global_symbol, symbol),
@@ -318,14 +318,14 @@ impl TypeChecker {
         type_: Option<impl Borrow<Type>>,
         declaration: &Node,
         report_errors: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let report_errors = report_errors.unwrap_or(false);
         if let Some(type_) = type_ {
             let mut type_ = type_.borrow().type_wrapper();
             if type_.flags().intersects(TypeFlags::ESSymbol)
-                && self.is_global_symbol_constructor(&declaration.parent())
+                && self.is_global_symbol_constructor(&declaration.parent())?
             {
-                type_ = self.get_es_symbol_like_type_for_node(declaration);
+                type_ = self.get_es_symbol_like_type_for_node(declaration)?;
             }
             if report_errors {
                 self.report_errors_from_widening(declaration, &type_, None);
@@ -336,13 +336,13 @@ impl TypeChecker {
                     || declaration.as_has_type().maybe_type().is_none())
                 && !are_option_gcs_equal(
                     type_.maybe_symbol().as_ref(),
-                    self.get_symbol_of_node(declaration).as_ref(),
+                    self.get_symbol_of_node(declaration)?.as_ref(),
                 )
             {
                 type_ = self.es_symbol_type();
             }
 
-            return self.get_widened_type(&type_);
+            return Ok(self.get_widened_type(&type_));
         }
 
         let type_ = if is_parameter(declaration)
@@ -361,7 +361,7 @@ impl TypeChecker {
                 self.report_implicit_any(declaration, &type_, None);
             }
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn declaration_belongs_to_private_ambient_member(
@@ -415,7 +415,7 @@ impl TypeChecker {
         if symbol.flags().intersects(SymbolFlags::ModuleExports) {
             if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
                 let file_symbol = self
-                    .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))
+                    .get_symbol_of_node(&get_source_file_of_node(&symbol_value_declaration))?
                     .unwrap();
                 let result: Gc<Symbol> = self
                     .create_symbol(file_symbol.flags(), "exports".to_owned(), None)

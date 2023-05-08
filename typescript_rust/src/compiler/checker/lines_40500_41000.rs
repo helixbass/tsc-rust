@@ -79,8 +79,11 @@ impl TypeChecker {
                     if is_external_module(location_present) {
                         self.copy_locally_visible_export_symbols(
                             symbols,
-                            &(*self.get_symbol_of_node(location_present).unwrap().exports())
-                                .borrow(),
+                            &(*self
+                                .get_symbol_of_node(location_present)?
+                                .unwrap()
+                                .exports())
+                            .borrow(),
                             meaning & SymbolFlags::ModuleMember,
                         );
                     }
@@ -88,14 +91,22 @@ impl TypeChecker {
                 SyntaxKind::ModuleDeclaration => {
                     self.copy_locally_visible_export_symbols(
                         symbols,
-                        &(*self.get_symbol_of_node(location_present).unwrap().exports()).borrow(),
+                        &(*self
+                            .get_symbol_of_node(location_present)?
+                            .unwrap()
+                            .exports())
+                        .borrow(),
                         meaning & SymbolFlags::ModuleMember,
                     );
                 }
                 SyntaxKind::EnumDeclaration => {
                     self.copy_symbols(
                         symbols,
-                        &(*self.get_symbol_of_node(location_present).unwrap().exports()).borrow(),
+                        &(*self
+                            .get_symbol_of_node(location_present)?
+                            .unwrap()
+                            .exports())
+                        .borrow(),
                         meaning & SymbolFlags::EnumMember,
                     );
                 }
@@ -121,7 +132,7 @@ impl TypeChecker {
                         self.copy_symbols(
                             symbols,
                             &(*self.get_members_of_symbol(
-                                &self.get_symbol_of_node(location_present).unwrap(),
+                                &self.get_symbol_of_node(location_present)?.unwrap(),
                             )?)
                             .borrow(),
                             meaning & SymbolFlags::Type,
@@ -374,21 +385,21 @@ impl TypeChecker {
     pub(super) fn get_special_property_assignment_symbol_from_entity_name(
         &self,
         entity_name: &Node, /*EntityName | PropertyAccessExpression*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let special_property_assignment_kind =
             get_assignment_declaration_kind(&entity_name.parent().parent());
-        match special_property_assignment_kind {
+        Ok(match special_property_assignment_kind {
             AssignmentDeclarationKind::ExportsProperty
             | AssignmentDeclarationKind::PrototypeProperty => {
-                self.get_symbol_of_node(&entity_name.parent())
+                self.get_symbol_of_node(&entity_name.parent())?
             }
             AssignmentDeclarationKind::ThisProperty
             | AssignmentDeclarationKind::ModuleExports
             | AssignmentDeclarationKind::Property => {
-                self.get_symbol_of_node(&entity_name.parent().parent())
+                self.get_symbol_of_node(&entity_name.parent().parent())?
             }
             _ => None,
-        }
+        })
     }
 
     pub(super) fn is_import_type_qualifier_part(
@@ -422,7 +433,7 @@ impl TypeChecker {
         name: &Node, /*EntityName | PrivateIdentifier | PropertyAccessExpression | JSDocMemberName*/
     ) -> io::Result<Option<Gc<Symbol>>> {
         if is_declaration_name(name) {
-            return Ok(self.get_symbol_of_node(&name.parent()));
+            return self.get_symbol_of_node(&name.parent());
         }
 
         if is_in_js_file(Some(name))
@@ -560,7 +571,7 @@ impl TypeChecker {
                     });
                     if let Some(container) = container.as_ref() {
                         return self
-                            .resolve_jsdoc_member_name(name, self.get_symbol_of_node(container));
+                            .resolve_jsdoc_member_name(name, self.get_symbol_of_node(container)?);
                     }
                 }
                 return Ok(result);
@@ -712,7 +723,7 @@ impl TypeChecker {
         }
 
         if is_declaration_name_or_import_property_name(node) {
-            let parent_symbol = self.get_symbol_of_node(parent);
+            let parent_symbol = self.get_symbol_of_node(parent)?;
             return Ok(
                 if is_import_or_export_specifier(&node.parent())
                     && matches!(
@@ -729,7 +740,7 @@ impl TypeChecker {
                 },
             );
         } else if is_literal_computed_property_declaration_name(node) {
-            return Ok(self.get_symbol_of_node(&parent.parent()));
+            return self.get_symbol_of_node(&parent.parent());
         }
 
         if node.kind() == SyntaxKind::Identifier {
@@ -766,7 +777,7 @@ impl TypeChecker {
                     return Ok(property_declaration);
                 }
                 if parent.as_meta_property().keyword_token == SyntaxKind::NewKeyword {
-                    return Ok(self.check_new_target_meta_property(parent).maybe_symbol());
+                    return Ok(self.check_new_target_meta_property(parent)?.maybe_symbol());
                 }
             }
         }
@@ -845,7 +856,7 @@ impl TypeChecker {
                     && is_bindable_object_define_property_call(parent)
                     && ptr::eq(&*parent.as_call_expression().arguments[1], node)
                 {
-                    return Ok(self.get_symbol_of_node(parent));
+                    return self.get_symbol_of_node(parent);
                 }
 
                 let object_type = if is_element_access_expression(parent) {
@@ -910,7 +921,7 @@ impl TypeChecker {
             SyntaxKind::DefaultKeyword
             | SyntaxKind::FunctionKeyword
             | SyntaxKind::EqualsGreaterThanToken
-            | SyntaxKind::ClassKeyword => self.get_symbol_of_node(&node.parent()),
+            | SyntaxKind::ClassKeyword => self.get_symbol_of_node(&node.parent())?,
             SyntaxKind::ImportType => {
                 if is_literal_import_type_node(node) {
                     self.get_symbol_at_location_(
@@ -936,7 +947,7 @@ impl TypeChecker {
 
             SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => {
                 if is_meta_property(&node.parent()) {
-                    self.check_meta_property_keyword(&node.parent())
+                    self.check_meta_property_keyword(&node.parent())?
                         .maybe_symbol()
                 } else {
                     None

@@ -778,7 +778,7 @@ impl TypeChecker {
         sig: &Signature,
         rest_type: &Type, /*TupleTypeReference*/
         rest_index: usize,
-    ) -> Vec<Gc<Symbol>> {
+    ) -> io::Result<Vec<Gc<Symbol>>> {
         let element_types = self.get_type_arguments(rest_type);
         let rest_type_as_type_reference = rest_type.as_type_reference();
         let rest_type_target_as_tuple_type = rest_type_as_type_reference.target.as_tuple_type();
@@ -788,9 +788,9 @@ impl TypeChecker {
         let rest_params = map(&element_types, |t: &Gc<Type>, i| {
             let tuple_label_name = associated_names
                 .map(|associated_names| self.get_tuple_element_label(&associated_names[i]));
-            let name = tuple_label_name.unwrap_or_else(|| {
+            let name = tuple_label_name.try_unwrap_or_else(|| {
                 self.get_parameter_name_at_position(sig, rest_index + i, Some(rest_type))
-            });
+            })?;
             let flags = rest_type_target_as_tuple_type.element_flags[i];
             let check_flags = if flags.intersects(ElementFlags::Variable) {
                 CheckFlags::RestParameter
@@ -813,7 +813,10 @@ impl TypeChecker {
             });
             symbol
         });
-        concatenate(sig.parameters()[0..rest_index].to_owned(), rest_params)
+        Ok(concatenate(
+            sig.parameters()[0..rest_index].to_owned(),
+            rest_params,
+        ))
     }
 
     pub(super) fn get_default_construct_signatures(

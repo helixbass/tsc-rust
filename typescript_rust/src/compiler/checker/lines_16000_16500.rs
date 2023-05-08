@@ -45,7 +45,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Symbol>> {
         let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
             && !prop.flags().intersects(SymbolFlags::GetAccessor);
-        if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
+        if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop)? {
             return Ok(prop.symbol_wrapper());
         }
         let flags = SymbolFlags::Property | (prop.flags() & SymbolFlags::Optional);
@@ -339,17 +339,17 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> Gc<Type> {
+    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> io::Result<Gc<Type>> {
         if is_valid_es_symbol_declaration(node) {
-            let symbol = self.get_symbol_of_node(node).unwrap();
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
             let links = self.get_symbol_links(&symbol);
             if (*links).borrow().unique_es_symbol_type.is_none() {
                 links.borrow_mut().unique_es_symbol_type =
                     Some(self.create_unique_es_symbol_type(&symbol));
             }
-            return (*links).borrow().unique_es_symbol_type.clone().unwrap();
+            return Ok((*links).borrow().unique_es_symbol_type.clone().unwrap());
         }
-        self.es_symbol_type()
+        Ok(self.es_symbol_type())
     }
 
     pub(super) fn get_this_type(&self, node: &Node) -> io::Result<Gc<Type>> {
@@ -367,7 +367,7 @@ impl TypeChecker {
             {
                 return Ok(self
                     .get_declared_type_of_class_or_interface(
-                        &self.get_symbol_of_node(parent).unwrap(),
+                        &self.get_symbol_of_node(parent)?.unwrap(),
                     )?
                     .as_interface_type()
                     .maybe_this_type()
@@ -384,7 +384,7 @@ impl TypeChecker {
             return Ok(self
                 .get_declared_type_of_class_or_interface(
                     &self
-                        .get_symbol_of_node(&parent.parent().as_binary_expression().left)
+                        .get_symbol_of_node(&parent.parent().as_binary_expression().left)?
                         .unwrap()
                         .maybe_parent()
                         .unwrap(),
@@ -407,7 +407,7 @@ impl TypeChecker {
             return Ok(self
                 .get_declared_type_of_class_or_interface(
                     &self
-                        .get_symbol_of_node(&host.parent().as_binary_expression().left)
+                        .get_symbol_of_node(&host.parent().as_binary_expression().left)?
                         .unwrap()
                         .maybe_parent()
                         .unwrap(),
@@ -416,12 +416,12 @@ impl TypeChecker {
                 .maybe_this_type()
                 .unwrap());
         }
-        if self.is_js_constructor(Some(&*container))
+        if self.is_js_constructor(Some(&*container))?
             && is_node_descendant_of(node, container.as_function_like_declaration().maybe_body())
         {
             return Ok(self
                 .get_declared_type_of_class_or_interface(
-                    &self.get_symbol_of_node(&container).unwrap(),
+                    &self.get_symbol_of_node(&container)?.unwrap(),
                 )?
                 .as_interface_type()
                 .maybe_this_type()
@@ -594,7 +594,7 @@ impl TypeChecker {
             SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
             SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node)?,
             SyntaxKind::InferType => self.get_type_from_infer_type_node(node),
-            SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node),
+            SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node)?,
             SyntaxKind::ImportType => self.get_type_from_import_type_node(node)?,
             SyntaxKind::Identifier
             | SyntaxKind::QualifiedName
@@ -1030,7 +1030,7 @@ impl TypeChecker {
         if type_parameters.is_none() {
             let mut outer_type_parameters =
                 self.get_outer_type_parameters(&declaration, Some(true));
-            if self.is_js_constructor(Some(&*declaration)) {
+            if self.is_js_constructor(Some(&*declaration))? {
                 let template_tag_parameters =
                     self.get_type_parameters_from_declaration(&declaration);
                 outer_type_parameters = maybe_add_range(

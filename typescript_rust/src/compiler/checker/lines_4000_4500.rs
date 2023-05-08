@@ -23,8 +23,10 @@ impl TypeChecker {
         container: &Symbol,
         symbol: &Symbol,
     ) -> io::Result<Option<Gc<Symbol>>> {
-        if matches!(self.get_parent_of_symbol(symbol), Some(parent) if ptr::eq(container, &*parent))
-        {
+        if matches!(
+            self.get_parent_of_symbol(symbol)?,
+            Some(parent) if ptr::eq(container, &*parent)
+        ) {
             return Ok(Some(symbol.symbol_wrapper()));
         }
         let export_equals = container.maybe_exports().as_ref().and_then(|exports| {
@@ -398,7 +400,7 @@ impl TypeChecker {
                     if !(location_unwrapped.kind() == SyntaxKind::SourceFile
                         && !is_external_or_common_js_module(&location_unwrapped))
                     {
-                        let sym = self.get_symbol_of_node(&location_unwrapped);
+                        let sym = self.get_symbol_of_node(&location_unwrapped)?;
                         result = callback(
                             sym.and_then(|sym| sym.maybe_exports().clone())
                                 .unwrap_or_else(|| self.empty_symbols()),
@@ -416,7 +418,7 @@ impl TypeChecker {
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
                     for (key, member_symbol) in &*(*self
-                        .get_symbol_of_node(&location_unwrapped)
+                        .get_symbol_of_node(&location_unwrapped)?
                         .unwrap()
                         .maybe_members()
                         .clone()
@@ -1153,11 +1155,14 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_external_module_container(&self, declaration: &Node) -> Option<Gc<Symbol>> {
+    pub(super) fn get_external_module_container(
+        &self,
+        declaration: &Node,
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let node = find_ancestor(Some(declaration), |node| {
             self.has_external_module_symbol(node)
         });
-        node.and_then(|node| self.get_symbol_of_node(&node))
+        node.try_and_then(|node| self.get_symbol_of_node(&node))
     }
 
     pub(super) fn has_external_module_symbol(&self, declaration: &Node) -> bool {

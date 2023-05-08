@@ -196,7 +196,7 @@ impl TypeChecker {
                                 self.get_resolved_symbol(source)?,
                             ))
                             .as_ref(),
-                            self.get_symbol_of_node(target).as_ref(),
+                            self.get_symbol_of_node(target)?.as_ref(),
                         )
                 });
             }
@@ -1060,7 +1060,7 @@ impl TypeChecker {
             SyntaxKind::ArrayLiteralExpression => {
                 self.get_assigned_type_of_array_literal_element(&parent, node)?
             }
-            SyntaxKind::SpreadElement => self.get_assigned_type_of_spread_expression(&parent),
+            SyntaxKind::SpreadElement => self.get_assigned_type_of_spread_expression(&parent)?,
             SyntaxKind::PropertyAssignment => {
                 self.get_assigned_type_of_property_assignment(&parent)?
             }

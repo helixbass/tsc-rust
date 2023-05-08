@@ -197,35 +197,31 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn mark_symbol_of_alias_declaration_if_type_only<
-        TAliasDeclaration: Borrow<Node>,
-        TImmediateTarget: Borrow<Symbol>,
-        TFinalTarget: Borrow<Symbol>,
-    >(
+    pub(super) fn mark_symbol_of_alias_declaration_if_type_only(
         &self,
-        alias_declaration: Option<TAliasDeclaration /*Declaration*/>,
-        immediate_target: Option<TImmediateTarget>,
-        final_target: Option<TFinalTarget>,
+        alias_declaration: Option<impl Borrow<Node> /*Declaration*/>,
+        immediate_target: Option<impl Borrow<Symbol>>,
+        final_target: Option<impl Borrow<Symbol>>,
         overwrite_empty: bool,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if alias_declaration.is_none() {
-            return false;
+            return Ok(false);
         }
         let alias_declaration = alias_declaration.unwrap();
         let alias_declaration = alias_declaration.borrow();
         if is_property_access_expression(alias_declaration) {
-            return false;
+            return Ok(false);
         }
 
-        let source_symbol = self.get_symbol_of_node(alias_declaration).unwrap();
+        let source_symbol = self.get_symbol_of_node(alias_declaration)?.unwrap();
         if is_type_only_import_or_export_declaration(alias_declaration) {
             let links = self.get_symbol_links(&source_symbol);
             links.borrow_mut().type_only_declaration = Some(Some(alias_declaration.node_wrapper()));
-            return true;
+            return Ok(true);
         }
 
         let links = self.get_symbol_links(&source_symbol);
-        self.mark_symbol_of_alias_declaration_if_type_only_worker(
+        Ok(self.mark_symbol_of_alias_declaration_if_type_only_worker(
             &links,
             immediate_target,
             overwrite_empty,
@@ -233,7 +229,7 @@ impl TypeChecker {
             &links,
             final_target,
             overwrite_empty,
-        )
+        ))
     }
 
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only_worker<TTarget: Borrow<Symbol>>(
@@ -315,7 +311,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportEqualsDeclaration | ExportSpecifier*/
     ) -> io::Result<()> {
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
         let target = self.resolve_alias(&symbol)?;
         // if (target) {
         let mark_alias = Gc::ptr_eq(&target, &self.unknown_symbol())
@@ -557,7 +553,7 @@ impl TypeChecker {
                             .as_variable_declaration()
                             .maybe_initializer()
                     {
-                        if self.is_common_js_require(&namespace_value_declaration_initializer) {
+                        if self.is_common_js_require(&namespace_value_declaration_initializer)? {
                             let module_name = &namespace_value_declaration_initializer
                                 .as_call_expression()
                                 .arguments[0];
@@ -588,7 +584,7 @@ impl TypeChecker {
                         self.get_fully_qualified_name(&namespace, Option::<&Node>::None)?;
                     let declaration_name = declaration_name_to_string(Some(&**right));
                     let suggestion_for_nonexistent_module =
-                        self.get_suggested_symbol_for_nonexistent_module(right, &namespace);
+                        self.get_suggested_symbol_for_nonexistent_module(right, &namespace)?;
                     if let Some(suggestion_for_nonexistent_module) =
                         suggestion_for_nonexistent_module
                     {
@@ -714,7 +710,7 @@ impl TypeChecker {
     pub(super) fn get_assignment_declaration_location(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let type_alias = find_ancestor(Some(node), |node| {
             if !(is_jsdoc_node(node) || node.flags().intersects(NodeFlags::JSDoc)) {
                 FindAncestorCallbackReturn::Quit
@@ -723,7 +719,7 @@ impl TypeChecker {
             }
         });
         if type_alias.is_some() {
-            return None;
+            return Ok(None);
         }
         let host = get_jsdoc_host(node);
         if let Some(host) = host.as_ref() {
@@ -738,9 +734,9 @@ impl TypeChecker {
                             .expression
                             .as_binary_expression()
                             .left,
-                    );
+                    )?;
                     if let Some(symbol) = symbol {
-                        return self.get_declaration_of_js_prototype_container(&symbol);
+                        return Ok(self.get_declaration_of_js_prototype_container(&symbol));
                     }
                 }
             }
@@ -752,20 +748,20 @@ impl TypeChecker {
                     == AssignmentDeclarationKind::Prototype
             {
                 let symbol =
-                    self.get_symbol_of_node(&host.parent().parent().as_binary_expression().left);
+                    self.get_symbol_of_node(&host.parent().parent().as_binary_expression().left)?;
                 if let Some(symbol) = symbol {
-                    return self.get_declaration_of_js_prototype_container(&symbol);
+                    return Ok(self.get_declaration_of_js_prototype_container(&symbol));
                 }
             }
         }
         let sig = get_effective_jsdoc_host(node);
         if let Some(sig) = sig {
             if is_function_like(Some(&*sig)) {
-                let symbol = self.get_symbol_of_node(&sig);
-                return symbol.and_then(|symbol| symbol.maybe_value_declaration());
+                let symbol = self.get_symbol_of_node(&sig)?;
+                return Ok(symbol.and_then(|symbol| symbol.maybe_value_declaration()));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_declaration_of_js_prototype_container(
@@ -783,13 +779,13 @@ impl TypeChecker {
         Some(initializer.unwrap_or(decl))
     }
 
-    pub(super) fn get_expando_symbol(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
+    pub(super) fn get_expando_symbol(&self, symbol: &Symbol) -> io::Result<Option<Gc<Symbol>>> {
         let decl = symbol.maybe_value_declaration()?;
         if !is_in_js_file(Some(&*decl))
             || symbol.flags().intersects(SymbolFlags::TypeAlias)
             || get_expando_initializer(&decl, false).is_some()
         {
-            return None;
+            return Ok(None);
         }
         let init = if is_variable_declaration(&decl) {
             get_declared_expando_initializer(&decl)
@@ -797,12 +793,12 @@ impl TypeChecker {
             get_assigned_expando_initializer(Some(&*decl))
         };
         if let Some(init) = init {
-            let init_symbol = self.get_symbol_of_node(&init);
+            let init_symbol = self.get_symbol_of_node(&init)?;
             if let Some(init_symbol) = init_symbol {
-                return self.merge_js_symbols(&init_symbol, Some(symbol));
+                return Ok(self.merge_js_symbols(&init_symbol, Some(symbol)));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn resolve_external_module_name_(

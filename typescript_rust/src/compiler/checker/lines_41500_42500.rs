@@ -20,13 +20,14 @@ use crate::{
     is_string_literal, is_type_only_import_or_export_declaration, is_var_const,
     is_variable_declaration, is_variable_like_or_accessor, maybe_get_source_file_of_node,
     maybe_is_class_like, modifier_to_flag, node_can_be_decorated, node_is_present,
-    parse_isolated_entity_name, should_preserve_const_enums, some, token_to_string, try_cast,
-    with_synthetic_factory_and_factory, Debug_, Diagnostic, Diagnostics, EmitResolver,
-    ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags,
-    NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName, PragmaName, Signature,
-    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, UnwrapOrEmpty,
+    parse_isolated_entity_name, return_ok_default_if_none, should_preserve_const_enums, some,
+    token_to_string, try_cast, try_some, with_synthetic_factory_and_factory, Debug_, Diagnostic,
+    Diagnostics, EmitResolver, ExternalEmitHelpers, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, LiteralType, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
+    PragmaArgumentName, PragmaName, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind, UnwrapOrEmpty,
 };
 
 impl TypeChecker {
@@ -56,15 +57,15 @@ impl TypeChecker {
         &self,
         node: &Node,
         check_children: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if self.is_alias_symbol_declaration(node) {
-            let symbol = self.get_symbol_of_node(node);
+            let symbol = self.get_symbol_of_node(node)?;
             let links = symbol.as_ref().map(|symbol| self.get_symbol_links(symbol));
             if matches!(
                 links.as_ref(),
                 Some(links) if (**links).borrow().referenced == Some(true)
             ) {
-                return true;
+                return Ok(true);
             }
             let target = (*self.get_symbol_links(symbol.as_ref().unwrap()))
                 .borrow()
@@ -78,18 +79,18 @@ impl TypeChecker {
                         !self.is_const_enum_or_const_enum_only_module(target)
                     )
             ) {
-                return true;
+                return Ok(true);
             }
         }
 
         if check_children == Some(true) {
-            return for_each_child_bool(
+            return Ok(for_each_child_bool(
                 node,
                 |node| self.is_referenced_alias_declaration(node, check_children),
                 Option::<fn(&NodeArray) -> bool>::None,
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_implementation_of_overload_(
@@ -103,7 +104,7 @@ impl TypeChecker {
             if is_get_accessor(node) || is_set_accessor(node) {
                 return Ok(false);
             }
-            let symbol = self.get_symbol_of_node(node);
+            let symbol = self.get_symbol_of_node(node)?;
             let signatures_of_symbol = self.get_signatures_of_symbol(symbol.as_deref())?;
             return Ok(signatures_of_symbol.len() > 1
                 || signatures_of_symbol.len() == 1
@@ -161,16 +162,11 @@ impl TypeChecker {
         &self,
         node: &Node, /*Declaration*/
     ) -> io::Result<bool> {
-        let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
-        if declaration.is_none() {
-            return Ok(false);
-        }
-        let declaration = declaration.as_ref().unwrap();
-        let symbol = self.get_symbol_of_node(declaration);
-        if symbol.is_none() {
-            return Ok(false);
-        }
-        let symbol = symbol.as_ref().unwrap();
+        let ref declaration = return_ok_default_if_none!(get_parse_tree_node(
+            Some(node),
+            Some(is_function_declaration)
+        ));
+        let ref symbol = return_ok_default_if_none!(self.get_symbol_of_node(declaration)?);
         if !symbol.flags().intersects(SymbolFlags::Function) {
             return Ok(false);
         }
@@ -195,7 +191,7 @@ impl TypeChecker {
             return Ok(Either::Right(iter::empty()));
         }
         let declaration = declaration.as_ref().unwrap();
-        let symbol = self.get_symbol_of_node(declaration);
+        let symbol = self.get_symbol_of_node(declaration)?;
         Ok(if let Some(symbol) = symbol.as_ref() {
             Some(self.get_properties_of_type(&*self.get_type_of_symbol(symbol)?)?)
         } else {
@@ -433,7 +429,7 @@ impl TypeChecker {
             ));
         }
         let declaration = declaration.as_ref().unwrap();
-        let symbol = self.get_symbol_of_node(declaration);
+        let symbol = self.get_symbol_of_node(declaration)?;
         let mut type_ = if let Some(symbol) = symbol.as_ref().filter(|symbol| {
             !symbol
                 .flags()
@@ -580,7 +576,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         if is_declaration_readonly(node) || is_variable_declaration(node) && is_var_const(node) {
             return Ok(self.is_fresh_literal_type(
-                &*self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())?,
+                &*self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
             ));
         }
         Ok(false)
@@ -629,7 +625,7 @@ impl TypeChecker {
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> io::Result<Gc<Node>> {
-        let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())?;
+        let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?;
         self.literal_type_to_node(type_, node, tracker)
     }
 
@@ -1042,12 +1038,12 @@ impl TypeChecker {
                                 Some(symbol) => {
                                     if helper.intersects(ExternalEmitHelpers::ClassPrivateFieldGet)
                                     {
-                                        if !some(
+                                        if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
-                                            Some(|signature: &Gc<Signature>| {
-                                                self.get_parameter_count(signature) > 3
+                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                                Ok(self.get_parameter_count(signature)? > 3)
                                             }),
-                                        ) {
+                                        )? {
                                             self.error(
                                                 Some(location),
                                                 &Diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,
@@ -1061,12 +1057,12 @@ impl TypeChecker {
                                     } else if helper
                                         .intersects(ExternalEmitHelpers::ClassPrivateFieldSet)
                                     {
-                                        if !some(
+                                        if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
-                                            Some(|signature: &Gc<Signature>| {
-                                                self.get_parameter_count(signature) > 4
+                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                                Ok(self.get_parameter_count(signature)? > 4)
                                             }),
-                                        ) {
+                                        )? {
                                             self.error(
                                                 Some(location),
                                                 &Diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,
@@ -1078,12 +1074,12 @@ impl TypeChecker {
                                             );
                                         }
                                     } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
-                                        if !some(
+                                        if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))?),
-                                            Some(|signature: &Gc<Signature>| {
-                                                self.get_parameter_count(signature) > 2
+                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                                Ok(self.get_parameter_count(signature)? > 2)
                                             }),
-                                        ) {
+                                        )? {
                                             self.error(
                                                 Some(location),
                                                 &Diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,

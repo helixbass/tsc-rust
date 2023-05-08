@@ -10,10 +10,10 @@ use crate::{
     is_external_or_common_js_module, is_in_js_file, is_jsdoc_callback_tag, is_jsdoc_function_type,
     is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_logging,
     is_module_exports_access_expression, is_parameter, is_rest_parameter, last, last_or_undefined,
-    maybe_for_each, relative_complement, skip_type_checking, CancellationTokenDebuggable, Debug_,
-    Diagnostic, Diagnostics, HasStatementsInterface, ImportsNotUsedAsValues, Node, NodeArray,
-    NodeCheckFlags, NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, Type,
-    TypeChecker, TypeCheckerHost,
+    maybe_for_each, relative_complement, skip_type_checking, try_for_each_child,
+    CancellationTokenDebuggable, Debug_, Diagnostic, Diagnostics, HasStatementsInterface,
+    ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
+    SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -189,11 +189,11 @@ impl TypeChecker {
             SyntaxKind::JSDocFunctionType => {
                 self.check_jsdoc_function_type(node);
                 self.check_jsdoc_type_is_in_js_file(node);
-                for_each_child(
+                try_for_each_child(
                     node,
                     |child| self.check_source_element(Some(child)),
-                    Option::<fn(&NodeArray)>::None,
-                );
+                    Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                )?;
             }
             SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocNullableType
@@ -201,11 +201,11 @@ impl TypeChecker {
             | SyntaxKind::JSDocUnknownType
             | SyntaxKind::JSDocTypeLiteral => {
                 self.check_jsdoc_type_is_in_js_file(node);
-                for_each_child(
+                try_for_each_child(
                     node,
                     |child| self.check_source_element(Some(child)),
-                    Option::<fn(&NodeArray)>::None,
-                );
+                    Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                )?;
             }
             SyntaxKind::JSDocVariadicType => {
                 self.check_jsdoc_variadic_type(node);

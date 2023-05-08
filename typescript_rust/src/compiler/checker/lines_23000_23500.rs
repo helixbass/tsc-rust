@@ -970,14 +970,14 @@ impl TypeChecker {
             } else if node_as_call_expression.expression.kind() != SyntaxKind::SuperKeyword {
                 if is_optional_chain(node) {
                     func_type = Some(self.check_non_null_type(
-                        &self.get_optional_expression_type(
+                        &*self.get_optional_expression_type(
                             &*self.check_expression(
                                 &node_as_call_expression.expression,
                                 None,
                                 None,
                             )?,
                             &node_as_call_expression.expression,
-                        ),
+                        )?,
                         &node_as_call_expression.expression,
                     ));
                 } else {

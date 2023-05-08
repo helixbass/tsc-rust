@@ -16,7 +16,7 @@ use crate::{
     is_part_of_type_node, is_property_access_expression, is_property_assignment,
     is_right_side_of_qualified_name_or_property_access, is_shorthand_ambient_module_symbol,
     is_source_file, is_statement_with_locals, is_static, map_defined, node_is_missing,
-    single_element_array, some, try_flat_map, try_for_each_entry_bool,
+    single_element_array, some, try_find_ancestor, try_flat_map, try_for_each_entry_bool,
     try_get_class_implementing_or_extending_expression_with_type_arguments, try_map_defined,
     try_some, type_has_call_or_construct_signatures, walk_up_binding_elements_and_patterns,
     CheckFlags, Debug_, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, Node,
@@ -127,7 +127,7 @@ impl TypeChecker {
             try_get_class_implementing_or_extending_expression_with_type_arguments(node);
         let class_type = class_decl.as_ref().try_map(|class_decl| {
             self.get_declared_type_of_class_or_interface(
-                &self.get_symbol_of_node(&class_decl.class).unwrap(),
+                &self.get_symbol_of_node(&class_decl.class)?.unwrap(),
             )
         })?;
         if is_part_of_type_node(node) {
@@ -164,7 +164,7 @@ impl TypeChecker {
         }
 
         if self.is_type_declaration(node) {
-            let ref symbol = self.get_symbol_of_node(node).unwrap();
+            let ref symbol = self.get_symbol_of_node(node)?.unwrap();
             return self.get_declared_type_of_symbol(symbol);
         }
 
@@ -178,7 +178,7 @@ impl TypeChecker {
         }
 
         if is_declaration(node) {
-            let ref symbol = self.get_symbol_of_node(node).unwrap();
+            let ref symbol = self.get_symbol_of_node(node)?.unwrap();
             return self.get_type_of_symbol(symbol);
         }
 
@@ -211,7 +211,7 @@ impl TypeChecker {
         if is_meta_property(&node.parent())
             && node.parent().as_meta_property().keyword_token == node.kind()
         {
-            return Ok(self.check_meta_property_keyword(&node.parent()));
+            return self.check_meta_property_keyword(&node.parent());
         }
 
         Ok(self.error_type())
@@ -329,7 +329,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ClassElement*/
     ) -> io::Result<Gc<Type>> {
-        let ref class_symbol = self.get_symbol_of_node(&node.parent()).unwrap();
+        let ref class_symbol = self.get_symbol_of_node(&node.parent())?.unwrap();
         Ok(if is_static(node) {
             self.get_type_of_symbol(class_symbol)?
         } else {
@@ -574,7 +574,7 @@ impl TypeChecker {
                     }
                     symbol = export_symbol.clone();
                 }
-                let parent_symbol = self.get_parent_of_symbol(&symbol);
+                let parent_symbol = self.get_parent_of_symbol(&symbol)?;
                 if let Some(parent_symbol) = parent_symbol.as_ref() {
                     if parent_symbol.flags().intersects(SymbolFlags::ValueModule) {
                         if let Some(parent_symbol_value_declaration) = parent_symbol
@@ -594,16 +594,16 @@ impl TypeChecker {
                             });
                         }
                     }
-                    return Ok(find_ancestor(node.maybe_parent(), |n| {
-                        is_module_or_enum_declaration(n)
+                    return try_find_ancestor(node.maybe_parent(), |n| -> io::Result<_> {
+                        Ok(is_module_or_enum_declaration(n)
                             && matches!(
-                                self.get_symbol_of_node(n).as_ref(),
+                                self.get_symbol_of_node(n)?.as_ref(),
                                 Some(symbol) if Gc::ptr_eq(
                                     symbol,
                                     parent_symbol
                                 )
-                            )
-                    }));
+                            ))
+                    });
                 }
             }
         }
@@ -739,7 +739,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let node = get_parse_tree_node(Some(node_in), Some(is_declaration));
         if let Some(node) = node.as_ref() {
-            let symbol = self.get_symbol_of_node(node);
+            let symbol = self.get_symbol_of_node(node)?;
             if let Some(symbol) = symbol.as_ref() {
                 return self.is_symbol_of_declaration_with_colliding_name(symbol);
             }
@@ -751,13 +751,13 @@ impl TypeChecker {
     pub(super) fn is_value_alias_declaration(&self, node: &Node) -> io::Result<bool> {
         Ok(match node.kind() {
             SyntaxKind::ImportEqualsDeclaration => {
-                self.is_alias_resolved_to_value(self.get_symbol_of_node(node))?
+                self.is_alias_resolved_to_value(self.get_symbol_of_node(node)?)?
             }
             SyntaxKind::ImportClause
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportSpecifier
             | SyntaxKind::ExportSpecifier => {
-                let symbol = self.get_symbol_of_node(node);
+                let symbol = self.get_symbol_of_node(node)?;
                 matches!(
                     symbol.as_ref(),
                     Some(symbol) if self.is_alias_resolved_to_value(Some(&**symbol))? &&
@@ -781,7 +781,7 @@ impl TypeChecker {
                 if
                 /*(node as ExportAssignment).expression &&*/
                 node.as_export_assignment().expression.kind() == SyntaxKind::Identifier {
-                    self.is_alias_resolved_to_value(self.get_symbol_of_node(node))?
+                    self.is_alias_resolved_to_value(self.get_symbol_of_node(node)?)?
                 } else {
                     true
                 }
@@ -806,7 +806,7 @@ impl TypeChecker {
         }
         let node = node.as_ref().unwrap();
 
-        let is_value = self.is_alias_resolved_to_value(self.get_symbol_of_node(node))?;
+        let is_value = self.is_alias_resolved_to_value(self.get_symbol_of_node(node)?)?;
         Ok(is_value && /*node.moduleReference &&*/
             !node_is_missing(Some(&*node.as_import_equals_declaration().module_reference)))
     }

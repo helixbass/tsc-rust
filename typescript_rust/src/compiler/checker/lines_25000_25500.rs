@@ -199,14 +199,14 @@ impl TypeChecker {
         &self,
         node: &Node,
         decl: &Node, /*VariableDeclaration | BindingElement*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let links = self.get_node_links(node);
         /* !!links &&*/
         let ret = contains_gc(
             (*links).borrow().captured_block_scope_bindings.as_deref(),
-            &self.get_symbol_of_node(decl).unwrap(),
+            &self.get_symbol_of_node(decl)?.unwrap(),
         );
-        ret
+        Ok(ret)
     }
 
     pub(super) fn is_assigned_in_body_of_for_statement(
@@ -279,7 +279,7 @@ impl TypeChecker {
         &self,
         class_decl: &Node, /*ClassDeclaration*/
     ) -> io::Result<bool> {
-        let class_symbol = self.get_symbol_of_node(class_decl).unwrap();
+        let class_symbol = self.get_symbol_of_node(class_decl)?.unwrap();
         let class_instance_type = self.get_declared_type_of_symbol(&class_symbol)?;
         let base_constructor_type =
             self.get_base_constructor_type_of_class(&class_instance_type)?;
@@ -481,7 +481,7 @@ impl TypeChecker {
                             .maybe_as_interface_type()
                             .and_then(|interface_type| interface_type.maybe_this_type());
                     }
-                } else if self.is_js_constructor(Some(&*container)) {
+                } else if self.is_js_constructor(Some(&*container))? {
                     this_type = self
                         .get_declared_type_of_symbol(
                             &self.get_merged_symbol(Some(container.symbol())).unwrap(),
@@ -505,7 +505,7 @@ impl TypeChecker {
         }
 
         if maybe_is_class_like(container.maybe_parent()) {
-            let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
+            let symbol = self.get_symbol_of_node(&container.parent())?.unwrap();
             let type_ = if is_static(&container) {
                 self.get_type_of_symbol(&symbol)?
             } else {
@@ -528,7 +528,7 @@ impl TypeChecker {
                 .maybe_common_js_module_indicator()
                 .is_some()
             {
-                let file_symbol = self.get_symbol_of_node(&container);
+                let file_symbol = self.get_symbol_of_node(&container)?;
                 return file_symbol
                     .as_ref()
                     .try_map(|file_symbol| self.get_type_of_symbol(file_symbol));
@@ -557,7 +557,7 @@ impl TypeChecker {
             }
         }
         if maybe_is_class_like(container.maybe_parent()) {
-            let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
+            let symbol = self.get_symbol_of_node(&container.parent())?.unwrap();
             return Ok(if is_static(&container) {
                 Some(self.get_type_of_symbol(&symbol)?)
             } else {
@@ -905,7 +905,7 @@ impl TypeChecker {
         }
 
         let class_type = self.get_declared_type_of_symbol(
-            &self.get_symbol_of_node(&class_like_declaration).unwrap(),
+            &self.get_symbol_of_node(&class_like_declaration)?.unwrap(),
         )?;
         let base_class_type = /*classType &&*/
             self.get_base_types(&class_type).get(0).cloned();

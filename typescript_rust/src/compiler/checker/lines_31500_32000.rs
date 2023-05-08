@@ -23,12 +23,12 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         fallback_type: &Type,
-    ) -> Gc<Type> {
-        if !signature.parameters().is_empty() {
-            self.get_type_at_position(signature, 0)
+    ) -> io::Result<Gc<Type>> {
+        Ok(if !signature.parameters().is_empty() {
+            self.get_type_at_position(signature, 0)?
         } else {
             fallback_type.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn infer_from_annotated_parameters(
@@ -55,14 +55,14 @@ impl TypeChecker {
                     self.infer_types(
                         &inference_context.inferences(),
                         &*self.get_type_from_type_node_(type_node)?,
-                        &self.get_type_at_position(&context, i),
+                        &*self.get_type_at_position(&context, i)?,
                         None,
                         None,
                     );
                 }
             }
         }
-        let rest_type = self.get_effective_rest_type(&context);
+        let rest_type = self.get_effective_rest_type(&context)?;
         if let Some(rest_type) = rest_type
             .as_ref()
             .filter(|rest_type| rest_type.flags().intersects(TypeFlags::TypeParameter))
@@ -73,10 +73,10 @@ impl TypeChecker {
                 None,
             );
             self.assign_contextual_parameter_types(signature, &instantiated_context);
-            let rest_pos = self.get_parameter_count(&context) - 1;
+            let rest_pos = self.get_parameter_count(&context)? - 1;
             self.infer_types(
                 &inference_context.inferences(),
-                &self.get_rest_type_at_position(signature, rest_pos),
+                &*self.get_rest_type_at_position(signature, rest_pos)?,
                 rest_type,
                 None,
                 None,
@@ -129,7 +129,7 @@ impl TypeChecker {
             if get_effective_type_annotation_node(&parameter.maybe_value_declaration().unwrap())
                 .is_none()
             {
-                let contextual_parameter_type = self.try_get_type_at_position(context, i);
+                let contextual_parameter_type = self.try_get_type_at_position(context, i)?;
                 self.assign_parameter_type(parameter, contextual_parameter_type);
             }
         }
@@ -139,7 +139,7 @@ impl TypeChecker {
                 || get_effective_type_annotation_node(&parameter.maybe_value_declaration().unwrap())
                     .is_none()
             {
-                let contextual_parameter_type = self.get_rest_type_at_position(context, len);
+                let contextual_parameter_type = self.get_rest_type_at_position(context, len)?;
                 self.assign_parameter_type(parameter, Some(contextual_parameter_type));
             }
         }
@@ -192,7 +192,7 @@ impl TypeChecker {
             if !is_omitted_expression(element) {
                 let element_as_binding_element = element.as_binding_element();
                 if element_as_binding_element.name().kind() == SyntaxKind::Identifier {
-                    self.get_symbol_links(&self.get_symbol_of_node(element).unwrap())
+                    self.get_symbol_links(&self.get_symbol_of_node(element)?.unwrap())
                         .borrow_mut()
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {
@@ -524,7 +524,7 @@ impl TypeChecker {
         } else {
             &self.sync_iteration_types_resolver
         };
-        let global_generator_type = (resolver.get_global_generator_type)(self, false);
+        let global_generator_type = (resolver.get_global_generator_type)(self, false)?;
         let yield_type = (resolver.resolve_iteration_type)(self, yield_type, None)?
             .unwrap_or_else(|| self.unknown_type());
         let return_type = (resolver.resolve_iteration_type)(self, return_type, None)?
@@ -532,9 +532,9 @@ impl TypeChecker {
         let next_type = (resolver.resolve_iteration_type)(self, next_type, None)?
             .unwrap_or_else(|| self.unknown_type());
         if Gc::ptr_eq(&global_generator_type, &self.empty_generic_type()) {
-            let global_type = (resolver.get_global_iterable_iterator_type)(self, false);
+            let global_type = (resolver.get_global_iterable_iterator_type)(self, false)?;
             let iteration_types = if !Gc::ptr_eq(&global_type, &self.empty_generic_type()) {
-                Some(self.get_iteration_types_of_global_iterable_type(&global_type, resolver))
+                Some(self.get_iteration_types_of_global_iterable_type(&global_type, resolver)?)
             } else {
                 None
             };
@@ -822,7 +822,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Gc<Type>>>> {
         let function_flags = get_function_flags(Some(func));
         let mut aggregated_types: Vec<Gc<Type>> = vec![];
-        let mut has_return_with_no_expression = self.function_has_implicit_return(func);
+        let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
         try_for_each_return_statement(
             &func.as_function_like_declaration().maybe_body().unwrap(),
@@ -864,7 +864,7 @@ impl TypeChecker {
         if self.strict_null_checks
             && !aggregated_types.is_empty()
             && has_return_with_no_expression
-            && !(self.is_js_constructor(Some(func))
+            && !(self.is_js_constructor(Some(func))?
                 && aggregated_types.iter().any(|t| {
                     are_option_gcs_equal(t.maybe_symbol().as_ref(), func.maybe_symbol().as_ref())
                 }))
@@ -894,10 +894,10 @@ impl TypeChecker {
         }
 
         let function_flags = get_function_flags(Some(func));
-        let type_ = return_type.map(|return_type| {
+        let type_ = return_type.try_map(|return_type| {
             let return_type = return_type.borrow();
             self.unwrap_return_type(return_type, function_flags)
-        });
+        })?;
 
         if matches!(
             type_.as_ref(),
@@ -914,7 +914,7 @@ impl TypeChecker {
                     .unwrap()
                     .kind()
                     != SyntaxKind::Block
-                || !self.function_has_implicit_return(func)
+                || !self.function_has_implicit_return(func)?
         } {
             return Ok(());
         }

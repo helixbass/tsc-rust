@@ -87,10 +87,10 @@ impl TypeChecker {
                 }
             }
         }
-        let target_len = self.get_parameter_count(&target);
+        let target_len = self.get_parameter_count(&target)?;
         for i in 0..target_len {
-            let s = self.get_type_at_position(&source, i);
-            let t = self.get_type_at_position(&target, i);
+            let s = self.get_type_at_position(&source, i)?;
+            let t = self.get_type_at_position(&target, i)?;
             let related = compare_types(&t, &s);
             if related == Ternary::False {
                 return Ok(Ternary::False);

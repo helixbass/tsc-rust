@@ -41,3 +41,15 @@ macro_rules! return_ok_default_if_none {
         }
     };
 }
+
+#[macro_export]
+macro_rules! break_if_none {
+    ($expr:expr $(,)?) => {
+        match $expr {
+            None => {
+                break;
+            }
+            Some(expr) => expr,
+        }
+    };
+}

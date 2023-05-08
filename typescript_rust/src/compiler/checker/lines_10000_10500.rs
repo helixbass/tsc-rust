@@ -170,15 +170,13 @@ impl TypeChecker {
             } else {
                 ObjectFlags::Interface
             };
-            let merged = self.merge_js_symbols(
-                &symbol,
-                symbol
-                    .maybe_value_declaration()
-                    .as_ref()
-                    .and_then(|value_declaration| {
-                        self.get_assigned_class_symbol(value_declaration)
-                    }),
-            );
+            let merged =
+                self.merge_js_symbols(
+                    &symbol,
+                    symbol.maybe_value_declaration().as_ref().try_and_then(
+                        |value_declaration| self.get_assigned_class_symbol(value_declaration),
+                    )?,
+                );
             if let Some(merged) = merged {
                 symbol = merged.clone();
                 links = merged.as_transient_symbol().symbol_links();
@@ -358,14 +356,17 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_literal_enum_member(&self, member: &Node /*EnumMember*/) -> bool {
+    pub(super) fn is_literal_enum_member(
+        &self,
+        member: &Node, /*EnumMember*/
+    ) -> io::Result<bool> {
         let member_as_enum_member = member.as_enum_member();
         let expr = member_as_enum_member.initializer.as_deref();
         if expr.is_none() {
-            return !member.flags().intersects(NodeFlags::Ambient);
+            return Ok(!member.flags().intersects(NodeFlags::Ambient));
         }
         let expr = expr.unwrap();
-        match expr.kind() {
+        Ok(match expr.kind() {
             SyntaxKind::StringLiteral
             | SyntaxKind::NumericLiteral
             | SyntaxKind::NoSubstitutionTemplateLiteral => true,
@@ -376,14 +377,17 @@ impl TypeChecker {
             }
             SyntaxKind::Identifier => {
                 node_is_missing(Some(expr))
-                    || (*self.get_symbol_of_node(&member.parent()).unwrap().exports())
-                        .borrow()
-                        .get(&expr.as_identifier().escaped_text)
-                        .is_some()
+                    || (*self
+                        .get_symbol_of_node(&member.parent())?
+                        .unwrap()
+                        .exports())
+                    .borrow()
+                    .get(&expr.as_identifier().escaped_text)
+                    .is_some()
             }
             SyntaxKind::BinaryExpression => self.is_string_concat_expression(expr),
             _ => false,
-        }
+        })
     }
 
     pub(super) fn get_enum_kind(&self, symbol: &Symbol) -> EnumKind {
@@ -424,7 +428,7 @@ impl TypeChecker {
                 && !type_.flags().intersects(TypeFlags::Union)
             {
                 self.get_declared_type_of_symbol(
-                    &self.get_parent_of_symbol(&type_.symbol()).unwrap(),
+                    &self.get_parent_of_symbol(&type_.symbol())?.unwrap(),
                 )?
             } else {
                 type_.type_wrapper()
@@ -449,9 +453,9 @@ impl TypeChecker {
                                 self.get_fresh_type_of_literal_type(&self.get_enum_literal_type(
                                     value.unwrap_or_else(|| Number::new(0.0).into()),
                                     self.enum_count(),
-                                    &self.get_symbol_of_node(member).unwrap(),
+                                    &self.get_symbol_of_node(member)?.unwrap(),
                                 ));
-                            self.get_symbol_links(&self.get_symbol_of_node(member).unwrap())
+                            self.get_symbol_links(&self.get_symbol_of_node(member)?.unwrap())
                                 .borrow_mut()
                                 .declared_type = Some(member_type.clone());
                             member_type_list
@@ -486,7 +490,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().declared_type.is_none() {
             let enum_type =
-                self.get_declared_type_of_enum(&self.get_parent_of_symbol(symbol).unwrap())?;
+                self.get_declared_type_of_enum(&self.get_parent_of_symbol(symbol)?.unwrap())?;
             let mut links = links.borrow_mut();
             if links.declared_type.is_none() {
                 links.declared_type = Some(enum_type);

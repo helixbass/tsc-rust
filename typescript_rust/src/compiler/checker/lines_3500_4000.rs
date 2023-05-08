@@ -265,7 +265,7 @@ impl TypeChecker {
                             &symbol,
                             module_symbol.as_ref().unwrap(),
                             reference,
-                        );
+                        )?;
                         return Ok(Some(self.clone_type_as_module_type(
                             &symbol,
                             &module_type,
@@ -715,7 +715,7 @@ impl TypeChecker {
             if !is_external_module(file) {
                 continue;
             }
-            let sym = self.get_symbol_of_node(file).unwrap();
+            let sym = self.get_symbol_of_node(file)?.unwrap();
             let ref_ = self.get_alias_for_symbol_in_container(&sym, symbol)?;
             if ref_.is_none() {
                 continue;
@@ -736,7 +736,7 @@ impl TypeChecker {
         enclosing_declaration: Option<impl Borrow<Node>>,
         meaning: SymbolFlags,
     ) -> io::Result<Option<Vec<Gc<Symbol>>>> {
-        let container = self.get_parent_of_symbol(symbol);
+        let container = self.get_parent_of_symbol(symbol)?;
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         if let Some(container) = container {
@@ -835,7 +835,7 @@ impl TypeChecker {
                 if !is_ambient_module(d) {
                     if let Some(d_parent) = d.maybe_parent() {
                         if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
-                            return Ok(self.get_symbol_of_node(&d_parent));
+                            return self.get_symbol_of_node(&d_parent);
                         }
                     }
                 }
@@ -856,7 +856,7 @@ impl TypeChecker {
                                     &d_parent_as_binary_expression.left,
                                 ) || is_exports_identifier(&d_parent_left_expression)
                                 {
-                                    return Ok(self.get_symbol_of_node(&get_source_file_of_node(d)));
+                                    return self.get_symbol_of_node(&get_source_file_of_node(d));
                                 }
                                 self.check_expression_cached(&d_parent_left_expression, None);
                                 return Ok((*self.get_node_links(&d_parent_left_expression))
@@ -894,7 +894,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         meaning: SymbolFlags,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let first_decl: Option<Gc<Node>> = if length(symbol.maybe_declarations().as_deref()) > 0 {
             Some(first(symbol.maybe_declarations().as_deref().unwrap()).clone())
         } else {
@@ -923,7 +923,7 @@ impl TypeChecker {
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_file_symbol_if_file_symbol_export_equals_container(

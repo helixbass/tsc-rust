@@ -179,7 +179,7 @@ impl TypeChecker {
                     SyntaxKind::GetAccessor
                 };
                 let other = get_declaration_of_kind(
-                    &self.get_symbol_of_node(declaration).unwrap(),
+                    &self.get_symbol_of_node(declaration)?.unwrap(),
                     other_kind,
                 );
                 if let Some(other) = other {
@@ -707,7 +707,7 @@ impl TypeChecker {
                 return Ok(js_doc_type);
             }
             let setter = get_declaration_of_kind(
-                &self.get_symbol_of_node(declaration).unwrap(),
+                &self.get_symbol_of_node(declaration)?.unwrap(),
                 SyntaxKind::SetAccessor,
             );
             let setter_type = self.get_annotated_accessor_type(setter)?;

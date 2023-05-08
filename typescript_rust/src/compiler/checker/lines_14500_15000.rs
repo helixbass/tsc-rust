@@ -833,7 +833,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_index_type_or_string(&self, type_: &Type) -> io::Result<Gc<Type>> {
-        let index_type = self.get_extract_string_type(&*self.get_index_type(type_, None, None)?);
+        let index_type = self.get_extract_string_type(&*self.get_index_type(type_, None, None)?)?;
         Ok(if index_type.flags().intersects(TypeFlags::Never) {
             self.string_type()
         } else {

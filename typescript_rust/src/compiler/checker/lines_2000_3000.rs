@@ -4,21 +4,22 @@ use std::{io, ptr};
 
 use super::ResolveNameNameArg;
 use crate::{
-    add_related_info, concatenate, create_diagnostic_for_node, declaration_name_to_string,
-    deduplicate_gc, ends_with, escape_leading_underscores, export_assignment_is_alias, find,
-    find_ancestor, find_last, get_assignment_declaration_kind, get_es_module_interop,
-    get_external_module_import_equals_declaration_expression, get_external_module_require_argument,
-    get_immediately_invoked_function_expression, get_jsdoc_host, get_leftmost_access_expression,
-    get_mode_for_usage_location, get_name_of_declaration, get_root_declaration,
-    get_source_file_of_node, get_text_of_node, get_this_container, has_syntactic_modifier,
-    is_access_expression, is_aliasable_expression, is_binary_expression, is_binding_element,
-    is_block_or_catch_scoped, is_class_expression, is_class_like, is_computed_property_name,
-    is_entity_name, is_entity_name_expression, is_export_assignment, is_export_declaration,
-    is_export_specifier, is_function_expression, is_function_like, is_function_like_declaration,
-    is_identifier, is_in_js_file, is_jsdoc_template_tag, is_jsdoc_type_alias,
-    is_property_access_expression, is_property_signature, is_qualified_name,
-    is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
-    is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
+    add_related_info, break_if_none, concatenate, create_diagnostic_for_node,
+    declaration_name_to_string, deduplicate_gc, ends_with, escape_leading_underscores,
+    export_assignment_is_alias, find, find_ancestor, find_last, get_assignment_declaration_kind,
+    get_es_module_interop, get_external_module_import_equals_declaration_expression,
+    get_external_module_require_argument, get_immediately_invoked_function_expression,
+    get_jsdoc_host, get_leftmost_access_expression, get_mode_for_usage_location,
+    get_name_of_declaration, get_root_declaration, get_source_file_of_node, get_text_of_node,
+    get_this_container, has_syntactic_modifier, is_access_expression, is_aliasable_expression,
+    is_binary_expression, is_binding_element, is_block_or_catch_scoped, is_class_expression,
+    is_class_like, is_computed_property_name, is_entity_name, is_entity_name_expression,
+    is_export_assignment, is_export_declaration, is_export_specifier, is_function_expression,
+    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_access_expression,
+    is_property_signature, is_qualified_name, is_require_variable_declaration,
+    is_shorthand_ambient_module_symbol, is_source_file, is_source_file_js, is_static,
+    is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, map, maybe_is_class_like,
     should_preserve_const_enums, some, try_find, unescape_leading_underscores,
     AssignmentDeclarationKind, Debug_, Diagnostic, Diagnostics, Extension,
@@ -197,11 +198,8 @@ impl TypeChecker {
         let mut location: Option<Gc<Node>> = Some(container.clone());
         while let Some(location_present) = location {
             if maybe_is_class_like(location_present.maybe_parent()) {
-                let class_symbol = self.get_symbol_of_node(&location_present.parent());
-                if class_symbol.is_none() {
-                    break;
-                }
-                let class_symbol = class_symbol.unwrap();
+                let class_symbol =
+                    break_if_none!(self.get_symbol_of_node(&location_present.parent())?);
 
                 let constructor_type = self.get_type_of_symbol(&class_symbol)?;
                 if self
@@ -560,7 +558,7 @@ impl TypeChecker {
         &self,
         result: &Symbol,
         error_location: &Node,
-    ) {
+    ) -> io::Result<()> {
         Debug_.assert(
             result.flags().intersects(SymbolFlags::BlockScopedVariable)
                 || result.flags().intersects(SymbolFlags::Class)
@@ -571,7 +569,7 @@ impl TypeChecker {
             SymbolFlags::Function | SymbolFlags::FunctionScopedVariable | SymbolFlags::Assignment,
         ) && result.flags().intersects(SymbolFlags::Class)
         {
-            return;
+            return Ok(());
         }
         let result_declarations = result.maybe_declarations();
         let declaration = result_declarations.as_ref().and_then(|declarations| {
@@ -590,7 +588,7 @@ impl TypeChecker {
         let declaration = declaration.unwrap();
 
         if !declaration.flags().intersects(NodeFlags::Ambient)
-            && !self.is_block_scoped_name_declared_before_use(&declaration, error_location)
+            && !self.is_block_scoped_name_declared_before_use(&declaration, error_location)?
         {
             let mut diagnostic_message: Option<Gc<Diagnostic>> = None;
             let declaration_name =
@@ -637,6 +635,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_same_scope_descendent_of<TParent: Borrow<Node>>(
@@ -718,8 +718,12 @@ impl TypeChecker {
             || is_require_variable_declaration(node)
     }
 
-    pub(super) fn is_aliasable_or_js_expression(&self, e: &Node /*Expression*/) -> bool {
-        is_aliasable_expression(e) || is_function_expression(e) && self.is_js_constructor(Some(e))
+    pub(super) fn is_aliasable_or_js_expression(
+        &self,
+        e: &Node, /*Expression*/
+    ) -> io::Result<bool> {
+        Ok(is_aliasable_expression(e)
+            || is_function_expression(e) && self.is_js_constructor(Some(e))?)
     }
 
     pub(super) fn get_target_of_import_equals_declaration(
@@ -787,7 +791,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
         resolved: Option<impl Borrow<Symbol>>,
-    ) {
+    ) -> io::Result<()> {
         let node_as_import_equals_declaration = node.as_import_equals_declaration();
         if self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
@@ -797,7 +801,7 @@ impl TypeChecker {
         ) && !node_as_import_equals_declaration.is_type_only
         {
             let type_only_declaration = self
-                .get_type_only_alias_declaration(&self.get_symbol_of_node(node).unwrap())
+                .get_type_only_alias_declaration(&self.get_symbol_of_node(node)?.unwrap())
                 .unwrap();
             let is_export = type_only_declaration.kind() == SyntaxKind::ExportSpecifier;
             let message = if is_export {
@@ -829,6 +833,8 @@ impl TypeChecker {
                 .into()],
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn resolve_export_by_name(
@@ -1432,7 +1438,7 @@ impl TypeChecker {
                 let module_name = self.get_fully_qualified_name(&module_symbol, Some(node))?;
                 let declaration_name = declaration_name_to_string(Some(&*name));
                 let suggestion =
-                    self.get_suggested_symbol_for_nonexistent_module(&name, &target_symbol);
+                    self.get_suggested_symbol_for_nonexistent_module(&name, &target_symbol)?;
                 if let Some(suggestion) = suggestion {
                     let suggestion_name = self.symbol_to_string_(
                         &suggestion,

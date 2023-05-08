@@ -133,7 +133,7 @@ impl TypeChecker {
 
         let mut symbol = node.maybe_local_symbol();
         if symbol.is_none() {
-            symbol = self.get_symbol_of_node(node);
+            symbol = self.get_symbol_of_node(node)?;
             let symbol = symbol.as_ref().unwrap();
             if symbol.maybe_export_symbol().is_none() {
                 return Ok(());
@@ -250,7 +250,7 @@ impl TypeChecker {
 
                 let d = expression;
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap())?;
+                let target = self.resolve_alias(&self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
                     target.maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<Option<()>> {
@@ -264,7 +264,7 @@ impl TypeChecker {
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportClause => {
                 let mut result = DeclarationSpaces::None;
-                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap())?;
+                let target = self.resolve_alias(&self.get_symbol_of_node(&d)?.unwrap())?;
                 try_maybe_for_each(
                     target.maybe_declarations().as_deref(),
                     |d: &Gc<Node>, _| -> io::Result<Option<()>> {
@@ -440,19 +440,19 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> Gc<Type> {
-        if type_.flags().intersects(TypeFlags::Union) {
+    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
                 &mut |type_| Some(self.unwrap_awaited_type(type_)),
                 None,
             )
             .unwrap()
-        } else if self.is_awaited_type_instantiation(type_) {
+        } else if self.is_awaited_type_instantiation(type_)? {
             type_.maybe_alias_type_arguments().as_ref().unwrap()[0].clone()
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn create_awaited_type_if_needed(&self, type_: &Type) -> io::Result<Gc<Type>> {
@@ -460,7 +460,7 @@ impl TypeChecker {
             return Ok(type_.type_wrapper());
         }
 
-        if self.is_awaited_type_instantiation(type_) {
+        if self.is_awaited_type_instantiation(type_)? {
             return Ok(type_.type_wrapper());
         }
 
@@ -519,7 +519,7 @@ impl TypeChecker {
             return Ok(Some(type_.type_wrapper()));
         }
 
-        if self.is_awaited_type_instantiation(type_) {
+        if self.is_awaited_type_instantiation(type_)? {
             return Ok(Some(type_.type_wrapper()));
         }
 
