@@ -10,23 +10,23 @@ use super::{
     InvocationErrorDetails, JsxNames,
 };
 use crate::{
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String,
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_symbol_table, every, factory, get_expando_initializer,
+    create_symbol_table, every, factory, get_expando_initializer, get_factory,
     get_initializer_of_binary_expression, get_invoked_expression, get_jsdoc_class_tag,
     get_source_file_of_node, get_symbol_id, get_text_of_node, is_array_literal_expression,
     is_binary_expression, is_bindable_static_name_expression, is_call_expression, is_dotted_name,
     is_function_declaration, is_function_expression, is_function_like_declaration, is_import_call,
     is_in_js_file, is_jsdoc_construct_signature, is_object_literal_expression, is_prototype_access,
     is_qualified_name, is_same_entity_name, is_transient_symbol, is_var_const,
-    is_variable_declaration, length, maybe_for_each, skip_parentheses, synthetic_factory,
-    try_get_property_access_or_identifier_to_string, walk_up_parenthesized_expressions,
-    AsDoubleDeref, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, HasInitializerInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String, get_factory,
-    Matches, OptionTry,
+    is_variable_declaration, length, maybe_for_each, return_ok_default_if_none, skip_parentheses,
+    synthetic_factory, try_get_property_access_or_identifier_to_string,
+    walk_up_parenthesized_expressions, AsDoubleDeref, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
+    HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl TypeChecker {
@@ -105,7 +105,7 @@ impl TypeChecker {
             if
             /* !sigs ||*/
             sigs.is_empty() {
-                return;
+                return Ok(());
             }
 
             add_related_info(
@@ -380,7 +380,7 @@ impl TypeChecker {
             let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node)?;
             let fake_signature = self.create_signature_for_jsx_intrinsic(node, &result)?;
             self.check_type_assignable_to_and_optionally_elaborate(
-                &self.check_expression_with_contextual_type(
+                &*self.check_expression_with_contextual_type(
                     &node_as_jsx_opening_like_element.attributes(),
                     &self.get_effective_first_argument_for_jsx_signature(
                         fake_signature.clone(),
@@ -388,7 +388,7 @@ impl TypeChecker {
                     ),
                     None,
                     CheckMode::Normal,
-                ),
+                )?,
                 &result,
                 Some(node_as_jsx_opening_like_element.tag_name()),
                 Some(node_as_jsx_opening_like_element.attributes()),
@@ -498,7 +498,9 @@ impl TypeChecker {
             SyntaxKind::TaggedTemplateExpression => {
                 self.resolve_tagged_template_expression(node, candidates_out_array, check_mode)?
             }
-            SyntaxKind::Decorator => self.resolve_decorator(node, candidates_out_array, check_mode),
+            SyntaxKind::Decorator => {
+                self.resolve_decorator(node, candidates_out_array, check_mode)?
+            }
             SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
                 self.resolve_jsx_opening_like_element(node, candidates_out_array, check_mode)?
             }
@@ -514,20 +516,20 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: Option<CheckMode>,
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         let links = self.get_node_links(node);
         let cached = (*links).borrow().resolved_signature.clone();
         if let Some(cached) = cached.as_ref().filter(|cached| {
             !Gc::ptr_eq(cached, &self.resolving_signature()) && candidates_out_array.is_none()
         }) {
-            return cached.clone();
+            return Ok(cached.clone());
         }
         links.borrow_mut().resolved_signature = Some(self.resolving_signature());
         let result = self.resolve_signature(
             node,
             candidates_out_array,
             check_mode.unwrap_or(CheckMode::Normal),
-        );
+        )?;
         if !Gc::ptr_eq(&result, &self.resolving_signature()) {
             links.borrow_mut().resolved_signature =
                 if self.flow_loop_start() == self.flow_loop_count() {
@@ -536,7 +538,7 @@ impl TypeChecker {
                     cached
                 }
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn is_js_constructor(&self, node: Option<impl Borrow<Node>>) -> io::Result<bool> {
@@ -655,7 +657,7 @@ impl TypeChecker {
         &self,
         decl: &Node, /*Declaration*/
     ) -> io::Result<Option<Gc<Symbol>>> {
-        let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true);
+        let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true)?;
         let prototype = assignment_symbol
             .as_ref()
             .and_then(|assignment_symbol| assignment_symbol.maybe_exports().clone())
@@ -757,8 +759,8 @@ impl TypeChecker {
             decl = Some(node.node_wrapper());
         }
 
-        let decl = decl?;
-        let name = name?;
+        let decl = return_ok_default_if_none!(decl);
+        let name = return_ok_default_if_none!(name);
         if !allow_declaration && get_expando_initializer(node, is_prototype_access(&name)).is_none()
         {
             return Ok(None);
@@ -829,7 +831,7 @@ impl TypeChecker {
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
                 ) && !is_jsdoc_construct_signature(declaration)
-                    && !self.is_js_constructor(Some(&**declaration))
+                    && !self.is_js_constructor(Some(&**declaration))?
             }) {
                 if self.no_implicit_any {
                     self.error(
@@ -842,7 +844,7 @@ impl TypeChecker {
             }
         }
 
-        if is_in_js_file(Some(node)) && self.is_common_js_require(node) {
+        if is_in_js_file(Some(node)) && self.is_common_js_require(node)? {
             return self.resolve_external_module_type_by_literal(
                 &node.as_has_arguments().maybe_arguments().unwrap()[0],
             );
@@ -850,11 +852,11 @@ impl TypeChecker {
 
         let return_type = self.get_return_type_of_signature(signature.clone())?;
         if return_type.flags().intersects(TypeFlags::ESSymbolLike)
-            && self.is_symbol_or_symbol_for_call(node)
+            && self.is_symbol_or_symbol_for_call(node)?
         {
-            return Ok(self.get_es_symbol_like_type_for_node(
+            return self.get_es_symbol_like_type_for_node(
                 &walk_up_parenthesized_expressions(&node.parent()).unwrap(),
-            ));
+            );
         }
         if node.kind() == SyntaxKind::CallExpression
             && node.as_call_expression().question_dot_token.is_none()
@@ -883,7 +885,7 @@ impl TypeChecker {
         }
 
         if is_in_js_file(Some(node)) {
-            let js_symbol = self.get_symbol_of_expando(node, false);
+            let js_symbol = self.get_symbol_of_expando(node, false)?;
             if let Some(js_symbol_exports) = js_symbol
                 .as_ref()
                 .and_then(|js_symbol| js_symbol.maybe_exports().clone())

@@ -125,7 +125,7 @@ impl TypeChecker {
                 );
                 let signature = first_or_undefined(&signatures_of_type);
                 if signature.is_none() {
-                    return;
+                    return Ok(());
                 }
                 let signature = signature.unwrap();
                 if self.is_context_sensitive(node)? {
@@ -339,11 +339,11 @@ impl TypeChecker {
         expr: &Node, /*Expression*/
         symbol: &Symbol,
         assignment_kind: AssignmentKind,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if assignment_kind == AssignmentKind::None {
-            return false;
+            return Ok(false);
         }
-        if self.is_readonly_symbol(symbol) {
+        if self.is_readonly_symbol(symbol)? {
             if symbol.flags().intersects(SymbolFlags::Property)
                 && is_access_expression(expr)
                 && expr.as_has_expression().expression().kind() == SyntaxKind::ThisKeyword
@@ -351,9 +351,9 @@ impl TypeChecker {
                 let ctor = get_containing_function(expr);
                 if !matches!(
                     ctor.as_ref(),
-                    Some(ctor) if ctor.kind() == SyntaxKind::Constructor || self.is_js_constructor(Some(&**ctor))
+                    Some(ctor) if ctor.kind() == SyntaxKind::Constructor || self.is_js_constructor(Some(&**ctor))?
                 ) {
-                    return true;
+                    return Ok(true);
                 }
                 let ctor = ctor.unwrap();
                 if let Some(symbol_value_declaration) = symbol.maybe_value_declaration().as_ref() {
@@ -390,10 +390,10 @@ impl TypeChecker {
                         || is_local_parameter_property
                         || is_local_this_property_assignment
                         || is_local_this_property_assignment_constructor_function;
-                    return !is_writeable_symbol;
+                    return Ok(!is_writeable_symbol);
                 }
             }
-            return true;
+            return Ok(true);
         }
         if is_access_expression(expr) {
             let node = skip_parentheses(&expr.as_has_expression().expression(), None);
@@ -405,14 +405,14 @@ impl TypeChecker {
                     .unwrap();
                 if symbol.flags().intersects(SymbolFlags::Alias) {
                     let declaration = self.get_declaration_of_alias_symbol(&symbol);
-                    return matches!(
+                    return Ok(matches!(
                         declaration.as_ref(),
                         Some(declaration) if declaration.kind() == SyntaxKind::NamespaceImport
-                    );
+                    ));
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn check_reference_expression(
@@ -464,7 +464,7 @@ impl TypeChecker {
         let resolved_symbol = (*links).borrow().resolved_symbol.clone();
         let symbol = self.get_export_symbol_of_value_symbol_if_exported(resolved_symbol);
         if let Some(symbol) = symbol.as_ref() {
-            if self.is_readonly_symbol(symbol) {
+            if self.is_readonly_symbol(symbol)? {
                 self.error(
                     Some(&*expr),
                     &Diagnostics::The_operand_of_a_delete_operator_cannot_be_a_read_only_property,

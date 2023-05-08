@@ -357,7 +357,7 @@ impl TypeChecker {
         let symbol = self.get_symbol_of_node(node).unwrap();
         let type_ = self.get_declared_type_of_symbol(&symbol)?;
         let type_with_this = self.get_type_with_this_argument(&type_, Option::<&Type>::None, None);
-        let static_type = self.get_type_of_symbol(&symbol);
+        let static_type = self.get_type_of_symbol(&symbol)?;
 
         let base_type_node = get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
@@ -375,7 +375,7 @@ impl TypeChecker {
                     None,
                 )
             })?;
-        let base_static_type = self.get_base_constructor_type_of_class(&type_);
+        let base_static_type = self.get_base_constructor_type_of_class(&type_)?;
 
         let member_has_override_modifier = if member.maybe_parent().is_some() {
             has_override_modifier(member)
@@ -610,7 +610,7 @@ impl TypeChecker {
                                         &prop_name,
                                         type_,
                                         constructor.as_ref().unwrap(),
-                                    )
+                                    )?
                                 {
                                     let error_message = &Diagnostics::Property_0_will_overwrite_the_base_property_in_1_If_this_is_intentional_add_an_initializer_Otherwise_add_a_declare_modifier_or_remove_the_redundant_declaration;
                                     self.error(

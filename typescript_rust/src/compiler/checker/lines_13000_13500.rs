@@ -610,11 +610,11 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_alias_instantiation<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn get_type_alias_instantiation(
         &self,
         symbol: &Symbol,
         type_arguments: Option<&[Gc<Type>]>,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
         let type_ = self.get_declared_type_of_symbol(symbol);

@@ -6,10 +6,10 @@ use std::borrow::Cow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
-use std::fmt;
 use std::ops::{BitAnd, BitAndAssign};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::{fmt, io};
 
 use super::{
     BaseObjectType, BaseType, BaseUnionOrIntersectionType, Node, ObjectFlagsTypeInterface,
@@ -772,7 +772,7 @@ pub struct TypeMapperArray {
 
 pub trait TypeMapperCallback: Trace + Finalize {
     // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
-    fn call(&self, checker: &TypeChecker, type_: &Type) -> Gc<Type>;
+    fn call(&self, checker: &TypeChecker, type_: &Type) -> io::Result<Gc<Type>>;
 }
 
 #[derive(Clone, Finalize, Trace)]

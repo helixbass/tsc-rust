@@ -1042,10 +1042,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_symbol_with_type<TType: Borrow<Type>>(
+    pub(super) fn create_symbol_with_type(
         &self,
         source: &Symbol,
-        type_: Option<TType>,
+        type_: Option<impl Borrow<Type>>,
     ) -> Gc<Symbol> {
         let symbol: Gc<Symbol> = self
             .create_symbol(
@@ -1073,7 +1073,7 @@ impl TypeChecker {
     pub(super) fn transform_type_of_members(
         &self,
         type_: &Type,
-        mut f: impl FnMut(&Type) -> Gc<Type>,
+        mut f: impl FnMut(&Type) -> io::Result<Gc<Type>>,
     ) -> io::Result<SymbolTable> {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for ref property in self.get_properties_of_object_type(type_) {

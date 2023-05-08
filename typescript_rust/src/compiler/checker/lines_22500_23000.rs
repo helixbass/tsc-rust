@@ -360,9 +360,9 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_discriminant_property<TType: Borrow<Type>>(
+    pub(super) fn is_discriminant_property(
         &self,
-        type_: Option<TType>,
+        type_: Option<impl Borrow<Type>>,
         name: &str, /*__String*/
     ) -> io::Result<bool> {
         if let Some(type_) = type_ {

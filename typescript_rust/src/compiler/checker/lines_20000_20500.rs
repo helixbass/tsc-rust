@@ -327,7 +327,7 @@ impl TypeChecker {
     pub(super) fn discriminate_type_by_discriminable_items(
         &self,
         target: &Type, /*UnionType*/
-        discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> Gc<Type>>, __String)>,
+        discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> io::Result<Gc<Type>>>, __String)>,
         mut related: impl FnMut(&Type, &Type) -> bool,
         default_value: Option<impl Borrow<Type>>,
         skip_partial: Option<bool>,
@@ -702,7 +702,7 @@ impl TypeChecker {
     pub(super) fn for_each_property<TReturn>(
         &self,
         prop: &Symbol,
-        callback: &mut impl FnMut(&Symbol) -> Option<TReturn>,
+        callback: &mut impl FnMut(&Symbol) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         if get_check_flags(prop).intersects(CheckFlags::Synthetic) {
             for t in (*prop.as_transient_symbol().symbol_links())
@@ -723,21 +723,17 @@ impl TypeChecker {
             }
             return Ok(None);
         }
-        Ok(callback(prop))
+        callback(prop)
     }
 
     pub(super) fn for_each_property_bool(
         &self,
         prop: &Symbol,
-        callback: &mut impl FnMut(&Symbol) -> bool,
+        callback: &mut impl FnMut(&Symbol) -> io::Result<bool>,
     ) -> io::Result<bool> {
         Ok(self
             .for_each_property(prop, &mut |symbol: &Symbol| {
-                if callback(symbol) {
-                    Some(())
-                } else {
-                    None
-                }
+                Ok(if callback(symbol)? { Some(()) } else { None })
             })?
             .is_some())
     }
@@ -757,41 +753,52 @@ impl TypeChecker {
         &self,
         property: &Symbol,
     ) -> io::Result<Option<Gc<Type>>> {
-        let class_type = self.get_declaring_class(property);
+        let class_type = self.get_declaring_class(property)?;
         let base_class_type = class_type
             .as_ref()
-            .and_then(|class_type| self.get_base_types(class_type).get(0).map(Clone::clone));
+            .and_then(|class_type| self.get_base_types(class_type).get(0).cloned());
         base_class_type.as_ref().try_and_then(|base_class_type| {
             self.get_type_of_property_of_type_(base_class_type, property.escaped_name())
         })
     }
 
-    pub(super) fn is_property_in_class_derived_from<TBaseClass: Borrow<Type>>(
+    pub(super) fn is_property_in_class_derived_from(
         &self,
         prop: &Symbol,
-        base_class: Option<TBaseClass>,
-    ) -> bool {
+        base_class: Option<impl Borrow<Type>>,
+    ) -> io::Result<bool> {
         let base_class = base_class.map(|base_class| base_class.borrow().type_wrapper());
         self.for_each_property_bool(prop, &mut |sp: &Symbol| {
-            let source_class = self.get_declaring_class(sp);
-            if let Some(source_class) = source_class.as_ref() {
+            let source_class = self.get_declaring_class(sp)?;
+            Ok(if let Some(source_class) = source_class.as_ref() {
                 self.has_base_type(source_class, base_class.as_deref())
             } else {
                 false
-            }
+            })
         })
     }
 
-    pub(super) fn is_valid_override_of(&self, source_prop: &Symbol, target_prop: &Symbol) -> bool {
-        !self.for_each_property_bool(target_prop, &mut |tp: &Symbol| {
-            if get_declaration_modifier_flags_from_symbol(tp, None)
-                .intersects(ModifierFlags::Protected)
-            {
-                !self.is_property_in_class_derived_from(source_prop, self.get_declaring_class(tp))
-            } else {
-                false
-            }
-        })
+    pub(super) fn is_valid_override_of(
+        &self,
+        source_prop: &Symbol,
+        target_prop: &Symbol,
+    ) -> io::Result<bool> {
+        Ok(
+            !self.for_each_property_bool(target_prop, &mut |tp: &Symbol| {
+                Ok(
+                    if get_declaration_modifier_flags_from_symbol(tp, None)
+                        .intersects(ModifierFlags::Protected)
+                    {
+                        !self.is_property_in_class_derived_from(
+                            source_prop,
+                            self.get_declaring_class(tp)?,
+                        )
+                    } else {
+                        false
+                    },
+                )
+            })?,
+        )
     }
 
     pub(super) fn is_class_derived_from_declaring_classes(
@@ -799,20 +806,24 @@ impl TypeChecker {
         check_class: &Type,
         prop: &Symbol,
         writing: bool,
-    ) -> Option<Gc<Type>> {
-        if self.for_each_property_bool(prop, &mut |p: &Symbol| {
-            if get_declaration_modifier_flags_from_symbol(p, Some(writing))
-                .intersects(ModifierFlags::Protected)
-            {
-                !self.has_base_type(check_class, self.get_declaring_class(p))
+    ) -> io::Result<Option<Gc<Type>>> {
+        Ok(
+            if self.for_each_property_bool(prop, &mut |p: &Symbol| {
+                Ok(
+                    if get_declaration_modifier_flags_from_symbol(p, Some(writing))
+                        .intersects(ModifierFlags::Protected)
+                    {
+                        !self.has_base_type(check_class, self.get_declaring_class(p)?)
+                    } else {
+                        false
+                    },
+                )
+            }) {
+                None
             } else {
-                false
-            }
-        }) {
-            None
-        } else {
-            Some(check_class.type_wrapper())
-        }
+                Some(check_class.type_wrapper())
+            },
+        )
     }
 
     pub(super) fn is_deeply_nested_type(
@@ -881,10 +892,12 @@ impl TypeChecker {
         &self,
         source_prop: &Symbol,
         target_prop: &Symbol,
-    ) -> bool {
-        self.compare_properties(source_prop, target_prop, |a: &Type, b: &Type| {
-            self.compare_types_identical(a, b)
-        }) != Ternary::False
+    ) -> io::Result<bool> {
+        Ok(
+            self.compare_properties(source_prop, target_prop, |a: &Type, b: &Type| {
+                self.compare_types_identical(a, b)
+            })? != Ternary::False,
+        )
     }
 
     pub(super) fn compare_properties(
@@ -919,7 +932,7 @@ impl TypeChecker {
                 return Ok(Ternary::False);
             }
         }
-        if self.is_readonly_symbol(source_prop) != self.is_readonly_symbol(target_prop) {
+        if self.is_readonly_symbol(source_prop)? != self.is_readonly_symbol(target_prop)? {
             return Ok(Ternary::False);
         }
         Ok(compare_types(
@@ -933,23 +946,23 @@ impl TypeChecker {
         source: &Signature,
         target: &Signature,
         partial_match: bool,
-    ) -> bool {
-        let source_parameter_count = self.get_parameter_count(source);
-        let target_parameter_count = self.get_parameter_count(target);
-        let source_min_argument_count = self.get_min_argument_count(source, None);
-        let target_min_argument_count = self.get_min_argument_count(target, None);
-        let source_has_rest_parameter = self.has_effective_rest_parameter(source);
-        let target_has_rest_parameter = self.has_effective_rest_parameter(target);
+    ) -> io::Result<bool> {
+        let source_parameter_count = self.get_parameter_count(source)?;
+        let target_parameter_count = self.get_parameter_count(target)?;
+        let source_min_argument_count = self.get_min_argument_count(source, None)?;
+        let target_min_argument_count = self.get_min_argument_count(target, None)?;
+        let source_has_rest_parameter = self.has_effective_rest_parameter(source)?;
+        let target_has_rest_parameter = self.has_effective_rest_parameter(target)?;
         if source_parameter_count == target_parameter_count
             && source_min_argument_count == target_min_argument_count
             && source_has_rest_parameter == target_has_rest_parameter
         {
-            return true;
+            return Ok(true);
         }
         if partial_match && source_min_argument_count <= target_min_argument_count {
-            return true;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
 }
 

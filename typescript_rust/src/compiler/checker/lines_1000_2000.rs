@@ -1146,10 +1146,10 @@ impl TypeChecker {
                         find_ancestor(Some(declaration), is_binding_element).as_ref(),
                     ) || declaration.pos() < error_binding_element.pos());
                 }
-                return Ok(self.is_block_scoped_name_declared_before_use(
+                return self.is_block_scoped_name_declared_before_use(
                     &get_ancestor(Some(declaration), SyntaxKind::VariableDeclaration).unwrap(),
                     usage,
-                ));
+                );
             } else if declaration.kind() == SyntaxKind::VariableDeclaration {
                 return Ok(
                     !self.is_immediately_used_in_initializer_of_block_scoped_variable(
@@ -1265,7 +1265,7 @@ impl TypeChecker {
         usage: &Node,
         declaration: &Node,
     ) -> io::Result<bool> {
-        Ok(try_find_ancestor(Some(usage), |current| {
+        Ok(try_find_ancestor(Some(usage), |current| -> io::Result<_> {
             if ptr::eq(current, decl_container) {
                 return Ok(FindAncestorCallbackReturn::Quit);
             }
@@ -1780,7 +1780,8 @@ impl TypeChecker {
                         let container = location_unwrapped.parent().parent();
                         if is_class_like(&container) {
                             result = lookup(
-                                &(*self.get_symbol_of_node(&container).unwrap().members()).borrow(),
+                                &(*self.get_symbol_of_node(&container)?.unwrap().members())
+                                    .borrow(),
                                 name,
                                 meaning & SymbolFlags::Type,
                             )?;

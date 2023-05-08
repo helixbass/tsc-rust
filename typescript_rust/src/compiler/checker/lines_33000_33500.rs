@@ -250,7 +250,7 @@ impl TypeChecker {
         if !would_work_with_await {
             if let Some(is_related) = is_related.as_mut() {
                 (effective_left, effective_right) =
-                    self.get_base_types_if_unrelated(left_type, right_type, is_related);
+                    self.get_base_types_if_unrelated(left_type, right_type, is_related)?;
             }
         }
         let (left_str, right_str) =

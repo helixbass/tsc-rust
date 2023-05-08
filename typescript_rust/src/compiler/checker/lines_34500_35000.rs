@@ -15,26 +15,28 @@ use crate::{
     is_module_block, is_module_declaration, is_named_tuple_member,
     is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
     is_super_call, is_type_reference_type, map, maybe_for_each, maybe_map, node_is_missing,
-    node_is_present, some, symbol_name, try_cast, try_maybe_map, unescape_leading_underscores,
-    DiagnosticRelatedInformation, Diagnostics, ElementFlags, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper,
+    node_is_present, return_ok_default_if_none, some, symbol_name, try_cast, try_for_each_child,
+    try_maybe_map, unescape_leading_underscores, DiagnosticRelatedInformation, Diagnostics,
+    ElementFlags, FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags, Node,
+    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
     pub(super) fn check_class_static_block_declaration(
         &self,
         node: &Node, /*ClassStaticBlockDeclaration*/
-    ) {
+    ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
 
-        for_each_child(
+        try_for_each_child(
             node,
             |child: &Node| self.check_source_element(Some(child)),
-            Option::<fn(&NodeArray)>::None,
-        );
+            Option::<fn(&NodeArray) -> io::Result<()>>::None,
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn check_constructor_declaration(
@@ -224,8 +226,8 @@ impl TypeChecker {
                                 );
                             }
 
-                            let getter_type = self.get_annotated_accessor_type(Some(&**getter));
-                            let setter_type = self.get_annotated_accessor_type(Some(&**setter));
+                            let getter_type = self.get_annotated_accessor_type(Some(&**getter))?;
+                            let setter_type = self.get_annotated_accessor_type(Some(&**setter))?;
                             if let (Some(getter_type), Some(setter_type)) =
                                 (getter_type.as_ref(), setter_type.as_ref())
                             {
@@ -270,7 +272,8 @@ impl TypeChecker {
                 try_maybe_map(
                     node.as_has_type_arguments().maybe_type_arguments().as_ref(),
                     |type_argument, _| self.get_type_from_type_node_(type_argument),
-                )?,
+                )
+                .transpose()?,
                 type_parameters,
                 self.get_min_type_argument_count(type_parameters),
                 is_in_js_file(Some(node)),
@@ -291,7 +294,7 @@ impl TypeChecker {
             if let Some(constraint) = constraint.as_ref() {
                 if type_arguments.is_none() {
                     type_arguments =
-                        Some(self.get_effective_type_arguments(node, Some(type_parameters)));
+                        Some(self.get_effective_type_arguments(node, Some(type_parameters))?);
                     mapper = Some(Gc::new(self.create_type_mapper(
                         type_parameters.to_owned(),
                         type_arguments.clone(),
@@ -391,7 +394,7 @@ impl TypeChecker {
             if node_as_has_type_arguments.maybe_type_arguments().is_some()
                 && self.produce_diagnostics
             {
-                let type_parameters = self.get_type_parameters_for_type_reference(node);
+                let type_parameters = self.get_type_parameters_for_type_reference(node)?;
                 if let Some(type_parameters) = type_parameters.as_ref() {
                     self.check_type_argument_constraints(node, type_parameters);
                 }
@@ -438,11 +441,14 @@ impl TypeChecker {
         &self,
         node: &Node, /*TypeNode*/
     ) -> io::Result<Option<Gc<Type>>> {
-        let type_reference_node = try_cast(node.parent(), |parent: &Gc<Node>| {
-            is_type_reference_type(parent)
-        })?;
-        let type_parameters = self.get_type_parameters_for_type_reference(&type_reference_node)?;
-        let constraint = self.get_constraint_of_type_parameter(
+        let type_reference_node =
+            return_ok_default_if_none!(try_cast(node.parent(), |parent: &Gc<Node>| {
+                is_type_reference_type(parent)
+            }));
+        let type_parameters = return_ok_default_if_none!(
+            self.get_type_parameters_for_type_reference(&type_reference_node)?
+        );
+        let constraint = return_ok_default_if_none!(self.get_constraint_of_type_parameter(
             &type_parameters[type_reference_node
                 .as_has_type_arguments()
                 .maybe_type_arguments()
@@ -451,13 +457,16 @@ impl TypeChecker {
                 .into_iter()
                 .position(|type_argument| ptr::eq(&**type_argument, node))
                 .unwrap()],
-        )?;
+        ));
         Ok(Some(self.instantiate_type(
             &constraint,
             Some(Gc::new(self.create_type_mapper(
                 type_parameters.clone(),
                 Some(
-                    self.get_effective_type_arguments(&type_reference_node, Some(&type_parameters)),
+                    self.get_effective_type_arguments(
+                        &type_reference_node,
+                        Some(&type_parameters),
+                    )?,
                 ),
             ))),
         )?))
@@ -745,12 +754,17 @@ impl TypeChecker {
         self.check_source_element(Some(&*node.as_type_operator_node().type_));
     }
 
-    pub(super) fn check_conditional_type(&self, node: &Node /*ConditionalTypeNode*/) {
-        for_each_child(
+    pub(super) fn check_conditional_type(
+        &self,
+        node: &Node, /*ConditionalTypeNode*/
+    ) -> io::Result<()> {
+        try_for_each_child(
             node,
             |child: &Node| self.check_source_element(Some(child)),
-            Option::<fn(&NodeArray)>::None,
-        );
+            Option::<fn(&NodeArray) -> io::Result<()>>::None,
+        )?;
+
+        Ok(())
     }
 
     pub(super) fn check_infer_type(&self, node: &Node /*InferTypeNode*/) {

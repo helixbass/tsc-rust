@@ -93,7 +93,7 @@ impl TypeChecker {
                     && promise_constructor_name.as_identifier().escaped_text == "Promise"
                     && Gc::ptr_eq(
                         &self.get_target_type(&return_type),
-                        &*self.get_global_promise_type(false)?,
+                        &self.get_global_promise_type(false)?,
                     )
                 {
                     self.error(

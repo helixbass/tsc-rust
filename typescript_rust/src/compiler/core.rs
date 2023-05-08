@@ -1342,15 +1342,27 @@ pub fn reduce_left_no_initial_value<TItem: Clone>(
     panic!("Shouldn't call reduce_left_no_initial_value() with empty slice")
 }
 
-pub fn reduce_left_no_initial_value_optional<
-    TItem: Clone,
-    TCallback: FnMut(Option<TItem>, &TItem, usize) -> Option<TItem>,
->(
+pub fn reduce_left_no_initial_value_optional<TItem: Clone>(
     array: &[TItem],
-    mut f: TCallback,
+    mut f: impl FnMut(Option<TItem>, &TItem, usize) -> Option<TItem>,
     start: Option<usize>,
     count: Option<usize>,
 ) -> Option<TItem> {
+    try_reduce_left_no_initial_value_optional(
+        array,
+        |a: Option<TItem>, b: &TItem, c: usize| -> Result<_, ()> { Ok(f(a, b, c)) },
+        start,
+        count,
+    )
+    .unwrap()
+}
+
+pub fn try_reduce_left_no_initial_value_optional<TItem: Clone, TError>(
+    array: &[TItem],
+    mut f: impl FnMut(Option<TItem>, &TItem, usize) -> Result<Option<TItem>, TError>,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Result<Option<TItem>, TError> {
     if
     /*array &&*/
     !array.is_empty() {
@@ -1372,14 +1384,14 @@ pub fn reduce_left_no_initial_value_optional<
         let mut result = Some(array[0].clone());
         pos += 1;
         while pos <= end {
-            result = f(result, &array[pos], pos);
+            result = f(result, &array[pos], pos)?;
             pos += 1;
         }
-        return result;
+        return Ok(result);
         // }
         // }
     }
-    None
+    Ok(None)
 }
 
 pub fn array_of<TItem, TCallback: FnMut(usize) -> TItem>(

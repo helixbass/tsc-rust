@@ -374,10 +374,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn has_base_type<TCheckBase: Borrow<Type>>(
+    pub(super) fn has_base_type(
         &self,
         type_: &Type,
-        check_base: Option<TCheckBase>,
+        check_base: Option<impl Borrow<Type>>,
     ) -> bool {
         let check_base = check_base.map(|check_base| check_base.borrow().type_wrapper());
         self.has_base_type_check(check_base.as_deref(), type_)

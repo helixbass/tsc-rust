@@ -132,7 +132,7 @@ impl TypeChecker {
         Ok(type_.type_wrapper())
     }
 
-    pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> Gc<Type> {
+    pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> io::Result<Gc<Type>> {
         self.check_non_null_type_with_reporter(type_, node, |node: &Node, flags: TypeFlags| {
             self.report_object_possibly_null_or_undefined_error(node, flags)
         })
@@ -939,7 +939,7 @@ impl TypeChecker {
             && !self.is_optional_property_declaration(&value_declaration)
             && !(is_access_expression(node)
                 && is_access_expression(&node.as_has_expression().expression()))
-            && !self.is_block_scoped_name_declared_before_use(&value_declaration, right)
+            && !self.is_block_scoped_name_declared_before_use(&value_declaration, right)?
             && (self.compiler_options.use_define_for_class_fields == Some(true)
                 || !self.is_property_declared_in_ancestor_class(prop)?)
         {
@@ -951,7 +951,7 @@ impl TypeChecker {
         } else if value_declaration.kind() == SyntaxKind::ClassDeclaration
             && node.parent().kind() != SyntaxKind::TypeReference
             && !value_declaration.flags().intersects(NodeFlags::Ambient)
-            && !self.is_block_scoped_name_declared_before_use(&value_declaration, right)
+            && !self.is_block_scoped_name_declared_before_use(&value_declaration, right)?
         {
             diagnostic_message = Some(self.error(
                 Some(right),
@@ -1028,7 +1028,7 @@ impl TypeChecker {
         loop {
             let class_type_present = class_type.as_ref().unwrap();
             class_type = if class_type_present.maybe_symbol().is_some() {
-                self.get_super_class(class_type_present)
+                self.get_super_class(class_type_present)?
             } else {
                 None
             };

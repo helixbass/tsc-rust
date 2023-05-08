@@ -11,8 +11,9 @@ use crate::{
     for_each_child_bool, get_containing_function_or_class_static_block, get_function_flags,
     is_binary_expression, is_binding_pattern, is_class_static_block_declaration, is_identifier,
     DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, IterationTypes,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ScriptTarget, Symbol, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry, ScriptTarget, Symbol,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -43,21 +44,21 @@ impl TypeChecker {
         &self,
         tested_symbol: &Symbol,
         child: &Node,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if is_identifier(child) {
-            let symbol = self.get_symbol_at_location_(child, None);
+            let symbol = self.get_symbol_at_location_(child, None)?;
             if matches!(
                 symbol.as_ref(),
                 Some(symbol) if ptr::eq(&**symbol, tested_symbol)
             ) {
-                return true;
+                return Ok(true);
             }
         }
-        for_each_child_bool(
+        Ok(for_each_child_bool(
             child,
             |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
             Option::<fn(&NodeArray) -> bool>::None,
-        )
+        ))
     }
 
     pub(super) fn check_do_statement(&self, node: &Node /*DoStatement*/) {
@@ -92,7 +93,7 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Gc<Type>> {
-        Ok(self.check_truthiness_of_type(&self.check_expression(node, check_mode, None)?, node))
+        Ok(self.check_truthiness_of_type(&*self.check_expression(node, check_mode, None)?, node))
     }
 
     pub(super) fn check_for_statement(&self, node: &Node /*ForStatement*/) -> io::Result<()> {
@@ -227,7 +228,7 @@ impl TypeChecker {
             &node_as_for_in_statement.expression,
             None,
             None,
-        )?);
+        )?)?;
         if node_as_for_in_statement.initializer.kind() == SyntaxKind::VariableDeclarationList {
             let variable = node_as_for_in_statement
                 .initializer
@@ -257,7 +258,7 @@ impl TypeChecker {
                     None,
                 );
             } else if !self
-                .is_type_assignable_to(&self.get_index_type_or_string(&right_type), &left_type)
+                .is_type_assignable_to(&*self.get_index_type_or_string(&right_type)?, &left_type)
             {
                 self.error(
                     Some(&**var_expr),
@@ -319,7 +320,7 @@ impl TypeChecker {
     pub(super) fn check_right_hand_side_of_for_of(
         &self,
         statement: &Node, /*ForOfStatement*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let statement_as_for_of_statement = statement.as_for_of_statement();
         let use_ = if statement_as_for_of_statement.await_modifier.is_some() {
             IterationUse::ForAwaitOf
@@ -328,7 +329,7 @@ impl TypeChecker {
         };
         self.check_iterated_type_or_element_type(
             use_,
-            &self.check_non_null_expression(&statement_as_for_of_statement.expression),
+            &*self.check_non_null_expression(&statement_as_for_of_statement.expression)?,
             &self.undefined_type(),
             Some(&*statement_as_for_of_statement.expression),
         )
@@ -419,7 +420,7 @@ impl TypeChecker {
                         iteration_types
                             .as_ref()
                             .map(|iteration_types| iteration_types.yield_type()),
-                    )
+                    )?
                 } else {
                     iteration_types
                         .as_ref()
@@ -445,7 +446,7 @@ impl TypeChecker {
                         Option::<&Symbol>::None,
                         None,
                         Option::<&Type>::None,
-                    );
+                    )?;
                 }
             } else if array_type.flags().intersects(TypeFlags::StringLike) {
                 array_type = self.never_type();
@@ -466,7 +467,7 @@ impl TypeChecker {
 
                 if array_type.flags().intersects(TypeFlags::Never) {
                     return Ok(if possible_out_of_bounds {
-                        self.include_undefined_in_index_signature(Some(self.string_type()))
+                        self.include_undefined_in_index_signature(Some(self.string_type()))?
                     } else {
                         Some(self.string_type())
                     });
@@ -495,7 +496,7 @@ impl TypeChecker {
                                     Option::<&Node>::None,
                                     None,
                                     None,
-                                )
+                                )?
                                 .is_some(),
                         default_diagnostic,
                         Some(vec![self.type_to_string_(
@@ -509,7 +510,7 @@ impl TypeChecker {
             }
             return Ok(if has_string_constituent {
                 if possible_out_of_bounds {
-                    self.include_undefined_in_index_signature(Some(self.string_type()))
+                    self.include_undefined_in_index_signature(Some(self.string_type()))?
                 } else {
                     Some(self.string_type())
                 }
@@ -541,12 +542,12 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                )));
+                )?));
             }
         }
 
         Ok(if use_.intersects(IterationUse::PossiblyOutOfBounds) {
-            self.include_undefined_in_index_signature(array_element_type)
+            self.include_undefined_in_index_signature(array_element_type)?
         } else {
             array_element_type
         })
@@ -676,7 +677,7 @@ impl TypeChecker {
     pub(super) fn combine_iteration_types(
         &self,
         array: &[Option<Gc<IterationTypes>>],
-    ) -> Gc<IterationTypes> {
+    ) -> io::Result<Gc<IterationTypes>> {
         let mut yield_types: Option<Vec<Gc<Type>>> = None;
         let mut return_types: Option<Vec<Gc<Type>>> = None;
         let mut next_types: Option<Vec<Gc<Type>>> = None;
@@ -689,7 +690,7 @@ impl TypeChecker {
                 continue;
             }
             if Gc::ptr_eq(&iteration_types, &self.any_iteration_types()) {
-                return self.any_iteration_types();
+                return Ok(self.any_iteration_types());
             }
             if yield_types.is_none() {
                 yield_types = Some(vec![]);
@@ -714,8 +715,8 @@ impl TypeChecker {
             );
         }
         if yield_types.is_some() || return_types.is_some() || next_types.is_some() {
-            return self.create_iteration_types(
-                yield_types.map(|yield_types| {
+            return Ok(self.create_iteration_types(
+                yield_types.try_map(|yield_types| {
                     self.get_union_type(
                         &yield_types,
                         None,
@@ -723,8 +724,8 @@ impl TypeChecker {
                         None,
                         Option::<&Type>::None,
                     )
-                }),
-                return_types.map(|return_types| {
+                })?,
+                return_types.try_map(|return_types| {
                     self.get_union_type(
                         &return_types,
                         None,
@@ -732,13 +733,13 @@ impl TypeChecker {
                         None,
                         Option::<&Type>::None,
                     )
-                }),
-                next_types.map(|next_types| {
+                })?,
+                next_types.try_map(|next_types| {
                     self.get_intersection_type(&next_types, Option::<&Symbol>::None, None)
-                }),
-            );
+                })?,
+            ));
         }
-        self.no_iteration_types()
+        Ok(self.no_iteration_types())
     }
 
     pub(super) fn get_cached_iteration_types(
@@ -764,15 +765,15 @@ impl TypeChecker {
         type_: &Type,
         use_: IterationUse,
         error_node: Option<impl Borrow<Node>>,
-    ) -> Option<Gc<IterationTypes>> {
+    ) -> io::Result<Option<Gc<IterationTypes>>> {
         if self.is_type_any(Some(type_)) {
-            return Some(self.any_iteration_types());
+            return Ok(Some(self.any_iteration_types()));
         }
 
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if !type_.flags().intersects(TypeFlags::Union) {
             let iteration_types =
-                self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref());
+                self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref())?;
             if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if let Some(error_node) = error_node.as_ref() {
                     self.report_type_not_iterable_error(
@@ -781,9 +782,9 @@ impl TypeChecker {
                         use_.intersects(IterationUse::AllowsAsyncIterablesFlag),
                     );
                 }
-                return None;
+                return Ok(None);
             }
-            return Some(iteration_types);
+            return Ok(Some(iteration_types));
         }
 
         let cache_key = if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
@@ -793,11 +794,11 @@ impl TypeChecker {
         };
         let cached_types = self.get_cached_iteration_types(type_, cache_key);
         if let Some(cached_types) = cached_types.as_ref() {
-            return if Gc::ptr_eq(cached_types, &self.no_iteration_types()) {
+            return Ok(if Gc::ptr_eq(cached_types, &self.no_iteration_types()) {
                 None
             } else {
                 Some(cached_types.clone())
-            };
+            });
         }
 
         let mut all_iteration_types: Option<Vec<Gc<IterationTypes>>> = None;
@@ -806,7 +807,7 @@ impl TypeChecker {
                 constituent,
                 use_,
                 error_node.as_deref(),
-            );
+            )?;
             if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if let Some(error_node) = error_node.as_ref() {
                     self.report_type_not_iterable_error(
@@ -816,7 +817,7 @@ impl TypeChecker {
                     );
                 }
                 self.set_cached_iteration_types(type_, cache_key, self.no_iteration_types());
-                return None;
+                return Ok(None);
             } else {
                 if all_iteration_types.is_none() {
                     all_iteration_types = Some(vec![]);
@@ -836,10 +837,12 @@ impl TypeChecker {
             self.no_iteration_types()
         };
         self.set_cached_iteration_types(type_, cache_key, iteration_types.clone());
-        if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
-            None
-        } else {
-            Some(iteration_types)
-        }
+        Ok(
+            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+                None
+            } else {
+                Some(iteration_types)
+            },
+        )
     }
 }
