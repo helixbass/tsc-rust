@@ -209,7 +209,7 @@ impl TypeChecker {
         if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type()) {
             let promised_type = self
                 .get_awaited_type_no_alias(
-                    &self.unwrap_awaited_type(promised_type),
+                    &*self.unwrap_awaited_type(promised_type)?,
                     Option::<&Node>::None,
                     None,
                     None,
@@ -226,7 +226,7 @@ impl TypeChecker {
         if !Gc::ptr_eq(&global_promise_like_type, &self.empty_generic_type()) {
             let promised_type = self
                 .get_awaited_type_no_alias(
-                    &self.unwrap_awaited_type(promised_type),
+                    &*self.unwrap_awaited_type(promised_type)?,
                     Option::<&Node>::None,
                     None,
                     None,
@@ -331,7 +331,7 @@ impl TypeChecker {
                         &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
                         None,
                     )?
-                ));
+                )?);
             }
         } else if is_generator {
             let return_types =
@@ -842,7 +842,7 @@ impl TypeChecker {
                                 &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
                                 None,
                             )?
-                        );
+                        )?;
                     }
                     if type_.flags().intersects(TypeFlags::Never) {
                         has_return_of_type_never = true;

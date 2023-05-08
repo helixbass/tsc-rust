@@ -987,7 +987,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             links.borrow_mut().resolved_type = Some(
                 self.get_union_type(
                     &try_map(&node.as_union_type_node().types, |type_: &Gc<Node>, _| {

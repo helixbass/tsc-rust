@@ -688,8 +688,8 @@ impl TypeChecker {
             .map(Clone::clone)
     }
 
-    pub(super) fn is_alias_symbol_declaration(&self, node: &Node) -> bool {
-        matches!(
+    pub(super) fn is_alias_symbol_declaration(&self, node: &Node) -> io::Result<bool> {
+        Ok(matches!(
             node.kind(),
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::NamespaceExportDeclaration
         ) || node.kind() == SyntaxKind::ImportClause && node.as_import_clause().name.is_some()
@@ -702,7 +702,8 @@ impl TypeChecker {
             )
             || node.kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node)
             || is_binary_expression(node)
-                && get_assignment_declaration_kind(node) == AssignmentDeclarationKind::ModuleExports
+                && get_assignment_declaration_kind(node)
+                    == AssignmentDeclarationKind::ModuleExports
                 && export_assignment_is_alias(node)
             || is_access_expression(node) && is_binary_expression(&node.parent()) && {
                 let node_parent = node.parent();
@@ -710,12 +711,14 @@ impl TypeChecker {
                 ptr::eq(&*node_parent_as_binary_expression.left, node)
                     && node_parent_as_binary_expression.operator_token.kind()
                         == SyntaxKind::EqualsToken
-                    && self.is_aliasable_or_js_expression(&node_parent_as_binary_expression.right)
+                    && self
+                        .is_aliasable_or_js_expression(&node_parent_as_binary_expression.right)?
             }
             || node.kind() == SyntaxKind::ShorthandPropertyAssignment
             || node.kind() == SyntaxKind::PropertyAssignment
-                && self.is_aliasable_or_js_expression(&node.as_property_assignment().initializer)
-            || is_require_variable_declaration(node)
+                && self
+                    .is_aliasable_or_js_expression(&node.as_property_assignment().initializer)?
+            || is_require_variable_declaration(node))
     }
 
     pub(super) fn is_aliasable_or_js_expression(
@@ -798,7 +801,7 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             resolved,
             false,
-        ) && !node_as_import_equals_declaration.is_type_only
+        )? && !node_as_import_equals_declaration.is_type_only
         {
             let type_only_declaration = self
                 .get_type_only_alias_declaration(&self.get_symbol_of_node(node)?.unwrap())

@@ -982,16 +982,16 @@ impl EmitResolverCreateResolver {
         )
     }
 
-    pub(super) fn is_symbol_from_type_declaration_file(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_symbol_from_type_declaration_file(&self, symbol: &Symbol) -> io::Result<bool> {
         let symbol_declarations = symbol.maybe_declarations();
         if symbol_declarations.is_none() {
-            return false;
+            return Ok(false);
         }
         let symbol_declarations = symbol_declarations.as_ref().unwrap();
 
         let mut current = symbol.symbol_wrapper();
         loop {
-            let parent = self.type_checker.get_parent_of_symbol(&current);
+            let parent = self.type_checker.get_parent_of_symbol(&current)?;
             if let Some(parent) = parent {
                 current = parent;
             } else {
@@ -1004,7 +1004,7 @@ impl EmitResolverCreateResolver {
             Some(current_value_declaration) if current_value_declaration.kind() == SyntaxKind::SourceFile
         ) && current.flags().intersects(SymbolFlags::ValueModule)
         {
-            return false;
+            return Ok(false);
         }
 
         for decl in symbol_declarations {
@@ -1015,10 +1015,10 @@ impl EmitResolverCreateResolver {
                 .unwrap()
                 .contains_key(&**file.as_source_file().path())
             {
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn add_referenced_files_to_type_directive(
@@ -1098,9 +1098,9 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node_in: &Node,
         check_children: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
-        node.as_ref().map_or(false, |node| {
+        node.as_ref().try_map_or(false, |node| {
             self.type_checker
                 .is_referenced_alias_declaration(node, check_children)
         })
@@ -1125,15 +1125,15 @@ impl EmitResolver for EmitResolverCreateResolver {
         self.type_checker.is_declaration_visible(node)
     }
 
-    fn is_late_bound(&self, node: &Node /*Declaration*/) -> bool {
+    fn is_late_bound(&self, node: &Node /*Declaration*/) -> io::Result<bool> {
         let node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
         let symbol = node
             .as_ref()
-            .and_then(|node| self.type_checker.get_symbol_of_node(node));
-        matches!(
+            .try_and_then(|node| self.type_checker.get_symbol_of_node(node))?;
+        Ok(matches!(
             symbol.as_ref(),
             Some(symbol) if get_check_flags(symbol).intersects(CheckFlags::Late)
-        )
+        ))
     }
 
     fn collect_linked_aliases(
@@ -1403,7 +1403,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_all_accessor_declarations(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
-    ) -> AllAccessorDeclarations {
+    ) -> io::Result<AllAccessorDeclarations> {
         let ref accessor =
             get_parse_tree_node(Some(accessor), Some(is_get_or_set_accessor_declaration)).unwrap();
         let other_kind = if accessor.kind() == SyntaxKind::SetAccessor {
@@ -1412,7 +1412,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             SyntaxKind::SetAccessor
         };
         let other_accessor = get_declaration_of_kind(
-            &self.type_checker.get_symbol_of_node(accessor).unwrap(),
+            &self.type_checker.get_symbol_of_node(accessor)?.unwrap(),
             other_kind,
         );
         let first_accessor = other_accessor
@@ -1437,12 +1437,12 @@ impl EmitResolver for EmitResolverCreateResolver {
         } else {
             other_accessor.clone()
         };
-        AllAccessorDeclarations {
+        Ok(AllAccessorDeclarations {
             first_accessor,
             second_accessor,
             get_accessor,
             set_accessor,
-        }
+        })
     }
 
     fn get_symbol_of_external_module_specifier(
@@ -1457,16 +1457,16 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node,
         decl: &Node, /*VariableDeclaration | BindingElement*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let parse_node = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
         let parse_decl = get_parse_tree_node(Some(decl), Option::<fn(&Node) -> bool>::None);
-        matches!(
+        Ok(matches!(
             (parse_node, parse_decl),
             (Some(ref parse_node), Some(ref parse_decl)) if (
                 is_variable_declaration(parse_decl) ||
                 is_binding_element(parse_decl)
-            ) && self.type_checker.is_binding_captured_by_node(parse_node, parse_decl)
-        )
+            ) && self.type_checker.is_binding_captured_by_node(parse_node, parse_decl)?
+        ))
     }
 
     fn get_declaration_statements_for_source_file(
@@ -1475,7 +1475,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
-    ) -> Option<Vec<Gc<Node /*Statement*/>>> {
+    ) -> io::Result<Option<Vec<Gc<Node /*Statement*/>>>> {
         let n = get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None);
         Debug_.assert(
             matches!(
@@ -1484,9 +1484,9 @@ impl EmitResolver for EmitResolverCreateResolver {
             ),
             Some("Non-sourcefile node passed into getDeclarationsForSourceFile"),
         );
-        let sym = self.type_checker.get_symbol_of_node(node);
+        let sym = self.type_checker.get_symbol_of_node(node)?;
         if sym.is_none() {
-            return match node.maybe_locals().as_ref() {
+            return Ok(match node.maybe_locals().as_ref() {
                 None => Some(vec![]),
                 Some(node_locals) => self
                     .type_checker
@@ -1498,7 +1498,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                         Some(tracker.clone()),
                         bundled,
                     ),
-            };
+            });
         }
         let sym = sym.unwrap();
         let ret = match sym.maybe_exports().as_ref() {
@@ -1514,7 +1514,7 @@ impl EmitResolver for EmitResolverCreateResolver {
                     bundled,
                 ),
         };
-        ret
+        Ok(ret)
     }
 
     fn is_import_required_by_augmentation(

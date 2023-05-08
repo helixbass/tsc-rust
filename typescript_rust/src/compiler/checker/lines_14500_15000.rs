@@ -414,7 +414,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             links.borrow_mut().resolved_type = Some(
                 self.get_intersection_type(
                     &try_map(
@@ -861,7 +861,7 @@ impl TypeChecker {
                         if node_as_type_operator_node.type_.kind() == SyntaxKind::SymbolKeyword {
                             self.get_es_symbol_like_type_for_node(
                                 &walk_up_parenthesized_types(&node.parent()).unwrap(),
-                            )
+                            )?
                         } else {
                             self.error_type()
                         },

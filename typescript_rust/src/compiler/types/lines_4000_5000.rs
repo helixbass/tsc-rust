@@ -690,22 +690,25 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>;
+    ) -> io::Result<Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>>;
     fn get_referenced_import_declaration(
         &self,
         node: &Node, /*Identifier*/
-    ) -> Option<Gc<Node /*Declaration*/>>;
+    ) -> io::Result<Option<Gc<Node /*Declaration*/>>>;
     fn get_referenced_declaration_with_colliding_name(
         &self,
         node: &Node, /*Identifier*/
-    ) -> Option<Gc<Node /*Declaration*/>>;
-    fn is_declaration_with_colliding_name(&self, node: &Node /*Declaration*/) -> bool;
-    fn is_value_alias_declaration(&self, node: &Node) -> bool;
+    ) -> io::Result<Option<Gc<Node /*Declaration*/>>>;
+    fn is_declaration_with_colliding_name(
+        &self,
+        node: &Node, /*Declaration*/
+    ) -> io::Result<bool>;
+    fn is_value_alias_declaration(&self, node: &Node) -> io::Result<bool>;
     fn is_referenced_alias_declaration(&self, node: &Node, check_children: Option<bool>) -> bool;
     fn is_top_level_value_import_equals_with_entity_name(
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
-    ) -> bool;
+    ) -> io::Result<bool>;
     fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags;
     fn is_declaration_visible(&self, node: &Node /*Declaration | AnyImportSyntax*/) -> bool;
     fn is_late_bound(&self, node: &Node /*Declaration*/) -> bool;
@@ -713,21 +716,24 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> Option<Vec<Gc<Node>>>;
+    ) -> io::Result<Option<Vec<Gc<Node>>>>;
     fn is_implementation_of_overload(
         &self,
         node: &Node, /*SignatureDeclaration*/
-    ) -> Option<bool>;
+    ) -> io::Result<Option<bool>>;
     fn is_required_initialized_parameter(&self, node: &Node /*ParameterDeclaration*/) -> bool;
     fn is_optional_uninitialized_parameter_property(
         &self,
         node: &Node, /*ParameterDeclaration*/
     ) -> bool;
-    fn is_expando_function_declaration(&self, node: &Node /*FunctionDeclaration*/) -> bool;
+    fn is_expando_function_declaration(
+        &self,
+        node: &Node, /*FunctionDeclaration*/
+    ) -> io::Result<bool>;
     fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Gc<Symbol>>;
+    ) -> io::Result<Vec<Gc<Symbol>>>;
     fn create_type_of_declaration(
         &self,
         declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
@@ -754,14 +760,14 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Gc<Box<dyn SymbolTracker>>,
-    ) -> Gc<Node /*Expression*/>;
+    ) -> io::Result<Gc<Node /*Expression*/>>;
     fn is_symbol_accessible(
         &self,
         symbol: &Symbol,
         enclosing_declaration: Option<&Node>,
         meaning: Option<SymbolFlags>,
         should_compute_alias_to_mark_visible: bool,
-    ) -> SymbolAccessibilityResult;
+    ) -> io::Result<SymbolAccessibilityResult>;
     fn is_entity_name_visible(
         &self,
         entity_name: &Node, /*EntityNameOrEntityNameExpression*/
@@ -774,18 +780,18 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_referenced_value_declaration(
         &self,
         reference: &Node, /*Identifier*/
-    ) -> Option<Gc<Node /*Declaration*/>>;
+    ) -> io::Result<Option<Gc<Node /*Declaration*/>>>;
     fn get_type_reference_serialization_kind(
         &self,
         type_name: &Node, /*EntityName*/
         location: Option<&Node>,
-    ) -> TypeReferenceSerializationKind;
+    ) -> io::Result<TypeReferenceSerializationKind>;
     fn is_optional_parameter(&self, node: &Node /*ParameterDeclaration*/) -> bool;
     fn module_exports_some_value(
         &self,
         module_reference_expression: &Node, /*Expression*/
-    ) -> bool;
-    fn is_arguments_local_binding(&self, node: &Node /*Identifier*/) -> bool;
+    ) -> io::Result<bool>;
+    fn is_arguments_local_binding(&self, node: &Node /*Identifier*/) -> io::Result<bool>;
     fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
@@ -793,7 +799,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_type_reference_directives_for_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
-    ) -> Option<Vec<String>>;
+    ) -> io::Result<Option<Vec<String>>>;
     fn get_type_reference_directives_for_symbol(
         &self,
         symbol: &Symbol,
@@ -802,7 +808,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn is_literal_const_declaration(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-    ) -> bool;
+    ) -> io::Result<bool>;
     fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>>;
     fn get_jsx_fragment_factory_entity(
         &self,
@@ -828,7 +834,10 @@ pub trait EmitResolver: Trace + Finalize {
         tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
     ) -> Option<Vec<Gc<Node /*Statement*/>>>;
-    fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool;
+    fn is_import_required_by_augmentation(
+        &self,
+        decl: &Node, /*ImportDeclaration*/
+    ) -> io::Result<bool>;
 }
 
 bitflags! {

@@ -754,7 +754,7 @@ impl TypeChecker {
             if self.is_tuple_type(&rest_type) {
                 return Ok(vec![self.expand_signature_parameters_with_tuple_members(
                     sig, &rest_type, rest_index,
-                )]);
+                )?]);
             } else if !skip_union_expanding
                 && rest_type.flags().intersects(TypeFlags::Union)
                 && every(
@@ -762,12 +762,12 @@ impl TypeChecker {
                     |type_: &Gc<Type>, _| self.is_tuple_type(type_),
                 )
             {
-                return Ok(map(
+                return try_map(
                     rest_type.as_union_or_intersection_type_interface().types(),
                     |t: &Gc<Type>, _| {
                         self.expand_signature_parameters_with_tuple_members(sig, t, rest_index)
                     },
-                ));
+                );
             }
         }
         Ok(vec![sig.parameters().to_owned()])
@@ -785,7 +785,7 @@ impl TypeChecker {
         let associated_names = rest_type_target_as_tuple_type
             .labeled_element_declarations
             .as_ref();
-        let rest_params = map(&element_types, |t: &Gc<Type>, i| {
+        let rest_params = try_map(&element_types, |t: &Gc<Type>, i| -> io::Result<_> {
             let tuple_label_name = associated_names
                 .map(|associated_names| self.get_tuple_element_label(&associated_names[i]));
             let name = tuple_label_name.try_unwrap_or_else(|| {
@@ -811,8 +811,8 @@ impl TypeChecker {
             } else {
                 t.clone()
             });
-            symbol
-        });
+            Ok(symbol)
+        })?;
         Ok(concatenate(
             sig.parameters()[0..rest_index].to_owned(),
             rest_params,

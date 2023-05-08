@@ -811,7 +811,7 @@ impl TransformDeclarations {
             .unwrap();
             combined_statements = set_text_range_node_array(
                 self.factory.create_node_array(
-                    Some(self.transform_and_replace_late_painted_statements(&statements)),
+                    Some(self.transform_and_replace_late_painted_statements(&statements)?),
                     None,
                 ),
                 Some(&*node_as_source_file.statements()),

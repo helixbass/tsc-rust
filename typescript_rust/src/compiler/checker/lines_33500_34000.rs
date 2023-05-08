@@ -816,7 +816,7 @@ impl TypeChecker {
                 self.check_property_access_expression(node, check_mode)?
             }
             SyntaxKind::QualifiedName => self.check_qualified_name(node, check_mode)?,
-            SyntaxKind::ElementAccessExpression => self.check_indexed_access(node, check_mode),
+            SyntaxKind::ElementAccessExpression => self.check_indexed_access(node, check_mode)?,
             SyntaxKind::CallExpression => {
                 if node.as_call_expression().expression.kind() == SyntaxKind::ImportKeyword {
                     return self.check_import_call_expression(node);

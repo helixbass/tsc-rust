@@ -31,7 +31,7 @@ impl TypeChecker {
                 self.get_type_from_type_node_(&node_as_indexed_access_type_node.object_type)?;
             let index_type =
                 self.get_type_from_type_node_(&node_as_indexed_access_type_node.index_type)?;
-            let potential_alias = self.get_alias_symbol_for_type_node(node);
+            let potential_alias = self.get_alias_symbol_for_type_node(node)?;
             let resolved = self.get_indexed_access_type(
                 &object_type,
                 &index_type,
@@ -60,12 +60,12 @@ impl TypeChecker {
     pub(super) fn get_type_from_mapped_type_node(
         &self,
         node: &Node, /*MappedTypeNode*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let type_ = self.create_object_type(ObjectFlags::Mapped, node.maybe_symbol());
             let type_: Gc<Type> = MappedType::new(type_, node.node_wrapper()).into();
-            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
             *type_.maybe_alias_type_arguments_mut() =
                 self.get_type_arguments_for_alias_symbol(alias_symbol);
@@ -73,7 +73,7 @@ impl TypeChecker {
             self.get_constraint_type_from_mapped_type(&type_);
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_actual_type_variable(&self, type_: &Type) -> Gc<Type> {
@@ -561,7 +561,7 @@ impl TypeChecker {
             let node_as_conditional_type_node = node.as_conditional_type_node();
             let check_type =
                 self.get_type_from_type_node_(&node_as_conditional_type_node.check_type)?;
-            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             let alias_type_arguments =
                 self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
             let all_outer_type_parameters = self.get_outer_type_parameters(node, Some(true));
@@ -813,7 +813,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
-            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             if (*self.get_members_of_symbol(&node.symbol())?)
                 .borrow()
                 .is_empty()

@@ -9,12 +9,13 @@ use crate::{
     get_declaration_of_kind, get_source_file_of_node, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
     is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
-    node_is_present, push_if_unique_gc, some, try_for_each_entry, BaseInterfaceType,
-    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
-    IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
-    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, Symbol,
-    SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
+    node_is_present, push_if_unique_gc, some, try_for_each_entry, try_maybe_for_each,
+    BaseInterfaceType, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
+    FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, Node, NodeInterface,
+    ObjectFlags, OptionTry, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
+    SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeParameter,
 };
 
 impl TypeChecker {
@@ -368,7 +369,7 @@ impl TypeChecker {
         .unwrap()
     }
 
-    pub(super) fn try_for_each_symbol_table_in_scope<TReturn, TError>(
+    pub(super) fn try_for_each_symbol_table_in_scope<TReturn>(
         &self,
         enclosing_declaration: Option<impl Borrow<Node>>,
         mut callback: impl FnMut(
@@ -376,8 +377,8 @@ impl TypeChecker {
             Option<bool>,
             Option<bool>,
             Option<&Node>,
-        ) -> Result<Option<TReturn>, TError>,
-    ) -> Result<Option<TReturn>, TError> {
+        ) -> io::Result<Option<TReturn>>,
+    ) -> io::Result<Option<TReturn>> {
         let mut result: Option<TReturn>;
         let mut location: Option<Gc<Node>> = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -1095,15 +1096,20 @@ impl TypeChecker {
                     return Ok(result);
                 }
 
-                let symbol_external_module = maybe_for_each(
+                let symbol_external_module = try_maybe_for_each(
                     symbol.maybe_declarations().as_deref(),
                     |declaration: &Gc<Node>, _| self.get_external_module_container(declaration),
-                );
+                )?;
                 if let Some(symbol_external_module) = symbol_external_module {
                     let enclosing_external_module =
-                        self.get_external_module_container(enclosing_declaration);
-                    if !matches!(enclosing_external_module, Some(enclosing_external_module) if Gc::ptr_eq(&symbol_external_module, &enclosing_external_module))
-                    {
+                        self.get_external_module_container(enclosing_declaration)?;
+                    if !matches!(
+                        enclosing_external_module,
+                        Some(enclosing_external_module) if Gc::ptr_eq(
+                            &symbol_external_module,
+                            &enclosing_external_module
+                        )
+                    ) {
                         return Ok(SymbolAccessibilityResult {
                             accessibility: SymbolAccessibility::CannotBeNamed,
                             aliases_to_make_visible: None,

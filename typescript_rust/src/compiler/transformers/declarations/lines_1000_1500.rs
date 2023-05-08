@@ -24,7 +24,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SingleNodeOrVecNode, StringOrNumber, Symbol,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolInterface, SyntaxKind,
-    VisitResult, VisitResultInterface, get_parse_node_factory, try_flat_map, try_visit_nodes, try_map, try_maybe_map, try_visit_node,
+    VisitResult, VisitResultInterface, get_parse_node_factory, try_flat_map, try_visit_nodes, try_map, try_maybe_map, try_visit_node, return_ok_default_if_none, try_map_defined,
 };
 
 impl TransformDeclarations {
@@ -303,7 +303,7 @@ impl TransformDeclarations {
                                 input_as_interface_declaration
                                     .maybe_type_parameters()
                                     .as_deref(),
-                            ),
+                            )?,
                             Some(
                                 self.transform_heritage_clauses(
                                     input_as_interface_declaration
@@ -342,7 +342,7 @@ impl TransformDeclarations {
                             input_as_function_declaration
                                 .maybe_type_parameters()
                                 .as_deref(),
-                        ),
+                        )?,
                         self.update_params_list(
                             input,
                             Some(&input_as_function_declaration.parameters()),
@@ -398,9 +398,9 @@ impl TransformDeclarations {
                     let mut declarations =
                         try_map_defined(Some(&props), |p: &Gc<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
                             let ref p_value_declaration =
-                                p.maybe_value_declaration().filter(|p_value_declaration| {
+                                return_ok_default_if_none!(p.maybe_value_declaration().filter(|p_value_declaration| {
                                     is_property_access_expression(p_value_declaration)
-                                })?;
+                                }));
                             self.set_get_symbol_accessibility_diagnostic(
                                 create_get_symbol_accessibility_diagnostic_for_node(
                                     p_value_declaration,
@@ -961,7 +961,7 @@ impl TransformDeclarations {
                         input_as_class_declaration
                             .maybe_heritage_clauses()
                             .as_deref(),
-                    );
+                    )?;
                     self.transform_top_level_declaration_cleanup(
                         input,
                         previous_enclosing_declaration.as_ref(),

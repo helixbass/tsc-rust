@@ -645,15 +645,15 @@ impl TypeChecker {
     pub(super) fn can_convert_import_declaration_to_type_only(
         &self,
         statement: &Node, /*Statement*/
-    ) -> bool {
-        is_import_declaration(statement)
+    ) -> io::Result<bool> {
+        Ok(is_import_declaration(statement)
             && matches!(
                 statement.as_import_declaration().import_clause.as_ref(),
                 Some(statement_import_clause) if !statement_import_clause.as_import_clause().is_type_only &&
-                    self.import_clause_contains_referenced_import(statement_import_clause) &&
-                    !self.is_referenced_alias_declaration(statement_import_clause, Some(true)) &&
-                    !self.import_clause_contains_const_enum_used_as_value(statement_import_clause)
-            )
+                    self.import_clause_contains_referenced_import(statement_import_clause)? &&
+                    !self.is_referenced_alias_declaration(statement_import_clause, Some(true))? &&
+                    !self.import_clause_contains_const_enum_used_as_value(statement_import_clause)?
+            ))
     }
 
     pub(super) fn can_convert_import_equals_declaration_to_type_only(
@@ -668,7 +668,7 @@ impl TypeChecker {
                     self.get_symbol_of_node(statement)?.unwrap().maybe_is_referenced(),
                     Some(is_referenced) if is_referenced != SymbolFlags::None
                 )
-                && !self.is_referenced_alias_declaration(statement, Some(false))
+                && !self.is_referenced_alias_declaration(statement, Some(false))?
                 && (*self.get_symbol_links(&self.get_symbol_of_node(statement)?.unwrap()))
                     .borrow()
                     .const_enum_referenced
@@ -679,10 +679,10 @@ impl TypeChecker {
     pub(super) fn check_imports_for_type_only_conversion(
         &self,
         source_file: &Node, /*SourceFile*/
-    ) {
+    ) -> io::Result<()> {
         for statement in &source_file.as_source_file().statements() {
             if self.can_convert_import_declaration_to_type_only(statement)
-                || self.can_convert_import_equals_declaration_to_type_only(statement)
+                || self.can_convert_import_equals_declaration_to_type_only(statement)?
             {
                 self.error(
                     Some(&**statement),
@@ -691,6 +691,8 @@ impl TypeChecker {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn check_export_specifier(

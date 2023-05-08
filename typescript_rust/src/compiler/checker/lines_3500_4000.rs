@@ -754,7 +754,7 @@ impl TypeChecker {
                     })
                     .transpose()?;
                 let object_literal_container =
-                    self.get_variable_declaration_of_object_literal(&container, meaning);
+                    self.get_variable_declaration_of_object_literal(&container, meaning)?;
                 if let Some(enclosing_declaration) = enclosing_declaration.as_ref() {
                     if container
                         .flags()
@@ -931,7 +931,7 @@ impl TypeChecker {
         d: &Node, /*Declaration*/
         container: &Symbol,
     ) -> io::Result<Option<Gc<Symbol>>> {
-        let file_symbol = self.get_external_module_container(d);
+        let file_symbol = self.get_external_module_container(d)?;
         let exported = return_ok_none_if_none!(file_symbol
             .as_ref()
             .and_then(|file_symbol| file_symbol.maybe_exports().clone())

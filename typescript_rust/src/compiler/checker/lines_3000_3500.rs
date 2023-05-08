@@ -20,9 +20,9 @@ use crate::{
     is_right_side_of_qualified_name_or_property_access, is_string_literal_like,
     is_type_of_expression, is_type_only_import_or_export_declaration, is_variable_declaration,
     node_is_missing, node_is_synthesized, path_is_relative, remove_extension, remove_prefix,
-    resolution_extension_is_ts_or_json, return_ok_none_if_none, starts_with,
-    try_extract_ts_extension, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
-    Debug_, DiagnosticMessage, Diagnostics, Extension, FindAncestorCallbackReturn,
+    resolution_extension_is_ts_or_json, return_ok_default_if_none, return_ok_none_if_none,
+    starts_with, try_extract_ts_extension, unescape_leading_underscores, AssignmentDeclarationKind,
+    CheckFlags, Debug_, DiagnosticMessage, Diagnostics, Extension, FindAncestorCallbackReturn,
     HasInitializerInterface, InternalSymbolName, ModuleKind, ModuleResolutionKind,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolInterface, SymbolLinks, SyntaxKind, TypeChecker, TypeCheckerHost,
@@ -691,7 +691,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> io::Result<Option<Gc<Symbol>>> {
         if self.is_jsdoc_type_reference(&name.parent()) {
-            let secondary_location = self.get_assignment_declaration_location(&name.parent());
+            let secondary_location = self.get_assignment_declaration_location(&name.parent())?;
             if let Some(secondary_location) = secondary_location {
                 return self.resolve_name_(
                     Some(secondary_location),
@@ -780,7 +780,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_expando_symbol(&self, symbol: &Symbol) -> io::Result<Option<Gc<Symbol>>> {
-        let decl = symbol.maybe_value_declaration()?;
+        let decl = return_ok_default_if_none!(symbol.maybe_value_declaration());
         if !is_in_js_file(Some(&*decl))
             || symbol.flags().intersects(SymbolFlags::TypeAlias)
             || get_expando_initializer(&decl, false).is_some()

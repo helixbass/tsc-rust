@@ -59,15 +59,15 @@ impl TypeChecker {
         if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
             let iteration_types = self
                 .get_iteration_types_of_iterable_cached(type_, &self.async_iteration_types_resolver)
-                .or_else(|| {
+                .try_or_else(|| {
                     self.get_iteration_types_of_iterable_fast(
                         type_,
                         &self.async_iteration_types_resolver,
                     )
-                });
+                })?;
             if let Some(iteration_types) = iteration_types.as_ref() {
                 return Ok(if use_.intersects(IterationUse::ForOfFlag) {
-                    self.get_async_from_sync_iteration_types(iteration_types, error_node)
+                    self.get_async_from_sync_iteration_types(iteration_types, error_node)?
                 } else {
                     iteration_types.clone()
                 });
@@ -77,19 +77,19 @@ impl TypeChecker {
         if use_.intersects(IterationUse::AllowsSyncIterablesFlag) {
             let iteration_types = self
                 .get_iteration_types_of_iterable_cached(type_, &self.sync_iteration_types_resolver)
-                .or_else(|| {
+                .try_or_else(|| {
                     self.get_iteration_types_of_iterable_fast(
                         type_,
                         &self.sync_iteration_types_resolver,
                     )
-                });
+                })?;
             if let Some(iteration_types) = iteration_types.as_ref() {
                 if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
                     if !Gc::ptr_eq(iteration_types, &self.no_iteration_types()) {
                         return Ok(self.set_cached_iteration_types(
                             type_,
                             IterationTypeCacheKey::IterationTypesOfAsyncIterable,
-                            self.get_async_from_sync_iteration_types(iteration_types, error_node),
+                            self.get_async_from_sync_iteration_types(iteration_types, error_node)?,
                         ));
                     }
                 } else {
@@ -125,7 +125,7 @@ impl TypeChecker {
                         self.get_async_from_sync_iteration_types(
                             &iteration_types,
                             error_node.as_deref(),
-                        ), // : noIterationTypes
+                        )?, // : noIterationTypes
                     ));
                 } else {
                     return Ok(iteration_types);
@@ -174,17 +174,17 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<IterationTypes>>> {
         let mut global_type: Gc<Type>;
         if self.is_reference_to_type(type_, &*{
-            let type_ = (resolver.get_global_iterable_type)(self, false);
+            let type_ = (resolver.get_global_iterable_type)(self, false)?;
             global_type = type_.clone();
             type_
         }) || self.is_reference_to_type(type_, &*{
-            let type_ = (resolver.get_global_iterable_iterator_type)(self, false);
+            let type_ = (resolver.get_global_iterable_iterator_type)(self, false)?;
             global_type = type_.clone();
             type_
         }) {
             let yield_type = self.get_type_arguments(type_)[0].clone();
             let iteration_types =
-                self.get_iteration_types_of_global_iterable_type(&global_type, resolver);
+                self.get_iteration_types_of_global_iterable_type(&global_type, resolver)?;
             let return_type = &iteration_types.return_type();
             let next_type = &iteration_types.next_type();
             return Ok(Some(
@@ -206,7 +206,7 @@ impl TypeChecker {
             ));
         }
 
-        if self.is_reference_to_type(type_, &*(resolver.get_global_generator_type)(self, false)) {
+        if self.is_reference_to_type(type_, &*(resolver.get_global_generator_type)(self, false)?) {
             let type_arguments = self.get_type_arguments(type_);
             let yield_type = &type_arguments[0];
             let return_type = &type_arguments[1];
@@ -232,7 +232,10 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn get_property_name_for_known_symbol_name(&self, symbol_name: &str) -> __String {
+    pub(super) fn get_property_name_for_known_symbol_name(
+        &self,
+        symbol_name: &str,
+    ) -> io::Result<__String> {
         let ctor_type = self.get_global_es_symbol_constructor_symbol(false);
         let unique_type = ctor_type.as_ref().try_and_then(|ctor_type| {
             self.get_type_of_property_of_type_(
@@ -240,14 +243,16 @@ impl TypeChecker {
                 &escape_leading_underscores(symbol_name),
             )
         })?;
-        if let Some(unique_type) = unique_type
-            .as_ref()
-            .filter(|unique_type| self.is_type_usable_as_property_name(unique_type))
-        {
-            self.get_property_name_from_type(unique_type).into_owned()
-        } else {
-            format!("__@{}", symbol_name)
-        }
+        Ok(
+            if let Some(unique_type) = unique_type
+                .as_ref()
+                .filter(|unique_type| self.is_type_usable_as_property_name(unique_type))
+            {
+                self.get_property_name_from_type(unique_type).into_owned()
+            } else {
+                format!("__@{}", symbol_name)
+            },
+        )
     }
 
     pub(super) fn get_iteration_types_of_iterable_slow(
@@ -328,27 +333,29 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn get_iteration_types_of_iterator<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_iteration_types_of_iterator(
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-        error_node: Option<TErrorNode>,
-    ) -> Option<Gc<IterationTypes>> {
+        error_node: Option<impl Borrow<Node>>,
+    ) -> io::Result<Option<Gc<IterationTypes>>> {
         if self.is_type_any(Some(type_)) {
-            return Some(self.any_iteration_types());
+            return Ok(Some(self.any_iteration_types()));
         }
 
         let iteration_types = self
             .get_iteration_types_of_iterator_cached(type_, resolver)
-            .or_else(|| self.get_iteration_types_of_iterator_fast(type_, resolver))
-            .unwrap_or_else(|| {
+            .try_or_else(|| self.get_iteration_types_of_iterator_fast(type_, resolver))?
+            .try_unwrap_or_else(|| {
                 self.get_iteration_types_of_iterator_slow(type_, resolver, error_node)
-            });
-        if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
-            None
-        } else {
-            Some(iteration_types)
-        }
+            })?;
+        Ok(
+            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+                None
+            } else {
+                Some(iteration_types)
+            },
+        )
     }
 
     pub(super) fn get_iteration_types_of_iterator_cached(
@@ -363,19 +370,19 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Gc<IterationTypes>> {
-        let global_type = (resolver.get_global_iterable_iterator_type)(self, false);
+    ) -> io::Result<Option<Gc<IterationTypes>>> {
+        let global_type = (resolver.get_global_iterable_iterator_type)(self, false)?;
         if self.is_reference_to_type(type_, &global_type) {
             let yield_type = self.get_type_arguments(type_)[0].clone();
             let global_iteration_types = self
                 .get_iteration_types_of_iterator_cached(&global_type, resolver)
-                .unwrap_or_else(|| {
+                .try_unwrap_or_else(|| {
                     self.get_iteration_types_of_iterator_slow(
                         &global_type,
                         resolver,
                         Option::<&Node>::None,
                     )
-                });
+                })?;
             let iteration_types = if Gc::ptr_eq(&global_iteration_types, &self.no_iteration_types())
             {
                 self.default_iteration_types()
@@ -384,7 +391,7 @@ impl TypeChecker {
             };
             let return_type = &iteration_types.return_type();
             let next_type = &iteration_types.next_type();
-            return Some(self.set_cached_iteration_types(
+            return Ok(Some(self.set_cached_iteration_types(
                 type_,
                 resolver.iterator_cache_key,
                 self.create_iteration_types(
@@ -392,16 +399,16 @@ impl TypeChecker {
                     Some(return_type.clone()),
                     Some(next_type.clone()),
                 ),
-            ));
+            )));
         }
-        if self.is_reference_to_type(type_, &(resolver.get_global_iterator_type)(self, false))
-            || self.is_reference_to_type(type_, &(resolver.get_global_generator_type)(self, false))
+        if self.is_reference_to_type(type_, &(resolver.get_global_iterator_type)(self, false)?)
+            || self.is_reference_to_type(type_, &(resolver.get_global_generator_type)(self, false)?)
         {
             let type_arguments = self.get_type_arguments(type_);
             let yield_type = &type_arguments[0];
             let return_type = &type_arguments[1];
             let next_type = &type_arguments[2];
-            return Some(self.set_cached_iteration_types(
+            return Ok(Some(self.set_cached_iteration_types(
                 type_,
                 resolver.iterator_cache_key,
                 self.create_iteration_types(
@@ -409,9 +416,9 @@ impl TypeChecker {
                     Some(return_type.clone()),
                     Some(next_type.clone()),
                 ),
-            ));
+            )));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn is_iterator_result(
@@ -432,11 +439,11 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn is_yield_iterator_result(&self, type_: &Type) -> bool {
+    pub(super) fn is_yield_iterator_result(&self, type_: &Type) -> io::Result<bool> {
         self.is_iterator_result(type_, IterationTypeKind::Yield)
     }
 
-    pub(super) fn is_return_iterator_result(&self, type_: &Type) -> bool {
+    pub(super) fn is_return_iterator_result(&self, type_: &Type) -> io::Result<bool> {
         self.is_iterator_result(type_, IterationTypeKind::Return)
     }
 
@@ -572,8 +579,8 @@ impl TypeChecker {
             .as_ref()
         {
             if method_signatures.len() == 1 {
-                let global_generator_type = (resolver.get_global_generator_type)(self, false);
-                let global_iterator_type = (resolver.get_global_iterator_type)(self, false);
+                let global_generator_type = (resolver.get_global_generator_type)(self, false)?;
+                let global_iterator_type = (resolver.get_global_iterator_type)(self, false)?;
                 let is_generator_method = matches!(
                     global_generator_type.maybe_symbol().and_then(|global_generator_type_symbol| {
                         global_generator_type_symbol.maybe_members().clone()
@@ -658,7 +665,7 @@ impl TypeChecker {
                 }
                 append(
                     method_parameter_types.as_mut().unwrap(),
-                    Some(self.get_type_at_position(signature, 0)),
+                    Some(self.get_type_at_position(signature, 0)?),
                 );
             }
             if method_return_types.is_none() {
@@ -846,14 +853,14 @@ impl TypeChecker {
         &self,
         func: &Node, /*SignatureDeclaration*/
         return_type: &Type,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let unwrapped_return_type =
-            self.unwrap_return_type(return_type, get_function_flags(Some(func)));
+            self.unwrap_return_type(return_type, get_function_flags(Some(func)))?;
         /* !!unwrappedReturnType &&*/
-        self.maybe_type_of_kind(
+        Ok(self.maybe_type_of_kind(
             &unwrapped_return_type,
             TypeFlags::Void | TypeFlags::AnyOrUnknown,
-        )
+        ))
     }
 
     pub(super) fn check_return_statement(
@@ -926,7 +933,7 @@ impl TypeChecker {
                 }
             } else if self.get_return_type_from_annotation(&container)?.is_some() {
                 let unwrapped_return_type = self
-                    .unwrap_return_type(&return_type, function_flags)/*?? returnType*/;
+                    .unwrap_return_type(&return_type, function_flags)?/*?? returnType*/;
                 let unwrapped_expr_type = if function_flags.intersects(FunctionFlags::Async) {
                     self.check_awaited_type(
                         &expr_type,

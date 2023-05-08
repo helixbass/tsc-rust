@@ -444,7 +444,7 @@ impl TypeChecker {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
-                &mut |type_| Some(self.unwrap_awaited_type(type_)),
+                &mut |type_| Some(self.unwrap_awaited_type(type_)?),
                 None,
             )
             .unwrap()
@@ -478,7 +478,7 @@ impl TypeChecker {
                 if let Some(awaited_symbol) = awaited_symbol.as_ref() {
                     return Ok(self.get_type_alias_instantiation(
                         awaited_symbol,
-                        Some(&[self.unwrap_awaited_type(type_)]),
+                        Some(&[self.unwrap_awaited_type(type_)?]),
                         Option::<&Symbol>::None,
                         None,
                     ));

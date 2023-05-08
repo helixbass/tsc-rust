@@ -120,7 +120,7 @@ impl TypeChecker {
                         self.copy_symbols(
                             symbols,
                             &(*self.get_members_of_symbol(
-                                &self.get_symbol_of_node(location_present).unwrap(),
+                                &self.get_symbol_of_node(location_present)?.unwrap(),
                             )?)
                             .borrow(),
                             meaning & SymbolFlags::Type,
@@ -445,7 +445,7 @@ impl TypeChecker {
         {
             if !is_private_identifier(name) && !is_jsdoc_member_name(name) {
                 let special_property_assignment_symbol =
-                    self.get_special_property_assignment_symbol_from_entity_name(name);
+                    self.get_special_property_assignment_symbol_from_entity_name(name)?;
                 if special_property_assignment_symbol.is_some() {
                     return Ok(special_property_assignment_symbol);
                 }

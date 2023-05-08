@@ -593,7 +593,7 @@ impl TypeChecker {
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node)?,
             SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
             SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node)?,
-            SyntaxKind::InferType => self.get_type_from_infer_type_node(node),
+            SyntaxKind::InferType => self.get_type_from_infer_type_node(node)?,
             SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node)?,
             SyntaxKind::ImportType => self.get_type_from_import_type_node(node)?,
             SyntaxKind::Identifier

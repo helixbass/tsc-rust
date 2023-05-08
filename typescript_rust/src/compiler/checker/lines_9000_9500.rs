@@ -297,11 +297,11 @@ impl TypeChecker {
         declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         report_errors: Option<bool>,
     ) -> io::Result<Gc<Type>> {
-        Ok(self.widen_type_for_variable_like_declaration(
+        self.widen_type_for_variable_like_declaration(
             self.get_type_for_variable_like_declaration(declaration, true)?,
             declaration,
             report_errors,
-        ))
+        )
     }
 
     pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> io::Result<bool> {
@@ -521,7 +521,7 @@ impl TypeChecker {
                 ),
                 declaration,
                 None,
-            );
+            )?;
         } else if is_binary_expression(declaration)
             || is_in_js_file(Some(declaration))
                 && (is_call_expression(declaration)

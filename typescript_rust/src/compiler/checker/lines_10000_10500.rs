@@ -390,10 +390,10 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_enum_kind(&self, symbol: &Symbol) -> EnumKind {
+    pub(super) fn get_enum_kind(&self, symbol: &Symbol) -> io::Result<EnumKind> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_enum_kind) = (*links).borrow().enum_kind {
-            return links_enum_kind;
+            return Ok(links_enum_kind);
         }
         let mut has_non_literal_member = false;
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
@@ -404,9 +404,9 @@ impl TypeChecker {
                         {
                             let ret = EnumKind::Literal;
                             links.borrow_mut().enum_kind = Some(ret);
-                            return ret;
+                            return Ok(ret);
                         }
-                        if !self.is_literal_enum_member(member) {
+                        if !self.is_literal_enum_member(member)? {
                             has_non_literal_member = true;
                         }
                     }
@@ -419,7 +419,7 @@ impl TypeChecker {
             EnumKind::Literal
         };
         links.borrow_mut().enum_kind = Some(ret);
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> io::Result<Gc<Type>> {

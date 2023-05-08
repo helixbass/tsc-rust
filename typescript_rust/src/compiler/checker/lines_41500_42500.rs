@@ -21,13 +21,13 @@ use crate::{
     is_variable_declaration, is_variable_like_or_accessor, maybe_get_source_file_of_node,
     maybe_is_class_like, modifier_to_flag, node_can_be_decorated, node_is_present,
     parse_isolated_entity_name, return_ok_default_if_none, should_preserve_const_enums, some,
-    token_to_string, try_cast, try_some, with_synthetic_factory_and_factory, Debug_, Diagnostic,
-    Diagnostics, EmitResolver, ExternalEmitHelpers, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, LiteralType, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
-    PragmaArgumentName, PragmaName, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceSerializationKind, UnwrapOrEmpty,
+    token_to_string, try_cast, try_for_each_child_bool, try_some,
+    with_synthetic_factory_and_factory, Debug_, Diagnostic, Diagnostics, EmitResolver,
+    ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags,
+    NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName, PragmaName, Signature,
+    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, UnwrapOrEmpty,
 };
 
 impl TypeChecker {
@@ -84,11 +84,11 @@ impl TypeChecker {
         }
 
         if check_children == Some(true) {
-            return Ok(for_each_child_bool(
+            return try_for_each_child_bool(
                 node,
                 |node| self.is_referenced_alias_declaration(node, check_children),
-                Option::<fn(&NodeArray) -> bool>::None,
-            ));
+                Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            );
         }
         Ok(false)
     }

@@ -817,8 +817,8 @@ impl TypeChecker {
         &self,
         node: &Node, /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         has_default_type_arguments: Option<bool>,
-    ) -> bool {
-        self.get_alias_symbol_for_type_node(node).is_some()
+    ) -> io::Result<bool> {
+        Ok(self.get_alias_symbol_for_type_node(node)?.is_some()
             || self.is_resolved_by_type_alias(node)
                 && if node.kind() == SyntaxKind::ArrayType {
                     self.may_resolve_type_alias(&node.as_array_type_node().element_type)
@@ -837,7 +837,7 @@ impl TypeChecker {
                                 self.may_resolve_type_alias(type_argument)
                             }),
                         )
-                }
+                })
     }
 
     pub(super) fn is_resolved_by_type_alias(&self, node: &Node) -> bool {

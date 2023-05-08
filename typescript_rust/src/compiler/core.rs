@@ -1784,13 +1784,26 @@ pub fn get_spelling_suggestion<'candidates, TCandidate: Clone>(
     candidates: impl IntoIterator<Item = impl Borrow<TCandidate>>,
     mut get_name: impl FnMut(&TCandidate) -> Option<String>,
 ) -> Option<TCandidate> {
+    try_get_spelling_suggestion(
+        name,
+        candidates,
+        |candidate: &TCandidate| -> Result<_, ()> { Ok(get_name(candidate)) },
+    )
+    .unwrap()
+}
+
+pub fn try_get_spelling_suggestion<'candidates, TCandidate: Clone, TError>(
+    name: &str,
+    candidates: impl IntoIterator<Item = impl Borrow<TCandidate>>,
+    mut get_name: impl FnMut(&TCandidate) -> Result<Option<String>, TError>,
+) -> Result<Option<TCandidate>, TError> {
     let name_len_as_f64 = name.len() as f64;
     let maximum_length_difference = f64::min(2.0, (name_len_as_f64 * 0.34).floor());
     let mut best_distance = (name_len_as_f64 * 0.4).floor() + 1.0;
     let mut best_candidate: Option<TCandidate> = None;
     for candidate in candidates {
         let candidate: &TCandidate = candidate.borrow();
-        let candidate_name = get_name(candidate);
+        let candidate_name = get_name(candidate)?;
         if let Some(candidate_name) = candidate_name {
             if (TryInto::<isize>::try_into(candidate_name.len()).unwrap()
                 - TryInto::<isize>::try_into(name.len()).unwrap())
@@ -1821,7 +1834,7 @@ pub fn get_spelling_suggestion<'candidates, TCandidate: Clone>(
             }
         }
     }
-    best_candidate
+    Ok(best_candidate)
 }
 
 fn levenshtein_with_max(s1: &SourceTextAsChars, s2: &SourceTextAsChars, max: f64) -> Option<f64> {
