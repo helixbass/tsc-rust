@@ -1,4 +1,5 @@
 use gc::{Finalize, Gc, GcCell, Trace};
+use itertools::Itertools;
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -133,7 +134,7 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .is_object_type_with_inferable_index(source)
         {
-            return Ok(self.members_related_to_index_info(source, target_info, report_errors));
+            return self.members_related_to_index_info(source, target_info, report_errors);
         }
         if report_errors {
             self.report_error(
@@ -270,7 +271,7 @@ impl TypeChecker {
             return Ok(vec![]);
         }
         try_filter(
-            &self.get_properties_of_type(target)?,
+            &self.get_properties_of_type(target)?.collect_vec(),
             |target_prop: &Gc<Symbol>| -> io::Result<_> {
                 Ok(self.is_exact_optional_property_mismatch(
                     self.get_type_of_property_of_type_(source, target_prop.escaped_name())?,
@@ -300,8 +301,8 @@ impl TypeChecker {
 
     pub fn get_exact_optional_properties(&self, type_: &Type) -> io::Result<Vec<Gc<Symbol>>> {
         try_filter(
-            &self.get_properties_of_type(type_)?,
-            |target_prop: &Gc<Symbol>| {
+            &self.get_properties_of_type(type_)?.collect_vec(),
+            |target_prop: &Gc<Symbol>| -> io::Result<_> {
                 Ok(self.contains_missing_type(&*self.get_type_of_symbol(target_prop)?))
             },
         )
@@ -312,16 +313,17 @@ impl TypeChecker {
         source: &Type,
         target: &Type, /*UnionOrIntersectionType*/
         is_related_to: Option<impl Fn(&Type, &Type) -> Ternary>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let is_related_to = |source: &Type, target: &Type| match is_related_to.as_ref() {
             None => self.compare_types_assignable(source, target),
             Some(is_related_to) => is_related_to(source, target),
         };
-        self.find_matching_discriminant_type(source, target, is_related_to, Some(true))
+        Ok(self
+            .find_matching_discriminant_type(source, target, is_related_to, Some(true))?
             .or_else(|| self.find_matching_type_reference_or_type_alias_reference(source, target))
             .or_else(|| self.find_best_type_for_object_literal(source, target))
             .or_else(|| self.find_best_type_for_invokable(source, target))
-            .or_else(|| self.find_most_overlappy_type(source, target))
+            .try_or_else(|| self.find_most_overlappy_type(source, target)))
     }
 
     pub(super) fn discriminate_type_by_discriminable_items(
@@ -497,9 +499,7 @@ impl TypeChecker {
         self.try_get_variances_worker(
             type_parameters,
             cache,
-            |a: &GetVariancesCache, b: &Type, c: &Type| -> Result<_, ()> {
-                Ok(create_marker_type(a, b, c))
-            },
+            |a: &GetVariancesCache, b: &Type, c: &Type| Ok(create_marker_type(a, b, c)),
         )
         .unwrap()
     }
@@ -544,7 +544,7 @@ impl TypeChecker {
                     };
                 if variance == VarianceFlags::Bivariant
                     && self.is_type_assignable_to(
-                        &create_marker_type(&cache, tp, &self.marker_other_type())?,
+                        &*create_marker_type(&cache, tp, &self.marker_other_type())?,
                         &type_with_super,
                     )
                 {

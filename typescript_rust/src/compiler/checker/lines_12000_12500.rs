@@ -21,14 +21,14 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_apparent_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_apparent_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
         let t = if type_.flags().intersects(TypeFlags::Instantiable) {
             self.get_base_constraint_of_type(type_)
                 .unwrap_or_else(|| self.unknown_type())
         } else {
             type_.type_wrapper()
         };
-        if get_object_flags(&t).intersects(ObjectFlags::Mapped) {
+        Ok(if get_object_flags(&t).intersects(ObjectFlags::Mapped) {
             self.get_apparent_type_of_mapped_type(&t)
         } else if t.flags().intersects(TypeFlags::Intersection) {
             self.get_apparent_type_of_intersection_type(&t)
@@ -37,11 +37,11 @@ impl TypeChecker {
         } else if t.flags().intersects(TypeFlags::NumberLike) {
             self.global_number_type()
         } else if t.flags().intersects(TypeFlags::BigIntLike) {
-            self.get_global_big_int_type(self.language_version >= ScriptTarget::ES2020)
+            self.get_global_big_int_type(self.language_version >= ScriptTarget::ES2020)?
         } else if t.flags().intersects(TypeFlags::BooleanLike) {
             self.global_boolean_type()
         } else if t.flags().intersects(TypeFlags::ESSymbolLike) {
-            self.get_global_es_symbol_type(self.language_version >= ScriptTarget::ES2015)
+            self.get_global_es_symbol_type(self.language_version >= ScriptTarget::ES2015)?
         } else if t.flags().intersects(TypeFlags::NonPrimitive) {
             self.empty_object_type()
         } else if t.flags().intersects(TypeFlags::Index) {
@@ -50,7 +50,7 @@ impl TypeChecker {
             self.empty_object_type()
         } else {
             t
-        }
+        })
     }
 
     pub(super) fn get_reduced_apparent_type(&self, type_: &Type) -> Gc<Type> {
@@ -116,7 +116,7 @@ impl TypeChecker {
                                 } else {
                                     Ternary::False
                                 }
-                            }) == Ternary::True
+                            })? == Ternary::True
                         {
                             merged_instantiations = matches!(
                                 single_prop.maybe_parent(),
@@ -137,9 +137,9 @@ impl TypeChecker {
                             }
                         }
                     }
-                    if is_union && self.is_readonly_symbol(&prop) {
+                    if is_union && self.is_readonly_symbol(&prop)? {
                         check_flags |= CheckFlags::Readonly;
-                    } else if !is_union && !self.is_readonly_symbol(&prop) {
+                    } else if !is_union && !self.is_readonly_symbol(&prop)? {
                         check_flags &= !CheckFlags::Readonly;
                     }
                     check_flags |=
@@ -182,7 +182,7 @@ impl TypeChecker {
                         append(
                             index_types.as_mut().unwrap(),
                             Some(if self.is_tuple_type(&type_) {
-                                self.get_rest_type_of_tuple_type(&type_)
+                                self.get_rest_type_of_tuple_type(&type_)?
                                     .unwrap_or_else(|| self.undefined_type())
                             } else {
                                 index_info.type_.clone()
@@ -275,7 +275,7 @@ impl TypeChecker {
                     );
                 }
             }
-            let type_ = self.get_type_of_symbol(&prop);
+            let type_ = self.get_type_of_symbol(&prop)?;
             if first_type.is_none() {
                 first_type = Some(type_.clone());
                 name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
@@ -332,9 +332,9 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                )
+                )?
             } else {
-                self.get_intersection_type(&prop_types, Option::<&Symbol>::None, None)
+                self.get_intersection_type(&prop_types, Option::<&Symbol>::None, None)?
             });
         }
         Ok(Some(result))
@@ -345,7 +345,7 @@ impl TypeChecker {
         type_: &Type, /*UnionOrIntersectionType*/
         name: &str,   /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let type_as_union_or_intersection_type = type_.as_union_or_intersection_type_interface();
         let mut property = type_as_union_or_intersection_type
             .maybe_property_cache_without_object_function_property_augment()
@@ -370,7 +370,7 @@ impl TypeChecker {
                 type_,
                 name,
                 skip_object_function_property_augment,
-            );
+            )?;
             if let Some(property) = property.as_ref() {
                 if matches!(skip_object_function_property_augment, Some(true)) {
                     let mut property_cache_without_object_function_property_augment =
@@ -397,7 +397,7 @@ impl TypeChecker {
                 };
             }
         }
-        property
+        Ok(property)
     }
 
     pub(super) fn get_property_of_union_or_intersection_type(
@@ -414,7 +414,7 @@ impl TypeChecker {
         property.filter(|property| !get_check_flags(property).intersects(CheckFlags::ReadPartial))
     }
 
-    pub(super) fn get_reduced_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_reduced_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
         if type_.flags().intersects(TypeFlags::Union)
             && type_
                 .as_union_type()
@@ -426,10 +426,10 @@ impl TypeChecker {
                 *type_as_union_type.maybe_resolved_reduced_type() =
                     Some(self.get_reduced_union_type(type_));
             }
-            return (*type_as_union_type.maybe_resolved_reduced_type())
+            return Ok((*type_as_union_type.maybe_resolved_reduced_type())
                 .borrow()
                 .clone()
-                .unwrap();
+                .unwrap());
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             let type_as_intersection_type = type_.as_intersection_type();
             if !type_as_intersection_type
@@ -440,7 +440,7 @@ impl TypeChecker {
                     type_as_intersection_type.object_flags()
                         | ObjectFlags::IsNeverIntersectionComputed
                         | if self
-                            .get_properties_of_union_or_intersection_type(type_)
+                            .get_properties_of_union_or_intersection_type(type_)?
                             .any(|ref symbol| self.is_never_reduced_property(symbol))
                         {
                             ObjectFlags::IsNeverIntersection
@@ -449,25 +449,30 @@ impl TypeChecker {
                         },
                 );
             }
-            return if type_as_intersection_type
-                .object_flags()
-                .intersects(ObjectFlags::IsNeverIntersection)
-            {
-                self.never_type()
-            } else {
-                type_.type_wrapper()
-            };
+            return Ok(
+                if type_as_intersection_type
+                    .object_flags()
+                    .intersects(ObjectFlags::IsNeverIntersection)
+                {
+                    self.never_type()
+                } else {
+                    type_.type_wrapper()
+                },
+            );
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
-    pub(super) fn get_reduced_union_type(&self, union_type: &Type /*UnionType*/) -> Gc<Type> {
+    pub(super) fn get_reduced_union_type(
+        &self,
+        union_type: &Type, /*UnionType*/
+    ) -> io::Result<Gc<Type>> {
         let union_type_as_union_type = union_type.as_union_type();
         let reduced_types = same_map(union_type_as_union_type.types(), |type_: &Gc<Type>, _| {
             self.get_reduced_type(type_)
         });
         if are_gc_slices_equal(&reduced_types, union_type_as_union_type.types()) {
-            return union_type.type_wrapper();
+            return Ok(union_type.type_wrapper());
         }
         let reduced = self.get_union_type(
             &reduced_types,
@@ -475,25 +480,25 @@ impl TypeChecker {
             Option::<Symbol>::None,
             None,
             Option::<&Type>::None,
-        );
+        )?;
         if reduced.flags().intersects(TypeFlags::Union) {
             *reduced.as_union_type().maybe_resolved_reduced_type() = Some(reduced.clone());
         }
-        reduced
+        Ok(reduced)
     }
 
     pub(super) fn is_never_reduced_property(&self, prop: &Symbol) -> bool {
         self.is_discriminant_with_never_type(prop) || self.is_conflicting_private_property(prop)
     }
 
-    pub(super) fn is_discriminant_with_never_type(&self, prop: &Symbol) -> bool {
-        !prop.flags().intersects(SymbolFlags::Optional)
+    pub(super) fn is_discriminant_with_never_type(&self, prop: &Symbol) -> io::Result<bool> {
+        Ok(!prop.flags().intersects(SymbolFlags::Optional)
             && get_check_flags(prop) & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
                 == CheckFlags::Discriminant
             && self
-                .get_type_of_symbol(prop)
+                .get_type_of_symbol(prop)?
                 .flags()
-                .intersects(TypeFlags::Never)
+                .intersects(TypeFlags::Never))
     }
 
     pub(super) fn is_conflicting_private_property(&self, prop: &Symbol) -> bool {
@@ -505,42 +510,42 @@ impl TypeChecker {
         &self,
         error_info: Option<DiagnosticMessageChain>,
         type_: &Type,
-    ) -> Option<DiagnosticMessageChain> {
+    ) -> io::Result<Option<DiagnosticMessageChain>> {
         if type_.flags().intersects(TypeFlags::Intersection)
             && get_object_flags(type_).intersects(ObjectFlags::IsNeverIntersection)
         {
             let never_prop = self
-                .get_properties_of_union_or_intersection_type(type_)
+                .get_properties_of_union_or_intersection_type(type_)?
                 .find(|property| self.is_discriminant_with_never_type(property));
             if let Some(never_prop) = never_prop {
-                return Some(
+                return Ok(Some(
                     chain_diagnostic_messages(
                         error_info,
                         &Diagnostics::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
                         Some(vec![
-                            self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None),
-                            self.symbol_to_string_(&never_prop, Option::<&Node>::None, None, None, None)
+                            self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None)?,
+                            self.symbol_to_string_(&never_prop, Option::<&Node>::None, None, None, None)?
                         ])
                     )
-                );
+                ));
             }
             let private_prop = self
-                .get_properties_of_union_or_intersection_type(type_)
+                .get_properties_of_union_or_intersection_type(type_)?
                 .find(|property| self.is_conflicting_private_property(property));
             if let Some(private_prop) = private_prop {
-                return Some(
+                return Ok(Some(
                     chain_diagnostic_messages(
                         error_info,
                         &Diagnostics::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
                         Some(vec![
-                            self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None),
-                            self.symbol_to_string_(&private_prop, Option::<&Node>::None, None, None, None)
+                            self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None)?,
+                            self.symbol_to_string_(&private_prop, Option::<&Node>::None, None, None, None)?
                         ])
                     )
-                );
+                ));
             }
         }
-        error_info
+        Ok(error_info)
     }
 
     pub(super) fn get_property_of_type_(
@@ -628,7 +633,7 @@ impl TypeChecker {
         &self,
         index_infos: &[Gc<IndexInfo>],
         key_type: &Type,
-    ) -> Option<Gc<IndexInfo>> {
+    ) -> io::Result<Option<Gc<IndexInfo>>> {
         let mut string_index_info: Option<Gc<IndexInfo>> = None;
         let mut applicable_info: Option<Gc<IndexInfo>> = None;
         let mut applicable_infos: Option<Vec<Gc<IndexInfo>>> = None;
@@ -646,7 +651,7 @@ impl TypeChecker {
                 }
             }
         }
-        if let Some(applicable_infos) = applicable_infos {
+        Ok(if let Some(applicable_infos) = applicable_infos {
             Some(Gc::new(self.create_index_info(
                 self.unknown_type(),
                 self.get_intersection_type(
@@ -655,7 +660,7 @@ impl TypeChecker {
                     }),
                     Option::<&Symbol>::None,
                     None,
-                ),
+                )?,
                 reduce_left(
                     &applicable_infos,
                     |is_readonly, info: &Gc<IndexInfo>, _| is_readonly && info.is_readonly,
@@ -673,7 +678,7 @@ impl TypeChecker {
             string_index_info
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn is_applicable_index_type(&self, source: &Type, target: &Type) -> bool {
@@ -794,54 +799,54 @@ impl TypeChecker {
         &self,
         module_name: &str,
         with_augmentations: bool,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         if is_external_module_name_relative(module_name) {
-            return None;
+            return Ok(None);
         }
         let symbol = self.get_symbol(
             &self.globals(),
             &format!("\"{}\"", module_name),
             SymbolFlags::ValueModule,
-        );
-        if symbol.is_some() && with_augmentations {
+        )?;
+        Ok(if symbol.is_some() && with_augmentations {
             self.get_merged_symbol(symbol)
         } else {
             symbol
-        }
+        })
     }
 
     pub(super) fn is_optional_parameter_(
         &self,
         node: &Node, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         if has_question_token(node)
             || self.is_optional_jsdoc_property_like_tag(node)
             || self.is_jsdoc_optional_parameter(node)
         {
-            return true;
+            return Ok(true);
         }
 
         let node_as_parameter_declaration = node.as_parameter_declaration();
         if node_as_parameter_declaration.maybe_initializer().is_some() {
-            let signature = self.get_signature_from_declaration_(&node.parent());
+            let signature = self.get_signature_from_declaration_(&node.parent())?;
             let parameter_index = index_of_gc(
                 &node.parent().as_signature_declaration().parameters(),
                 &node.node_wrapper(),
             );
             Debug_.assert(parameter_index >= 0, None);
             let parameter_index: usize = parameter_index.try_into().unwrap();
-            return parameter_index
+            return Ok(parameter_index
                 >= self.get_min_argument_count(
                     &signature,
                     Some(
                         MinArgumentCountFlags::StrongArityForUntypedJS
                             | MinArgumentCountFlags::VoidIsNonOptional,
                     ),
-                );
+                )?);
         }
         let iife = get_immediately_invoked_function_expression(&node.parent());
         if let Some(iife) = iife {
-            return node_as_parameter_declaration.maybe_type().is_none()
+            return Ok(node_as_parameter_declaration.maybe_type().is_none()
                 && node_as_parameter_declaration.dot_dot_dot_token.is_none()
                 && index_of_gc(
                     &node.parent().as_signature_declaration().parameters(),
@@ -851,10 +856,10 @@ impl TypeChecker {
                     .arguments
                     .len()
                     .try_into()
-                    .unwrap();
+                    .unwrap());
         }
 
-        false
+        Ok(false)
     }
 
     pub(super) fn is_optional_property_declaration(

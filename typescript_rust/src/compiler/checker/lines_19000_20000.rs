@@ -99,7 +99,7 @@ impl CheckTypeRelatedTo {
         source: &Type, /*MappedType*/
         target: &Type, /*MappedType*/
         report_errors: bool,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let modifiers_related = Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
             || if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
                 self.type_checker.get_mapped_type_modifiers(source)
@@ -156,16 +156,16 @@ impl CheckTypeRelatedTo {
                         .maybe_instantiate_type(
                             self.type_checker.get_name_type_from_mapped_type(source),
                             Some(mapper.clone()),
-                        )
+                        )?
                         .as_ref(),
                     self.type_checker
                         .maybe_instantiate_type(
                             self.type_checker.get_name_type_from_mapped_type(target),
                             Some(mapper.clone()),
-                        )
+                        )?
                         .as_ref(),
                 ) {
-                    return result
+                    return Ok(result
                         & self.is_related_to(
                             &self.type_checker.instantiate_type(
                                 &self.type_checker.get_template_type_from_mapped_type(source),
@@ -176,11 +176,11 @@ impl CheckTypeRelatedTo {
                             Some(report_errors),
                             None,
                             None,
-                        );
+                        ));
                 }
             }
         }
-        Ternary::False
+        Ok(Ternary::False)
     }
 
     pub(super) fn type_related_to_discriminated_type(
@@ -191,7 +191,7 @@ impl CheckTypeRelatedTo {
         let source_properties = self.type_checker.get_properties_of_type(source)?;
         let source_properties_filtered = self
             .type_checker
-            .find_discriminant_properties(source_properties, target);
+            .find_discriminant_properties(source_properties, target)?;
         if source_properties_filtered.is_none() {
             return Ok(Ternary::False);
         }
@@ -280,12 +280,12 @@ impl CheckTypeRelatedTo {
                 false,
                 Some(&excluded_properties),
                 IntersectionState::None,
-            );
+            )?;
             if result != Ternary::False {
-                result &= self.signatures_related_to(source, type_, SignatureKind::Call, false);
+                result &= self.signatures_related_to(source, type_, SignatureKind::Call, false)?;
                 if result != Ternary::False {
                     result &=
-                        self.signatures_related_to(source, type_, SignatureKind::Construct, false);
+                        self.signatures_related_to(source, type_, SignatureKind::Construct, false)?;
                     if result != Ternary::False
                         && !(self.type_checker.is_tuple_type(source)
                             && self.type_checker.is_tuple_type(type_))
@@ -296,7 +296,7 @@ impl CheckTypeRelatedTo {
                             false,
                             false,
                             IntersectionState::None,
-                        );
+                        )?;
                     }
                 }
             }
@@ -367,7 +367,7 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         intersection_state: IntersectionState,
         skip_optional: bool,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let source_prop_flags = get_declaration_modifier_flags_from_symbol(source_prop, None);
         let target_prop_flags = get_declaration_modifier_flags_from_symbol(target_prop, None);
         if source_prop_flags.intersects(ModifierFlags::Private)
@@ -388,7 +388,7 @@ impl CheckTypeRelatedTo {
                                     target_prop,
                                     Option::<&Node>::None,
                                     None, None, None
-                                )
+                                )?
                             ])
                         );
                     } else {
@@ -403,7 +403,7 @@ impl CheckTypeRelatedTo {
                                     None,
                                     None,
                                     None,
-                                ),
+                                )?,
                                 self.type_checker.type_to_string_(
                                     if source_prop_flags.intersects(ModifierFlags::Private) {
                                         source
@@ -413,7 +413,7 @@ impl CheckTypeRelatedTo {
                                     Option::<&Node>::None,
                                     None,
                                     None,
-                                ),
+                                )?,
                                 self.type_checker.type_to_string_(
                                     if source_prop_flags.intersects(ModifierFlags::Private) {
                                         target
@@ -423,12 +423,12 @@ impl CheckTypeRelatedTo {
                                     Option::<&Node>::None,
                                     None,
                                     None,
-                                ),
+                                )?,
                             ]),
                         );
                     }
                 }
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         } else if target_prop_flags.intersects(ModifierFlags::Protected) {
             if !self
@@ -443,21 +443,21 @@ impl CheckTypeRelatedTo {
                                 target_prop,
                                 Option::<&Node>::None,
                                 None, None, None
-                            ),
+                            )?,
                             self.type_checker.type_to_string_(
-                                &self.type_checker.get_declaring_class(source_prop).unwrap_or_else(|| source.type_wrapper()),
+                                &self.type_checker.get_declaring_class(source_prop)?.unwrap_or_else(|| source.type_wrapper()),
                                 Option::<&Node>::None,
                                 None, None,
-                            ),
+                            )?,
                             self.type_checker.type_to_string_(
-                                &self.type_checker.get_declaring_class(target_prop).unwrap_or_else(|| target.type_wrapper()),
+                                &self.type_checker.get_declaring_class(target_prop)?.unwrap_or_else(|| target.type_wrapper()),
                                 Option::<&Node>::None,
                                 None, None,
-                            ),
+                            )?,
                         ])
                     );
                 }
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         } else if source_prop_flags.intersects(ModifierFlags::Protected) {
             if report_errors {
@@ -472,23 +472,23 @@ impl CheckTypeRelatedTo {
                             None,
                             None,
                             None,
-                        ),
+                        )?,
                         self.type_checker.type_to_string_(
                             source,
                             Option::<&Node>::None,
                             None,
                             None,
-                        ),
+                        )?,
                         self.type_checker.type_to_string_(
                             target,
                             Option::<&Node>::None,
                             None,
                             None,
-                        ),
+                        )?,
                     ]),
                 );
             }
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         let related = self.is_property_symbol_type_related(
             source_prop,
@@ -507,10 +507,10 @@ impl CheckTypeRelatedTo {
                         None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
             }
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         if !skip_optional
             && source_prop.flags().intersects(SymbolFlags::Optional)
@@ -528,25 +528,25 @@ impl CheckTypeRelatedTo {
                             None,
                             None,
                             None,
-                        ),
+                        )?,
                         self.type_checker.type_to_string_(
                             source,
                             Option::<&Node>::None,
                             None,
                             None,
-                        ),
+                        )?,
                         self.type_checker.type_to_string_(
                             target,
                             Option::<&Node>::None,
                             None,
                             None,
-                        ),
+                        )?,
                     ]),
                 );
             }
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
-        related
+        Ok(related)
     }
 
     pub(super) fn report_unmatched_property(
@@ -631,7 +631,7 @@ impl CheckTypeRelatedTo {
             target,
             require_optional_properties,
             false,
-        );
+        )?;
         if match self.head_message.as_ref() {
             None => true,
             Some(head_message) => head_message.code != Diagnostics::Class_0_incorrectly_implements_interface_1.code &&
@@ -646,10 +646,10 @@ impl CheckTypeRelatedTo {
                 None,
                 None,
                 None,
-            );
+            )?;
             let (source_string, target_string) = self
                 .type_checker
-                .get_type_names_for_error_display(source, target);
+                .get_type_names_for_error_display(source, target)?;
             self.report_error(
                 Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2),
                 Some(vec![prop_name.clone(), source_string, target_string]),
@@ -676,19 +676,19 @@ impl CheckTypeRelatedTo {
                             source,
                             Option::<&Node>::None,
                             None, None,
-                        ),
+                        )?,
                         self.type_checker.type_to_string_(
                             target,
                             Option::<&Node>::None,
                             None, None,
-                        ),
+                        )?,
                         (&props[0..4]).into_iter().map(|p: &Gc<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
                                 None, None, None,
                             )
-                        ).collect::<Vec<_>>().join(", "),
+                        ).collect::<Result<Vec<_>, _>>()?.join(", "),
                         (props.len() - 4).to_string(),
                     ])
                 )
@@ -700,19 +700,19 @@ impl CheckTypeRelatedTo {
                             source,
                             Option::<&Node>::None,
                             None, None,
-                        ),
+                        )?,
                         self.type_checker.type_to_string_(
                             target,
                             Option::<&Node>::None,
                             None, None,
-                        ),
+                        )?,
                         props.iter().map(|p: &Gc<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
                                 None, None, None,
                             )
-                        ).collect::<Vec<_>>().join(", "),
+                        ).collect::<Result<Vec<_>, _>>()?.join(", "),
                     ])
                 )
             }
@@ -944,7 +944,7 @@ impl CheckTypeRelatedTo {
                                 start_count,
                                 Some(end_count),
                                 None,
-                            )
+                            )?
                             .unwrap_or_else(|| self.type_checker.never_type())
                     };
                     let target_type = &target_type_arguments[i];
@@ -1014,7 +1014,7 @@ impl CheckTypeRelatedTo {
             target,
             require_optional_properties,
             false,
-        );
+        )?;
         if let Some(unmatched_property) = unmatched_property.as_ref() {
             if report_errors {
                 self.report_unmatched_property(
@@ -1039,7 +1039,7 @@ impl CheckTypeRelatedTo {
                     .get_property_of_object_type(target, source_prop.escaped_name())
                     .is_none()
                 {
-                    let source_type = self.type_checker.get_type_of_symbol(source_prop);
+                    let source_type = self.type_checker.get_type_of_symbol(source_prop)?;
                     if !source_type.flags().intersects(TypeFlags::Undefined) {
                         if report_errors {
                             self.report_error(
@@ -1108,11 +1108,11 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target: &Type,
         excluded_properties: Option<&HashSet<__String>>,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         if !(source.flags().intersects(TypeFlags::Object)
             && target.flags().intersects(TypeFlags::Object))
         {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         let source_properties = self.exclude_properties(
             &self
@@ -1129,7 +1129,7 @@ impl CheckTypeRelatedTo {
             excluded_properties,
         );
         if source_properties.len() != target_properties.len() {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         let mut result = Ternary::True;
         for source_prop in &source_properties {
@@ -1137,20 +1137,20 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .get_property_of_object_type(target, source_prop.escaped_name());
             if target_prop.is_none() {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             let target_prop = target_prop.unwrap();
             let related = self.type_checker.compare_properties(
                 source_prop,
                 &target_prop,
                 |source, target| self.is_related_to(source, target, None, None, None, None),
-            );
+            )?;
             if related == Ternary::False {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             result &= related;
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn signatures_related_to(
@@ -1171,11 +1171,11 @@ impl CheckTypeRelatedTo {
 
         let source_is_js_constructor = matches!(
             source.maybe_symbol().as_ref(),
-            Some(source_symbol) if self.type_checker.is_js_constructor(source_symbol.maybe_value_declaration())
+            Some(source_symbol) if self.type_checker.is_js_constructor(source_symbol.maybe_value_declaration())?
         );
         let target_is_js_constructor = matches!(
             target.maybe_symbol().as_ref(),
-            Some(target_symbol) if self.type_checker.is_js_constructor(target_symbol.maybe_value_declaration())
+            Some(target_symbol) if self.type_checker.is_js_constructor(target_symbol.maybe_value_declaration())?
         );
 
         let source_signatures = self.type_checker.get_signatures_of_type(
@@ -1225,12 +1225,15 @@ impl CheckTypeRelatedTo {
 
         let mut result = Ternary::True;
         let save_error_info = self.capture_error_calculation_state();
-        let incompatible_reporter: fn(&Self, &Signature, &Signature) -> fn(&Self, &Type, &Type) =
-            if kind == SignatureKind::Construct {
-                Self::report_incompatible_construct_signature_return
-            } else {
-                Self::report_incompatible_call_signature_return
-            };
+        let incompatible_reporter: fn(
+            &Self,
+            &Signature,
+            &Signature,
+        ) -> fn(&Self, &Type, &Type) -> io::Result<()> = if kind == SignatureKind::Construct {
+            Self::report_incompatible_construct_signature_return
+        } else {
+            Self::report_incompatible_call_signature_return
+        };
         let source_object_flags = get_object_flags(source);
         let target_object_flags = get_object_flags(target);
         if source_object_flags.intersects(ObjectFlags::Instantiated)
@@ -1450,7 +1453,7 @@ impl CheckTypeRelatedTo {
         target: Gc<Signature>,
         erase: bool,
         report_errors: bool,
-        incompatible_reporter: fn(&Self, &Type, &Type),
+        incompatible_reporter: fn(&Self, &Type, &Type) -> io::Result<()>,
     ) -> io::Result<Ternary> {
         self.type_checker.compare_signatures_related(
             if erase {
@@ -1489,11 +1492,11 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target: &Type,
         kind: SignatureKind,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         let source_signatures = self.type_checker.get_signatures_of_type(source, kind);
         let target_signatures = self.type_checker.get_signatures_of_type(target, kind);
         if source_signatures.len() != target_signatures.len() {
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
         let mut result = Ternary::True;
         for i in 0..source_signatures.len() {
@@ -1506,13 +1509,13 @@ impl CheckTypeRelatedTo {
                 |source: &Type, target: &Type| {
                     self.is_related_to(source, target, None, None, None, None)
                 },
-            );
+            )?;
             if related == Ternary::False {
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
             result &= related;
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn members_related_to_index_info(
@@ -1526,7 +1529,7 @@ impl CheckTypeRelatedTo {
         let props = if source.flags().intersects(TypeFlags::Intersection) {
             Either::Left(
                 self.type_checker
-                    .get_properties_of_union_or_intersection_type(source),
+                    .get_properties_of_union_or_intersection_type(source)?,
             )
         } else {
             Either::Right(self.type_checker.get_properties_of_object_type(source))
@@ -1536,11 +1539,11 @@ impl CheckTypeRelatedTo {
                 continue;
             }
             if self.type_checker.is_applicable_index_type(
-                &self.type_checker.get_literal_type_from_property(
+                &*self.type_checker.get_literal_type_from_property(
                     prop,
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
-                ),
+                )?,
                 key_type,
             ) {
                 let prop_type = self.type_checker.get_non_missing_type_of_symbol(prop);

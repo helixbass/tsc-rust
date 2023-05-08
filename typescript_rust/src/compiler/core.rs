@@ -115,6 +115,13 @@ pub fn maybe_first_defined<TCollection: IntoIterator, TReturn>(
     maybe_for_each(array, callback)
 }
 
+pub fn try_maybe_first_defined<TCollection: IntoIterator, TReturn, TError>(
+    array: Option<TCollection>,
+    callback: impl FnMut(TCollection::Item, usize) -> Result<Option<TReturn>, TError>,
+) -> Result<Option<TReturn>, TError> {
+    try_maybe_for_each(array, callback)
+}
+
 pub fn every<TItem>(array: &[TItem], mut predicate: impl FnMut(&TItem, usize) -> bool) -> bool {
     array
         .into_iter()

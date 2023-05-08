@@ -1184,7 +1184,7 @@ impl TypeChecker {
         check_mode: SignatureCheckMode,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
-        incompatible_error_reporter: Option<&impl Fn(&Type, &Type)>,
+        incompatible_error_reporter: Option<&impl Fn(&Type, &Type) -> io::Result<()>>,
         compare_types: Gc<Box<dyn TypeComparer>>,
         report_unreliable_markers: Option<Gc<TypeMapper>>,
     ) -> io::Result<Ternary> {
@@ -1497,7 +1497,7 @@ impl TypeChecker {
                 };
                 if result == Ternary::False && report_errors {
                     if let Some(incompatible_error_reporter) = incompatible_error_reporter {
-                        incompatible_error_reporter(&source_return_type, &target_return_type);
+                        incompatible_error_reporter(&source_return_type, &target_return_type)?;
                     }
                 }
             }

@@ -159,12 +159,9 @@ impl TypeChecker {
         self.get_spelling_suggestion_for_name(name, props, SymbolFlags::Value)
     }
 
-    pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<
-        'name,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<'name>(
         &self,
-        name: TName, /*Identifier | PrivateIdentifier*/
+        name: impl Into<StrOrRcNode<'name>>, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
     ) -> io::Result<Option<Gc<Symbol>>> {
         let name = name.into();
@@ -185,12 +182,9 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_suggestion_for_nonexistent_property<
-        'name,
-        TName: Into<StrOrRcNode<'name>>,
-    >(
+    pub(super) fn get_suggestion_for_nonexistent_property<'name>(
         &self,
-        name: TName, /*Identifier | PrivateIdentifier*/
+        name: impl Into<StrOrRcNode<'name>>, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
     ) -> io::Result<Option<String>> {
         let suggestion =

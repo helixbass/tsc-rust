@@ -576,10 +576,10 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn merge_js_symbols<TSource: Borrow<Symbol>>(
+    pub(super) fn merge_js_symbols(
         &self,
         target: &Symbol,
-        source: Option<TSource>,
+        source: Option<impl Borrow<Symbol>>,
     ) -> Option<Gc<Symbol>> {
         let source = source?;
         let source = source.borrow();

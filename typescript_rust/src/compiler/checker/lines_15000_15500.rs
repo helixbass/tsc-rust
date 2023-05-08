@@ -17,7 +17,8 @@ use crate::{
     uncapitalize, unescape_leading_underscores, AccessFlags, AssignmentKind,
     DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType, LiteralType, Node,
     NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
+    OptionTry, StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -171,7 +172,11 @@ impl TypeChecker {
             })
     }
 
-    pub(super) fn is_uncalled_function_reference(&self, node: &Node, symbol: &Symbol) -> bool {
+    pub(super) fn is_uncalled_function_reference(
+        &self,
+        node: &Node,
+        symbol: &Symbol,
+    ) -> io::Result<bool> {
         if symbol
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
@@ -179,16 +184,19 @@ impl TypeChecker {
             let parent = find_ancestor(node.maybe_parent(), |n| !is_access_expression(n))
                 .unwrap_or_else(|| node.parent());
             if is_call_like_expression(&parent) {
-                return is_call_or_new_expression(&parent)
+                return Ok(is_call_or_new_expression(&parent)
                     && is_identifier(node)
-                    && self.has_matching_argument(&parent, node);
+                    && self.has_matching_argument(&parent, node)?);
             }
-            return maybe_every(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>, _| {
-                !is_function_like(Some(&**d))
-                    || get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
-            });
+            return Ok(maybe_every(
+                symbol.maybe_declarations().as_deref(),
+                |d: &Gc<Node>, _| {
+                    !is_function_like(Some(&**d))
+                        || get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
+                },
+            ));
         }
-        true
+        Ok(true)
     }
 
     pub(super) fn get_property_type_for_index_type(
@@ -216,7 +224,7 @@ impl TypeChecker {
         if let Some(prop_name) = prop_name.as_ref() {
             if access_flags.intersects(AccessFlags::Contextual) {
                 return Ok(Some(
-                    self.get_type_of_property_of_contextual_type(object_type, prop_name)
+                    self.get_type_of_property_of_contextual_type(object_type, prop_name)?
                         .unwrap_or_else(|| self.any_type()),
                 ));
             }
@@ -266,7 +274,7 @@ impl TypeChecker {
                         self.is_self_type_access(
                             &access_expression_as_element_access_expression.expression,
                             object_type.maybe_symbol(),
-                        ),
+                        )?,
                     );
                     if self.is_assignment_to_readonly_entity(
                         access_expression,
@@ -285,7 +293,7 @@ impl TypeChecker {
                                 None,
                                 None,
                                 None,
-                            )]),
+                            )?]),
                         );
                         return Ok(None);
                     }
@@ -298,7 +306,7 @@ impl TypeChecker {
                         return Ok(Some(self.auto_type()));
                     }
                 }
-                let prop_type = self.get_type_of_symbol(&prop);
+                let prop_type = self.get_type_of_symbol(&prop)?;
                 return Ok(Some(
                     if let Some(access_expression) = access_expression.filter(|access_expression| {
                         get_assignment_target_kind(access_expression) != AssignmentKind::Definite
@@ -308,7 +316,7 @@ impl TypeChecker {
                             &prop_type,
                             Option::<&Type>::None,
                             Option::<&Node>::None,
-                        )
+                        )?
                     } else {
                         prop_type
                     },
@@ -337,7 +345,7 @@ impl TypeChecker {
                                         Option::<&Node>::None,
                                         None,
                                         None,
-                                    ),
+                                    )?,
                                     self.get_type_reference_arity(object_type).to_string(),
                                     unescape_leading_underscores(prop_name).to_owned(),
                                 ]),
@@ -353,7 +361,7 @@ impl TypeChecker {
                                         Option::<&Node>::None,
                                         None,
                                         None,
-                                    ),
+                                    )?,
                                 ]),
                             );
                         }
@@ -364,26 +372,28 @@ impl TypeChecker {
                     object_type,
                     self.get_index_info_of_type_(object_type, &self.number_type()),
                 );
-                return Ok(self.map_type(
+                return self.try_map_type(
                     object_type,
-                    &mut |t| {
+                    &mut |t| -> io::Result<_> {
                         let rest_type = self
-                            .get_rest_type_of_tuple_type(t)
+                            .get_rest_type_of_tuple_type(t)?
                             .unwrap_or_else(|| self.undefined_type());
-                        Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
-                            self.get_union_type(
-                                &[rest_type, self.undefined_type()],
-                                None,
-                                Option::<&Symbol>::None,
-                                None,
-                                Option::<&Type>::None,
-                            )
-                        } else {
-                            rest_type
-                        })
+                        Ok(Some(
+                            if access_flags.intersects(AccessFlags::IncludeUndefined) {
+                                self.get_union_type(
+                                    &[rest_type, self.undefined_type()],
+                                    None,
+                                    Option::<&Symbol>::None,
+                                    None,
+                                    Option::<&Type>::None,
+                                )?
+                            } else {
+                                rest_type
+                            },
+                        ))
                     },
                     None,
-                ));
+                );
             }
         }
         if !index_type.flags().intersects(TypeFlags::Nullable)
@@ -411,13 +421,18 @@ impl TypeChecker {
                             access_expression,
                             &Diagnostics::Type_0_cannot_be_used_to_index_type_1,
                             Some(vec![
-                                self.type_to_string_(index_type, Option::<&Node>::None, None, None),
+                                self.type_to_string_(
+                                    index_type,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                )?,
                                 self.type_to_string_(
                                     original_object_type,
                                     Option::<&Node>::None,
                                     None,
                                     None,
-                                ),
+                                )?,
                             ]),
                         );
                     }
@@ -440,7 +455,7 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            )]),
+                            )?]),
                         );
                         return Ok(Some(
                             if access_flags.intersects(AccessFlags::IncludeUndefined) {
@@ -450,7 +465,7 @@ impl TypeChecker {
                                     Option::<&Symbol>::None,
                                     None,
                                     Option::<&Type>::None,
-                                )
+                                )?
                             } else {
                                 index_info.type_.clone()
                             },
@@ -470,7 +485,7 @@ impl TypeChecker {
                             Option::<&Symbol>::None,
                             None,
                             Option::<&Type>::None,
-                        )
+                        )?
                     } else {
                         index_info.type_.clone()
                     },
@@ -509,7 +524,7 @@ impl TypeChecker {
                                             Option::<&Node>::None,
                                             None,
                                             None,
-                                        ),
+                                        )?,
                                     ]),
                                 )
                                 .into(),
@@ -561,7 +576,7 @@ impl TypeChecker {
                                             Option::<&Node>::None,
                                             None,
                                             None,
-                                        ),
+                                        )?,
                                     ]),
                                 );
                             }
@@ -575,15 +590,15 @@ impl TypeChecker {
                         )
                         && !access_flags.intersects(AccessFlags::SuppressNoImplicitAnyError)
                     {
-                        if let Some(prop_name) = prop_name.as_ref().filter(|prop_name| {
+                        if let Some(prop_name) = prop_name.as_ref().try_filter(|prop_name| {
                             self.type_has_static_property(prop_name, object_type)
-                        }) {
+                        })? {
                             let type_name = self.type_to_string_(
                                 object_type,
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            );
+                            )?;
                             self.error(
                                 Some(access_expression),
                                 &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
@@ -605,12 +620,12 @@ impl TypeChecker {
                         } else {
                             if let Some(suggestion) = prop_name
                                 .as_ref()
-                                .and_then(|prop_name| {
+                                .try_and_then(|prop_name| {
                                     self.get_suggestion_for_nonexistent_property(
                                         &**prop_name,
                                         object_type,
                                     )
-                                })
+                                })?
                                 .filter(|suggestion| !suggestion.is_empty())
                             {
                                 self.error(
@@ -618,7 +633,7 @@ impl TypeChecker {
                                     &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
                                     Some(vec![
                                         (*prop_name.unwrap()).to_owned(),
-                                        self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                                        self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
                                         suggestion,
                                     ])
                                 );
@@ -634,7 +649,7 @@ impl TypeChecker {
                                         Some(access_expression),
                                         &Diagnostics::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature_Did_you_mean_to_call_1,
                                         Some(vec![
-                                            self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                                            self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
                                             suggestion,
                                         ])
                                     );
@@ -652,14 +667,14 @@ impl TypeChecker {
                                                         Option::<&Node>::None,
                                                         None,
                                                         None
-                                                    ),
+                                                    )?,
                                                 ),
                                                 self.type_to_string_(
                                                     object_type,
                                                     Option::<&Node>::None,
                                                     None,
                                                     None,
-                                                ),
+                                                )?,
                                             ]),
                                         ));
                                     } else if index_type
@@ -669,7 +684,7 @@ impl TypeChecker {
                                         let symbol_name = self.get_fully_qualified_name(
                                             &index_type.symbol(),
                                             Some(access_expression),
-                                        );
+                                        )?;
                                         error_info = Some(chain_diagnostic_messages(
                                             None,
                                             &Diagnostics::Property_0_does_not_exist_on_type_1,
@@ -680,7 +695,7 @@ impl TypeChecker {
                                                     Option::<&Node>::None,
                                                     None,
                                                     None,
-                                                ),
+                                                )?,
                                             ]),
                                         ));
                                     } else if index_type
@@ -697,7 +712,7 @@ impl TypeChecker {
                                                     Option::<&Node>::None,
                                                     None,
                                                     None,
-                                                ),
+                                                )?,
                                             ]),
                                         ));
                                     } else if index_type
@@ -717,7 +732,7 @@ impl TypeChecker {
                                                     Option::<&Node>::None,
                                                     None,
                                                     None,
-                                                ),
+                                                )?,
                                             ]),
                                         ));
                                     } else if index_type
@@ -728,8 +743,8 @@ impl TypeChecker {
                                             None,
                                             &Diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
                                             Some(vec![
-                                                self.type_to_string_(index_type, Option::<&Node>::None, None, None),
-                                                self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                                                self.type_to_string_(index_type, Option::<&Node>::None, None, None)?,
+                                                self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
                                             ])
                                         ));
                                     }
@@ -738,8 +753,8 @@ impl TypeChecker {
                                         error_info,
                                         &Diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
                                         Some(vec![
-                                            self.type_to_string_(full_index_type, Option::<&Node>::None, None, None),
-                                            self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                                            self.type_to_string_(full_index_type, Option::<&Node>::None, None, None)?,
+                                            self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
                                         ])
                                     ));
                                     self.diagnostics().add(Gc::new(
@@ -781,7 +796,7 @@ impl TypeChecker {
                             }
                             _ => panic!("Expected NumberLiteralType or StringLiteralType"),
                         },
-                        self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                        self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             } else if index_type
@@ -792,8 +807,8 @@ impl TypeChecker {
                     Some(index_node),
                     &Diagnostics::Type_0_has_no_matching_index_signature_for_type_1,
                     Some(vec![
-                        self.type_to_string_(object_type, Option::<&Node>::None, None, None),
-                        self.type_to_string_(index_type, Option::<&Node>::None, None, None),
+                        self.type_to_string_(object_type, Option::<&Node>::None, None, None)?,
+                        self.type_to_string_(index_type, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             } else {
@@ -805,7 +820,7 @@ impl TypeChecker {
                         Option::<&Node>::None,
                         None,
                         None,
-                    )]),
+                    )?]),
                 );
             }
         }
@@ -815,12 +830,12 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn error_if_writing_to_readonly_index<TIndexInfo: Borrow<IndexInfo>>(
+    pub(super) fn error_if_writing_to_readonly_index(
         &self,
         access_expression: Option<&Node>,
         object_type: &Type,
-        index_info: Option<TIndexInfo>,
-    ) {
+        index_info: Option<impl Borrow<IndexInfo>>,
+    ) -> io::Result<()> {
         if let Some(index_info) = index_info {
             let index_info = index_info.borrow();
             if index_info.is_readonly {
@@ -836,12 +851,14 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            )]),
+                            )?]),
                         );
                     }
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_index_node_for_access_expression(
@@ -968,7 +985,7 @@ impl TypeChecker {
         object_type: &Type,
         index_type: &Type,
         writing: bool,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if object_type
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
@@ -991,9 +1008,9 @@ impl TypeChecker {
                     )
                 },
             );
-            return Some(
+            return Ok(Some(
                 if object_type.flags().intersects(TypeFlags::Intersection) || writing {
-                    self.get_intersection_type(&types, Option::<&Symbol>::None, None)
+                    self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
                 } else {
                     self.get_union_type(
                         &types,
@@ -1001,11 +1018,11 @@ impl TypeChecker {
                         Option::<&Symbol>::None,
                         None,
                         Option::<&Type>::None,
-                    )
+                    )?
                 },
-            );
+            ));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn distribute_object_over_index_type(
@@ -1013,7 +1030,7 @@ impl TypeChecker {
         object_type: &Type,
         index_type: &Type,
         writing: bool,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if index_type.flags().intersects(TypeFlags::Union) {
             let types = map(index_type.as_union_type().types(), |t: &Gc<Type>, _| {
                 self.get_simplified_type(
@@ -1028,8 +1045,8 @@ impl TypeChecker {
                     writing,
                 )
             });
-            return Some(if writing {
-                self.get_intersection_type(&types, Option::<&Symbol>::None, None)
+            return Ok(Some(if writing {
+                self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
             } else {
                 self.get_union_type(
                     &types,
@@ -1037,17 +1054,17 @@ impl TypeChecker {
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
-                )
-            });
+                )?
+            }));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_simplified_indexed_access_type(
         &self,
         type_: &Type, /*IndexedAccessType*/
         writing: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         let read_cache = || {
             if writing {
@@ -1068,11 +1085,13 @@ impl TypeChecker {
             }
         };
         if let Some(type_cache) = read_cache() {
-            return if Gc::ptr_eq(&type_cache, &self.circular_constraint_type()) {
-                type_.type_wrapper()
-            } else {
-                type_cache
-            };
+            return Ok(
+                if Gc::ptr_eq(&type_cache, &self.circular_constraint_type()) {
+                    type_.type_wrapper()
+                } else {
+                    type_cache
+                },
+            );
         }
         write_cache(self.circular_constraint_type());
         let object_type =
@@ -1082,14 +1101,14 @@ impl TypeChecker {
             self.distribute_object_over_index_type(&object_type, &index_type, writing);
         if let Some(distributed_over_index) = distributed_over_index {
             write_cache(distributed_over_index.clone());
-            return distributed_over_index;
+            return Ok(distributed_over_index);
         }
         if !index_type.flags().intersects(TypeFlags::Instantiable) {
             let distributed_over_object =
                 self.distribute_index_over_object_type(&object_type, &index_type, writing);
             if let Some(distributed_over_object) = distributed_over_object {
                 write_cache(distributed_over_object.clone());
-                return distributed_over_object;
+                return Ok(distributed_over_object);
             }
         }
         if self.is_generic_tuple_type(&object_type)
@@ -1108,10 +1127,10 @@ impl TypeChecker {
                 },
                 Some(0),
                 Some(writing),
-            );
+            )?;
             if let Some(element_type) = element_type {
                 write_cache(element_type.clone());
-                return element_type;
+                return Ok(element_type);
             }
         }
         if self.is_generic_mapped_type(&object_type) {
@@ -1126,22 +1145,22 @@ impl TypeChecker {
                 )
                 .unwrap();
             write_cache(ret.clone());
-            return ret;
+            return Ok(ret);
         }
         write_cache(type_.type_wrapper());
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn get_simplified_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
         writing: bool,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
         let check_type = &type_as_conditional_type.check_type;
         let extends_type = &type_as_conditional_type.extends_type;
-        let true_type = self.get_true_type_from_conditional_type(type_);
-        let false_type = self.get_false_type_from_conditional_type(type_);
+        let true_type = self.get_true_type_from_conditional_type(type_)?;
+        let false_type = self.get_false_type_from_conditional_type(type_)?;
         if false_type.flags().intersects(TypeFlags::Never)
             && Gc::ptr_eq(
                 &self.get_actual_type_variable(&true_type),
@@ -1150,13 +1169,13 @@ impl TypeChecker {
         {
             if check_type.flags().intersects(TypeFlags::Any)
                 || self.is_type_assignable_to(
-                    &self.get_restrictive_instantiation(check_type),
-                    &self.get_restrictive_instantiation(extends_type),
+                    &*self.get_restrictive_instantiation(check_type)?,
+                    &*self.get_restrictive_instantiation(extends_type)?,
                 )
             {
-                return self.get_simplified_type(&true_type, writing);
-            } else if self.is_intersection_empty(check_type, extends_type) {
-                return self.never_type();
+                return Ok(self.get_simplified_type(&true_type, writing));
+            } else if self.is_intersection_empty(check_type, extends_type)? {
+                return Ok(self.never_type());
             }
         } else if true_type.flags().intersects(TypeFlags::Never)
             && Gc::ptr_eq(
@@ -1166,40 +1185,41 @@ impl TypeChecker {
         {
             if !check_type.flags().intersects(TypeFlags::Any)
                 && self.is_type_assignable_to(
-                    &self.get_restrictive_instantiation(check_type),
-                    &self.get_restrictive_instantiation(extends_type),
+                    &*self.get_restrictive_instantiation(check_type)?,
+                    &*self.get_restrictive_instantiation(extends_type)?,
                 )
             {
-                return self.never_type();
+                return Ok(self.never_type());
             } else if check_type.flags().intersects(TypeFlags::Any)
                 || self.is_intersection_empty(check_type, extends_type)
             {
-                return self.get_simplified_type(&false_type, writing);
+                return Ok(self.get_simplified_type(&false_type, writing));
             }
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
-    pub(super) fn is_intersection_empty(&self, type1: &Type, type2: &Type) -> bool {
-        self.get_union_type(
-            &[
-                self.intersect_types(Some(type1), Some(type2)).unwrap(),
-                self.never_type(),
-            ],
-            None,
-            Option::<&Symbol>::None,
-            None,
-            Option::<&Type>::None,
-        )
-        .flags()
-        .intersects(TypeFlags::Never)
+    pub(super) fn is_intersection_empty(&self, type1: &Type, type2: &Type) -> io::Result<bool> {
+        Ok(self
+            .get_union_type(
+                &[
+                    self.intersect_types(Some(type1), Some(type2)).unwrap(),
+                    self.never_type(),
+                ],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )?
+            .flags()
+            .intersects(TypeFlags::Never))
     }
 
     pub(super) fn substitute_indexed_mapped_type(
         &self,
         object_type: &Type, /*MappedType*/
         index: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let mapper = Gc::new(self.create_type_mapper(
             vec![self.get_type_parameter_from_mapped_type(object_type)],
             Some(vec![index.type_wrapper()]),
@@ -1268,15 +1288,15 @@ impl TypeChecker {
         >,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let mut access_flags = access_flags.unwrap_or(AccessFlags::None);
         if ptr::eq(object_type, &*self.wildcard_type())
             || ptr::eq(index_type, &*self.wildcard_type())
         {
-            return Some(self.wildcard_type());
+            return Ok(Some(self.wildcard_type()));
         }
         let mut index_type = index_type.type_wrapper();
-        if self.is_string_index_signature_only_type(object_type)
+        if self.is_string_index_signature_only_type(object_type)?
             && !index_type.flags().intersects(TypeFlags::Nullable)
             && self.is_type_assignable_to_kind(
                 &index_type,
@@ -1327,7 +1347,7 @@ impl TypeChecker {
             }
         {
             if object_type.flags().intersects(TypeFlags::AnyOrUnknown) {
-                return Some(object_type.type_wrapper());
+                return Ok(Some(object_type.type_wrapper()));
             }
             let persistent_access_flags = access_flags & AccessFlags::Persistent;
             let id = format!(
@@ -1350,7 +1370,7 @@ impl TypeChecker {
                     .insert(id, type_.clone().unwrap());
             }
 
-            return type_;
+            return Ok(type_);
         }
         let apparent_object_type = self.get_reduced_apparent_type(object_type);
         if index_type.flags().intersects(TypeFlags::Union)
@@ -1371,24 +1391,24 @@ impl TypeChecker {
                         } else {
                             AccessFlags::None
                         },
-                );
+                )?;
                 if let Some(prop_type) = prop_type {
                     prop_types.push(prop_type);
                 } else if access_node.is_none() {
-                    return None;
+                    return Ok(None);
                 } else {
                     was_missing_prop = true;
                 }
             }
             if was_missing_prop {
-                return None;
+                return Ok(None);
             }
-            return Some(if access_flags.intersects(AccessFlags::Writing) {
+            return Ok(Some(if access_flags.intersects(AccessFlags::Writing) {
                 self.get_intersection_type(
                     &prop_types,
                     alias_symbol.as_deref(),
                     alias_type_arguments,
-                )
+                )?
             } else {
                 self.get_union_type(
                     &prop_types,
@@ -1396,8 +1416,8 @@ impl TypeChecker {
                     alias_symbol.as_deref(),
                     alias_type_arguments,
                     Option::<&Type>::None,
-                )
-            });
+                )?
+            }));
         }
         self.get_property_type_for_index_type(
             object_type,

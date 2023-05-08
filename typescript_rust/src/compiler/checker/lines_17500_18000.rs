@@ -11,24 +11,22 @@ use super::{
 };
 use crate::{
     are_option_gcs_equal, are_option_rcs_equal, every, get_object_flags, get_symbol_id, some,
-    symbol_name, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node, NodeInterface,
-    ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags,
-    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypePredicate, TypePredicateKind,
+    symbol_name, try_every, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol,
+    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate, TypePredicateKind,
 };
 use local_macros::enum_unwrapped;
 
 impl TypeChecker {
-    pub(super) fn compare_type_predicate_related_to<
-        TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
-    >(
+    pub(super) fn compare_type_predicate_related_to(
         &self,
         source: &TypePredicate,
         target: &TypePredicate,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
-        compare_types: &mut TCompareTypes,
-    ) -> Ternary {
+        compare_types: &mut impl FnMut(&Type, &Type, Option<bool>) -> Ternary,
+    ) -> io::Result<Ternary> {
         if source.kind != target.kind {
             if report_errors {
                 (error_reporter.as_mut().unwrap())(
@@ -38,12 +36,12 @@ impl TypeChecker {
                 (error_reporter.as_mut().unwrap())(
                     Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
                     Some(vec![
-                        self.type_predicate_to_string_(source, Option::<&Node>::None, None, None),
-                        self.type_predicate_to_string_(target, Option::<&Node>::None, None, None),
+                        self.type_predicate_to_string_(source, Option::<&Node>::None, None, None)?,
+                        self.type_predicate_to_string_(target, Option::<&Node>::None, None, None)?,
                     ]),
                 );
             }
-            return Ternary::False;
+            return Ok(Ternary::False);
         }
 
         if matches!(
@@ -69,17 +67,17 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            ),
+                            )?,
                             self.type_predicate_to_string_(
                                 target,
                                 Option::<&Node>::None,
                                 None,
                                 None,
-                            ),
+                            )?,
                         ]),
                     );
                 }
-                return Ternary::False;
+                return Ok(Ternary::False);
             }
         }
 
@@ -98,24 +96,24 @@ impl TypeChecker {
             (error_reporter.as_mut().unwrap())(
                 Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
                 Some(vec![
-                    self.type_predicate_to_string_(source, Option::<&Node>::None, None, None),
-                    self.type_predicate_to_string_(target, Option::<&Node>::None, None, None),
+                    self.type_predicate_to_string_(source, Option::<&Node>::None, None, None)?,
+                    self.type_predicate_to_string_(target, Option::<&Node>::None, None, None)?,
                 ]),
             );
         }
-        related
+        Ok(related)
     }
 
     pub(super) fn is_implementation_compatible_with_overload(
         &self,
         implementation: Gc<Signature>,
         overload: Gc<Signature>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let erased_source = self.get_erased_signature(implementation.clone());
         let erased_target = self.get_erased_signature(overload.clone());
 
-        let source_return_type = self.get_return_type_of_signature(erased_source.clone());
-        let target_return_type = self.get_return_type_of_signature(erased_target.clone());
+        let source_return_type = self.get_return_type_of_signature(erased_source.clone())?;
+        let target_return_type = self.get_return_type_of_signature(erased_target.clone())?;
         if Gc::ptr_eq(&target_return_type, &self.void_type())
             || self.is_type_related_to(
                 &target_return_type,
@@ -131,7 +129,7 @@ impl TypeChecker {
             return self.is_signature_assignable_to(erased_source, erased_target, true);
         }
 
-        false
+        Ok(false)
     }
 
     pub(super) fn is_empty_resolved_type(&self, t: &Type /*ResolvedType*/) -> bool {
@@ -165,14 +163,15 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_empty_anonymous_object_type(&self, type_: &Type) -> bool {
-        get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+    pub(super) fn is_empty_anonymous_object_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(get_object_flags(type_).intersects(ObjectFlags::Anonymous)
             && (type_.as_object_type().maybe_members().is_some()
                 && self.is_empty_resolved_type(type_)
                 || matches!(
                     type_.maybe_symbol(),
-                    Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) && (*self.get_members_of_symbol(&type_symbol)).borrow().len() == 0
-                ))
+                    Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::TypeLiteral)
+                        && (*self.get_members_of_symbol(&type_symbol)?).borrow().len() == 0
+                )))
     }
 
     pub(super) fn is_string_index_signature_only_type(&self, type_: &Type) -> io::Result<bool> {
@@ -184,10 +183,10 @@ impl TypeChecker {
                 .get_index_info_of_type_(type_, &self.string_type())
                 .is_some()
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
-                && every(
+                && try_every(
                     type_.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.is_string_index_signature_only_type(type_),
-                )
+                )?
             || false)
     }
 
@@ -223,8 +222,8 @@ impl TypeChecker {
             );
             return Ok(false);
         }
-        let target_enum_type = self.get_type_of_symbol(target_symbol);
-        for property in self.get_properties_of_type(&self.get_type_of_symbol(source_symbol))? {
+        let target_enum_type = self.get_type_of_symbol(target_symbol)?;
+        for property in self.get_properties_of_type(&*self.get_type_of_symbol(source_symbol)?)? {
             if property.flags().intersects(SymbolFlags::EnumMember) {
                 let target_property =
                     self.get_property_of_type_(&target_enum_type, property.escaped_name(), None)?;
@@ -240,11 +239,11 @@ impl TypeChecker {
                             Some(vec![
                                 symbol_name(&property).into_owned(),
                                 self.type_to_string_(
-                                    &self.get_declared_type_of_symbol(target_symbol),
+                                    &*self.get_declared_type_of_symbol(target_symbol)?,
                                     Option::<&Node>::None,
                                     Some(TypeFormatFlags::UseFullyQualifiedType),
                                     None,
-                                ),
+                                )?,
                             ]),
                         );
                         self.enum_relation().insert(
@@ -270,20 +269,20 @@ impl TypeChecker {
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         mut error_reporter: Option<ErrorReporter>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let s = source.flags();
         let t = target.flags();
         if t.intersects(TypeFlags::AnyOrUnknown)
             || s.intersects(TypeFlags::Never)
             || ptr::eq(source, &*self.wildcard_type())
         {
-            return true;
+            return Ok(true);
         }
         if t.intersects(TypeFlags::Never) {
-            return false;
+            return Ok(false);
         }
         if s.intersects(TypeFlags::StringLike) && t.intersects(TypeFlags::String) {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::StringLiteral)
             && s.intersects(TypeFlags::EnumLiteral)
@@ -291,10 +290,10 @@ impl TypeChecker {
             && !t.intersects(TypeFlags::EnumLiteral)
             && source.as_string_literal_type().value == target.as_string_literal_type().value
         {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::NumberLike) && t.intersects(TypeFlags::Number) {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::NumberLiteral)
             && s.intersects(TypeFlags::EnumLiteral)
@@ -302,22 +301,26 @@ impl TypeChecker {
             && !t.intersects(TypeFlags::EnumLiteral)
             && source.as_number_literal_type().value == target.as_number_literal_type().value
         {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::BigIntLike) && t.intersects(TypeFlags::BigInt) {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::BooleanLike) && t.intersects(TypeFlags::Boolean) {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::ESSymbolLike) && t.intersects(TypeFlags::ESSymbol) {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::Enum)
             && t.intersects(TypeFlags::Enum)
-            && self.is_enum_type_related_to(&source.symbol(), &target.symbol(), &mut error_reporter)
+            && self.is_enum_type_related_to(
+                &source.symbol(),
+                &target.symbol(),
+                &mut error_reporter,
+            )?
         {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::EnumLiteral) && t.intersects(TypeFlags::EnumLiteral) {
             if s.intersects(TypeFlags::Union)
@@ -326,9 +329,9 @@ impl TypeChecker {
                     &source.symbol(),
                     &target.symbol(),
                     &mut error_reporter,
-                )
+                )?
             {
-                return true;
+                return Ok(true);
             }
             if s.intersects(TypeFlags::Literal)
                 && t.intersects(TypeFlags::Literal)
@@ -337,29 +340,29 @@ impl TypeChecker {
                     &self.get_parent_of_symbol(&source.symbol()).unwrap(),
                     &self.get_parent_of_symbol(&target.symbol()).unwrap(),
                     &mut error_reporter,
-                )
+                )?
             {
-                return true;
+                return Ok(true);
             }
         }
         if s.intersects(TypeFlags::Undefined)
             && (!self.strict_null_checks || t.intersects(TypeFlags::Undefined | TypeFlags::Void))
         {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::Null)
             && (!self.strict_null_checks || t.intersects(TypeFlags::Null))
         {
-            return true;
+            return Ok(true);
         }
         if s.intersects(TypeFlags::Object) && t.intersects(TypeFlags::NonPrimitive) {
-            return true;
+            return Ok(true);
         }
         if ptr::eq(relation, &*self.assignable_relation())
             || ptr::eq(relation, &*self.comparable_relation())
         {
             if s.intersects(TypeFlags::Any) {
-                return true;
+                return Ok(true);
             }
             if s.intersects(TypeFlags::Number | TypeFlags::NumberLiteral)
                 && !s.intersects(TypeFlags::EnumLiteral)
@@ -368,10 +371,10 @@ impl TypeChecker {
                         && t.intersects(TypeFlags::NumberLiteral)
                         && t.intersects(TypeFlags::EnumLiteral))
             {
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_type_related_to(
@@ -462,7 +465,7 @@ impl TypeChecker {
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
-    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> Gc<Type> {
+    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> io::Result<Gc<Type>> {
         let mut type_ = type_.type_wrapper();
         loop {
             let mut t: Gc<Type> = if self.is_fresh_literal_type(&type_) {
@@ -496,14 +499,14 @@ impl TypeChecker {
                 type_.type_wrapper()
             };
             t = self
-                .get_single_base_for_non_augmenting_subtype(&t)
+                .get_single_base_for_non_augmenting_subtype(&t)?
                 .unwrap_or(t);
             if Gc::ptr_eq(&t, &type_) {
                 break;
             }
             type_ = t.clone();
         }
-        type_
+        Ok(type_)
     }
 
     pub(super) fn check_type_related_to<TErrorNode: Borrow<Node>>(
