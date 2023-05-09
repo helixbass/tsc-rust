@@ -342,7 +342,7 @@ impl TypeChecker {
                 type_ = self.es_symbol_type();
             }
 
-            return Ok(self.get_widened_type(&type_));
+            return self.get_widened_type(&type_);
         }
 
         let type_ = if is_parameter(declaration)
@@ -483,7 +483,7 @@ impl TypeChecker {
             if declaration_as_source_file.statements().is_empty() {
                 return Ok(self.empty_object_type());
             }
-            return Ok(self.get_widened_type(
+            return self.get_widened_type(
                 &*self.get_widened_literal_type(
                     &*self.check_expression(
                         &declaration_as_source_file.statements()[0]
@@ -493,7 +493,7 @@ impl TypeChecker {
                         None,
                     )?,
                 )?,
-            ));
+            );
         }
 
         if !self.push_type_resolution(
@@ -503,7 +503,7 @@ impl TypeChecker {
             if symbol.flags().intersects(SymbolFlags::ValueModule)
                 && !symbol.flags().intersects(SymbolFlags::Assignment)
             {
-                return Ok(self.get_type_of_func_class_enum_module(symbol));
+                return self.get_type_of_func_class_enum_module(symbol);
             }
             return self.report_circularity_error(symbol);
         }
@@ -549,7 +549,7 @@ impl TypeChecker {
                     | SymbolFlags::Enum
                     | SymbolFlags::ValueModule,
             ) {
-                return Ok(self.get_type_of_func_class_enum_module(symbol));
+                return self.get_type_of_func_class_enum_module(symbol);
             }
             type_ = if is_binary_expression(&declaration.parent()) {
                 self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)?
@@ -591,9 +591,9 @@ impl TypeChecker {
         {
             type_ = self.get_widened_type_for_variable_like_declaration(declaration, Some(true))?;
         } else if is_enum_declaration(declaration) {
-            type_ = self.get_type_of_func_class_enum_module(symbol);
+            type_ = self.get_type_of_func_class_enum_module(symbol)?;
         } else if is_enum_member(declaration) {
-            type_ = self.get_type_of_enum_member(symbol);
+            type_ = self.get_type_of_enum_member(symbol)?;
         } else if is_accessor(declaration) {
             type_ = self
                 .resolve_type_of_accessors(symbol, None)?
@@ -614,7 +614,7 @@ impl TypeChecker {
             if symbol.flags().intersects(SymbolFlags::ValueModule)
                 && !symbol.flags().intersects(SymbolFlags::Assignment)
             {
-                return Ok(self.get_type_of_func_class_enum_module(symbol));
+                return self.get_type_of_func_class_enum_module(symbol);
             }
             return self.report_circularity_error(symbol);
         }

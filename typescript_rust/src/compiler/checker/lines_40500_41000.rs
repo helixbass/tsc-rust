@@ -734,7 +734,7 @@ impl TypeChecker {
                         )
                     )
                 {
-                    self.get_immediate_aliased_symbol(&parent_symbol.unwrap())
+                    self.get_immediate_aliased_symbol(&parent_symbol.unwrap())?
                 } else {
                     parent_symbol
                 },

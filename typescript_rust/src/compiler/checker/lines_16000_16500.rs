@@ -515,8 +515,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*TypeNode*/
     ) -> io::Result<Gc<Type>> {
-        Ok(self
-            .get_conditional_flow_type_of_type(&*self.get_type_from_type_node_worker(node)?, node))
+        self.get_conditional_flow_type_of_type(&*self.get_type_from_type_node_worker(node)?, node)
     }
 
     pub(super) fn get_type_from_type_node_worker(
@@ -591,7 +590,7 @@ impl TypeChecker {
             }
             SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node)?,
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node)?,
-            SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
+            SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node)?,
             SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node)?,
             SyntaxKind::InferType => self.get_type_from_infer_type_node(node)?,
             SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node)?,
@@ -736,7 +735,7 @@ impl TypeChecker {
                 }
                 type_.type_wrapper()
             }
-            TypeMapper::Function(mapper) => mapper.func.call(self, type_),
+            TypeMapper::Function(mapper) => mapper.func.call(self, type_)?,
             TypeMapper::Composite(composite_or_merged_mapper)
             | TypeMapper::Merged(composite_or_merged_mapper) => {
                 let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1)?;
@@ -1029,7 +1028,7 @@ impl TypeChecker {
         let target_as_object_type = target.as_object_type();
         if type_parameters.is_none() {
             let mut outer_type_parameters =
-                self.get_outer_type_parameters(&declaration, Some(true));
+                self.get_outer_type_parameters(&declaration, Some(true))?;
             if self.is_js_constructor(Some(&*declaration))? {
                 let template_tag_parameters =
                     self.get_type_parameters_from_declaration(&declaration);
@@ -1132,7 +1131,7 @@ impl TypeChecker {
                             Some(new_mapper),
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),
-                        )
+                        )?
                     } else if target_as_object_type
                         .object_flags()
                         .intersects(ObjectFlags::Mapped)
@@ -1180,14 +1179,16 @@ impl BackreferenceMapperCallback {
 }
 
 impl TypeMapperCallback for BackreferenceMapperCallback {
-    fn call(&self, checker: &TypeChecker, t: &Type) -> Gc<Type> {
-        if matches!(
-            find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),
-            Some(found_index) if found_index >= self.index
-        ) {
-            checker.unknown_type()
-        } else {
-            t.type_wrapper()
-        }
+    fn call(&self, checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+        Ok(
+            if matches!(
+                find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),
+                Some(found_index) if found_index >= self.index
+            ) {
+                checker.unknown_type()
+            } else {
+                t.type_wrapper()
+            },
+        )
     }
 }

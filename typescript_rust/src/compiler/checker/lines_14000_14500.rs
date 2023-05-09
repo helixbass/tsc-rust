@@ -120,7 +120,7 @@ impl TypeChecker {
                             }),
                     );
                 } else if self.is_tuple_type(type_) {
-                    let elements = self.get_type_arguments(type_);
+                    let elements = self.get_type_arguments(type_)?;
                     if elements.len() + expanded_types.len() >= 10_000 {
                         self.error(
                             self.maybe_current_node(),
@@ -305,7 +305,7 @@ impl TypeChecker {
                 .try_unwrap_or_else(|| self.create_tuple_type(&[], None, None, None))?
         } else {
             self.create_tuple_type(
-                &self.get_type_arguments(type_)[index..end_index],
+                &self.get_type_arguments(type_)?[index..end_index],
                 Some(&target_as_tuple_type.element_flags[index..end_index]),
                 Some(false),
                 target_as_tuple_type
@@ -1010,17 +1010,17 @@ impl TypeChecker {
         type_set: &mut IndexMap<TypeId, Gc<Type>>,
         mut includes: TypeFlags,
         type_: &Type,
-    ) -> TypeFlags {
+    ) -> io::Result<TypeFlags> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::Intersection) {
-            return self.add_types_to_intersection(
+            return Ok(self.add_types_to_intersection(
                 type_set,
                 includes,
                 type_.as_intersection_type().types(),
-            );
+            ));
         }
         let mut type_ = type_.type_wrapper();
-        if self.is_empty_anonymous_object_type(&type_) {
+        if self.is_empty_anonymous_object_type(&type_)? {
             if !includes.intersects(TypeFlags::IncludesEmptyObject) {
                 includes |= TypeFlags::IncludesEmptyObject;
                 type_set.insert(type_.id(), type_.clone());
@@ -1048,7 +1048,7 @@ impl TypeChecker {
             }
             includes |= flags & TypeFlags::IncludesMask;
         }
-        includes
+        Ok(includes)
     }
 
     pub(super) fn add_types_to_intersection(

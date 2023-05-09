@@ -235,7 +235,7 @@ impl TypeChecker {
                     &symbol,
                     module_symbol.as_ref().unwrap(),
                     reference,
-                );
+                )?;
                 if let Some(default_only_type) = default_only_type {
                     return Ok(Some(self.clone_type_as_module_type(
                         &symbol,

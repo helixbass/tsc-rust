@@ -887,7 +887,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-        mut is_related_to: impl FnMut(&Type, &Type) -> Ternary,
+        mut is_related_to: impl FnMut(&Type, &Type) -> io::Result<Ternary>,
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Gc<Type>>> {
         if target.flags().intersects(TypeFlags::Union)
@@ -915,7 +915,9 @@ impl TypeChecker {
                             p.escaped_name().to_owned(),
                         )
                     }),
-                    |source: &Type, target: &Type| is_related_to(source, target) != Ternary::False,
+                    |source: &Type, target: &Type| {
+                        Ok(is_related_to(source, target)? != Ternary::False)
+                    },
                     Option::<&Type>::None,
                     skip_partial,
                 );

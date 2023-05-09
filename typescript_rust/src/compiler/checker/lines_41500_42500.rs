@@ -58,7 +58,7 @@ impl TypeChecker {
         node: &Node,
         check_children: Option<bool>,
     ) -> io::Result<bool> {
-        if self.is_alias_symbol_declaration(node) {
+        if self.is_alias_symbol_declaration(node)? {
             let symbol = self.get_symbol_of_node(node)?;
             let links = symbol.as_ref().map(|symbol| self.get_symbol_links(symbol));
             if matches!(
@@ -122,40 +122,40 @@ impl TypeChecker {
     pub(super) fn is_required_initialized_parameter(
         &self,
         parameter: &Node, /*ParameterDeclaration | JSDocParameterTag*/
-    ) -> bool {
-        self.strict_null_checks
-            && !self.is_optional_parameter_(parameter)
+    ) -> io::Result<bool> {
+        Ok(self.strict_null_checks
+            && !self.is_optional_parameter_(parameter)?
             && !is_jsdoc_parameter_tag(parameter)
             && parameter
                 .as_parameter_declaration()
                 .maybe_initializer()
                 .is_some()
-            && !has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier)
+            && !has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier))
     }
 
     pub(super) fn is_optional_uninitialized_parameter_property(
         &self,
         parameter: &Node, /*ParameterDeclaration*/
-    ) -> bool {
-        self.strict_null_checks
-            && self.is_optional_parameter_(parameter)
+    ) -> io::Result<bool> {
+        Ok(self.strict_null_checks
+            && self.is_optional_parameter_(parameter)?
             && parameter
                 .as_parameter_declaration()
                 .maybe_initializer()
                 .is_none()
-            && has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier)
+            && has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier))
     }
 
     pub(super) fn is_optional_uninitialized_parameter_(
         &self,
         parameter: &Node, /*ParameterDeclaration*/
-    ) -> bool {
-        self.strict_null_checks
-            && self.is_optional_parameter_(parameter)
+    ) -> io::Result<bool> {
+        Ok(self.strict_null_checks
+            && self.is_optional_parameter_(parameter)?
             && parameter
                 .as_parameter_declaration()
                 .maybe_initializer()
-                .is_none()
+                .is_none())
     }
 
     pub(super) fn is_expando_function_declaration(
@@ -495,7 +495,7 @@ impl TypeChecker {
             ));
         }
         let expr = expr.as_ref().unwrap();
-        let ref type_ = self.get_widened_type(&*self.get_regular_type_of_expression(expr)?);
+        let ref type_ = self.get_widened_type(&*self.get_regular_type_of_expression(expr)?)?;
         self.node_builder().type_to_type_node(
             &type_,
             Some(enclosing_declaration),

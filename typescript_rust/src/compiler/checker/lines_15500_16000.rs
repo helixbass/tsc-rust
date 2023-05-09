@@ -14,9 +14,9 @@ use crate::{
     node_is_missing, same_map, try_map, try_maybe_filter, AccessFlags, CheckFlags, ConditionalRoot,
     ConditionalType, Diagnostics, IndexInfo, InferenceFlags, InferencePriority, MappedType,
     ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    UnionOrIntersectionTypeInterface,
+    ObjectFlagsTypeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -47,7 +47,7 @@ impl TypeChecker {
                     Gc::ptr_eq(&resolved_as_indexed_access_type.object_type, &object_type)
                         && Gc::ptr_eq(&resolved_as_indexed_access_type.index_type, &index_type)
                 } {
-                    self.get_conditional_flow_type_of_type(&resolved, node)
+                    self.get_conditional_flow_type_of_type(&resolved, node)?
                 } else {
                     resolved
                 },
@@ -140,12 +140,14 @@ impl TypeChecker {
         &self,
         root: Gc<GcCell<ConditionalRoot>>,
         type_: &Type,
-    ) -> Gc<Type> {
-        if self.is_typical_nondistributive_conditional(root) && self.is_tuple_type(type_) {
-            self.get_type_arguments(type_)[0].clone()
-        } else {
-            type_.type_wrapper()
-        }
+    ) -> io::Result<Gc<Type>> {
+        Ok(
+            if self.is_typical_nondistributive_conditional(root) && self.is_tuple_type(type_) {
+                self.get_type_arguments(type_)?[0].clone()
+            } else {
+                type_.type_wrapper()
+            },
+        )
     }
 
     pub(super) fn get_conditional_type(
@@ -564,7 +566,7 @@ impl TypeChecker {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             let alias_type_arguments =
                 self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
-            let all_outer_type_parameters = self.get_outer_type_parameters(node, Some(true));
+            let all_outer_type_parameters = self.get_outer_type_parameters(node, Some(true))?;
             let outer_type_parameters = if alias_type_arguments.is_some() {
                 all_outer_type_parameters
             } else {
@@ -803,7 +805,7 @@ impl TypeChecker {
         Ok(if meaning == SymbolFlags::Value {
             self.get_type_of_symbol(symbol)?
         } else {
-            self.get_type_reference_type(node, &resolved_symbol)
+            self.get_type_reference_type(node, &resolved_symbol)?
         })
     }
 
@@ -859,8 +861,8 @@ impl TypeChecker {
     pub(super) fn get_type_arguments_for_alias_symbol<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
-    ) -> Option<Vec<Gc<Type>>> {
-        symbol.and_then(|symbol| {
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
+        symbol.try_and_then(|symbol| {
             self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.borrow())
         })
     }
@@ -1096,7 +1098,7 @@ impl TypeChecker {
         let index_infos = if Gc::ptr_eq(&left, &self.empty_object_type()) {
             self.get_index_infos_of_type(&right)
         } else {
-            self.get_union_index_infos(&[left.clone(), right.clone()])
+            self.get_union_index_infos(&[left.clone(), right.clone()])?
         };
 
         for right_prop in self.get_properties_of_type(&right)? {

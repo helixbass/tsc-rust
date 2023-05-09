@@ -19,23 +19,23 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn are_all_outer_type_parameters_applied(&self, type_: &Type) -> bool {
+    pub(super) fn are_all_outer_type_parameters_applied(&self, type_: &Type) -> io::Result<bool> {
         let outer_type_parameters = type_
             .maybe_as_interface_type()
             .and_then(|type_| type_.maybe_outer_type_parameters());
         if let Some(outer_type_parameters) = outer_type_parameters {
             let last = outer_type_parameters.len() - 1;
-            let type_arguments = self.get_type_arguments(type_);
-            return !match (
+            let type_arguments = self.get_type_arguments(type_)?;
+            return Ok(!match (
                 outer_type_parameters[last].maybe_symbol(),
                 type_arguments[last].maybe_symbol(),
             ) {
                 (None, None) => true,
                 (Some(symbol_a), Some(symbol_b)) => Gc::ptr_eq(&symbol_a, &symbol_b),
                 _ => false,
-            };
+            });
         }
-        true
+        Ok(true)
     }
 
     pub(super) fn is_valid_base_type(&self, type_: &Type) -> bool {
@@ -76,7 +76,7 @@ impl TypeChecker {
                         .unwrap()
                     {
                         let base_type =
-                            self.get_reduced_type(&*self.get_type_from_type_node_(node)?);
+                            self.get_reduced_type(&*self.get_type_from_type_node_(node)?)?;
                         if !self.is_error_type(&base_type) {
                             if self.is_valid_base_type(&base_type) {
                                 if !ptr::eq(type_, &*base_type)
@@ -201,7 +201,7 @@ impl TypeChecker {
             let outer_type_parameters =
                 self.get_outer_type_parameters_of_class_or_interface(&symbol);
             let local_type_parameters =
-                self.get_local_type_parameters_of_class_or_interface_or_type_alias(&symbol);
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(&symbol)?;
             let mut need_to_set_constraint = false;
             let type_: Gc<Type> = if outer_type_parameters.is_some()
                 || local_type_parameters.is_some()
@@ -287,7 +287,7 @@ impl TypeChecker {
 
             if self.pop_type_resolution() {
                 let type_parameters =
-                    self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+                    self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
                 if let Some(type_parameters) = type_parameters {
                     let mut links = links.borrow_mut();
                     let mut instantiations: HashMap<String, Gc<Type>> = HashMap::new();
@@ -441,7 +441,7 @@ impl TypeChecker {
         if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
             return Ok(links_declared_type);
         }
-        if self.get_enum_kind(symbol) == EnumKind::Literal {
+        if self.get_enum_kind(symbol)? == EnumKind::Literal {
             self.increment_enum_count();
             let mut member_type_list: Vec<Gc<Type>> = vec![];
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {

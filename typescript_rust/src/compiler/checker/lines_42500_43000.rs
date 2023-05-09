@@ -155,7 +155,7 @@ impl TypeChecker {
     pub(super) fn check_grammar_parameter_list(
         &self,
         parameters: &NodeArray, /*<ParameterDeclaration>*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let mut seen_optional_parameter = false;
         let parameter_count = parameters.len();
 
@@ -167,11 +167,11 @@ impl TypeChecker {
                 .as_ref()
             {
                 if i != parameter_count - 1 {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         parameter_dot_dot_dot_token,
                         &Diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
                         None,
-                    );
+                    ));
                 }
                 if !parameter.flags().intersects(NodeFlags::Ambient) {
                     self.check_grammar_for_disallowed_trailing_comma(
@@ -183,49 +183,49 @@ impl TypeChecker {
                 if let Some(parameter_question_token) =
                     parameter_as_parameter_declaration.question_token.as_ref()
                 {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         parameter_question_token,
                         &Diagnostics::A_rest_parameter_cannot_be_optional,
                         None,
-                    );
+                    ));
                 }
 
                 if parameter_as_parameter_declaration
                     .maybe_initializer()
                     .is_some()
                 {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         &parameter_as_parameter_declaration.name(),
                         &Diagnostics::A_rest_parameter_cannot_have_an_initializer,
                         None,
-                    );
+                    ));
                 }
-            } else if self.is_optional_parameter_(parameter) {
+            } else if self.is_optional_parameter_(parameter)? {
                 seen_optional_parameter = true;
                 if parameter_as_parameter_declaration.question_token.is_some()
                     && parameter_as_parameter_declaration
                         .maybe_initializer()
                         .is_some()
                 {
-                    return self.grammar_error_on_node(
+                    return Ok(self.grammar_error_on_node(
                         &parameter_as_parameter_declaration.name(),
                         &Diagnostics::Parameter_cannot_have_question_mark_and_initializer,
                         None,
-                    );
+                    ));
                 }
             } else if seen_optional_parameter
                 && parameter_as_parameter_declaration
                     .maybe_initializer()
                     .is_none()
             {
-                return self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node(
                     &parameter_as_parameter_declaration.name(),
                     &Diagnostics::A_required_parameter_cannot_follow_an_optional_parameter,
                     None,
-                );
+                ));
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_non_simple_parameters(

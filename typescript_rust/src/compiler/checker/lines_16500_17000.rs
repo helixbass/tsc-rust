@@ -159,7 +159,7 @@ impl TypeChecker {
             if !Gc::ptr_eq(type_variable, &mapped_type_variable) {
                 let type_as_mapped_type = type_.as_mapped_type();
                 return self.try_map_type_with_alias(
-                    &self.get_reduced_type(&mapped_type_variable),
+                    &*self.get_reduced_type(&mapped_type_variable)?,
                     &mut |t| {
                         if t.flags().intersects(TypeFlags::AnyOrUnknown | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object | TypeFlags::Intersection) && !ptr::eq(t, &*self.wildcard_type()) && !self.is_error_type(t) {
                             if type_as_mapped_type.declaration.as_mapped_type_node().name_type.is_none() {
@@ -229,7 +229,7 @@ impl TypeChecker {
             .target
             .as_tuple_type()
             .element_flags;
-        let element_types = try_map(&self.get_type_arguments(tuple_type), |t: &Gc<Type>, i| {
+        let element_types = try_map(&self.get_type_arguments(tuple_type)?, |t: &Gc<Type>, i| {
             let singleton = if element_flags[i].intersects(ElementFlags::Variadic) {
                 t.clone()
             } else if element_flags[i].intersects(ElementFlags::Rest) {
@@ -340,16 +340,16 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let template_mapper = Gc::new(self.append_type_mapping(
             Some(mapper),
-            &self.get_type_parameter_from_mapped_type(type_),
+            &*self.get_type_parameter_from_mapped_type(type_)?,
             key,
         ));
         let prop_type = self.instantiate_type(
-            &self.get_template_type_from_mapped_type(
+            &*self.get_template_type_from_mapped_type(
                 &type_
                     .as_mapped_type()
                     .maybe_target()
                     .unwrap_or_else(|| type_.type_wrapper()),
-            ),
+            )?,
             Some(template_mapper),
         )?;
         let modifiers = self.get_mapped_type_modifiers(type_);
@@ -387,7 +387,7 @@ impl TypeChecker {
             .intersects(ObjectFlags::Mapped);
         let mut mapped_type_type_parameter: Option<Gc<Type>> = None;
         if is_mapped_type {
-            let orig_type_parameter = self.get_type_parameter_from_mapped_type(type_);
+            let orig_type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
             let fresh_type_parameter = self.clone_type_parameter(&orig_type_parameter);
             mapped_type_type_parameter = Some(fresh_type_parameter.clone());
             mapper = self.combine_type_mappers(
@@ -782,7 +782,7 @@ impl TypeChecker {
             &*self.instantiate_type(&type_as_reverse_mapped_type.source, Some(mapper))?,
             &inner_mapped_type,
             &inner_index_type,
-        );
+        )?;
         if let Some(instantiated) = instantiated {
             return Ok(instantiated);
         }

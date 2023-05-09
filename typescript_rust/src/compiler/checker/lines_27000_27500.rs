@@ -333,7 +333,7 @@ impl TypeChecker {
                 let expr_type = self.get_reduced_type(&*self.check_expression_cached(
                     &attribute_decl.as_jsx_spread_attribute().expression,
                     check_mode,
-                )?);
+                )?)?;
                 if self.is_type_any(Some(&*expr_type)) {
                     has_spread_any_type = true;
                 }
@@ -416,7 +416,7 @@ impl TypeChecker {
                     let contextual_type = self.get_apparent_type_of_contextual_type(
                         &opening_like_element_as_jsx_opening_like_element.attributes(),
                         None,
-                    );
+                    )?;
                     let children_contextual_type =
                         contextual_type.as_ref().try_and_then(|contextual_type| {
                             self.get_type_of_property_of_contextual_type(

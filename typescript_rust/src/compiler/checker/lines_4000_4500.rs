@@ -360,11 +360,9 @@ impl TypeChecker {
     ) -> Option<TReturn> {
         self.try_for_each_symbol_table_in_scope(
             enclosing_declaration,
-            |a: Gc<GcCell<SymbolTable>>,
-             b: Option<bool>,
-             c: Option<bool>,
-             d: Option<&Node>|
-             -> Result<Option<TReturn>, ()> { Ok(callback(a, b, c, d)) },
+            |a: Gc<GcCell<SymbolTable>>, b: Option<bool>, c: Option<bool>, d: Option<&Node>| {
+                Ok(callback(a, b, c, d))
+            },
         )
         .unwrap()
     }

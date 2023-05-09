@@ -175,9 +175,9 @@ pub fn try_find<TItem, TError>(
         .map(|(_, value)| value))
 }
 
-pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn find_last<TItem>(
     array: &[TItem],
-    mut predicate: TCallback,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
 ) -> Option<&TItem> {
     array
         .into_iter()
@@ -185,6 +185,18 @@ pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .enumerate()
         .find(|(index, value)| predicate(value, *index))
         .map(|(_, value)| value)
+}
+
+pub fn try_find_last<TItem, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<Option<&TItem>, TError> {
+    for (index, value) in array.into_iter().rev().enumerate() {
+        if predicate(value, *index)? {
+            return Ok(Some(value));
+        }
+    }
+    Ok(None)
 }
 
 pub fn find_index<TItem>(
@@ -197,6 +209,19 @@ pub fn find_index<TItem>(
         .enumerate()
         .skip(start_index.unwrap_or(0))
         .position(|(index, value)| predicate(value, index))
+}
+
+pub fn try_find_index<TItem, TError>(
+    array: &[TItem],
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+    start_index: Option<usize>,
+) -> Result<Option<usize>, TError> {
+    for (index, value) in array.into_iter().enumerate().skip(start_index.unwrap_or(0)) {
+        if predicate(value, index)? {
+            return Ok(Some(index));
+        }
+    }
+    Ok(None)
 }
 
 pub fn find_last_index<TItem>(

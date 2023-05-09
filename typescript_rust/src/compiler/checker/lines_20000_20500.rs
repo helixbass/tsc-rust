@@ -312,11 +312,13 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type, /*UnionOrIntersectionType*/
-        is_related_to: Option<impl Fn(&Type, &Type) -> Ternary>,
+        is_related_to: Option<impl Fn(&Type, &Type) -> io::Result<Ternary>>,
     ) -> io::Result<Option<Gc<Type>>> {
-        let is_related_to = |source: &Type, target: &Type| match is_related_to.as_ref() {
-            None => self.compare_types_assignable(source, target),
-            Some(is_related_to) => is_related_to(source, target),
+        let is_related_to = |source: &Type, target: &Type| {
+            Ok(match is_related_to.as_ref() {
+                None => self.compare_types_assignable(source, target),
+                Some(is_related_to) => is_related_to(source, target)?,
+            })
         };
         Ok(self
             .find_matching_discriminant_type(source, target, is_related_to, Some(true))?
@@ -330,7 +332,7 @@ impl TypeChecker {
         &self,
         target: &Type, /*UnionType*/
         discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> io::Result<Gc<Type>>>, __String)>,
-        mut related: impl FnMut(&Type, &Type) -> bool,
+        mut related: impl FnMut(&Type, &Type) -> io::Result<bool>,
         default_value: Option<impl Borrow<Type>>,
         skip_partial: Option<bool>,
     ) -> io::Result<Option<Gc<Type>>> {
@@ -355,7 +357,7 @@ impl TypeChecker {
                 let target_type = self.get_type_of_property_of_type_(type_, property_name)?;
                 if matches!(
                     target_type.as_ref(),
-                    Some(target_type) if related(&get_discriminating_type(), target_type)
+                    Some(target_type) if related(&get_discriminating_type(), target_type)?
                 ) {
                     discriminable[i] = if discriminable[i].is_none() {
                         Some(true)

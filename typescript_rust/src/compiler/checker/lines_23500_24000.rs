@@ -382,7 +382,7 @@ impl GetFlowTypeOfReference {
         flow: &FlowNode, /*FlowAssignment*/
     ) -> io::Result<Gc<Type>> {
         let node = &flow.as_flow_assignment().node;
-        Ok(self.type_checker.get_narrowable_type_for_reference(
+        self.type_checker.get_narrowable_type_for_reference(
             &*if matches!(
                 node.kind(),
                 SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
@@ -393,7 +393,7 @@ impl GetFlowTypeOfReference {
             },
             &self.reference,
             None,
-        ))
+        )
     }
 
     pub(super) fn get_type_at_flow_assignment(
@@ -530,7 +530,7 @@ impl GetFlowTypeOfReference {
                 );
             }
         }
-        Ok(self.narrow_type(type_, &node, true))
+        self.narrow_type(type_, &node, true)
     }
 
     pub(super) fn get_type_at_flow_call(
@@ -561,7 +561,7 @@ impl GetFlowTypeOfReference {
                         predicate,
                         &flow_as_flow_call.node,
                         true,
-                    )
+                    )?
                 } else if predicate.kind == TypePredicateKind::AssertsIdentifier
                     && matches!(
                         predicate.parameter_index,
@@ -684,7 +684,7 @@ impl GetFlowTypeOfReference {
             &non_evolving_type,
             &flow_as_flow_condition.node,
             assume_true,
-        );
+        )?;
         if Gc::ptr_eq(&narrowed_type, &non_evolving_type) {
             return Ok(flow_type);
         }

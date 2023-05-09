@@ -8,11 +8,12 @@ use crate::{
     contains_gc, every, filter, find_index, get_declaration_modifier_flags_from_symbol,
     get_name_of_declaration, get_object_flags, index_of_gc, is_computed_property_name,
     is_identifier, is_known_symbol, is_private_identifier, map, ordered_remove_item_at,
-    reduce_left, replace_element, some, symbol_name, try_map, unescape_leading_underscores,
-    walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_, Diagnostics, IndexType,
-    InternalSymbolName, IntersectionType, ModifierFlags, Node, NodeInterface, ObjectFlags,
-    ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction, VecExt,
+    reduce_left, replace_element, some, symbol_name, try_find_index, try_map,
+    unescape_leading_underscores, walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_,
+    Diagnostics, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, Node,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction, VecExt,
 };
 
 impl TypeChecker {
@@ -220,11 +221,11 @@ impl TypeChecker {
         if includes.intersects(TypeFlags::IncludesEmptyObject)
             && includes.intersects(TypeFlags::Object)
         {
-            let index = find_index(
+            let index = try_find_index(
                 &type_set,
                 |type_: &Gc<Type>, _| self.is_empty_anonymous_object_type(type_),
                 None,
-            )
+            )?
             .unwrap();
             ordered_remove_item_at(&mut type_set, index);
         }
@@ -477,14 +478,14 @@ impl TypeChecker {
         strings_only: bool,
         no_index_signatures: Option<bool>,
     ) -> io::Result<Gc<Type>> {
-        let type_parameter = self.get_type_parameter_from_mapped_type(type_);
+        let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
         let constraint_type = self.get_constraint_type_from_mapped_type(type_);
         let name_type = self.get_name_type_from_mapped_type(
             &type_
                 .as_mapped_type()
                 .maybe_target()
                 .unwrap_or_else(|| type_.type_wrapper()),
-        );
+        )?;
         if name_type.is_none() && !matches!(no_index_signatures, Some(true)) {
             return Ok(constraint_type);
         }
@@ -492,7 +493,7 @@ impl TypeChecker {
         if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
             if !self.is_generic_index_type(&constraint_type) {
                 let modifiers_type =
-                    self.get_apparent_type(&self.get_modifiers_type_from_mapped_type(type_));
+                    self.get_apparent_type(&*self.get_modifiers_type_from_mapped_type(type_)?)?;
                 self.try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
                     &modifiers_type,
                     TypeFlags::StringOrNumberLiteralOrUnique,
@@ -511,28 +512,28 @@ impl TypeChecker {
                 return Ok(self.get_index_type_for_generic_type(type_, strings_only));
             }
         } else {
-            self.for_each_type(&self.get_lower_bound_of_key_type(&constraint_type), |t| {
+            self.try_for_each_type(&*self.get_lower_bound_of_key_type(&constraint_type)?, |t| {
                 self.add_member_for_key_type_get_index_type_for_mapped_type(
                     name_type.as_ref(),
                     &type_parameter,
                     &mut key_types,
                     type_,
                     t,
-                );
-                Option::<()>::None
-            });
+                )?;
+                Ok(Option::<()>::None)
+            })?;
         }
         if self.is_generic_index_type(&constraint_type) {
-            self.for_each_type(&constraint_type, |t| {
+            self.try_for_each_type(&constraint_type, |t| {
                 self.add_member_for_key_type_get_index_type_for_mapped_type(
                     name_type.as_ref(),
                     &type_parameter,
                     &mut key_types,
                     type_,
                     t,
-                );
-                Option::<()>::None
-            });
+                )?;
+                Ok(Option::<()>::None)
+            })?;
         }
         let result = if matches!(no_index_signatures, Some(true)) {
             self.filter_type(
@@ -596,14 +597,14 @@ impl TypeChecker {
     pub(super) fn has_distributive_name_type(
         &self,
         mapped_type: &Type, /*MappedType*/
-    ) -> bool {
-        let type_variable = self.get_type_parameter_from_mapped_type(mapped_type);
-        self.is_distributive(
+    ) -> io::Result<bool> {
+        let type_variable = self.get_type_parameter_from_mapped_type(mapped_type)?;
+        Ok(self.is_distributive(
             &type_variable,
             &self
-                .get_name_type_from_mapped_type(mapped_type)
+                .get_name_type_from_mapped_type(mapped_type)?
                 .unwrap_or_else(|| type_variable.clone()),
-        )
+        ))
     }
 
     pub(super) fn is_distributive(&self, type_variable: &Type, type_: &Type) -> bool {
@@ -763,7 +764,7 @@ impl TypeChecker {
         no_index_signatures: Option<bool>,
     ) -> io::Result<Gc<Type>> {
         let strings_only = strings_only.unwrap_or(self.keyof_strings_only);
-        let type_ = self.get_reduced_type(type_);
+        let type_ = self.get_reduced_type(type_)?;
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.get_intersection_type(
                 &try_map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
@@ -826,7 +827,7 @@ impl TypeChecker {
                 Some(&[type_.type_wrapper(), self.string_type()]),
                 Option::<&Symbol>::None,
                 None,
-            )
+            )?
         } else {
             self.string_type()
         })

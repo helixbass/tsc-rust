@@ -1350,12 +1350,12 @@ pub fn create_type_checker(
 struct RestrictiveMapperFunc {}
 
 impl TypeMapperCallback for RestrictiveMapperFunc {
-    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Gc<Type> {
-        if t.flags().intersects(TypeFlags::TypeParameter) {
+    fn call(&self, type_checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+        Ok(if t.flags().intersects(TypeFlags::TypeParameter) {
             type_checker.get_restrictive_type_parameter(t)
         } else {
             t.type_wrapper()
-        }
+        })
     }
 }
 
@@ -1363,12 +1363,12 @@ impl TypeMapperCallback for RestrictiveMapperFunc {
 struct PermissiveMapperFunc {}
 
 impl TypeMapperCallback for PermissiveMapperFunc {
-    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Gc<Type> {
-        if t.flags().intersects(TypeFlags::TypeParameter) {
+    fn call(&self, type_checker: &TypeChecker, t: &Type) -> io::Result<Gc<Type>> {
+        Ok(if t.flags().intersects(TypeFlags::TypeParameter) {
             type_checker.wildcard_type()
         } else {
             t.type_wrapper()
-        }
+        })
     }
 }
 
@@ -2171,11 +2171,11 @@ impl TypeChecker {
     pub fn get_contextual_type_for_jsx_attribute(
         &self,
         node_in: &Node, /*ObjectLiteralElementLike*/
-    ) -> Option<Gc<Type>> {
-        let node = get_parse_tree_node(
+    ) -> io::Result<Option<Gc<Type>>> {
+        let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_jsx_attribute_like(node)),
-        )?;
+        ));
         self.get_contextual_type_for_jsx_attribute_(&node)
     }
 
@@ -2285,12 +2285,15 @@ impl TypeChecker {
         unimplemented!() // TODO: figure out how to implement this
     }
 
-    pub fn is_optional_parameter(&self, node_in: &Node /*ParameterDeclaration*/) -> bool {
+    pub fn is_optional_parameter(
+        &self,
+        node_in: &Node, /*ParameterDeclaration*/
+    ) -> io::Result<bool> {
         let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_parameter(node)));
-        match node {
+        Ok(match node {
             None => false,
-            Some(node) => self.is_optional_parameter_(&node),
-        }
+            Some(node) => self.is_optional_parameter_(&node)?,
+        })
     }
 
     pub fn try_get_member_in_module_exports(
@@ -2312,14 +2315,14 @@ impl TypeChecker {
         )
     }
 
-    pub fn try_find_ambient_module(&self, module_name: &str) -> Option<Gc<Symbol>> {
+    pub fn try_find_ambient_module(&self, module_name: &str) -> io::Result<Option<Gc<Symbol>>> {
         self.try_find_ambient_module_(module_name, true)
     }
 
     pub fn try_find_ambient_module_without_augmentations(
         &self,
         module_name: &str,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.try_find_ambient_module_(module_name, false)
     }
 
@@ -2405,7 +2408,7 @@ impl TypeChecker {
         location: &Node,
         name: &str,
         meaning: SymbolFlags,
-    ) -> Option<String> {
+    ) -> io::Result<Option<String>> {
         self.get_suggestion_for_nonexistent_symbol_(
             Some(location),
             &escape_leading_underscores(name),
@@ -2566,17 +2569,17 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
         check_mode: CheckMode,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_call_like_expression(node)),
         );
         self.set_apparent_argument_count(argument_count);
-        let res = node.map(|node| {
+        let res = node.try_map(|node| {
             self.get_resolved_signature_(&node, candidates_out_array, Some(check_mode))
-        });
+        })?;
         self.set_apparent_argument_count(None);
-        res
+        Ok(res)
     }
 
     pub(super) fn tuple_types(&self) -> GcCellRefMut<HashMap<String, Gc</*GenericType*/ Type>>> {

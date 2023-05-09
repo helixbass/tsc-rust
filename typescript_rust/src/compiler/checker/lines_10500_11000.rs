@@ -406,7 +406,7 @@ impl TypeChecker {
             this_argument.map(|this_argument| this_argument.borrow().type_wrapper());
         if get_object_flags(type_).intersects(ObjectFlags::Reference) {
             let ref target = type_.as_type_reference_interface().target();
-            let type_arguments = self.get_type_arguments(type_);
+            let type_arguments = self.get_type_arguments(type_)?;
             let target_as_interface_type = target.as_interface_type();
             if length(target_as_interface_type.maybe_type_parameters())
                 == length(Some(&type_arguments))
@@ -421,7 +421,7 @@ impl TypeChecker {
                     )),
                 );
                 return Ok(if matches!(need_apparent_type, Some(true)) {
-                    self.get_apparent_type(&ref_)
+                    self.get_apparent_type(&ref_)?
                 } else {
                     ref_
                 });
@@ -449,7 +449,7 @@ impl TypeChecker {
             );
         }
         Ok(if matches!(need_apparent_type, Some(true)) {
-            self.get_apparent_type(type_)
+            self.get_apparent_type(type_)?
         } else {
             type_.type_wrapper()
         })
@@ -612,7 +612,7 @@ impl TypeChecker {
             Some(vec![source_as_interface_type.maybe_this_type().unwrap()]),
         )
         .unwrap();
-        let type_arguments = self.get_type_arguments(type_);
+        let type_arguments = self.get_type_arguments(type_)?;
         let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
             type_arguments
         } else {
@@ -779,7 +779,7 @@ impl TypeChecker {
         rest_type: &Type, /*TupleTypeReference*/
         rest_index: usize,
     ) -> io::Result<Vec<Gc<Symbol>>> {
-        let element_types = self.get_type_arguments(rest_type);
+        let element_types = self.get_type_arguments(rest_type)?;
         let rest_type_as_type_reference = rest_type.as_type_reference();
         let rest_type_target_as_tuple_type = rest_type_as_type_reference.target.as_tuple_type();
         let associated_names = rest_type_target_as_tuple_type
@@ -1105,11 +1105,11 @@ impl TypeChecker {
             }
             if !self.is_type_identical_to(
                 &self
-                    .get_constraint_from_type_parameter(source)
+                    .get_constraint_from_type_parameter(source)?
                     .unwrap_or_else(|| self.unknown_type()),
                 &*self.instantiate_type(
                     &self
-                        .get_constraint_from_type_parameter(target)
+                        .get_constraint_from_type_parameter(target)?
                         .unwrap_or_else(|| self.unknown_type()),
                     Some(mapper.clone()),
                 )?,

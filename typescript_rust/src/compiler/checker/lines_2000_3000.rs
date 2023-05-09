@@ -21,7 +21,7 @@ use crate::{
     is_shorthand_ambient_module_symbol, is_source_file, is_source_file_js, is_static,
     is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, map, maybe_is_class_like,
-    should_preserve_const_enums, some, try_find, unescape_leading_underscores,
+    should_preserve_const_enums, some, try_find, try_find_last, unescape_leading_underscores,
     AssignmentDeclarationKind, Debug_, Diagnostic, Diagnostics, Extension,
     FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, InterfaceTypeInterface,
     InternalSymbolName, ModifierFlags, ModuleKind, Node, NodeFlags, NodeInterface, OptionTry,
@@ -676,16 +676,16 @@ impl TypeChecker {
     pub(super) fn get_declaration_of_alias_symbol(
         &self,
         symbol: &Symbol,
-    ) -> Option<Gc<Node /*Declaration*/>> {
-        symbol
+    ) -> io::Result<Option<Gc<Node /*Declaration*/>>> {
+        Ok(symbol
             .maybe_declarations()
             .as_deref()
-            .and_then(|declarations| {
-                find_last(declarations, |declaration, _| {
+            .try_and_then(|declarations| {
+                try_find_last(declarations, |declaration, _| {
                     self.is_alias_symbol_declaration(declaration)
                 })
-            })
-            .map(Clone::clone)
+            })?
+            .cloned())
     }
 
     pub(super) fn is_alias_symbol_declaration(&self, node: &Node) -> io::Result<bool> {

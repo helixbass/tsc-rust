@@ -10,10 +10,10 @@ use crate::{
     get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
     is_computed_property_name, is_entity_name_expression, is_export_assignment,
     is_private_identifier, is_property_name_literal, is_static, maybe_for_each, node_is_missing,
-    node_is_present, return_ok_none_if_none, try_maybe_for_each, Debug_, DiagnosticMessage,
-    Diagnostics, ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, OptionTry,
-    ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    node_is_present, return_ok_none_if_none, try_map, try_maybe_for_each, Debug_,
+    DiagnosticMessage, Diagnostics, ModifierFlags, ModuleInstanceState, Node, NodeArray,
+    NodeInterface, OptionTry, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -314,7 +314,7 @@ impl TypeChecker {
         }
 
         if self.is_reference_to_type(type_, &*self.get_global_promise_type(false)?) {
-            let ret = self.get_type_arguments(type_)[0].clone();
+            let ret = self.get_type_arguments(type_)?[0].clone();
             *type_as_promise.maybe_promised_type_of_promise() = Some(ret.clone());
             return Ok(Some(ret));
         }
@@ -346,9 +346,9 @@ impl TypeChecker {
 
         let onfulfilled_parameter_type = self.get_type_with_facts(
             &*self.get_union_type(
-                &map(&then_signatures, |then_signature: &Gc<Signature>, _| {
+                &try_map(&then_signatures, |then_signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(then_signature)
-                }),
+                })?,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -374,12 +374,12 @@ impl TypeChecker {
         }
 
         let ret = self.get_union_type(
-            &map(
+            &try_map(
                 &onfulfilled_parameter_signatures,
                 |signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(signature)
                 },
-            ),
+            )?,
             Some(UnionReduction::Subtype),
             Option::<&Symbol>::None,
             None,
@@ -442,11 +442,11 @@ impl TypeChecker {
 
     pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
-            self.map_type(
+            self.try_map_type(
                 type_,
-                &mut |type_| Some(self.unwrap_awaited_type(type_)?),
+                &mut |type_| Ok(Some(self.unwrap_awaited_type(type_)?)),
                 None,
-            )
+            )?
             .unwrap()
         } else if self.is_awaited_type_instantiation(type_)? {
             type_.maybe_alias_type_arguments().as_ref().unwrap()[0].clone()
@@ -476,12 +476,12 @@ impl TypeChecker {
             } {
                 let awaited_symbol = self.get_global_awaited_symbol(true)?;
                 if let Some(awaited_symbol) = awaited_symbol.as_ref() {
-                    return Ok(self.get_type_alias_instantiation(
+                    return self.get_type_alias_instantiation(
                         awaited_symbol,
                         Some(&[self.unwrap_awaited_type(type_)?]),
                         Option::<&Symbol>::None,
                         None,
-                    ));
+                    );
                 }
             }
         }

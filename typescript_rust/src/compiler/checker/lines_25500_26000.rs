@@ -84,14 +84,16 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_this_type_argument(&self, type_: &Type) -> Option<Gc<Type>> {
-        if get_object_flags(type_).intersects(ObjectFlags::Reference)
-            && Gc::ptr_eq(&type_.as_type_reference().target, &self.global_this_type())
-        {
-            self.get_type_arguments(type_).get(0).cloned()
-        } else {
-            None
-        }
+    pub(super) fn get_this_type_argument(&self, type_: &Type) -> io::Result<Option<Gc<Type>>> {
+        Ok(
+            if get_object_flags(type_).intersects(ObjectFlags::Reference)
+                && Gc::ptr_eq(&type_.as_type_reference().target, &self.global_this_type())
+            {
+                self.get_type_arguments(type_)?.get(0).cloned()
+            } else {
+                None
+            },
+        )
     }
 
     pub(super) fn get_this_type_from_contextual_type(&self, type_: &Type) -> Option<Gc<Type>> {
@@ -119,7 +121,7 @@ impl TypeChecker {
             return Ok(None);
         }
         if self.is_context_sensitive_function_or_object_literal_method(func)? {
-            let contextual_signature = self.get_contextual_signature(func);
+            let contextual_signature = self.get_contextual_signature(func)?;
             if let Some(contextual_signature) = contextual_signature.as_ref() {
                 let this_parameter = contextual_signature.maybe_this_parameter();
                 if let Some(this_parameter) = this_parameter.as_ref() {
@@ -132,7 +134,7 @@ impl TypeChecker {
             let containing_literal = self.get_containing_object_literal(func);
             if let Some(containing_literal) = containing_literal.as_ref() {
                 let contextual_type =
-                    self.get_apparent_type_of_contextual_type(containing_literal, None);
+                    self.get_apparent_type_of_contextual_type(containing_literal, None)?;
                 let mut literal = containing_literal.clone();
                 let mut type_ = contextual_type.clone();
                 while let Some(type_present) = type_.as_ref() {
@@ -157,7 +159,7 @@ impl TypeChecker {
                     } else {
                         self.check_expression_cached(containing_literal, None)?
                     },
-                )));
+                )?));
             }
             let parent = walk_up_parenthesized_expressions(&func.parent()).unwrap();
             if parent.kind() == SyntaxKind::BinaryExpression {
@@ -186,7 +188,7 @@ impl TypeChecker {
 
                         return Ok(Some(self.get_widened_type(
                             &*self.check_expression_cached(&expression, None)?,
-                        )));
+                        )?));
                     }
                 }
             }
@@ -247,7 +249,7 @@ impl TypeChecker {
             links.borrow_mut().resolved_signature = cached;
             return Ok(type_);
         }
-        let contextual_signature = self.get_contextual_signature(&func);
+        let contextual_signature = self.get_contextual_signature(&func)?;
         if let Some(contextual_signature) = contextual_signature.as_ref() {
             let index = func_as_function_like_declaration
                 .parameters()
@@ -624,13 +626,12 @@ impl TypeChecker {
         ) {
             self.resolving_signature()
         } else {
-            self.get_resolved_signature_(call_target, None, None)
+            self.get_resolved_signature_(call_target, None, None)?
         };
 
         if is_jsx_opening_like_element(call_target) && arg_index == 0 {
-            return Ok(
-                self.get_effective_first_argument_for_jsx_signature(signature.clone(), call_target)
-            );
+            return self
+                .get_effective_first_argument_for_jsx_signature(signature.clone(), call_target);
         }
         let rest_index = TryInto::<isize>::try_into(signature.parameters().len()).unwrap() - 1;
         Ok(

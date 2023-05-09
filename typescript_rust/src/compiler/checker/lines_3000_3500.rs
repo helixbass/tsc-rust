@@ -854,7 +854,7 @@ impl TypeChecker {
         module_not_found_error: Option<&DiagnosticMessage>,
         error_node: &Node,
         is_for_augmentation: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let is_for_augmentation = is_for_augmentation.unwrap_or(false);
         if starts_with(module_reference, "@types/") {
             let diag = &Diagnostics::Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1;
@@ -869,9 +869,9 @@ impl TypeChecker {
             );
         }
 
-        let ambient_module = self.try_find_ambient_module_(module_reference, true);
+        let ambient_module = self.try_find_ambient_module_(module_reference, true)?;
         if ambient_module.is_some() {
-            return ambient_module;
+            return Ok(ambient_module);
         }
         let current_source_file = get_source_file_of_node(location);
         let context_specifier = if is_string_literal_like(location) {
@@ -973,7 +973,7 @@ impl TypeChecker {
                         );
                     }
                 }
-                return self.get_merged_symbol(Some(&*source_file_symbol));
+                return Ok(self.get_merged_symbol(Some(&*source_file_symbol)));
             }
             if module_not_found_error.is_some() {
                 self.error(
@@ -982,7 +982,7 @@ impl TypeChecker {
                     Some(vec![source_file.as_source_file().file_name().to_owned()]),
                 );
             }
-            return None;
+            return Ok(None);
         }
 
         if let Some(pattern_ambient_modules) = self.maybe_pattern_ambient_modules().as_ref() {
@@ -1001,9 +1001,9 @@ impl TypeChecker {
                             .map(Clone::clone)
                     });
                 if let Some(augmentation) = augmentation {
-                    return self.get_merged_symbol(Some(augmentation));
+                    return Ok(self.get_merged_symbol(Some(augmentation)));
                 }
-                return self.get_merged_symbol(Some(&*pattern.symbol));
+                return Ok(self.get_merged_symbol(Some(&*pattern.symbol)));
             }
         }
 
@@ -1029,7 +1029,7 @@ impl TypeChecker {
                     module_reference,
                 );
             }
-            return None;
+            return Ok(None);
         }
 
         if let Some(module_not_found_error) = module_not_found_error {
@@ -1044,7 +1044,7 @@ impl TypeChecker {
                         &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
                         Some(vec![redirect, resolved_module.resolved_file_name.clone()]),
                     );
-                    return None;
+                    return Ok(None);
                 }
             }
 
@@ -1144,6 +1144,6 @@ impl TypeChecker {
                 }
             }
         }
-        None
+        Ok(None)
     }
 }

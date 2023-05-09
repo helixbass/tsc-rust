@@ -800,12 +800,12 @@ impl TypeChecker {
                 return Ok(self.error_type());
             }
             let omit_type_alias = omit_type_alias.unwrap();
-            return Ok(self.get_type_alias_instantiation(
+            return self.get_type_alias_instantiation(
                 &omit_type_alias,
                 Some(&vec![source, omit_key_type]),
                 Option::<&Symbol>::None,
                 None,
-            ));
+            );
         }
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(&source)? {

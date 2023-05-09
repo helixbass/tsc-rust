@@ -380,7 +380,7 @@ impl GetFlowTypeOfReference {
             | SyntaxKind::AmpersandAmpersandEqualsToken
             | SyntaxKind::QuestionQuestionEqualsToken => {
                 return self.narrow_type_by_truthiness(
-                    &self.narrow_type(&type_, &expr_as_binary_expression.right, assume_true),
+                    &*self.narrow_type(&type_, &expr_as_binary_expression.right, assume_true)?,
                     &expr_as_binary_expression.left,
                     assume_true,
                 );
@@ -527,20 +527,20 @@ impl GetFlowTypeOfReference {
                 }
             }
             SyntaxKind::CommaToken => {
-                return Ok(self.narrow_type(&type_, &expr_as_binary_expression.right, assume_true));
+                return self.narrow_type(&type_, &expr_as_binary_expression.right, assume_true);
             }
             SyntaxKind::AmpersandAmpersandToken => {
                 return Ok(if assume_true {
                     self.narrow_type(
-                        &self.narrow_type(&type_, &expr_as_binary_expression.left, true),
+                        &*self.narrow_type(&type_, &expr_as_binary_expression.left, true)?,
                         &expr_as_binary_expression.right,
                         true,
-                    )
+                    )?
                 } else {
                     self.type_checker.get_union_type(
                         &[
-                            self.narrow_type(&type_, &expr_as_binary_expression.left, false),
-                            self.narrow_type(&type_, &expr_as_binary_expression.right, false),
+                            self.narrow_type(&type_, &expr_as_binary_expression.left, false)?,
+                            self.narrow_type(&type_, &expr_as_binary_expression.right, false)?,
                         ],
                         None,
                         Option::<&Symbol>::None,
@@ -553,8 +553,8 @@ impl GetFlowTypeOfReference {
                 return Ok(if assume_true {
                     self.type_checker.get_union_type(
                         &[
-                            self.narrow_type(&type_, &expr_as_binary_expression.left, true),
-                            self.narrow_type(&type_, &expr_as_binary_expression.right, true),
+                            self.narrow_type(&type_, &expr_as_binary_expression.left, true)?,
+                            self.narrow_type(&type_, &expr_as_binary_expression.right, true)?,
                         ],
                         None,
                         Option::<&Symbol>::None,
@@ -563,10 +563,10 @@ impl GetFlowTypeOfReference {
                     )?
                 } else {
                     self.narrow_type(
-                        &self.narrow_type(&type_, &expr_as_binary_expression.left, false),
+                        &*self.narrow_type(&type_, &expr_as_binary_expression.left, false)?,
                         &expr_as_binary_expression.right,
                         false,
-                    )
+                    )?
                 });
             }
             _ => (),
@@ -613,12 +613,12 @@ impl GetFlowTypeOfReference {
             self.type_checker
                 .get_declared_type_of_symbol(&class_symbol)?
         };
-        Ok(self.get_narrowed_type(
+        self.get_narrowed_type(
             type_,
             &target_type,
             assume_true,
             |source: &Type, target: &Type| self.type_checker.is_type_derived_from(source, target),
-        ))
+        )
     }
 
     pub(super) fn narrow_type_by_optional_chain_containment(
