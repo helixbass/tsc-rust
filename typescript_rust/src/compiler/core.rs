@@ -13,7 +13,7 @@ use std::rc::Rc;
 use std::{hash, iter};
 
 use crate::{
-    __String, text_char_at_index, Comparison, Debug_, IteratorExt, Node, NodeArrayOrVec,
+    __String, text_char_at_index, Comparison, Debug_, IteratorExt, Node, NodeArrayOrVec, OptionTry,
     PeekableExt, SortedArray, SourceTextAsChars,
 };
 
@@ -139,11 +139,18 @@ pub fn try_every<TItem, TError>(
         .try_all(|(index, value)| predicate(value, index))
 }
 
-pub fn maybe_every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+pub fn maybe_every<TItem>(
     array: Option<&[TItem]>,
-    predicate: TCallback,
+    predicate: impl FnMut(&TItem, usize) -> bool,
 ) -> bool {
     array.map_or(false, |array| every(array, predicate))
+}
+
+pub fn try_maybe_every<TItem, TError>(
+    array: Option<&[TItem]>,
+    predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<bool, TError> {
+    array.try_map_or(false, |array| try_every(array, predicate))
 }
 
 pub fn find<TItem>(

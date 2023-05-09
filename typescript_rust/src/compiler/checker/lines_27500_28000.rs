@@ -42,11 +42,11 @@ impl TypeChecker {
                 self.get_declared_type_of_symbol(jsx_element_attrib_prop_interface_sym)
             });
         let properties_of_jsx_element_attrib_prop_interface =
-            jsx_element_attrib_prop_interface_type.as_ref().map(
+            jsx_element_attrib_prop_interface_type.as_ref().try_map(
                 |jsx_element_attrib_prop_interface_type| {
-                    self.get_properties_of_type(jsx_element_attrib_prop_interface_type)?
+                    self.get_properties_of_type(jsx_element_attrib_prop_interface_type)
                 },
-            );
+            )?;
         Ok(properties_of_jsx_element_attrib_prop_interface.and_then(
             |mut properties_of_jsx_element_attrib_prop_interface| {
                 if properties_of_jsx_element_attrib_prop_interface.len() == 0 {
@@ -160,7 +160,7 @@ impl TypeChecker {
             signatures = self.get_union_signatures(&try_map(
                 apparent_elem_type.as_union_type().types(),
                 |t: &Gc<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
-            )?);
+            )?)?;
         }
         Ok(signatures)
     }
@@ -180,7 +180,7 @@ impl TypeChecker {
                 None,
             )?;
             if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
-                return Ok(Some(self.get_type_of_symbol(intrinsic_prop)));
+                return Ok(Some(self.get_type_of_symbol(intrinsic_prop)?));
             }
             let index_signature_type =
                 self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type());
@@ -256,7 +256,7 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            );
+            )?;
             self.check_type_related_to(
                 elem_instance_type,
                 &combined,
@@ -300,7 +300,7 @@ impl TypeChecker {
                 .jsx_flags
                 .intersects(JsxFlags::IntrinsicNamedElement)
             {
-                let ret = self.get_type_of_symbol(&symbol); /*|| errorType*/
+                let ret = self.get_type_of_symbol(&symbol)?; /*|| errorType*/
                 links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);
             } else if (*links)
@@ -357,7 +357,7 @@ impl TypeChecker {
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
-        )))
+        )?))
         // }
     }
 
@@ -426,7 +426,7 @@ impl TypeChecker {
                     Some(&*jsx_factory_namespace),
                     true,
                     None,
-                );
+                )?;
             }
 
             if let Some(jsx_factory_sym) = jsx_factory_sym.as_ref() {
@@ -466,7 +466,7 @@ impl TypeChecker {
                 self.get_jsx_reference_kind(jsx_opening_like_node),
                 &self.get_return_type_of_signature(sig.clone()),
                 jsx_opening_like_node,
-            );
+            )?;
         }
 
         Ok(())
@@ -622,7 +622,7 @@ impl TypeChecker {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if is_super {
             if self.language_version < ScriptTarget::ES2015 {
-                if self.symbol_has_non_method_declaration(prop) {
+                if self.symbol_has_non_method_declaration(prop)? {
                     if error_node.is_some() {
                         self.error(
                             error_node.as_deref(),
@@ -645,7 +645,7 @@ impl TypeChecker {
                                 None, None, None
                             )?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop).unwrap(),
+                                &self.get_declaring_class(prop)?.unwrap(),
                                 Option::<&Node>::None,
                                 None, None,
                             )?,
@@ -657,14 +657,14 @@ impl TypeChecker {
         }
 
         if flags.intersects(ModifierFlags::Abstract)
-            && self.symbol_has_non_method_declaration(prop)
+            && self.symbol_has_non_method_declaration(prop)?
             && (is_this_property(location)
                 || is_this_initialized_object_binding_expression(Some(location))
                 || is_object_binding_pattern(&location.parent())
                     && is_this_initialized_declaration(location.parent().maybe_parent()))
         {
             let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop).unwrap());
+                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop)?.unwrap());
             if let Some(declaring_class_declaration) = declaring_class_declaration.as_ref() {
                 if self.is_node_used_during_class_initialization(location) {
                     if error_node.is_some() {
@@ -691,7 +691,7 @@ impl TypeChecker {
 
         if flags.intersects(ModifierFlags::Private) {
             let declaring_class_declaration =
-                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop).unwrap())
+                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop)?.unwrap())
                     .unwrap();
             if !self.is_node_within_class(location, &declaring_class_declaration) {
                 if error_node.is_some() {
@@ -701,7 +701,7 @@ impl TypeChecker {
                         Some(vec![
                             self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None)?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop).unwrap(),
+                                &self.get_declaring_class(prop)?.unwrap(),
                                 Option::<&Node>::None,
                                 None,
                                 None,
@@ -721,7 +721,7 @@ impl TypeChecker {
         let mut enclosing_class =
             self.try_for_each_enclosing_class(location, |enclosing_declaration: &Node| {
                 let enclosing_class = self.get_declared_type_of_symbol(
-                    &self.get_symbol_of_node(enclosing_declaration).unwrap(),
+                    &self.get_symbol_of_node(enclosing_declaration)?.unwrap(),
                 )?;
                 Ok(
                     if self
@@ -757,7 +757,7 @@ impl TypeChecker {
                                 None, None, None,
                             )?,
                             self.type_to_string_(
-                                &self.get_declaring_class(prop).unwrap_or_else(|| containing_type.type_wrapper()),
+                                &self.get_declaring_class(prop)?.unwrap_or_else(|| containing_type.type_wrapper()),
                                 Option::<&Node>::None,
                                 None, None,
                             )?,

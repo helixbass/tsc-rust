@@ -13,12 +13,12 @@ use crate::{
     get_function_flags, get_semantic_jsx_children, get_source_file_of_node, get_text_of_node,
     has_type, id_text, is_block, is_computed_non_literal_name, is_identifier_type_predicate,
     is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute, is_omitted_expression,
-    is_spread_assignment, length, map, some, try_flat_map, unescape_leading_underscores, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, OptionTry, RelationComparisonResult, Signature,
-    SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper,
+    is_spread_assignment, length, map, some, try_flat_map, try_map, try_some,
+    unescape_leading_underscores, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
+    Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, OptionTry, RelationComparisonResult,
+    Signature, SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper,
     UnionOrIntersectionTypeInterface,
 };
 
@@ -208,18 +208,18 @@ impl TypeChecker {
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let call_signatures = self.get_signatures_of_type(source, SignatureKind::Call);
         let construct_signatures = self.get_signatures_of_type(source, SignatureKind::Construct);
         for (signatures_index, signatures) in vec![call_signatures, construct_signatures]
             .into_iter()
             .enumerate()
         {
-            if some(
+            if try_some(
                 Some(&signatures),
-                Some(|s: &Gc<Signature>| {
-                    let return_type = self.get_return_type_of_signature(s.clone());
-                    !return_type
+                Some(|s: &Gc<Signature>| -> io::Result<_> {
+                    let return_type = self.get_return_type_of_signature(s.clone())?;
+                    Ok(!return_type
                         .flags()
                         .intersects(TypeFlags::Any | TypeFlags::Never)
                         && self.check_type_related_to(
@@ -230,9 +230,9 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        )
+                        ))
                 }),
-            ) {
+            )? {
                 let result_obj = error_output_container.unwrap_or_else(|| {
                     Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
                 });
@@ -260,10 +260,10 @@ impl TypeChecker {
                     )
                     .into()],
                 );
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn elaborate_arrow_function(
@@ -295,16 +295,16 @@ impl TypeChecker {
             return Ok(false);
         }
         let return_expression = node_as_arrow_function.maybe_body().unwrap();
-        let source_return = self.get_return_type_of_signature(source_sig);
+        let source_return = self.get_return_type_of_signature(source_sig)?;
         let target_return = self.get_union_type(
-            &map(&target_signatures, |signature: &Gc<Signature>, _| {
+            &try_map(&target_signatures, |signature: &Gc<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
-            }),
+            })?,
             None,
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
-        );
+        )?;
         if !self.check_type_related_to(
             &source_return,
             &target_return,
@@ -355,10 +355,10 @@ impl TypeChecker {
                 }
                 if !get_function_flags(Some(node)).intersects(FunctionFlags::Async)
                     && self
-                        .get_type_of_property_of_type_(&source_return, "then")
+                        .get_type_of_property_of_type_(&source_return, "then")?
                         .is_none()
                     && self.check_type_related_to(
-                        &self.create_promise_type(&source_return),
+                        &self.create_promise_type(&source_return)?,
                         &target_return,
                         relation,
                         Option::<&Node>::None,
@@ -424,16 +424,16 @@ impl TypeChecker {
         &self,
         next: &Node, /*Expression*/
         source_prop_type: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         *next.maybe_contextual_type() = Some(source_prop_type.type_wrapper());
         let ret = self.check_expression_for_mutable_location(
             next,
             Some(CheckMode::Contextual),
             Some(source_prop_type),
             None,
-        );
+        )?;
         *next.maybe_contextual_type() = None;
-        ret
+        Ok(ret)
     }
 
     pub(super) fn elaborate_elementwise(
@@ -804,12 +804,13 @@ impl TypeChecker {
                 return Ok(result);
             }
             let more_than_one_real_children = length(Some(&valid_children)) > 1;
-            let array_like_target_parts = self.filter_type(&children_target_type, |type_| {
+            let array_like_target_parts = self.try_filter_type(&children_target_type, |type_| {
                 self.is_array_or_tuple_like_type(type_)
-            });
-            let non_array_like_target_parts = self.filter_type(&children_target_type, |type_| {
-                !self.is_array_or_tuple_like_type(type_)
-            });
+            })?;
+            let non_array_like_target_parts = self
+                .try_filter_type(&children_target_type, |type_| {
+                    Ok(!self.is_array_or_tuple_like_type(type_)?)
+                })?;
             let mut get_invalid_textual_child_diagnostic =
                 || -> io::Result<Cow<'static, DiagnosticMessage>> {
                     if invalid_text_diagnostic.is_none() {
@@ -864,11 +865,11 @@ impl TypeChecker {
             if more_than_one_real_children {
                 if !Gc::ptr_eq(&array_like_target_parts, &self.never_type()) {
                     let real_source = self.create_tuple_type(
-                        &self.check_jsx_children(&containing_element, Some(CheckMode::Normal)),
+                        &*self.check_jsx_children(&containing_element, Some(CheckMode::Normal))?,
                         None,
                         None,
                         None,
-                    );
+                    )?;
                     let children = self.generate_jsx_children(
                         &containing_element,
                         get_invalid_textual_child_diagnostic,
@@ -978,7 +979,7 @@ impl TypeChecker {
             return Ok(ret);
         }
         for (i, elem) in node_as_array_literal_expression.elements.iter().enumerate() {
-            if self.is_tuple_like_type(target)
+            if self.is_tuple_like_type(target)?
                 && self
                     .get_property_of_type_(target, &i.to_string(), None)?
                     .is_none()
@@ -1011,9 +1012,9 @@ impl TypeChecker {
         if target.flags().intersects(TypeFlags::Primitive) {
             return Ok(false);
         }
-        if self.is_tuple_like_type(source) {
+        if self.is_tuple_like_type(source)? {
             return self.elaborate_elementwise(
-                self.generate_limited_tuple_elements(node, target),
+                self.generate_limited_tuple_elements(node, target)?,
                 source,
                 target,
                 relation,
@@ -1026,9 +1027,9 @@ impl TypeChecker {
         let tupleized_type =
             self.check_array_literal(node, Some(CheckMode::Contextual), Some(true))?;
         *node.maybe_contextual_type() = old_context;
-        if self.is_tuple_like_type(&tupleized_type) {
+        if self.is_tuple_like_type(&tupleized_type)? {
             return self.elaborate_elementwise(
-                self.generate_limited_tuple_elements(node, target),
+                self.generate_limited_tuple_elements(node, target)?,
                 &tupleized_type,
                 target,
                 relation,
@@ -1043,31 +1044,32 @@ impl TypeChecker {
         &self,
         node: &Node, /*ObjectLiteralExpression*/
                      // ) -> impl Iterator<Item = ElaborationIteratorItem> {
-    ) -> Vec<ElaborationIteratorItem> {
+    ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_as_object_literal_expression = node.as_object_literal_expression();
         if length(Some(&node_as_object_literal_expression.properties)) == 0 {
-            return vec![];
+            return Ok(vec![]);
         }
-        node_as_object_literal_expression
-            .properties
-            .iter()
-            .flat_map(|prop| {
+        try_flat_map(
+            Some(&node_as_object_literal_expression.properties),
+            |prop: &Gc<Node>, _| -> io::Result<_> {
                 if is_spread_assignment(prop) {
-                    return vec![];
+                    return Ok(vec![]);
                 }
                 let type_ = self.get_literal_type_from_property(
                     &self.get_symbol_of_node(prop).unwrap(),
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
-                );
-                if /* !type ||*/ type_.flags().intersects(TypeFlags::Never) {
-                    return vec![];
+                )?;
+                if
+                /* !type ||*/
+                type_.flags().intersects(TypeFlags::Never) {
+                    return Ok(vec![]);
                 }
-                match prop.kind() {
-                    SyntaxKind::SetAccessor |
-                    SyntaxKind::GetAccessor |
-                    SyntaxKind::MethodDeclaration |
-                    SyntaxKind::ShorthandPropertyAssignment => {
+                Ok(match prop.kind() {
+                    SyntaxKind::SetAccessor
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::MethodDeclaration
+                    | SyntaxKind::ShorthandPropertyAssignment => {
                         vec![ElaborationIteratorItem {
                             error_node: prop.as_named_declaration().name(),
                             inner_expression: None,
@@ -1081,7 +1083,9 @@ impl TypeChecker {
                             error_node: prop_as_property_assignment.name(),
                             inner_expression: prop_as_property_assignment.maybe_initializer(),
                             name_type: type_,
-                            error_message: if is_computed_non_literal_name(&prop_as_property_assignment.name()) {
+                            error_message: if is_computed_non_literal_name(
+                                &prop_as_property_assignment.name(),
+                            ) {
                                 Some(Cow::Borrowed(&Diagnostics::Type_of_computed_property_s_value_is_0_which_is_not_assignable_to_type_1))
                             } else {
                                 None
@@ -1089,9 +1093,9 @@ impl TypeChecker {
                         }]
                     }
                     _ => Debug_.assert_never(prop, None),
-                }
-            })
-            .collect()
+                })
+            },
+        )
     }
 
     pub(super) fn elaborate_object_literal(
@@ -1107,7 +1111,7 @@ impl TypeChecker {
             return Ok(false);
         }
         self.elaborate_elementwise(
-            self.generate_object_literal_elements(node),
+            self.generate_object_literal_elements(node)?,
             source,
             target,
             relation,
@@ -1159,22 +1163,22 @@ impl TypeChecker {
         )? != Ternary::False)
     }
 
-    pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> bool {
+    pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> io::Result<bool> {
         let s_type_parameters_is_none = s.maybe_type_parameters().is_none();
-        s_type_parameters_is_none
+        Ok(s_type_parameters_is_none
             && match s.maybe_this_parameter().as_ref() {
                 None => true,
                 Some(s_this_parameter) => {
-                    self.is_type_any(Some(self.get_type_of_parameter(s_this_parameter)))
+                    self.is_type_any(Some(self.get_type_of_parameter(s_this_parameter)?))
                 }
             }
             && s.parameters().len() == 1
             && signature_has_rest_parameter(&s)
             && (Gc::ptr_eq(
-                &self.get_type_of_parameter(&s.parameters()[0]),
+                &self.get_type_of_parameter(&s.parameters()[0])?,
                 &self.any_array_type(),
-            ) || self.is_type_any(Some(self.get_type_of_parameter(&s.parameters()[0]))))
-            && self.is_type_any(Some(self.get_return_type_of_signature(s)))
+            ) || self.is_type_any(Some(self.get_type_of_parameter(&s.parameters()[0])?)))
+            && self.is_type_any(Some(self.get_return_type_of_signature(s)?)))
     }
 
     pub(super) fn compare_signatures_related(
@@ -1196,13 +1200,13 @@ impl TypeChecker {
             return Ok(Ternary::True);
         }
 
-        let target_count = self.get_parameter_count(&target);
-        let source_has_more_parameters = !self.has_effective_rest_parameter(&target)
+        let target_count = self.get_parameter_count(&target)?;
+        let source_has_more_parameters = !self.has_effective_rest_parameter(&target)?
             && if check_mode.intersects(SignatureCheckMode::StrictArity) {
-                self.has_effective_rest_parameter(&source)
-                    || self.get_parameter_count(&source) > target_count
+                self.has_effective_rest_parameter(&source)?
+                    || self.get_parameter_count(&source)? > target_count
             } else {
-                self.get_min_argument_count(&source, None) > target_count
+                self.get_min_argument_count(&source, None)? > target_count
             };
         if source_has_more_parameters {
             return Ok(Ternary::False);
@@ -1215,7 +1219,7 @@ impl TypeChecker {
                 Some(target_type_parameters) if are_gc_slices_equal(source_type_parameters, target_type_parameters)
             )
         ) {
-            target = self.get_canonical_signature(target);
+            target = self.get_canonical_signature(target)?;
             source = self.instantiate_signature_in_context_of(
                 source.clone(),
                 target.clone(),
@@ -1224,9 +1228,9 @@ impl TypeChecker {
             );
         }
 
-        let source_count = self.get_parameter_count(&source);
-        let source_rest_type = self.get_non_array_rest_type(&source);
-        let target_rest_type = self.get_non_array_rest_type(&target);
+        let source_count = self.get_parameter_count(&source)?;
+        let source_rest_type = self.get_non_array_rest_type(&source)?;
+        let target_rest_type = self.get_non_array_rest_type(&target)?;
         if source_rest_type.is_some() || target_rest_type.is_some() {
             self.instantiate_type(
                 &source_rest_type
@@ -1254,12 +1258,12 @@ impl TypeChecker {
             );
         let mut result = Ternary::True;
 
-        let source_this_type = self.get_this_type_of_signature(&source);
+        let source_this_type = self.get_this_type_of_signature(&source)?;
         if let Some(source_this_type) = source_this_type
             .as_ref()
             .filter(|source_this_type| !Gc::ptr_eq(source_this_type, &self.void_type()))
         {
-            let target_this_type = self.get_this_type_of_signature(&target);
+            let target_this_type = self.get_this_type_of_signature(&target)?;
             if let Some(target_this_type) = target_this_type.as_ref() {
                 let related = if !strict_variance {
                     let mut related =
@@ -1308,7 +1312,7 @@ impl TypeChecker {
             ) {
                 Some(self.get_rest_type_at_position(&source, i))
             } else {
-                self.try_get_type_at_position(&source, i)
+                self.try_get_type_at_position(&source, i)?
             };
             let target_type = if matches!(
                 rest_index,
@@ -1316,25 +1320,25 @@ impl TypeChecker {
             ) {
                 Some(self.get_rest_type_at_position(&target, i))
             } else {
-                self.try_get_type_at_position(&target, i)
+                self.try_get_type_at_position(&target, i)?
             };
             if let Some(source_type) = source_type.as_ref() {
                 if let Some(target_type) = target_type.as_ref() {
                     let source_sig = if check_mode.intersects(SignatureCheckMode::Callback) {
                         None
                     } else {
-                        self.get_single_call_signature(&self.get_non_nullable_type(source_type))
+                        self.get_single_call_signature(&*self.get_non_nullable_type(source_type)?)
                     };
                     let target_sig = if check_mode.intersects(SignatureCheckMode::Callback) {
                         None
                     } else {
-                        self.get_single_call_signature(&self.get_non_nullable_type(target_type))
+                        self.get_single_call_signature(&*self.get_non_nullable_type(target_type)?)
                     };
                     let callbacks = matches!(
                         (source_sig.as_ref(), target_sig.as_ref()),
                         (Some(source_sig), Some(target_sig)) if
-                            self.get_type_predicate_of_signature(source_sig).is_none() &&
-                            self.get_type_predicate_of_signature(target_sig).is_none() &&
+                            self.get_type_predicate_of_signature(source_sig)?.is_none() &&
+                            self.get_type_predicate_of_signature(target_sig)?.is_none() &&
                             self.get_falsy_flags(source_type) & TypeFlags::Nullable ==
                             self.get_falsy_flags(target_type) & TypeFlags::Nullable
                     );
@@ -1373,8 +1377,8 @@ impl TypeChecker {
                     };
                     if related != Ternary::False
                         && check_mode.intersects(SignatureCheckMode::StrictArity)
-                        && i >= self.get_min_argument_count(&source, None)
-                        && i < self.get_min_argument_count(&target, None)
+                        && i >= self.get_min_argument_count(&source, None)?
+                        && i < self.get_min_argument_count(&target, None)?
                         && compare_types.call(source_type, target_type, Some(false))
                             != Ternary::False
                     {
@@ -1388,19 +1392,19 @@ impl TypeChecker {
                                 ),
                                 Some(vec![
                                     unescape_leading_underscores(
-                                        &self.get_parameter_name_at_position(
+                                        &*self.get_parameter_name_at_position(
                                             &source,
                                             i,
                                             Option::<&Type>::None,
-                                        ),
+                                        )?,
                                     )
                                     .to_owned(),
                                     unescape_leading_underscores(
-                                        &self.get_parameter_name_at_position(
+                                        &*self.get_parameter_name_at_position(
                                             &target,
                                             i,
                                             Option::<&Type>::None,
-                                        ),
+                                        )?,
                                     )
                                     .to_owned(),
                                 ]),
@@ -1416,10 +1420,13 @@ impl TypeChecker {
         if !check_mode.intersects(SignatureCheckMode::IgnoreReturnTypes) {
             let target_return_type = if self.is_resolving_return_type_of_signature(target.clone()) {
                 self.any_type()
-            } else if let Some(target_declaration) = target
-                .declaration
-                .as_ref()
-                .filter(|target_declaration| self.is_js_constructor(Some(&***target_declaration)))
+            } else if let Some(target_declaration) =
+                target
+                    .declaration
+                    .as_ref()
+                    .try_filter(|target_declaration| {
+                        self.is_js_constructor(Some(&***target_declaration))
+                    })?
             {
                 self.get_declared_type_of_class_or_interface(
                     &self
@@ -1434,10 +1441,13 @@ impl TypeChecker {
             }
             let source_return_type = if self.is_resolving_return_type_of_signature(source.clone()) {
                 self.any_type()
-            } else if let Some(source_declaration) = source
-                .declaration
-                .as_ref()
-                .filter(|source_declaration| self.is_js_constructor(Some(&***source_declaration)))
+            } else if let Some(source_declaration) =
+                source
+                    .declaration
+                    .as_ref()
+                    .try_filter(|source_declaration| {
+                        self.is_js_constructor(Some(&***source_declaration))
+                    })?
             {
                 self.get_declared_type_of_class_or_interface(
                     &self
@@ -1448,9 +1458,9 @@ impl TypeChecker {
                 self.get_return_type_of_signature(source.clone())
             };
 
-            let target_type_predicate = self.get_type_predicate_of_signature(&target);
+            let target_type_predicate = self.get_type_predicate_of_signature(&target)?;
             if let Some(target_type_predicate) = target_type_predicate.as_ref() {
-                let source_type_predicate = self.get_type_predicate_of_signature(&source);
+                let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
                 if let Some(source_type_predicate) = source_type_predicate.as_ref() {
                     result &= self.compare_type_predicate_related_to(
                         source_type_predicate,

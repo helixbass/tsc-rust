@@ -302,7 +302,7 @@ impl TypeChecker {
             return Ok(());
         }
 
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
         if symbol
             .flags()
             .intersects(SymbolFlags::FunctionScopedVariable)
@@ -319,7 +319,7 @@ impl TypeChecker {
                 Option::<Gc<Node>>::None,
                 false,
                 None,
-            );
+            )?;
             if let Some(local_declaration_symbol) =
                 local_declaration_symbol
                     .as_ref()
@@ -434,14 +434,14 @@ impl TypeChecker {
             }
 
             let parent = node.parent().parent();
-            let parent_type = self.get_type_for_binding_element_parent(&parent);
+            let parent_type = self.get_type_for_binding_element_parent(&parent)?;
             let name = node_as_binding_element
                 .property_name
                 .clone()
                 .unwrap_or_else(|| node_name.clone());
             if let Some(parent_type) = parent_type.as_ref() {
                 if !is_binding_pattern(Some(&*name)) {
-                    let expr_type = self.get_literal_type_from_property_name(&name);
+                    let expr_type = self.get_literal_type_from_property_name(&name)?;
                     if self.is_type_usable_as_property_name(&expr_type) {
                         let name_text = self.get_property_name_from_type(&expr_type);
                         let property = self.get_property_of_type_(parent_type, &name_text, None)?;
@@ -505,12 +505,13 @@ impl TypeChecker {
                 && node.parent().parent().kind() != SyntaxKind::ForInStatement;
             let need_check_widened_type = node_name.as_has_elements().elements().is_empty();
             if need_check_initializer || need_check_widened_type {
-                let widened_type = self.get_widened_type_for_variable_like_declaration(node, None);
+                let widened_type =
+                    self.get_widened_type_for_variable_like_declaration(node, None)?;
                 if need_check_initializer {
                     let initializer_type = self.check_expression_cached(
                         &node_as_has_initializer.maybe_initializer().unwrap(),
                         None,
-                    );
+                    )?;
                     if self.strict_null_checks && need_check_widened_type {
                         self.check_non_null_non_void_type(&initializer_type, node);
                     } else {
@@ -521,7 +522,7 @@ impl TypeChecker {
                             node_as_has_initializer.maybe_initializer(),
                             None,
                             None,
-                        );
+                        )?;
                     }
                 }
                 if need_check_widened_type {
@@ -531,7 +532,7 @@ impl TypeChecker {
                             &widened_type,
                             &self.undefined_type(),
                             Some(node),
-                        );
+                        )?;
                     } else if self.strict_null_checks {
                         self.check_non_null_non_void_type(&widened_type, node);
                     }
@@ -539,13 +540,13 @@ impl TypeChecker {
             }
             return Ok(());
         }
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
         if symbol.flags().intersects(SymbolFlags::Alias) && is_require_variable_declaration(node) {
             self.check_alias_symbol(node);
             return Ok(());
         }
 
-        let type_ = self.convert_auto_to_any(&self.get_type_of_symbol(&symbol));
+        let type_ = self.convert_auto_to_any(&*self.get_type_of_symbol(&symbol)?);
         if matches!(
             symbol.maybe_value_declaration().as_ref(),
             Some(symbol_value_declaration) if ptr::eq(
@@ -570,13 +571,13 @@ impl TypeChecker {
                     && node.parent().parent().kind() != SyntaxKind::ForInStatement
                 {
                     self.check_type_assignable_to_and_optionally_elaborate(
-                        &self.check_expression_cached(initializer, None),
+                        &*self.check_expression_cached(initializer, None)?,
                         &type_,
                         Some(node),
                         Some(&**initializer),
                         None,
                         None,
-                    );
+                    )?;
                 }
             }
             if let Some(symbol_declarations) = symbol
@@ -603,7 +604,7 @@ impl TypeChecker {
             }
         } else {
             let declaration_type = self.convert_auto_to_any(
-                &self.get_widened_type_for_variable_like_declaration(node, None),
+                &*self.get_widened_type_for_variable_like_declaration(node, None)?,
             );
 
             if !self.is_error_type(&type_)
@@ -620,13 +621,13 @@ impl TypeChecker {
             }
             if let Some(node_initializer) = node_as_has_initializer.maybe_initializer().as_ref() {
                 self.check_type_assignable_to_and_optionally_elaborate(
-                    &self.check_expression_cached(node_initializer, None),
+                    &*self.check_expression_cached(node_initializer, None)?,
                     &declaration_type,
                     Some(node),
                     Some(&**node_initializer),
                     None,
                     None,
-                );
+                )?;
             }
             if matches!(
                 symbol.maybe_value_declaration().as_ref(),
@@ -776,10 +777,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) {
+    pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let node_as_if_statement = node.as_if_statement();
-        let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None);
+        let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None)?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
             &node_as_if_statement.expression,
             &type_,
@@ -796,6 +797,8 @@ impl TypeChecker {
         }
 
         self.check_source_element(node_as_if_statement.else_statement.as_deref());
+
+        Ok(())
     }
 
     pub(super) fn check_testing_known_truthy_callable_or_awaitable_type(
@@ -836,7 +839,7 @@ impl TypeChecker {
 
         let call_signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
         let is_promise = self
-            .get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)
+            .get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
             .is_some();
         if call_signatures.is_empty() && !is_promise {
             return Ok(());

@@ -16,38 +16,39 @@ use crate::{
     is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
     is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element, is_new_expression,
     is_parameter, is_property_access_expression, is_rest_parameter, last, length, map,
-    maybe_for_each, node_is_present, parse_base_node_factory, parse_node_factory, set_parent,
-    set_text_range, set_text_range_pos_end, skip_outer_expressions, some, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, InferenceContext,
-    InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange, RelationComparisonResult,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
+    maybe_for_each, node_is_present, parse_base_node_factory, parse_node_factory,
+    return_ok_default_if_none, set_parent, set_text_range, set_text_range_pos_end,
+    skip_outer_expressions, some, try_some, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Diagnostics, ElementFlags, InferenceContext, InferenceFlags, Node, NodeArray, NodeInterface,
+    ReadonlyTextRange, RelationComparisonResult, ScriptTarget, Signature, SignatureFlags,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
+    UsizeOrNegativeInfinity,
 };
 use local_macros::enum_unwrapped;
 
 impl TypeChecker {
-    pub(super) fn maybe_add_missing_await_info<TErrorNode: Borrow<Node>>(
+    pub(super) fn maybe_add_missing_await_info(
         &self,
         report_errors: bool,
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         source: &Type,
         target: &Type,
-    ) {
+    ) -> io::Result<()> {
         if let Some(error_node) = error_node {
             let error_node = error_node.borrow();
             if report_errors && error_output_container.errors_len() > 0 {
                 if self
-                    .get_awaited_type_of_promise(target, Option::<&Node>::None, None, None)
+                    .get_awaited_type_of_promise(target, Option::<&Node>::None, None, None)?
                     .is_some()
                 {
                     return;
                 }
                 let awaited_type_of_source =
-                    self.get_awaited_type_of_promise(source, Option::<&Node>::None, None, None);
+                    self.get_awaited_type_of_promise(source, Option::<&Node>::None, None, None)?;
                 if matches!(
                     awaited_type_of_source.as_ref(),
                     Some(awaited_type_of_source) if self.is_type_related_to(
@@ -70,6 +71,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn get_this_argument_of_call(
@@ -124,7 +127,7 @@ impl TypeChecker {
             let template = &node.as_tagged_template_expression().template;
             let mut args: Vec<Gc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
                 template,
-                &self.get_global_template_strings_array_type(),
+                &*self.get_global_template_strings_array_type()?,
                 None,
                 Option::<&Node>::None,
             )];
@@ -172,7 +175,7 @@ impl TypeChecker {
                     Some(if self.flow_loop_count() > 0 {
                         self.check_expression(&arg.as_spread_element().expression, None, None)?
                     } else {
-                        self.check_expression_cached(&arg.as_spread_element().expression, None)
+                        self.check_expression_cached(&arg.as_spread_element().expression, None)?
                     })
                 } else {
                     None
@@ -227,7 +230,7 @@ impl TypeChecker {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,
-                    &self.get_type_of_symbol(&self.get_symbol_of_node(&parent).unwrap()),
+                    &*self.get_type_of_symbol(&self.get_symbol_of_node(&parent).unwrap())?,
                     None,
                     Option::<&Node>::None,
                 )]
@@ -238,7 +241,7 @@ impl TypeChecker {
                     self.create_synthetic_expression(
                         expr,
                         &*if parent.parent().kind() == SyntaxKind::Constructor {
-                            self.get_type_of_symbol(&self.get_symbol_of_node(&func).unwrap())?
+                            self.get_type_of_symbol(&self.get_symbol_of_node(&func)?.unwrap())?
                         } else {
                             self.error_type()
                         },
@@ -268,13 +271,13 @@ impl TypeChecker {
                 vec![
                     self.create_synthetic_expression(
                         expr,
-                        &self.get_parent_type_of_class_element(&parent),
+                        &*self.get_parent_type_of_class_element(&parent)?,
                         None,
                         Option::<&Node>::None,
                     ),
                     self.create_synthetic_expression(
                         expr,
-                        &self.get_class_element_property_key_type(&parent),
+                        &*self.get_class_element_property_key_type(&parent)?,
                         None,
                         Option::<&Node>::None,
                     ),
@@ -283,7 +286,7 @@ impl TypeChecker {
                         &*if has_prop_desc {
                             self.create_typed_property_descriptor_type(
                                 &*self.get_type_of_node(&parent)?,
-                            )
+                            )?
                         } else {
                             self.any_type()
                         },
@@ -398,7 +401,7 @@ impl TypeChecker {
             Option::<Gc<Node>>::None,
             false,
             None,
-        );
+        )?;
         let decl = symbol
             .as_ref()
             .and_then(|symbol| symbol.maybe_value_declaration());
@@ -414,11 +417,8 @@ impl TypeChecker {
             return Ok(false);
         }
 
-        let global_promise_symbol = self.get_global_promise_constructor_symbol(false);
-        if global_promise_symbol.is_none() {
-            return Ok(false);
-        }
-        let global_promise_symbol = global_promise_symbol.unwrap();
+        let global_promise_symbol =
+            return_ok_default_if_none!(self.get_global_promise_constructor_symbol(false)?);
 
         let constructor_symbol = self.get_symbol_at_location_(
             &decl.parent().parent().as_new_expression().expression,
@@ -456,8 +456,8 @@ impl TypeChecker {
 
         let mut closest_signature: Option<Gc<Signature>> = None;
         for sig in signatures {
-            let min_parameter = self.get_min_argument_count(sig, None);
-            let max_parameter = self.get_parameter_count(sig);
+            let min_parameter = self.get_min_argument_count(sig, None)?;
+            let max_parameter = self.get_parameter_count(sig)?;
             if min_parameter < min {
                 min = min_parameter;
                 closest_signature = Some(sig.clone());
@@ -478,10 +478,10 @@ impl TypeChecker {
                 min_above = max_parameter;
             }
         }
-        let has_rest_parameter = some(
+        let has_rest_parameter = try_some(
             Some(signatures),
             Some(|signature: &Gc<Signature>| self.has_effective_rest_parameter(signature)),
-        );
+        )?;
         let parameter_range = if has_rest_parameter {
             min.to_string()
         } else if match max {
@@ -735,10 +735,10 @@ impl TypeChecker {
             candidates.len() == 1 && candidates[0].maybe_type_parameters().is_none();
         let mut arg_check_mode = if !is_decorator
             && !is_single_non_generic_candidate
-            && some(
+            && try_some(
                 Some(&*args),
                 Some(|arg: &Gc<Node>| self.is_context_sensitive(arg)),
-            ) {
+            )? {
             CheckMode::SkipContextSensitive
         } else {
             CheckMode::Normal
@@ -1058,7 +1058,7 @@ impl TypeChecker {
             None
         };
         if let Some(impl_decl) = impl_decl {
-            let candidate = self.get_signature_from_declaration_(impl_decl);
+            let candidate = self.get_signature_from_declaration_(impl_decl)?;
             let is_single_non_generic_candidate = candidate.maybe_type_parameters().is_none();
             let mut candidates = vec![candidate];
             if self
@@ -1216,7 +1216,7 @@ impl TypeChecker {
                             inference_context.maybe_inferred_type_parameters().clone()
                         })
                         .as_deref(),
-                );
+                )?;
                 if self.get_non_array_rest_type(candidate).is_some()
                     && !self.has_correct_arity(
                         node,
@@ -1270,7 +1270,7 @@ impl TypeChecker {
                         inference_context
                             .maybe_inferred_type_parameters()
                             .as_deref(),
-                    );
+                    )?;
                     if self.get_non_array_rest_type(candidate).is_some()
                         && !self.has_correct_arity(
                             node,

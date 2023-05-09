@@ -17,14 +17,14 @@ use crate::{
     is_rest_parameter, is_transient_symbol, length, maybe_filter, maybe_first_defined,
     maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers, node_is_synthesized,
     null_transformation_context, out_file, path_is_relative, set_comment_range, set_emit_flags,
-    set_synthetic_leading_comments, some, symbol_name, try_maybe_map, unescape_leading_underscores,
-    visit_each_child, with_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags,
-    HasInitializerInterface, IndexInfo, InternalSymbolName, ModifierFlags, ModuleResolutionKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
-    OptionTry, Signature, SignatureFlags, StrOrNodeArray, StrOrRcNode, StringOrNodeArray, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
-    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
-    VisitResult,
+    set_synthetic_leading_comments, some, symbol_name, try_maybe_first_defined, try_maybe_map,
+    unescape_leading_underscores, visit_each_child, with_factory, CheckFlags, CompilerOptions,
+    Debug_, EmitFlags, HasInitializerInterface, IndexInfo, InternalSymbolName, ModifierFlags,
+    ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
+    NodeBuilderFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrNodeArray,
+    StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
+    UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
 };
 
 impl NodeBuilder {
@@ -273,7 +273,7 @@ impl NodeBuilder {
                                         Some(self.type_checker.instantiate_type(
                                             parameter,
                                             Some(signature_mapper.clone()),
-                                        )),
+                                        )?),
                                         context,
                                     )?
                                     .unwrap())
@@ -298,7 +298,7 @@ impl NodeBuilder {
 
         let expanded_params = self
             .type_checker
-            .get_expanded_parameters(&signature, Some(true))
+            .get_expanded_parameters(&signature, Some(true))?
             .into_iter()
             .next()
             .unwrap();
@@ -340,7 +340,7 @@ impl NodeBuilder {
         let mut return_type_node: Option<Gc<Node /*TypeNode*/>> = None;
         let type_predicate = self
             .type_checker
-            .get_type_predicate_of_signature(&signature);
+            .get_type_predicate_of_signature(&signature)?;
         if let Some(type_predicate) = type_predicate.as_ref() {
             let asserts_modifier: Option<Gc<Node>> = if matches!(
                 type_predicate.kind,
@@ -385,7 +385,7 @@ impl NodeBuilder {
         } else {
             let ref return_type = self
                 .type_checker
-                .get_return_type_of_signature(signature.clone());
+                .get_return_type_of_signature(signature.clone())?;
             if
             /*returnType &&*/
             !(suppress_any && self.type_checker.is_type_any(Some(&**return_type))) {
@@ -668,7 +668,9 @@ impl NodeBuilder {
             parameter_declaration.as_ref(),
             Some(parameter_declaration) if self.type_checker.is_required_initialized_parameter(parameter_declaration)
         ) {
-            parameter_type = self.type_checker.get_optional_type_(&parameter_type, None);
+            parameter_type = self
+                .type_checker
+                .get_optional_type_(&parameter_type, None)?;
         }
         if context
             .flags()
@@ -791,10 +793,10 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         node: &Node,
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         if context.tracker().is_track_symbol_supported()
             && is_computed_property_name(node)
-            && self.type_checker.is_late_bindable_name(node)
+            && self.type_checker.is_late_bindable_name(node)?
         {
             self.track_computed_name(
                 &node.as_computed_property_name().expression,
@@ -849,7 +851,10 @@ impl NodeBuilder {
         if !node_is_synthesized(&*visited) {
             visited = get_factory().clone_node(&visited);
         }
-        set_emit_flags(visited, EmitFlags::SingleLine | EmitFlags::NoAsciiEscaping)
+        Ok(set_emit_flags(
+            visited,
+            EmitFlags::SingleLine | EmitFlags::NoAsciiEscaping,
+        ))
     }
 
     pub(super) fn track_computed_name(
@@ -857,9 +862,9 @@ impl NodeBuilder {
         access_expression: &Node, /*EntityNameOrEntityNameExpression*/
         enclosing_declaration: Option<impl Borrow<Node>>,
         context: &NodeBuilderContext,
-    ) {
+    ) -> io::Result<()> {
         if !context.tracker().is_track_symbol_supported() {
-            return;
+            return Ok(());
         }
         let first_identifier = get_first_identifier(access_expression);
         let name = self.type_checker.resolve_name_(
@@ -870,7 +875,7 @@ impl NodeBuilder {
             Option::<Gc<Node>>::None,
             true,
             None,
-        );
+        )?;
         if let Some(name) = name.as_ref() {
             context.tracker().track_symbol(
                 name,
@@ -879,6 +884,8 @@ impl NodeBuilder {
                 SymbolFlags::Value,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn lookup_symbol_chain(
@@ -973,7 +980,7 @@ impl NodeBuilder {
                 context.maybe_enclosing_declaration(),
                 // TODO: ...or here
                 meaning.unwrap(),
-            );
+            )?;
             if length(parents.as_deref()) > 0 {
                 let parents = parents.as_ref().unwrap();
                 parent_specifiers = parents
@@ -1174,7 +1181,7 @@ impl NodeBuilder {
                             parent_symbol.clone()
                         });
                 type_parameter_nodes = self.map_to_type_nodes(
-                    maybe_map(params.as_ref(), |t: &Gc<Type>, _| {
+                    try_maybe_map(params.as_ref(), |t: &Gc<Type>, _| {
                         self.type_checker.get_mapped_type(
                             t,
                             (*next_symbol.as_transient_symbol().symbol_links())
@@ -1183,7 +1190,7 @@ impl NodeBuilder {
                                 .as_ref()
                                 .unwrap(),
                         )
-                    })
+                    })?
                     .as_deref(),
                     context,
                     None,
@@ -1216,11 +1223,13 @@ impl NodeBuilder {
     ) -> io::Result<String> {
         let mut file = get_declaration_of_kind(symbol, SyntaxKind::SourceFile);
         if file.is_none() {
-            let equivalent_file_symbol =
-                maybe_first_defined(symbol.maybe_declarations().as_ref(), |d: &Gc<Node>, _| {
+            let equivalent_file_symbol = try_maybe_first_defined(
+                symbol.maybe_declarations().as_ref(),
+                |d: &Gc<Node>, _| {
                     self.type_checker
                         .get_file_symbol_if_file_symbol_export_equals_container(d, symbol)
-                });
+                },
+            )?;
             if let Some(equivalent_file_symbol) = equivalent_file_symbol.as_ref() {
                 file = get_declaration_of_kind(equivalent_file_symbol, SyntaxKind::SourceFile);
             }

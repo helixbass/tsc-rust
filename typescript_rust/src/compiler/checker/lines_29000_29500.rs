@@ -60,12 +60,12 @@ impl TypeChecker {
         args: &[Gc<Node /*Expression*/>],
         signature: &Signature,
         signature_help_trailing_comma: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
         let arg_count: usize;
         let mut call_is_incomplete = false;
-        let mut effective_parameter_count = self.get_parameter_count(signature);
-        let mut effective_minimum_arguments = self.get_min_argument_count(signature, None);
+        let mut effective_parameter_count = self.get_parameter_count(signature)?;
+        let mut effective_minimum_arguments = self.get_min_argument_count(signature, None)?;
 
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
             arg_count = args.len();
@@ -100,7 +100,7 @@ impl TypeChecker {
             call_is_incomplete =
                 node.as_jsx_opening_like_element().attributes().end() == node.end();
             if call_is_incomplete {
-                return true;
+                return Ok(true);
             }
             arg_count = if effective_minimum_arguments == 0 {
                 args.len()
@@ -115,7 +115,7 @@ impl TypeChecker {
             effective_minimum_arguments = cmp::min(effective_minimum_arguments, 1);
         } else if node.as_has_arguments().maybe_arguments().is_none() {
             Debug_.assert(node.kind() == SyntaxKind::NewExpression, None);
-            return self.get_min_argument_count(signature, None) == 0;
+            return Ok(self.get_min_argument_count(signature, None)? == 0);
         } else {
             arg_count = if signature_help_trailing_comma {
                 args.len() + 1
@@ -128,21 +128,23 @@ impl TypeChecker {
 
             let spread_arg_index = self.get_spread_argument_index(args);
             if let Some(spread_arg_index) = spread_arg_index {
-                return spread_arg_index >= self.get_min_argument_count(signature, None)
-                    && (self.has_effective_rest_parameter(signature)
-                        || spread_arg_index < self.get_parameter_count(signature));
+                return Ok(
+                    spread_arg_index >= self.get_min_argument_count(signature, None)?
+                        && (self.has_effective_rest_parameter(signature)?
+                            || spread_arg_index < self.get_parameter_count(signature)?),
+                );
             }
         }
 
-        if !self.has_effective_rest_parameter(signature) && arg_count > effective_parameter_count {
-            return false;
+        if !self.has_effective_rest_parameter(signature)? && arg_count > effective_parameter_count {
+            return Ok(false);
         }
 
         if call_is_incomplete || arg_count >= effective_minimum_arguments {
-            return true;
+            return Ok(true);
         }
         for i in arg_count..effective_minimum_arguments {
-            let type_ = self.get_type_at_position(signature, i);
+            let type_ = self.get_type_at_position(signature, i)?;
             if self
                 .filter_type(&type_, |type_: &Type| {
                     if is_in_js_file(Some(node)) && !self.strict_null_checks {
@@ -154,10 +156,10 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Never)
             {
-                return false;
+                return Ok(false);
             }
         }
-        true
+        Ok(true)
     }
 
     pub(super) fn has_correct_type_argument_arity(
@@ -226,14 +228,14 @@ impl TypeChecker {
         contextual_signature: Gc<Signature>,
         inference_context: Option<&InferenceContext>,
         compare_types: Option<Gc<Box<dyn TypeComparer>>>,
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         let context = self.create_inference_context(
             &signature.maybe_type_parameters().clone().unwrap(),
             Some(signature.clone()),
             InferenceFlags::None,
             compare_types,
         );
-        let rest_type = self.get_effective_rest_type(&contextual_signature);
+        let rest_type = self.get_effective_rest_type(&contextual_signature)?;
         let mapper = inference_context.map(|inference_context| {
             if matches!(
                 rest_type.as_ref(),
@@ -273,7 +275,7 @@ impl TypeChecker {
         }
         self.get_signature_instantiation(
             signature.clone(),
-            Some(&self.get_inferred_types(&context)),
+            Some(&*self.get_inferred_types(&context)?),
             is_in_js_file(contextual_signature.declaration.as_deref()),
             None,
         )
@@ -285,7 +287,7 @@ impl TypeChecker {
         signature: Gc<Signature>,
         check_mode: CheckMode,
         context: Gc<InferenceContext>,
-    ) -> Vec<Gc<Type>> {
+    ) -> io::Result<Vec<Gc<Type>>> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
         let check_attr_type = self.check_expression_with_contextual_type(
@@ -293,7 +295,7 @@ impl TypeChecker {
             &param_type,
             Some(context.clone()),
             check_mode,
-        );
+        )?;
         self.infer_types(
             &context.inferences(),
             &check_attr_type,
@@ -315,7 +317,7 @@ impl TypeChecker {
         let this_argument_node = this_argument_node.borrow();
         let this_argument_type = self.check_expression(this_argument_node, None, None)?;
         Ok(if is_optional_chain_root(&this_argument_node.parent()) {
-            self.get_non_nullable_type(&this_argument_type)
+            self.get_non_nullable_type(&this_argument_type)?
         } else if is_optional_chain(&this_argument_node.parent()) {
             self.remove_optional_type_marker(&this_argument_type)
         } else {
@@ -358,7 +360,7 @@ impl TypeChecker {
                     )
                     .as_deref(),
                 );
-                let instantiated_type = self.instantiate_type(contextual_type, outer_mapper);
+                let instantiated_type = self.instantiate_type(contextual_type, outer_mapper)?;
                 let contextual_signature = self.get_single_call_signature(&instantiated_type);
                 let inference_source_type = if let Some(ref contextual_signature_type_parameters) =
                     contextual_signature
@@ -375,7 +377,7 @@ impl TypeChecker {
                 } else {
                     instantiated_type.clone()
                 };
-                let inference_target_type = self.get_return_type_of_signature(signature.clone());
+                let inference_target_type = self.get_return_type_of_signature(signature.clone())?;
                 self.infer_types(
                     &context.inferences(),
                     &inference_source_type,
@@ -396,7 +398,7 @@ impl TypeChecker {
                     } else {
                         None
                     },
-                );
+                )?;
                 self.infer_types(
                     &return_context.inferences(),
                     &return_source_type,
@@ -424,7 +426,7 @@ impl TypeChecker {
 
         let rest_type = self.get_non_array_rest_type(&signature);
         let arg_count = if rest_type.is_some() {
-            cmp::min(self.get_parameter_count(&signature) - 1, args.len())
+            cmp::min(self.get_parameter_count(&signature)? - 1, args.len())
         } else {
             args.len()
         };
@@ -453,12 +455,12 @@ impl TypeChecker {
             }
         }
 
-        let this_type = self.get_this_type_of_signature(&signature);
+        let this_type = self.get_this_type_of_signature(&signature)?;
         if let Some(this_type) = this_type.as_ref() {
             let this_argument_node = self.get_this_argument_of_call(node);
             self.infer_types(
                 &context.inferences(),
-                &self.get_this_argument_type(this_argument_node.as_deref()),
+                &*self.get_this_argument_type(this_argument_node.as_deref())?,
                 this_type,
                 None,
                 None,
@@ -468,13 +470,13 @@ impl TypeChecker {
         for i in 0..arg_count {
             let arg = &args[i];
             if arg.kind() != SyntaxKind::OmittedExpression {
-                let param_type = self.get_type_at_position(&signature, i);
+                let param_type = self.get_type_at_position(&signature, i)?;
                 let arg_type = self.check_expression_with_contextual_type(
                     arg,
                     &param_type,
                     Some(context.clone()),
                     check_mode,
-                );
+                )?;
                 self.infer_types(&context.inferences(), &arg_type, &param_type, None, None);
             }
         }
@@ -491,11 +493,11 @@ impl TypeChecker {
             self.infer_types(&context.inferences(), &spread_type, rest_type, None, None);
         }
 
-        Ok(self.get_inferred_types(&context))
+        self.get_inferred_types(&context)
     }
 
-    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> Gc<Type> {
-        if type_.flags().intersects(TypeFlags::Union) {
+    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
                 &mut |type_: &Type| Some(self.get_mutable_array_or_tuple_type(type_)),
@@ -527,15 +529,15 @@ impl TypeChecker {
                     .as_tuple_type()
                     .labeled_element_declarations
                     .as_deref(),
-            )
+            )?
         } else {
             self.create_tuple_type(
                 &[type_.type_wrapper()],
                 Some(&[ElementFlags::Variadic]),
                 None,
                 None,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn get_spread_argument_type(
@@ -560,7 +562,7 @@ impl TypeChecker {
                         rest_type,
                         context.clone(),
                         check_mode,
-                    )
+                    )?
                 }));
             }
         }
@@ -605,7 +607,7 @@ impl TypeChecker {
                     &contextual_type,
                     context.clone(),
                     check_mode,
-                );
+                )?;
                 let has_primitive_contextual_type = self.maybe_type_of_kind(
                     &contextual_type,
                     TypeFlags::Primitive
@@ -616,7 +618,7 @@ impl TypeChecker {
                 types.push(if has_primitive_contextual_type {
                     self.get_regular_type_of_literal_type(&arg_type)
                 } else {
-                    self.get_widened_literal_type(&arg_type)
+                    self.get_widened_literal_type(&arg_type)?
                 });
                 flags.push(ElementFlags::Required);
             }
@@ -628,7 +630,7 @@ impl TypeChecker {
                 }
             }
         }
-        Ok(self.create_tuple_type(
+        self.create_tuple_type(
             &types,
             Some(&flags),
             Some(false),
@@ -637,7 +639,7 @@ impl TypeChecker {
             } else {
                 None
             },
-        ))
+        )
     }
 
     pub(super) fn check_type_arguments(
@@ -657,7 +659,7 @@ impl TypeChecker {
                 Some(&type_parameters),
                 self.get_min_type_argument_count(Some(&type_parameters)),
                 is_javascript,
-            )
+            )?
             .unwrap();
         let mut mapper: Option<Gc<TypeMapper>> = None;
         for i in 0..type_argument_nodes.len() {
@@ -684,11 +686,11 @@ impl TypeChecker {
                 let type_argument = &type_argument_types[i];
                 if !self.check_type_assignable_to(
                     type_argument,
-                    &self.get_type_with_this_argument(
-                        &self.instantiate_type(constraint, mapper.clone()),
+                    &*self.get_type_with_this_argument(
+                        &*self.instantiate_type(constraint, mapper.clone())?,
                         Some(&**type_argument),
                         None,
-                    ),
+                    )?,
                     if report_errors {
                         Some(&*type_argument_nodes[i])
                     } else {
@@ -751,7 +753,7 @@ impl TypeChecker {
             &param_type,
             None,
             check_mode,
-        );
+        )?;
         Ok(self.check_tag_name_does_not_expect_too_many_arguments(
             node,
             report_errors,
@@ -818,7 +820,7 @@ impl TypeChecker {
         }
         let factory_symbol = factory_symbol.unwrap();
 
-        let factory_type = self.get_type_of_symbol(&factory_symbol);
+        let factory_type = self.get_type_of_symbol(&factory_symbol)?;
         let call_signatures = self.get_signatures_of_type(&factory_type, SignatureKind::Call);
         if length(Some(&*call_signatures)) == 0 {
             return Ok(true);
@@ -827,17 +829,17 @@ impl TypeChecker {
         let mut has_first_param_signatures = false;
         let mut max_param_count = 0;
         for sig in &call_signatures {
-            let firstparam = self.get_type_at_position(sig, 0);
+            let firstparam = self.get_type_at_position(sig, 0)?;
             let signatures_of_param = self.get_signatures_of_type(&firstparam, SignatureKind::Call);
             if length(Some(&*signatures_of_param)) == 0 {
                 continue;
             }
             for param_sig in &signatures_of_param {
                 has_first_param_signatures = true;
-                if self.has_effective_rest_parameter(param_sig) {
+                if self.has_effective_rest_parameter(param_sig)? {
                     return Ok(true);
                 }
-                let param_count = self.get_parameter_count(param_sig);
+                let param_count = self.get_parameter_count(param_sig)?;
                 if param_count > max_param_count {
                     max_param_count = param_count;
                 }
@@ -848,7 +850,7 @@ impl TypeChecker {
         }
         let mut absolute_min_arg_count = usize::MAX;
         for tag_sig in &tag_call_signatures {
-            let tag_required_arg_count = self.get_min_argument_count(tag_sig, None);
+            let tag_required_arg_count = self.get_min_argument_count(tag_sig, None)?;
             if tag_required_arg_count < absolute_min_arg_count {
                 absolute_min_arg_count = tag_required_arg_count;
             }
@@ -934,12 +936,12 @@ impl TypeChecker {
             }
             return Ok(None);
         }
-        let this_type = self.get_this_type_of_signature(&signature);
+        let this_type = self.get_this_type_of_signature(&signature)?;
         if let Some(this_type) = this_type.as_ref().filter(|this_type| {
             !Gc::ptr_eq(this_type, &self.void_type()) && node.kind() != SyntaxKind::NewExpression
         }) {
             let this_argument_node = self.get_this_argument_of_call(node);
-            let this_argument_type = self.get_this_argument_type(this_argument_node.as_deref());
+            let this_argument_type = self.get_this_argument_type(this_argument_node.as_deref())?;
             let error_node = if report_errors {
                 Some(
                     this_argument_node
@@ -970,18 +972,18 @@ impl TypeChecker {
             &Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
         let rest_type = self.get_non_array_rest_type(&signature);
         let arg_count = if rest_type.is_some() {
-            cmp::min(self.get_parameter_count(&signature) - 1, args.len())
+            cmp::min(self.get_parameter_count(&signature)? - 1, args.len())
         } else {
             args.len()
         };
         for i in 0..arg_count {
             let arg = &args[i];
             if arg.kind() != SyntaxKind::OmittedExpression {
-                let param_type = self.get_type_at_position(&signature, i);
+                let param_type = self.get_type_at_position(&signature, i)?;
                 let arg_type =
-                    self.check_expression_with_contextual_type(arg, &param_type, None, check_mode);
+                    self.check_expression_with_contextual_type(arg, &param_type, None, check_mode)?;
                 let check_arg_type = if check_mode.intersects(CheckMode::SkipContextSensitive) {
-                    self.get_regular_type_of_object_literal(&arg_type)
+                    self.get_regular_type_of_object_literal(&arg_type)?
                 } else {
                     arg_type.clone()
                 };

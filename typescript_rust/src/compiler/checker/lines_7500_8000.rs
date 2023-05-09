@@ -180,10 +180,11 @@ impl SymbolTableToDeclarationStatements {
                 let var_name = self.get_unused_name(name, Some(symbol));
                 let ref type_to_serialize =
                     self.type_checker
-                        .get_widened_type(&self.type_checker.get_type_of_symbol(
+                        .get_widened_type(&*self.type_checker.get_type_of_symbol(
                             &self.type_checker.get_merged_symbol(Some(symbol)).unwrap(),
-                        ));
-                if self.is_type_representable_as_function_namespace_merge(type_to_serialize, symbol)
+                        )?)?;
+                if self
+                    .is_type_representable_as_function_namespace_merge(type_to_serialize, symbol)?
                 {
                     self.serialize_as_function_namespace_merge(
                         type_to_serialize,
@@ -362,7 +363,7 @@ impl SymbolTableToDeclarationStatements {
         &self,
         p: &Symbol,
         base_type: Option<impl Borrow<Type>>,
-    ) -> Vec<Gc<Node>> {
+    ) -> io::Result<Vec<Gc<Node>>> {
         self.serialize_property_symbol_for_interface_worker().call(
             p,
             false,
@@ -400,7 +401,7 @@ impl SymbolTableToDeclarationStatements {
                             false,
                             true,
                             |a: &Type, b: &Type| self.type_checker.compare_types_identical(a, b),
-                        ) == Ternary::False
+                        )? == Ternary::False
                         {
                             failed = true;
                             break;
@@ -492,7 +493,7 @@ impl SymbolTableToDeclarationStatements {
         static_type: &Type,
         root_name: &str,
     ) -> io::Result<Gc<Node>> {
-        let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Value);
+        let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Value)?;
         if let Some(ref_) = ref_ {
             return Ok(ref_);
         }
@@ -538,13 +539,13 @@ impl SymbolTableToDeclarationStatements {
         if let Some(t_target) = t
             .maybe_as_type_reference_interface()
             .map(|t| t.target())
-            .filter(|t_target| {
+            .try_filter(|t_target| {
                 self.type_checker.is_symbol_accessible_by_flags(
                     &t_target.symbol(),
                     Some(&*self.enclosing_declaration),
                     flags,
                 )
-            })
+            })?
         {
             type_args = Some(
                 self.type_checker
@@ -562,19 +563,19 @@ impl SymbolTableToDeclarationStatements {
                 &t_target.symbol(),
                 &self.context(),
                 Some(SymbolFlags::Type),
-            ));
-        } else if let Some(t_symbol) = t.maybe_symbol().as_ref().filter(|t_symbol| {
+            )?);
+        } else if let Some(t_symbol) = t.maybe_symbol().as_ref().try_filter(|t_symbol| {
             self.type_checker.is_symbol_accessible_by_flags(
                 t_symbol,
                 Some(&*self.enclosing_declaration),
                 flags,
             )
-        }) {
+        })? {
             reference = Some(self.node_builder.symbol_to_expression_(
                 t_symbol,
                 &self.context(),
                 Some(SymbolFlags::Type),
-            ));
+            )?);
         }
         Ok(reference.map(|reference| {
             get_factory()
@@ -583,23 +584,25 @@ impl SymbolTableToDeclarationStatements {
         }))
     }
 
-    pub(super) fn serialize_implemented_type(&self, t: &Type) -> Option<Gc<Node>> {
-        let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Type);
+    pub(super) fn serialize_implemented_type(&self, t: &Type) -> io::Result<Option<Gc<Node>>> {
+        let ref_ = self.try_serialize_as_type_reference(t, SymbolFlags::Type)?;
         if ref_.is_some() {
-            return ref_;
+            return Ok(ref_);
         }
-        t.maybe_symbol().as_ref().map(|t_symbol| {
-            get_factory()
-                .create_expression_with_type_arguments(
-                    self.node_builder.symbol_to_expression_(
-                        t_symbol,
-                        &self.context(),
-                        Some(SymbolFlags::Type),
-                    ),
-                    Option::<Gc<NodeArray>>::None,
-                )
-                .wrap()
-        })
+        t.maybe_symbol()
+            .as_ref()
+            .try_map(|t_symbol| -> io::Result<_> {
+                Ok(get_factory()
+                    .create_expression_with_type_arguments(
+                        self.node_builder.symbol_to_expression_(
+                            t_symbol,
+                            &self.context(),
+                            Some(SymbolFlags::Type),
+                        )?,
+                        Option::<Gc<NodeArray>>::None,
+                    )
+                    .wrap())
+            })
     }
 
     pub(super) fn get_unused_name(
@@ -764,7 +767,7 @@ impl MakeSerializePropertySymbol {
                 )?.is_some() &&
                     self.type_checker.is_readonly_symbol(
                         &self.type_checker.get_property_of_type_(base_type, p.escaped_name(), None)?.unwrap()
-                    ) == self.type_checker.is_readonly_symbol(p) &&
+                    )? == self.type_checker.is_readonly_symbol(p)? &&
                     p.flags() & SymbolFlags::Optional ==
                         self.type_checker.get_property_of_type_(base_type, p.escaped_name(), None)?.unwrap().flags() & SymbolFlags::Optional &&
                     self.type_checker.is_type_identical_to(
@@ -786,7 +789,7 @@ impl MakeSerializePropertySymbol {
             });
         let ref name = self
             .node_builder
-            .get_property_name_node_for_symbol(p, &self.context);
+            .get_property_name_node_for_symbol(p, &self.context)?;
         let first_property_like_decl = p.maybe_declarations().as_ref().and_then(|p_declarations| {
             p_declarations
                 .iter()
@@ -822,7 +825,7 @@ impl MakeSerializePropertySymbol {
                                         Some(
                                             self.node_builder.serialize_type_for_declaration(
                                                 &self.context,
-                                                &self.type_checker.get_type_of_symbol(p),
+                                                &*self.type_checker.get_type_of_symbol(p)?,
                                                 p,
                                                 Some(
                                                     &*self
@@ -834,7 +837,7 @@ impl MakeSerializePropertySymbol {
                                                         .include_private_symbol(symbol);
                                                 }),
                                                 self.symbol_table_to_declaration_statements.bundled,
-                                            ),
+                                            )?,
                                         )
                                     },
                                     None,
@@ -870,7 +873,7 @@ impl MakeSerializePropertySymbol {
                                 Some(
                                     self.node_builder.serialize_type_for_declaration(
                                         &self.context,
-                                        &self.type_checker.get_type_of_symbol(p),
+                                        &*self.type_checker.get_type_of_symbol(p)?,
                                         p,
                                         Some(
                                             &*self
@@ -882,7 +885,7 @@ impl MakeSerializePropertySymbol {
                                                 .include_private_symbol(symbol);
                                         }),
                                         self.symbol_table_to_declaration_statements.bundled,
-                                    ),
+                                    )?,
                                 )
                             },
                             None,
@@ -911,7 +914,7 @@ impl MakeSerializePropertySymbol {
                     Some(
                         get_factory()
                             .create_modifiers_from_modifier_flags(
-                                if self.type_checker.is_readonly_symbol(p) {
+                                if self.type_checker.is_readonly_symbol(p)? {
                                     ModifierFlags::Readonly
                                 } else {
                                     ModifierFlags::None
@@ -923,23 +926,27 @@ impl MakeSerializePropertySymbol {
                     p.flags()
                         .intersects(SymbolFlags::Optional)
                         .then(|| get_factory().create_token(SyntaxKind::QuestionToken).wrap()),
-                    (!is_private).then(|| {
-                        self.node_builder.serialize_type_for_declaration(
-                            &self.context,
-                            &self.type_checker.get_type_of_symbol(p),
-                            p,
-                            Some(
-                                &*self
-                                    .symbol_table_to_declaration_statements
-                                    .enclosing_declaration,
-                            ),
-                            Some(&|symbol: &Symbol| {
-                                self.symbol_table_to_declaration_statements
-                                    .include_private_symbol(symbol);
-                            }),
-                            self.symbol_table_to_declaration_statements.bundled,
+                    if !is_private {
+                        Some(
+                            self.node_builder.serialize_type_for_declaration(
+                                &self.context,
+                                &*self.type_checker.get_type_of_symbol(p)?,
+                                p,
+                                Some(
+                                    &*self
+                                        .symbol_table_to_declaration_statements
+                                        .enclosing_declaration,
+                                ),
+                                Some(&|symbol: &Symbol| {
+                                    self.symbol_table_to_declaration_statements
+                                        .include_private_symbol(symbol);
+                                }),
+                                self.symbol_table_to_declaration_statements.bundled,
+                            )?,
                         )
-                    }),
+                    } else {
+                        None
+                    },
                     None,
                 ),
                 p.maybe_declarations()
@@ -960,7 +967,7 @@ impl MakeSerializePropertySymbol {
         if p.flags()
             .intersects(SymbolFlags::Method | SymbolFlags::Function)
         {
-            let ref type_ = self.type_checker.get_type_of_symbol(p);
+            let ref type_ = self.type_checker.get_type_of_symbol(p)?;
             let signatures = self
                 .type_checker
                 .get_signatures_of_type(type_, SignatureKind::Call);
@@ -971,7 +978,7 @@ impl MakeSerializePropertySymbol {
                         Some(
                             get_factory()
                                 .create_modifiers_from_modifier_flags(
-                                    if self.type_checker.is_readonly_symbol(p) {
+                                    if self.type_checker.is_readonly_symbol(p)? {
                                         ModifierFlags::Readonly
                                     } else {
                                         ModifierFlags::None

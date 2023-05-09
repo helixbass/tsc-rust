@@ -186,7 +186,7 @@ impl TypeChecker {
         &self,
         entity_name: &Node, /*EntityNameOrEntityNameExpression*/
         enclosing_declaration: &Node,
-    ) -> SymbolVisibilityResult {
+    ) -> io::Result<SymbolVisibilityResult> {
         let meaning: SymbolFlags;
         if entity_name.parent().kind() == SyntaxKind::TypeQuery
             || is_expression_with_type_arguments_in_class_extends_clause(&entity_name.parent())
@@ -212,25 +212,25 @@ impl TypeChecker {
             Option::<Gc<Node>>::None,
             false,
             None,
-        );
+        )?;
         if matches!(symbol.as_ref(), Some(symbol) if symbol.flags().intersects(SymbolFlags::TypeParameter) && meaning.intersects(SymbolFlags::Type))
         {
-            return SymbolVisibilityResult {
+            return Ok(SymbolVisibilityResult {
                 accessibility: SymbolAccessibility::Accessible,
                 aliases_to_make_visible: None,
                 error_symbol_name: None,
                 error_node: None,
-            };
+            });
         }
 
-        symbol
+        Ok(symbol
             .and_then(|symbol| self.has_visible_declarations(&symbol, true))
             .unwrap_or_else(|| SymbolVisibilityResult {
                 accessibility: SymbolAccessibility::NotAccessible,
                 aliases_to_make_visible: None,
                 error_symbol_name: Some(get_text_of_node(&first_identifier, None).into_owned()),
                 error_node: Some(first_identifier),
-            })
+            }))
     }
 
     pub(super) fn symbol_to_string_(
@@ -512,15 +512,15 @@ impl TypeChecker {
     pub(super) fn symbol_value_declaration_is_context_sensitive(
         &self,
         symbol: Option<&Symbol>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if symbol.is_none() {
-            return false;
+            return Ok(false);
         }
         let symbol = symbol.unwrap();
-        matches!(
+        Ok(matches!(
             symbol.maybe_value_declaration(),
-            Some(value_declaration) if is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)
-        )
+            Some(value_declaration) if is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)?
+        ))
     }
 
     pub(super) fn to_node_builder_flags(&self, flags: Option<TypeFormatFlags>) -> NodeBuilderFlags {
@@ -528,14 +528,14 @@ impl TypeChecker {
         NodeBuilderFlags::from_bits((flags & TypeFormatFlags::NodeBuilderFlagsMask).bits()).unwrap()
     }
 
-    pub(super) fn is_class_instance_side(&self, type_: &Type) -> bool {
-        matches!(
+    pub(super) fn is_class_instance_side(&self, type_: &Type) -> io::Result<bool> {
+        Ok(matches!(
             type_.maybe_symbol(),
             Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::Class) && (
-                ptr::eq(type_, &*self.get_declared_type_of_class_or_interface(&type_symbol)) ||
+                ptr::eq(type_, &*self.get_declared_type_of_class_or_interface(&type_symbol)?) ||
                 type_.flags().intersects(TypeFlags::Object) && get_object_flags(type_).intersects(ObjectFlags::IsClassInstanceClone)
             )
-        )
+        ))
     }
 
     pub(super) fn create_node_builder(&self) -> Gc<NodeBuilder> {
@@ -934,7 +934,7 @@ impl NodeBuilder {
         {
             let parent_symbol = self
                 .type_checker
-                .get_parent_of_symbol(&type_.symbol())
+                .get_parent_of_symbol(&type_.symbol())?
                 .unwrap();
             let parent_name =
                 self.symbol_to_type_node(&parent_symbol, context, SymbolFlags::Type, None)?;
@@ -1312,7 +1312,7 @@ impl NodeBuilder {
             let types = {
                 let types = type_.as_union_or_intersection_type_interface().types();
                 if type_.flags().intersects(TypeFlags::Union) {
-                    self.type_checker.format_union_types(types)
+                    self.type_checker.format_union_types(types)?
                 } else {
                     types.to_vec()
                 }

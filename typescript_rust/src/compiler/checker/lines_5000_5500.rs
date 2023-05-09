@@ -189,7 +189,7 @@ impl NodeBuilder {
             };
             if self
                 .type_checker
-                .is_js_constructor(symbol.maybe_value_declaration())
+                .is_js_constructor(symbol.maybe_value_declaration())?
             {
                 self.symbol_to_type_node(&symbol, context, is_instance_type, None)?
             } else if symbol.flags().intersects(SymbolFlags::Class)
@@ -204,12 +204,12 @@ impl NodeBuilder {
                 || symbol
                     .flags()
                     .intersects(SymbolFlags::Enum | SymbolFlags::ValueModule)
-                || self.should_write_type_of_function_symbol(&symbol, context, type_id)
+                || self.should_write_type_of_function_symbol(&symbol, context, type_id)?
             {
                 self.symbol_to_type_node(&symbol, context, is_instance_type, None)?
             } else if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id))
             {
-                let type_alias = self.type_checker.get_type_alias_for_type_literal(type_);
+                let type_alias = self.type_checker.get_type_alias_for_type_literal(type_)?;
                 if let Some(type_alias) = type_alias {
                     self.symbol_to_type_node(&type_alias, context, SymbolFlags::Type, None)?
                 } else {
@@ -551,7 +551,7 @@ impl NodeBuilder {
                         &types,
                         Option::<&Symbol>::None,
                         None,
-                    )),
+                    )?),
                     context,
                 )?
                 .unwrap());
@@ -1116,7 +1116,7 @@ impl NodeBuilder {
                 property_symbol.maybe_declarations().as_ref()
             {
                 let decl: &Gc<Node> = first(property_symbol_declarations);
-                if self.type_checker.has_late_bindable_name(decl) {
+                if self.type_checker.has_late_bindable_name(decl)? {
                     if is_binary_expression(decl) {
                         let name = get_name_of_declaration(Some(&**decl));
                         if let Some(name) = name.as_ref().filter(|name| {
@@ -1185,7 +1185,7 @@ impl NodeBuilder {
                 .get_properties_of_object_type(&property_type)
                 .peekable()
                 .is_empty_()
-            && !self.type_checker.is_readonly_symbol(property_symbol)
+            && !self.type_checker.is_readonly_symbol(property_symbol)?
         {
             let signatures = self.type_checker.get_signatures_of_type(
                 &self.type_checker.filter_type(&property_type, |t| {
@@ -1247,7 +1247,7 @@ impl NodeBuilder {
             }
 
             let modifiers: Option<Vec<Gc<Node>>> =
-                if self.type_checker.is_readonly_symbol(property_symbol) {
+                if self.type_checker.is_readonly_symbol(property_symbol)? {
                     Some(vec![factory.with(|factory_| {
                         factory_.create_token(SyntaxKind::ReadonlyKeyword).wrap()
                     })])

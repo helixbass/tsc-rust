@@ -19,7 +19,7 @@ use crate::{
     is_shorthand_ambient_module_symbol, is_source_file, is_static, is_string_literal_like,
     is_variable_declaration, is_variable_statement, length, map, map_defined, maybe_first_defined,
     maybe_get_source_file_of_node, maybe_map, set_parent, set_synthetic_leading_comments_rc,
-    set_text_range_rc_node, some, try_map, try_map_defined, try_maybe_map,
+    set_text_range_rc_node, some, try_flat_map, try_map, try_map_defined, try_maybe_map,
     unescape_leading_underscores, with_parse_base_node_factory_and_factory,
     with_synthetic_factory_and_factory, AsDoubleDeref, AssignmentDeclarationKind, Debug_,
     HasInitializerInterface, HasTypeArgumentsInterface, InternalSymbolName, IteratorExt,
@@ -243,7 +243,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<()> {
         let ref interface_type = self
             .type_checker
-            .get_declared_type_of_class_or_interface(symbol);
+            .get_declared_type_of_class_or_interface(symbol)?;
         let local_params = self
             .type_checker
             .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
@@ -258,16 +258,21 @@ impl SymbolTableToDeclarationStatements {
                 &base_types,
                 Option::<&Symbol>::None,
                 None,
-            ))
+            )?)
         } else {
             None
         };
-        let members = self
-            .type_checker
-            .get_properties_of_type(interface_type)?
-            .flat_map(|ref p| {
+        let members = try_flat_map(
+            Some(
+                &self
+                    .type_checker
+                    .get_properties_of_type(interface_type)?
+                    .collect_vec(),
+            ),
+            |p: &Gc<Symbol>, _| {
                 self.serialize_property_symbol_for_interface(p, base_type.as_deref())
-            });
+            },
+        )?;
         let call_signatures = self.serialize_signatures(
             SignatureKind::Call,
             interface_type,
@@ -519,7 +524,9 @@ impl SymbolTableToDeclarationStatements {
                     &*self.get_internal_symbol_name(symbol, symbol_name),
                     Some(
                         self.type_checker
-                            .get_properties_of_type(&self.type_checker.get_type_of_symbol(symbol))?
+                            .get_properties_of_type(
+                                &*self.type_checker.get_type_of_symbol(symbol)?,
+                            )?
                             .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
                             .map(|p| -> Gc<Node> {
                                 let initialized_value = p
@@ -907,7 +914,7 @@ impl SymbolTableToDeclarationStatements {
         .transpose()?;
         let ref class_type = self
             .type_checker
-            .get_declared_type_of_class_or_interface(symbol);
+            .get_declared_type_of_class_or_interface(symbol)?;
         let base_types = self.type_checker.get_base_types(class_type);
         let original_implements = original_decl
             .as_ref()
@@ -917,13 +924,13 @@ impl SymbolTableToDeclarationStatements {
             .try_and_then(|original_implements| {
                 self.sanitize_jsdoc_implements(original_implements)
             })?
-            .unwrap_or_else(|| {
-                map_defined(
+            .try_unwrap_or_else(|| {
+                try_map_defined(
                     Some(&self.type_checker.get_implements_types(class_type)),
                     |type_: &Gc<Type>, _| self.serialize_implemented_type(type_),
                 )
-            });
-        let ref static_type = self.type_checker.get_type_of_symbol(symbol);
+            })?;
+        let ref static_type = self.type_checker.get_type_of_symbol(symbol)?;
         let is_class = matches!(
             static_type.maybe_symbol().and_then(|static_type_symbol| static_type_symbol.maybe_value_declaration()).as_ref(),
             Some(static_type_symbol_value_declaration) if is_class_like(static_type_symbol_value_declaration)
@@ -964,7 +971,7 @@ impl SymbolTableToDeclarationStatements {
             class_type,
             &base_types,
             self.type_checker.get_properties_of_type(class_type)?,
-        );
+        )?;
         let public_symbol_props = symbol_props.clone().filter(|s| {
             let value_decl = s.maybe_value_declaration();
             matches!(
@@ -1002,19 +1009,20 @@ impl SymbolTableToDeclarationStatements {
                 base_types.get(0).as_double_deref(),
             )
         });
-        let static_members = self
-            .type_checker
-            .get_properties_of_type(static_type)?
-            .filter(|p| {
-                !p.flags().intersects(SymbolFlags::Prototype)
-                    && p.escaped_name() != "prototype"
-                    && !self.is_namespace_member(p)
-            })
-            .flat_map(|ref p| {
+        let static_members = try_flat_map(
+            Some(&filter(
+                &self.type_checker.get_properties_of_type(static_type)?,
+                |p: &Gc<Symbol>| {
+                    !p.flags().intersects(SymbolFlags::Prototype)
+                        && p.escaped_name() != "prototype"
+                        && !self.is_namespace_member(p)
+                },
+            )),
+            |p: &Gc<Symbol>, _| {
                 self.serialize_property_symbol_for_class()
                     .call(p, true, Some(&**static_base_type))
-            })
-            .collect_vec();
+            },
+        )?;
         let is_non_constructable_class_like_in_js_file = !is_class
             && matches!(
                 symbol.maybe_value_declaration().as_ref(),

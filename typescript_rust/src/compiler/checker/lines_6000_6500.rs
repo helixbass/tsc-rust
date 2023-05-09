@@ -71,7 +71,7 @@ impl NodeBuilder {
             if let Some(parent) = parent.as_ref()
             /*&& getExportsOfSymbol(parent)*/
             {
-                let exports = self.type_checker.get_exports_of_symbol(parent);
+                let exports = self.type_checker.get_exports_of_symbol(parent)?;
                 try_for_each_entry_bool(
                     &*(*exports).borrow(),
                     |ex: &Gc<Symbol>, name: &__String| -> io::Result<_> {
@@ -106,7 +106,7 @@ impl NodeBuilder {
         {
             if parent.try_matches(|parent| -> io::Result<_> {
                 Ok(matches!(
-                    (*self.type_checker.get_members_of_symbol(parent))
+                    (*self.type_checker.get_members_of_symbol(parent)?)
                         .borrow()
                         .get(symbol.escaped_name()),
                     Some(got_member_of_symbol) if self.type_checker.get_symbol_if_same_reference(
@@ -187,7 +187,7 @@ impl NodeBuilder {
         escaped_name: &str, /*__String*/
         context: &NodeBuilderContext,
         type_: &Type, /*TypeParameter*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let result = self.type_checker.resolve_name_(
             context.maybe_enclosing_declaration(),
             escaped_name,
@@ -196,7 +196,7 @@ impl NodeBuilder {
             Some(escaped_name),
             false,
             None,
-        );
+        )?;
         if let Some(result) = result.as_ref() {
             if result.flags().intersects(SymbolFlags::TypeParameter)
                 && matches!(
@@ -207,11 +207,11 @@ impl NodeBuilder {
                     )
                 )
             {
-                return false;
+                return Ok(false);
             }
-            return true;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn type_parameter_to_name(
@@ -833,7 +833,7 @@ impl NodeBuilder {
                                 && annotated.as_type_parameter().is_this_type == Some(true)
                             {
                                 self.type_checker
-                                    .instantiate_type(&annotated, signature.mapper.clone())
+                                    .instantiate_type(&annotated, signature.mapper.clone())?
                             } else {
                                 annotated
                             };
@@ -1123,7 +1123,7 @@ impl NodeBuilder {
                                     node
                                 )?,
                                 &name.as_identifier().escaped_text
-                            );
+                            )?;
                             let override_type_node = type_via_parent.as_ref().try_filter(|type_via_parent| -> io::Result<_> {
                                 Ok(matches!(
                                     t_as_jsdoc_property_like_tag.type_expression.as_ref(),

@@ -756,7 +756,7 @@ impl SymbolTableToDeclarationStatements {
                 || symbol.flags().intersects(SymbolFlags::Function)
                     && self
                         .type_checker
-                        .get_properties_of_type(&self.type_checker.get_type_of_symbol(symbol))?
+                        .get_properties_of_type(&*self.type_checker.get_type_of_symbol(symbol)?)?
                         .len()
                         > 0)
             && !symbol.flags().intersects(SymbolFlags::Alias);
@@ -785,16 +785,16 @@ impl SymbolTableToDeclarationStatements {
             && symbol.escaped_name() != InternalSymbolName::ExportEquals;
         let is_const_merged_with_ns_printable_as_signature_merge = is_const_merged_with_ns
             && self.is_type_representable_as_function_namespace_merge(
-                &self.type_checker.get_type_of_symbol(symbol),
+                &*self.type_checker.get_type_of_symbol(symbol)?,
                 symbol,
-            );
+            )?;
         if symbol
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
             || is_const_merged_with_ns_printable_as_signature_merge
         {
             self.serialize_as_function_namespace_merge(
-                &self.type_checker.get_type_of_symbol(symbol),
+                &*self.type_checker.get_type_of_symbol(symbol)?,
                 symbol,
                 &self.get_internal_symbol_name(symbol, symbol_name),
                 modifier_flags,
@@ -819,17 +819,17 @@ impl SymbolTableToDeclarationStatements {
                     needs_post_export_default = false;
                 }
             } else {
-                let ref type_ = self.type_checker.get_type_of_symbol(symbol);
+                let ref type_ = self.type_checker.get_type_of_symbol(symbol)?;
                 let local_name = self.get_internal_symbol_name(symbol, symbol_name);
                 if !symbol.flags().intersects(SymbolFlags::Function)
-                    && self.is_type_representable_as_function_namespace_merge(type_, symbol)
+                    && self.is_type_representable_as_function_namespace_merge(type_, symbol)?
                 {
                     self.serialize_as_function_namespace_merge(
                         type_,
                         symbol,
                         &local_name,
                         modifier_flags,
-                    );
+                    )?;
                 } else {
                     let flags = if !symbol.flags().intersects(SymbolFlags::BlockScopedVariable) {
                         None
@@ -912,7 +912,7 @@ impl SymbolTableToDeclarationStatements {
                             &type_.symbol(),
                             self.context().maybe_enclosing_declaration(),
                             SymbolFlags::Value,
-                        );
+                        ).transpose()?;
                     } else {
                         let statement = set_text_range_rc_node(
                             get_factory().create_variable_statement(
@@ -1159,7 +1159,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
             self.type_checker
                 .is_symbol_accessible(Some(sym), decl.as_deref(), meaning, false);
         let accessible_result = match accessible_result {
-            Err(accessible_result) => return Some(accessible_result),
+            Err(accessible_result) => return Some(Err(accessible_result)),
             Ok(accessible_result) => accessible_result,
         };
         if accessible_result.accessibility == SymbolAccessibility::Accessible {
