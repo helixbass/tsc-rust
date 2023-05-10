@@ -28,7 +28,7 @@ impl TypeChecker {
         if Gc::ptr_eq(&source, &target) {
             return Ok(Ternary::True);
         }
-        if !self.is_matching_signature(&source, &target, partial_match) {
+        if !self.is_matching_signature(&source, &target, partial_match)? {
             return Ok(Ternary::False);
         }
         if length(source.maybe_type_parameters().as_deref())
@@ -48,12 +48,12 @@ impl TypeChecker {
                     || compare_types(
                         &self
                             .maybe_instantiate_type(
-                                self.get_constraint_from_type_parameter(s),
+                                self.get_constraint_from_type_parameter(s)?,
                                 Some(mapper.clone()),
                             )?
                             .unwrap_or_else(|| self.unknown_type()),
                         &self
-                            .get_constraint_from_type_parameter(t)
+                            .get_constraint_from_type_parameter(t)?
                             .unwrap_or_else(|| self.unknown_type()),
                     ) != Ternary::False
                         && compare_types(
@@ -276,12 +276,15 @@ impl TypeChecker {
                     .readonly
     }
 
-    pub(super) fn get_element_type_of_array_type(&self, type_: &Type) -> Option<Gc<Type>> {
-        if self.is_array_type(type_) {
-            self.get_type_arguments(type_).get(0).map(Clone::clone)
+    pub(super) fn get_element_type_of_array_type(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Option<Gc<Type>>> {
+        Ok(if self.is_array_type(type_) {
+            self.get_type_arguments(type_)?.get(0).cloned()
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn is_array_like_type(&self, type_: &Type) -> bool {
@@ -352,16 +355,16 @@ impl TypeChecker {
                 &bases[0],
                 Some(Gc::new(self.create_type_mapper(
                     target_type_parameters,
-                    Some(self.get_type_arguments(type_)[0..target_type_parameters_len].to_owned()),
+                    Some(self.get_type_arguments(type_)?[0..target_type_parameters_len].to_owned()),
                 ))),
             )?
         };
-        if length(Some(&self.get_type_arguments(type_)))
+        if length(Some(&self.get_type_arguments(type_)?))
             > length(target_as_interface_type.maybe_type_parameters())
         {
             instantiated_base = self.get_type_with_this_argument(
                 &instantiated_base,
-                Some(&**last(&self.get_type_arguments(type_))),
+                Some(&**last(&self.get_type_arguments(type_)?)),
                 None,
             )?;
         }
@@ -680,7 +683,7 @@ impl TypeChecker {
         let writing = writing.unwrap_or(false);
         let length = self.get_type_reference_arity(type_) - end_skip_count;
         if index < length {
-            let type_arguments = self.get_type_arguments(type_);
+            let type_arguments = self.get_type_arguments(type_)?;
             let mut element_types: Vec<Gc<Type>> = vec![];
             for i in index..length {
                 let t = &type_arguments[i];
@@ -922,7 +925,7 @@ impl TypeChecker {
                     Some(&vec![reduced_type]),
                     Option::<&Symbol>::None,
                     None,
-                )
+                )?
             } else {
                 reduced_type
             },
@@ -1078,7 +1081,7 @@ impl TypeChecker {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for ref property in self.get_properties_of_object_type(type_) {
             let original = self.get_type_of_symbol(property)?;
-            let updated = f(&original);
+            let updated = f(&original)?;
             members.insert(
                 property.escaped_name().to_owned(),
                 if Gc::ptr_eq(&updated, &original) {

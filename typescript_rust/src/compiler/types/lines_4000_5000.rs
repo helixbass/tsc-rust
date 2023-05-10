@@ -817,7 +817,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_all_accessor_declarations(
         &self,
         declaration: &Node, /*AccessorDeclaration*/
-    ) -> AllAccessorDeclarations;
+    ) -> io::Result<AllAccessorDeclarations>;
     fn get_symbol_of_external_module_specifier(
         &self,
         node: &Node, /*StringLiteralLike*/
@@ -826,14 +826,14 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node,
         decl: &Node, /*VariableDeclaration | BindingElement*/
-    ) -> bool;
+    ) -> io::Result<bool>;
     fn get_declaration_statements_for_source_file(
         &self,
         node: &Node, /*SourceFile*/
         flags: NodeBuilderFlags,
         tracker: Gc<Box<dyn SymbolTracker>>,
         bundled: Option<bool>,
-    ) -> Option<Vec<Gc<Node /*Statement*/>>>;
+    ) -> io::Result<Option<Vec<Gc<Node /*Statement*/>>>>;
     fn is_import_required_by_augmentation(
         &self,
         decl: &Node, /*ImportDeclaration*/

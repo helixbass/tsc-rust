@@ -708,7 +708,7 @@ impl TypeChecker {
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Gc<Type>>> {
         let contextual_type = if is_object_literal_method(node) {
-            self.get_contextual_type_for_object_literal_method(node, context_flags)
+            self.get_contextual_type_for_object_literal_method(node, context_flags)?
         } else {
             self.get_contextual_type_(node, context_flags)?
         };
@@ -721,11 +721,11 @@ impl TypeChecker {
                     .intersects(TypeFlags::TypeVariable))
             {
                 let apparent_type = self
-                    .map_type(
+                    .try_map_type(
                         &instantiated_type,
-                        &mut |type_| Some(self.get_apparent_type(type_)),
+                        &mut |type_| Ok(Some(self.get_apparent_type(type_)?)),
                         Some(true),
-                    )
+                    )?
                     .unwrap();
                 return Ok(
                     if apparent_type.flags().intersects(TypeFlags::Union)
@@ -760,7 +760,7 @@ impl TypeChecker {
         contextual_type: Option<impl Borrow<Type>>,
         node: &Node,
         context_flags: Option<ContextFlags>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let contextual_type =
             contextual_type.map(|contextual_type| contextual_type.borrow().type_wrapper());
         if let Some(contextual_type) = contextual_type.as_ref().filter(|contextual_type| {
@@ -781,21 +781,21 @@ impl TypeChecker {
                     context_flags,
                     Some(context_flags) if context_flags.intersects(ContextFlags::Signature)
                 ) {
-                    return Some(self.instantiate_instantiable_types(
+                    return Ok(Some(self.instantiate_instantiable_types(
                         contextual_type,
                         inference_context.non_fixing_mapper(),
-                    ));
+                    )?));
                 }
                 let inference_context_return_mapper = inference_context.maybe_return_mapper();
                 if let Some(inference_context_return_mapper) = inference_context_return_mapper {
-                    return Some(self.instantiate_instantiable_types(
+                    return Ok(Some(self.instantiate_instantiable_types(
                         contextual_type,
                         inference_context_return_mapper,
-                    ));
+                    )?));
                 }
             }
         }
-        contextual_type
+        Ok(contextual_type)
     }
 
     pub(super) fn instantiate_instantiable_types(
@@ -807,24 +807,24 @@ impl TypeChecker {
             return self.instantiate_type(type_, Some(mapper));
         }
         if type_.flags().intersects(TypeFlags::Union) {
-            return Ok(self.get_union_type(
-                &map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
+            return self.get_union_type(
+                &try_map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
                     self.instantiate_instantiable_types(t, mapper.clone())
-                }),
+                })?,
                 Some(UnionReduction::None),
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            ));
+            );
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
-            return Ok(self.get_intersection_type(
-                &map(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
+            return self.get_intersection_type(
+                &try_map(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
                     self.instantiate_instantiable_types(t, mapper.clone())
-                }),
+                })?,
                 Option::<&Symbol>::None,
                 None,
-            ));
+            );
         }
         Ok(type_.type_wrapper())
     }
@@ -862,7 +862,7 @@ impl TypeChecker {
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 let parent_type = parent.as_has_type().maybe_type().unwrap();
                 if is_const_type_reference(&parent_type) {
-                    self.try_find_when_const_type_reference(&parent)
+                    self.try_find_when_const_type_reference(&parent)?
                 } else {
                     Some(self.get_type_from_type_node_(&parent_type)?)
                 }
@@ -878,7 +878,8 @@ impl TypeChecker {
             }
             SyntaxKind::ArrayLiteralExpression => {
                 let array_literal = &parent;
-                let type_ = self.get_apparent_type_of_contextual_type(array_literal, context_flags);
+                let type_ =
+                    self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
                 self.get_contextual_type_for_element_expression(
                     type_,
                     index_of_node(&array_literal.as_array_literal_expression().elements, node)
@@ -887,7 +888,7 @@ impl TypeChecker {
                 )?
             }
             SyntaxKind::ConditionalExpression => {
-                self.get_contextual_type_for_conditional_operand(node, context_flags)
+                self.get_contextual_type_for_conditional_operand(node, context_flags)?
             }
             SyntaxKind::TemplateSpan => {
                 Debug_.assert(
@@ -915,7 +916,7 @@ impl TypeChecker {
                                     .type_,
                             )
                         {
-                            self.try_find_when_const_type_reference(&parent)
+                            self.try_find_when_const_type_reference(&parent)?
                         } else {
                             Some(
                                 self.get_type_from_type_node_(
@@ -934,10 +935,10 @@ impl TypeChecker {
             SyntaxKind::NonNullExpression => self.get_contextual_type_(&parent, context_flags),
             SyntaxKind::JsxExpression => self.get_contextual_type_for_jsx_expression(&parent),
             SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute => {
-                self.get_contextual_type_for_jsx_attribute_(&parent)
+                self.get_contextual_type_for_jsx_attribute_(&parent)?
             }
             SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
-                Some(self.get_contextual_jsx_element_attributes_type(&parent, context_flags))
+                Some(self.get_contextual_jsx_element_attributes_type(&parent, context_flags)?)
             }
             _ => None,
         })
@@ -998,7 +999,7 @@ impl TypeChecker {
         let intrinsic_attribs = self.get_jsx_type(&JsxNames::IntrinsicAttributes, Some(context))?;
         if !self.is_error_type(&intrinsic_attribs) {
             props_type = self
-                .intersect_types(Some(intrinsic_attribs), Some(&*props_type))
+                .intersect_types(Some(intrinsic_attribs), Some(&*props_type))?
                 .unwrap();
         }
         Ok(props_type)
@@ -1016,8 +1017,9 @@ impl TypeChecker {
                 if self.is_type_any(Some(&*instance)) {
                     return Ok(Some(instance));
                 }
-                let prop_type =
-                    self.get_type_of_property_of_type_(&instance, forced_lookup_location)?;
+                let prop_type = return_ok_default_if_none!(
+                    self.get_type_of_property_of_type_(&instance, forced_lookup_location)?
+                );
                 results.push(prop_type);
             }
             return Ok(Some(self.get_intersection_type(
@@ -1030,7 +1032,7 @@ impl TypeChecker {
         Ok(if self.is_type_any(Some(&*instance_type)) {
             Some(instance_type)
         } else {
-            self.get_type_of_property_of_type_(&instance_type, forced_lookup_location)
+            self.get_type_of_property_of_type_(&instance_type, forced_lookup_location)?
         })
     }
 

@@ -911,7 +911,7 @@ impl TypeChecker {
                         let type_checker = self.rc_wrapper();
                         (
                             Box::new(move || type_checker.get_type_of_symbol(&p_clone))
-                                as Box<dyn Fn() -> Gc<Type>>,
+                                as Box<dyn Fn() -> io::Result<Gc<Type>>>,
                             p.escaped_name().to_owned(),
                         )
                     }),
@@ -1254,7 +1254,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         entity_name: &Node, /*EntityNameOrEntityNameExpression*/
         enclosing_declaration: &Node,
-    ) -> SymbolVisibilityResult {
+    ) -> io::Result<SymbolVisibilityResult> {
         self.type_checker
             .is_entity_name_visible(entity_name, enclosing_declaration)
     }
@@ -1351,10 +1351,10 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         symbol: &Symbol,
         meaning: Option<SymbolFlags>,
-    ) -> Option<Vec<String>> {
+    ) -> io::Result<Option<Vec<String>>> {
         let file_to_directive = self.file_to_directive.as_ref()?;
-        if !self.is_symbol_from_type_declaration_file(symbol) {
-            return None;
+        if !self.is_symbol_from_type_declaration_file(symbol)? {
+            return Ok(None);
         }
         let mut type_reference_directives: Option<Vec<String>> = Default::default();
         for decl in symbol.maybe_declarations().as_ref().unwrap() {
@@ -1376,11 +1376,11 @@ impl EmitResolver for EmitResolverCreateResolver {
                         .get_or_insert_with(|| vec![])
                         .push(type_reference_directive.clone());
                 } else {
-                    return None;
+                    return Ok(None);
                 }
             }
         }
-        type_reference_directives
+        Ok(type_reference_directives)
     }
 
     fn is_literal_const_declaration(

@@ -810,10 +810,10 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_flow_type_of_property<TProp: Borrow<Symbol>>(
+    pub(super) fn get_flow_type_of_property(
         &self,
         reference: &Node,
-        prop: Option<TProp>,
+        prop: Option<impl Borrow<Symbol>>,
     ) -> io::Result<Gc<Type>> {
         let initial_type = prop.try_and_then(|prop| -> io::Result<_> {
             let prop = prop.borrow();

@@ -12,7 +12,7 @@ use crate::{
     get_span_of_token_at_position, get_text_of_node, has_static_modifier, has_syntactic_modifier,
     is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
     is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
-    maybe_for_each, some, try_for_each, try_for_each_bool, AsDoubleDeref,
+    maybe_for_each, some, try_for_each, try_for_each_bool, try_for_each_child, AsDoubleDeref,
     ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
     FindAncestorCallbackReturn, HasInitializerInterface, HasTypeArgumentsInterface, IndexInfo,
     InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
@@ -297,12 +297,12 @@ impl TypeChecker {
                 self.check_index_constraint_for_property(
                     type_,
                     prop,
-                    &self.get_literal_type_from_property(
+                    &*self.get_literal_type_from_property(
                         prop,
                         TypeFlags::StringOrNumberLiteralOrUnique,
                         Some(true),
                     )?,
-                    &self.get_non_missing_type_of_symbol(prop),
+                    &*self.get_non_missing_type_of_symbol(prop)?,
                 );
             }
         }
@@ -317,14 +317,14 @@ impl TypeChecker {
                     self.check_index_constraint_for_property(
                         type_,
                         &symbol,
-                        &self.get_type_of_expression(
+                        &*self.get_type_of_expression(
                             &member
                                 .as_named_declaration()
                                 .name()
                                 .as_computed_property_name()
                                 .expression,
                         )?,
-                        &self.get_non_missing_type_of_symbol(&symbol),
+                        &*self.get_non_missing_type_of_symbol(&symbol)?,
                     );
                 }
             }
@@ -394,7 +394,7 @@ impl TypeChecker {
                         !some(
                             Some(&self.get_base_types(type_)),
                             Some(|base: &Gc<Type>| {
-                                self.get_property_of_object_type(base, prop.escaped_name())
+                                self.get_property_of_object_type(base, prop.escaped_name())?
                                     .is_some()
                                     && self.get_index_type_of_type_(base, &info.key_type).is_some()
                             }),
@@ -596,7 +596,7 @@ impl TypeChecker {
                 for i in index..type_parameters.len() {
                     if are_option_gcs_equal(
                         type_.maybe_symbol().as_ref(),
-                        self.get_symbol_of_node(&type_parameters[i]).as_ref(),
+                        self.get_symbol_of_node(&type_parameters[i])?.as_ref(),
                     ) {
                         self.error(
                             Some(node),
@@ -607,11 +607,11 @@ impl TypeChecker {
                 }
             }
         }
-        for_each_child(
+        try_for_each_child(
             node,
             |child| self.check_type_parameters_not_referenced_visit(index, type_parameters, child),
-            Option::<fn(&NodeArray)>::None,
-        );
+            Option::<fn(&NodeArray) -> io::Result<()>>::None,
+        )?;
 
         Ok(())
     }
@@ -632,7 +632,7 @@ impl TypeChecker {
                 None => true,
                 Some(declarations) => declarations.len() <= 1,
             } {
-                return;
+                return Ok(());
             }
             let declarations = declarations.unwrap();
 
@@ -728,7 +728,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         self.check_class_like_declaration(node)?;
         self.check_node_deferred(node);
-        Ok(self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap()))
+        self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())
     }
 
     pub(super) fn check_class_expression_deferred(&self, node: &Node /*ClassExpression*/) {
@@ -843,7 +843,7 @@ impl TypeChecker {
             if !base_types.is_empty() && self.produce_diagnostics {
                 let base_type = &base_types[0];
                 let base_constructor_type = self.get_base_constructor_type_of_class(&type_)?;
-                let static_base_type = self.get_apparent_type(&base_constructor_type);
+                let static_base_type = self.get_apparent_type(&base_constructor_type)?;
                 self.check_base_type_accessibility(&static_base_type, base_type_node);
                 self.check_source_element(Some(
                     &*base_type_node_as_expression_with_type_arguments.expression,
@@ -910,7 +910,7 @@ impl TypeChecker {
                     .flags()
                     .intersects(TypeFlags::TypeVariable)
                 {
-                    if !self.is_mixin_constructor_type(&static_type) {
+                    if !self.is_mixin_constructor_type(&static_type)? {
                         self.error(
                             Some(node_as_class_like_declaration.maybe_name().unwrap_or_else(|| node.node_wrapper())),
                             &Diagnostics::A_mixin_class_must_have_a_constructor_with_a_single_rest_parameter_of_type_any,
@@ -990,7 +990,8 @@ impl TypeChecker {
                 }
                 self.check_type_reference_node(type_ref_node);
                 if self.produce_diagnostics {
-                    let t = self.get_reduced_type(&*self.get_type_from_type_node_(type_ref_node)?);
+                    let t =
+                        self.get_reduced_type(&*self.get_type_from_type_node_(type_ref_node)?)?;
                     if !self.is_error_type(&t) {
                         if self.is_valid_base_type(&t) {
                             let generic_diag = if matches!(

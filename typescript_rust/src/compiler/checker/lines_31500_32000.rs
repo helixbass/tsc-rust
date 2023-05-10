@@ -482,13 +482,13 @@ impl TypeChecker {
             }
 
             if let Some(yield_type_present) = yield_type {
-                yield_type = Some(self.get_widened_type(&yield_type_present));
+                yield_type = Some(self.get_widened_type(&yield_type_present)?);
             }
             if let Some(return_type_present) = return_type {
-                return_type = Some(self.get_widened_type(&return_type_present));
+                return_type = Some(self.get_widened_type(&return_type_present)?);
             }
             if let Some(next_type_present) = next_type {
-                next_type = Some(self.get_widened_type(&next_type_present));
+                next_type = Some(self.get_widened_type(&next_type_present)?);
             }
         }
 
@@ -613,7 +613,7 @@ impl TypeChecker {
                             IterationUse::YieldStar
                         },
                         yield_expression_as_yield_expression.expression.as_deref(),
-                    );
+                    )?;
                     next_type = iteration_types.map(|iteration_types| iteration_types.next_type());
                 } else {
                     next_type = self.get_contextual_type_(yield_expression, None)?;
@@ -954,7 +954,7 @@ impl TypeChecker {
                 }
                 let inferred_return_type =
                     self.get_return_type_of_signature(self.get_signature_from_declaration_(func)?)?;
-                if self.is_unwrapped_return_type_void_or_any(func, &inferred_return_type) {
+                if self.is_unwrapped_return_type_void_or_any(func, &inferred_return_type)? {
                     return Ok(());
                 }
             }

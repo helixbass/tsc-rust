@@ -10,10 +10,10 @@ use crate::{
     append, IterationTypeCacheKey, SymbolInterface, __String, filter, for_each,
     for_each_child_bool, get_containing_function_or_class_static_block, get_function_flags,
     is_binary_expression, is_binding_pattern, is_class_static_block_declaration, is_identifier,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, IterationTypes,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry, ScriptTarget, Symbol,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    try_for_each_child_bool, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags,
+    IterationTypes, NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry,
+    ScriptTarget, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -21,23 +21,23 @@ impl TypeChecker {
         &self,
         node: &Node,
         tested_symbol: &Symbol,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let mut node = node.node_wrapper();
         while is_binary_expression(&node)
             && node.as_binary_expression().operator_token.kind()
                 == SyntaxKind::AmpersandAmpersandToken
         {
-            let is_used = for_each_child_bool(
+            let is_used = try_for_each_child_bool(
                 &node.as_binary_expression().right,
                 |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
-                Option::<fn(&NodeArray) -> bool>::None,
-            );
+                Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            )?;
             if is_used {
-                return true;
+                return Ok(true);
             }
             node = node.parent();
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_symbol_used_in_binary_expression_chain_visit(
@@ -54,11 +54,11 @@ impl TypeChecker {
                 return Ok(true);
             }
         }
-        Ok(for_each_child_bool(
+        try_for_each_child_bool(
             child,
             |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
-            Option::<fn(&NodeArray) -> bool>::None,
-        ))
+            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+        )
     }
 
     pub(super) fn check_do_statement(&self, node: &Node /*DoStatement*/) {
@@ -176,7 +176,7 @@ impl TypeChecker {
             self.check_for_in_or_for_of_variable_declaration(node);
         } else {
             let var_expr = &node_as_for_of_statement.initializer;
-            let iterated_type = self.check_right_hand_side_of_for_of(node);
+            let iterated_type = self.check_right_hand_side_of_for_of(node)?;
 
             if matches!(
                 var_expr.kind(),
@@ -388,7 +388,7 @@ impl TypeChecker {
                 } else {
                     None
                 },
-            );
+            )?;
             if check_assignability {
                 if let Some(iteration_types) = iteration_types.as_ref() {
                     let diagnostic = if use_.intersects(IterationUse::ForOfFlag) {
@@ -624,15 +624,15 @@ impl TypeChecker {
         type_kind: IterationTypeKind,
         input_type: &Type,
         error_node: Option<TErrorNode>,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if self.is_type_any(Some(input_type)) {
-            return None;
+            return Ok(None);
         }
 
-        let iteration_types = self.get_iteration_types_of_iterable(input_type, use_, error_node);
-        iteration_types.as_ref().map(|iteration_types| {
+        let iteration_types = self.get_iteration_types_of_iterable(input_type, use_, error_node)?;
+        Ok(iteration_types.as_ref().map(|iteration_types| {
             iteration_types.get_by_key(get_iteration_types_key_from_iteration_type_kind(type_kind))
-        })
+        }))
     }
 
     pub(super) fn create_iteration_types(
@@ -832,7 +832,7 @@ impl TypeChecker {
                     .into_iter()
                     .map(Option::Some)
                     .collect::<Vec<_>>(),
-            )
+            )?
         } else {
             self.no_iteration_types()
         };

@@ -49,7 +49,7 @@ impl TypeChecker {
             if get_effective_return_type_node(node).is_none()
                 && !has_context_sensitive_parameters(node)
             {
-                let contextual_signature = self.get_contextual_signature(node);
+                let contextual_signature = self.get_contextual_signature(node)?;
                 if matches!(
                     contextual_signature.as_ref(),
                     Some(contextual_signature) if self.could_contain_type_variables(&*self.get_return_type_of_signature(contextual_signature.clone())?)
@@ -112,7 +112,7 @@ impl TypeChecker {
             .flags
             .intersects(NodeCheckFlags::ContextChecked)
         {
-            let contextual_signature = self.get_contextual_signature(node);
+            let contextual_signature = self.get_contextual_signature(node)?;
             if !(*links)
                 .borrow()
                 .flags
@@ -761,7 +761,7 @@ impl TypeChecker {
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken => {
                 let ok = self.check_arithmetic_operand_type(
                     &node_as_prefix_unary_expression.operand,
-                    &self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand),
+                    &*self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand)?,
                     &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
                     None
                 )?;
@@ -790,7 +790,7 @@ impl TypeChecker {
         }
         let ok = self.check_arithmetic_operand_type(
             &node_as_postfix_unary_expression.operand,
-            &self.check_non_null_type(&operand_type, &node_as_postfix_unary_expression.operand),
+            &*self.check_non_null_type(&operand_type, &node_as_postfix_unary_expression.operand)?,
             &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
             None,
         )?;
@@ -937,11 +937,11 @@ impl TypeChecker {
         right: &Node, /*Expression*/
         left_type: &Type,
         right_type: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if ptr::eq(left_type, &*self.silent_never_type())
             || ptr::eq(right_type, &*self.silent_never_type())
         {
-            return self.silent_never_type();
+            return Ok(self.silent_never_type());
         }
         let mut left_type = left_type.type_wrapper();
         if is_private_identifier(left) {
@@ -959,7 +959,7 @@ impl TypeChecker {
                 self.report_nonexistent_property(left, right_type, is_unchecked_js);
             }
         } else {
-            left_type = self.check_non_null_type(&left_type, left);
+            left_type = self.check_non_null_type(&left_type, left)?;
             if !(self.all_types_assignable_to_kind(
                 &left_type,
                 TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
@@ -979,7 +979,7 @@ impl TypeChecker {
                 );
             }
         }
-        let right_type = self.check_non_null_type(right_type, right);
+        let right_type = self.check_non_null_type(right_type, right)?;
         let right_type_constraint = self.get_constraint_of_type(&right_type);
         if !self.all_types_assignable_to_kind(
             &right_type,
@@ -1005,6 +1005,6 @@ impl TypeChecker {
                 None,
             );
         }
-        self.boolean_type()
+        Ok(self.boolean_type())
     }
 }

@@ -122,7 +122,7 @@ impl TypeChecker {
             if let Some(es_module_symbol) = es_module_symbol.as_ref() {
                 return self.create_promise_return_type(
                     node,
-                    &self
+                    &*self
                         .get_type_with_synthetic_default_only(
                             &*self.get_type_of_symbol(es_module_symbol)?,
                             es_module_symbol,
@@ -329,7 +329,7 @@ impl TypeChecker {
         if self.language_version < ScriptTarget::ES2015 {
             self.check_external_emit_helpers(node, ExternalEmitHelpers::MakeTemplateObject);
         }
-        let signature = self.get_resolved_signature_(node, None, None);
+        let signature = self.get_resolved_signature_(node, None, None)?;
         self.check_deprecated_signature(signature.clone(), node);
         self.get_return_type_of_signature(signature)
     }
@@ -398,7 +398,7 @@ impl TypeChecker {
                 }
                 matches!(
                     symbol.as_ref(),
-                    Some(symbol) if symbol.flags().intersects(SymbolFlags::Enum) && self.get_enum_kind(symbol) == EnumKind::Literal
+                    Some(symbol) if symbol.flags().intersects(SymbolFlags::Enum) && self.get_enum_kind(symbol)? == EnumKind::Literal
                 )
             }
             _ => false,
@@ -429,7 +429,7 @@ impl TypeChecker {
         )?;
         let target_type = self.get_type_from_type_node_(type_)?;
         if self.produce_diagnostics && !self.is_error_type(&target_type) {
-            let widened_type = self.get_widened_type(&expr_type);
+            let widened_type = self.get_widened_type(&expr_type)?;
             if !self.is_type_comparable_to(&target_type, &widened_type) {
                 self.check_type_comparable_to(
                     &expr_type,
@@ -489,8 +489,6 @@ impl TypeChecker {
         }
 
         Debug_.assert_never(node_as_meta_property.keyword_token, None);
-
-        Ok(())
     }
 
     pub(super) fn check_meta_property_keyword(
@@ -1008,7 +1006,7 @@ impl TypeChecker {
             !self.is_array_type(rest_type)
                 && !self.is_type_any(Some(&**rest_type))
                 && !self
-                    .get_reduced_type(rest_type)
+                    .get_reduced_type(rest_type)?
                     .flags()
                     .intersects(TypeFlags::Never)
         }))

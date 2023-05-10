@@ -633,7 +633,7 @@ impl TypeChecker {
             }
             return Ok(type_.type_wrapper());
         }
-        let apparent_object_type = self.get_apparent_type(object_type);
+        let apparent_object_type = self.get_apparent_type(object_type)?;
         if self
             .get_index_info_of_type_(&apparent_object_type, &self.number_type())
             .is_some()
@@ -692,7 +692,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_mapped_type(&self, node: &Node /*MappedTypeNode*/) {
+    pub(super) fn check_mapped_type(&self, node: &Node /*MappedTypeNode*/) -> io::Result<()> {
         self.check_grammar_mapped_type(node);
         let node_as_mapped_type_node = node.as_mapped_type_node();
         self.check_source_element(Some(&*node_as_mapped_type_node.type_parameter));
@@ -703,8 +703,8 @@ impl TypeChecker {
             self.report_implicit_any(node, &self.any_type(), None);
         }
 
-        let type_ = self.get_type_from_mapped_type_node(node);
-        let name_type = self.get_name_type_from_mapped_type(&type_);
+        let type_ = self.get_type_from_mapped_type_node(node)?;
+        let name_type = self.get_name_type_from_mapped_type(&type_)?;
         if let Some(name_type) = name_type.as_ref() {
             self.check_type_assignable_to(
                 name_type,
@@ -727,6 +727,8 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn check_grammar_mapped_type(&self, node: &Node /*MappedTypeNode*/) -> bool {
@@ -1111,7 +1113,7 @@ impl TypeChecker {
                     if !self.is_implementation_compatible_with_overload(
                         body_signature.clone(),
                         signature.clone(),
-                    ) {
+                    )? {
                         add_related_info(
                             &self.error(
                                 signature.declaration.as_deref(),

@@ -80,7 +80,7 @@ impl TypeChecker {
         pattern: &Node, /*ArrayBindingPattern*/
     ) -> io::Result<Gc<Type>> {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
-        let mut element_types = self.get_type_arguments(type_);
+        let mut element_types = self.get_type_arguments(type_)?;
         let type_target_as_tuple_type = type_.as_type_reference().target.as_tuple_type();
         let mut element_flags = type_target_as_tuple_type.element_flags.clone();
         for i in self.get_type_reference_arity(type_)..pattern_elements.len() {
@@ -293,8 +293,10 @@ impl TypeChecker {
                 .as_ref()
                 .filter(|signature| signature.maybe_type_parameters().is_some())
             {
-                let contextual_type = self
-                    .get_apparent_type_of_contextual_type(node, Some(ContextFlags::NoConstraints));
+                let contextual_type = self.get_apparent_type_of_contextual_type(
+                    node,
+                    Some(ContextFlags::NoConstraints),
+                )?;
                 if let Some(contextual_type) = contextual_type.as_ref() {
                     let contextual_signature = self.get_single_signature(
                         &*self.get_non_nullable_type(contextual_type)?,
@@ -401,7 +403,7 @@ impl TypeChecker {
                                 contextual_signature.clone(),
                                 Some(&context),
                                 None,
-                            ),
+                            )?,
                         ));
                     }
                 }
@@ -823,7 +825,7 @@ impl TypeChecker {
                 }
                 self.check_call_expression(node, check_mode)?
             }
-            SyntaxKind::NewExpression => self.check_call_expression(node, check_mode),
+            SyntaxKind::NewExpression => self.check_call_expression(node, check_mode)?,
             SyntaxKind::TaggedTemplateExpression => self.check_tagged_template_expression(node),
             SyntaxKind::ParenthesizedExpression => {
                 self.check_parenthesized_expression(node, check_mode)?

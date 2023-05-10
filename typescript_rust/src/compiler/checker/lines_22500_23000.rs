@@ -368,7 +368,7 @@ impl TypeChecker {
         if let Some(type_) = type_ {
             let type_ = type_.borrow();
             if type_.flags().intersects(TypeFlags::Union) {
-                let prop = self.get_union_or_intersection_property(type_, name, None);
+                let prop = self.get_union_or_intersection_property(type_, name, None)?;
                 if let Some(prop) = prop
                     .as_ref()
                     .filter(|prop| get_check_flags(prop).intersects(CheckFlags::SyntheticProperty))
@@ -1054,7 +1054,7 @@ impl TypeChecker {
         let parent = node.parent();
         Ok(match parent.kind() {
             SyntaxKind::ForInStatement => self.string_type(),
-            SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(&parent), /*|| errorType*/
+            SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(&parent)?, /*|| errorType*/
             SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(&parent)?,
             SyntaxKind::DeleteExpression => self.undefined_type(),
             SyntaxKind::ArrayLiteralExpression => {

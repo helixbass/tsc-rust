@@ -50,24 +50,24 @@ impl TypeChecker {
             let mut type_: Option<Gc<Type>> = None;
             let meaning = SymbolFlags::Type;
             if self.is_jsdoc_type_reference(node) {
-                type_ = self.get_intended_type_from_jsdoc_type_reference(node);
+                type_ = self.get_intended_type_from_jsdoc_type_reference(node)?;
                 if type_.is_none() {
-                    symbol = Some(self.resolve_type_reference_name(node, meaning, Some(true)));
+                    symbol = Some(self.resolve_type_reference_name(node, meaning, Some(true))?);
                     if Gc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
                         symbol = Some(self.resolve_type_reference_name(
                             node,
                             meaning | SymbolFlags::Value,
                             None,
-                        ));
+                        )?);
                     } else {
                         self.resolve_type_reference_name(node, meaning, None);
                     }
-                    type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap()));
+                    type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap())?);
                 }
             }
             if type_.is_none() {
-                symbol = Some(self.resolve_type_reference_name(node, meaning, None));
-                type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap()));
+                symbol = Some(self.resolve_type_reference_name(node, meaning, None)?);
+                type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap()?));
             }
             {
                 let mut links = links.borrow_mut();
@@ -103,7 +103,7 @@ impl TypeChecker {
                 self.check_expression(&node_as_type_query_node.expr_name, None, None)?
             };
             links.borrow_mut().resolved_type =
-                Some(self.get_regular_type_of_literal_type(&self.get_widened_type(&type_)));
+                Some(self.get_regular_type_of_literal_type(&*self.get_widened_type(&type_)?));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
         Ok(ret)
@@ -858,12 +858,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn may_resolve_type_alias(&self, node: &Node) -> bool {
-        match node.kind() {
+    pub(super) fn may_resolve_type_alias(&self, node: &Node) -> io::Result<bool> {
+        Ok(match node.kind() {
             SyntaxKind::TypeReference => {
                 self.is_jsdoc_type_reference(node)
                     || self
-                        .resolve_type_reference_name(node, SymbolFlags::Type, None)
+                        .resolve_type_reference_name(node, SymbolFlags::Type, None)?
                         .flags()
                         .intersects(SymbolFlags::TypeAlias)
             }
@@ -909,7 +909,7 @@ impl TypeChecker {
                     || self.may_resolve_type_alias(&node_as_conditional_type_node.false_type)
             }
             _ => false,
-        }
+        })
     }
 
     pub(super) fn get_type_from_array_or_tuple_type_node(
@@ -929,7 +929,7 @@ impl TypeChecker {
                             .intersects(ElementFlags::Variadic)
                     }),
                 ))
-                && self.is_deferred_type_reference_node(node, None)
+                && self.is_deferred_type_reference_node(node, None)?
             {
                 links.borrow_mut().resolved_type = Some(
                     if node.kind() == SyntaxKind::TupleType
@@ -943,7 +943,7 @@ impl TypeChecker {
                             None,
                             Option::<&Symbol>::None,
                             None,
-                        )
+                        )?
                     },
                 );
             } else {

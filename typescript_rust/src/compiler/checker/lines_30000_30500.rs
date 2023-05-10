@@ -58,7 +58,7 @@ impl TypeChecker {
                         .iter()
                         .map(|parameter: &Gc<Symbol>| self.get_type_of_parameter(parameter))
                         .collect::<Result<Vec<_>, _>>()?,
-                ),
+                )?,
             );
         }
         let MinAndMax {
@@ -90,7 +90,7 @@ impl TypeChecker {
                 &try_map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
                     self.try_get_type_at_position(candidate, i)
                 })?,
-            ));
+            )?);
         }
         let rest_parameter_symbols = map_defined(Some(candidates), |c: &Gc<Signature>, _| {
             if signature_has_rest_parameter(c) {
@@ -193,7 +193,7 @@ impl TypeChecker {
                 None => args.len(),
                 Some(apparent_argument_count) => apparent_argument_count,
             },
-        );
+        )?;
         let candidate = &candidates[best_index];
         let type_parameters = candidate.maybe_type_parameters().clone();
         if type_parameters.is_none() {
@@ -376,7 +376,7 @@ impl TypeChecker {
             return Ok(self.silent_never_signature());
         }
 
-        let apparent_type = self.get_apparent_type(&func_type);
+        let apparent_type = self.get_apparent_type(&func_type)?;
         if self.is_error_type(&apparent_type) {
             return Ok(self.resolve_error_call(node));
         }
@@ -502,18 +502,18 @@ impl TypeChecker {
         apparent_func_type: &Type,
         num_call_signatures: usize,
         num_construct_signatures: usize,
-    ) -> bool {
-        self.is_type_any(Some(func_type))
+    ) -> io::Result<bool> {
+        Ok(self.is_type_any(Some(func_type))
             || self.is_type_any(Some(apparent_func_type))
                 && func_type.flags().intersects(TypeFlags::TypeParameter)
             || num_call_signatures == 0
                 && num_construct_signatures == 0
                 && !apparent_func_type.flags().intersects(TypeFlags::Union)
                 && !self
-                    .get_reduced_type(apparent_func_type)
+                    .get_reduced_type(apparent_func_type)?
                     .flags()
                     .intersects(TypeFlags::Never)
-                && self.is_type_assignable_to(func_type, &self.global_function_type())
+                && self.is_type_assignable_to(func_type, &self.global_function_type()))
     }
 
     pub(super) fn resolve_new_expression(
@@ -542,7 +542,7 @@ impl TypeChecker {
             return Ok(self.silent_never_signature());
         }
 
-        expression_type = self.get_apparent_type(&expression_type);
+        expression_type = self.get_apparent_type(&expression_type)?;
         if self.is_error_type(&expression_type) {
             return Ok(self.resolve_error_call(node));
         }

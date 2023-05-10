@@ -6,6 +6,8 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, IterationUse, JsxNames};
+use crate::return_ok_default_if_none;
+use crate::try_filter;
 use crate::try_reduce_left_no_initial_value_optional;
 use crate::OptionTry;
 use crate::{
@@ -47,12 +49,12 @@ impl TypeChecker {
                         2,
                         is_in_js_file(Some(context)),
                     )?;
-                    return Ok(self.get_type_alias_instantiation(
+                    return self.get_type_alias_instantiation(
                         managed_sym,
                         args.as_deref(),
                         Option::<&Symbol>::None,
                         None,
-                    ));
+                    );
                 }
             }
             if length(
@@ -68,7 +70,7 @@ impl TypeChecker {
                         .maybe_type_parameters(),
                     2,
                     is_in_js_file(Some(context)),
-                );
+                )?;
                 return Ok(self.create_type_reference(&declared_managed_type, args));
             }
         }
@@ -81,7 +83,7 @@ impl TypeChecker {
         context: &Node, /*JsxOpeningLikeElement*/
     ) -> io::Result<Gc<Type>> {
         let ns = self.get_jsx_namespace_at(Some(context))?;
-        let forced_lookup_location = self.get_jsx_element_properties_name(ns.as_deref());
+        let forced_lookup_location = self.get_jsx_element_properties_name(ns.as_deref())?;
         let attributes_type = match forced_lookup_location.as_ref() {
             None => Some(self.get_type_of_first_parameter_of_signature_with_fallback(
                 &sig,
@@ -94,7 +96,7 @@ impl TypeChecker {
                     self.get_jsx_props_type_for_signature_from_member(
                         sig.clone(),
                         forced_lookup_location,
-                    )
+                    )?
                 }
             }
         };
@@ -126,20 +128,20 @@ impl TypeChecker {
             context,
             ns.as_deref(),
             &attributes_type,
-        );
+        )?;
 
         Ok(if self.is_type_any(Some(&*attributes_type)) {
             attributes_type
         } else {
             let mut apparent_attributes_type = attributes_type.clone();
             let intrinsic_class_attribs =
-                self.get_jsx_type(&JsxNames::IntrinsicClassAttributes, Some(context));
+                self.get_jsx_type(&JsxNames::IntrinsicClassAttributes, Some(context))?;
             if !self.is_error_type(&intrinsic_class_attribs) {
                 let type_params = self
                     .get_local_type_parameters_of_class_or_interface_or_type_alias(
                         &intrinsic_class_attribs.symbol(),
-                    );
-                let host_class_type = self.get_return_type_of_signature(sig.clone());
+                    )?;
+                let host_class_type = self.get_return_type_of_signature(sig.clone())?;
                 apparent_attributes_type = self
                     .intersect_types(
                         Some(if let Some(type_params) = type_params.as_ref() {
@@ -150,21 +152,21 @@ impl TypeChecker {
                                     Some(type_params),
                                     self.get_min_type_argument_count(Some(type_params)),
                                     is_in_js_file(Some(context)),
-                                ),
+                                )?,
                             )
                         } else {
                             intrinsic_class_attribs
                         }),
                         Some(apparent_attributes_type),
-                    )
+                    )?
                     .unwrap();
             }
 
             let intrinsic_attribs =
-                self.get_jsx_type(&JsxNames::IntrinsicAttributes, Some(context));
+                self.get_jsx_type(&JsxNames::IntrinsicAttributes, Some(context))?;
             if !self.is_error_type(&intrinsic_attribs) {
                 apparent_attributes_type = self
-                    .intersect_types(Some(intrinsic_attribs), Some(apparent_attributes_type))
+                    .intersect_types(Some(intrinsic_attribs), Some(apparent_attributes_type))?
                     .unwrap();
             }
 
@@ -194,7 +196,7 @@ impl TypeChecker {
                                 Some(self.combine_signatures_of_intersection_members(
                                     left.clone().unwrap(),
                                     right.clone(),
-                                ))
+                                )?)
                             } else {
                                 None
                             },
@@ -261,15 +263,15 @@ impl TypeChecker {
         let mut params: Vec<Gc<Symbol>> =
             Vec::with_capacity(longest_count + if needs_extra_rest_element { 1 } else { 0 });
         for i in 0..longest_count {
-            let mut longest_param_type = self.try_get_type_at_position(longest, i).unwrap();
+            let mut longest_param_type = self.try_get_type_at_position(longest, i)?.unwrap();
             if ptr::eq(longest, right) {
-                longest_param_type = self.instantiate_type(&longest_param_type, mapper.clone());
+                longest_param_type = self.instantiate_type(&longest_param_type, mapper.clone())?;
             }
             let mut shorter_param_type = self
-                .try_get_type_at_position(shorter, i)
+                .try_get_type_at_position(shorter, i)?
                 .unwrap_or_else(|| self.unknown_type());
             if ptr::eq(shorter, right) {
-                shorter_param_type = self.instantiate_type(&shorter_param_type, mapper.clone());
+                shorter_param_type = self.instantiate_type(&shorter_param_type, mapper.clone())?;
             }
             let union_param_type = self.get_union_type(
                 &[longest_param_type, shorter_param_type],
@@ -277,20 +279,20 @@ impl TypeChecker {
                 Option::<&Symbol>::None,
                 None,
                 Option::<&Type>::None,
-            );
+            )?;
             let is_rest_param =
                 either_has_effective_rest && !needs_extra_rest_element && i == longest_count - 1;
-            let is_optional = i >= self.get_min_argument_count(longest, None)
-                && i >= self.get_min_argument_count(shorter, None);
+            let is_optional = i >= self.get_min_argument_count(longest, None)?
+                && i >= self.get_min_argument_count(shorter, None)?;
             let left_name = if i >= left_count {
                 None
             } else {
-                Some(self.get_parameter_name_at_position(left, i, Option::<&Type>::None))
+                Some(self.get_parameter_name_at_position(left, i, Option::<&Type>::None)?)
             };
             let right_name = if i >= right_count {
                 None
             } else {
-                Some(self.get_parameter_name_at_position(right, i, Option::<&Type>::None))
+                Some(self.get_parameter_name_at_position(right, i, Option::<&Type>::None)?)
             };
 
             let param_name = if left_name == right_name {
@@ -330,7 +332,7 @@ impl TypeChecker {
                 .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
                 .into();
             let rest_param_symbol_type =
-                self.create_array_type(&self.get_type_at_position(shorter, longest_count), None);
+                self.create_array_type(&*self.get_type_at_position(shorter, longest_count)?, None);
             rest_param_symbol
                 .as_transient_symbol()
                 .symbol_links()
@@ -365,7 +367,7 @@ impl TypeChecker {
             )));
         }
         let declaration = left.declaration.as_ref();
-        let params = self.combine_intersection_parameters(&left, &right, param_mapper.clone());
+        let params = self.combine_intersection_parameters(&left, &right, param_mapper.clone())?;
         let this_param = self.combine_intersection_this_param(
             left.maybe_this_parameter().as_deref(),
             right.maybe_this_parameter().as_deref(),
@@ -411,14 +413,16 @@ impl TypeChecker {
         &self,
         type_: &Type,
         node: &Node, /*SignatureDeclaration*/
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
-        let applicable_by_arity = filter(&signatures, |s| !self.is_arity_smaller(s, node));
-        if applicable_by_arity.len() == 1 {
+        let applicable_by_arity = try_filter(&signatures, |s| -> io::Result<_> {
+            Ok(!self.is_arity_smaller(s, node)?)
+        })?;
+        Ok(if applicable_by_arity.len() == 1 {
             Some(applicable_by_arity[0].clone())
         } else {
             self.get_intersected_signatures(&applicable_by_arity)
-        }
+        })
     }
 
     pub(super) fn is_arity_smaller(
@@ -452,12 +456,14 @@ impl TypeChecker {
     pub(super) fn get_contextual_signature_for_function_like_declaration(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
-    ) -> Option<Gc<Signature>> {
-        if is_function_expression_or_arrow_function(node) || is_object_literal_method(node) {
-            self.get_contextual_signature(node)
-        } else {
-            None
-        }
+    ) -> io::Result<Option<Gc<Signature>>> {
+        Ok(
+            if is_function_expression_or_arrow_function(node) || is_object_literal_method(node) {
+                self.get_contextual_signature(node)?
+            } else {
+                None
+            },
+        )
     }
 
     pub(super) fn get_contextual_signature(
@@ -472,8 +478,9 @@ impl TypeChecker {
         if type_tag_signature.is_some() {
             return Ok(type_tag_signature);
         }
-        let type_ =
-            self.get_apparent_type_of_contextual_type(node, Some(ContextFlags::Signature))?;
+        let type_ = return_ok_default_if_none!(
+            self.get_apparent_type_of_contextual_type(node, Some(ContextFlags::Signature))?
+        );
         if !type_.flags().intersects(TypeFlags::Union) {
             return Ok(self.get_contextual_call_signature(&type_, node));
         }
@@ -579,7 +586,7 @@ impl TypeChecker {
         let element_count = elements.len();
         let mut element_types: Vec<Gc<Type>> = vec![];
         let mut element_flags: Vec<ElementFlags> = vec![];
-        let contextual_type = self.get_apparent_type_of_contextual_type(node, None);
+        let contextual_type = self.get_apparent_type_of_contextual_type(node, None)?;
         let in_destructuring_pattern = is_assignment_target(node);
         let in_const_context = self.is_const_context(node);
         let mut has_omitted_expression = false;
@@ -689,7 +696,7 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 Option::<&Symbol>::None,
                                 None,
-                            )
+                            )?
                             .unwrap_or_else(|| self.any_type())
                         } else {
                             t.clone()
@@ -733,9 +740,9 @@ impl TypeChecker {
             .unwrap()
     }
 
-    pub(super) fn is_numeric_name(&self, name: &Node /*DeclarationName*/) -> bool {
-        match name.kind() {
-            SyntaxKind::ComputedPropertyName => self.is_numeric_computed_name(name),
+    pub(super) fn is_numeric_name(&self, name: &Node /*DeclarationName*/) -> io::Result<bool> {
+        Ok(match name.kind() {
+            SyntaxKind::ComputedPropertyName => self.is_numeric_computed_name(name)?,
             SyntaxKind::Identifier => {
                 self.is_numeric_literal_name(&name.as_identifier().escaped_text)
             }
@@ -743,7 +750,7 @@ impl TypeChecker {
                 self.is_numeric_literal_name(&name.as_literal_like_node().text())
             }
             _ => false,
-        }
+        })
     }
 
     pub(super) fn is_numeric_computed_name(
@@ -868,10 +875,10 @@ impl TypeChecker {
         let mut prop_types: Vec<Gc<Type>> = vec![];
         for i in offset..properties.len() {
             let prop = &properties[i];
-            if ptr::eq(key_type, &*self.string_type()) && !self.is_symbol_with_symbol_name(prop)
+            if ptr::eq(key_type, &*self.string_type()) && !self.is_symbol_with_symbol_name(prop)?
                 || ptr::eq(key_type, &*self.number_type()) && self.is_symbol_with_numeric_name(prop)
                 || ptr::eq(key_type, &*self.es_symbol_type())
-                    && self.is_symbol_with_symbol_name(prop)
+                    && self.is_symbol_with_symbol_name(prop)?
             {
                 prop_types.push(self.get_type_of_symbol(&properties[i])?);
             }
@@ -936,7 +943,7 @@ impl TypeChecker {
         let mut properties_array: Vec<Gc<Symbol>> = vec![];
         let mut spread: Gc<Type> = self.empty_object_type();
 
-        let contextual_type = self.get_apparent_type_of_contextual_type(node, None);
+        let contextual_type = self.get_apparent_type_of_contextual_type(node, None)?;
         let contextual_type_has_pattern = matches!(
             contextual_type.as_ref(),
             Some(contextual_type) if matches!(
@@ -1182,7 +1189,7 @@ impl TypeChecker {
                     &member_decl.as_has_expression().expression(),
                     None,
                     None,
-                )?);
+                )?)?;
                 if self.is_valid_spread_type(&type_) {
                     let merged_type = self.try_merge_union_of_object_type_and_empty_object(
                         &type_,

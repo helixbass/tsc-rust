@@ -35,7 +35,7 @@ impl TypeChecker {
 
     pub(super) fn symbol_has_non_method_declaration(&self, symbol: &Symbol) -> io::Result<bool> {
         self.for_each_property_bool(symbol, &mut |prop: &Symbol| {
-            !prop.flags().intersects(SymbolFlags::Method)
+            Ok(!prop.flags().intersects(SymbolFlags::Method))
         })
     }
 
@@ -43,7 +43,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression | QualifiedName*/
     ) -> io::Result<Gc<Type>> {
-        Ok(self.check_non_null_type(&*self.check_expression(node, None, None)?, node))
+        self.check_non_null_type(&*self.check_expression(node, None, None)?, node)
     }
 
     pub(super) fn is_nullable_type(&self, type_: &Type) -> bool {
@@ -138,12 +138,16 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn check_non_null_non_void_type(&self, type_: &Type, node: &Node) -> Gc<Type> {
-        let non_null_type = self.check_non_null_type(type_, node);
+    pub(super) fn check_non_null_non_void_type(
+        &self,
+        type_: &Type,
+        node: &Node,
+    ) -> io::Result<Gc<Type>> {
+        let non_null_type = self.check_non_null_type(type_, node)?;
         if non_null_type.flags().intersects(TypeFlags::Void) {
             self.error(Some(node), &Diagnostics::Object_is_possibly_undefined, None);
         }
-        non_null_type
+        Ok(non_null_type)
     }
 
     pub(super) fn check_property_access_expression(
@@ -181,10 +185,10 @@ impl TypeChecker {
             &*self.check_property_access_expression_or_qualified_name(
                 node,
                 &node_as_property_access_expression.expression,
-                &self.check_non_null_type(
+                &*self.check_non_null_type(
                     &non_optional_type,
                     &node_as_property_access_expression.expression,
-                ),
+                )?,
                 &node_as_property_access_expression.name,
                 check_mode,
             )?,
@@ -205,7 +209,7 @@ impl TypeChecker {
             self.check_non_null_type(
                 &*self.check_this_expression(&node_as_qualified_name.left)?,
                 &node_as_qualified_name.left,
-            )
+            )?
         } else {
             self.check_non_null_expression(&node_as_qualified_name.left)?
         };
@@ -430,16 +434,16 @@ impl TypeChecker {
         &self,
         node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
         prop: &Symbol,
-    ) -> bool {
-        (self.is_constructor_declared_property(prop)
+    ) -> io::Result<bool> {
+        Ok((self.is_constructor_declared_property(prop)?
             || is_this_property(node) && self.is_auto_typed_property(prop))
             && matches!(
-                self.get_declaring_constructor(prop).as_ref(),
+                self.get_declaring_constructor(prop)?.as_ref(),
                 Some(declaring_constructor) if Gc::ptr_eq(
                     &get_this_container(node, true),
                     declaring_constructor
                 )
-            )
+            ))
     }
 
     pub(super) fn check_property_access_expression_or_qualified_name(
@@ -458,10 +462,10 @@ impl TypeChecker {
         let apparent_type = self.get_apparent_type(&*if assignment_kind != AssignmentKind::None
             || self.is_method_access_for_call(node)
         {
-            self.get_widened_type(left_type)
+            self.get_widened_type(left_type)?
         } else {
             left_type.type_wrapper()
-        });
+        })?;
         let is_any_like = self.is_type_any(Some(&*apparent_type))
             || Gc::ptr_eq(&apparent_type, &self.silent_never_type());
         let prop: Option<Gc<Symbol>>;
@@ -717,7 +721,7 @@ impl TypeChecker {
                     if self
                         .get_declaration_node_flags_from_symbol(prop)
                         .intersects(NodeFlags::Deprecated)
-                        && self.is_uncalled_function_reference(node, prop)
+                        && self.is_uncalled_function_reference(node, prop)?
                     {
                         self.add_deprecated_suggestion(
                             right,
@@ -742,7 +746,7 @@ impl TypeChecker {
                     prop,
                     None,
                 );
-                if self.is_assignment_to_readonly_entity(node, prop, assignment_kind) {
+                if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
                     self.error(
                         Some(right),
                         &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
@@ -839,10 +843,10 @@ impl TypeChecker {
             return Ok(prop_type.type_wrapper());
         }
         if ptr::eq(prop_type, &*self.auto_type()) {
-            return Ok(self.get_flow_type_of_property(node, prop));
+            return self.get_flow_type_of_property(node, prop);
         }
         let mut prop_type = prop_type.type_wrapper();
-        prop_type = self.get_narrowable_type_for_reference(&prop_type, node, check_mode);
+        prop_type = self.get_narrowable_type_for_reference(&prop_type, node, check_mode)?;
         let mut assume_uninitialized = false;
         if self.strict_null_checks
             && self.strict_property_initialization
@@ -1196,7 +1200,7 @@ impl TypeChecker {
                             &*Diagnostics::Property_0_does_not_exist_on_type_1
                         };
                         error_info = Some(chain_diagnostic_messages(
-                            self.elaborate_never_intersection(error_info, containing_type),
+                            self.elaborate_never_intersection(error_info, containing_type)?,
                             diagnostic,
                             Some(vec![missing_property, container]),
                         ));

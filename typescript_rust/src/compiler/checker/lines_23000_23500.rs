@@ -84,7 +84,7 @@ impl TypeChecker {
             return Ok(self.string_type());
         }
         if node.parent().parent().kind() == SyntaxKind::ForOfStatement {
-            return Ok(self.check_right_hand_side_of_for_of(&node.parent().parent()));
+            return self.check_right_hand_side_of_for_of(&node.parent().parent());
             /*|| errorType*/
         }
         Ok(self.error_type())
@@ -979,7 +979,7 @@ impl TypeChecker {
                             &node_as_call_expression.expression,
                         )?,
                         &node_as_call_expression.expression,
-                    ));
+                    )?);
                 } else {
                     func_type =
                         Some(self.check_non_null_expression(&node_as_call_expression.expression)?);
@@ -988,7 +988,7 @@ impl TypeChecker {
             let signatures = self.get_signatures_of_type(
                 &func_type
                     .as_ref()
-                    .map(|func_type| self.get_apparent_type(func_type))
+                    .try_map(|func_type| self.get_apparent_type(func_type))?
                     .unwrap_or_else(|| self.unknown_type()),
                 SignatureKind::Call,
             );
@@ -1001,7 +1001,7 @@ impl TypeChecker {
                         self.has_type_predicate_or_never_return_type(signature)
                     }),
                 )? {
-                    Some(self.get_resolved_signature_(node, None, None))
+                    Some(self.get_resolved_signature_(node, None, None)?)
                 } else {
                     None
                 };

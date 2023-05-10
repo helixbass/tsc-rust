@@ -42,7 +42,7 @@ impl TypeChecker {
                 let prop_name = member_as_property_declaration.name();
                 if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                     let type_ =
-                        self.get_type_of_symbol(&self.get_symbol_of_node(member).unwrap())?;
+                        self.get_type_of_symbol(&self.get_symbol_of_node(member)?.unwrap())?;
                     if !(type_.flags().intersects(TypeFlags::AnyOrUnknown)
                         || self
                             .get_falsy_flags(&type_)
@@ -54,7 +54,7 @@ impl TypeChecker {
                                 &prop_name,
                                 &type_,
                                 constructor,
-                            ),
+                            )?,
                         } {
                             self.error(
                                 member_as_property_declaration.maybe_name(),
@@ -175,7 +175,7 @@ impl TypeChecker {
             );
 
             self.check_exports_on_merged_declarations(node);
-            let symbol = self.get_symbol_of_node(node).unwrap();
+            let symbol = self.get_symbol_of_node(node)?.unwrap();
             self.check_type_parameter_lists_identical(&symbol);
 
             let first_interface_decl =
@@ -195,11 +195,11 @@ impl TypeChecker {
                     for base_type in &self.get_base_types(&type_) {
                         self.check_type_assignable_to(
                             &type_with_this,
-                            &self.get_type_with_this_argument(
+                            &*self.get_type_with_this_argument(
                                 base_type,
                                 type_as_interface_type.maybe_this_type(),
                                 None,
-                            ),
+                            )?,
                             node_as_interface_declaration.maybe_name(),
                             Some(&Diagnostics::Interface_0_incorrectly_extends_interface_1),
                             None,
@@ -335,7 +335,7 @@ impl TypeChecker {
         }
         if member.parent().flags().intersects(NodeFlags::Ambient)
             && !is_enum_const(&member.parent())
-            && self.get_enum_kind(&self.get_symbol_of_node(&member.parent())?.unwrap())
+            && self.get_enum_kind(&self.get_symbol_of_node(&member.parent())?.unwrap())?
                 == EnumKind::Numeric
         {
             return Ok(None);
@@ -961,7 +961,7 @@ impl TypeChecker {
             | SyntaxKind::ModuleDeclaration
             | SyntaxKind::TypeAliasDeclaration => {
                 if is_global_augmentation {
-                    return;
+                    return Ok(());
                 }
                 let symbol = self.get_symbol_of_node(node)?;
                 if let Some(symbol) = symbol.as_ref() {

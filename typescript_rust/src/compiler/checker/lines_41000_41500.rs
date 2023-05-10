@@ -229,7 +229,7 @@ impl TypeChecker {
             None,
         );
         if expr.parent().kind() == SyntaxKind::ForOfStatement {
-            let ref iterated_type = self.check_right_hand_side_of_for_of(&expr.parent());
+            let ref iterated_type = self.check_right_hand_side_of_for_of(&expr.parent())?;
             return Ok(Some(self.check_destructuring_assignment(
                 expr,
                 iterated_type, /*|| errorType*/
@@ -363,7 +363,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
     ) -> io::Result<Vec<Gc<Symbol>>> {
-        let ref type_ = self.get_apparent_type(type_);
+        let ref type_ = self.get_apparent_type(type_)?;
         let mut props_by_name = create_symbol_table(Some(self.get_properties_of_type(type_)?));
         let function_type = if !self
             .get_signatures_of_type(type_, SignatureKind::Call)

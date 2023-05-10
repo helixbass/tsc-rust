@@ -8,16 +8,17 @@ use std::{borrow::Borrow, io};
 
 use super::CheckTypeContainingMessageChain;
 use crate::{
-    __String, chain_diagnostic_messages, create_diagnostic_for_node_from_message_chain,
-    escape_leading_underscores, first, for_each, get_check_flags,
-    get_class_like_declaration_of_symbol, get_declaration_modifier_flags_from_symbol,
-    get_effective_base_type_node, get_name_of_declaration, get_text_of_property_name,
-    has_abstract_modifier, has_ambient_modifier, has_effective_modifier, has_override_modifier,
-    has_syntactic_modifier, is_binary_expression, is_constructor_declaration, is_identifier,
-    is_in_js_file, is_parameter_property_declaration, is_property_declaration, is_static, length,
-    maybe_filter, maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags,
-    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap,
-    HasInitializerInterface, InterfaceTypeInterface, Matches, MemberOverrideStatus, ModifierFlags,
+    __String, chain_diagnostic_messages, continue_if_none,
+    create_diagnostic_for_node_from_message_chain, escape_leading_underscores, first, for_each,
+    get_check_flags, get_class_like_declaration_of_symbol,
+    get_declaration_modifier_flags_from_symbol, get_effective_base_type_node,
+    get_name_of_declaration, get_text_of_property_name, has_abstract_modifier,
+    has_ambient_modifier, has_effective_modifier, has_override_modifier, has_syntactic_modifier,
+    is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
+    is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
+    maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags, Debug_,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap, HasInitializerInterface,
+    InterfaceTypeInterface, Matches, MemberOverrideStatus, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeInterface,
@@ -354,9 +355,10 @@ impl TypeChecker {
         }
         let member_name = member_name.unwrap();
 
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        let symbol = self.get_symbol_of_node(node)?.unwrap();
         let type_ = self.get_declared_type_of_symbol(&symbol)?;
-        let type_with_this = self.get_type_with_this_argument(&type_, Option::<&Type>::None, None);
+        let type_with_this =
+            self.get_type_with_this_argument(&type_, Option::<&Type>::None, None)?;
         let static_type = self.get_type_of_symbol(&symbol)?;
 
         let base_type_node = get_effective_base_type_node(node);
@@ -438,11 +440,8 @@ impl TypeChecker {
             if base.flags().intersects(SymbolFlags::Prototype) {
                 continue;
             }
-            let base_symbol = self.get_property_of_object_type(type_, base.escaped_name());
-            if base_symbol.is_none() {
-                continue;
-            }
-            let base_symbol = base_symbol.unwrap();
+            let base_symbol =
+                continue_if_none!(self.get_property_of_object_type(type_, base.escaped_name())?);
             let derived = self.get_target_symbol(&base_symbol);
             let base_declaration_flags = get_declaration_modifier_flags_from_symbol(&base, None);
 
@@ -459,7 +458,7 @@ impl TypeChecker {
                             continue;
                         }
                         let base_symbol =
-                            self.get_property_of_object_type(other_base_type, base.escaped_name());
+                            self.get_property_of_object_type(other_base_type, base.escaped_name())?;
                         let derived_elsewhere = base_symbol
                             .as_ref()
                             .map(|base_symbol| self.get_target_symbol(base_symbol));
@@ -708,7 +707,7 @@ impl TypeChecker {
                     Some(existing) if !self.is_property_identical_to(
                         existing,
                         prop
-                    )
+                    )?
                 ) {
                     seen.remove(prop.escaped_name());
                 }
@@ -769,7 +768,7 @@ impl TypeChecker {
                     Some(existing) => {
                         let is_inherited_property = !ptr::eq(&*existing.containing_type, type_);
                         if is_inherited_property
-                            && !self.is_property_identical_to(&existing.prop, prop)
+                            && !self.is_property_identical_to(&existing.prop, prop)?
                         {
                             ok = false;
 

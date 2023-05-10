@@ -1,5 +1,5 @@
 use gc::Gc;
-use itertools::Either;
+use itertools::{Either, Itertools};
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
@@ -91,8 +91,8 @@ impl TypeChecker {
         &self,
         missing_property: &str,
         containing_type: &Type,
-    ) -> Option<String> {
-        let container = self.get_apparent_type(containing_type).maybe_symbol()?;
+    ) -> io::Result<Option<String>> {
+        let container = self.get_apparent_type(containing_type)?.maybe_symbol()?;
         let all_features = get_script_target_features();
         let lib_targets = all_features.keys();
         for lib_target in lib_targets {
@@ -103,10 +103,10 @@ impl TypeChecker {
                 features_of_containing_type,
                 Some(features_of_containing_type) if contains(Some(features_of_containing_type), &missing_property)
             ) {
-                return Some((*lib_target).to_owned());
+                return Ok(Some((*lib_target).to_owned()));
             }
         }
-        None
+        Ok(None)
     }
 
     pub fn get_suggested_symbol_for_nonexistent_class_member(
@@ -139,7 +139,7 @@ impl TypeChecker {
             if is_property_access_expression(&parent) {
                 did_set_props = true;
                 props_ = Some(Either::Right(
-                    try_filter(props, |prop: &Gc<Symbol>| {
+                    try_filter(&props.collect_vec(), |prop: &Gc<Symbol>| {
                         self.is_valid_property_access_for_completions_(
                             &parent,
                             containing_type,
@@ -329,7 +329,7 @@ impl TypeChecker {
         keyed_type: &Type,
         name: &str, /*"set | "get"*/
     ) -> io::Result<bool> {
-        let prop = self.get_property_of_object_type(object_type, name);
+        let prop = self.get_property_of_object_type(object_type, name)?;
         if let Some(prop) = prop.as_ref() {
             let s = self.get_single_call_signature(&*self.get_type_of_symbol(prop)?);
             return Ok(matches!(
@@ -488,29 +488,29 @@ impl TypeChecker {
                     node_as_property_access_expression.expression.kind()
                         == SyntaxKind::SuperKeyword,
                     property_name,
-                    &self.get_widened_type(&*self.check_expression(
+                    &*self.get_widened_type(&*self.check_expression(
                         &node_as_property_access_expression.expression,
                         None,
                         None,
-                    )?),
+                    )?)?,
                 )?
             }
             SyntaxKind::QualifiedName => self.is_valid_property_access_with_type(
                 node,
                 false,
                 property_name,
-                &self.get_widened_type(&*self.check_expression(
+                &*self.get_widened_type(&*self.check_expression(
                     &node.as_qualified_name().left,
                     None,
                     None,
-                )?),
+                )?)?,
             )?,
             SyntaxKind::ImportType => self.is_valid_property_access_with_type(
                 node,
                 false,
                 property_name,
                 &*self.get_type_from_type_node_(node)?,
-            ),
+            )?,
             _ => unreachable!(),
         })
     }
@@ -696,10 +696,10 @@ impl TypeChecker {
         self.propagate_optional_type_marker(
             &*self.check_element_access_expression(
                 node,
-                &self.check_non_null_type(
+                &*self.check_non_null_type(
                     &non_optional_type,
                     &node_as_element_access_expression.expression,
-                ),
+                )?,
                 check_mode,
             )?,
             node,
@@ -716,7 +716,7 @@ impl TypeChecker {
         let object_type = if get_assignment_target_kind(node) != AssignmentKind::None
             || self.is_method_access_for_call(node)
         {
-            self.get_widened_type(expr_type)
+            self.get_widened_type(expr_type)?
         } else {
             expr_type.type_wrapper()
         };
@@ -764,7 +764,7 @@ impl TypeChecker {
                 Some(node),
                 Option::<&Symbol>::None,
                 None,
-            )
+            )?
             .unwrap_or_else(|| self.error_type());
         self.check_indexed_access_index_type(
             &*self.get_flow_type_of_access_expression(

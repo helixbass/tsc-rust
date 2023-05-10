@@ -26,7 +26,7 @@ impl TypeChecker {
         node: &Node, /*ObjectLiteralExpression*/
         source_type: &Type,
         right_is_this: Option<bool>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let properties = &node.as_object_literal_expression().properties;
         if self.strict_null_checks && properties.is_empty() {
             return self.check_non_null_type(source_type, node);
@@ -40,7 +40,7 @@ impl TypeChecker {
                 right_is_this,
             );
         }
-        source_type.type_wrapper()
+        Ok(source_type.type_wrapper())
     }
 
     pub(super) fn check_object_literal_destructuring_property_assignment(
@@ -224,7 +224,7 @@ impl TypeChecker {
                             )),
                             Option::<&Symbol>::None,
                             None,
-                        )
+                        )?
                         .unwrap_or_else(|| self.error_type());
                     let assigned_type = if self.has_default_value(element) {
                         self.get_type_with_facts(&element_type, TypeFacts::NEUndefined)
@@ -575,8 +575,8 @@ impl TypeChecker {
                     return Ok(self.silent_never_type());
                 }
 
-                let left_type = self.check_non_null_type(left_type, left);
-                let right_type = self.check_non_null_type(right_type, right);
+                let left_type = self.check_non_null_type(left_type, left)?;
+                let right_type = self.check_non_null_type(right_type, right)?;
 
                 let mut suggested_operator: Option<SyntaxKind> = None;
                 if left_type.flags().intersects(TypeFlags::BooleanLike)
@@ -632,7 +632,7 @@ impl TypeChecker {
                                     &left_type,
                                     &right_type,
                                     Option::<fn(&Type, &Type) -> bool>::None,
-                                );
+                                )?;
                             }
                             SyntaxKind::AsteriskAsteriskToken
                             | SyntaxKind::AsteriskAsteriskEqualsToken => {
@@ -656,7 +656,7 @@ impl TypeChecker {
                             Some(|type1: &Type, type2: &Type| {
                                 self.both_are_big_int_like(type1, type2)
                             }),
-                        );
+                        )?;
                         result_type = self.error_type();
                     }
                     if left_ok && right_ok {
@@ -683,8 +683,8 @@ impl TypeChecker {
                 if !self.is_type_assignable_to_kind(&left_type, TypeFlags::StringLike, None)
                     && !self.is_type_assignable_to_kind(&right_type, TypeFlags::StringLike, None)
                 {
-                    left_type = self.check_non_null_type(&left_type, left);
-                    right_type = self.check_non_null_type(&right_type, left);
+                    left_type = self.check_non_null_type(&left_type, left)?;
+                    right_type = self.check_non_null_type(&right_type, left)?;
                 }
 
                 let mut result_type: Option<Gc<Type>> = None;
@@ -772,10 +772,10 @@ impl TypeChecker {
                     left_type, right_type, left, right, operator,
                 ) {
                     let left_type = self.get_base_type_of_literal_type(
-                        &self.check_non_null_type(left_type, left),
+                        &*self.check_non_null_type(left_type, left)?,
                     )?;
                     let right_type = self.get_base_type_of_literal_type(
-                        &self.check_non_null_type(right_type, right),
+                        &*self.check_non_null_type(right_type, right)?,
                     )?;
                     self.report_operator_error_unless(
                         &left_type,

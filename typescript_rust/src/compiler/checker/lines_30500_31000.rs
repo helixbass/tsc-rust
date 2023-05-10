@@ -134,7 +134,7 @@ impl TypeChecker {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
         let tag_type =
             self.check_expression(&node_as_tagged_template_expression.tag, None, None)?;
-        let apparent_type = self.get_apparent_type(&tag_type);
+        let apparent_type = self.get_apparent_type(&tag_type)?;
 
         if self.is_error_type(&apparent_type) {
             return Ok(self.resolve_error_call(node));
@@ -214,7 +214,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Signature>> {
         let node_as_decorator = node.as_decorator();
         let func_type = self.check_expression(&node_as_decorator.expression, None, None)?;
-        let apparent_type = self.get_apparent_type(&func_type);
+        let apparent_type = self.get_apparent_type(&func_type)?;
         if self.is_error_type(&apparent_type) {
             return Ok(self.resolve_error_call(node));
         }
@@ -382,10 +382,10 @@ impl TypeChecker {
             self.check_type_assignable_to_and_optionally_elaborate(
                 &*self.check_expression_with_contextual_type(
                     &node_as_jsx_opening_like_element.attributes(),
-                    &self.get_effective_first_argument_for_jsx_signature(
+                    &*self.get_effective_first_argument_for_jsx_signature(
                         fake_signature.clone(),
                         node,
-                    ),
+                    )?,
                     None,
                     CheckMode::Normal,
                 )?,
@@ -435,7 +435,7 @@ impl TypeChecker {
         }
         let expr_types =
             self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None)?;
-        let apparent_type = self.get_apparent_type(&expr_types);
+        let apparent_type = self.get_apparent_type(&expr_types)?;
         if self.is_error_type(&apparent_type) {
             return Ok(self.resolve_error_call(node));
         }
@@ -810,7 +810,7 @@ impl TypeChecker {
             self.check_grammar_arguments(node.as_has_arguments().maybe_arguments().as_deref());
         }
 
-        let signature = self.get_resolved_signature_(node, None, check_mode);
+        let signature = self.get_resolved_signature_(node, None, check_mode)?;
         if Gc::ptr_eq(&signature, &self.resolving_signature()) {
             return Ok(self.non_inferrable_type());
         }
@@ -824,15 +824,15 @@ impl TypeChecker {
         if node.kind() == SyntaxKind::NewExpression {
             let declaration = signature.declaration.as_ref();
 
-            if declaration.matches(|declaration| {
-                !matches!(
+            if declaration.try_matches(|declaration| -> io::Result<_> {
+                Ok(!matches!(
                     declaration.kind(),
                     SyntaxKind::Constructor
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
                 ) && !is_jsdoc_construct_signature(declaration)
-                    && !self.is_js_constructor(Some(&**declaration))?
-            }) {
+                    && !self.is_js_constructor(Some(&**declaration))?)
+            })? {
                 if self.no_implicit_any {
                     self.error(
                         Some(node),
