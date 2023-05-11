@@ -1302,13 +1302,30 @@ fn binary_search_key_copy_key<
     !low
 }
 
-pub fn reduce_left<TItem, TMemo, TCallback: FnMut(TMemo, &TItem, usize) -> TMemo>(
+pub fn reduce_left<TItem, TMemo>(
     array: &[TItem],
-    mut f: TCallback,
+    mut f: impl FnMut(TMemo, &TItem, usize) -> TMemo,
     initial: TMemo,
     start: Option<usize>,
     count: Option<usize>,
 ) -> TMemo {
+    try_reduce_left(
+        array,
+        |a: TMemo, b: &TItem, c: usize| -> Result<_, ()> { Ok(f(a, b, c)) },
+        initial,
+        start,
+        count,
+    )
+    .unwrap()
+}
+
+pub fn try_reduce_left<TItem, TMemo, TError>(
+    array: &[TItem],
+    mut f: impl FnMut(TMemo, &TItem, usize) -> Result<TMemo, TError>,
+    initial: TMemo,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Result<TMemo, TError> {
     if
     /*array &&*/
     !array.is_empty() {
@@ -1334,14 +1351,14 @@ pub fn reduce_left<TItem, TMemo, TCallback: FnMut(TMemo, &TItem, usize) -> TMemo
         // } else {
         result = initial;
         while pos <= end {
-            result = f(result, &array[pos], pos);
+            result = f(result, &array[pos], pos)?;
             pos += 1;
         }
-        return result;
+        return Ok(result);
         // }
         // }
     }
-    initial
+    Ok(initial)
 }
 
 pub fn reduce_left_no_initial_value<TItem: Clone>(

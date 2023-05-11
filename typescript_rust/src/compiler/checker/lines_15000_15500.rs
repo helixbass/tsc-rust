@@ -105,12 +105,12 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn create_indexed_access_type<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn create_indexed_access_type(
         &self,
         object_type: &Type,
         index_type: &Type,
         access_flags: AccessFlags,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
         let type_ = self.create_type(TypeFlags::IndexedAccess);
@@ -127,29 +127,30 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn is_js_literal_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_js_literal_type(&self, type_: &Type) -> io::Result<bool> {
         if self.no_implicit_any {
-            return false;
+            return Ok(false);
         }
         if get_object_flags(type_).intersects(ObjectFlags::JSLiteral) {
-            return true;
+            return Ok(true);
         }
         if type_.flags().intersects(TypeFlags::Union) {
-            return every(type_.as_union_type().types(), |type_: &Gc<Type>, _| {
-                self.is_js_literal_type(type_)
-            });
+            return Ok(every(
+                type_.as_union_type().types(),
+                |type_: &Gc<Type>, _| self.is_js_literal_type(type_),
+            ));
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
-            return some(
+            return Ok(some(
                 Some(type_.as_intersection_type().types()),
                 Some(|type_: &Gc<Type>| self.is_js_literal_type(type_)),
-            );
+            ));
         }
         if type_.flags().intersects(TypeFlags::Instantiable) {
-            let constraint = self.get_resolved_base_constraint(type_);
-            return !ptr::eq(&*constraint, type_) && self.is_js_literal_type(&constraint);
+            let constraint = self.get_resolved_base_constraint(type_)?;
+            return Ok(!ptr::eq(&*constraint, type_) && self.is_js_literal_type(&constraint));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_property_name_from_index<'index_type, TAccessNode: Borrow<Node>>(
@@ -237,7 +238,7 @@ impl TypeChecker {
                             if self
                                 .get_declaration_node_flags_from_symbol(&prop)
                                 .intersects(NodeFlags::Deprecated)
-                                && self.is_uncalled_function_reference(access_node, &prop)
+                                && self.is_uncalled_function_reference(access_node, &prop)?
                             {
                                 let deprecated_node = access_expression
                                     .map(|access_expression| {
@@ -280,7 +281,7 @@ impl TypeChecker {
                         access_expression,
                         &prop,
                         get_assignment_target_kind(access_expression),
-                    ) {
+                    )? {
                         self.error(
                             Some(
                                 &*access_expression_as_element_access_expression
@@ -643,7 +644,7 @@ impl TypeChecker {
                                         object_type,
                                         access_expression,
                                         index_type,
-                                    );
+                                    )?;
                                 if let Some(suggestion) = suggestion {
                                     self.error(
                                         Some(access_expression),
@@ -970,14 +971,14 @@ impl TypeChecker {
             && matches!(type_.as_type_parameter().is_this_type, Some(true))
     }
 
-    pub(super) fn get_simplified_type(&self, type_: &Type, writing: bool) -> Gc<Type> {
-        if type_.flags().intersects(TypeFlags::IndexedAccess) {
-            self.get_simplified_indexed_access_type(type_, writing)
+    pub(super) fn get_simplified_type(&self, type_: &Type, writing: bool) -> io::Result<Gc<Type>> {
+        Ok(if type_.flags().intersects(TypeFlags::IndexedAccess) {
+            self.get_simplified_indexed_access_type(type_, writing)?
         } else if type_.flags().intersects(TypeFlags::Conditional) {
-            self.get_simplified_conditional_type(type_, writing)
+            self.get_simplified_conditional_type(type_, writing)?
         } else {
             type_.type_wrapper()
-        }
+        })
     }
 
     pub(super) fn distribute_index_over_object_type(
@@ -1098,14 +1099,14 @@ impl TypeChecker {
             self.get_simplified_type(&type_as_indexed_access_type.object_type, writing);
         let index_type = self.get_simplified_type(&type_as_indexed_access_type.index_type, writing);
         let distributed_over_index =
-            self.distribute_object_over_index_type(&object_type, &index_type, writing);
+            self.distribute_object_over_index_type(&object_type, &index_type, writing)?;
         if let Some(distributed_over_index) = distributed_over_index {
             write_cache(distributed_over_index.clone());
             return Ok(distributed_over_index);
         }
         if !index_type.flags().intersects(TypeFlags::Instantiable) {
             let distributed_over_object =
-                self.distribute_index_over_object_type(&object_type, &index_type, writing);
+                self.distribute_index_over_object_type(&object_type, &index_type, writing)?;
             if let Some(distributed_over_object) = distributed_over_object {
                 write_cache(distributed_over_object.clone());
                 return Ok(distributed_over_object);
@@ -1136,10 +1137,10 @@ impl TypeChecker {
         if self.is_generic_mapped_type(&object_type) {
             let ret = self
                 .map_type(
-                    &self.substitute_indexed_mapped_type(
+                    &*self.substitute_indexed_mapped_type(
                         &object_type,
                         &type_as_indexed_access_type.index_type,
-                    ),
+                    )?,
                     &mut |t| Some(self.get_simplified_type(t, writing)),
                     None,
                 )
@@ -1191,7 +1192,7 @@ impl TypeChecker {
             {
                 return Ok(self.never_type());
             } else if check_type.flags().intersects(TypeFlags::Any)
-                || self.is_intersection_empty(check_type, extends_type)
+                || self.is_intersection_empty(check_type, extends_type)?
             {
                 return Ok(self.get_simplified_type(&false_type, writing));
             }
@@ -1203,7 +1204,7 @@ impl TypeChecker {
         Ok(self
             .get_union_type(
                 &[
-                    self.intersect_types(Some(type1), Some(type2)).unwrap(),
+                    self.intersect_types(Some(type1), Some(type2))?.unwrap(),
                     self.never_type(),
                 ],
                 None,
@@ -1221,13 +1222,13 @@ impl TypeChecker {
         index: &Type,
     ) -> io::Result<Gc<Type>> {
         let mapper = Gc::new(self.create_type_mapper(
-            vec![self.get_type_parameter_from_mapped_type(object_type)],
+            vec![self.get_type_parameter_from_mapped_type(object_type)?],
             Some(vec![index.type_wrapper()]),
         ));
         let template_mapper =
             self.combine_type_mappers(object_type.as_mapped_type().maybe_mapper(), mapper);
         self.instantiate_type(
-            &self.get_template_type_from_mapped_type(object_type),
+            &*self.get_template_type_from_mapped_type(object_type)?,
             Some(template_mapper),
         )
     }
@@ -1242,24 +1243,25 @@ impl TypeChecker {
         >,
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let access_flags = access_flags.unwrap_or(AccessFlags::None);
         let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
-        self.get_indexed_access_type_or_undefined(
-            object_type,
-            index_type,
-            Some(access_flags),
-            access_node.as_deref(),
-            alias_symbol,
-            alias_type_arguments,
-        )
-        .unwrap_or_else(|| {
-            if access_node.is_some() {
-                self.error_type()
-            } else {
-                self.unknown_type()
-            }
-        })
+        Ok(self
+            .get_indexed_access_type_or_undefined(
+                object_type,
+                index_type,
+                Some(access_flags),
+                access_node.as_deref(),
+                alias_symbol,
+                alias_type_arguments,
+            )?
+            .unwrap_or_else(|| {
+                if access_node.is_some() {
+                    self.error_type()
+                } else {
+                    self.unknown_type()
+                }
+            }))
     }
 
     pub(super) fn index_type_less_than(&self, index_type: &Type, limit: isize) -> bool {

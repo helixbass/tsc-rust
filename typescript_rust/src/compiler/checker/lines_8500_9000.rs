@@ -17,8 +17,8 @@ use crate::{
     is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
     is_parameter, is_parameter_declaration, is_property_access_expression, is_property_declaration,
     is_property_signature, is_string_or_numeric_literal_like, is_variable_declaration, length,
-    maybe_every, return_ok_none_if_none, set_parent, skip_parentheses, some, starts_with,
-    synthetic_factory, try_cast, try_maybe_every, unescape_leading_underscores,
+    maybe_every, return_ok_default_if_none, return_ok_none_if_none, set_parent, skip_parentheses,
+    some, starts_with, synthetic_factory, try_cast, try_maybe_every, unescape_leading_underscores,
     walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind, Debug_,
     Diagnostics, HasInitializerInterface, HasTypeInterface, InternalSymbolName, LiteralType,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, Number,
@@ -49,7 +49,7 @@ impl TypeChecker {
     pub(super) fn get_destructuring_property_name(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
-    ) -> Option<String> {
+    ) -> io::Result<Option<String>> {
         let parent = node.parent();
         if node.kind() == SyntaxKind::BindingElement
             && parent.kind() == SyntaxKind::ObjectBindingPattern
@@ -66,12 +66,12 @@ impl TypeChecker {
             node.kind(),
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
         ) {
-            return self.get_literal_property_name_text(&node.as_named_declaration().name());
+            return Ok(self.get_literal_property_name_text(&node.as_named_declaration().name()));
         }
-        Some(format!(
+        Ok(Some(format!(
             "{}",
             index_of_gc(&parent.as_has_elements().elements(), &node.node_wrapper())
-        ))
+        )))
     }
 
     pub(super) fn get_literal_property_name_text(
@@ -219,7 +219,7 @@ impl TypeChecker {
                         declaration_as_binding_element.maybe_name(),
                         Option::<&Symbol>::None,
                         None,
-                    )
+                    )?
                     .unwrap_or_else(|| self.error_type());
                 type_ = Some(self.get_flow_type_of_destructuring(declaration, &declared_type)?);
             } else {
@@ -345,7 +345,7 @@ impl TypeChecker {
         {
             let for_of_statement = declaration.parent().parent();
             return Ok(Some(
-                self.check_right_hand_side_of_for_of(&for_of_statement),
+                self.check_right_hand_side_of_for_of(&for_of_statement)?,
             ));
             /*|| anyType*/
         }
@@ -389,7 +389,7 @@ impl TypeChecker {
             if !get_combined_node_flags(declaration).intersects(NodeFlags::Const)
                 && match declaration_as_variable_declaration.maybe_initializer() {
                     None => true,
-                    Some(initializer) => self.is_null_or_undefined(&initializer),
+                    Some(initializer) => self.is_null_or_undefined(&initializer)?,
                 }
             {
                 return Ok(Some(self.auto_type()));
@@ -478,7 +478,7 @@ impl TypeChecker {
                     declaration,
                     self.get_symbol_of_node(declaration)?,
                     get_declared_expando_initializer(declaration),
-                );
+                )?;
                 if container_object_type.is_some() {
                     return Ok(container_object_type);
                 }
@@ -524,9 +524,8 @@ impl TypeChecker {
                 } else {
                     None
                 };
-                return Ok(
-                    type_.map(|type_| self.add_optionality(&type_, Some(true), Some(is_optional)))
-                );
+                return type_
+                    .try_map(|type_| self.add_optionality(&type_, Some(true), Some(is_optional)));
             }
         }
 
@@ -554,7 +553,7 @@ impl TypeChecker {
             if (*links).borrow().is_constructor_declared_property.is_none() {
                 links.borrow_mut().is_constructor_declared_property = Some(false);
                 let is_constructor_declared_property =
-                    self.get_declaring_constructor(symbol).is_some()
+                    self.get_declaring_constructor(symbol)?.is_some()
                         && try_maybe_every(
                             symbol.maybe_declarations().as_deref(),
                             |declaration: &Gc<Node>, _| -> io::Result<_> {
@@ -604,7 +603,7 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> io::Result<Option<Gc<Node>>> {
         let symbol_declarations = symbol.maybe_declarations();
-        let symbol_declarations = symbol_declarations.as_deref()?;
+        let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_deref());
         for declaration in symbol_declarations {
             let container = get_this_container(&declaration, false);
             if
@@ -735,7 +734,7 @@ impl TypeChecker {
                     .as_class_static_block_declaration()
                     .maybe_return_flow_node(),
             );
-            let flow_type = self.get_flow_type_of_property(&reference, Some(symbol));
+            let flow_type = self.get_flow_type_of_property(&reference, Some(symbol))?;
             if self.no_implicit_any
                 && (Gc::ptr_eq(&flow_type, &self.auto_type())
                     || Gc::ptr_eq(&flow_type, &self.auto_array_type()))
@@ -787,7 +786,7 @@ impl TypeChecker {
                 .as_function_like_declaration()
                 .maybe_return_flow_node(),
         );
-        let flow_type = self.get_flow_type_of_property(&reference, Some(symbol));
+        let flow_type = self.get_flow_type_of_property(&reference, Some(symbol))?;
         if self.no_implicit_any
             && (Gc::ptr_eq(&flow_type, &self.auto_type())
                 || Gc::ptr_eq(&flow_type, &self.auto_array_type()))
@@ -865,10 +864,10 @@ impl TypeChecker {
         let mut type_: Option<Gc<Type>> = None;
         let mut defined_in_constructor = false;
         let mut defined_in_method = false;
-        if self.is_constructor_declared_property(symbol) {
+        if self.is_constructor_declared_property(symbol)? {
             type_ = self.get_flow_type_in_constructor(
                 symbol,
-                &self.get_declaring_constructor(symbol).unwrap(),
+                &self.get_declaring_constructor(symbol)?.unwrap(),
             )?;
         }
         let resolved_symbol =
@@ -1011,7 +1010,7 @@ impl TypeChecker {
         if !is_in_js_file(Some(decl)) {
             return Ok(None);
         }
-        let init = init?;
+        let init = return_ok_default_if_none!(init);
         let init = init.borrow();
         if !is_object_literal_expression(init)
             || !init.as_object_literal_expression().properties.is_empty()
@@ -1088,13 +1087,13 @@ impl TypeChecker {
                     get_effective_type_annotation_node(&symbol_parent_value_declaration);
                 if let Some(type_node) = type_node {
                     let annotation_symbol = self.get_property_of_type_(
-                        &self.get_type_from_type_node_(&type_node)?,
+                        &*self.get_type_from_type_node_(&type_node)?,
                         symbol.escaped_name(),
                         None,
                     )?;
                     if let Some(annotation_symbol) = annotation_symbol {
                         return Ok(Some(
-                            self.get_non_missing_type_of_symbol(&annotation_symbol),
+                            self.get_non_missing_type_of_symbol(&annotation_symbol)?,
                         ));
                     }
                 }
@@ -1134,7 +1133,7 @@ impl TypeChecker {
             if let Some(set_func) = set_func {
                 let set_sig = self.get_single_call_signature(&set_func);
                 if let Some(set_sig) = set_sig {
-                    return Ok(self.get_type_of_first_parameter_of_signature(&set_sig));
+                    return self.get_type_of_first_parameter_of_signature(&set_sig);
                 }
             }
             return Ok(self.any_type());

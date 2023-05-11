@@ -23,7 +23,7 @@ impl TypeChecker {
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
-        mut compare_types: impl FnMut(&Type, &Type) -> Ternary,
+        mut compare_types: impl FnMut(&Type, &Type) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
         if Gc::ptr_eq(&source, &target) {
             return Ok(Ternary::True);
@@ -55,7 +55,7 @@ impl TypeChecker {
                         &self
                             .get_constraint_from_type_parameter(t)?
                             .unwrap_or_else(|| self.unknown_type()),
-                    ) != Ternary::False
+                    )? != Ternary::False
                         && compare_types(
                             &self
                                 .maybe_instantiate_type(
@@ -66,7 +66,7 @@ impl TypeChecker {
                             &self
                                 .get_default_from_type_parameter_(t)
                                 .unwrap_or_else(|| self.unknown_type()),
-                        ) != Ternary::False)
+                        )? != Ternary::False)
                 {
                     return Ok(Ternary::False);
                 }
@@ -79,7 +79,7 @@ impl TypeChecker {
             if let Some(source_this_type) = source_this_type {
                 let target_this_type = self.get_this_type_of_signature(&target)?;
                 if let Some(target_this_type) = target_this_type {
-                    let related = compare_types(&source_this_type, &target_this_type);
+                    let related = compare_types(&source_this_type, &target_this_type)?;
                     if related == Ternary::False {
                         return Ok(Ternary::False);
                     }
@@ -91,7 +91,7 @@ impl TypeChecker {
         for i in 0..target_len {
             let s = self.get_type_at_position(&source, i)?;
             let t = self.get_type_at_position(&target, i)?;
-            let related = compare_types(&t, &s);
+            let related = compare_types(&t, &s)?;
             if related == Ternary::False {
                 return Ok(Ternary::False);
             }
@@ -101,32 +101,40 @@ impl TypeChecker {
             let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
             let target_type_predicate = self.get_type_predicate_of_signature(&target)?;
             result &= if source_type_predicate.is_some() || target_type_predicate.is_some() {
-                self.compare_type_predicates_identical(
+                self.try_compare_type_predicates_identical(
                     source_type_predicate,
                     target_type_predicate,
                     |s, t| compare_types(s, t),
-                )
+                )?
             } else {
                 compare_types(
                     &*self.get_return_type_of_signature(source)?,
                     &*self.get_return_type_of_signature(target)?,
-                )
+                )?
             };
         }
         Ok(result)
     }
 
-    pub(super) fn compare_type_predicates_identical<
-        TSource: Borrow<TypePredicate>,
-        TTarget: Borrow<TypePredicate>,
-        TCompareTypes: FnOnce(&Type, &Type) -> Ternary,
-    >(
+    pub(super) fn compare_type_predicates_identical(
         &self,
-        source: Option<TSource>,
-        target: Option<TTarget>,
-        compare_types: TCompareTypes,
+        source: Option<impl Borrow<TypePredicate>>,
+        target: Option<impl Borrow<TypePredicate>>,
+        compare_types: impl FnOnce(&Type, &Type) -> Ternary,
     ) -> Ternary {
-        match (source, target) {
+        self.try_compare_type_predicates_identical(source, target, |a: &Type, b: &Type| {
+            Ok(compare_types(a, b))
+        })
+        .unwrap()
+    }
+
+    pub(super) fn try_compare_type_predicates_identical(
+        &self,
+        source: Option<impl Borrow<TypePredicate>>,
+        target: Option<impl Borrow<TypePredicate>>,
+        compare_types: impl FnOnce(&Type, &Type) -> io::Result<Ternary>,
+    ) -> io::Result<Ternary> {
+        Ok(match (source, target) {
             (Some(source), Some(target)) => {
                 let source = source.borrow();
                 let target = target.borrow();
@@ -137,13 +145,13 @@ impl TypeChecker {
                 } else if let (Some(source_type), Some(target_type)) =
                     (source.type_.as_ref(), target.type_.as_ref())
                 {
-                    compare_types(source_type, target_type)
+                    compare_types(source_type, target_type)?
                 } else {
                     Ternary::False
                 }
             }
             _ => Ternary::False,
-        }
+        })
     }
 
     pub(super) fn literal_types_with_same_base_type<'types>(

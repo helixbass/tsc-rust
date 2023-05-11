@@ -69,7 +69,7 @@ impl TypeChecker {
                 error_output_container.clone(),
             )?
         {
-            return Ok(self.check_type_related_to(
+            return self.check_type_related_to(
                 source,
                 target,
                 relation,
@@ -77,7 +77,7 @@ impl TypeChecker {
                 head_message.map(Cow::Borrowed),
                 containing_message_chain,
                 error_output_container,
-            ));
+            );
         }
         Ok(false)
     }
@@ -114,7 +114,7 @@ impl TypeChecker {
             None,
             None,
             None,
-        ) && self.elaborate_did_you_mean_to_call_or_construct(
+        )? && self.elaborate_did_you_mean_to_call_or_construct(
             node,
             source,
             target,
@@ -230,7 +230,7 @@ impl TypeChecker {
                             None,
                             None,
                             None,
-                        ))
+                        )?)
                 }),
             )? {
                 let result_obj = error_output_container.unwrap_or_else(|| {
@@ -313,7 +313,7 @@ impl TypeChecker {
             None,
             None,
             None,
-        ) {
+        )? {
             let elaborated = /*returnExpression &&*/ self.elaborate_error(
                 Some(&*return_expression),
                 &source_return,
@@ -337,7 +337,7 @@ impl TypeChecker {
                 None,
                 containing_message_chain,
                 Some(result_obj.clone()),
-            );
+            )?;
             if result_obj.errors_len() > 0 {
                 if let Some(target_symbol) = target.maybe_symbol() {
                     let target_symbol_declarations = target_symbol.maybe_declarations();
@@ -365,7 +365,7 @@ impl TypeChecker {
                         None,
                         None,
                         None,
-                    )
+                    )?
                 {
                     add_related_info(
                         &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
@@ -486,7 +486,7 @@ impl TypeChecker {
                 None,
                 None,
                 None,
-            ) {
+            )? {
                 let elaborated = match next.as_ref() {
                     None => false,
                     Some(next) => self.elaborate_error(
@@ -562,7 +562,7 @@ impl TypeChecker {
                             error_message.clone(),
                             containing_message_chain.clone(),
                             Some(result_obj.clone()),
-                        );
+                        )?;
                         if result && !Gc::ptr_eq(&specific_source, &source_prop_type) {
                             self.check_type_related_to(
                                 &source_prop_type,
@@ -572,7 +572,7 @@ impl TypeChecker {
                                 error_message,
                                 containing_message_chain.clone(),
                                 Some(result_obj.clone()),
-                            );
+                            )?;
                         }
                     }
                     if result_obj.errors_len() > 0 {
@@ -1127,7 +1127,7 @@ impl TypeChecker {
         error_node: &Node,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         self.check_type_related_to(
             source,
             target,

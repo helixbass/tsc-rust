@@ -15,11 +15,12 @@ use crate::{
     create_diagnostic_for_node_from_message_chain, find_ancestor, first_or_undefined,
     get_emit_script_target, get_object_flags, is_identifier, is_identifier_text, is_import_call,
     is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,
-    is_object_literal_element_like, maybe_get_source_file_of_node, reduce_left, some, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry,
-    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    is_object_literal_element_like, maybe_get_source_file_of_node, reduce_left, some,
+    try_reduce_left, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, SignatureKind, Symbol,
+    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 
 #[derive(Trace, Finalize)]
@@ -224,7 +225,7 @@ impl CheckTypeRelatedTo {
             Some(self.maybe_error_node().is_some()),
             self.head_message.clone(),
             None,
-        );
+        )?;
         if !self.incompatible_stack().is_empty() {
             self.report_incompatible_stack();
         }
@@ -288,7 +289,7 @@ impl CheckTypeRelatedTo {
                                 None,
                                 None,
                                 None,
-                            );
+                            )?;
                             if helpful_retry {
                                 let diag: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(&links_originating_import, &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead, None).into();
                                 if related_information.is_none() {
@@ -528,7 +529,7 @@ impl CheckTypeRelatedTo {
             );
             generalized_source_type = self
                 .type_checker
-                .get_type_name_for_error_display(&generalized_source);
+                .get_type_name_for_error_display(&generalized_source)?;
         }
 
         if target.flags().intersects(TypeFlags::TypeParameter) {
@@ -646,21 +647,21 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<()> {
         let source_type = if self
             .type_checker
-            .symbol_value_declaration_is_context_sensitive(source.maybe_symbol().as_deref())
+            .symbol_value_declaration_is_context_sensitive(source.maybe_symbol().as_deref())?
         {
             self.type_checker.type_to_string_(
                 source,
                 source.symbol().maybe_value_declaration(),
                 None,
                 None,
-            )
+            )?
         } else {
             self.type_checker
-                .type_to_string_(source, Option::<&Node>::None, None, None)
+                .type_to_string_(source, Option::<&Node>::None, None, None)?
         };
         let target_type = if self
             .type_checker
-            .symbol_value_declaration_is_context_sensitive(target.maybe_symbol().as_deref())
+            .symbol_value_declaration_is_context_sensitive(target.maybe_symbol().as_deref())?
         {
             self.type_checker.type_to_string_(
                 target,
@@ -766,7 +767,7 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target: &Type,
         report_errors: bool,
-    ) -> Ternary {
+    ) -> io::Result<Ternary> {
         self.is_related_to(
             source,
             target,
@@ -827,17 +828,17 @@ impl CheckTypeRelatedTo {
 
         let source = self
             .type_checker
-            .get_normalized_type(&original_source, false);
+            .get_normalized_type(&original_source, false)?;
         let mut target = self
             .type_checker
-            .get_normalized_type(&original_target, true);
+            .get_normalized_type(&original_target, true)?;
 
         if Gc::ptr_eq(&source, &target) {
             return Ok(Ternary::True);
         }
 
         if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
-            return Ok(self.is_identical_to(&source, &target, recursion_flags));
+            return self.is_identical_to(&source, &target, recursion_flags);
         }
 
         if source.flags().intersects(TypeFlags::TypeParameter)
@@ -1073,7 +1074,7 @@ impl CheckTypeRelatedTo {
                     vec![source.clone()]
                 },
                 target.flags().intersects(TypeFlags::Union),
-            );
+            )?;
             if let Some(constraint) = constraint.as_ref() {
                 if source.flags().intersects(TypeFlags::Intersection)
                     || target.flags().intersects(TypeFlags::Union)
@@ -1089,7 +1090,7 @@ impl CheckTypeRelatedTo {
                             Some(false),
                             None,
                             Some(intersection_state),
-                        );
+                        )?;
                         if result != Ternary::False {
                             self.reset_error_info(save_error_info);
                         }
@@ -1108,7 +1109,7 @@ impl CheckTypeRelatedTo {
                     && source.flags().intersects(TypeFlags::Intersection)
                     && self
                         .type_checker
-                        .get_apparent_type(&source)
+                        .get_apparent_type(&source)?
                         .flags()
                         .intersects(TypeFlags::StructuredType)
                     && !some(
@@ -1220,7 +1221,7 @@ impl CheckTypeRelatedTo {
                     && (contains_gc(Some(target_types), &intrinsic_attributes)
                         || contains_gc(Some(target_types), &intrinsic_class_attributes))
                 {
-                    return /*result*/;
+                    return Ok(()) /*result*/;
                 }
             } else {
                 let error_info = self
@@ -1228,7 +1229,7 @@ impl CheckTypeRelatedTo {
                     .elaborate_never_intersection(
                         self.maybe_error_info().as_deref().cloned(),
                         original_target,
-                    )
+                    )?
                     .map(Rc::new);
                 *self.maybe_error_info_mut() = error_info;
             }
@@ -1311,32 +1312,35 @@ impl CheckTypeRelatedTo {
         types: &[Gc<Type>],
         name: &str, /*__String*/
     ) -> io::Result<Gc<Type>> {
-        let append_prop_type =
-            |mut prop_types: Option<Vec<Gc<Type>>>, type_: &Gc<Type>, _| -> Option<Vec<Gc<Type>>> {
-                let type_ = self.type_checker.get_apparent_type(type_);
-                let prop = if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-                    self.type_checker
-                        .get_property_of_union_or_intersection_type(&type_, name, None)
-                } else {
-                    self.type_checker.get_property_of_object_type(&type_, name)
-                };
-                let prop_type = prop
-                    .as_ref()
-                    .try_map(|prop| self.type_checker.get_type_of_symbol(prop))?
-                    .or_else(|| {
-                        self.type_checker
-                            .get_applicable_index_info_for_name(&type_, name)
-                            .map(|index_info| index_info.type_.clone())
-                    })
-                    .unwrap_or_else(|| self.type_checker.undefined_type());
-                if prop_types.is_none() {
-                    prop_types = Some(vec![]);
-                }
-                append(prop_types.as_mut().unwrap(), Some(prop_type));
-                prop_types
+        let append_prop_type = |mut prop_types: Option<Vec<Gc<Type>>>,
+                                type_: &Gc<Type>,
+                                _|
+         -> io::Result<Option<Vec<Gc<Type>>>> {
+            let type_ = self.type_checker.get_apparent_type(type_)?;
+            let prop = if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+                self.type_checker
+                    .get_property_of_union_or_intersection_type(&type_, name, None)
+            } else {
+                self.type_checker
+                    .get_property_of_object_type(&type_, name)?
             };
+            let prop_type = prop
+                .as_ref()
+                .try_map(|prop| self.type_checker.get_type_of_symbol(prop))?
+                .or_else(|| {
+                    self.type_checker
+                        .get_applicable_index_info_for_name(&type_, name)
+                        .map(|index_info| index_info.type_.clone())
+                })
+                .unwrap_or_else(|| self.type_checker.undefined_type());
+            if prop_types.is_none() {
+                prop_types = Some(vec![]);
+            }
+            append(prop_types.as_mut().unwrap(), Some(prop_type));
+            Ok(prop_types)
+        };
         self.type_checker.get_union_type(
-            &reduce_left(types, append_prop_type, None, None, None).unwrap_or_else(|| vec![]),
+            &try_reduce_left(types, append_prop_type, None, None, None)?.unwrap_or_else(|| vec![]),
             None,
             Option::<&Symbol>::None,
             None,
@@ -1558,12 +1562,12 @@ impl CheckTypeRelatedTo {
                 if matches!(
                     check_types.as_ref(),
                     Some(check_types) if self.is_related_to(
-                        &self.type_checker.get_type_of_symbol(&prop),
-                        &self.get_type_of_property_in_types(check_types, prop.escaped_name()),
+                        &*self.type_checker.get_type_of_symbol(&prop)?,
+                        &*self.get_type_of_property_in_types(check_types, prop.escaped_name())?,
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None, None,
-                    ) == Ternary::False
+                    )? == Ternary::False
                 ) {
                     if report_errors {
                         self.report_incompatible_error(

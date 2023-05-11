@@ -21,8 +21,8 @@ use crate::{
     FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, ModifierFlags,
     NodeArray, NodeCheckFlags, NodeFlags, ScriptTarget, Signature, SignatureKind, SymbolFlags,
     TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    __String, get_object_flags, try_for_each_child, Node, NodeInterface, ObjectFlags, OptionTry,
-    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    __String, get_object_flags, try_for_each_child, try_map, Node, NodeInterface, ObjectFlags,
+    OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl GetFlowTypeOfReference {
@@ -175,11 +175,11 @@ impl GetFlowTypeOfReference {
                 .get_signatures_of_type(&right_type, SignatureKind::Construct);
             target_type = Some(if !construct_signatures.is_empty() {
                 self.type_checker.get_union_type(
-                    &map(&construct_signatures, |signature: &Gc<Signature>, _| {
+                    &try_map(&construct_signatures, |signature: &Gc<Signature>, _| {
                         self.type_checker.get_return_type_of_signature(
                             self.type_checker.get_erased_signature(signature.clone()),
                         )
-                    }),
+                    })?,
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -270,12 +270,12 @@ impl GetFlowTypeOfReference {
                     TypePredicateKind::This | TypePredicateKind::Identifier
                 )
             }) {
-                return Ok(self.narrow_type_by_type_predicate(
+                return self.narrow_type_by_type_predicate(
                     type_,
                     predicate,
                     call_expression,
                     assume_true,
-                ));
+                );
             }
         }
         let call_expression_as_call_expression = call_expression.as_call_expression();
@@ -341,14 +341,14 @@ impl GetFlowTypeOfReference {
                     .type_checker
                     .is_matching_reference(&self.reference, predicate_argument)?
                 {
-                    return Ok(self.get_narrowed_type(
+                    return self.get_narrowed_type(
                         &type_,
                         predicate_type,
                         assume_true,
                         |type1: &Type, type2: &Type| {
                             self.type_checker.is_type_subtype_of(type1, type2)
                         },
-                    ));
+                    );
                 }
                 if self.type_checker.strict_null_checks
                     && assume_true
@@ -366,18 +366,16 @@ impl GetFlowTypeOfReference {
                 }
                 let access = self.get_discriminant_property_access(predicate_argument, &type_)?;
                 if let Some(access) = access.as_ref() {
-                    return Ok(
-                        self.narrow_type_by_discriminant(&type_, access, |t: &Type| {
-                            self.get_narrowed_type(
-                                t,
-                                predicate_type,
-                                assume_true,
-                                |type1: &Type, type2: &Type| {
-                                    self.type_checker.is_type_subtype_of(type1, type2)
-                                },
-                            )
-                        }),
-                    );
+                    return self.try_narrow_type_by_discriminant(&type_, access, |t: &Type| {
+                        self.get_narrowed_type(
+                            t,
+                            predicate_type,
+                            assume_true,
+                            |type1: &Type, type2: &Type| {
+                                self.type_checker.is_type_subtype_of(type1, type2)
+                            },
+                        )
+                    });
                 }
             }
         }
@@ -411,17 +409,23 @@ impl GetFlowTypeOfReference {
                     let symbol = self.type_checker.get_resolved_symbol(expr)?;
                     if self.type_checker.is_const_variable(&symbol) {
                         let declaration = symbol.maybe_value_declaration();
-                        if let Some(declaration) = declaration.as_ref().filter(|declaration| {
-                            is_variable_declaration(declaration) && {
-                                let declaration_as_variable_declaration =
-                                    declaration.as_variable_declaration();
-                                declaration_as_variable_declaration.maybe_type().is_none()
-                                    && declaration_as_variable_declaration
-                                        .maybe_initializer()
-                                        .is_some()
-                                    && self.type_checker.is_constant_reference(&self.reference)?
-                            }
-                        }) {
+                        if let Some(declaration) =
+                            declaration
+                                .as_ref()
+                                .try_filter(|declaration| -> io::Result<_> {
+                                    Ok(is_variable_declaration(declaration) && {
+                                        let declaration_as_variable_declaration =
+                                            declaration.as_variable_declaration();
+                                        declaration_as_variable_declaration.maybe_type().is_none()
+                                            && declaration_as_variable_declaration
+                                                .maybe_initializer()
+                                                .is_some()
+                                            && self
+                                                .type_checker
+                                                .is_constant_reference(&self.reference)?
+                                    })
+                                })?
+                        {
                             self.type_checker
                                 .set_inline_level(self.type_checker.inline_level() + 1);
                             let result = self.narrow_type(
@@ -431,7 +435,7 @@ impl GetFlowTypeOfReference {
                                     .maybe_initializer()
                                     .unwrap(),
                                 assume_true,
-                            );
+                            )?;
                             self.type_checker
                                 .set_inline_level(self.type_checker.inline_level() - 1);
                             return Ok(result);
@@ -444,29 +448,29 @@ impl GetFlowTypeOfReference {
             | SyntaxKind::SuperKeyword
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::ElementAccessExpression => {
-                return Ok(self.narrow_type_by_truthiness(type_, expr, assume_true));
+                return self.narrow_type_by_truthiness(type_, expr, assume_true);
             }
             SyntaxKind::CallExpression => {
-                return Ok(self.narrow_type_by_call_expression(type_, expr, assume_true));
+                return self.narrow_type_by_call_expression(type_, expr, assume_true);
             }
             SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
-                return Ok(self.narrow_type(
+                return self.narrow_type(
                     type_,
                     &expr.as_has_expression().expression(),
                     assume_true,
-                ));
+                );
             }
             SyntaxKind::BinaryExpression => {
-                return Ok(self.narrow_type_by_binary_expression(type_, expr, assume_true));
+                return self.narrow_type_by_binary_expression(type_, expr, assume_true);
             }
             SyntaxKind::PrefixUnaryExpression => {
                 let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
                 if expr_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken {
-                    return Ok(self.narrow_type(
+                    return self.narrow_type(
                         type_,
                         &expr_as_prefix_unary_expression.operand,
                         !assume_true,
-                    ));
+                    );
                 }
             }
             _ => (),
@@ -555,7 +559,7 @@ impl TypeChecker {
                 .resolve_type_of_accessors(&location.parent().symbol(), Some(true))?
                 .unwrap());
         }
-        Ok(self.get_non_missing_type_of_symbol(&symbol))
+        self.get_non_missing_type_of_symbol(&symbol)
     }
 
     pub(super) fn maybe_get_control_flow_container(&self, node: &Node) -> Option<Gc<Node>> {
@@ -732,8 +736,8 @@ impl TypeChecker {
             Some(check_mode) if check_mode.intersects(CheckMode::Inferential)
         ) && self.some_type(type_, |type_: &Type| {
             self.is_generic_type_with_union_constraint(type_)
-        }) && (self.is_constraint_position(type_, reference)
-            || self.has_non_binding_pattern_contextual_type_with_no_generic_types(reference))?;
+        }) && (self.is_constraint_position(type_, reference)?
+            || self.has_non_binding_pattern_contextual_type_with_no_generic_types(reference)?);
         Ok(if substitute_constraints {
             self.map_type(
                 type_,
@@ -869,7 +873,7 @@ impl TypeChecker {
             if self
                 .get_declaration_node_flags_from_symbol(&source_symbol)
                 .intersects(NodeFlags::Deprecated)
-                && self.is_uncalled_function_reference(node, &source_symbol)
+                && self.is_uncalled_function_reference(node, &source_symbol)?
             {
                 self.add_deprecated_suggestion(
                     node,
@@ -1038,7 +1042,7 @@ impl TypeChecker {
         }
         let declaration = declaration.unwrap();
 
-        type_ = self.get_narrowable_type_for_reference(&type_, node, check_mode);
+        type_ = self.get_narrowable_type_for_reference(&type_, node, check_mode)?;
 
         let is_parameter = get_root_declaration(&declaration).kind() == SyntaxKind::Parameter;
         let declaration_container = self.maybe_get_control_flow_container(&declaration);

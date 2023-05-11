@@ -13,12 +13,13 @@ use crate::{
     get_object_flags, get_parameter_symbol_from_jsdoc, is_access_expression, is_binary_expression,
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
     is_source_file, is_type_alias, length, maybe_append_if_unique_gc, maybe_append_if_unique_rc,
-    maybe_first_defined, maybe_map, maybe_same_map, resolving_empty_array, same_map, some, try_map,
-    try_maybe_map, AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
-    ElementFlags, HasTypeArgumentsInterface, InterfaceTypeInterface, InternalSymbolName, Node,
-    NodeInterface, ObjectFlags, OptionTry, Signature, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypeSystemPropertyName,
+    maybe_first_defined, maybe_map, maybe_same_map, resolving_empty_array,
+    return_ok_default_if_none, same_map, some, try_map, try_maybe_first_defined, try_maybe_map,
+    AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
+    HasTypeArgumentsInterface, InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface,
+    ObjectFlags, OptionTry, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -139,7 +140,7 @@ impl TypeChecker {
             .create_object_type(ObjectFlags::Anonymous, Some(symbol))
             .into();
         Ok(if symbol.flags().intersects(SymbolFlags::Class) {
-            let base_type_variable = self.get_base_type_variable_of_class(symbol);
+            let base_type_variable = self.get_base_type_variable_of_class(symbol)?;
             if let Some(base_type_variable) = base_type_variable {
                 self.get_intersection_type(
                     &vec![type_, base_type_variable],
@@ -197,7 +198,7 @@ impl TypeChecker {
                         Some(export_symbol_declarations) if self.is_duplicated_common_js_export(Some(export_symbol_declarations))
                     ) && !symbol.maybe_declarations().as_ref().unwrap().is_empty()
                 }) {
-                    self.get_flow_type_from_common_js_export(export_symbol)
+                    self.get_flow_type_from_common_js_export(export_symbol)?
                 } else if self.is_duplicated_common_js_export(symbol.maybe_declarations().as_deref()) {
                     self.auto_type()
                 } else if let Some(declared_type) = declared_type {
@@ -234,7 +235,7 @@ impl TypeChecker {
                 },
             )?;
             if !self.pop_type_resolution() {
-                type_ = self.report_circularity_error(symbol);
+                type_ = self.report_circularity_error(symbol)?;
             }
             links.borrow_mut().type_ = Some(type_);
         }
@@ -325,13 +326,13 @@ impl TypeChecker {
     pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> io::Result<Gc<Type>> {
         let check_flags = get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::DeferredType) {
-            return Ok(self.get_type_of_symbol_with_deferred_type(symbol));
+            return self.get_type_of_symbol_with_deferred_type(symbol);
         }
         if check_flags.intersects(CheckFlags::Instantiated) {
-            return Ok(self.get_type_of_instantiated_symbol(symbol));
+            return self.get_type_of_instantiated_symbol(symbol);
         }
         if check_flags.intersects(CheckFlags::Mapped) {
-            return Ok(self.get_type_of_mapped_symbol(symbol));
+            return self.get_type_of_mapped_symbol(symbol);
         }
         if check_flags.intersects(CheckFlags::ReverseMapped) {
             return self.get_type_of_reverse_mapped_symbol(symbol);
@@ -349,10 +350,10 @@ impl TypeChecker {
                 | SymbolFlags::Enum
                 | SymbolFlags::ValueModule,
         ) {
-            return Ok(self.get_type_of_func_class_enum_module(symbol));
+            return self.get_type_of_func_class_enum_module(symbol);
         }
         if symbol.flags().intersects(SymbolFlags::EnumMember) {
-            return Ok(self.get_type_of_enum_member(symbol));
+            return self.get_type_of_enum_member(symbol);
         }
         if symbol.flags().intersects(SymbolFlags::Accessor) {
             return self.get_type_of_accessors(symbol);
@@ -504,21 +505,21 @@ impl TypeChecker {
                                 ),
                             ),
                         );
-                        return outer_type_parameters;
+                        return Ok(outer_type_parameters);
                     } else if node_present.kind() == SyntaxKind::ConditionalType {
                         let infer_type_parameters = self.get_infer_type_parameters(node_present)?;
                         if outer_type_parameters.is_none() && infer_type_parameters.is_none() {
-                            return None;
+                            return Ok(None);
                         }
-                        return Some(concatenate(
+                        return Ok(Some(concatenate(
                             outer_type_parameters.unwrap_or_else(|| vec![]),
                             infer_type_parameters.unwrap_or_else(|| vec![]),
-                        ));
+                        )));
                     }
                     let mut outer_and_own_type_parameters = self.append_type_parameters(
                         outer_type_parameters,
                         &get_effective_type_parameter_declarations(node_present),
-                    );
+                    )?;
                     let this_type = if matches!(include_this_types, Some(true))
                         && (matches!(
                             node_present.kind(),
@@ -535,7 +536,7 @@ impl TypeChecker {
                     } else {
                         None
                     };
-                    return if let Some(this_type) = this_type {
+                    return Ok(if let Some(this_type) = this_type {
                         if outer_and_own_type_parameters.is_none() {
                             outer_and_own_type_parameters = Some(vec![]);
                         }
@@ -546,7 +547,7 @@ impl TypeChecker {
                         outer_and_own_type_parameters
                     } else {
                         outer_and_own_type_parameters
-                    };
+                    });
                 }
                 SyntaxKind::JSDocParameterTag => {
                     let param_symbol = get_parameter_symbol_from_jsdoc(node_present);
@@ -556,21 +557,23 @@ impl TypeChecker {
                 }
                 SyntaxKind::JSDocComment => {
                     let outer_type_parameters =
-                        self.get_outer_type_parameters(node_present, include_this_types);
-                    return if let Some(node_tags) = node_present.as_jsdoc().tags.as_deref() {
-                        self.append_type_parameters(
-                            outer_type_parameters,
-                            &flat_map(Some(node_tags), |t: &Gc<Node>, _| {
-                                if is_jsdoc_template_tag(t) {
-                                    t.as_jsdoc_template_tag().type_parameters.to_vec()
-                                } else {
-                                    vec![]
-                                }
-                            }),
-                        )
-                    } else {
-                        outer_type_parameters
-                    };
+                        self.get_outer_type_parameters(node_present, include_this_types)?;
+                    return Ok(
+                        if let Some(node_tags) = node_present.as_jsdoc().tags.as_deref() {
+                            self.append_type_parameters(
+                                outer_type_parameters,
+                                &flat_map(Some(node_tags), |t: &Gc<Node>, _| {
+                                    if is_jsdoc_template_tag(t) {
+                                        t.as_jsdoc_template_tag().type_parameters.to_vec()
+                                    } else {
+                                        vec![]
+                                    }
+                                }),
+                            )?
+                        } else {
+                            outer_type_parameters
+                        },
+                    );
                 }
                 _ => (),
             }
@@ -580,7 +583,7 @@ impl TypeChecker {
     pub(super) fn get_outer_type_parameters_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> Option<Vec<Gc<Type /*TypeParameter*/>>> {
+    ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
         let declaration = if symbol.flags().intersects(SymbolFlags::Class) {
             symbol.maybe_value_declaration()
         } else {
@@ -599,7 +602,7 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
         let symbol_declarations = symbol.maybe_declarations();
-        let symbol_declarations = symbol_declarations.as_ref()?;
+        let symbol_declarations = return_ok_default_if_none!(symbol_declarations.as_ref());
         let mut result: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
         for node in symbol_declarations {
             if matches!(
@@ -614,7 +617,7 @@ impl TypeChecker {
                 result = self.append_type_parameters(
                     result,
                     &get_effective_type_parameter_declarations(declaration),
-                );
+                )?;
             }
         }
         Ok(result)
@@ -623,17 +626,17 @@ impl TypeChecker {
     pub(super) fn get_type_parameters_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> Option<Vec<Gc<Type /*TypeParameter*/>>> {
+    ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
         let outer_type_parameters = self.get_outer_type_parameters_of_class_or_interface(symbol);
         let local_type_parameters =
-            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
         if outer_type_parameters.is_none() && local_type_parameters.is_none() {
-            return None;
+            return Ok(None);
         }
-        Some(concatenate(
+        Ok(Some(concatenate(
             outer_type_parameters.unwrap_or_else(|| vec![]),
             local_type_parameters.unwrap_or_else(|| vec![]),
-        ))
+        )))
     }
 
     pub(super) fn is_mixin_constructor_type(&self, type_: &Type) -> io::Result<bool> {
@@ -655,21 +658,21 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn is_constructor_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_constructor_type(&self, type_: &Type) -> io::Result<bool> {
         if !self
             .get_signatures_of_type(type_, SignatureKind::Construct)
             .is_empty()
         {
-            return true;
+            return Ok(true);
         }
         if type_.flags().intersects(TypeFlags::TypeVariable) {
             let constraint = self.get_base_constraint_of_type(type_);
-            return matches!(
+            return Ok(matches!(
                 constraint,
-                Some(constraint) if self.is_mixin_constructor_type(&constraint)
-            );
+                Some(constraint) if self.is_mixin_constructor_type(&constraint)?
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_base_type_node_of_class(
@@ -821,7 +824,7 @@ impl TypeChecker {
                     .intersects(TypeFlags::TypeParameter)
                 {
                     let constraint =
-                        self.get_constraint_from_type_parameter(&base_constructor_type);
+                        self.get_constraint_from_type_parameter(&base_constructor_type)?;
                     let mut ctor_return = self.unknown_type();
                     if let Some(constraint) = constraint {
                         let ctor_sig =
@@ -900,7 +903,7 @@ impl TypeChecker {
     pub(super) fn get_base_types(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> Vec<Gc<Type /*BaseType*/>> {
+    ) -> io::Result<Vec<Gc<Type /*BaseType*/>>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         if !matches!(
             type_as_not_actually_interface_type.maybe_base_types_resolved(),
@@ -915,7 +918,7 @@ impl TypeChecker {
                     .intersects(ObjectFlags::Tuple)
                 {
                     *type_as_not_actually_interface_type.maybe_resolved_base_types() =
-                        Some(Gc::new(vec![self.get_tuple_base_type(type_)]));
+                        Some(Gc::new(vec![self.get_tuple_base_type(type_)?]));
                 } else if type_
                     .symbol()
                     .flags()
@@ -953,7 +956,7 @@ impl TypeChecker {
                 .as_ref()
                 .unwrap(),
         );
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_tuple_base_type(
@@ -1027,7 +1030,7 @@ impl TypeChecker {
             base_type = self.get_type_from_class_or_interface_reference(
                 &base_type_node,
                 base_constructor_type_symbol,
-            );
+            )?;
         } else if base_constructor_type.flags().intersects(TypeFlags::Any) {
             base_type = base_constructor_type;
         } else {
@@ -1062,13 +1065,16 @@ impl TypeChecker {
             *type_as_not_actually_interface_type.maybe_resolved_base_types() = Some(ret.clone());
             return Ok(ret);
         }
-        let reduced_base_type = self.get_reduced_type(&base_type);
+        let reduced_base_type = self.get_reduced_type(&base_type)?;
         if !self.is_valid_base_type(&reduced_base_type) {
-            let elaboration = self.elaborate_never_intersection(None, &base_type);
-            let diagnostic = chain_diagnostic_messages(elaboration, &Diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
+            let elaboration = self.elaborate_never_intersection(None, &base_type)?;
+            let diagnostic = chain_diagnostic_messages(
+                elaboration,
+                &Diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
                 Some(vec![
                     self.type_to_string_(&reduced_base_type, Option::<&Node>::None, None, None)?
-                ]));
+                ])
+            );
             self.diagnostics().add(Gc::new(
                 create_diagnostic_for_node_from_message_chain(
                     &base_type_node

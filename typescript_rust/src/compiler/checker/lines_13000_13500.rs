@@ -9,7 +9,7 @@ use crate::{
     get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, get_object_flags,
     index_of_gc, is_entity_name_expression, is_expression_with_type_arguments, is_identifier,
     is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag,
-    is_statement, is_type_alias, length, map, maybe_concatenate, skip_parentheses,
+    is_statement, is_type_alias, length, map, maybe_concatenate, skip_parentheses, try_map,
     walk_up_parenthesized_types_and_get_parent_and_child, AsDoubleDeref, BaseObjectType,
     CheckFlags, Diagnostics, HasTypeArgumentsInterface, InterfaceTypeInterface, Node, NodeFlags,
     NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, SubstitutionType, Symbol,
@@ -214,7 +214,7 @@ impl TypeChecker {
                 match constraint_declaration {
                     None => {
                         type_parameter_as_type_parameter.set_constraint(
-                            self.get_inferred_type_parameter_constraint(type_parameter)
+                            self.get_inferred_type_parameter_constraint(type_parameter)?
                                 .unwrap_or_else(|| self.no_constraint_type()),
                         );
                     }
@@ -445,7 +445,7 @@ impl TypeChecker {
                 } else if node.kind() == SyntaxKind::ArrayType {
                     vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)?]
                 } else {
-                    map(
+                    try_map(
                         &node.as_tuple_type_node().elements,
                         |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
                     )
@@ -583,15 +583,15 @@ impl TypeChecker {
                                 .as_double_deref(),
                         ) != type_parameters.len(),
                     ),
-                )
+                )?
             {
-                return Ok(self.create_deferred_type_reference(
+                return self.create_deferred_type_reference(
                     &type_,
                     node,
                     None,
                     Option::<&Symbol>::None,
                     None,
-                ));
+                );
             }
             let type_arguments = maybe_concatenate(
                 type_as_interface_type
@@ -606,7 +606,7 @@ impl TypeChecker {
             );
             return Ok(self.create_type_reference(&type_, type_arguments));
         }
-        Ok(if self.check_no_type_arguments(node, Some(symbol)) {
+        Ok(if self.check_no_type_arguments(node, Some(symbol))? {
             type_
         } else {
             self.error_type()
@@ -722,16 +722,16 @@ impl TypeChecker {
             let new_alias_symbol = alias_symbol.filter(|alias_symbol| {
                 self.is_local_type_alias(symbol) || !self.is_local_type_alias(alias_symbol)
             });
-            return Ok(self.get_type_alias_instantiation(
+            return self.get_type_alias_instantiation(
                 symbol,
                 self.type_arguments_from_type_reference_node(node)?
                     .as_deref(),
                 new_alias_symbol.as_deref(),
                 self.get_type_arguments_for_alias_symbol(new_alias_symbol.as_deref())
                     .as_deref(),
-            ));
+            );
         }
-        Ok(if self.check_no_type_arguments(node, Some(symbol)) {
+        Ok(if self.check_no_type_arguments(node, Some(symbol))? {
             type_
         } else {
             self.error_type()
@@ -880,10 +880,10 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
-            return Ok(self.get_type_from_class_or_interface_reference(node, &symbol));
+            return self.get_type_from_class_or_interface_reference(node, &symbol);
         }
         if symbol.flags().intersects(SymbolFlags::TypeAlias) {
-            return Ok(self.get_type_from_type_alias_reference(node, &symbol));
+            return self.get_type_from_type_alias_reference(node, &symbol);
         }
         let res = self.try_get_declared_type_of_symbol(&symbol)?;
         if let Some(res) = res {
@@ -922,7 +922,7 @@ impl TypeChecker {
                         !ptr::eq(&**value_type_symbol, symbol) && is_import_type_with_qualifier
                     })
                 {
-                    type_type = self.get_type_reference_type(node, &value_type_symbol);
+                    type_type = self.get_type_reference_type(node, &value_type_symbol)?;
                 }
             }
             links.borrow_mut().resolved_jsdoc_type = Some(type_type);
@@ -971,7 +971,7 @@ impl TypeChecker {
                     type_,
                     &check_node.as_tuple_type_node().elements[0],
                     &extends_node.as_tuple_type_node().elements[0],
-                )
+                )?
             } else if ptr::eq(
                 &*self.get_actual_type_variable(&*self.get_type_from_type_node_(check_node)?),
                 type_,
@@ -1007,7 +1007,7 @@ impl TypeChecker {
                     type_,
                     &parent_as_conditional_type_node.check_type,
                     &parent_as_conditional_type_node.extends_type,
-                );
+                )?;
                 if let Some(constraint) = constraint {
                     if constraints.is_none() {
                         constraints = Some(vec![]);

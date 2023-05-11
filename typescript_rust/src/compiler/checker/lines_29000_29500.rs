@@ -960,7 +960,7 @@ impl TypeChecker {
                 Some(Cow::Borrowed(head_message)),
                 containing_message_chain.clone(),
                 Some(error_output_container.clone()),
-            ) {
+            )? {
                 Debug_.assert(
                     !report_errors || error_output_container.errors_len() > 0,
                     Some("this parameter should have errors when reporting errors"),
@@ -1055,7 +1055,7 @@ impl TypeChecker {
                 Some(Cow::Borrowed(head_message)),
                 None,
                 Some(error_output_container.clone()),
-            ) {
+            )? {
                 Debug_.assert(
                     !report_errors || error_output_container.errors_len() > 0,
                     Some("rest parameter should have errors when reporting errors"),

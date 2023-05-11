@@ -337,8 +337,8 @@ impl TypeChecker {
                 && t.intersects(TypeFlags::Literal)
                 && source.as_literal_type().is_value_eq(target)
                 && self.is_enum_type_related_to(
-                    &self.get_parent_of_symbol(&source.symbol()).unwrap(),
-                    &self.get_parent_of_symbol(&target.symbol()).unwrap(),
+                    &self.get_parent_of_symbol(&source.symbol())?.unwrap(),
+                    &self.get_parent_of_symbol(&target.symbol())?.unwrap(),
                     &mut error_reporter,
                 )?
             {
@@ -382,7 +382,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let mut source = source.type_wrapper();
         if self.is_fresh_literal_type(&source) {
             source = match &*source {
@@ -406,22 +406,22 @@ impl TypeChecker {
             };
         }
         if Gc::ptr_eq(&source, &target) {
-            return true;
+            return Ok(true);
         }
         if !Rc::ptr_eq(&relation, &self.identity_relation) {
             if Rc::ptr_eq(&relation, &self.comparable_relation)
                 && !target.flags().intersects(TypeFlags::Never)
-                && self.is_simple_type_related_to(&target, &source, &(*relation).borrow(), None)
-                || self.is_simple_type_related_to(&source, &target, &(*relation).borrow(), None)
+                && self.is_simple_type_related_to(&target, &source, &(*relation).borrow(), None)?
+                || self.is_simple_type_related_to(&source, &target, &(*relation).borrow(), None)?
             {
-                return true;
+                return Ok(true);
             }
         } else {
             if source.flags() != target.flags() {
-                return false;
+                return Ok(false);
             }
             if source.flags().intersects(TypeFlags::Singleton) {
-                return true;
+                return Ok(true);
             }
         }
         if source.flags().intersects(TypeFlags::Object)
@@ -437,7 +437,7 @@ impl TypeChecker {
                 ))
                 .map(Clone::clone);
             if let Some(related) = related {
-                return related.intersects(RelationComparisonResult::Succeeded);
+                return Ok(related.intersects(RelationComparisonResult::Succeeded));
             }
         }
         if source
@@ -447,7 +447,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
-            return self.check_type_related_to(
+            return Ok(self.check_type_related_to(
                 &source,
                 &target,
                 relation,
@@ -455,9 +455,9 @@ impl TypeChecker {
                 None,
                 None,
                 None,
-            );
+            ));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_ignored_jsx_property(&self, source: &Type, source_prop: &Symbol) -> bool {
@@ -482,10 +482,10 @@ impl TypeChecker {
             {
                 self.create_type_reference(
                     &type_.as_type_reference().target,
-                    Some(self.get_type_arguments(&type_)),
+                    Some(self.get_type_arguments(&type_)?),
                 )
             } else if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-                self.get_reduced_type(&type_)
+                self.get_reduced_type(&type_)?
             } else if type_.flags().intersects(TypeFlags::Substitution) {
                 let type_as_substitution_type = type_.as_substitution_type();
                 if writing {
@@ -509,16 +509,16 @@ impl TypeChecker {
         Ok(type_)
     }
 
-    pub(super) fn check_type_related_to<TErrorNode: Borrow<Node>>(
+    pub(super) fn check_type_related_to(
         &self,
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         CheckTypeRelatedTo::new(
             self,
             source,

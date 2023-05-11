@@ -280,7 +280,9 @@ impl SymbolTableToDeclarationStatements {
                 .type_checker
                 .get_index_infos_of_type(type_to_serialize)
                 .is_empty()
-            && !self.type_checker.is_class_instance_side(type_to_serialize)
+            && !self
+                .type_checker
+                .is_class_instance_side(type_to_serialize)?
             && (!self
                 .type_checker
                 .get_properties_of_type(type_to_serialize)?
@@ -549,7 +551,7 @@ impl SymbolTableToDeclarationStatements {
         {
             type_args = Some(
                 self.type_checker
-                    .get_type_arguments(t)
+                    .get_type_arguments(t)?
                     .iter()
                     .map(|t| {
                         Ok(self

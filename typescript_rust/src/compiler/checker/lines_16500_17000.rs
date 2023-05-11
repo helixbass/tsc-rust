@@ -1053,16 +1053,16 @@ impl TypeChecker {
         self.is_type_comparable_to(type1, type2) || self.is_type_comparable_to(type2, type1)
     }
 
-    pub(super) fn check_type_assignable_to<TErrorNode: Borrow<Node>>(
+    pub(super) fn check_type_assignable_to(
         &self,
         source: &Type,
         target: &Type,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_object: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> bool {
-        self.check_type_related_to(
+    ) -> io::Result<bool> {
+        Ok(self.check_type_related_to(
             source,
             target,
             self.assignable_relation.clone(),
@@ -1070,6 +1070,6 @@ impl TypeChecker {
             head_message.map(Cow::Borrowed),
             containing_message_chain,
             error_output_object,
-        )
+        ))
     }
 }

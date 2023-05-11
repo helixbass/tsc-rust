@@ -218,7 +218,7 @@ impl TypeChecker {
                         opening_like_element.node_wrapper(),
                     )))),
                     None,
-                );
+                )?;
             }
         } else if ref_kind == JsxReferenceKind::Component {
             let class_constraint = self.get_jsx_element_class_type_at(opening_like_element)?;
@@ -239,7 +239,7 @@ impl TypeChecker {
                         opening_like_element.node_wrapper(),
                     )))),
                     None,
-                );
+                )?;
             }
         } else {
             let sfc_return_constraint =
@@ -273,7 +273,7 @@ impl TypeChecker {
                     opening_like_element.node_wrapper(),
                 )))),
                 None,
-            );
+            )?;
         }
 
         Ok(())

@@ -83,7 +83,7 @@ impl TypeChecker {
                     let prop = self.get_property_of_object_type(
                         type_,
                         (*context).borrow().property_name.as_ref().unwrap(),
-                    );
+                    )?;
                     if let Some(prop) = prop.as_ref() {
                         self.for_each_type(&*self.get_type_of_symbol(prop)?, |t: &Type| {
                             siblings.push(t.type_wrapper());
@@ -189,7 +189,7 @@ impl TypeChecker {
                 |info: &Gc<IndexInfo>, _| {
                     Gc::new(self.create_index_info(
                         info.key_type.clone(),
-                        self.get_widened_type(&info.type_),
+                        self.get_widened_type(&info.type_)?,
                         info.is_readonly,
                         None,
                     ))
@@ -227,7 +227,7 @@ impl TypeChecker {
             {
                 result = Some(self.any_type());
             } else if self.is_object_literal_type(type_) {
-                result = Some(self.get_widened_type_of_object_literal(type_, context.clone()));
+                result = Some(self.get_widened_type_of_object_literal(type_, context.clone())?);
             } else if type_.flags().intersects(TypeFlags::Union) {
                 let union_context = context.clone().unwrap_or_else(|| {
                     Rc::new(RefCell::new(
@@ -243,16 +243,16 @@ impl TypeChecker {
                         ),
                     ))
                 });
-                let widened_types = same_map(
+                let widened_types = try_map(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |t: &Gc<Type>, _| {
-                        if t.flags().intersects(TypeFlags::Nullable) {
+                    |t: &Gc<Type>, _| -> io::Result<_> {
+                        Ok(if t.flags().intersects(TypeFlags::Nullable) {
                             t.clone()
                         } else {
                             self.get_widened_type_with_context(t, Some(union_context.clone()))?
-                        }
+                        })
                     },
-                );
+                )?;
                 let union_reduction = if some(
                     Some(&widened_types),
                     Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
@@ -270,20 +270,20 @@ impl TypeChecker {
                 )?);
             } else if type_.flags().intersects(TypeFlags::Intersection) {
                 result = Some(self.get_intersection_type(
-                    &same_map(
+                    &try_map(
                         type_.as_union_or_intersection_type_interface().types(),
                         |type_: &Gc<Type>, _| self.get_widened_type(type_),
-                    ),
+                    )?,
                     Option::<&Symbol>::None,
                     None,
                 )?);
             } else if self.is_array_type(type_) || self.is_tuple_type(type_) {
                 result = Some(self.create_type_reference(
                     &type_.as_type_reference().target,
-                    Some(same_map(
-                        &self.get_type_arguments(type_),
+                    Some(try_map(
+                        &self.get_type_arguments(type_)?,
                         |type_: &Gc<Type>, _| self.get_widened_type(type_),
-                    )),
+                    )?),
                 ));
             }
             if result.is_some() && context.is_none() {
@@ -312,7 +312,7 @@ impl TypeChecker {
                 }
             }
             if self.is_array_type(type_) || self.is_tuple_type(type_) {
-                for t in &self.get_type_arguments(type_) {
+                for t in &self.get_type_arguments(type_)? {
                     if self.report_widening_errors_in_type(t)? {
                         error_reported = true;
                     }
@@ -335,7 +335,7 @@ impl TypeChecker {
                                         None,
                                     )?,
                                     self.type_to_string_(
-                                        &self.get_widened_type(&t),
+                                        &*self.get_widened_type(&t)?,
                                         Option::<&Node>::None,
                                         None,
                                         None,
@@ -358,7 +358,7 @@ impl TypeChecker {
         widening_kind: Option<WideningKind>,
     ) -> io::Result<()> {
         let type_as_string = self.type_to_string_(
-            &self.get_widened_type(type_),
+            &*self.get_widened_type(type_)?,
             Option::<&Node>::None,
             None,
             None,
@@ -824,7 +824,7 @@ impl TypeChecker {
                 && (object_flags.intersects(ObjectFlags::Reference)
                     && (type_.as_type_reference_interface().maybe_node().is_some()
                         || for_each_bool(
-                            &self.get_type_arguments(type_),
+                            &self.get_type_arguments(type_)?,
                             |type_argument: &Gc<Type>, _| {
                                 self.could_contain_type_variables(type_argument)
                             },
@@ -988,7 +988,7 @@ impl TypeChecker {
                         })?
                 || self.is_tuple_type(type_)
                     && try_some(
-                        Some(&self.get_type_arguments(type_)),
+                        Some(&self.get_type_arguments(type_)?),
                         Some(|type_argument: &Gc<Type>| {
                             self.is_partially_inferable_type(type_argument)
                         }),
@@ -1013,7 +1013,7 @@ impl TypeChecker {
         if self.is_array_type(source) {
             return Ok(Some(self.create_array_type(
                 &*self.infer_reverse_mapped_type(
-                    &self.get_type_arguments(source)[0],
+                    &self.get_type_arguments(source)?[0],
                     target,
                     constraint,
                 )?,
@@ -1021,7 +1021,7 @@ impl TypeChecker {
             )));
         }
         if self.is_tuple_type(source) {
-            let element_types = try_map(&self.get_type_arguments(source), |t: &Gc<Type>, _| {
+            let element_types = try_map(&self.get_type_arguments(source)?, |t: &Gc<Type>, _| {
                 self.infer_reverse_mapped_type(t, target, constraint)
             })?;
             let element_flags = if self

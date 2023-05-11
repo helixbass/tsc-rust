@@ -112,7 +112,7 @@ impl TypeChecker {
                 );
             } else {
                 let declared_type =
-                    self.get_type_from_mapped_type_node(&type_as_mapped_type.declaration);
+                    self.get_type_from_mapped_type_node(&type_as_mapped_type.declaration)?;
                 let constraint = self.get_constraint_type_from_mapped_type(&declared_type);
                 let extended_constraint = /*constraint &&*/ if constraint.flags().intersects(TypeFlags::TypeParameter) {
                     self.get_constraint_of_type_parameter(&constraint)
@@ -181,10 +181,10 @@ impl TypeChecker {
     pub(super) fn get_combined_mapped_type_optionality(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> i32 {
+    ) -> io::Result<i32> {
         let optionality = self.get_mapped_type_optionality(type_);
-        let modifiers_type = self.get_modifiers_type_from_mapped_type(type_);
-        if optionality != 0 {
+        let modifiers_type = self.get_modifiers_type_from_mapped_type(type_)?;
+        Ok(if optionality != 0 {
             optionality
         } else {
             if self.is_generic_mapped_type(&modifiers_type) {
@@ -192,7 +192,7 @@ impl TypeChecker {
             } else {
                 0
             }
-        }
+        })
     }
 
     pub(super) fn is_partial_mapped_type(&self, type_: &Type) -> bool {
@@ -428,12 +428,12 @@ impl TypeChecker {
     pub(super) fn get_constraint_of_type_parameter(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> Option<Gc<Type>> {
-        if self.has_non_circular_base_constraint(type_parameter) {
-            self.get_constraint_from_type_parameter(type_parameter)
+    ) -> io::Result<Option<Gc<Type>>> {
+        Ok(if self.has_non_circular_base_constraint(type_parameter)? {
+            self.get_constraint_from_type_parameter(type_parameter)?
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn get_constraint_of_indexed_access(
@@ -459,7 +459,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_from_indexed_access(
         &self,
         type_: &Type, /*IndexedAccessType*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         let index_constraint =
             self.get_simplified_type_or_constraint(&type_as_indexed_access_type.index_type);
@@ -473,9 +473,9 @@ impl TypeChecker {
                 Option::<&Node>::None,
                 Option::<&Symbol>::None,
                 None,
-            );
+            )?;
             if indexed_access.is_some() {
-                return indexed_access;
+                return Ok(indexed_access);
             }
         }
         let object_constraint =
@@ -483,16 +483,16 @@ impl TypeChecker {
         if let Some(object_constraint) = object_constraint.filter(|object_constraint| {
             !Gc::ptr_eq(object_constraint, &type_as_indexed_access_type.object_type)
         }) {
-            return self.get_indexed_access_type_or_undefined(
+            return Ok(self.get_indexed_access_type_or_undefined(
                 &object_constraint,
                 &type_as_indexed_access_type.index_type,
                 Some(type_as_indexed_access_type.access_flags),
                 Option::<&Node>::None,
                 Option::<&Symbol>::None,
                 None,
-            );
+            ));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn get_default_constraint_of_conditional_type(
@@ -568,20 +568,21 @@ impl TypeChecker {
     pub(super) fn get_constraint_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> Gc<Type> {
-        self.get_constraint_of_distributive_conditional_type(type_)
-            .unwrap_or_else(|| self.get_default_constraint_of_conditional_type(type_))
+    ) -> io::Result<Gc<Type>> {
+        Ok(self
+            .get_constraint_of_distributive_conditional_type(type_)?
+            .unwrap_or_else(|| self.get_default_constraint_of_conditional_type(type_)))
     }
 
     pub(super) fn get_constraint_of_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
-    ) -> Option<Gc<Type>> {
-        if self.has_non_circular_base_constraint(type_) {
-            Some(self.get_constraint_from_conditional_type(type_))
+    ) -> io::Result<Option<Gc<Type>>> {
+        Ok(if self.has_non_circular_base_constraint(type_)? {
+            Some(self.get_constraint_from_conditional_type(type_)?)
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn get_effective_constraint_of_intersection(
@@ -633,27 +634,29 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_base_constraint_of_type(&self, type_: &Type) -> Option<Gc<Type>> {
+    pub(super) fn get_base_constraint_of_type(&self, type_: &Type) -> io::Result<Option<Gc<Type>>> {
         if type_.flags().intersects(
             TypeFlags::InstantiableNonPrimitive
                 | TypeFlags::UnionOrIntersection
                 | TypeFlags::TemplateLiteral
                 | TypeFlags::StringMapping,
         ) {
-            let constraint = self.get_resolved_base_constraint(type_);
-            return if !Gc::ptr_eq(&constraint, &self.no_constraint_type())
-                && !Gc::ptr_eq(&constraint, &self.circular_constraint_type())
-            {
-                Some(constraint)
-            } else {
-                None
-            };
+            let constraint = self.get_resolved_base_constraint(type_)?;
+            return Ok(
+                if !Gc::ptr_eq(&constraint, &self.no_constraint_type())
+                    && !Gc::ptr_eq(&constraint, &self.circular_constraint_type())
+                {
+                    Some(constraint)
+                } else {
+                    None
+                },
+            );
         }
-        if type_.flags().intersects(TypeFlags::Index) {
+        Ok(if type_.flags().intersects(TypeFlags::Index) {
             Some(self.keyof_constraint_type())
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn get_base_constraint_or_type(&self, type_: &Type) -> Gc<Type> {
@@ -664,11 +667,11 @@ impl TypeChecker {
     pub(super) fn has_non_circular_base_constraint(
         &self,
         type_: &Type, /*InstantiableType*/
-    ) -> bool {
-        !Gc::ptr_eq(
-            &self.get_resolved_base_constraint(type_),
+    ) -> io::Result<bool> {
+        Ok(!Gc::ptr_eq(
+            &self.get_resolved_base_constraint(type_)?,
             &self.circular_constraint_type(),
-        )
+        ))
     }
 
     pub(super) fn get_resolved_base_constraint(
@@ -693,20 +696,21 @@ impl TypeChecker {
         &self,
         stack: &mut Vec<Gc<Type>>,
         t: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if t.maybe_immediate_base_constraint().is_none() {
             if !self.push_type_resolution(
                 &t.type_wrapper().into(),
                 TypeSystemPropertyName::ImmediateBaseConstraint,
             ) {
-                return self.circular_constraint_type();
+                return Ok(self.circular_constraint_type());
             }
             let mut result: Option<Gc<Type>> = None;
             if stack.len() < 10
                 || stack.len() < 50 && !self.is_deeply_nested_type(t, stack, stack.len(), None)
             {
                 stack.push(t.type_wrapper());
-                result = self.compute_base_constraint(stack, &self.get_simplified_type(t, false));
+                result =
+                    self.compute_base_constraint(stack, &self.get_simplified_type(t, false))?;
                 stack.pop();
             }
             if !self.pop_type_resolution() {
@@ -742,7 +746,7 @@ impl TypeChecker {
             *t.maybe_immediate_base_constraint() =
                 Some(result.unwrap_or_else(|| self.no_constraint_type()));
         }
-        t.maybe_immediate_base_constraint().clone().unwrap()
+        Ok(t.maybe_immediate_base_constraint().clone().unwrap())
     }
 
     pub(super) fn get_base_constraint(
@@ -766,7 +770,7 @@ impl TypeChecker {
         t: &Type,
     ) -> io::Result<Option<Gc<Type>>> {
         if t.flags().intersects(TypeFlags::TypeParameter) {
-            let constraint = self.get_constraint_from_type_parameter(t);
+            let constraint = self.get_constraint_from_type_parameter(t)?;
             return Ok(
                 if matches!(t.as_type_parameter().is_this_type, Some(true)) || constraint.is_none()
                 {
@@ -849,7 +853,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
                     None,
-                )
+                )?
             } else {
                 None
             };
@@ -895,7 +899,7 @@ impl TypeChecker {
         if type_parameter_as_type_parameter.maybe_default().is_none() {
             if let Some(type_parameter_target) = type_parameter_as_type_parameter.target.as_ref() {
                 let target_default =
-                    self.get_resolved_type_parameter_default(type_parameter_target);
+                    self.get_resolved_type_parameter_default(type_parameter_target)?;
                 *type_parameter_as_type_parameter.maybe_default() =
                     Some(if let Some(target_default) = target_default {
                         self.instantiate_type(
@@ -948,22 +952,22 @@ impl TypeChecker {
     pub(super) fn get_default_from_type_parameter_(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> Option<Gc<Type>> {
-        let default_type = self.get_resolved_type_parameter_default(type_parameter);
-        default_type.filter(|default_type| {
+    ) -> io::Result<Option<Gc<Type>>> {
+        let default_type = self.get_resolved_type_parameter_default(type_parameter)?;
+        Ok(default_type.filter(|default_type| {
             !Gc::ptr_eq(&default_type, &self.no_constraint_type())
                 && !Gc::ptr_eq(&default_type, &self.circular_constraint_type())
-        })
+        }))
     }
 
     pub(super) fn has_non_circular_type_parameter_default(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> bool {
-        !matches!(
-            self.get_resolved_type_parameter_default(type_parameter),
+    ) -> io::Result<bool> {
+        Ok(!matches!(
+            self.get_resolved_type_parameter_default(type_parameter)?,
             Some(resolved) if Gc::ptr_eq(&resolved, &self.circular_constraint_type())
-        )
+        ))
     }
 
     pub(super) fn has_type_parameter_default(
@@ -981,16 +985,16 @@ impl TypeChecker {
     pub(super) fn get_apparent_type_of_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let type_as_mapped_type = type_.as_mapped_type();
         if type_as_mapped_type.maybe_resolved_apparent_type().is_none() {
-            let resolved = self.get_resolved_apparent_type_of_mapped_type(type_);
+            let resolved = self.get_resolved_apparent_type_of_mapped_type(type_)?;
             *type_as_mapped_type.maybe_resolved_apparent_type() = Some(resolved);
         }
-        type_as_mapped_type
+        Ok(type_as_mapped_type
             .maybe_resolved_apparent_type()
             .clone()
-            .unwrap()
+            .unwrap())
     }
 
     pub(super) fn get_resolved_apparent_type_of_mapped_type(

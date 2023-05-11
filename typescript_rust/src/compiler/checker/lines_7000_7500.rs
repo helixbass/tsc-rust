@@ -19,8 +19,8 @@ use crate::{
     is_shorthand_ambient_module_symbol, is_source_file, is_static, is_string_literal_like,
     is_variable_declaration, is_variable_statement, length, map, map_defined, maybe_first_defined,
     maybe_get_source_file_of_node, maybe_map, set_parent, set_synthetic_leading_comments_rc,
-    set_text_range_rc_node, some, try_flat_map, try_map, try_map_defined, try_maybe_map,
-    unescape_leading_underscores, with_parse_base_node_factory_and_factory,
+    set_text_range_rc_node, some, try_flat_map, try_map, try_map_defined, try_maybe_first_defined,
+    try_maybe_map, unescape_leading_underscores, with_parse_base_node_factory_and_factory,
     with_synthetic_factory_and_factory, AsDoubleDeref, AssignmentDeclarationKind, Debug_,
     HasInitializerInterface, HasTypeArgumentsInterface, InternalSymbolName, IteratorExt,
     MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
@@ -1100,17 +1100,17 @@ impl SymbolTableToDeclarationStatements {
     pub(super) fn get_some_target_name_from_declarations(
         &self,
         declarations: Option<&[Gc<Node /*Declaration*/>]>,
-    ) -> Option<String> {
-        maybe_first_defined(declarations, |d: &Gc<Node>, _| {
+    ) -> io::Result<Option<String>> {
+        try_maybe_first_defined(declarations, |d: &Gc<Node>, _| {
             if is_import_specifier(d) || is_export_specifier(d) {
-                return Some(
+                return Ok(Some(
                     id_text(
                         &d.as_has_property_name()
                             .maybe_property_name()
                             .unwrap_or_else(|| d.as_named_declaration().name()),
                     )
                     .to_owned(),
-                );
+                ));
             }
             if is_binary_expression(d) || is_export_assignment(d) {
                 let expression = if is_export_assignment(d) {
@@ -1119,18 +1119,18 @@ impl SymbolTableToDeclarationStatements {
                     &d.as_binary_expression().right
                 };
                 if is_property_access_expression(expression) {
-                    return Some(
+                    return Ok(Some(
                         id_text(&expression.as_property_access_expression().name).to_owned(),
-                    );
+                    ));
                 }
             }
-            if self.type_checker.is_alias_symbol_declaration(d) {
+            if self.type_checker.is_alias_symbol_declaration(d)? {
                 let name = get_name_of_declaration(Some(&**d));
                 if let Some(name) = name.as_ref().filter(|name| is_identifier(name)) {
-                    return Some(id_text(name).to_owned());
+                    return Ok(Some(id_text(name).to_owned()));
                 }
             }
-            None
+            Ok(None)
         })
     }
 

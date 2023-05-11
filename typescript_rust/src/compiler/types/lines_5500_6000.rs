@@ -950,6 +950,12 @@ pub enum Ternary {
     True = -1,
 }
 
+impl Default for Ternary {
+    fn default() -> Self {
+        Self::False
+    }
+}
+
 impl TryFrom<i32> for Ternary {
     type Error = ();
 
