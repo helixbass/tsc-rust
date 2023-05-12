@@ -474,7 +474,7 @@ impl TypeChecker {
         right: &Type,
     ) -> io::Result<(String, String)> {
         let mut left_str = if let Some(symbol) = left.maybe_symbol() {
-            if self.symbol_value_declaration_is_context_sensitive(Some(&symbol)) {
+            if self.symbol_value_declaration_is_context_sensitive(Some(&symbol))? {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(left, enclosing_declaration, None, None)?
             } else {
@@ -484,7 +484,7 @@ impl TypeChecker {
             self.type_to_string_(left, Option::<&Node>::None, None, None)?
         };
         let mut right_str = if let Some(symbol) = right.maybe_symbol() {
-            if self.symbol_value_declaration_is_context_sensitive(Some(&symbol)) {
+            if self.symbol_value_declaration_is_context_sensitive(Some(&symbol))? {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(right, enclosing_declaration, None, None)?
             } else {
@@ -842,7 +842,7 @@ impl NodeBuilder {
             .flags()
             .intersects(NodeBuilderFlags::NoTypeReduction)
         {
-            type_ = self.type_checker.get_reduced_type(&type_);
+            type_ = self.type_checker.get_reduced_type(&type_)?;
         }
 
         if type_.flags().intersects(TypeFlags::Any) {

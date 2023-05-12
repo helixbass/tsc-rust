@@ -246,7 +246,7 @@ impl SymbolTableToDeclarationStatements {
             .get_declared_type_of_class_or_interface(symbol)?;
         let local_params = self
             .type_checker
-            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
         let type_param_decls = try_maybe_map(local_params.as_deref(), |p: &Gc<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
@@ -313,7 +313,7 @@ impl SymbolTableToDeclarationStatements {
                             index_signatures,
                             construct_signatures,
                             call_signatures,
-                            members.collect_vec(),
+                            members,
                         ]
                         .into_iter(),
                     ),
@@ -509,7 +509,7 @@ impl SymbolTableToDeclarationStatements {
         symbol: &Symbol,
         symbol_name: &str,
         modifier_flags: ModifierFlags,
-    ) {
+    ) -> io::Result<()> {
         self.add_result(
             &get_factory()
                 .create_enum_declaration(
@@ -571,6 +571,8 @@ impl SymbolTableToDeclarationStatements {
                 .wrap(),
             modifier_flags,
         );
+
+        Ok(())
     }
 
     pub(super) fn serialize_as_function_namespace_merge(
@@ -906,7 +908,7 @@ impl SymbolTableToDeclarationStatements {
             .set_enclosing_declaration(original_decl.clone().or_else(|| old_enclosing.clone()));
         let local_params = self
             .type_checker
-            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
         let type_param_decls = try_maybe_map(local_params.as_ref(), |p: &Gc<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
@@ -926,7 +928,7 @@ impl SymbolTableToDeclarationStatements {
             })?
             .try_unwrap_or_else(|| {
                 try_map_defined(
-                    Some(&self.type_checker.get_implements_types(class_type)),
+                    Some(&self.type_checker.get_implements_types(class_type)?),
                     |type_: &Gc<Type>, _| self.serialize_implemented_type(type_),
                 )
             })?;
@@ -1002,16 +1004,22 @@ impl SymbolTableToDeclarationStatements {
         } else {
             vec![]
         };
-        let public_properties = public_symbol_props.flat_map(|ref p| {
-            self.serialize_property_symbol_for_class().call(
-                p,
-                false,
-                base_types.get(0).as_double_deref(),
-            )
-        });
+        let public_properties = try_flat_map(
+            Some(&public_symbol_props.collect_vec()),
+            |p: &Gc<Symbol>, _| {
+                self.serialize_property_symbol_for_class().call(
+                    p,
+                    false,
+                    base_types.get(0).as_double_deref(),
+                )
+            },
+        )?;
         let static_members = try_flat_map(
             Some(&filter(
-                &self.type_checker.get_properties_of_type(static_type)?,
+                &self
+                    .type_checker
+                    .get_properties_of_type(static_type)?
+                    .collect_vec(),
                 |p: &Gc<Symbol>| {
                     !p.flags().intersects(SymbolFlags::Prototype)
                         && p.escaped_name() != "prototype"

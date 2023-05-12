@@ -45,7 +45,7 @@ impl TypeChecker {
                     .get_awaited_type_of_promise(target, Option::<&Node>::None, None, None)?
                     .is_some()
                 {
-                    return;
+                    return Ok(());
                 }
                 let awaited_type_of_source =
                     self.get_awaited_type_of_promise(source, Option::<&Node>::None, None, None)?;
@@ -187,7 +187,7 @@ impl TypeChecker {
                     let spread_type_target_as_tuple_type =
                         spread_type.as_type_reference().target.as_tuple_type();
                     for_each(
-                        &self.get_type_arguments(spread_type),
+                        &self.get_type_arguments(spread_type)?,
                         |t: &Gc<Type>, i| -> Option<()> {
                             let flags = spread_type_target_as_tuple_type.element_flags[i];
                             let synthetic_arg = self.create_synthetic_expression(
@@ -230,7 +230,7 @@ impl TypeChecker {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 vec![self.create_synthetic_expression(
                     expr,
-                    &*self.get_type_of_symbol(&self.get_symbol_of_node(&parent).unwrap())?,
+                    &*self.get_type_of_symbol(&self.get_symbol_of_node(&parent)?.unwrap())?,
                     None,
                     Option::<&Node>::None,
                 )]
@@ -1016,12 +1016,12 @@ impl TypeChecker {
             }
         }
 
-        Ok(self.get_candidate_for_overload_failure(
+        self.get_candidate_for_overload_failure(
             node,
             candidates,
             &args,
             candidates_out_array_is_some,
-        ))
+        )
     }
 
     pub(super) fn add_implementation_success_elaboration(
@@ -1128,7 +1128,7 @@ impl TypeChecker {
                 args,
                 candidate,
                 Some(signature_help_trailing_comma),
-            ) {
+            )? {
                 return Ok(None);
             }
             if self
@@ -1157,7 +1157,7 @@ impl TypeChecker {
                     args,
                     candidate,
                     Some(signature_help_trailing_comma),
-                )
+                )?
             {
                 continue;
             }
@@ -1217,13 +1217,13 @@ impl TypeChecker {
                         })
                         .as_deref(),
                 )?;
-                if self.get_non_array_rest_type(candidate).is_some()
+                if self.get_non_array_rest_type(candidate)?.is_some()
                     && !self.has_correct_arity(
                         node,
                         args,
                         &check_candidate,
                         Some(signature_help_trailing_comma),
-                    )
+                    )?
                 {
                     *candidate_for_argument_arity_error = Some(check_candidate.clone());
                     continue;
@@ -1271,13 +1271,13 @@ impl TypeChecker {
                             .maybe_inferred_type_parameters()
                             .as_deref(),
                     )?;
-                    if self.get_non_array_rest_type(candidate).is_some()
+                    if self.get_non_array_rest_type(candidate)?.is_some()
                         && !self.has_correct_arity(
                             node,
                             args,
                             &check_candidate,
                             Some(signature_help_trailing_comma),
-                        )
+                        )?
                     {
                         *candidate_for_argument_arity_error = Some(check_candidate.clone());
                         continue;

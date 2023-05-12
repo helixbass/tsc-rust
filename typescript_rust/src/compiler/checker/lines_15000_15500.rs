@@ -153,11 +153,11 @@ impl TypeChecker {
         Ok(false)
     }
 
-    pub(super) fn get_property_name_from_index<'index_type, TAccessNode: Borrow<Node>>(
+    pub(super) fn get_property_name_from_index<'index_type>(
         &self,
         index_type: &'index_type Type,
         access_node: Option<
-            TAccessNode, /*StringLiteral | Identifier | PrivateIdentifier | ObjectBindingPattern | ArrayBindingPattern | ComputedPropertyName | NumericLiteral | IndexedAccessTypeNode | ElementAccessExpression | SyntheticExpression*/
+            impl Borrow<Node>, /*StringLiteral | Identifier | PrivateIdentifier | ObjectBindingPattern | ArrayBindingPattern | ComputedPropertyName | NumericLiteral | IndexedAccessTypeNode | ElementAccessExpression | SyntheticExpression*/
         >,
     ) -> Option<Cow<'index_type, str> /*__String*/> {
         if self.is_type_usable_as_property_name(index_type) {

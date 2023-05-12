@@ -118,7 +118,10 @@ impl NodeBuilder {
                 .create_type_operator_node(
                     SyntaxKind::KeyOfKeyword,
                     self.type_to_type_node_helper(
-                        Some(self.type_checker.get_modifiers_type_from_mapped_type(type_)),
+                        Some(
+                            self.type_checker
+                                .get_modifiers_type_from_mapped_type(type_)?,
+                        ),
                         context,
                     )?
                     .unwrap(),
@@ -136,14 +139,16 @@ impl NodeBuilder {
                 .unwrap();
         }
         let type_parameter_node: Gc<Node> = self.type_parameter_to_declaration_with_constraint(
-            &self.type_checker.get_type_parameter_from_mapped_type(type_),
+            &self
+                .type_checker
+                .get_type_parameter_from_mapped_type(type_)?,
             context,
             Some(appropriate_constraint_type_node),
         )?;
         let name_type_node: Option<Gc<Node>> =
             if type_declaration_as_mapped_type_node.name_type.is_some() {
                 self.type_to_type_node_helper(
-                    self.type_checker.get_name_type_from_mapped_type(type_),
+                    self.type_checker.get_name_type_from_mapped_type(type_)?,
                     context,
                 )?
             } else {
@@ -152,7 +157,9 @@ impl NodeBuilder {
         let template_type_node: Option<Gc<Node>> = self.type_to_type_node_helper(
             Some(
                 self.type_checker.remove_missing_type(
-                    &self.type_checker.get_template_type_from_mapped_type(type_),
+                    &*self
+                        .type_checker
+                        .get_template_type_from_mapped_type(type_)?,
                     self.type_checker
                         .get_mapped_type_modifiers(type_)
                         .intersects(MappedTypeModifiers::IncludeOptional),
@@ -182,7 +189,7 @@ impl NodeBuilder {
         let type_id = type_.id();
         let symbol = type_.maybe_symbol();
         Ok(if let Some(symbol) = symbol {
-            let is_instance_type = if self.type_checker.is_class_instance_side(type_) {
+            let is_instance_type = if self.type_checker.is_class_instance_side(type_)? {
                 SymbolFlags::Type
             } else {
                 SymbolFlags::Value
@@ -195,7 +202,7 @@ impl NodeBuilder {
             } else if symbol.flags().intersects(SymbolFlags::Class)
                 && self
                     .type_checker
-                    .get_base_type_variable_of_class(&symbol)
+                    .get_base_type_variable_of_class(&symbol)?
                     .is_none()
                 && !(matches!(symbol.maybe_value_declaration(), Some(value_declaration) if value_declaration.kind() == SyntaxKind::ClassExpression)
                     && context
@@ -583,7 +590,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type, /*TypeReference*/
     ) -> io::Result<Option<Gc<Node>>> {
-        let type_arguments = self.type_checker.get_type_arguments(type_);
+        let type_arguments = self.type_checker.get_type_arguments(type_)?;
         let type_as_type_reference = type_.as_type_reference_interface();
         let type_target = type_as_type_reference.target();
         Ok(
@@ -781,12 +788,18 @@ impl NodeBuilder {
                         let start = i;
                         let parent = self
                             .type_checker
-                            .get_parent_symbol_of_type_parameter(&outer_type_parameters[i])
+                            .get_parent_symbol_of_type_parameter(&outer_type_parameters[i])?
                             .unwrap();
                         while {
                             i += 1;
                             i < length
-                                && matches!(self.type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i]), Some(parent_symbol) if Gc::ptr_eq(&parent_symbol, &parent))
+                                && matches!(
+                                    self.type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i])?,
+                                    Some(parent_symbol) if Gc::ptr_eq(
+                                        &parent_symbol,
+                                        &parent
+                                    )
+                                )
                         } {}
                         if !range_equals_gc(outer_type_parameters, &type_arguments, start, i) {
                             let type_argument_slice = self.map_to_type_nodes(
@@ -1102,7 +1115,7 @@ impl NodeBuilder {
             self.type_checker.any_type()
         } else {
             self.type_checker
-                .get_non_missing_type_of_symbol(property_symbol)
+                .get_non_missing_type_of_symbol(property_symbol)?
         };
         let save_enclosing_declaration = context.maybe_enclosing_declaration();
         context.set_enclosing_declaration(None);

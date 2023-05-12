@@ -517,7 +517,7 @@ impl TypeChecker {
                     } else {
                         self.check_type_assignable_to_and_optionally_elaborate(
                             &initializer_type,
-                            &self.get_widened_type_for_variable_like_declaration(node, None),
+                            &*self.get_widened_type_for_variable_like_declaration(node, None)?,
                             Some(node),
                             node_as_has_initializer.maybe_initializer(),
                             None,

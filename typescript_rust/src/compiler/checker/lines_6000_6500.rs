@@ -263,7 +263,7 @@ impl NodeBuilder {
             while matches!(
                 (*context.type_parameter_names_by_text_next_name_count).borrow().as_ref(),
                 Some(context_type_parameter_names_by_text_next_name_count) if context_type_parameter_names_by_text_next_name_count.contains_key(&text)
-            ) || self.type_parameter_shadows_name_in_scope(&text, context, type_)
+            ) || self.type_parameter_shadows_name_in_scope(&text, context, type_)?
             {
                 i += 1;
                 text = format!("{}_{}", rawtext, i);
@@ -1395,14 +1395,14 @@ impl NodeBuilder {
             !self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
                 node,
                 &*self.type_checker.get_type_from_type_node_(node)?
-            ) || self.type_checker.get_intended_type_from_jsdoc_type_reference(node).is_some() ||
+            ) || self.type_checker.get_intended_type_from_jsdoc_type_reference(node)?.is_some() ||
             Gc::ptr_eq(
                 &self.type_checker.unknown_symbol(),
                 &self.type_checker.resolve_type_reference_name(
                     node,
                     SymbolFlags::Type,
                     Some(true)
-                ),
+                )?,
             )
         ) {
             return Ok(Some(
@@ -1430,7 +1430,7 @@ impl NodeBuilder {
                             self.type_checker.get_min_type_argument_count(
                                 self.type_checker.get_local_type_parameters_of_class_or_interface_or_type_alias(
                                     node_symbol
-                                ).as_deref()
+                                )?.as_deref()
                             )
                         )
                 )

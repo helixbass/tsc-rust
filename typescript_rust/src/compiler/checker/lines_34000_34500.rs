@@ -81,7 +81,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_parameter(&self, node: &Node /*ParameterDeclaration*/) {
+    pub(super) fn check_parameter(
+        &self,
+        node: &Node, /*ParameterDeclaration*/
+    ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
 
         self.check_variable_like_declaration(node);
@@ -191,6 +194,8 @@ impl TypeChecker {
                 None,
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn check_type_predicate(
@@ -237,14 +242,14 @@ impl TypeChecker {
                             Gc::new(Box::new(CheckTypePredicateContainingMessageChain));
                         self.check_type_assignable_to(
                             type_predicate_type,
-                            &self.get_type_of_symbol(
+                            &*self.get_type_of_symbol(
                                 &signature.parameters()[type_predicate_parameter_index],
-                            ),
+                            )?,
                             node_as_type_predicate_node.type_.as_deref(),
                             None,
                             Some(leading_error),
                             None,
-                        );
+                        )?;
                     }
                 }
             } else
@@ -811,7 +816,10 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn check_property_signature(&self, node: &Node /*PropertySignature*/) {
+    pub(super) fn check_property_signature(
+        &self,
+        node: &Node, /*PropertySignature*/
+    ) -> io::Result<()> {
         if is_private_identifier(&node.as_property_signature().name()) {
             self.error(
                 Some(node),
@@ -819,7 +827,9 @@ impl TypeChecker {
                 None,
             );
         }
-        self.check_property_declaration(node)
+        self.check_property_declaration(node)?;
+
+        Ok(())
     }
 
     pub(super) fn check_method_declaration(

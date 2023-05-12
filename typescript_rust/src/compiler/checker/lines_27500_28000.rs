@@ -38,9 +38,9 @@ impl TypeChecker {
             })?;
         let jsx_element_attrib_prop_interface_type = jsx_element_attrib_prop_interface_sym
             .as_ref()
-            .map(|jsx_element_attrib_prop_interface_sym| {
+            .try_map(|jsx_element_attrib_prop_interface_sym| {
                 self.get_declared_type_of_symbol(jsx_element_attrib_prop_interface_sym)
-            });
+            })?;
         let properties_of_jsx_element_attrib_prop_interface =
             jsx_element_attrib_prop_interface_type.as_ref().try_map(
                 |jsx_element_attrib_prop_interface_type| {
@@ -150,7 +150,7 @@ impl TypeChecker {
                 }
             }
         }
-        let apparent_elem_type = self.get_apparent_type(element_type);
+        let apparent_elem_type = self.get_apparent_type(element_type)?;
         let mut signatures =
             self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Construct);
         if signatures.is_empty() {
@@ -460,11 +460,11 @@ impl TypeChecker {
 
         if is_node_opening_like_element {
             let jsx_opening_like_node = node;
-            let sig = self.get_resolved_signature_(jsx_opening_like_node, None, None);
+            let sig = self.get_resolved_signature_(jsx_opening_like_node, None, None)?;
             self.check_deprecated_signature(sig.clone(), node);
             self.check_jsx_return_assignable_to_appropriate_bound(
-                self.get_jsx_reference_kind(jsx_opening_like_node),
-                &self.get_return_type_of_signature(sig.clone()),
+                self.get_jsx_reference_kind(jsx_opening_like_node)?,
+                &*self.get_return_type_of_signature(sig.clone())?,
                 jsx_opening_like_node,
             )?;
         }
@@ -477,10 +477,10 @@ impl TypeChecker {
         target_type: &Type,
         name: &str, /*__String*/
         is_comparing_jsx_attributes: bool,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if target_type.flags().intersects(TypeFlags::Object) {
             if self
-                .get_property_of_object_type(target_type, name)
+                .get_property_of_object_type(target_type, name)?
                 .is_some()
                 || self
                     .get_applicable_index_info_for_name(target_type, name)
@@ -491,7 +491,7 @@ impl TypeChecker {
                         .is_some()
                 || is_comparing_jsx_attributes && self.is_hyphenated_jsx_name(name)
             {
-                return true;
+                return Ok(true);
             }
         } else if target_type
             .flags()
@@ -503,11 +503,11 @@ impl TypeChecker {
                 .types()
             {
                 if self.is_known_property(t, name, is_comparing_jsx_attributes) {
-                    return true;
+                    return Ok(true);
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_excess_property_check_target(&self, type_: &Type) -> bool {
@@ -725,7 +725,7 @@ impl TypeChecker {
                 )?;
                 Ok(
                     if self
-                        .is_class_derived_from_declaring_classes(&enclosing_class, prop, writing)
+                        .is_class_derived_from_declaring_classes(&enclosing_class, prop, writing)?
                         .is_some()
                     {
                         Some(enclosing_class)

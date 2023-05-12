@@ -758,7 +758,7 @@ impl NodeBuilder {
             };
         let is_optional = matches!(
             parameter_declaration.as_ref(),
-            Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)
+            Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)?
         ) || get_check_flags(parameter_symbol)
             .intersects(CheckFlags::OptionalParameter);
         let question_token = if is_optional {
@@ -785,7 +785,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         node: &Node, /*BindingName*/
-    ) -> Gc<Node /*BIndingName*/> {
+    ) -> io::Result<Gc<Node /*BIndingName*/>> {
         self.elide_initializer_and_set_emit_flags(context, node)
     }
 
@@ -808,7 +808,7 @@ impl NodeBuilder {
             Some(node),
             |node: &Node| {
                 Some(
-                    self.elide_initializer_and_set_emit_flags(context, node)
+                    self.elide_initializer_and_set_emit_flags(context, node)?
                         .into(),
                 )
             },
@@ -824,7 +824,7 @@ impl NodeBuilder {
             >::None,
             Some(|node: &Node| {
                 Some(
-                    self.elide_initializer_and_set_emit_flags(context, node)
+                    self.elide_initializer_and_set_emit_flags(context, node)?
                         .into(),
                 )
             }),
@@ -1125,7 +1125,7 @@ impl NodeBuilder {
                 get_factory().create_node_array(
                     try_maybe_map(
                         self.type_checker
-                            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)
+                            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?
                             .as_ref(),
                         |tp: &Gc<Type>, _| self.type_parameter_to_declaration_(tp, context, None),
                     )
@@ -1170,16 +1170,16 @@ impl NodeBuilder {
             let parent_symbol = symbol;
             let next_symbol = &chain[index + 1];
             if get_check_flags(next_symbol).intersects(CheckFlags::Instantiated) {
-                let params =
-                    self.type_checker
-                        .get_type_parameters_of_class_or_interface(&*if parent_symbol
-                            .flags()
-                            .intersects(SymbolFlags::Alias)
-                        {
-                            self.type_checker.resolve_alias(parent_symbol)?
-                        } else {
-                            parent_symbol.clone()
-                        });
+                let params = self
+                    .type_checker
+                    .get_type_parameters_of_class_or_interface(&*if parent_symbol
+                        .flags()
+                        .intersects(SymbolFlags::Alias)
+                    {
+                        self.type_checker.resolve_alias(parent_symbol)?
+                    } else {
+                        parent_symbol.clone()
+                    })?;
                 type_parameter_nodes = self.map_to_type_nodes(
                     try_maybe_map(params.as_ref(), |t: &Gc<Type>, _| {
                         self.type_checker.get_mapped_type(

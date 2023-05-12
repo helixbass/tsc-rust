@@ -289,7 +289,7 @@ impl TypeChecker {
         context: Gc<InferenceContext>,
     ) -> io::Result<Vec<Gc<Type>>> {
         let param_type =
-            self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
+            self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
         let check_attr_type = self.check_expression_with_contextual_type(
             &node.as_jsx_opening_like_element().attributes(),
             &param_type,
@@ -334,7 +334,7 @@ impl TypeChecker {
         context: Gc<InferenceContext>,
     ) -> io::Result<Vec<Gc<Type>>> {
         if is_jsx_opening_like_element(node) {
-            return Ok(self.infer_jsx_type_arguments(node, signature, check_mode, context));
+            return self.infer_jsx_type_arguments(node, signature, check_mode, context);
         }
 
         if node.kind() != SyntaxKind::Decorator {
@@ -424,7 +424,7 @@ impl TypeChecker {
             }
         }
 
-        let rest_type = self.get_non_array_rest_type(&signature);
+        let rest_type = self.get_non_array_rest_type(&signature)?;
         let arg_count = if rest_type.is_some() {
             cmp::min(self.get_parameter_count(&signature)? - 1, args.len())
         } else {
@@ -500,7 +500,7 @@ impl TypeChecker {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
-                &mut |type_: &Type| Some(self.get_mutable_array_or_tuple_type(type_)),
+                &mut |type_: &Type| Some(self.get_mutable_array_or_tuple_type(type_)?),
                 None,
             )
             .unwrap()
@@ -514,7 +514,7 @@ impl TypeChecker {
             type_.type_wrapper()
         } else if self.is_tuple_type(type_) {
             self.create_tuple_type(
-                &self.get_type_arguments(type_),
+                &*self.get_type_arguments(type_)?,
                 Some(
                     &type_
                         .as_type_reference()
@@ -552,7 +552,7 @@ impl TypeChecker {
         if index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
             if self.is_spread_argument(Some(&**arg)) {
-                return Ok(self.get_mutable_array_or_tuple_type(&*if arg.kind()
+                return self.get_mutable_array_or_tuple_type(&*if arg.kind()
                     == SyntaxKind::SyntheticExpression
                 {
                     arg.as_synthetic_expression().type_.clone()
@@ -563,7 +563,7 @@ impl TypeChecker {
                         context.clone(),
                         check_mode,
                     )?
-                }));
+                });
             }
         }
         let mut types: Vec<Gc<Type>> = vec![];
@@ -719,7 +719,7 @@ impl TypeChecker {
             &node_as_jsx_opening_like_element.tag_name(),
             None,
             None,
-        )?);
+        )?)?;
         if length(Some(
             &self.get_signatures_of_type(&tag_type, SignatureKind::Construct),
         )) > 0
@@ -746,7 +746,7 @@ impl TypeChecker {
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> io::Result<bool> {
         let param_type =
-            self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
+            self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
         let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
         let attributes_type = self.check_expression_with_contextual_type(
             &node_as_jsx_opening_like_element.attributes(),
@@ -970,7 +970,7 @@ impl TypeChecker {
         }
         let head_message =
             &Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
-        let rest_type = self.get_non_array_rest_type(&signature);
+        let rest_type = self.get_non_array_rest_type(&signature)?;
         let arg_count = if rest_type.is_some() {
             cmp::min(self.get_parameter_count(&signature)? - 1, args.len())
         } else {
