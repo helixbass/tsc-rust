@@ -245,7 +245,7 @@ impl TypeChecker {
         is_await_valid: Option<bool>,
     ) -> io::Result<bool> {
         let is_await_valid = is_await_valid.unwrap_or(false);
-        if !self.is_type_assignable_to(type_, &self.number_or_big_int_type()) {
+        if !self.is_type_assignable_to(type_, &self.number_or_big_int_type())? {
             let awaited_type = if is_await_valid {
                 self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
             } else {
@@ -255,7 +255,7 @@ impl TypeChecker {
                 operand,
                 matches!(
                     awaited_type.as_ref(),
-                    Some(awaited_type) if self.is_type_assignable_to(awaited_type, &self.number_or_big_int_type())
+                    Some(awaited_type) if self.is_type_assignable_to(awaited_type, &self.number_or_big_int_type())?
                 ),
                 diagnostic,
                 None,
@@ -837,37 +837,37 @@ impl TypeChecker {
         source: &Type,
         kind: TypeFlags,
         strict: Option<bool>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if source.flags().intersects(kind) {
-            return true;
+            return Ok(true);
         }
         if strict == Some(true)
             && source.flags().intersects(
                 TypeFlags::AnyOrUnknown | TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Null,
             )
         {
-            return false;
+            return Ok(false);
         }
-        kind.intersects(TypeFlags::NumberLike)
-            && self.is_type_assignable_to(source, &self.number_type())
+        Ok(kind.intersects(TypeFlags::NumberLike)
+            && self.is_type_assignable_to(source, &self.number_type())?
             || kind.intersects(TypeFlags::BigIntLike)
-                && self.is_type_assignable_to(source, &self.bigint_type())
+                && self.is_type_assignable_to(source, &self.bigint_type())?
             || kind.intersects(TypeFlags::StringLike)
-                && self.is_type_assignable_to(source, &self.string_type())
+                && self.is_type_assignable_to(source, &self.string_type())?
             || kind.intersects(TypeFlags::BooleanLike)
-                && self.is_type_assignable_to(source, &self.boolean_type())
+                && self.is_type_assignable_to(source, &self.boolean_type())?
             || kind.intersects(TypeFlags::Void)
-                && self.is_type_assignable_to(source, &self.void_type())
+                && self.is_type_assignable_to(source, &self.void_type())?
             || kind.intersects(TypeFlags::Never)
-                && self.is_type_assignable_to(source, &self.never_type())
+                && self.is_type_assignable_to(source, &self.never_type())?
             || kind.intersects(TypeFlags::Null)
-                && self.is_type_assignable_to(source, &self.null_type())
+                && self.is_type_assignable_to(source, &self.null_type())?
             || kind.intersects(TypeFlags::Undefined)
-                && self.is_type_assignable_to(source, &self.undefined_type())
+                && self.is_type_assignable_to(source, &self.undefined_type())?
             || kind.intersects(TypeFlags::ESSymbol)
-                && self.is_type_assignable_to(source, &self.es_symbol_type())
+                && self.is_type_assignable_to(source, &self.es_symbol_type())?
             || kind.intersects(TypeFlags::NonPrimitive)
-                && self.is_type_assignable_to(source, &self.non_primitive_type())
+                && self.is_type_assignable_to(source, &self.non_primitive_type())?)
     }
 
     pub(super) fn all_types_assignable_to_kind(

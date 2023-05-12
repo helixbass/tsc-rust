@@ -635,30 +635,34 @@ impl TypeChecker {
         return flow.maybe_id().unwrap().try_into().unwrap();
     }
 
-    pub(super) fn type_maybe_assignable_to(&self, source: &Type, target: &Type) -> bool {
+    pub(super) fn type_maybe_assignable_to(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> io::Result<bool> {
         if !source.flags().intersects(TypeFlags::Union) {
             return self.is_type_assignable_to(source, target);
         }
         for t in source.as_union_or_intersection_type_interface().types() {
             if self.is_type_assignable_to(t, target) {
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn get_assignment_reduced_type(
         &self,
         declared_type: &Type, /*UnionType*/
         assigned_type: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if !ptr::eq(declared_type, assigned_type) {
             if assigned_type.flags().intersects(TypeFlags::Never) {
-                return assigned_type.type_wrapper();
+                return Ok(assigned_type.type_wrapper());
             }
-            let mut reduced_type = self.filter_type(declared_type, |t: &Type| {
+            let mut reduced_type = self.try_filter_type(declared_type, |t: &Type| {
                 self.type_maybe_assignable_to(assigned_type, t)
-            });
+            })?;
             if assigned_type.flags().intersects(TypeFlags::BooleanLiteral)
                 && self.is_fresh_literal_type(assigned_type)
             {
@@ -670,11 +674,11 @@ impl TypeChecker {
                     )
                     .unwrap();
             }
-            if self.is_type_assignable_to(assigned_type, &reduced_type) {
-                return reduced_type;
+            if self.is_type_assignable_to(assigned_type, &reduced_type)? {
+                return Ok(reduced_type);
             }
         }
-        declared_type.type_wrapper()
+        Ok(declared_type.type_wrapper())
     }
 
     pub(super) fn is_function_object_type(&self, type_: &Type /*ObjectType*/) -> bool {

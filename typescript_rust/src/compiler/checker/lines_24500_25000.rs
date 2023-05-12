@@ -134,7 +134,7 @@ impl GetFlowTypeOfReference {
             .get_type_of_expression(&expr_as_binary_expression.right)?;
         if !self
             .type_checker
-            .is_type_derived_from(&right_type, &self.type_checker.global_function_type())
+            .is_type_derived_from(&right_type, &self.type_checker.global_function_type())?
         {
             return Ok(type_.type_wrapper());
         }
@@ -215,17 +215,17 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         candidate: &Type,
         assume_true: bool,
-        mut is_related: impl FnMut(&Type, &Type) -> bool,
+        mut is_related: impl FnMut(&Type, &Type) -> io::Result<bool>,
     ) -> io::Result<Gc<Type>> {
         if !assume_true {
-            return Ok(self
+            return self
                 .type_checker
-                .filter_type(type_, |t: &Type| !is_related(t, candidate)));
+                .try_filter_type(type_, |t: &Type| Ok(!is_related(t, candidate)?));
         }
         if type_.flags().intersects(TypeFlags::Union) {
             let assignable_type = self
                 .type_checker
-                .filter_type(type_, |t: &Type| is_related(t, candidate));
+                .try_filter_type(type_, |t: &Type| is_related(t, candidate))?;
             if !assignable_type.flags().intersects(TypeFlags::Never) {
                 return Ok(assignable_type);
             }
@@ -233,9 +233,9 @@ impl GetFlowTypeOfReference {
 
         Ok(if self.type_checker.is_type_subtype_of(candidate, type_) {
             candidate.type_wrapper()
-        } else if self.type_checker.is_type_assignable_to(type_, candidate) {
+        } else if self.type_checker.is_type_assignable_to(type_, candidate)? {
             type_.type_wrapper()
-        } else if self.type_checker.is_type_assignable_to(candidate, type_) {
+        } else if self.type_checker.is_type_assignable_to(candidate, type_)? {
             candidate.type_wrapper()
         } else {
             self.type_checker.get_intersection_type(

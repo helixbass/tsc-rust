@@ -435,7 +435,7 @@ impl GetFlowTypeOfReference {
                 return Ok(
                     if self
                         .type_checker
-                        .is_type_assignable_to(&assigned_type, &self.declared_type)
+                        .is_type_assignable_to(&assigned_type, &self.declared_type)?
                     {
                         Some(assigned_type.into())
                     } else {

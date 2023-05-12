@@ -513,7 +513,7 @@ impl TypeChecker {
                     .get_reduced_type(apparent_func_type)?
                     .flags()
                     .intersects(TypeFlags::Never)
-                && self.is_type_assignable_to(func_type, &self.global_function_type()))
+                && self.is_type_assignable_to(func_type, &self.global_function_type())?)
     }
 
     pub(super) fn resolve_new_expression(

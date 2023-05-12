@@ -87,14 +87,14 @@ impl TypeChecker {
         Ok(result)
     }
 
-    pub(super) fn is_valid_spread_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_valid_spread_type(&self, type_: &Type) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Instantiable) {
-            let constraint = self.get_base_constraint_of_type(type_);
+            let constraint = self.get_base_constraint_of_type(type_)?;
             if let Some(constraint) = constraint.as_ref() {
-                return self.is_valid_spread_type(constraint);
+                return Ok(self.is_valid_spread_type(constraint));
             }
         }
-        type_.flags().intersects(
+        Ok(type_.flags().intersects(
             TypeFlags::Any
                 | TypeFlags::NonPrimitive
                 | TypeFlags::Object
@@ -107,7 +107,7 @@ impl TypeChecker {
                 && every(
                     &type_.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.is_valid_spread_type(type_),
-                )
+                ))
     }
 
     pub(super) fn check_jsx_self_closing_element_deferred(
@@ -746,7 +746,7 @@ impl TypeChecker {
             Some(error_message),
             location.as_ref().unwrap(),
             None,
-        );
+        )?;
         let result = mod_
             .as_ref()
             .filter(|mod_| !Gc::ptr_eq(mod_, &self.unknown_symbol()))

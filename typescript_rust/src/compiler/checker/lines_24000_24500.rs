@@ -1032,7 +1032,7 @@ impl GetFlowTypeOfReference {
             }
             if type_.flags().intersects(TypeFlags::Instantiable) {
                 let constraint = type_checker
-                    .get_base_constraint_of_type(type_)
+                    .get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| type_checker.any_type());
                 if type_checker.is_type_subtype_of(&candidate, &constraint) {
                     return type_checker.get_intersection_type(

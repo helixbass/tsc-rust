@@ -1172,7 +1172,7 @@ impl TypeChecker {
                 || self.is_type_assignable_to(
                     &*self.get_restrictive_instantiation(check_type)?,
                     &*self.get_restrictive_instantiation(extends_type)?,
-                )
+                )?
             {
                 return Ok(self.get_simplified_type(&true_type, writing));
             } else if self.is_intersection_empty(check_type, extends_type)? {
@@ -1188,7 +1188,7 @@ impl TypeChecker {
                 && self.is_type_assignable_to(
                     &*self.get_restrictive_instantiation(check_type)?,
                     &*self.get_restrictive_instantiation(extends_type)?,
-                )
+                )?
             {
                 return Ok(self.never_type());
             } else if check_type.flags().intersects(TypeFlags::Any)

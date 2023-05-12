@@ -683,13 +683,17 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_applicable_index_type(&self, source: &Type, target: &Type) -> bool {
-        self.is_type_assignable_to(source, target)
+    pub(super) fn is_applicable_index_type(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> io::Result<bool> {
+        Ok(self.is_type_assignable_to(source, target)?
             || ptr::eq(target, &*self.string_type())
                 && self.is_type_assignable_to(source, &self.number_type())
             || ptr::eq(target, &*self.number_type())
                 && source.flags().intersects(TypeFlags::StringLiteral)
-                && self.is_numeric_literal_name(&source.as_string_literal_type().value)
+                && self.is_numeric_literal_name(&source.as_string_literal_type().value))
     }
 
     pub(super) fn get_index_infos_of_structured_type(&self, type_: &Type) -> Vec<Gc<IndexInfo>> {

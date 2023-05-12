@@ -348,12 +348,12 @@ impl InferTypes {
             && self.type_checker.is_generic_mapped_type(target)
         {
             self.infer_from_types(
-                &self
+                &*self
                     .type_checker
-                    .get_constraint_type_from_mapped_type(source),
-                &self
+                    .get_constraint_type_from_mapped_type(source)?,
+                &*self
                     .type_checker
-                    .get_constraint_type_from_mapped_type(target),
+                    .get_constraint_type_from_mapped_type(target)?,
             )?;
             self.infer_from_types(
                 &*self
@@ -381,7 +381,7 @@ impl InferTypes {
         {
             let ref constraint_type = self
                 .type_checker
-                .get_constraint_type_from_mapped_type(target);
+                .get_constraint_type_from_mapped_type(target)?;
             if self.infer_to_mapped_type(source, target, constraint_type)? {
                 return Ok(());
             }
@@ -551,7 +551,7 @@ impl InferTypes {
                     }
                     for i in 0..end_length {
                         self.infer_from_types(
-                            &self.type_checker.get_type_arguments(source)[source_arity - i - 1]?,
+                            &self.type_checker.get_type_arguments(source)?[source_arity - i - 1],
                             &element_types[target_arity - i - 1],
                         )?;
                     }
@@ -641,10 +641,11 @@ impl InferTypes {
                             | SyntaxKind::Constructor
                     ),
             );
-            self.type_checker
-                .apply_to_parameter_types(&source, &target, |s: &Type, t: &Type| {
-                    self.infer_from_contravariant_types(s, t)
-                });
+            self.type_checker.apply_to_parameter_types(
+                &source,
+                &target,
+                |s: &Type, t: &Type| self.infer_from_contravariant_types(s, t),
+            )?;
             self.set_bivariant(save_bivariant);
         }
         self.type_checker
@@ -714,7 +715,7 @@ impl InferTypes {
         for target_info in &index_infos {
             let source_info = self
                 .type_checker
-                .get_applicable_index_info(source, &target_info.key_type);
+                .get_applicable_index_info(source, &target_info.key_type)?;
             if let Some(source_info) = source_info.as_ref() {
                 self.infer_with_priority(&source_info.type_, &target_info.type_, priority);
             }
@@ -760,7 +761,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*TypeParameter*/
     ) -> io::Result<bool> {
-        let constraint = self.get_constraint_of_type_parameter(type_);
+        let constraint = self.get_constraint_of_type_parameter(type_)?;
         Ok(matches!(
             constraint.as_ref(),
             Some(constraint) if self.maybe_type_of_kind(
@@ -843,7 +844,7 @@ impl TypeChecker {
         let inference_candidates = inference.maybe_candidates();
         let candidates = self
             .union_object_and_array_literal_candidates(inference_candidates.as_deref().unwrap())?;
-        let primitive_constraint = self.has_primitive_constraint(&inference.type_parameter);
+        let primitive_constraint = self.has_primitive_constraint(&inference.type_parameter)?;
         let widen_literal_types = !primitive_constraint
             && inference.top_level()
             && (inference.is_fixed()
@@ -921,7 +922,7 @@ impl TypeChecker {
                     inferred_type = Some(self.silent_never_type());
                 } else {
                     let default_type =
-                        self.get_default_from_type_parameter_(&inference.type_parameter);
+                        self.get_default_from_type_parameter_(&inference.type_parameter)?;
                     if let Some(default_type) = default_type.as_ref() {
                         inferred_type = Some(self.instantiate_type(
                             default_type,
@@ -943,7 +944,7 @@ impl TypeChecker {
                     )
                 }));
 
-            let constraint = self.get_constraint_of_type_parameter(&inference.type_parameter);
+            let constraint = self.get_constraint_of_type_parameter(&inference.type_parameter)?;
             if let Some(constraint) = constraint.as_ref() {
                 let instantiated_constraint =
                     self.instantiate_type(constraint, Some(context.non_fixing_mapper()))?;

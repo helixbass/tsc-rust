@@ -550,8 +550,8 @@ impl TypeChecker {
                 } else {
                     self.undefined_type()
                 };
-            if self.is_type_assignable_to(&return_type, &iterable_iterator_return_type)
-                && self.is_type_assignable_to(&iterable_iterator_next_type, &next_type)
+            if self.is_type_assignable_to(&return_type, &iterable_iterator_return_type)?
+                && self.is_type_assignable_to(&iterable_iterator_next_type, &next_type)?
             {
                 if !Gc::ptr_eq(&global_type, &self.empty_generic_type()) {
                     return Ok(
@@ -940,7 +940,7 @@ impl TypeChecker {
             );
         } else if matches!(
             type_.as_ref(),
-            Some(type_) if self.strict_null_checks && !self.is_type_assignable_to(&self.undefined_type(), type_)
+            Some(type_) if self.strict_null_checks && !self.is_type_assignable_to(&self.undefined_type(), type_)?
         ) {
             self.error(
                 Some(&*error_node),

@@ -38,9 +38,9 @@ impl TypeChecker {
                 Some(AccessFlags::None),
                 Some(node),
                 potential_alias.as_deref(),
-                self.get_type_arguments_for_alias_symbol(potential_alias.as_deref())
+                self.get_type_arguments_for_alias_symbol(potential_alias.as_deref())?
                     .as_deref(),
-            );
+            )?;
             links.borrow_mut().resolved_type = Some(
                 if resolved.flags().intersects(TypeFlags::IndexedAccess) && {
                     let resolved_as_indexed_access_type = resolved.as_indexed_access_type();
@@ -68,7 +68,7 @@ impl TypeChecker {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
             *type_.maybe_alias_type_arguments_mut() =
-                self.get_type_arguments_for_alias_symbol(alias_symbol);
+                self.get_type_arguments_for_alias_symbol(alias_symbol)?;
             links.borrow_mut().resolved_type = Some(type_.clone());
             self.get_constraint_type_from_mapped_type(&type_);
         }
@@ -76,9 +76,9 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn get_actual_type_variable(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_actual_type_variable(&self, type_: &Type) -> io::Result<Gc<Type>> {
         if type_.flags().intersects(TypeFlags::Substitution) {
-            return type_.as_substitution_type().base_type.clone();
+            return Ok(type_.as_substitution_type().base_type.clone());
         }
         if type_.flags().intersects(TypeFlags::IndexedAccess) {
             let type_as_indexed_access_type = type_.as_indexed_access_type();
@@ -101,7 +101,7 @@ impl TypeChecker {
                 );
             }
         }
-        type_.type_wrapper()
+        Ok(type_.type_wrapper())
     }
 
     pub(super) fn is_typical_nondistributive_conditional(
@@ -175,18 +175,18 @@ impl TypeChecker {
             }
             let is_unwrapped = self.is_typical_nondistributive_conditional(root.clone());
             let check_type = self.instantiate_type(
-                &self.unwrap_nondistributive_conditional_tuple(
+                &*self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
                     &self.get_actual_type_variable(&(*root).borrow().check_type.clone()),
-                ),
+                )?,
                 mapper.clone(),
             )?;
             let check_type_instantiable = self.is_generic_type(&check_type);
             let extends_type = self.instantiate_type(
-                &self.unwrap_nondistributive_conditional_tuple(
+                &*self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
                     &(*root).borrow().extends_type.clone(),
-                ),
+                )?,
                 mapper.clone(),
             )?;
             if Gc::ptr_eq(&check_type, &self.wildcard_type())
@@ -221,10 +221,10 @@ impl TypeChecker {
             }
             let inferred_extends_type = if let Some(combined_mapper) = combined_mapper.as_ref() {
                 self.instantiate_type(
-                    &self.unwrap_nondistributive_conditional_tuple(
+                    &*self.unwrap_nondistributive_conditional_tuple(
                         root.clone(),
                         &(*root).borrow().extends_type.clone(),
-                    ),
+                    )?,
                     Some(combined_mapper.clone()),
                 )?
             } else {
@@ -238,7 +238,7 @@ impl TypeChecker {
                         || !self.is_type_assignable_to(
                             &*self.get_permissive_instantiation(&check_type)?,
                             &*self.get_permissive_instantiation(&inferred_extends_type)?,
-                        ))
+                        )?)
                 {
                     if check_type.flags().intersects(TypeFlags::Any) && !is_unwrapped {
                         if extra_types.is_none() {
@@ -300,7 +300,7 @@ impl TypeChecker {
                     || self.is_type_assignable_to(
                         &*self.get_restrictive_instantiation(&check_type)?,
                         &*self.get_restrictive_instantiation(&inferred_extends_type)?,
-                    )
+                    )?
                 {
                     let true_type = self.get_type_from_type_node_(
                         &(*root)
@@ -565,7 +565,7 @@ impl TypeChecker {
                 self.get_type_from_type_node_(&node_as_conditional_type_node.check_type)?;
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             let alias_type_arguments =
-                self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
+                self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref())?;
             let all_outer_type_parameters = self.get_outer_type_parameters(node, Some(true))?;
             let outer_type_parameters = if alias_type_arguments.is_some() {
                 all_outer_type_parameters
@@ -828,7 +828,7 @@ impl TypeChecker {
                     .into();
                 *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
                 *type_.maybe_alias_type_arguments_mut() =
-                    self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
+                    self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref())?;
                 if is_jsdoc_type_literal(node) && node.as_jsdoc_type_literal().is_array_type {
                     type_ = self.create_array_type(&type_, None);
                 }
@@ -858,9 +858,9 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_type_arguments_for_alias_symbol<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_type_arguments_for_alias_symbol(
         &self,
-        symbol: Option<TSymbol>,
+        symbol: Option<impl Borrow<Symbol>>,
     ) -> io::Result<Option<Vec<Gc<Type>>>> {
         symbol.try_and_then(|symbol| {
             self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.borrow())

@@ -226,17 +226,17 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         if ptr::eq(source, target)
             || target
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::String)
         {
-            return true;
+            return Ok(true);
         }
         if source.flags().intersects(TypeFlags::StringLiteral) {
             let value = &source.as_string_literal_type().value;
-            return target.flags().intersects(TypeFlags::Number)
+            return Ok(target.flags().intersects(TypeFlags::Number)
                 && value != ""
                 && value.parse::<f64>().is_ok()
                 || target.flags().intersects(TypeFlags::BigInt)
@@ -245,16 +245,17 @@ impl TypeChecker {
                 || target
                     .flags()
                     .intersects(TypeFlags::BooleanLiteral | TypeFlags::Nullable)
-                    && value == target.as_intrinsic_type().intrinsic_name();
+                    && value == target.as_intrinsic_type().intrinsic_name());
         }
         if source.flags().intersects(TypeFlags::TemplateLiteral) {
             let texts = &source.as_template_literal_type().texts;
-            return texts.len() == 2
+            return Ok(texts.len() == 2
                 && texts[0] == ""
                 && texts[1] == ""
-                && self.is_type_assignable_to(&source.as_template_literal_type().types[0], target);
+                && self
+                    .is_type_assignable_to(&source.as_template_literal_type().types[0], target)?);
         }
-        self.is_type_assignable_to(source, target)
+        Ok(self.is_type_assignable_to(source, target))
     }
 
     pub(super) fn infer_types_from_template_literal_type(

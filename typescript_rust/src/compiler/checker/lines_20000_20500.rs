@@ -541,11 +541,11 @@ impl TypeChecker {
                 let type_with_super = create_marker_type(&cache, tp, &self.marker_super_type())?;
                 let type_with_sub = create_marker_type(&cache, tp, &self.marker_sub_type())?;
                 let mut variance =
-                    if self.is_type_assignable_to(&type_with_sub, &type_with_super) {
+                    if self.is_type_assignable_to(&type_with_sub, &type_with_super)? {
                         VarianceFlags::Covariant
                     } else {
                         VarianceFlags::Invariant
-                    } | if self.is_type_assignable_to(&type_with_super, &type_with_sub) {
+                    } | if self.is_type_assignable_to(&type_with_super, &type_with_sub)? {
                         VarianceFlags::Contravariant
                     } else {
                         VarianceFlags::Invariant
@@ -554,7 +554,7 @@ impl TypeChecker {
                     && self.is_type_assignable_to(
                         &*create_marker_type(&cache, tp, &self.marker_other_type())?,
                         &type_with_super,
-                    )
+                    )?
                 {
                     variance = VarianceFlags::Independent;
                 }

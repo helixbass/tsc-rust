@@ -38,16 +38,16 @@ impl TypeChecker {
         Ok(true)
     }
 
-    pub(super) fn is_valid_base_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_valid_base_type(&self, type_: &Type) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::TypeParameter) {
             if type_.flags().intersects(TypeFlags::TypeParameter) {
-                let constraint = self.get_base_constraint_of_type(type_);
+                let constraint = self.get_base_constraint_of_type(type_)?;
                 if let Some(constraint) = constraint {
-                    return self.is_valid_base_type(&constraint);
+                    return Ok(self.is_valid_base_type(&constraint));
                 }
             }
         }
-        type_
+        Ok(type_
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::NonPrimitive | TypeFlags::Any)
             && !self.is_generic_mapped_type(type_)
@@ -55,7 +55,7 @@ impl TypeChecker {
                 && every(
                     type_.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.is_valid_base_type(type_),
-                )
+                ))
     }
 
     pub(super) fn resolve_base_types_of_interface(
@@ -199,7 +199,7 @@ impl TypeChecker {
                 Some(temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface.clone());
             let type_ = self.create_object_type(kind, Some(&*symbol));
             let outer_type_parameters =
-                self.get_outer_type_parameters_of_class_or_interface(&symbol);
+                self.get_outer_type_parameters_of_class_or_interface(&symbol)?;
             let local_type_parameters =
                 self.get_local_type_parameters_of_class_or_interface_or_type_alias(&symbol)?;
             let mut need_to_set_constraint = false;

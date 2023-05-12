@@ -159,7 +159,7 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         let mut type_membership_map: IndexMap<TypeId, Gc<Type>> = IndexMap::new();
         let includes =
-            self.add_types_to_intersection(&mut type_membership_map, TypeFlags::None, types);
+            self.add_types_to_intersection(&mut type_membership_map, TypeFlags::None, types)?;
         let mut type_set: Vec<Gc<Type>> = type_membership_map.values().map(Clone::clone).collect();
         if includes.intersects(TypeFlags::Never) {
             return Ok(if contains_gc(Some(&type_set), &self.silent_never_type()) {
@@ -423,7 +423,7 @@ impl TypeChecker {
                         |type_: &Gc<Node>, _| self.get_type_from_type_node_(type_),
                     )?,
                     alias_symbol.clone(),
-                    self.get_type_arguments_for_alias_symbol(alias_symbol)
+                    self.get_type_arguments_for_alias_symbol(alias_symbol)?
                         .as_deref(),
                 )?,
             );
@@ -479,7 +479,7 @@ impl TypeChecker {
         no_index_signatures: Option<bool>,
     ) -> io::Result<Gc<Type>> {
         let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
-        let constraint_type = self.get_constraint_type_from_mapped_type(type_);
+        let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         let name_type = self.get_name_type_from_mapped_type(
             &type_
                 .as_mapped_type()
@@ -787,7 +787,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
             || self.is_generic_tuple_type(&type_)
-            || self.is_generic_mapped_type(&type_) && !self.has_distributive_name_type(&type_)
+            || self.is_generic_mapped_type(&type_) && !self.has_distributive_name_type(&type_)?
         {
             self.get_index_type_for_generic_type(&type_, strings_only)
         } else if get_object_flags(&type_).intersects(ObjectFlags::Mapped) {

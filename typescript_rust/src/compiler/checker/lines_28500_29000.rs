@@ -335,7 +335,7 @@ impl TypeChecker {
             return Ok(matches!(
                 s.as_ref(),
                 Some(s) if self.get_min_argument_count(s, None)? >= 1 &&
-                    self.is_type_assignable_to(keyed_type, &*self.get_type_at_position(s, 0)?)
+                    self.is_type_assignable_to(keyed_type, &*self.get_type_at_position(s, 0)?)?
             ));
         }
         Ok(false)

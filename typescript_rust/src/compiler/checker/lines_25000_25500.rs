@@ -908,7 +908,7 @@ impl TypeChecker {
             &self.get_symbol_of_node(&class_like_declaration)?.unwrap(),
         )?;
         let base_class_type = /*classType &&*/
-            self.get_base_types(&class_type).get(0).cloned();
+            self.get_base_types(&class_type)?.get(0).cloned();
         if base_class_type.is_none() {
             return Ok(self.error_type());
         }

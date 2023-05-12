@@ -295,10 +295,10 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_array_like_type(&self, type_: &Type) -> bool {
-        self.is_array_type(type_)
+    pub(super) fn is_array_like_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(self.is_array_type(type_)
             || !type_.flags().intersects(TypeFlags::Nullable)
-                && self.is_type_assignable_to(type_, &self.any_readonly_array_type())
+                && self.is_type_assignable_to(type_, &self.any_readonly_array_type())?)
     }
 
     pub(super) fn get_single_base_for_non_augmenting_subtype(

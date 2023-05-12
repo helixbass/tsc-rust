@@ -258,7 +258,7 @@ impl TypeChecker {
                     None,
                 );
             } else if !self
-                .is_type_assignable_to(&*self.get_index_type_or_string(&right_type)?, &left_type)
+                .is_type_assignable_to(&*self.get_index_type_or_string(&right_type)?, &left_type)?
             {
                 self.error(
                     Some(&**var_expr),

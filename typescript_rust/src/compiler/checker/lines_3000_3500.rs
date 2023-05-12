@@ -331,7 +331,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         if !matches!((*links).borrow().referenced, Some(true)) {
             links.borrow_mut().referenced = Some(true);
-            let node = self.get_declaration_of_alias_symbol(symbol);
+            let node = self.get_declaration_of_alias_symbol(symbol)?;
             if node.is_none() {
                 Debug_.fail(None);
             }
@@ -344,7 +344,7 @@ impl TypeChecker {
                     self.check_expression_cached(
                         &node.as_import_equals_declaration().module_reference,
                         None,
-                    );
+                    )?;
                 }
             }
         }
@@ -832,19 +832,19 @@ impl TypeChecker {
         module_reference_expression: &Node, /*Expression*/
         module_not_found_error: Option<&DiagnosticMessage>,
         is_for_augmentation: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let is_for_augmentation = is_for_augmentation.unwrap_or(false);
-        if is_string_literal_like(module_reference_expression) {
+        Ok(if is_string_literal_like(module_reference_expression) {
             self.resolve_external_module(
                 location,
                 &module_reference_expression.as_literal_like_node().text(),
                 module_not_found_error,
                 module_reference_expression,
                 Some(is_for_augmentation),
-            )
+            )?
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn resolve_external_module(

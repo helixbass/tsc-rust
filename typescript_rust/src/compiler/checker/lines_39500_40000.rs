@@ -942,7 +942,7 @@ impl TypeChecker {
             if let Some(export_equals_symbol) = export_equals_symbol.as_ref() {
                 if self.has_exported_members(module_symbol) {
                     let declaration = self
-                        .get_declaration_of_alias_symbol(export_equals_symbol)
+                        .get_declaration_of_alias_symbol(export_equals_symbol)?
                         .or_else(|| export_equals_symbol.maybe_value_declaration());
                     if let Some(declaration) = declaration.as_ref().filter(|declaration| {
                         !self.is_top_level_in_external_module_augmentation(declaration)

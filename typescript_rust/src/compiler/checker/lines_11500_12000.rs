@@ -370,7 +370,7 @@ impl TypeChecker {
             let expected = name.try_and_then(|name| self.get_type_of_property_of_type_(contextual_type, &name))?;
             Ok(matches!(
                 expected,
-                Some(expected) if self.is_literal_type(&expected) && !self.is_type_assignable_to(&*self.get_type_of_node(property)?, &expected)
+                Some(expected) if self.is_literal_type(&expected) && !self.is_type_assignable_to(&*self.get_type_of_node(property)?, &expected)?
             ))
         })?;
         Ok(ret)

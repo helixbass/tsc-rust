@@ -186,7 +186,7 @@ impl TypeChecker {
             && !self.is_type_assignable_to(
                 &*self.get_reduced_type(&*self.get_type_of_symbol(&node.symbol())?)?,
                 &self.any_readonly_array_type(),
-            )
+            )?
         {
             self.error(
                 Some(node),

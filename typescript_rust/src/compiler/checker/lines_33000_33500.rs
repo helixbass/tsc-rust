@@ -532,7 +532,7 @@ impl TypeChecker {
             }
             texts.push(span.literal.as_literal_like_node().text());
             types.push(
-                if self.is_type_assignable_to(&type_, &self.template_constraint_type()) {
+                if self.is_type_assignable_to(&type_, &self.template_constraint_type())? {
                     type_
                 } else {
                     self.string_type()

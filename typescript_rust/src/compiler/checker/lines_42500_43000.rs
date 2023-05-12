@@ -315,20 +315,20 @@ impl TypeChecker {
     pub(super) fn check_grammar_function_like_declaration(
         &self,
         node: &Node, /*FunctionLikeDeclaration | MethodSignature*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let file = get_source_file_of_node(node);
         let node_as_signature_declaration = node.as_signature_declaration();
-        self.check_grammar_decorators_and_modifiers(node)
+        Ok(self.check_grammar_decorators_and_modifiers(node)
             || self.check_grammar_type_parameter_list(
                 node_as_signature_declaration
                     .maybe_type_parameters()
                     .as_deref(),
                 &file,
             )
-            || self.check_grammar_parameter_list(&node_as_signature_declaration.parameters())
+            || self.check_grammar_parameter_list(&node_as_signature_declaration.parameters())?
             || self.check_grammar_arrow_function(node, &file)
             || is_function_like_declaration(node)
-                && self.check_grammar_for_use_strict_simple_parameter_list(node)
+                && self.check_grammar_for_use_strict_simple_parameter_list(node))
     }
 
     pub(super) fn check_grammar_class_like_declaration(

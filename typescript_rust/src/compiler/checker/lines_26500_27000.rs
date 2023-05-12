@@ -821,8 +821,10 @@ impl TypeChecker {
                     &links_resolved_type,
                     TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
                     None,
-                ) && !self
-                    .is_type_assignable_to(&links_resolved_type, &self.string_number_symbol_type())
+                ) && !self.is_type_assignable_to(
+                    &links_resolved_type,
+                    &self.string_number_symbol_type(),
+                )?
             {
                 self.error(
                     Some(node),
@@ -1241,11 +1243,13 @@ impl TypeChecker {
                         .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
                 })
             {
-                if self.is_type_assignable_to(computed_name_type, &self.string_number_symbol_type())
+                if self
+                    .is_type_assignable_to(computed_name_type, &self.string_number_symbol_type())?
                 {
-                    if self.is_type_assignable_to(computed_name_type, &self.number_type()) {
+                    if self.is_type_assignable_to(computed_name_type, &self.number_type())? {
                         has_computed_number_property = true;
-                    } else if self.is_type_assignable_to(computed_name_type, &self.es_symbol_type())
+                    } else if self
+                        .is_type_assignable_to(computed_name_type, &self.es_symbol_type())?
                     {
                         has_computed_symbol_property = true;
                     } else {

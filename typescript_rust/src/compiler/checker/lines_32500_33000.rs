@@ -785,11 +785,12 @@ impl TypeChecker {
                         |left: &Type, right: &Type| {
                             self.is_type_comparable_to(left, right)
                                 || self.is_type_comparable_to(right, left)
-                                || self.is_type_assignable_to(left, &self.number_or_big_int_type())
+                                || self
+                                    .is_type_assignable_to(left, &self.number_or_big_int_type())?
                                     && self.is_type_assignable_to(
                                         right,
                                         &self.number_or_big_int_type(),
-                                    )
+                                    )?
                         },
                     );
                 }

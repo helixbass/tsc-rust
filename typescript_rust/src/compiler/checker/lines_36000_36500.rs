@@ -218,7 +218,7 @@ impl TypeChecker {
                         .get_contextual_call_signature(
                             &*self.get_type_from_type_node_(type_tag_type_expression)?,
                             node,
-                        )
+                        )?
                         .is_none())
                 })?
             {

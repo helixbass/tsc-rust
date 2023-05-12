@@ -430,14 +430,14 @@ impl TypeChecker {
         let done_type = self
             .get_type_of_property_of_type_(type_, "done")?
             .unwrap_or_else(|| self.false_type());
-        Ok(self.is_type_assignable_to(
+        self.is_type_assignable_to(
             &*if kind == IterationTypeKind::Yield {
                 self.false_type()
             } else {
                 self.true_type()
             },
             &done_type,
-        ))
+        )
     }
 
     pub(super) fn is_yield_iterator_result(&self, type_: &Type) -> io::Result<bool> {

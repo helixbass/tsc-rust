@@ -298,8 +298,10 @@ impl TypeChecker {
                         .unwrap_or(constraint);
                     let property_name_type =
                         self.get_string_literal_type(&unescape_leading_underscores(name));
-                    if self.is_type_assignable_to(&property_name_type, &constraint_of_constraint) {
-                        return Some(self.substitute_indexed_mapped_type(t, &property_name_type)?);
+                    if self.is_type_assignable_to(&property_name_type, &constraint_of_constraint)? {
+                        return Ok(Some(
+                            self.substitute_indexed_mapped_type(t, &property_name_type)?,
+                        ));
                     }
                 } else if t.flags().intersects(TypeFlags::StructuredType) {
                     let prop = self.get_property_of_type_(t, name, None)?;
@@ -617,7 +619,7 @@ impl TypeChecker {
                             }
                         ).into_iter()
                     ),
-                |source: &Type, target: &Type| Ok(self.is_type_assignable_to(source, target)),
+                |source: &Type, target: &Type| self.is_type_assignable_to(source, target),
                 Some(contextual_type),
                 None,
             )?.unwrap())

@@ -524,7 +524,7 @@ impl CheckTypeRelatedTo {
             Debug_.assert(
                 !self
                     .type_checker
-                    .is_type_assignable_to(&generalized_source, target),
+                    .is_type_assignable_to(&generalized_source, target)?,
                 Some("generalized source shouldn't be assignable"),
             );
             generalized_source_type = self
@@ -533,17 +533,23 @@ impl CheckTypeRelatedTo {
         }
 
         if target.flags().intersects(TypeFlags::TypeParameter) {
-            let constraint = self.type_checker.get_base_constraint_of_type(target);
+            let constraint = self.type_checker.get_base_constraint_of_type(target)?;
             let mut needs_original_source: Option<bool> = None;
-            if let Some(constraint) = constraint.as_ref().filter(|constraint| {
-                self.type_checker
-                    .is_type_assignable_to(&generalized_source, constraint)
-                    || {
-                        needs_original_source =
-                            Some(self.type_checker.is_type_assignable_to(source, constraint));
-                        matches!(needs_original_source, Some(true))
-                    }
-            }) {
+            if let Some(constraint) =
+                constraint
+                    .as_ref()
+                    .try_filter(|constraint| -> io::Result<_> {
+                        Ok(self
+                            .type_checker
+                            .is_type_assignable_to(&generalized_source, constraint)?
+                            || {
+                                needs_original_source = Some(
+                                    self.type_checker.is_type_assignable_to(source, constraint),
+                                );
+                                matches!(needs_original_source, Some(true))
+                            })
+                    })?
+            {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::_0_is_assignable_to_the_constraint_of_type_1_but_1_could_be_instantiated_with_a_different_subtype_of_constraint_2),
                     Some(vec![

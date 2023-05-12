@@ -401,7 +401,7 @@ impl TypeChecker {
                         )
                     })
                 });
-            if error_node.is_some() && !self.is_type_assignable_to(prop_type, &info.type_) {
+            if error_node.is_some() && !self.is_type_assignable_to(prop_type, &info.type_)? {
                 self.error(
                     error_node,
                     &Diagnostics::Property_0_of_type_1_is_not_assignable_to_2_index_type_3,
@@ -470,7 +470,9 @@ impl TypeChecker {
                         )
                     })
                 });
-            if error_node.is_some() && !self.is_type_assignable_to(&check_info.type_, &info.type_) {
+            if error_node.is_some()
+                && !self.is_type_assignable_to(&check_info.type_, &info.type_)?
+            {
                 self.error(
                     error_node,
                     &Diagnostics::_0_index_type_1_is_not_assignable_to_2_index_type_3,

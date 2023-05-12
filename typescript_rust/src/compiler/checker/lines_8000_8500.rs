@@ -816,7 +816,7 @@ impl TypeChecker {
                     None,
                 )?,
                 &omit_key_type,
-            ) && !get_declaration_modifier_flags_from_symbol(&prop, None)
+            )? && !get_declaration_modifier_flags_from_symbol(&prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(&prop)
             {

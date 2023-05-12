@@ -1315,7 +1315,7 @@ impl CheckTypeRelatedTo {
                     &*self
                         .type_checker
                         .get_permissive_instantiation(&c_as_conditional_type.extends_type)?,
-                );
+                )?;
                 let skip_false = !skip_true
                     && self.type_checker.is_type_assignable_to(
                         &*self
@@ -1324,7 +1324,7 @@ impl CheckTypeRelatedTo {
                         &*self
                             .type_checker
                             .get_restrictive_instantiation(&c_as_conditional_type.extends_type)?,
-                    );
+                    )?;
                 result = if skip_true {
                     Ternary::True
                 } else {

@@ -11,8 +11,8 @@ use crate::{
     contains_gc, contains_rc, every, for_each_child_bool, get_effective_return_type_node,
     get_object_flags, has_context_sensitive_parameters, is_function_declaration,
     is_function_expression_or_arrow_function, is_in_js_file, is_jsx_opening_element,
-    is_object_literal_method, is_part_of_type_node, map, some, try_for_each_child_bool, try_map,
-    try_some, AsDoubleDeref, Debug_, DiagnosticMessage, Diagnostics, ElementFlags,
+    is_object_literal_method, is_part_of_type_node, map, some, try_every, try_for_each_child_bool,
+    try_map, try_some, AsDoubleDeref, Debug_, DiagnosticMessage, Diagnostics, ElementFlags,
     HasTypeArgumentsInterface, IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags,
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary,
     Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName,
@@ -133,16 +133,16 @@ impl TypeChecker {
     pub(super) fn get_homomorphic_type_variable(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> Option<Gc<Type>> {
-        let constraint_type = self.get_constraint_type_from_mapped_type(type_);
+    ) -> io::Result<Option<Gc<Type>>> {
+        let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         if constraint_type.flags().intersects(TypeFlags::Index) {
             let type_variable =
                 self.get_actual_type_variable(&constraint_type.as_index_type().type_);
             if type_variable.flags().intersects(TypeFlags::TypeParameter) {
-                return Some(type_variable);
+                return Ok(Some(type_variable));
             }
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn instantiate_mapped_type(
@@ -161,16 +161,27 @@ impl TypeChecker {
                 return self.try_map_type_with_alias(
                     &*self.get_reduced_type(&mapped_type_variable)?,
                     &mut |t| {
-                        if t.flags().intersects(TypeFlags::AnyOrUnknown | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object | TypeFlags::Intersection) && !ptr::eq(t, &*self.wildcard_type()) && !self.is_error_type(t) {
+                        if t.flags().intersects(
+                            TypeFlags::AnyOrUnknown | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object | TypeFlags::Intersection
+                        ) && !ptr::eq(t, &*self.wildcard_type()) && !self.is_error_type(t) {
                             if type_as_mapped_type.declaration.as_mapped_type_node().name_type.is_none() {
-                                if self.is_array_type(t) || t.flags().intersects(TypeFlags::Any) && self.find_resolution_cycle_start_index(&type_variable.clone().into(), TypeSystemPropertyName::ImmediateBaseConstraint) < 0 && {
-                                    let constraint = self.get_constraint_of_type_parameter(type_variable);
-                                    matches!(
-                                        constraint.as_ref(),
-                                        Some(constraint) if self.every_type(constraint, |type_| self.is_array_type(type_) || self.is_tuple_type(type_))
-                                    )
-                                } {
-                                    return self.instantiate_mapped_array_type(t, type_, Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
+                                if self.is_array_type(t)
+                                    || t.flags().intersects(TypeFlags::Any)
+                                        && self.find_resolution_cycle_start_index(
+                                            &type_variable.clone().into(),
+                                            TypeSystemPropertyName::ImmediateBaseConstraint
+                                        ) < 0 && {
+                                            let constraint = self.get_constraint_of_type_parameter(type_variable)?;
+                                            matches!(
+                                                constraint.as_ref(),
+                                                Some(constraint) if self.every_type(constraint, |type_| self.is_array_type(type_) || self.is_tuple_type(type_))
+                                            )
+                                        } {
+                                    return self.instantiate_mapped_array_type(
+                                        t,
+                                        type_,
+                                        Gc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone())))
+                                    );
                                 }
                                 if self.is_generic_tuple_type(t) {
                                     return self.instantiate_mapped_generic_tuple_type(t, type_, type_variable, mapper.clone());
@@ -191,7 +202,7 @@ impl TypeChecker {
         Ok(
             if Gc::ptr_eq(
                 &self.instantiate_type(
-                    &self.get_constraint_type_from_mapped_type(type_),
+                    &*self.get_constraint_type_from_mapped_type(type_)?,
                     Some(mapper.clone()),
                 )?,
                 &self.wildcard_type(),
@@ -709,7 +720,7 @@ impl TypeChecker {
                 )?
             };
             let type_as_indexed_access_type = type_.as_indexed_access_type();
-            return Ok(self.get_indexed_access_type(
+            return self.get_indexed_access_type(
                 &*self.instantiate_type(
                     &type_as_indexed_access_type.object_type,
                     Some(mapper.clone()),
@@ -719,7 +730,7 @@ impl TypeChecker {
                 Option::<&Node>::None,
                 new_alias_symbol,
                 new_alias_type_arguments.as_deref(),
-            ));
+            );
         }
         if flags.intersects(TypeFlags::Conditional) {
             return self.get_conditional_type_instantiation(
@@ -748,7 +759,7 @@ impl TypeChecker {
                     || self.is_type_assignable_to(
                         &*self.get_restrictive_instantiation(&maybe_variable)?,
                         &*self.get_restrictive_instantiation(&sub)?,
-                    )
+                    )?
                 {
                     return Ok(maybe_variable);
                 }
@@ -975,62 +986,80 @@ impl TypeChecker {
         Ok(type_.type_wrapper())
     }
 
-    pub(super) fn is_type_identical_to(&self, source: &Type, target: &Type) -> bool {
+    pub(super) fn is_type_identical_to(&self, source: &Type, target: &Type) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.identity_relation.clone())
     }
 
-    pub(super) fn compare_types_identical(&self, source: &Type, target: &Type) -> Ternary {
-        if self.is_type_related_to(source, target, self.identity_relation.clone()) {
-            Ternary::True
-        } else {
-            Ternary::False
-        }
+    pub(super) fn compare_types_identical(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> io::Result<Ternary> {
+        Ok(
+            if self.is_type_related_to(source, target, self.identity_relation.clone())? {
+                Ternary::True
+            } else {
+                Ternary::False
+            },
+        )
     }
 
-    pub(super) fn compare_types_assignable(&self, source: &Type, target: &Type) -> Ternary {
-        if self.is_type_related_to(source, target, self.assignable_relation.clone()) {
-            Ternary::True
-        } else {
-            Ternary::False
-        }
+    pub(super) fn compare_types_assignable(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> io::Result<Ternary> {
+        Ok(
+            if self.is_type_related_to(source, target, self.assignable_relation.clone())? {
+                Ternary::True
+            } else {
+                Ternary::False
+            },
+        )
     }
 
-    pub(super) fn compare_types_subtype_of(&self, source: &Type, target: &Type) -> Ternary {
-        if self.is_type_related_to(source, target, self.subtype_relation.clone()) {
-            Ternary::True
-        } else {
-            Ternary::False
-        }
+    pub(super) fn compare_types_subtype_of(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> io::Result<Ternary> {
+        Ok(
+            if self.is_type_related_to(source, target, self.subtype_relation.clone())? {
+                Ternary::True
+            } else {
+                Ternary::False
+            },
+        )
     }
 
-    pub(super) fn is_type_subtype_of(&self, source: &Type, target: &Type) -> bool {
+    pub(super) fn is_type_subtype_of(&self, source: &Type, target: &Type) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.subtype_relation.clone())
     }
 
-    pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> bool {
+    pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.assignable_relation.clone())
     }
 
-    pub(super) fn is_type_derived_from(&self, source: &Type, target: &Type) -> bool {
-        if source.flags().intersects(TypeFlags::Union) {
-            every(source.as_union_type().types(), |t: &Gc<Type>, _| {
+    pub(super) fn is_type_derived_from(&self, source: &Type, target: &Type) -> io::Result<bool> {
+        Ok(if source.flags().intersects(TypeFlags::Union) {
+            try_every(source.as_union_type().types(), |t: &Gc<Type>, _| {
                 self.is_type_derived_from(t, target)
-            })
+            })?
         } else if target.flags().intersects(TypeFlags::Union) {
-            some(
+            try_some(
                 Some(target.as_union_type().types()),
                 Some(|t: &Gc<Type>| self.is_type_derived_from(source, t)),
-            )
+            )?
         } else if source
             .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
         {
             self.is_type_derived_from(
                 &self
-                    .get_base_constraint_of_type(source)
+                    .get_base_constraint_of_type(source)?
                     .unwrap_or_else(|| self.unknown_type()),
                 target,
-            )
+            )?
         } else if ptr::eq(target, &*self.global_object_type()) {
             source
                 .flags()
@@ -1041,11 +1070,11 @@ impl TypeChecker {
             self.has_base_type(source, Some(self.get_target_type(target)))
                 || self.is_array_type(target)
                     && !self.is_readonly_array_type(target)
-                    && self.is_type_derived_from(source, &self.global_readonly_array_type())
-        }
+                    && self.is_type_derived_from(source, &self.global_readonly_array_type())?
+        })
     }
 
-    pub(super) fn is_type_comparable_to(&self, source: &Type, target: &Type) -> bool {
+    pub(super) fn is_type_comparable_to(&self, source: &Type, target: &Type) -> io::Result<bool> {
         self.is_type_related_to(source, target, self.comparable_relation.clone())
     }
 
@@ -1062,7 +1091,7 @@ impl TypeChecker {
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_object: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
-        Ok(self.check_type_related_to(
+        self.check_type_related_to(
             source,
             target,
             self.assignable_relation.clone(),
@@ -1070,6 +1099,6 @@ impl TypeChecker {
             head_message.map(Cow::Borrowed),
             containing_message_chain,
             error_output_object,
-        ))
+        )
     }
 }

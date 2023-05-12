@@ -87,7 +87,7 @@ impl TypeChecker {
 
         if specifier_type.flags().intersects(TypeFlags::Undefined)
             || specifier_type.flags().intersects(TypeFlags::Null)
-            || !self.is_type_assignable_to(&specifier_type, &self.string_type())
+            || !self.is_type_assignable_to(&specifier_type, &self.string_type())?
         {
             self.error(
                 Some(&**specifier),

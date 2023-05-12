@@ -225,7 +225,7 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 Option::<&Symbol>::None,
                                 None,
-                            )
+                            )?
                         } else {
                             t.clone()
                         }
@@ -573,11 +573,11 @@ impl TypeChecker {
                             &source,
                             target,
                             self.strict_subtype_relation.clone(),
-                        ) && (!get_object_flags(&self.get_target_type(&source))
+                        )? && (!get_object_flags(&self.get_target_type(&source))
                             .intersects(ObjectFlags::Class)
                             || !get_object_flags(&self.get_target_type(target))
                                 .intersects(ObjectFlags::Class)
-                            || self.is_type_derived_from(&source, target))
+                            || self.is_type_derived_from(&source, target)?)
                         {
                             ordered_remove_item_at(&mut types, i);
                             break;
@@ -995,7 +995,7 @@ impl TypeChecker {
                     })?,
                     Some(UnionReduction::Literal),
                     alias_symbol.clone(),
-                    self.get_type_arguments_for_alias_symbol(alias_symbol)
+                    self.get_type_arguments_for_alias_symbol(alias_symbol)?
                         .as_deref(),
                     Option::<&Type>::None,
                 )?,
@@ -1013,11 +1013,11 @@ impl TypeChecker {
     ) -> io::Result<TypeFlags> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::Intersection) {
-            return Ok(self.add_types_to_intersection(
+            return self.add_types_to_intersection(
                 type_set,
                 includes,
                 type_.as_intersection_type().types(),
-            ));
+            );
         }
         let mut type_ = type_.type_wrapper();
         if self.is_empty_anonymous_object_type(&type_)? {
@@ -1056,15 +1056,15 @@ impl TypeChecker {
         type_set: &mut IndexMap<TypeId, Gc<Type>>,
         mut includes: TypeFlags,
         types: &[Gc<Type>],
-    ) -> TypeFlags {
+    ) -> io::Result<TypeFlags> {
         for type_ in types {
             includes = self.add_type_to_intersection(
                 type_set,
                 includes,
                 &self.get_regular_type_of_literal_type(type_),
-            );
+            )?;
         }
-        includes
+        Ok(includes)
     }
 
     pub(super) fn remove_redundant_primitive_types(

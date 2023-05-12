@@ -575,7 +575,7 @@ impl TypeChecker {
         &self,
         source: &Signature,
         target: &Signature,
-        mut callback: impl FnMut(&Type, &Type),
+        mut callback: impl FnMut(&Type, &Type) -> io::Result<()>,
     ) -> io::Result<()> {
         let source_count = self.get_parameter_count(source)?;
         let target_count = self.get_parameter_count(target)?;
@@ -595,20 +595,20 @@ impl TypeChecker {
         if let Some(source_this_type) = source_this_type.as_ref() {
             let target_this_type = self.get_this_type_of_signature(target)?;
             if let Some(target_this_type) = target_this_type.as_ref() {
-                callback(source_this_type, target_this_type);
+                callback(source_this_type, target_this_type)?;
             }
         }
         for i in 0..param_count {
             callback(
                 &*self.get_type_at_position(source, i)?,
                 &*self.get_type_at_position(target, i)?,
-            );
+            )?;
         }
         if let Some(target_rest_type) = target_rest_type.as_ref() {
             callback(
                 &*self.get_rest_type_at_position(source, param_count)?,
                 target_rest_type,
-            );
+            )?;
         }
 
         Ok(())
