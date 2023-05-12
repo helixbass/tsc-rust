@@ -66,7 +66,7 @@ impl TypeChecker {
             node.kind(),
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
         ) {
-            return Ok(self.get_literal_property_name_text(&node.as_named_declaration().name()));
+            return self.get_literal_property_name_text(&node.as_named_declaration().name());
         }
         Ok(Some(format!(
             "{}",
@@ -120,10 +120,13 @@ impl TypeChecker {
         } else if self.strict_null_checks
             && matches!(
                 pattern.parent().as_has_initializer().maybe_initializer(),
-                Some(initializer) if !self.get_type_facts(&*self.get_type_of_initializer(&initializer)?, None).intersects(TypeFacts::EQUndefined)
+                Some(initializer) if !self.get_type_facts(
+                    &*self.get_type_of_initializer(&initializer)?,
+                    None
+                )?.intersects(TypeFacts::EQUndefined)
             )
         {
-            parent_type = self.get_type_with_facts(&parent_type, TypeFacts::NEUndefined);
+            parent_type = self.get_type_with_facts(&parent_type, TypeFacts::NEUndefined)?;
         }
         let type_: Option<Gc<Type>>;
         let declaration_as_binding_element = declaration.as_binding_element();
@@ -170,7 +173,7 @@ impl TypeChecker {
                     Some(&*name),
                     Option::<&Symbol>::None,
                     None,
-                );
+                )?;
                 type_ = Some(self.get_flow_type_of_destructuring(declaration, &declared_type)?);
             }
         } else {

@@ -34,7 +34,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let base_type_node = get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
-            Some(self.get_base_types(type_))
+            Some(self.get_base_types(type_)?)
         } else {
             None
         };
@@ -288,7 +288,7 @@ impl TypeChecker {
                             ),
                         ))),
                         None,
-                    ) {
+                    )? {
                         issued_member_error = true;
                     }
                 }
@@ -317,7 +317,7 @@ impl TypeChecker {
         type_: &Type,
         node: &Node, /*ExpressionWithTypeArguments*/
     ) -> io::Result<()> {
-        let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct);
+        let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if !signatures.is_empty() {
             let declaration = signatures[0].declaration.as_ref();
             if matches!(
@@ -363,7 +363,7 @@ impl TypeChecker {
 
         let base_type_node = get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
-            Some(self.get_base_types(&type_))
+            Some(self.get_base_types(&type_)?)
         } else {
             None
         };
@@ -453,7 +453,7 @@ impl TypeChecker {
 
                 if base_declaration_flags.intersects(ModifierFlags::Abstract) && /* !derivedClassDecl ||*/ !has_syntactic_modifier(&derived_class_decl, ModifierFlags::Abstract)
                 {
-                    for other_base_type in &self.get_base_types(type_) {
+                    for other_base_type in &self.get_base_types(type_)? {
                         if ptr::eq(&**other_base_type, base_type) {
                             continue;
                         }
@@ -722,7 +722,7 @@ impl TypeChecker {
         type_: &Type, /*InterfaceType*/
         type_node: &Node,
     ) -> io::Result<bool> {
-        let base_types = self.get_base_types(type_);
+        let base_types = self.get_base_types(type_)?;
         if base_types.len() < 2 {
             return Ok(true);
         }

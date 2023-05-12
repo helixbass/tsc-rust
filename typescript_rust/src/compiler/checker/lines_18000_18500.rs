@@ -816,7 +816,7 @@ impl CheckTypeRelatedTo {
                 } else {
                     None
                 },
-            ) {
+            )? {
                 return Ok(Ternary::True);
             }
             self.report_error_results(
@@ -876,7 +876,7 @@ impl CheckTypeRelatedTo {
             {
                 target = self
                     .type_checker
-                    .get_normalized_type(&null_stripped_target, true);
+                    .get_normalized_type(&null_stripped_target, true)?;
             }
             if Gc::ptr_eq(&source, &null_stripped_target) {
                 return Ok(Ternary::True);
@@ -890,7 +890,7 @@ impl CheckTypeRelatedTo {
                 &source,
                 &(*self.relation).borrow(),
                 None,
-            )
+            )?
             || self.type_checker.is_simple_type_related_to(
                 &source,
                 &target,
@@ -900,7 +900,7 @@ impl CheckTypeRelatedTo {
                 } else {
                     None
                 },
-            )
+            )?
         {
             return Ok(Ternary::True);
         }
@@ -973,32 +973,32 @@ impl CheckTypeRelatedTo {
                 )?;
                 let calls = self
                     .type_checker
-                    .get_signatures_of_type(&source, SignatureKind::Call);
+                    .get_signatures_of_type(&source, SignatureKind::Call)?;
                 let constructs = self
                     .type_checker
-                    .get_signatures_of_type(&source, SignatureKind::Construct);
+                    .get_signatures_of_type(&source, SignatureKind::Construct)?;
                 if !calls.is_empty()
                     && self.is_related_to(
-                        &self
+                        &*self
                             .type_checker
-                            .get_return_type_of_signature(calls[0].clone()),
+                            .get_return_type_of_signature(calls[0].clone())?,
                         &target,
                         Some(RecursionFlags::Source),
                         Some(false),
                         None,
                         None,
-                    ) != Ternary::False
+                    )? != Ternary::False
                     || !constructs.is_empty()
                         && self.is_related_to(
-                            &self
+                            &*self
                                 .type_checker
-                                .get_return_type_of_signature(constructs[0].clone()),
+                                .get_return_type_of_signature(constructs[0].clone())?,
                             &target,
                             Some(RecursionFlags::Source),
                             Some(false),
                             None,
                             None,
-                        ) != Ternary::False
+                        )? != Ternary::False
                 {
                     self.report_error(
                         Cow::Borrowed(&Diagnostics::Value_of_type_0_has_no_properties_in_common_with_type_1_Did_you_mean_to_call_it),
@@ -1241,7 +1241,7 @@ impl CheckTypeRelatedTo {
             }
             if head_message.is_none() && maybe_suppress {
                 *self.maybe_last_skipped_info() = Some((source, target));
-                return /*result*/;
+                return Ok(()) /*result*/;
             }
             self.report_relation_error(head_message, &source, &target);
         }
@@ -1325,7 +1325,7 @@ impl CheckTypeRelatedTo {
             let type_ = self.type_checker.get_apparent_type(type_)?;
             let prop = if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
                 self.type_checker
-                    .get_property_of_union_or_intersection_type(&type_, name, None)
+                    .get_property_of_union_or_intersection_type(&type_, name, None)?
             } else {
                 self.type_checker
                     .get_property_of_object_type(&type_, name)?

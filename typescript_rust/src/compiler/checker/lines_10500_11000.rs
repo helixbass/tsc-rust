@@ -16,12 +16,12 @@ use crate::{
     is_binary_expression, is_dynamic_name, is_element_access_expression, is_in_js_file,
     last_or_undefined, length, map, map_defined, maybe_concatenate, maybe_for_each, maybe_map,
     range_equals_gc, range_equals_rc, return_ok_default_if_none, same_map, some, try_map,
-    try_map_defined, try_some, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
-    Debug_, Diagnostics, ElementFlags, IndexInfo, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, ModifierFlags,
-    Node, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
-    SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
-    SymbolTable, Ternary, TransientSymbolInterface,
+    try_map_defined, try_maybe_map, try_some, unescape_leading_underscores,
+    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, IndexInfo,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry, Signature,
+    SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags,
+    SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
 };
 
 impl TypeChecker {
@@ -517,7 +517,7 @@ impl TypeChecker {
                 mapper.clone().unwrap(),
             )?;
         }
-        let base_types = self.get_base_types(source);
+        let base_types = self.get_base_types(source)?;
         if !base_types.is_empty() {
             if matches!(source.maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(&symbol)?))
             {
@@ -549,11 +549,11 @@ impl TypeChecker {
                 self.add_inherited_members(&mut members.borrow_mut(), properties);
                 call_signatures = concatenate(
                     call_signatures,
-                    self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Call),
+                    self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Call)?,
                 );
                 construct_signatures = concatenate(
                     construct_signatures,
-                    self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Construct),
+                    self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Construct)?,
                 );
                 let inherited_index_infos =
                     if !Gc::ptr_eq(&instantiated_base_type, &self.any_type()) {
@@ -825,7 +825,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Gc<Signature>>> {
         let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
         let base_signatures =
-            self.get_signatures_of_type(&base_constructor_type, SignatureKind::Construct);
+            self.get_signatures_of_type(&base_constructor_type, SignatureKind::Construct)?;
         let declaration = get_class_like_declaration_of_symbol(&class_type.symbol());
         let is_abstract = matches!(declaration.as_ref(), Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract));
         if base_signatures.is_empty() {
@@ -908,9 +908,9 @@ impl TypeChecker {
                 ignore_return_types,
                 |source, target| {
                     if partial_match {
-                        self.compare_types_subtype_of(source, target)
+                        self.compare_types_subtype_of(source, target)?
                     } else {
-                        self.compare_types_identical(source, target)
+                        self.compare_types_identical(source, target)?
                     }
                 },
             )? != Ternary::False
@@ -1064,12 +1064,16 @@ impl TypeChecker {
                     ) {
                         None
                     } else {
-                        maybe_map(results.as_ref(), |sig: &Gc<Signature>, _| {
-                            Gc::new(self.combine_signatures_of_union_members(
-                                sig.clone(),
-                                signature.clone(),
-                            ))
-                        })
+                        try_maybe_map(
+                            results.as_ref(),
+                            |sig: &Gc<Signature>, _| -> io::Result<_> {
+                                Ok(Gc::new(self.combine_signatures_of_union_members(
+                                    sig.clone(),
+                                    signature.clone(),
+                                )?))
+                            },
+                        )
+                        .transpose()?
                     };
                     if results.is_none() {
                         break;

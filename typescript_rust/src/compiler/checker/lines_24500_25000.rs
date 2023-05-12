@@ -21,8 +21,9 @@ use crate::{
     FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, ModifierFlags,
     NodeArray, NodeCheckFlags, NodeFlags, ScriptTarget, Signature, SignatureKind, SymbolFlags,
     TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    __String, get_object_flags, try_for_each_child, try_map, Node, NodeInterface, ObjectFlags,
-    OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    __String, get_object_flags, try_find, try_for_each_child, try_map, Node, NodeInterface,
+    ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl GetFlowTypeOfReference {
@@ -49,7 +50,7 @@ impl GetFlowTypeOfReference {
 
         let identifier_type = self.type_checker.get_type_of_expression(identifier)?;
         if !self.type_checker.is_function_type(&identifier_type)
-            && !self.type_checker.is_constructor_type(&identifier_type)
+            && !self.type_checker.is_constructor_type(&identifier_type)?
         {
             return Ok(type_.type_wrapper());
         }
@@ -122,9 +123,9 @@ impl GetFlowTypeOfReference {
                     .type_checker
                     .optional_chain_contains_reference(&left, &self.reference)?
             {
-                return Ok(self
+                return self
                     .type_checker
-                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull));
+                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull);
             }
             return Ok(type_.type_wrapper());
         }
@@ -172,7 +173,7 @@ impl GetFlowTypeOfReference {
         if target_type.is_none() {
             let construct_signatures = self
                 .type_checker
-                .get_signatures_of_type(&right_type, SignatureKind::Construct);
+                .get_signatures_of_type(&right_type, SignatureKind::Construct)?;
             target_type = Some(if !construct_signatures.is_empty() {
                 self.type_checker.get_union_type(
                     &try_map(&construct_signatures, |signature: &Gc<Signature>, _| {
@@ -192,11 +193,13 @@ impl GetFlowTypeOfReference {
         let target_type = target_type.unwrap();
 
         if !assume_true && right_type.flags().intersects(TypeFlags::Union) {
-            let non_constructor_type_in_union =
-                find(&right_type.as_union_type().types(), |t: &Gc<Type>, _| {
-                    !self.type_checker.is_constructor_type(t)
-                })
-                .cloned();
+            let non_constructor_type_in_union = try_find(
+                &right_type.as_union_type().types(),
+                |t: &Gc<Type>, _| -> io::Result<_> {
+                    Ok(!self.type_checker.is_constructor_type(t)?)
+                },
+            )?
+            .cloned();
             if non_constructor_type_in_union.is_none() {
                 return Ok(type_.type_wrapper());
             }
@@ -306,14 +309,14 @@ impl GetFlowTypeOfReference {
                         Some(accessed_property_name) if accessed_property_name == &escape_leading_underscores(&argument.as_literal_like_node().text())
                     )
                 {
-                    return Ok(self.type_checker.get_type_with_facts(
+                    return self.type_checker.get_type_with_facts(
                         type_,
                         if assume_true {
                             TypeFacts::NEUndefined
                         } else {
                             TypeFacts::EQUndefined
                         },
-                    ));
+                    );
                 }
             }
         }
@@ -357,12 +360,12 @@ impl GetFlowTypeOfReference {
                         .optional_chain_contains_reference(predicate_argument, &self.reference)?
                     && !self
                         .type_checker
-                        .get_type_facts(predicate_type, None)
+                        .get_type_facts(predicate_type, None)?
                         .intersects(TypeFacts::EQUndefined)
                 {
                     type_ = self
                         .type_checker
-                        .get_type_with_facts(&type_, TypeFacts::NEUndefinedOrNull);
+                        .get_type_with_facts(&type_, TypeFacts::NEUndefinedOrNull)?;
                 }
                 let access = self.get_discriminant_property_access(predicate_argument, &type_)?;
                 if let Some(access) = access.as_ref() {
@@ -488,18 +491,18 @@ impl GetFlowTypeOfReference {
             .type_checker
             .is_matching_reference(&self.reference, expr)?
         {
-            return Ok(self.type_checker.get_type_with_facts(
+            return self.type_checker.get_type_with_facts(
                 type_,
                 if assume_present {
                     TypeFacts::NEUndefinedOrNull
                 } else {
                     TypeFacts::EQUndefinedOrNull
                 },
-            ));
+            );
         }
         let access = self.get_discriminant_property_access(expr, type_)?;
         if let Some(access) = access.as_ref() {
-            return Ok(self.narrow_type_by_discriminant(type_, access, |t: &Type| {
+            return self.try_narrow_type_by_discriminant(type_, access, |t: &Type| {
                 self.type_checker.get_type_with_facts(
                     t,
                     if assume_present {
@@ -508,7 +511,7 @@ impl GetFlowTypeOfReference {
                         TypeFacts::EQUndefinedOrNull
                     },
                 )
-            }));
+            });
         }
         Ok(type_.type_wrapper())
     }
@@ -661,7 +664,7 @@ impl TypeChecker {
                 self.pop_type_resolution();
 
                 if annotation_includes_undefined {
-                    self.get_type_with_facts(declared_type, TypeFacts::NEUndefined)
+                    self.get_type_with_facts(declared_type, TypeFacts::NEUndefined)?
                 } else {
                     declared_type.type_wrapper()
                 }
@@ -1032,7 +1035,7 @@ impl TypeChecker {
                 return Ok(type_);
             }
         } else if is_alias {
-            declaration = self.get_declaration_of_alias_symbol(&symbol);
+            declaration = self.get_declaration_of_alias_symbol(&symbol)?;
         } else {
             return Ok(type_);
         }

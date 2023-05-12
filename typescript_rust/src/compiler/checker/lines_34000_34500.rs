@@ -36,7 +36,7 @@ impl TypeChecker {
         let type_parameter =
             self.get_declared_type_of_type_parameter(&self.get_symbol_of_node(node)?.unwrap());
         self.get_base_constraint_of_type(&type_parameter);
-        if !self.has_non_circular_type_parameter_default(&type_parameter) {
+        if !self.has_non_circular_type_parameter_default(&type_parameter)? {
             self.error(
                 node_as_type_parameter_declaration.default.as_deref(),
                 &Diagnostics::Type_parameter_0_has_a_circular_default,
@@ -48,8 +48,8 @@ impl TypeChecker {
                 )?]),
             );
         }
-        let constraint_type = self.get_constraint_of_type_parameter(&type_parameter);
-        let default_type = self.get_default_from_type_parameter_(&type_parameter);
+        let constraint_type = self.get_constraint_of_type_parameter(&type_parameter)?;
+        let default_type = self.get_default_from_type_parameter_(&type_parameter)?;
         if let (Some(constraint_type), Some(default_type)) =
             (constraint_type.as_ref(), default_type.as_ref())
         {

@@ -80,7 +80,7 @@ impl TypeChecker {
                     Some(&*name),
                     Option::<&Symbol>::None,
                     None,
-                );
+                )?;
                 let type_ = self.get_flow_type_of_destructuring(property, &element_type)?;
                 Some(self.check_destructuring_assignment(
                     &*if property.kind() == SyntaxKind::ShorthandPropertyAssignment {
@@ -227,7 +227,7 @@ impl TypeChecker {
                         )?
                         .unwrap_or_else(|| self.error_type());
                     let assigned_type = if self.has_default_value(element) {
-                        self.get_type_with_facts(&element_type, TypeFacts::NEUndefined)
+                        self.get_type_with_facts(&element_type, TypeFacts::NEUndefined)?
                     } else {
                         element_type.clone()
                     };
@@ -313,7 +313,7 @@ impl TypeChecker {
                         )?)
                         .intersects(TypeFlags::Undefined)
                 {
-                    source_type = self.get_type_with_facts(&source_type, TypeFacts::NEUndefined);
+                    source_type = self.get_type_with_facts(&source_type, TypeFacts::NEUndefined)?;
                 }
                 self.check_binary_like_expression(
                     &prop.name(),
@@ -335,7 +335,7 @@ impl TypeChecker {
             target = target.as_binary_expression().left.clone();
         }
         if target.kind() == SyntaxKind::ObjectLiteralExpression {
-            return Ok(self.check_object_literal_assignment(&target, &source_type, right_is_this));
+            return self.check_object_literal_assignment(&target, &source_type, right_is_this);
         }
         if target.kind() == SyntaxKind::ArrayLiteralExpression {
             return self.check_array_literal_assignment(&target, &source_type, check_mode);
@@ -783,14 +783,14 @@ impl TypeChecker {
                         operator_token,
                         error_node.as_deref(),
                         |left: &Type, right: &Type| {
-                            self.is_type_comparable_to(left, right)
-                                || self.is_type_comparable_to(right, left)
+                            Ok(self.is_type_comparable_to(left, right)?
+                                || self.is_type_comparable_to(right, left)?
                                 || self
                                     .is_type_assignable_to(left, &self.number_or_big_int_type())?
                                     && self.is_type_assignable_to(
                                         right,
                                         &self.number_or_big_int_type(),
-                                    )?
+                                    )?)
                         },
                     );
                 }
@@ -816,10 +816,12 @@ impl TypeChecker {
             SyntaxKind::InstanceOfKeyword => {
                 self.check_instance_of_expression(left, right, left_type, right_type)
             }
-            SyntaxKind::InKeyword => self.check_in_expression(left, right, left_type, right_type),
+            SyntaxKind::InKeyword => {
+                self.check_in_expression(left, right, left_type, right_type)?
+            }
             SyntaxKind::AmpersandAmpersandToken | SyntaxKind::AmpersandAmpersandEqualsToken => {
                 let result_type = if self
-                    .get_type_facts(left_type, None)
+                    .get_type_facts(left_type, None)?
                     .intersects(TypeFacts::Truthy)
                 {
                     self.get_union_type(
@@ -846,7 +848,7 @@ impl TypeChecker {
             }
             SyntaxKind::BarBarToken | SyntaxKind::BarBarEqualsToken => {
                 let result_type = if self
-                    .get_type_facts(left_type, None)
+                    .get_type_facts(left_type, None)?
                     .intersects(TypeFacts::Falsy)
                 {
                     self.get_union_type(
@@ -869,7 +871,7 @@ impl TypeChecker {
             }
             SyntaxKind::QuestionQuestionToken | SyntaxKind::QuestionQuestionEqualsToken => {
                 let result_type = if self
-                    .get_type_facts(left_type, None)
+                    .get_type_facts(left_type, None)?
                     .intersects(TypeFacts::EQUndefinedOrNull)
                 {
                     self.get_union_type(

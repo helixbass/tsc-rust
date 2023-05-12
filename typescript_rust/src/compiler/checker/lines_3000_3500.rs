@@ -151,7 +151,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().target.is_none() {
             links.borrow_mut().target = Some(self.resolving_symbol());
-            let node = self.get_declaration_of_alias_symbol(symbol);
+            let node = self.get_declaration_of_alias_symbol(symbol)?;
             if node.is_none() {
                 Debug_.fail(None);
             }

@@ -222,7 +222,7 @@ impl GetFlowTypeOfReference {
             ) && !result_type.flags().intersects(TypeFlags::Never)
                 && self
                     .type_checker
-                    .get_type_with_facts(&result_type, TypeFacts::NEUndefinedOrNull)
+                    .get_type_with_facts(&result_type, TypeFacts::NEUndefinedOrNull)?
                     .flags()
                     .intersects(TypeFlags::Never)
         {

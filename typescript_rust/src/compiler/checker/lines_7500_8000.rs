@@ -14,11 +14,11 @@ use crate::{
     is_prototype_property_assignment, is_set_accessor, is_single_or_double_quote,
     is_string_a_non_contextual_keyword, is_variable_declaration, length,
     maybe_get_source_file_of_node, set_text_range_rc_node, some, strip_quotes, symbol_name,
-    unescape_leading_underscores, with_synthetic_factory_and_factory, Debug_, InternalSymbolName,
-    IteratorExt, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
-    NodeBuilderFlags, NodeFlags, NodeInterface, NodeWrappered, ObjectFlags, OptionTry,
+    unescape_leading_underscores, with_synthetic_factory_and_factory, BoolExt, Debug_,
+    InternalSymbolName, IteratorExt, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
+    NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface, NodeWrappered, ObjectFlags, OptionTry,
     SignatureKind, StrOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolWrappered, SyntaxKind,
-    Ternary, ThenAnd, Type, TypeChecker, TypeInterface, TypeWrappered,
+    Ternary, Type, TypeChecker, TypeInterface, TypeWrappered,
 };
 
 use super::{
@@ -68,7 +68,7 @@ impl SymbolTableToDeclarationStatements {
         let alias_decl = symbol
             .maybe_declarations()
             .is_some()
-            .then_and(|| self.type_checker.get_declaration_of_alias_symbol(symbol));
+            .try_then_and(|| self.type_checker.get_declaration_of_alias_symbol(symbol))?;
         let target = alias_decl.as_ref().try_and_then(|alias_decl| {
             self.type_checker
                 .get_target_of_alias_declaration(alias_decl, Some(true))
@@ -291,11 +291,11 @@ impl SymbolTableToDeclarationStatements {
                 .empty()
                 || !self
                     .type_checker
-                    .get_signatures_of_type(type_to_serialize, SignatureKind::Call)
+                    .get_signatures_of_type(type_to_serialize, SignatureKind::Call)?
                     .is_empty())
             && self
                 .type_checker
-                .get_signatures_of_type(type_to_serialize, SignatureKind::Construct)
+                .get_signatures_of_type(type_to_serialize, SignatureKind::Construct)?
                 .is_empty()
             && self
                 .node_builder
@@ -380,7 +380,7 @@ impl SymbolTableToDeclarationStatements {
         base_type: Option<impl Borrow<Type>>,
         output_kind: SyntaxKind,
     ) -> io::Result<Vec<Gc<Node>>> {
-        let signatures = self.type_checker.get_signatures_of_type(input, kind);
+        let signatures = self.type_checker.get_signatures_of_type(input, kind)?;
         if kind == SignatureKind::Construct {
             if base_type.is_none() && signatures.iter().all(|s| s.parameters().is_empty()) {
                 return Ok(vec![]);
@@ -389,7 +389,7 @@ impl SymbolTableToDeclarationStatements {
                 let base_type = base_type.borrow();
                 let base_sigs = self
                     .type_checker
-                    .get_signatures_of_type(base_type, SignatureKind::Construct);
+                    .get_signatures_of_type(base_type, SignatureKind::Construct)?;
                 if base_sigs.is_empty() && signatures.iter().all(|s| s.parameters().is_empty()) {
                     return Ok(vec![]);
                 }
@@ -553,7 +553,7 @@ impl SymbolTableToDeclarationStatements {
                 self.type_checker
                     .get_type_arguments(t)?
                     .iter()
-                    .map(|t| {
+                    .map(|t| -> io::Result<_> {
                         Ok(self
                             .node_builder
                             .type_to_type_node_helper(Some(&**t), &self.context())?
@@ -972,7 +972,7 @@ impl MakeSerializePropertySymbol {
             let ref type_ = self.type_checker.get_type_of_symbol(p)?;
             let signatures = self
                 .type_checker
-                .get_signatures_of_type(type_, SignatureKind::Call);
+                .get_signatures_of_type(type_, SignatureKind::Call)?;
             if flag.intersects(ModifierFlags::Private) {
                 return Ok(vec![set_text_range_rc_node(
                     self.create_property.call(

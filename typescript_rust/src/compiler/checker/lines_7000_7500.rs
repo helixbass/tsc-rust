@@ -4,28 +4,30 @@ use gc::{Gc, GcCell};
 use itertools::Itertools;
 
 use crate::{
-    are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table, filter,
-    find_ancestor, flat_map, get_assignment_declaration_kind, get_effective_implements_type_nodes,
-    get_effective_modifier_flags, get_es_module_interop, get_factory, get_name_of_declaration,
-    get_parse_node_factory, get_source_file_of_node, get_symbol_id, get_text_of_jsdoc_comment,
-    has_syntactic_modifier, id_text, is_ambient_module, is_binary_expression, is_class_declaration,
-    is_class_expression, is_class_like, is_entity_name_expression, is_enum_declaration,
-    is_enum_member, is_export_assignment, is_export_declaration, is_export_specifier,
-    is_external_module_reference, is_external_or_common_js_module, is_function_declaration,
-    is_global_scope_augmentation, is_identifier, is_import_equals_declaration, is_import_specifier,
-    is_in_js_file, is_interface_declaration, is_jsdoc_type_alias, is_jsdoc_type_expression,
-    is_json_source_file, is_module_declaration, is_named_declaration, is_namespace_export,
-    is_parameter_declaration, is_private_identifier, is_property_access_expression,
-    is_shorthand_ambient_module_symbol, is_source_file, is_static, is_string_literal_like,
-    is_variable_declaration, is_variable_statement, length, map, map_defined, maybe_first_defined,
-    maybe_get_source_file_of_node, maybe_map, set_parent, set_synthetic_leading_comments_rc,
-    set_text_range_rc_node, some, try_flat_map, try_map, try_map_defined, try_maybe_first_defined,
-    try_maybe_map, unescape_leading_underscores, with_parse_base_node_factory_and_factory,
-    with_synthetic_factory_and_factory, AsDoubleDeref, AssignmentDeclarationKind, Debug_,
-    HasInitializerInterface, HasTypeArgumentsInterface, InternalSymbolName, IteratorExt,
-    MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
-    NodeFlags, NodeInterface, OptionTry, Signature, SignatureKind, StringOrNumber, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, ThenAnd, Type, TypeInterface,
+    are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table,
+    debug_fail_if_none, filter, find_ancestor, flat_map, get_assignment_declaration_kind,
+    get_effective_implements_type_nodes, get_effective_modifier_flags, get_es_module_interop,
+    get_factory, get_name_of_declaration, get_parse_node_factory, get_source_file_of_node,
+    get_symbol_id, get_text_of_jsdoc_comment, has_syntactic_modifier, id_text, is_ambient_module,
+    is_binary_expression, is_class_declaration, is_class_expression, is_class_like,
+    is_entity_name_expression, is_enum_declaration, is_enum_member, is_export_assignment,
+    is_export_declaration, is_export_specifier, is_external_module_reference,
+    is_external_or_common_js_module, is_function_declaration, is_global_scope_augmentation,
+    is_identifier, is_import_equals_declaration, is_import_specifier, is_in_js_file,
+    is_interface_declaration, is_jsdoc_type_alias, is_jsdoc_type_expression, is_json_source_file,
+    is_module_declaration, is_named_declaration, is_namespace_export, is_parameter_declaration,
+    is_private_identifier, is_property_access_expression, is_shorthand_ambient_module_symbol,
+    is_source_file, is_static, is_string_literal_like, is_variable_declaration,
+    is_variable_statement, length, map, map_defined, maybe_first_defined,
+    maybe_get_source_file_of_node, maybe_map, return_ok_default_if_none, set_parent,
+    set_synthetic_leading_comments_rc, set_text_range_rc_node, some, try_flat_map, try_map,
+    try_map_defined, try_maybe_first_defined, try_maybe_map, unescape_leading_underscores,
+    with_parse_base_node_factory_and_factory, with_synthetic_factory_and_factory, AsDoubleDeref,
+    AssignmentDeclarationKind, BoolExt, Debug_, HasInitializerInterface, HasTypeArgumentsInterface,
+    InternalSymbolName, IteratorExt, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, OptionTry, Signature, SignatureKind,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, Type,
+    TypeInterface,
 };
 
 use super::{
@@ -252,7 +254,7 @@ impl SymbolTableToDeclarationStatements {
                 .type_parameter_to_declaration_(p, &self.context(), None)
         })
         .transpose()?;
-        let base_types = self.type_checker.get_base_types(interface_type);
+        let base_types = self.type_checker.get_base_types(interface_type)?;
         let base_type = if !base_types.is_empty() {
             Some(self.type_checker.get_intersection_type(
                 &base_types,
@@ -411,10 +413,12 @@ impl SymbolTableToDeclarationStatements {
                                     |s: &Gc<Symbol>, _| -> io::Result<Option<Gc<Node>>> {
                                         let name = unescape_leading_underscores(s.escaped_name());
                                         let local_name = self.get_internal_symbol_name(s, name);
-                                        let alias_decl =
-                                            s.maybe_declarations().is_some().then_and(|| {
+                                        let alias_decl = s
+                                            .maybe_declarations()
+                                            .is_some()
+                                            .try_then_and(|| {
                                                 self.type_checker.get_declaration_of_alias_symbol(s)
-                                            });
+                                            })?;
                                         if let Some(containing_file) =
                                             containing_file.as_ref().filter(|containing_file| {
                                                 if let Some(alias_decl) = alias_decl.as_ref() {
@@ -584,7 +588,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<()> {
         let signatures = self
             .type_checker
-            .get_signatures_of_type(type_, SignatureKind::Call);
+            .get_signatures_of_type(type_, SignatureKind::Call)?;
         for sig in &signatures {
             let decl = self
                 .node_builder
@@ -917,7 +921,7 @@ impl SymbolTableToDeclarationStatements {
         let ref class_type = self
             .type_checker
             .get_declared_type_of_class_or_interface(symbol)?;
-        let base_types = self.type_checker.get_base_types(class_type);
+        let base_types = self.type_checker.get_base_types(class_type)?;
         let original_implements = original_decl
             .as_ref()
             .and_then(|original_decl| get_effective_implements_type_nodes(original_decl));
@@ -1040,7 +1044,7 @@ impl SymbolTableToDeclarationStatements {
                 Some(
                     &self
                         .type_checker
-                        .get_signatures_of_type(static_type, SignatureKind::Construct),
+                        .get_signatures_of_type(static_type, SignatureKind::Construct)?,
                 ),
                 Option::<fn(&Gc<Signature>) -> bool>::None,
             );
@@ -1080,7 +1084,7 @@ impl SymbolTableToDeclarationStatements {
                                 index_signatures,
                                 static_members,
                                 constructors,
-                                public_properties.collect_vec(),
+                                public_properties,
                                 private_properties,
                             ]
                             .into_iter(),
@@ -1148,24 +1152,16 @@ impl SymbolTableToDeclarationStatements {
         local_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
-        let node = self.type_checker.get_declaration_of_alias_symbol(symbol);
-        if node.is_none() {
-            /*return*/
-            Debug_.fail(None);
-        }
-        let ref node = node.unwrap();
-        let target = self.type_checker.get_merged_symbol(
+        let ref node =
+            debug_fail_if_none!(self.type_checker.get_declaration_of_alias_symbol(symbol)?);
+        let ref target = return_ok_default_if_none!(self.type_checker.get_merged_symbol(
             self.type_checker
                 .get_target_of_alias_declaration(node, Some(true))?,
-        );
-        if target.is_none() {
-            return Ok(());
-        }
-        let ref target = target.unwrap();
+        ));
         let mut verbatim_target_name = is_shorthand_ambient_module_symbol(target)
-            .then_and(|| {
+            .try_then_and(|| {
                 self.get_some_target_name_from_declarations(symbol.maybe_declarations().as_deref())
-            })
+            })?
             .unwrap_or_else(|| unescape_leading_underscores(target.escaped_name()).to_owned());
         if verbatim_target_name == InternalSymbolName::ExportEquals
             && (get_es_module_interop(&self.type_checker.compiler_options) == Some(true)

@@ -16,9 +16,9 @@ use crate::{
     is_computed_property_name, is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
-    parse_node_factory, push_if_unique_gc, return_ok_none_if_none, set_parent, set_text_range,
-    starts_with, symbol_name, try_add_to_set, try_map, try_maybe_for_each,
-    try_using_single_line_string_writer, using_single_line_string_writer,
+    parse_node_factory, push_if_unique_gc, return_ok_default_if_none, return_ok_none_if_none,
+    set_parent, set_text_range, starts_with, symbol_name, try_add_to_set, try_map,
+    try_maybe_for_each, try_using_single_line_string_writer, using_single_line_string_writer,
     walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
     InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
@@ -840,17 +840,20 @@ impl TypeChecker {
         Ok(result)
     }
 
-    pub(super) fn is_generic_type_with_undefined_constraint(&self, type_: &Type) -> bool {
-        type_.flags().intersects(TypeFlags::Instantiable)
+    pub(super) fn is_generic_type_with_undefined_constraint(
+        &self,
+        type_: &Type,
+    ) -> io::Result<bool> {
+        Ok(type_.flags().intersects(TypeFlags::Instantiable)
             && self.maybe_type_of_kind(
                 &self
-                    .get_base_constraint_of_type(type_)
+                    .get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| self.unknown_type()),
                 TypeFlags::Undefined,
-            )
+            ))
     }
 
-    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> Gc<Type> {
+    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
         let type_or_constraint = if self.some_type(type_, |type_| {
             self.is_generic_type_with_undefined_constraint(type_)
         }) {
@@ -893,13 +896,12 @@ impl TypeChecker {
     pub(super) fn get_synthetic_element_access(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
-    ) -> Option<Gc<Node /*ElementAccessExpression*/>> {
-        let parent_access = self.get_parent_element_access(node)?;
-        let ret = parent_access
-            .maybe_flow_node()
-            .clone()
-            .and_then(|parent_access_flow_node| {
-                let prop_name = self.get_destructuring_property_name(node)?;
+    ) -> io::Result<Option<Gc<Node /*ElementAccessExpression*/>>> {
+        let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node));
+        let ret = parent_access.maybe_flow_node().clone().try_and_then(
+            |parent_access_flow_node| -> io::Result<_> {
+                let prop_name =
+                    return_ok_default_if_none!(self.get_destructuring_property_name(node)?);
                 let literal = parse_node_factory.with(|parse_node_factory_| {
                     parse_node_factory_
                         .create_string_literal(prop_name, None, None)
@@ -927,8 +929,9 @@ impl TypeChecker {
                     set_parent(&lhs_expr, Some(&*result));
                 }
                 result.set_flow_node(Some(parent_access_flow_node));
-                Some(result)
-            });
-        ret
+                Ok(Some(result))
+            },
+        )?;
+        Ok(ret)
     }
 }

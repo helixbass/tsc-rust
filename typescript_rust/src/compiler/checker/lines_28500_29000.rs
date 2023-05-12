@@ -15,7 +15,7 @@ use crate::{
     is_optional_chain, is_private_identifier, is_private_identifier_class_element_declaration,
     is_property_access_expression, is_static, is_string_literal_like,
     is_tagged_template_expression, is_write_only_access, map_defined, maybe_for_each,
-    skip_parentheses, starts_with, symbol_name, try_filter,
+    return_ok_default_if_none, skip_parentheses, starts_with, symbol_name, try_filter,
     try_get_property_access_or_identifier_to_string, try_get_spelling_suggestion,
     try_maybe_for_each, unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags,
     Debug_, Diagnostics, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
@@ -92,7 +92,8 @@ impl TypeChecker {
         missing_property: &str,
         containing_type: &Type,
     ) -> io::Result<Option<String>> {
-        let container = self.get_apparent_type(containing_type)?.maybe_symbol()?;
+        let container =
+            return_ok_default_if_none!(self.get_apparent_type(containing_type)?.maybe_symbol());
         let all_features = get_script_target_features();
         let lib_targets = all_features.keys();
         for lib_target in lib_targets {

@@ -290,7 +290,7 @@ impl TypeChecker {
         let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut result = true;
         for i in 0..type_parameters.len() {
-            let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
+            let constraint = self.get_constraint_of_type_parameter(&type_parameters[i])?;
             if let Some(constraint) = constraint.as_ref() {
                 if type_arguments.is_none() {
                     type_arguments =
@@ -313,7 +313,7 @@ impl TypeChecker {
                         Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
                         None,
                         None,
-                    );
+                    )?;
             }
         }
         Ok(result)
@@ -715,7 +715,7 @@ impl TypeChecker {
                 None,
             );
         } else {
-            let constraint_type = self.get_constraint_type_from_mapped_type(&type_);
+            let constraint_type = self.get_constraint_type_from_mapped_type(&type_)?;
             self.check_type_assignable_to(
                 &constraint_type,
                 &self.keyof_constraint_type(),

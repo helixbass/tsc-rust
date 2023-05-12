@@ -596,13 +596,16 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     }
 }
 
-pub fn type_has_call_or_construct_signatures(type_: &Type, checker: &TypeChecker) -> bool {
-    !checker
-        .get_signatures_of_type(type_, SignatureKind::Call)
+pub fn type_has_call_or_construct_signatures(
+    type_: &Type,
+    checker: &TypeChecker,
+) -> io::Result<bool> {
+    Ok(!checker
+        .get_signatures_of_type(type_, SignatureKind::Call)?
         .is_empty()
         || !checker
-            .get_signatures_of_type(type_, SignatureKind::Construct)
-            .is_empty()
+            .get_signatures_of_type(type_, SignatureKind::Construct)?
+            .is_empty())
 }
 
 pub fn is_umd_export_symbol(symbol: Option<impl Borrow<Symbol>>) -> bool {

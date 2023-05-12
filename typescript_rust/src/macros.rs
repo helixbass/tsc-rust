@@ -65,3 +65,23 @@ macro_rules! continue_if_none {
         }
     };
 }
+
+#[macro_export]
+macro_rules! debug_fail_if_none {
+    ($expr:expr $(,)?) => {
+        match $expr {
+            None => {
+                crate::Debug_.fail(None);
+            }
+            Some(expr) => expr,
+        }
+    };
+    ($expr:expr , $message:expr $(,)?) => {
+        match $expr {
+            None => {
+                crate::Debug_.fail(Some($message));
+            }
+            Some(expr) => expr,
+        }
+    };
+}

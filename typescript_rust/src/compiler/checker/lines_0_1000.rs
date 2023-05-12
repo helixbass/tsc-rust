@@ -2184,7 +2184,7 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2198,7 +2198,7 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
-    ) -> Option<Gc<Signature>> {
+    ) -> io::Result<Option<Gc<Signature>>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2416,13 +2416,13 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_default_from_type_parameter(&self, type_: &Type) -> Option<Gc<Type>> {
+    pub fn get_default_from_type_parameter(&self, type_: &Type) -> io::Result<Option<Gc<Type>>> {
         /*type &&*/
-        if type_.flags().intersects(TypeFlags::TypeParameter) {
-            self.get_default_from_type_parameter_(type_)
+        Ok(if type_.flags().intersects(TypeFlags::TypeParameter) {
+            self.get_default_from_type_parameter_(type_)?
         } else {
             None
-        }
+        })
     }
 
     pub fn resolve_name(

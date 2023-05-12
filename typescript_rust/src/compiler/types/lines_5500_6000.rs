@@ -985,7 +985,7 @@ impl BitAndAssign for Ternary {
 }
 
 pub trait TypeComparer: Trace + Finalize {
-    fn call(&self, s: &Type, t: &Type, report_errors: Option<bool>) -> Ternary;
+    fn call(&self, s: &Type, t: &Type, report_errors: Option<bool>) -> io::Result<Ternary>;
 }
 
 #[derive(Trace, Finalize)]

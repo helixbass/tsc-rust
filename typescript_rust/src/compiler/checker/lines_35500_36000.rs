@@ -135,7 +135,7 @@ impl TypeChecker {
                 Some(return_type_node),
                 Some(&Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value),
                 None, None,
-            ) {
+            )? {
                 return Ok(());
             }
 

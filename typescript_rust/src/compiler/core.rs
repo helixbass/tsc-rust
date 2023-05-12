@@ -192,7 +192,7 @@ pub fn try_find_last<TItem, TError>(
     mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
 ) -> Result<Option<&TItem>, TError> {
     for (index, value) in array.into_iter().rev().enumerate() {
-        if predicate(value, *index)? {
+        if predicate(value, index)? {
             return Ok(Some(value));
         }
     }
@@ -305,19 +305,26 @@ pub fn index_of_any_char_code(
     None
 }
 
-pub fn count_where<TItem, TPredicate: FnMut(&TItem, usize) -> bool>(
+pub fn count_where<TItem>(
     array: Option<&[TItem]>,
-    mut predicate: TPredicate,
+    mut predicate: impl FnMut(&TItem, usize) -> bool,
 ) -> usize {
+    try_count_where(array, |a, b| -> Result<_, ()> { Ok(predicate(a, b)) }).unwrap()
+}
+
+pub fn try_count_where<TItem, TError>(
+    array: Option<&[TItem]>,
+    mut predicate: impl FnMut(&TItem, usize) -> Result<bool, TError>,
+) -> Result<usize, TError> {
     let mut count = 0;
     if let Some(array) = array {
         for (i, v) in array.iter().enumerate() {
-            if predicate(v, i) {
+            if predicate(v, i)? {
                 count += 1;
             }
         }
     }
-    count
+    Ok(count)
 }
 
 pub fn filter<TItem: Clone>(

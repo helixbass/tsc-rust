@@ -837,7 +837,7 @@ impl TypeChecker {
             None
         };
 
-        let call_signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
+        let call_signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
         let is_promise = self
             .get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)?
             .is_some();
@@ -856,7 +856,7 @@ impl TypeChecker {
         let is_used = matches!(
             tested_symbol.as_ref(),
             Some(tested_symbol) if is_binary_expression(&cond_expr.parent()) &&
-                self.is_symbol_used_in_binary_expression_chain(&cond_expr.parent(), tested_symbol)
+                self.is_symbol_used_in_binary_expression_chain(&cond_expr.parent(), tested_symbol)?
         ) || matches!(
             (tested_symbol.as_ref(), body.as_ref()),
             (Some(tested_symbol), Some(body)) if self.is_symbol_used_in_condition_body(

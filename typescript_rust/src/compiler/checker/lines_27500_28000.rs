@@ -152,9 +152,9 @@ impl TypeChecker {
         }
         let apparent_elem_type = self.get_apparent_type(element_type)?;
         let mut signatures =
-            self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Construct);
+            self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Construct)?;
         if signatures.is_empty() {
-            signatures = self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Call);
+            signatures = self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Call)?;
         }
         if signatures.is_empty() && apparent_elem_type.flags().intersects(TypeFlags::Union) {
             signatures = self.get_union_signatures(&try_map(
@@ -502,7 +502,7 @@ impl TypeChecker {
                 .as_union_or_intersection_type_interface()
                 .types()
             {
-                if self.is_known_property(t, name, is_comparing_jsx_attributes) {
+                if self.is_known_property(t, name, is_comparing_jsx_attributes)? {
                     return Ok(true);
                 }
             }
@@ -777,7 +777,7 @@ impl TypeChecker {
             )?;
             enclosing_class = Some(
                 if this_type.flags().intersects(TypeFlags::TypeParameter) {
-                    self.get_constraint_of_type_parameter(&this_type).unwrap()
+                    self.get_constraint_of_type_parameter(&this_type)?.unwrap()
                 } else {
                     this_type
                 }
@@ -803,9 +803,9 @@ impl TypeChecker {
                 .is_this_type
                 == Some(true)
             {
-                self.get_constraint_of_type_parameter(containing_type.as_ref().unwrap())
+                self.get_constraint_of_type_parameter(containing_type.as_ref().unwrap())?
             } else {
-                self.get_base_constraint_of_type(containing_type.as_ref().unwrap())
+                self.get_base_constraint_of_type(containing_type.as_ref().unwrap())?
             };
         }
         if match containing_type.as_ref() {

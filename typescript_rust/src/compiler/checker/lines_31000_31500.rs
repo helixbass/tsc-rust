@@ -799,7 +799,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
                     None,
-                )));
+                )?));
             }
         }
         Ok(None)
@@ -819,14 +819,14 @@ impl TypeChecker {
                     rest_type.clone()
                 } else {
                     self.create_array_type(
-                        &self.get_indexed_access_type(
+                        &*self.get_indexed_access_type(
                             rest_type,
                             &self.number_type(),
                             None,
                             Option::<&Node>::None,
                             Option::<&Symbol>::None,
                             None,
-                        ),
+                        )?,
                         None,
                     )
                 });
@@ -1002,14 +1002,14 @@ impl TypeChecker {
         signature: &Signature,
     ) -> io::Result<Option<Gc<Type>>> {
         let rest_type = self.get_effective_rest_type(signature)?;
-        Ok(rest_type.filter(|rest_type| {
-            !self.is_array_type(rest_type)
+        rest_type.try_filter(|rest_type| -> io::Result<_> {
+            Ok(!self.is_array_type(rest_type)
                 && !self.is_type_any(Some(&**rest_type))
                 && !self
                     .get_reduced_type(rest_type)?
                     .flags()
-                    .intersects(TypeFlags::Never)
-        }))
+                    .intersects(TypeFlags::Never))
+        })
     }
 
     pub(super) fn get_type_of_first_parameter_of_signature(

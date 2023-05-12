@@ -119,12 +119,12 @@ impl TypeChecker {
                 &target_return_type,
                 &source_return_type,
                 self.assignable_relation.clone(),
-            )
+            )?
             || self.is_type_related_to(
                 &source_return_type,
                 &target_return_type,
                 self.assignable_relation.clone(),
-            )
+            )?
         {
             return self.is_signature_assignable_to(erased_source, erased_target, true);
         }
@@ -447,7 +447,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
-            return Ok(self.check_type_related_to(
+            return self.check_type_related_to(
                 &source,
                 &target,
                 relation,
@@ -455,7 +455,7 @@ impl TypeChecker {
                 None,
                 None,
                 None,
-            ));
+            );
         }
         Ok(false)
     }
@@ -494,7 +494,7 @@ impl TypeChecker {
                     type_as_substitution_type.substitute.clone()
                 }
             } else if type_.flags().intersects(TypeFlags::Simplifiable) {
-                self.get_simplified_type(&type_, writing)
+                self.get_simplified_type(&type_, writing)?
             } else {
                 type_.type_wrapper()
             };

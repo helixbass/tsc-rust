@@ -101,7 +101,7 @@ impl TypeChecker {
                         .unwrap(),
                 )?,
                 kind,
-            );
+            )?;
             if
             /* !sigs ||*/
             sigs.is_empty() {
@@ -140,9 +140,9 @@ impl TypeChecker {
             return Ok(self.resolve_error_call(node));
         }
 
-        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call);
+        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call)?;
         let num_construct_signatures = self
-            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)
+            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)?
             .len();
 
         if self.is_untyped_function_call(
@@ -150,7 +150,7 @@ impl TypeChecker {
             &apparent_type,
             call_signatures.len(),
             num_construct_signatures,
-        ) {
+        )? {
             return self.resolve_untyped_call(node);
         }
 
@@ -219,16 +219,16 @@ impl TypeChecker {
             return Ok(self.resolve_error_call(node));
         }
 
-        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call);
+        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call)?;
         let num_construct_signatures = self
-            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)
+            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)?
             .len();
         if self.is_untyped_function_call(
             &func_type,
             &apparent_type,
             call_signatures.len(),
             num_construct_signatures,
-        ) {
+        )? {
             return self.resolve_untyped_call(node);
         }
 
@@ -441,7 +441,7 @@ impl TypeChecker {
         }
 
         let signatures = self.get_uninstantiated_jsx_signatures_of_type(&expr_types, node)?;
-        if self.is_untyped_function_call(&expr_types, &apparent_type, signatures.len(), 0) {
+        if self.is_untyped_function_call(&expr_types, &apparent_type, signatures.len(), 0)? {
             return self.resolve_untyped_call(node);
         }
 

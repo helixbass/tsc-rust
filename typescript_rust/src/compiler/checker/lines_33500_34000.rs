@@ -136,7 +136,7 @@ impl TypeChecker {
         &self,
         candidate_type: &Type,
         contextual_type: Option<impl Borrow<Type>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         if let Some(contextual_type) = contextual_type {
             let contextual_type = contextual_type.borrow();
             if contextual_type
@@ -146,21 +146,21 @@ impl TypeChecker {
                 let types = contextual_type
                     .as_union_or_intersection_type_interface()
                     .types();
-                return some(
+                return Ok(some(
                     Some(types),
                     Some(|t: &Gc<Type>| {
                         self.is_literal_of_contextual_type(candidate_type, Some(&**t))
                     }),
-                );
+                ));
             }
             if contextual_type
                 .flags()
                 .intersects(TypeFlags::InstantiableNonPrimitive)
             {
                 let constraint = self
-                    .get_base_constraint_of_type(contextual_type)
+                    .get_base_constraint_of_type(contextual_type)?
                     .unwrap_or_else(|| self.unknown_type());
-                return self.maybe_type_of_kind(&constraint, TypeFlags::String)
+                return Ok(self.maybe_type_of_kind(&constraint, TypeFlags::String)
                     && self.maybe_type_of_kind(candidate_type, TypeFlags::StringLiteral)
                     || self.maybe_type_of_kind(&constraint, TypeFlags::Number)
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::NumberLiteral)
@@ -168,9 +168,9 @@ impl TypeChecker {
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::BigIntLiteral)
                     || self.maybe_type_of_kind(&constraint, TypeFlags::ESSymbol)
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol)
-                    || self.is_literal_of_contextual_type(candidate_type, Some(constraint));
+                    || self.is_literal_of_contextual_type(candidate_type, Some(constraint)));
             }
-            return contextual_type.flags().intersects(
+            return Ok(contextual_type.flags().intersects(
                 TypeFlags::StringLiteral
                     | TypeFlags::Index
                     | TypeFlags::TemplateLiteral
@@ -187,9 +187,9 @@ impl TypeChecker {
                 || contextual_type
                     .flags()
                     .intersects(TypeFlags::UniqueESSymbol)
-                    && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol);
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol));
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn is_const_context(&self, node: &Node /*Expression*/) -> bool {
@@ -231,7 +231,7 @@ impl TypeChecker {
                     },
                     node,
                     None,
-                ),
+                )?,
             )?
         })
     }
@@ -826,7 +826,7 @@ impl TypeChecker {
                 self.check_call_expression(node, check_mode)?
             }
             SyntaxKind::NewExpression => self.check_call_expression(node, check_mode)?,
-            SyntaxKind::TaggedTemplateExpression => self.check_tagged_template_expression(node),
+            SyntaxKind::TaggedTemplateExpression => self.check_tagged_template_expression(node)?,
             SyntaxKind::ParenthesizedExpression => {
                 self.check_parenthesized_expression(node, check_mode)?
             }

@@ -280,7 +280,7 @@ impl TypeChecker {
 
         let signatures = method_type
             .as_ref()
-            .map(|method_type| self.get_signatures_of_type(method_type, SignatureKind::Call));
+            .try_map(|method_type| self.get_signatures_of_type(method_type, SignatureKind::Call))?;
         if !some(
             signatures.as_deref(),
             Option::<fn(&Gc<Signature>) -> bool>::None,
@@ -541,7 +541,7 @@ impl TypeChecker {
                     self.get_type_with_facts(
                         &*self.get_type_of_symbol(method)?,
                         TypeFacts::NEUndefinedOrNull,
-                    )
+                    )?
                 })
             })?;
 
@@ -554,7 +554,7 @@ impl TypeChecker {
         }
 
         let method_signatures = if let Some(method_type) = method_type.as_ref() {
-            self.get_signatures_of_type(method_type, SignatureKind::Call)
+            self.get_signatures_of_type(method_type, SignatureKind::Call)?
         } else {
             vec![]
         };
@@ -782,16 +782,18 @@ impl TypeChecker {
         kind: IterationTypeKind,
         return_type: &Type,
         is_async_generator: bool,
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if self.is_type_any(Some(return_type)) {
-            return None;
+            return Ok(None);
         }
 
-        let iteration_types = self
-            .get_iteration_types_of_generator_function_return_type(return_type, is_async_generator);
-        iteration_types.map(|iteration_types| {
+        let iteration_types = self.get_iteration_types_of_generator_function_return_type(
+            return_type,
+            is_async_generator,
+        )?;
+        Ok(iteration_types.map(|iteration_types| {
             iteration_types.get_by_key(get_iteration_types_key_from_iteration_type_kind(kind))
-        })
+        }))
     }
 
     pub(super) fn get_iteration_types_of_generator_function_return_type(

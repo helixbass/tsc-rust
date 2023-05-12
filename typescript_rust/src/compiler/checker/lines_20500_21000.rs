@@ -59,12 +59,12 @@ impl TypeChecker {
                         && compare_types(
                             &self
                                 .maybe_instantiate_type(
-                                    self.get_default_from_type_parameter_(s),
+                                    self.get_default_from_type_parameter_(s)?,
                                     Some(mapper.clone()),
                                 )?
                                 .unwrap_or_else(|| self.unknown_type()),
                             &self
-                                .get_default_from_type_parameter_(t)
+                                .get_default_from_type_parameter_(t)?
                                 .unwrap_or_else(|| self.unknown_type()),
                         )? != Ternary::False)
                 {
@@ -339,7 +339,7 @@ impl TypeChecker {
                 return Ok(None);
             }
         }
-        let bases = self.get_base_types(target);
+        let bases = self.get_base_types(target)?;
         if bases.len() != 1 {
             return Ok(None);
         }
@@ -392,12 +392,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_empty_array_literal_type(&self, type_: &Type) -> bool {
-        let element_type = self.get_element_type_of_array_type(type_);
-        matches!(
+    pub(super) fn is_empty_array_literal_type(&self, type_: &Type) -> io::Result<bool> {
+        let element_type = self.get_element_type_of_array_type(type_)?;
+        Ok(matches!(
             element_type.as_ref(),
             Some(element_type) if self.is_empty_literal_type(element_type)
-        )
+        ))
     }
 
     pub(super) fn is_tuple_like_type(&self, type_: &Type) -> io::Result<bool> {
@@ -710,7 +710,7 @@ impl TypeChecker {
                             Option::<&Node>::None,
                             Option::<&Symbol>::None,
                             None,
-                        )
+                        )?
                     } else {
                         t.clone()
                     },
@@ -906,7 +906,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
     ) -> io::Result<Gc<Type>> {
-        let reduced_type = self.get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull);
+        let reduced_type = self.get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)?;
         if self
             .maybe_deferred_global_non_nullable_type_alias()
             .is_none()
@@ -1019,12 +1019,12 @@ impl TypeChecker {
                     ))
     }
 
-    pub(super) fn remove_missing_or_undefined_type(&self, type_: &Type) -> Gc<Type> {
-        if self.exact_optional_property_types == Some(true) {
+    pub(super) fn remove_missing_or_undefined_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(if self.exact_optional_property_types == Some(true) {
             self.remove_type(type_, &self.missing_type())
         } else {
-            self.get_type_with_facts(type_, TypeFacts::NEUndefined)
-        }
+            self.get_type_with_facts(type_, TypeFacts::NEUndefined)?
+        })
     }
 
     pub(super) fn is_coercible_under_double_equals(&self, source: &Type, target: &Type) -> bool {

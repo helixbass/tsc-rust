@@ -10,11 +10,11 @@ use crate::{
     is_modifier, is_parameter_property_declaration, is_static, move_range_past_decorators,
     node_or_child_is_decorated, parameter_is_this_keyword, set_emit_flags, skip_outer_expressions,
     skip_trivia, some, visit_each_child, visit_lexical_environment, visit_nodes, AsDoubleDeref,
-    ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
+    BoolExt, ClassLikeDeclarationInterface, EmitFlags, HasStatementsInterface,
     InterfaceOrClassLikeDeclarationInterface, Matches, ModifierFlags, ModuleKind,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeFlags,
     NodeInterface, NodeWrappered, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
-    SourceFileLike, SyntaxKind, TextRange, ThenAnd, TransformFlags, VisitResult,
+    SourceFileLike, SyntaxKind, TextRange, TransformFlags, VisitResult,
 };
 
 use super::{ClassFacts, TransformTypeScript};

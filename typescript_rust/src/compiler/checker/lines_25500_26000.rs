@@ -13,10 +13,10 @@ use crate::{
     is_expression, is_function_like, is_identifier, is_import_call, is_in_js_file,
     is_jsx_opening_like_element, is_parameter, is_private_identifier,
     is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like,
-    return_ok_none_if_none, walk_up_parenthesized_expressions, AccessFlags, ContextFlags,
-    FunctionFlags, HasInitializerInterface, InferenceContext, NamedDeclarationInterface, Node,
-    NodeInterface, Number, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    return_ok_none_if_none, try_for_each, walk_up_parenthesized_expressions, AccessFlags,
+    ContextFlags, FunctionFlags, HasInitializerInterface, InferenceContext,
+    NamedDeclarationInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -96,18 +96,21 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_this_type_from_contextual_type(&self, type_: &Type) -> Option<Gc<Type>> {
-        self.map_type(
+    pub(super) fn get_this_type_from_contextual_type(
+        &self,
+        type_: &Type,
+    ) -> io::Result<Option<Gc<Type>>> {
+        self.try_map_type(
             type_,
             &mut |t: &Type| {
-                if t.flags().intersects(TypeFlags::Intersection) {
-                    for_each(
+                Ok(if t.flags().intersects(TypeFlags::Intersection) {
+                    try_for_each(
                         t.as_union_or_intersection_type_interface().types(),
                         |type_: &Gc<Type>, _| self.get_this_type_argument(type_),
-                    )
+                    )?
                 } else {
-                    self.get_this_type_argument(t)
-                }
+                    self.get_this_type_argument(t)?
+                })
             },
             None,
         )
@@ -151,7 +154,7 @@ impl TypeChecker {
                         break;
                     }
                     literal = literal.parent().parent();
-                    type_ = self.get_apparent_type_of_contextual_type(&literal, None);
+                    type_ = self.get_apparent_type_of_contextual_type(&literal, None)?;
                 }
                 return Ok(Some(self.get_widened_type(
                     &*if let Some(contextual_type) = contextual_type.as_ref() {
@@ -576,7 +579,8 @@ impl TypeChecker {
         if return_type.is_some() {
             return Ok(return_type);
         }
-        let signature = self.get_contextual_signature_for_function_like_declaration(function_decl);
+        let signature =
+            self.get_contextual_signature_for_function_like_declaration(function_decl)?;
         if let Some(signature) = signature
             .as_ref()
             .filter(|signature| !self.is_resolving_return_type_of_signature((*signature).clone()))
@@ -646,7 +650,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
                     None,
-                )
+                )?
             } else {
                 self.get_type_at_position(&signature, arg_index)?
             },

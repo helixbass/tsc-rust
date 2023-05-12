@@ -54,7 +54,9 @@ impl TypeChecker {
                                 .unwrap();
                                 if index < type_parameters.len() {
                                     let declared_constraint = self
-                                        .get_constraint_of_type_parameter(&type_parameters[index]);
+                                        .get_constraint_of_type_parameter(
+                                            &type_parameters[index],
+                                        )?;
                                     if let Some(declared_constraint) = declared_constraint {
                                         let mapper = Gc::new(self.create_type_mapper(
                                             type_parameters.clone(),
@@ -201,7 +203,7 @@ impl TypeChecker {
         {
             if let Some(type_parameter_target) = type_parameter_as_type_parameter.target.as_ref() {
                 let target_constraint =
-                    self.get_constraint_of_type_parameter(type_parameter_target);
+                    self.get_constraint_of_type_parameter(type_parameter_target)?;
                 type_parameter_as_type_parameter.set_constraint(match target_constraint {
                     Some(target_constraint) => self.instantiate_type(
                         &target_constraint,
@@ -382,7 +384,7 @@ impl TypeChecker {
         if alias_symbol.is_none() {
             alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             let local_alias_type_arguments =
-                self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
+                self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref())?;
             alias_type_arguments = if let Some(mapper) = mapper.as_ref() {
                 self.instantiate_types(local_alias_type_arguments.as_deref(), Some(mapper.clone()))?
             } else {
@@ -448,7 +450,7 @@ impl TypeChecker {
                     try_map(
                         &node.as_tuple_type_node().elements,
                         |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
-                    )
+                    )?
                 }
             };
             if self.pop_type_resolution() {
@@ -727,7 +729,7 @@ impl TypeChecker {
                 self.type_arguments_from_type_reference_node(node)?
                     .as_deref(),
                 new_alias_symbol.as_deref(),
-                self.get_type_arguments_for_alias_symbol(new_alias_symbol.as_deref())
+                self.get_type_arguments_for_alias_symbol(new_alias_symbol.as_deref())?
                     .as_deref(),
             );
         }

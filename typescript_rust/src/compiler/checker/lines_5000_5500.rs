@@ -132,14 +132,14 @@ impl NodeBuilder {
                 .type_to_type_node_helper(
                     Some(
                         self.type_checker
-                            .get_constraint_type_from_mapped_type(type_),
+                            .get_constraint_type_from_mapped_type(type_)?,
                     ),
                     context,
                 )?
                 .unwrap();
         }
         let type_parameter_node: Gc<Node> = self.type_parameter_to_declaration_with_constraint(
-            &self
+            &*self
                 .type_checker
                 .get_type_parameter_from_mapped_type(type_)?,
             context,
@@ -1205,7 +1205,7 @@ impl NodeBuilder {
                     !t.flags().intersects(TypeFlags::Undefined)
                 }),
                 SignatureKind::Call,
-            );
+            )?;
             for signature in &signatures {
                 let method_declaration = self.signature_to_signature_declaration_helper(
                     signature.clone(),

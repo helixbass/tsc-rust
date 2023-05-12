@@ -991,7 +991,7 @@ impl TypeChecker {
                     .try_map(|func_type| self.get_apparent_type(func_type))?
                     .unwrap_or_else(|| self.unknown_type()),
                 SignatureKind::Call,
-            );
+            )?;
             let candidate =
                 if signatures.len() == 1 && signatures[0].maybe_type_parameters().is_none() {
                     Some(signatures[0].clone())

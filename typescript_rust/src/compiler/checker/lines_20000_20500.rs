@@ -127,7 +127,7 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<Ternary> {
         let source_info = self
             .type_checker
-            .get_applicable_index_info(source, &target_info.key_type);
+            .get_applicable_index_info(source, &target_info.key_type)?;
         if let Some(source_info) = source_info.as_ref() {
             return self.index_info_related_to(source_info, target_info, report_errors);
         }
@@ -431,7 +431,7 @@ impl TypeChecker {
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<bool> {
         for ref prop in self.get_properties_of_type(source)? {
-            if self.is_known_property(target, prop.escaped_name(), is_comparing_jsx_attributes) {
+            if self.is_known_property(target, prop.escaped_name(), is_comparing_jsx_attributes)? {
                 return Ok(true);
             }
         }
@@ -618,9 +618,9 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_unconstrained_type_parameter(&self, type_: &Type) -> bool {
-        type_.flags().intersects(TypeFlags::TypeParameter)
-            && self.get_constraint_of_type_parameter(type_).is_none()
+    pub(super) fn is_unconstrained_type_parameter(&self, type_: &Type) -> io::Result<bool> {
+        Ok(type_.flags().intersects(TypeFlags::TypeParameter)
+            && self.get_constraint_of_type_parameter(type_)?.is_none())
     }
 
     pub(super) fn is_non_deferred_type_reference(&self, type_: &Type) -> bool {
@@ -665,7 +665,7 @@ impl TypeChecker {
                 }
                 let index = index.unwrap();
                 result.push_str(&format!("={}", index));
-            } else if depth < 4 && self.is_type_reference_with_generic_arguments(t) {
+            } else if depth < 4 && self.is_type_reference_with_generic_arguments(t)? {
                 result.push_str(&format!(
                     "<{}>",
                     self.get_type_reference_id(t, type_parameters, Some(depth + 1))?
@@ -683,7 +683,7 @@ impl TypeChecker {
         target: &Type,
         intersection_state: IntersectionState,
         relation: &HashMap<String, RelationComparisonResult>,
-    ) -> String {
+    ) -> io::Result<String> {
         let mut source = source.type_wrapper();
         let mut target = target.type_wrapper();
         if ptr::eq(relation, &*self.identity_relation()) && source.id() > target.id() {
@@ -696,18 +696,18 @@ impl TypeChecker {
         } else {
             "".to_owned()
         };
-        if self.is_type_reference_with_generic_arguments(&source)
-            && self.is_type_reference_with_generic_arguments(&target)
+        if self.is_type_reference_with_generic_arguments(&source)?
+            && self.is_type_reference_with_generic_arguments(&target)?
         {
             let mut type_parameters: Vec<Gc<Type>> = vec![];
-            return format!(
+            return Ok(format!(
                 "{},{}{}",
-                self.get_type_reference_id(&source, &mut type_parameters, None),
-                self.get_type_reference_id(&target, &mut type_parameters, None),
+                self.get_type_reference_id(&source, &mut type_parameters, None)?,
+                self.get_type_reference_id(&target, &mut type_parameters, None)?,
                 post_fix
-            );
+            ));
         }
-        format!("{},{}{}", source.id(), target.id(), post_fix)
+        Ok(format!("{},{}{}", source.id(), target.id(), post_fix))
     }
 
     pub(super) fn for_each_property<TReturn>(
@@ -767,7 +767,9 @@ impl TypeChecker {
         let class_type = self.get_declaring_class(property)?;
         let base_class_type = class_type
             .as_ref()
-            .and_then(|class_type| self.get_base_types(class_type).get(0).cloned());
+            .try_and_then(|class_type| -> io::Result<_> {
+                Ok(self.get_base_types(class_type)?.get(0).cloned())
+            })?;
         base_class_type.as_ref().try_and_then(|base_class_type| {
             self.get_type_of_property_of_type_(base_class_type, property.escaped_name())
         })

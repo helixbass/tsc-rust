@@ -192,7 +192,7 @@ impl TypeChecker {
                     &type_,
                     &node_as_interface_declaration.name(),
                 )? {
-                    for base_type in &self.get_base_types(&type_) {
+                    for base_type in &self.get_base_types(&type_)? {
                         self.check_type_assignable_to(
                             &type_with_this,
                             &*self.get_type_with_this_argument(

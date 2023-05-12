@@ -18,9 +18,9 @@ use crate::{
     maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers, node_is_synthesized,
     null_transformation_context, out_file, path_is_relative, set_comment_range, set_emit_flags,
     set_synthetic_leading_comments, some, symbol_name, try_maybe_first_defined, try_maybe_map,
-    unescape_leading_underscores, visit_each_child, with_factory, CheckFlags, CompilerOptions,
-    Debug_, EmitFlags, HasInitializerInterface, IndexInfo, InternalSymbolName, ModifierFlags,
-    ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
+    try_visit_each_child, unescape_leading_underscores, visit_each_child, with_factory, CheckFlags,
+    CompilerOptions, Debug_, EmitFlags, HasInitializerInterface, IndexInfo, InternalSymbolName,
+    ModifierFlags, ModuleResolutionKind, NamedDeclarationInterface, Node, NodeArray, NodeBuilder,
     NodeBuilderFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrNodeArray,
     StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
@@ -620,7 +620,7 @@ impl NodeBuilder {
         let saved_context_flags = context.flags();
         context.set_flags(context.flags() & !NodeBuilderFlags::WriteTypeParametersInQualifiedName);
         let name = self.type_parameter_to_name(type_, context)?;
-        let default_parameter = self.type_checker.get_default_from_type_parameter_(type_);
+        let default_parameter = self.type_checker.get_default_from_type_parameter_(type_)?;
         let default_parameter_node =
             default_parameter
                 .as_ref()
@@ -640,7 +640,7 @@ impl NodeBuilder {
         constraint: Option<Gc<Type>>,
     ) -> io::Result<Gc<Node /*TypeParameterDeclaration*/>> {
         let constraint =
-            constraint.or_else(|| self.type_checker.get_constraint_of_type_parameter(type_));
+            constraint.try_or_else(|| self.type_checker.get_constraint_of_type_parameter(type_))?;
         let constraint_node = constraint.as_ref().try_and_then(|constraint| {
             self.type_to_type_node_helper(Some(&**constraint), context)
         })?;
@@ -666,7 +666,7 @@ impl NodeBuilder {
         let mut parameter_type = self.type_checker.get_type_of_symbol(parameter_symbol)?;
         if matches!(
             parameter_declaration.as_ref(),
-            Some(parameter_declaration) if self.type_checker.is_required_initialized_parameter(parameter_declaration)
+            Some(parameter_declaration) if self.type_checker.is_required_initialized_parameter(parameter_declaration)?
         ) {
             parameter_type = self
                 .type_checker
@@ -678,12 +678,12 @@ impl NodeBuilder {
             && matches!(
                 parameter_declaration.as_ref(),
                 Some(parameter_declaration) if !is_jsdoc_parameter_tag(parameter_declaration) &&
-                    self.type_checker.is_optional_uninitialized_parameter_(parameter_declaration)
+                    self.type_checker.is_optional_uninitialized_parameter_(parameter_declaration)?
             )
         {
             parameter_type = self
                 .type_checker
-                .get_type_with_facts(&parameter_type, TypeFacts::NEUndefined);
+                .get_type_with_facts(&parameter_type, TypeFacts::NEUndefined)?;
         }
         let parameter_type_node = self.serialize_type_for_declaration(
             context,
@@ -745,7 +745,7 @@ impl NodeBuilder {
                                 .clone_node(&parameter_declaration_name.as_qualified_name().right),
                             EmitFlags::NoAsciiEscaping,
                         ),
-                        _ => self.clone_binding_name(context, parameter_declaration_name),
+                        _ => self.clone_binding_name(context, parameter_declaration_name)?,
                     }
                     .into()
                 } else {
@@ -804,13 +804,13 @@ impl NodeBuilder {
                 context,
             );
         }
-        let mut visited = visit_each_child(
+        let mut visited = try_visit_each_child(
             Some(node),
             |node: &Node| {
-                Some(
+                Ok(Some(
                     self.elide_initializer_and_set_emit_flags(context, node)?
                         .into(),
-                )
+                ))
             },
             &*null_transformation_context,
             Option::<
@@ -820,13 +820,13 @@ impl NodeBuilder {
                     Option<&dyn Fn(&Node) -> bool>,
                     Option<usize>,
                     Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
+                ) -> io::Result<Option<Gc<NodeArray>>>,
             >::None,
             Some(|node: &Node| {
-                Some(
+                Ok(Some(
                     self.elide_initializer_and_set_emit_flags(context, node)?
                         .into(),
-                )
+                ))
             }),
             Option::<
                 fn(
@@ -834,9 +834,9 @@ impl NodeBuilder {
                     Option<&mut dyn FnMut(&Node) -> VisitResult>,
                     Option<&dyn Fn(&Node) -> bool>,
                     Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
+                ) -> io::Result<Option<Gc<Node>>>,
             >::None,
-        )
+        )?
         .unwrap();
         if is_binding_element(&visited) {
             let visited_as_binding_element = visited.as_binding_element();
@@ -1190,7 +1190,8 @@ impl NodeBuilder {
                                 .as_ref()
                                 .unwrap(),
                         )
-                    })?
+                    })
+                    .transpose()?
                     .as_deref(),
                     context,
                     None,

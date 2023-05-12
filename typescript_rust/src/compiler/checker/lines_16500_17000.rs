@@ -374,7 +374,7 @@ impl TypeChecker {
                 && modifiers.intersects(MappedTypeModifiers::ExcludeOptional)
                 && is_optional
             {
-                self.get_type_with_facts(&prop_type, TypeFacts::NEUndefined)
+                self.get_type_with_facts(&prop_type, TypeFacts::NEUndefined)?
             } else {
                 prop_type
             },

@@ -329,7 +329,7 @@ impl TypeChecker {
         }
 
         let then_signatures = if let Some(then_function) = then_function.as_ref() {
-            self.get_signatures_of_type(then_function, SignatureKind::Call)
+            self.get_signatures_of_type(then_function, SignatureKind::Call)?
         } else {
             vec![]
         };
@@ -355,13 +355,13 @@ impl TypeChecker {
                 Option::<&Type>::None,
             )?,
             TypeFacts::NEUndefinedOrNull,
-        );
+        )?;
         if self.is_type_any(Some(&*onfulfilled_parameter_type)) {
             return Ok(None);
         }
 
         let onfulfilled_parameter_signatures =
-            self.get_signatures_of_type(&onfulfilled_parameter_type, SignatureKind::Call);
+            self.get_signatures_of_type(&onfulfilled_parameter_type, SignatureKind::Call)?;
         if onfulfilled_parameter_signatures.is_empty() {
             if error_node.is_some() {
                 self.error(
@@ -414,9 +414,9 @@ impl TypeChecker {
         Ok(matches!(
             then_function.as_ref(),
             Some(then_function) if !self.get_signatures_of_type(
-                &self.get_type_with_facts(then_function, TypeFacts::NEUndefinedOrNull),
+                &*self.get_type_with_facts(then_function, TypeFacts::NEUndefinedOrNull)?,
                 SignatureKind::Call
-            ).is_empty()
+            )?.is_empty()
         ))
     }
 

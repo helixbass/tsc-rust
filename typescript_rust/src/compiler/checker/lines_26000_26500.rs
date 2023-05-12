@@ -1,4 +1,5 @@
 use gc::Gc;
+use itertools::Itertools;
 use std::convert::TryInto;
 use std::ptr;
 use std::{borrow::Borrow, io};
@@ -53,15 +54,15 @@ impl TypeChecker {
                         } else {
                             None
                         }
-                        .or_else(|| {
-                            if decl.as_has_initializer().maybe_initializer().is_some() {
+                        .try_or_else(|| -> io::Result<_> {
+                            Ok(if decl.as_has_initializer().maybe_initializer().is_some() {
                                 Some(self.get_type_of_expression(
                                     &binary_expression_as_binary_expression.left,
                                 )?)
                             } else {
                                 None
-                            }
-                        }),
+                            })
+                        })?,
                     );
                 }
                 if kind == AssignmentDeclarationKind::None {
@@ -294,7 +295,7 @@ impl TypeChecker {
                 if self.is_generic_mapped_type(t) {
                     let constraint = self.get_constraint_type_from_mapped_type(t);
                     let constraint_of_constraint = self
-                        .get_base_constraint_of_type(&constraint)
+                        .get_base_constraint_of_type(&constraint)?
                         .unwrap_or(constraint);
                     let property_name_type =
                         self.get_string_literal_type(&unescape_leading_underscores(name));
@@ -370,7 +371,7 @@ impl TypeChecker {
             }
             if let Some(element_name) = element.as_named_declaration().maybe_name() {
                 let name_type = self.get_literal_type_from_property_name(&element_name)?;
-                return Ok(self.try_map_type(
+                return self.try_map_type(
                     type_,
                     &mut |t: &Type| {
                         Ok(self
@@ -381,7 +382,7 @@ impl TypeChecker {
                             .map(|index_info| index_info.type_.clone()))
                     },
                     Some(true),
-                ));
+                );
             }
         }
         Ok(None)
@@ -472,10 +473,10 @@ impl TypeChecker {
             if real_children.len() == 1 {
                 Some(child_field_type.clone())
             } else {
-                self.map_type(
+                self.try_map_type(
                     child_field_type,
                     &mut |t: &Type| {
-                        if self.is_array_like_type(t) {
+                        Ok(if self.is_array_like_type(t) {
                             Some(self.get_indexed_access_type(
                                 t,
                                 &self.get_number_literal_type(Number::new(child_index as f64)),
@@ -483,13 +484,13 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 Option::<&Symbol>::None,
                                 None,
-                            ))
+                            )?)
                         } else {
                             Some(t.type_wrapper())
-                        }
+                        })
                     },
                     Some(true),
-                )
+                )?
             }
         }))
     }
@@ -588,37 +589,37 @@ impl TypeChecker {
                         )
                     }
                 ).into_iter().chain(
-                        map(
-                            try_filter(
-                                &self.get_properties_of_type(contextual_type)?.collect_vec(),
-                                |s| -> io::Result<_> {
-                                    Ok(s.flags().intersects(SymbolFlags::Optional) &&
-                                        matches!(
-                                            node.maybe_symbol().as_ref(),
-                                            Some(node_symbol) if matches!(
-                                                node_symbol.maybe_members().clone(),
-                                                Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
-                                            )
-                                        ) &&
-                                        self.is_discriminant_property(
-                                            Some(contextual_type),
-                                            s.escaped_name()
-                                        )?)
-                                }
-                            ),
-                            |s, _| {
-                                (
-                                    Box::new({
-                                        let type_checker = self.rc_wrapper();
-                                        move || {
-                                            type_checker.undefined_type()
-                                        }
-                                    }) as Box<dyn Fn() -> Gc<Type>>,
-                                    s.escaped_name().to_owned(),
-                                )
+                    map(
+                        &try_filter(
+                            &self.get_properties_of_type(contextual_type)?.collect_vec(),
+                            |s: &Gc<Symbol>| -> io::Result<_> {
+                                Ok(s.flags().intersects(SymbolFlags::Optional) &&
+                                    matches!(
+                                        node.maybe_symbol().as_ref(),
+                                        Some(node_symbol) if matches!(
+                                            node_symbol.maybe_members().clone(),
+                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
+                                        )
+                                    ) &&
+                                    self.is_discriminant_property(
+                                        Some(contextual_type),
+                                        s.escaped_name()
+                                    )?)
                             }
-                        ).into_iter()
-                    ),
+                        ),
+                        |s: &Gc<Symbol>, _| {
+                            (
+                                Box::new({
+                                    let type_checker = self.rc_wrapper();
+                                    move || {
+                                        type_checker.undefined_type()
+                                    }
+                                }) as Box<dyn Fn() -> Gc<Type>>,
+                                s.escaped_name().to_owned(),
+                            )
+                        }
+                    ).into_iter()
+                ),
                 |source: &Type, target: &Type| self.is_type_assignable_to(source, target),
                 Some(contextual_type),
                 None,
@@ -634,7 +635,7 @@ impl TypeChecker {
         Ok(self.discriminate_type_by_discriminable_items(
             contextual_type,
             map(
-                try_filter(
+                &try_filter(
                     &node.as_jsx_attributes().properties,
                     |p: &Gc<Node>| -> io::Result<_> {
                         Ok(p.maybe_symbol().is_some() &&
@@ -670,8 +671,8 @@ impl TypeChecker {
             ).into_iter()
                 .chain(
                     map(
-                        try_filter(
-                            &self.get_properties_of_type(contextual_type)?,
+                        &try_filter(
+                            &self.get_properties_of_type(contextual_type)?.collect_vec(),
                             |s: &Gc<Symbol>| -> io::Result<_> {
                                 Ok(s.flags().intersects(SymbolFlags::Optional) &&
                                     matches!(
@@ -687,7 +688,7 @@ impl TypeChecker {
                                     )?)
                             }
                         )?,
-                        |s, _| {
+                        |s: &Gc<Symbol>, _| {
                             (
                                 Box::new({
                                     let type_checker = self.rc_wrapper();
@@ -717,7 +718,7 @@ impl TypeChecker {
             self.get_contextual_type_(node, context_flags)?
         };
         let instantiated_type =
-            self.instantiate_contextual_type(contextual_type, node, context_flags);
+            self.instantiate_contextual_type(contextual_type, node, context_flags)?;
         if let Some(instantiated_type) = instantiated_type {
             if !(matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::NoConstraints))
                 && instantiated_type
@@ -936,7 +937,7 @@ impl TypeChecker {
                     }
                 }
             }
-            SyntaxKind::NonNullExpression => self.get_contextual_type_(&parent, context_flags),
+            SyntaxKind::NonNullExpression => self.get_contextual_type_(&parent, context_flags)?,
             SyntaxKind::JsxExpression => self.get_contextual_type_for_jsx_expression(&parent),
             SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute => {
                 self.get_contextual_type_for_jsx_attribute_(&parent)?

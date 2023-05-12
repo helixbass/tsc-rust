@@ -55,7 +55,7 @@ impl TypeChecker {
                         awaited_type_of_source,
                         target,
                         relation.clone()
-                    )
+                    )?
                 ) {
                     add_related_info(
                         &error_output_container.get_error(0).unwrap(),

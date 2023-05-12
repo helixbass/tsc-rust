@@ -257,11 +257,11 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn is_function_type(&self, type_: &Type) -> bool {
-        type_.flags().intersects(TypeFlags::Object)
+    pub(super) fn is_function_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(type_.flags().intersects(TypeFlags::Object)
             && !self
-                .get_signatures_of_type(type_, SignatureKind::Call)
-                .is_empty()
+                .get_signatures_of_type(type_, SignatureKind::Call)?
+                .is_empty())
     }
 
     pub(super) fn get_type_reference_serialization_kind(
@@ -358,7 +358,7 @@ impl TypeChecker {
             let ref constructor_type = self.get_type_of_symbol(resolved_symbol)?;
             if
             /*constructorType &&*/
-            self.is_constructor_type(constructor_type) {
+            self.is_constructor_type(constructor_type)? {
                 return Ok(if is_type_only {
                     TypeReferenceSerializationKind::TypeWithCallSignature
                 } else {
@@ -1144,7 +1144,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SourceFile*/
         error_node: &Node,
-    ) -> Gc<Symbol> {
+    ) -> io::Result<Gc<Symbol>> {
         let mut external_helpers_module = self.maybe_external_helpers_module();
         if external_helpers_module.is_none() {
             *external_helpers_module = Some(
@@ -1154,10 +1154,10 @@ impl TypeChecker {
                     Some(&Diagnostics::This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found),
                     error_node,
                     None,
-                ).unwrap_or_else(|| self.unknown_symbol())
+                )?.unwrap_or_else(|| self.unknown_symbol())
             );
         }
-        external_helpers_module.clone().unwrap()
+        Ok(external_helpers_module.clone().unwrap())
     }
 
     pub(super) fn check_grammar_decorators_and_modifiers(&self, node: &Node) -> bool {

@@ -363,7 +363,7 @@ impl TransformDeclarations {
                 }) {
                     let ref clean = clean.as_single_node();
                     let clean_as_function_declaration = clean.as_function_declaration();
-                    let props = self.resolver.get_properties_of_container_function(input);
+                    let props = self.resolver.get_properties_of_container_function(input)?;
                     let fakespace =
                         get_parse_node_factory()
                             .create_module_declaration(

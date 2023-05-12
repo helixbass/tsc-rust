@@ -704,14 +704,18 @@ pub trait EmitResolver: Trace + Finalize {
         node: &Node, /*Declaration*/
     ) -> io::Result<bool>;
     fn is_value_alias_declaration(&self, node: &Node) -> io::Result<bool>;
-    fn is_referenced_alias_declaration(&self, node: &Node, check_children: Option<bool>) -> bool;
+    fn is_referenced_alias_declaration(
+        &self,
+        node: &Node,
+        check_children: Option<bool>,
+    ) -> io::Result<bool>;
     fn is_top_level_value_import_equals_with_entity_name(
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
     ) -> io::Result<bool>;
     fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags;
     fn is_declaration_visible(&self, node: &Node /*Declaration | AnyImportSyntax*/) -> bool;
-    fn is_late_bound(&self, node: &Node /*Declaration*/) -> bool;
+    fn is_late_bound(&self, node: &Node /*Declaration*/) -> io::Result<bool>;
     fn collect_linked_aliases(
         &self,
         node: &Node, /*Identifier*/
@@ -772,7 +776,7 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         entity_name: &Node, /*EntityNameOrEntityNameExpression*/
         enclosing_declaration: &Node,
-    ) -> SymbolVisibilityResult;
+    ) -> io::Result<SymbolVisibilityResult>;
     fn get_constant_value(
         &self,
         node: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
@@ -786,7 +790,7 @@ pub trait EmitResolver: Trace + Finalize {
         type_name: &Node, /*EntityName*/
         location: Option<&Node>,
     ) -> io::Result<TypeReferenceSerializationKind>;
-    fn is_optional_parameter(&self, node: &Node /*ParameterDeclaration*/) -> bool;
+    fn is_optional_parameter(&self, node: &Node /*ParameterDeclaration*/) -> io::Result<bool>;
     fn module_exports_some_value(
         &self,
         module_reference_expression: &Node, /*Expression*/
@@ -804,7 +808,7 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         symbol: &Symbol,
         meaning: Option<SymbolFlags>,
-    ) -> Option<Vec<String>>;
+    ) -> io::Result<Option<Vec<String>>>;
     fn is_literal_const_declaration(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/

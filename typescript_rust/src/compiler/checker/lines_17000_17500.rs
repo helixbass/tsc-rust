@@ -55,7 +55,7 @@ impl TypeChecker {
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
-        if self.is_type_related_to(source, target, relation.clone()) {
+        if self.is_type_related_to(source, target, relation.clone())? {
             return Ok(true);
         }
         if error_node.is_none()
@@ -209,8 +209,8 @@ impl TypeChecker {
         containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
-        let call_signatures = self.get_signatures_of_type(source, SignatureKind::Call);
-        let construct_signatures = self.get_signatures_of_type(source, SignatureKind::Construct);
+        let call_signatures = self.get_signatures_of_type(source, SignatureKind::Call)?;
+        let construct_signatures = self.get_signatures_of_type(source, SignatureKind::Construct)?;
         for (signatures_index, signatures) in vec![call_signatures, construct_signatures]
             .into_iter()
             .enumerate()
@@ -290,7 +290,7 @@ impl TypeChecker {
             return Ok(false);
         }
         let source_sig = source_sig.unwrap();
-        let target_signatures = self.get_signatures_of_type(target, SignatureKind::Call);
+        let target_signatures = self.get_signatures_of_type(target, SignatureKind::Call)?;
         if length(Some(&target_signatures)) == 0 {
             return Ok(false);
         }
@@ -404,17 +404,17 @@ impl TypeChecker {
             let best = self.get_best_matching_type(
                 source,
                 target,
-                Option::<fn(&Type, &Type) -> Ternary>::None,
+                Option::<fn(&Type, &Type) -> io::Result<Ternary>>::None,
             )?;
             if let Some(best) = best.as_ref() {
-                return Ok(self.get_indexed_access_type_or_undefined(
+                return self.get_indexed_access_type_or_undefined(
                     best,
                     name_type,
                     None,
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
                     None,
-                ));
+                );
             }
         }
         Ok(None)
@@ -453,12 +453,9 @@ impl TypeChecker {
                 name_type,
                 error_message,
             } = status;
-            let target_prop_type =
-                self.get_best_match_indexed_access_type_or_undefined(source, target, &name_type);
-            if target_prop_type.is_none() {
-                continue;
-            }
-            let mut target_prop_type = target_prop_type.unwrap();
+            let mut target_prop_type =
+                continue_if_none!(self
+                    .get_best_match_indexed_access_type_or_undefined(source, target, &name_type)?);
             if target_prop_type
                 .flags()
                 .intersects(TypeFlags::IndexedAccess)
@@ -794,7 +791,7 @@ impl TypeChecker {
                 Option::<&Node>::None,
                 Option::<&Symbol>::None,
                 None,
-            );
+            )?;
             let valid_children =
                 get_semantic_jsx_children(&containing_element.as_jsx_element().children);
             if length(Some(&valid_children)) == 0 {
@@ -831,7 +828,7 @@ impl TypeChecker {
                             Option::<&Node>::None,
                             Option::<&Symbol>::None,
                             None,
-                        );
+                        )?;
                         let diagnostic = &Diagnostics::_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_type_of_1_is_2;
                         invalid_text_diagnostic = Some(Cow::Owned(DiagnosticMessage {
                             code: diagnostic.code,
@@ -890,7 +887,7 @@ impl TypeChecker {
                     ),
                     &children_target_type,
                     relation,
-                ) {
+                )? {
                     result = true;
                     let diag = self.error(
                         Some(&*containing_element.as_jsx_element().opening_element.as_jsx_opening_element().tag_name),
@@ -939,7 +936,7 @@ impl TypeChecker {
                     ),
                     &children_target_type,
                     relation,
-                ) {
+                )? {
                     result = true;
                     let diag = self.error(
                         Some(&*containing_element.as_jsx_element().opening_element.as_jsx_opening_element().tag_name),

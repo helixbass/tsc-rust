@@ -559,13 +559,13 @@ impl TypeChecker {
         input_type: &Type,
         allows_strings: bool,
         downlevel_iteration: Option<bool>,
-    ) -> (&'static DiagnosticMessage, bool) {
+    ) -> io::Result<(&'static DiagnosticMessage, bool)> {
         if downlevel_iteration == Some(true) {
-            return if allows_strings {
+            return Ok(if allows_strings {
                 (&Diagnostics::Type_0_is_not_an_array_type_or_a_string_type_or_does_not_have_a_Symbol_iterator_method_that_returns_an_iterator, true)
             } else {
                 (&Diagnostics::Type_0_is_not_an_array_type_or_does_not_have_a_Symbol_iterator_method_that_returns_an_iterator, true)
-            };
+            });
         }
 
         let yield_type = self.get_iteration_type_of_iterable(
@@ -573,13 +573,13 @@ impl TypeChecker {
             IterationTypeKind::Yield,
             input_type,
             Option::<&Node>::None,
-        );
+        )?;
 
         if yield_type.is_some() {
-            return (
+            return Ok((
                 &Diagnostics::Type_0_is_not_an_array_type_or_a_string_type_Use_compiler_option_downlevelIteration_to_allow_iterating_of_iterators,
                 false
-            );
+            ));
         }
 
         if self.is_es2015_or_later_iterable(
@@ -588,20 +588,20 @@ impl TypeChecker {
                 .as_ref()
                 .map(|input_type_symbol| input_type_symbol.escaped_name()),
         ) {
-            return (
+            return Ok((
                 &Diagnostics::Type_0_can_only_be_iterated_through_when_using_the_downlevelIteration_flag_or_with_a_target_of_es2015_or_higher,
                 true,
-            );
+            ));
         }
 
-        if allows_strings {
+        Ok(if allows_strings {
             (
                 &Diagnostics::Type_0_is_not_an_array_type_or_a_string_type,
                 true,
             )
         } else {
             (&Diagnostics::Type_0_is_not_an_array_type, true)
-        }
+        })
     }
 
     pub(super) fn is_es2015_or_later_iterable(&self, n: Option<&str /*__String*/>) -> bool {
@@ -618,12 +618,12 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_iteration_type_of_iterable<TErrorNode: Borrow<Node>>(
+    pub(super) fn get_iteration_type_of_iterable(
         &self,
         use_: IterationUse,
         type_kind: IterationTypeKind,
         input_type: &Type,
-        error_node: Option<TErrorNode>,
+        error_node: Option<impl Borrow<Node>>,
     ) -> io::Result<Option<Gc<Type>>> {
         if self.is_type_any(Some(input_type)) {
             return Ok(None);

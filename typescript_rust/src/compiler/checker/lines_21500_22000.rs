@@ -28,7 +28,7 @@ impl TypeChecker {
             Option::<&Node>::None,
             Option::<&Symbol>::None,
             None,
-        );
+        )?;
         let template_type = self.get_template_type_from_mapped_type(target)?;
         let inference = Gc::new(self.create_inference_info(&type_parameter));
         self.infer_types(
@@ -684,7 +684,7 @@ impl InferTypes {
                 },
                 target.as_union_or_intersection_type_interface().types(),
                 |s: &Type, t: &Type| self.type_checker.is_type_or_base_identical_to(s, t),
-            );
+            )?;
             let (sources, targets) = self.infer_from_matching_types(
                 &temp_sources,
                 &temp_targets,
@@ -740,7 +740,7 @@ impl InferTypes {
                     },
                     target.as_union_or_intersection_type_interface().types(),
                     |s: &Type, t: &Type| self.type_checker.is_type_identical_to(s, t),
-                );
+                )?;
                 if sources.is_empty() || targets.is_empty() {
                     return Ok(());
                 }
@@ -831,7 +831,7 @@ impl InferTypes {
                 self.set_inference_priority(cmp::min(self.inference_priority(), self.priority()));
                 return Ok(());
             } else {
-                let simplified = self.type_checker.get_simplified_type(&target, false);
+                let simplified = self.type_checker.get_simplified_type(&target, false)?;
                 if !Gc::ptr_eq(&simplified, &target) {
                     self.try_invoke_once(&source, &simplified, |source: &Type, target: &Type| {
                         self.infer_from_types(source, target)
@@ -840,13 +840,13 @@ impl InferTypes {
                     let target_as_indexed_access_type = target.as_indexed_access_type();
                     let index_type = self
                         .type_checker
-                        .get_simplified_type(&target_as_indexed_access_type.index_type, false);
+                        .get_simplified_type(&target_as_indexed_access_type.index_type, false)?;
                     if index_type.flags().intersects(TypeFlags::Instantiable) {
                         let simplified = self.type_checker.distribute_index_over_object_type(
-                            &self.type_checker.get_simplified_type(
+                            &*self.type_checker.get_simplified_type(
                                 &target_as_indexed_access_type.object_type,
                                 false,
-                            ),
+                            )?,
                             &index_type,
                             false,
                         )?;
@@ -881,8 +881,8 @@ impl InferTypes {
             }
         {
             self.infer_from_type_arguments(
-                &self.type_checker.get_type_arguments(&source),
-                &self.type_checker.get_type_arguments(&target),
+                &*self.type_checker.get_type_arguments(&source)?,
+                &*self.type_checker.get_type_arguments(&target)?,
                 &self
                     .type_checker
                     .get_variances(&source.as_type_reference_interface().target()),

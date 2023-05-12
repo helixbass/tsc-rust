@@ -18,9 +18,9 @@ use crate::{
     is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map,
     map_defined, maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment,
     return_ok_default_if_none, return_ok_false_if_none, some, try_for_each_child_bool, try_map,
-    CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
-    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
-    NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
+    try_maybe_map, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
+    IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray,
+    NodeCheckFlags, NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, Signature,
     SignatureDeclarationInterface, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
     SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,
@@ -53,7 +53,8 @@ impl TypeChecker {
             let base_default_type =
                 self.get_default_type_argument_type(is_java_script_implicit_any);
             for i in num_type_arguments..num_type_parameters {
-                let mut default_type = self.get_default_from_type_parameter_(&type_parameters[i]);
+                let mut default_type =
+                    self.get_default_from_type_parameter_(&type_parameters[i])?;
                 if is_java_script_implicit_any
                     && matches!(
                         default_type.as_ref(),
@@ -873,16 +874,19 @@ impl TypeChecker {
     ) -> io::Result<Gc<Signature>> {
         self.get_signature_instantiation(
             signature.clone(),
-            maybe_map(
+            try_maybe_map(
                 signature.maybe_type_parameters().as_deref(),
-                |tp: &Gc<Type>, _| {
-                    tp.as_type_parameter()
+                |tp: &Gc<Type>, _| -> io::Result<_> {
+                    Ok(tp
+                        .as_type_parameter()
                         .target
                         .clone()
-                        .filter(|target| self.get_constraint_of_type_parameter(target).is_none())
-                        .unwrap_or_else(|| tp.clone())
+                        .try_filter(|target| {
+                            Ok(self.get_constraint_of_type_parameter(target)?.is_none())
+                        })?
+                        .unwrap_or_else(|| tp.clone()))
                 },
-            )
+            )?
             .as_deref(),
             is_in_js_file(signature.declaration.as_deref()),
             None,
@@ -900,10 +904,14 @@ impl TypeChecker {
             let type_eraser = Gc::new(self.create_type_eraser(type_parameters.clone()));
             let base_constraint_mapper = Gc::new(self.create_type_mapper(
                 type_parameters.clone(),
-                Some(map(type_parameters, |tp: &Gc<Type>, _| {
-                    self.get_constraint_of_type_parameter(tp)
-                        .unwrap_or_else(|| self.unknown_type())
-                })),
+                Some(try_map(
+                    type_parameters,
+                    |tp: &Gc<Type>, _| -> io::Result<_> {
+                        Ok(self
+                            .get_constraint_of_type_parameter(tp)?
+                            .unwrap_or_else(|| self.unknown_type()))
+                    },
+                )?),
             ));
             let mut base_constraints: Vec<Gc<Type>> =
                 try_map(type_parameters, |tp: &Gc<Type>, _| -> io::Result<_> {

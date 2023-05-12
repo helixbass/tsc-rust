@@ -13,8 +13,8 @@ use crate::{
     get_property_name_for_property_name_node, get_text_of_node, is_access_expression,
     is_assignment_target, is_call_like_expression, is_call_or_new_expression, is_delete_target,
     is_function_like, is_identifier, is_indexed_access_type_node, is_private_identifier,
-    is_property_name, map, maybe_every, pseudo_big_int_to_string, reduce_left, some, try_map,
-    uncapitalize, unescape_leading_underscores, AccessFlags, AssignmentKind,
+    is_property_name, map, maybe_every, pseudo_big_int_to_string, reduce_left, some, try_every,
+    try_map, try_some, uncapitalize, unescape_leading_underscores, AccessFlags, AssignmentKind,
     DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType, LiteralType, Node,
     NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
     OptionTry, StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeFlags,
@@ -135,20 +135,19 @@ impl TypeChecker {
             return Ok(true);
         }
         if type_.flags().intersects(TypeFlags::Union) {
-            return Ok(every(
-                type_.as_union_type().types(),
-                |type_: &Gc<Type>, _| self.is_js_literal_type(type_),
-            ));
+            return try_every(type_.as_union_type().types(), |type_: &Gc<Type>, _| {
+                self.is_js_literal_type(type_)
+            });
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
-            return Ok(some(
+            return try_some(
                 Some(type_.as_intersection_type().types()),
                 Some(|type_: &Gc<Type>| self.is_js_literal_type(type_)),
-            ));
+            );
         }
         if type_.flags().intersects(TypeFlags::Instantiable) {
             let constraint = self.get_resolved_base_constraint(type_)?;
-            return Ok(!ptr::eq(&*constraint, type_) && self.is_js_literal_type(&constraint));
+            return Ok(!ptr::eq(&*constraint, type_) && self.is_js_literal_type(&constraint)?);
         }
         Ok(false)
     }
@@ -303,7 +302,7 @@ impl TypeChecker {
                             .borrow_mut()
                             .resolved_symbol = Some(prop.clone());
                     }
-                    if self.is_this_property_access_in_constructor(access_expression, &prop) {
+                    if self.is_this_property_access_in_constructor(access_expression, &prop)? {
                         return Ok(Some(self.auto_type()));
                     }
                 }
@@ -411,7 +410,7 @@ impl TypeChecker {
                 return Ok(Some(object_type.type_wrapper()));
             }
             let index_info = self
-                .get_applicable_index_info(object_type, index_type)
+                .get_applicable_index_info(object_type, index_type)?
                 .or_else(|| self.get_index_info_of_type_(object_type, &self.string_type()));
             if let Some(index_info) = index_info.as_deref() {
                 if access_flags.intersects(AccessFlags::NoIndexSignatures)
@@ -495,7 +494,7 @@ impl TypeChecker {
             if index_type.flags().intersects(TypeFlags::Never) {
                 return Ok(Some(self.never_type()));
             }
-            if self.is_js_literal_type(object_type) {
+            if self.is_js_literal_type(object_type)? {
                 return Ok(Some(self.any_type()));
             }
             if let Some(access_expression) = access_expression {
@@ -774,7 +773,7 @@ impl TypeChecker {
                 }
             }
         }
-        if self.is_js_literal_type(object_type) {
+        if self.is_js_literal_type(object_type)? {
             return Ok(Some(self.any_type()));
         }
         if let Some(access_node) = access_node.as_ref() {
@@ -991,24 +990,24 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::UnionOrIntersection)
         {
-            let types = map(
+            let types = try_map(
                 object_type
                     .as_union_or_intersection_type_interface()
                     .types(),
                 |t: &Gc<Type>, _| {
                     self.get_simplified_type(
-                        &self.get_indexed_access_type(
+                        &*self.get_indexed_access_type(
                             t,
                             index_type,
                             None,
                             Option::<&Node>::None,
                             Option::<&Symbol>::None,
                             None,
-                        ),
+                        )?,
                         writing,
                     )
                 },
-            );
+            )?;
             return Ok(Some(
                 if object_type.flags().intersects(TypeFlags::Intersection) || writing {
                     self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
@@ -1033,19 +1032,19 @@ impl TypeChecker {
         writing: bool,
     ) -> io::Result<Option<Gc<Type>>> {
         if index_type.flags().intersects(TypeFlags::Union) {
-            let types = map(index_type.as_union_type().types(), |t: &Gc<Type>, _| {
+            let types = try_map(index_type.as_union_type().types(), |t: &Gc<Type>, _| {
                 self.get_simplified_type(
-                    &self.get_indexed_access_type(
+                    &*self.get_indexed_access_type(
                         object_type,
                         t,
                         None,
                         Option::<&Node>::None,
                         Option::<&Symbol>::None,
                         None,
-                    ),
+                    )?,
                     writing,
                 )
-            });
+            })?;
             return Ok(Some(if writing {
                 self.get_intersection_type(&types, Option::<&Symbol>::None, None)?
             } else {
@@ -1096,8 +1095,9 @@ impl TypeChecker {
         }
         write_cache(self.circular_constraint_type());
         let object_type =
-            self.get_simplified_type(&type_as_indexed_access_type.object_type, writing);
-        let index_type = self.get_simplified_type(&type_as_indexed_access_type.index_type, writing);
+            self.get_simplified_type(&type_as_indexed_access_type.object_type, writing)?;
+        let index_type =
+            self.get_simplified_type(&type_as_indexed_access_type.index_type, writing)?;
         let distributed_over_index =
             self.distribute_object_over_index_type(&object_type, &index_type, writing)?;
         if let Some(distributed_over_index) = distributed_over_index {
@@ -1136,14 +1136,14 @@ impl TypeChecker {
         }
         if self.is_generic_mapped_type(&object_type) {
             let ret = self
-                .map_type(
+                .try_map_type(
                     &*self.substitute_indexed_mapped_type(
                         &object_type,
                         &type_as_indexed_access_type.index_type,
                     )?,
-                    &mut |t| Some(self.get_simplified_type(t, writing)),
+                    &mut |t| Ok(Some(self.get_simplified_type(t, writing)?)),
                     None,
-                )
+                )?
                 .unwrap();
             write_cache(ret.clone());
             return Ok(ret);
@@ -1174,7 +1174,7 @@ impl TypeChecker {
                     &*self.get_restrictive_instantiation(extends_type)?,
                 )?
             {
-                return Ok(self.get_simplified_type(&true_type, writing));
+                return self.get_simplified_type(&true_type, writing);
             } else if self.is_intersection_empty(check_type, extends_type)? {
                 return Ok(self.never_type());
             }
@@ -1194,7 +1194,7 @@ impl TypeChecker {
             } else if check_type.flags().intersects(TypeFlags::Any)
                 || self.is_intersection_empty(check_type, extends_type)?
             {
-                return Ok(self.get_simplified_type(&false_type, writing));
+                return self.get_simplified_type(&false_type, writing);
             }
         }
         Ok(type_.type_wrapper())
@@ -1371,7 +1371,7 @@ impl TypeChecker {
 
             return Ok(type_);
         }
-        let apparent_object_type = self.get_reduced_apparent_type(object_type);
+        let apparent_object_type = self.get_reduced_apparent_type(object_type)?;
         if index_type.flags().intersects(TypeFlags::Union)
             && !index_type.flags().intersects(TypeFlags::Boolean)
         {

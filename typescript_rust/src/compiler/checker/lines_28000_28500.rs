@@ -605,7 +605,7 @@ impl TypeChecker {
                 {
                     let is_unchecked_js =
                         self.is_unchecked_js_suggestion(Some(node), left_type.maybe_symbol(), true);
-                    if !is_unchecked_js && self.is_js_literal_type(left_type) {
+                    if !is_unchecked_js && self.is_js_literal_type(left_type)? {
                         return Ok(self.any_type());
                     }
                     if matches!(
@@ -755,7 +755,7 @@ impl TypeChecker {
                     return Ok(self.error_type());
                 }
 
-                prop_type = if self.is_this_property_access_in_constructor(node, prop) {
+                prop_type = if self.is_this_property_access_in_constructor(node, prop)? {
                     self.auto_type()
                 } else if writing {
                     self.get_set_accessor_type_of_symbol(prop)?
@@ -1056,7 +1056,7 @@ impl TypeChecker {
         &self,
         class_type: &Type, /*InterfaceType*/
     ) -> io::Result<Option<Gc<Type>>> {
-        let x = self.get_base_types(class_type);
+        let x = self.get_base_types(class_type)?;
         if x.is_empty() {
             return Ok(None);
         }
@@ -1151,7 +1151,7 @@ impl TypeChecker {
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
                     &missing_property,
                     containing_type,
-                );
+                )?;
                 if let Some(lib_suggestion) = lib_suggestion {
                     error_info = Some(chain_diagnostic_messages(
                         error_info,

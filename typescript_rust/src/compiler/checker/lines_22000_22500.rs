@@ -596,8 +596,8 @@ impl InferTypes {
         target: &Type,
         kind: SignatureKind,
     ) -> io::Result<()> {
-        let source_signatures = self.type_checker.get_signatures_of_type(source, kind);
-        let target_signatures = self.type_checker.get_signatures_of_type(target, kind);
+        let source_signatures = self.type_checker.get_signatures_of_type(source, kind)?;
+        let target_signatures = self.type_checker.get_signatures_of_type(target, kind)?;
         let source_len = source_signatures.len();
         let target_len = target_signatures.len();
         let len = if source_len < target_len {

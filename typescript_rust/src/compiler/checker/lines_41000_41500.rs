@@ -149,7 +149,7 @@ impl TypeChecker {
 
         if let Some(class_type) = class_type.as_ref() {
             if !class_decl.as_ref().unwrap().is_implements {
-                let base_types = self.get_base_types(class_type);
+                let base_types = self.get_base_types(class_type)?;
                 let base_type = first_or_undefined(&base_types);
                 return Ok(if let Some(base_type) = base_type {
                     self.get_type_with_this_argument(
@@ -366,12 +366,12 @@ impl TypeChecker {
         let ref type_ = self.get_apparent_type(type_)?;
         let mut props_by_name = create_symbol_table(Some(self.get_properties_of_type(type_)?));
         let function_type = if !self
-            .get_signatures_of_type(type_, SignatureKind::Call)
+            .get_signatures_of_type(type_, SignatureKind::Call)?
             .is_empty()
         {
             Some(self.global_callable_function_type())
         } else if !self
-            .get_signatures_of_type(type_, SignatureKind::Construct)
+            .get_signatures_of_type(type_, SignatureKind::Construct)?
             .is_empty()
         {
             Some(self.global_newable_function_type())
@@ -629,7 +629,7 @@ impl TypeChecker {
                     .get_type_only_alias_declaration(symbol.as_ref().unwrap())
                     .is_none()
             {
-                return Ok(self.get_declaration_of_alias_symbol(symbol.as_ref().unwrap()));
+                return self.get_declaration_of_alias_symbol(symbol.as_ref().unwrap());
             }
         }
 

@@ -132,7 +132,7 @@ impl GetFlowTypeOfReference {
         let prop_type = self.type_checker.get_type_of_property_of_type_(
             &*if remove_nullable {
                 self.type_checker
-                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)
+                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)?
             } else {
                 type_.type_wrapper()
             },
@@ -277,7 +277,7 @@ impl GetFlowTypeOfReference {
                         } else {
                             TypeFacts::Falsy
                         },
-                    )
+                    )?
                 },
             );
         }
@@ -290,22 +290,20 @@ impl GetFlowTypeOfReference {
         {
             type_ = self
                 .type_checker
-                .get_type_with_facts(&type_, TypeFacts::NEUndefinedOrNull);
+                .get_type_with_facts(&type_, TypeFacts::NEUndefinedOrNull)?;
         }
         let access = self.get_discriminant_property_access(expr, &type_)?;
         if let Some(access) = access.as_ref() {
-            return Ok(
-                self.narrow_type_by_discriminant(&type_, access, |t: &Type| {
-                    self.type_checker.get_type_with_facts(
-                        t,
-                        if assume_true {
-                            TypeFacts::Truthy
-                        } else {
-                            TypeFacts::Falsy
-                        },
-                    )
-                }),
-            );
+            return self.try_narrow_type_by_discriminant(&type_, access, |t: &Type| {
+                self.type_checker.get_type_with_facts(
+                    t,
+                    if assume_true {
+                        TypeFacts::Truthy
+                    } else {
+                        TypeFacts::Falsy
+                    },
+                )
+            });
         }
         Ok(type_)
     }
@@ -509,14 +507,14 @@ impl GetFlowTypeOfReference {
                             Some(accessed_property_name) if accessed_property_name == &name
                         )
                     {
-                        return Ok(self.type_checker.get_type_with_facts(
+                        return self.type_checker.get_type_with_facts(
                             &type_,
                             if assume_true {
                                 TypeFacts::NEUndefined
                             } else {
                                 TypeFacts::EQUndefined
                             },
-                        ));
+                        );
                     }
                     if self
                         .type_checker
@@ -652,7 +650,7 @@ impl GetFlowTypeOfReference {
                 });
         Ok(if remove_nullable {
             self.type_checker
-                .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)
+                .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)?
         } else {
             type_.type_wrapper()
         })
@@ -745,7 +743,7 @@ impl GetFlowTypeOfReference {
                 {
                     self.type_checker.non_null_unknown_type()
                 } else {
-                    self.type_checker.get_type_with_facts(type_, facts)
+                    self.type_checker.get_type_with_facts(type_, facts)?
                 },
             );
         }
@@ -803,9 +801,9 @@ impl GetFlowTypeOfReference {
                     .optional_chain_contains_reference(&target, &self.reference)?
                 && assume_true == (&**literal_as_literal_like_node.text() != "undefined")
             {
-                return Ok(self
+                return self
                     .type_checker
-                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull));
+                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull);
             }
             return Ok(type_.type_wrapper());
         }
@@ -848,7 +846,7 @@ impl GetFlowTypeOfReference {
         };
         let implied_type =
             self.get_implied_type_from_typeof_guard(type_, &literal_as_literal_like_node.text())?;
-        Ok(self.type_checker.get_type_with_facts(
+        self.type_checker.get_type_with_facts(
             &*if let Some(implied_type) = implied_type.as_ref().filter(|_implied_type| assume_true)
             {
                 let mut callback_returning_non_optional =
@@ -866,7 +864,7 @@ impl GetFlowTypeOfReference {
                 type_.type_wrapper()
             },
             facts,
-        ))
+        )
     }
 
     pub(super) fn narrow_type_by_switch_optional_chain_containment(
@@ -886,7 +884,7 @@ impl GetFlowTypeOfReference {
             );
         Ok(if every_clause_checks {
             self.type_checker
-                .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)
+                .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)?
         } else {
             type_.type_wrapper()
         })
@@ -1109,9 +1107,9 @@ impl GetFlowTypeOfReference {
             );
         }
         if has_default_clause {
-            return Ok(self.type_checker.filter_type(type_, |t: &Type| {
-                self.type_checker.get_type_facts(t, None) & switch_facts == switch_facts
-            }));
+            return self.type_checker.try_filter_type(type_, |t: &Type| {
+                Ok(self.type_checker.get_type_facts(t, None)? & switch_facts == switch_facts)
+            });
         }
         let implied_type = self.type_checker.get_type_with_facts(
             &*self.type_checker.get_union_type(
@@ -1129,9 +1127,9 @@ impl GetFlowTypeOfReference {
                 Option::<&Type>::None,
             )?,
             switch_facts,
-        );
+        )?;
         let mut callback_returning_non_optional = self.narrow_union_member_by_typeof(&implied_type);
-        Ok(self.type_checker.get_type_with_facts(
+        self.type_checker.get_type_with_facts(
             &self
                 .type_checker
                 .try_map_type(
@@ -1143,7 +1141,7 @@ impl GetFlowTypeOfReference {
                 )?
                 .unwrap(),
             switch_facts,
-        ))
+        )
     }
 
     pub(super) fn is_matching_constructor_reference(

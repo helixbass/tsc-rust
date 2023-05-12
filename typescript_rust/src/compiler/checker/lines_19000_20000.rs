@@ -106,24 +106,24 @@ impl CheckTypeRelatedTo {
                     == self.type_checker.get_mapped_type_modifiers(target)
             } else {
                 self.type_checker
-                    .get_combined_mapped_type_optionality(source)
+                    .get_combined_mapped_type_optionality(source)?
                     <= self
                         .type_checker
-                        .get_combined_mapped_type_optionality(target)
+                        .get_combined_mapped_type_optionality(target)?
             };
         if modifiers_related {
             let result: Ternary;
             let target_constraint = self
                 .type_checker
-                .get_constraint_type_from_mapped_type(target);
+                .get_constraint_type_from_mapped_type(target)?;
             let source_constraint = self.type_checker.instantiate_type(
                 &self
                     .type_checker
-                    .get_constraint_type_from_mapped_type(source),
+                    .get_constraint_type_from_mapped_type(source)?,
                 Some(Gc::new(
                     if self
                         .type_checker
-                        .get_combined_mapped_type_optionality(source)
+                        .get_combined_mapped_type_optionality(source)?
                         < 0
                     {
                         self.type_checker
@@ -257,7 +257,7 @@ impl CheckTypeRelatedTo {
                         target,
                         source_property,
                         &target_property,
-                        |_| combination[i].clone(),
+                        |_| Ok(combination[i].clone()),
                         false,
                         IntersectionState::None,
                         self.type_checker.strict_null_checks
@@ -1185,7 +1185,7 @@ impl CheckTypeRelatedTo {
             } else {
                 kind
             },
-        );
+        )?;
         let target_signatures = self.type_checker.get_signatures_of_type(
             target,
             if target_is_js_constructor && kind == SignatureKind::Construct {
@@ -1193,7 +1193,7 @@ impl CheckTypeRelatedTo {
             } else {
                 kind
             },
-        );
+        )?;
 
         if kind == SignatureKind::Construct
             && !source_signatures.is_empty()
@@ -1493,8 +1493,8 @@ impl CheckTypeRelatedTo {
         target: &Type,
         kind: SignatureKind,
     ) -> io::Result<Ternary> {
-        let source_signatures = self.type_checker.get_signatures_of_type(source, kind);
-        let target_signatures = self.type_checker.get_signatures_of_type(target, kind);
+        let source_signatures = self.type_checker.get_signatures_of_type(source, kind)?;
+        let target_signatures = self.type_checker.get_signatures_of_type(target, kind)?;
         if source_signatures.len() != target_signatures.len() {
             return Ok(Ternary::False);
         }
@@ -1555,7 +1555,7 @@ impl CheckTypeRelatedTo {
                     prop_type
                 } else {
                     self.type_checker
-                        .get_type_with_facts(&prop_type, TypeFacts::NEUndefined)
+                        .get_type_with_facts(&prop_type, TypeFacts::NEUndefined)?
                 };
                 let related = self.is_related_to(
                     &type_,

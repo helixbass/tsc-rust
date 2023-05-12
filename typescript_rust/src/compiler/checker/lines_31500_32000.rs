@@ -427,7 +427,7 @@ impl TypeChecker {
                 || matches!(next_type.as_ref(), Some(next_type) if self.is_unit_type(next_type))
             {
                 let contextual_signature =
-                    self.get_contextual_signature_for_function_like_declaration(func);
+                    self.get_contextual_signature_for_function_like_declaration(func)?;
                 let contextual_type =
                     contextual_signature.try_and_then(|contextual_signature| -> io::Result<_> {
                         Ok(
@@ -445,7 +445,7 @@ impl TypeChecker {
                                     Some(self.get_return_type_of_signature(contextual_signature)?),
                                     func,
                                     None,
-                                )
+                                )?
                             },
                         )
                     })?;
@@ -768,15 +768,15 @@ impl TypeChecker {
                 .collect::<Vec<_>>();
             let not_equal_facts = self.get_facts_from_typeof_switch(0, 0, &witnesses, true);
             let type_ = self
-                .get_base_constraint_of_type(&operand_type)
+                .get_base_constraint_of_type(&operand_type)?
                 .unwrap_or(operand_type);
             if type_.flags().intersects(TypeFlags::AnyOrUnknown) {
                 return Ok(TypeFacts::AllTypeofNE & not_equal_facts == TypeFacts::AllTypeofNE);
             }
             return Ok(self
-                .filter_type(&type_, |t: &Type| {
-                    self.get_type_facts(t, None) & not_equal_facts == not_equal_facts
-                })
+                .try_filter_type(&type_, |t: &Type| {
+                    Ok(self.get_type_facts(t, None)? & not_equal_facts == not_equal_facts)
+                })?
                 .flags()
                 .intersects(TypeFlags::Never));
         }

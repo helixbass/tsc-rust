@@ -13,10 +13,10 @@ use crate::{
     get_symbol_id, is_access_expression, is_assignment_expression, is_binary_expression,
     is_binding_element, is_identifier, is_optional_chain, is_string_or_numeric_literal_like,
     is_this_in_type_query, is_variable_declaration, is_write_only_access, node_is_missing,
-    return_ok_default_if_none, try_find, try_for_each, FindAncestorCallbackReturn, FlowNode,
-    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface,
+    return_ok_default_if_none, try_find, try_for_each, try_reduce_left, FindAncestorCallbackReturn,
+    FlowNode, HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags,
+    OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -294,9 +294,9 @@ impl TypeChecker {
     pub(super) fn get_accessed_property_name(
         &self,
         access: &Node, /*AccessExpression | BindingElement */
-    ) -> Option<__String> {
+    ) -> io::Result<Option<__String>> {
         let mut property_name: Option<String> = None;
-        if access.kind() == SyntaxKind::PropertyAccessExpression {
+        Ok(if access.kind() == SyntaxKind::PropertyAccessExpression {
             Some(
                 access
                     .as_property_access_expression()
@@ -321,13 +321,13 @@ impl TypeChecker {
                 .into_owned(),
             )
         } else if access.kind() == SyntaxKind::BindingElement && {
-            property_name = self.get_destructuring_property_name(access);
+            property_name = self.get_destructuring_property_name(access)?;
             property_name.is_some()
         } {
             Some(escape_leading_underscores(property_name.as_ref().unwrap()).into_owned())
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn contains_matching_reference(
@@ -693,19 +693,23 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_type_facts(&self, type_: &Type, ignore_objects: Option<bool>) -> TypeFacts {
+    pub(super) fn get_type_facts(
+        &self,
+        type_: &Type,
+        ignore_objects: Option<bool>,
+    ) -> io::Result<TypeFacts> {
         let mut ignore_objects = ignore_objects.unwrap_or(false);
         let flags = type_.flags();
         if flags.intersects(TypeFlags::String) {
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 TypeFacts::StringStrictFacts
             } else {
                 TypeFacts::StringFacts
-            };
+            });
         }
         if flags.intersects(TypeFlags::StringLiteral) {
             let is_empty = type_.as_string_literal_type().value == "";
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 if is_empty {
                     TypeFacts::EmptyStringStrictFacts
                 } else {
@@ -717,18 +721,18 @@ impl TypeChecker {
                 } else {
                     TypeFacts::NonEmptyStringFacts
                 }
-            };
+            });
         }
         if flags.intersects(TypeFlags::Number | TypeFlags::Enum) {
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 TypeFacts::NumberStrictFacts
             } else {
                 TypeFacts::NumberFacts
-            };
+            });
         }
         if flags.intersects(TypeFlags::NumberLiteral) {
             let is_zero = type_.as_number_literal_type().value == Number::new(0.0);
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 if is_zero {
                     TypeFacts::ZeroNumberStrictFacts
                 } else {
@@ -740,18 +744,18 @@ impl TypeChecker {
                 } else {
                     TypeFacts::NonZeroNumberFacts
                 }
-            };
+            });
         }
         if flags.intersects(TypeFlags::BigInt) {
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 TypeFacts::BigIntStrictFacts
             } else {
                 TypeFacts::BigIntFacts
-            };
+            });
         }
         if flags.intersects(TypeFlags::BigIntLiteral) {
             let is_zero = self.is_zero_big_int(type_);
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 if is_zero {
                     TypeFacts::ZeroBigIntStrictFacts
                 } else {
@@ -763,17 +767,17 @@ impl TypeChecker {
                 } else {
                     TypeFacts::NonZeroBigIntFacts
                 }
-            };
+            });
         }
         if flags.intersects(TypeFlags::Boolean) {
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 TypeFacts::BooleanStrictFacts
             } else {
                 TypeFacts::BooleanFacts
-            };
+            });
         }
         if flags.intersects(TypeFlags::BooleanLike) {
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 if ptr::eq(type_, &*self.false_type())
                     || ptr::eq(type_, &*self.regular_false_type())
                 {
@@ -789,72 +793,74 @@ impl TypeChecker {
                 } else {
                     TypeFacts::TrueFacts
                 }
-            };
+            });
         }
         if flags.intersects(TypeFlags::Object) && !ignore_objects {
-            return if get_object_flags(type_).intersects(ObjectFlags::Anonymous)
-                && self.is_empty_object_type(type_)
-            {
-                if self.strict_null_checks {
-                    TypeFacts::EmptyObjectStrictFacts
+            return Ok(
+                if get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+                    && self.is_empty_object_type(type_)
+                {
+                    if self.strict_null_checks {
+                        TypeFacts::EmptyObjectStrictFacts
+                    } else {
+                        TypeFacts::EmptyObjectFacts
+                    }
+                } else if self.is_function_object_type(type_) {
+                    if self.strict_null_checks {
+                        TypeFacts::FunctionStrictFacts
+                    } else {
+                        TypeFacts::FunctionFacts
+                    }
                 } else {
-                    TypeFacts::EmptyObjectFacts
-                }
-            } else if self.is_function_object_type(type_) {
-                if self.strict_null_checks {
-                    TypeFacts::FunctionStrictFacts
-                } else {
-                    TypeFacts::FunctionFacts
-                }
-            } else {
-                if self.strict_null_checks {
-                    TypeFacts::ObjectStrictFacts
-                } else {
-                    TypeFacts::ObjectFacts
-                }
-            };
+                    if self.strict_null_checks {
+                        TypeFacts::ObjectStrictFacts
+                    } else {
+                        TypeFacts::ObjectFacts
+                    }
+                },
+            );
         }
         if flags.intersects(TypeFlags::Void | TypeFlags::Undefined) {
-            return TypeFacts::UndefinedFacts;
+            return Ok(TypeFacts::UndefinedFacts);
         }
         if flags.intersects(TypeFlags::Null) {
-            return TypeFacts::NullFacts;
+            return Ok(TypeFacts::NullFacts);
         }
         if flags.intersects(TypeFlags::ESSymbolLike) {
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 TypeFacts::SymbolStrictFacts
             } else {
                 TypeFacts::SymbolFacts
-            };
+            });
         }
         if flags.intersects(TypeFlags::NonPrimitive) {
-            return if self.strict_null_checks {
+            return Ok(if self.strict_null_checks {
                 TypeFacts::ObjectStrictFacts
             } else {
                 TypeFacts::ObjectFacts
-            };
+            });
         }
         if flags.intersects(TypeFlags::Never) {
-            return TypeFacts::None;
+            return Ok(TypeFacts::None);
         }
         if flags.intersects(TypeFlags::Instantiable) {
-            return if !self.is_pattern_literal_type(type_) {
+            return Ok(if !self.is_pattern_literal_type(type_) {
                 self.get_type_facts(
                     &self
-                        .get_base_constraint_of_type(type_)
+                        .get_base_constraint_of_type(type_)?
                         .unwrap_or_else(|| self.unknown_type()),
                     Some(ignore_objects),
-                )
+                )?
             } else if self.strict_null_checks {
                 TypeFacts::NonEmptyStringStrictFacts
             } else {
                 TypeFacts::NonEmptyStringFacts
-            };
+            });
         }
         if flags.intersects(TypeFlags::Union) {
-            return reduce_left(
+            return try_reduce_left(
                 type_.as_union_or_intersection_type_interface().types(),
-                |facts, t: &Gc<Type>, _| facts | self.get_type_facts(t, Some(ignore_objects)),
+                |facts, t: &Gc<Type>, _| -> io::Result<_> Ok(facts | self.get_type_facts(t, Some(ignore_objects))),
                 TypeFacts::None,
                 None,
                 None,
@@ -862,20 +868,26 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Intersection) {
             ignore_objects = ignore_objects || self.maybe_type_of_kind(type_, TypeFlags::Primitive);
-            return reduce_left(
+            return try_reduce_left(
                 type_.as_union_or_intersection_type_interface().types(),
-                |facts, t: &Gc<Type>, _| facts & self.get_type_facts(t, Some(ignore_objects)),
+                |facts, t: &Gc<Type>, _| -> io::Result<_> {
+                    Ok(facts & self.get_type_facts(t, Some(ignore_objects))?)
+                },
                 TypeFacts::All,
                 None,
                 None,
             );
         }
-        TypeFacts::All
+        Ok(TypeFacts::All)
     }
 
-    pub(super) fn get_type_with_facts(&self, type_: &Type, include: TypeFacts) -> Gc<Type> {
-        self.filter_type(type_, |t: &Type| {
-            self.get_type_facts(t, None) & include != TypeFacts::None
+    pub(super) fn get_type_with_facts(
+        &self,
+        type_: &Type,
+        include: TypeFacts,
+    ) -> io::Result<Gc<Type>> {
+        self.try_filter_type(type_, |t: &Type| {
+            Ok(self.get_type_facts(t, None)? & include != TypeFacts::None)
         })
     }
 

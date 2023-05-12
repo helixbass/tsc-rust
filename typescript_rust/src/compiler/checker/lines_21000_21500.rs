@@ -184,17 +184,17 @@ impl TypeChecker {
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
-            same_map(
+            try_map(
                 &self.get_index_infos_of_type(type_),
-                |info: &Gc<IndexInfo>, _| {
-                    Gc::new(self.create_index_info(
+                |info: &Gc<IndexInfo>, _| -> io::Result<_> {
+                    Ok(Gc::new(self.create_index_info(
                         info.key_type.clone(),
                         self.get_widened_type(&info.type_)?,
                         info.is_readonly,
                         None,
-                    ))
+                    )))
                 },
-            ),
+            )?,
         );
         let result_as_object_flags_type = result.as_object_flags_type();
         result_as_object_flags_type.set_object_flags(
@@ -560,7 +560,7 @@ impl TypeChecker {
             && get_object_flags(type_).intersects(ObjectFlags::ContainsWideningType)
             && (widening_kind.is_none()
                 || self
-                    .get_contextual_signature_for_function_like_declaration(declaration)
+                    .get_contextual_signature_for_function_like_declaration(declaration)?
                     .is_none())
         {
             if !self.report_widening_errors_in_type(type_)? {
@@ -813,10 +813,10 @@ impl TypeChecker {
         context.map(|context| context.mapper().clone())
     }
 
-    pub(super) fn could_contain_type_variables(&self, type_: &Type) -> bool {
+    pub(super) fn could_contain_type_variables(&self, type_: &Type) -> io::Result<bool> {
         let object_flags = get_object_flags(&type_);
         if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
-            return object_flags.intersects(ObjectFlags::CouldContainTypeVariables);
+            return Ok(object_flags.intersects(ObjectFlags::CouldContainTypeVariables));
         }
         let result = type_.flags().intersects(TypeFlags::Instantiable)
             || type_.flags().intersects(TypeFlags::Object)
@@ -859,7 +859,7 @@ impl TypeChecker {
                     },
             );
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn is_non_generic_top_level_type(&self, type_: &Type) -> bool {

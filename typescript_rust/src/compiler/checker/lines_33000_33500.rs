@@ -11,8 +11,8 @@ use crate::{
     is_jsx_self_closing_element, is_object_literal_expression, is_parenthesized_expression,
     is_property_access_expression, token_to_string, unescape_leading_underscores,
     AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FunctionFlags, InferenceContext, Node, NodeFlags, NodeInterface, ScriptTarget, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    FunctionFlags, InferenceContext, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionReduction,
 };
 
@@ -213,13 +213,34 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn try_report_operator_error_unless(
+        &self,
+        left_type: &Type,
+        right_type: &Type,
+        operator_token: &Node,
+        error_node: Option<impl Borrow<Node>>,
+        mut types_are_compatible: impl FnMut(&Type, &Type) -> io::Result<bool>,
+    ) -> io::Result<bool> {
+        if !types_are_compatible(left_type, right_type)? {
+            self.report_operator_error(
+                error_node,
+                operator_token,
+                left_type,
+                right_type,
+                Some(types_are_compatible),
+            );
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     pub(super) fn report_operator_error(
         &self,
         error_node: Option<impl Borrow<Node>>,
         operator_token: &Node,
         left_type: &Type,
         right_type: &Type,
-        mut is_related: Option<impl FnMut(&Type, &Type) -> bool>,
+        mut is_related: Option<impl FnMut(&Type, &Type) -> io::Result<bool>>,
     ) -> io::Result<()> {
         let mut would_work_with_await = false;
         let err_node = error_node.map_or_else(
@@ -242,7 +263,7 @@ impl TypeChecker {
                 && is_related(
                     awaited_left_type.as_ref().unwrap(),
                     awaited_right_type.as_ref().unwrap(),
-                );
+                )?;
         }
 
         let mut effective_left = left_type.type_wrapper();
@@ -319,13 +340,13 @@ impl TypeChecker {
         &self,
         left_type: &Type,
         right_type: &Type,
-        is_related: &mut impl FnMut(&Type, &Type) -> bool,
+        is_related: &mut impl FnMut(&Type, &Type) -> io::Result<bool>,
     ) -> io::Result<(Gc<Type>, Gc<Type>)> {
         let mut effective_left = left_type.type_wrapper();
         let mut effective_right = right_type.type_wrapper();
         let left_base = self.get_base_type_of_literal_type(left_type)?;
         let right_base = self.get_base_type_of_literal_type(right_type)?;
-        if !is_related(&left_base, &right_base) {
+        if !is_related(&left_base, &right_base)? {
             effective_left = left_base;
             effective_right = right_base;
         }
@@ -381,9 +402,9 @@ impl TypeChecker {
         }
 
         let return_type = self.get_return_type_from_annotation(&func)?;
-        let iteration_types = return_type.as_ref().and_then(|return_type| {
+        let iteration_types = return_type.as_ref().try_and_then(|return_type| {
             self.get_iteration_types_of_generator_function_return_type(return_type, is_async)
-        });
+        })?;
         let signature_yield_type = iteration_types
             .as_ref()
             .map(|iteration_types| iteration_types.yield_type())
@@ -440,7 +461,7 @@ impl TypeChecker {
                     IterationTypeKind::Return,
                     &yield_expression_type,
                     node_as_yield_expression.expression.as_deref(),
-                )
+                )?
                 .unwrap_or_else(|| self.any_type()));
         } else if let Some(return_type) = return_type.as_ref() {
             return Ok(self
@@ -562,8 +583,8 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn is_template_literal_contextual_type(&self, type_: &Type) -> bool {
-        type_
+    pub(super) fn is_template_literal_contextual_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(type_
             .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::TemplateLiteral)
             || type_
@@ -571,10 +592,10 @@ impl TypeChecker {
                 .intersects(TypeFlags::InstantiableNonPrimitive)
                 && self.maybe_type_of_kind(
                     &self
-                        .get_base_constraint_of_type(type_)
+                        .get_base_constraint_of_type(type_)?
                         .unwrap_or_else(|| self.unknown_type()),
                     TypeFlags::StringLike,
-                )
+                ))
     }
 
     pub(super) fn get_context_node(&self, node: &Node /*Expression*/) -> Gc<Node> {
@@ -614,7 +635,7 @@ impl TypeChecker {
         let result = if self.maybe_type_of_kind(&type_, TypeFlags::Literal)
             && self.is_literal_of_contextual_type(
                 &type_,
-                self.instantiate_contextual_type(Some(contextual_type), node, None),
+                self.instantiate_contextual_type(Some(contextual_type), node, None)?,
             ) {
             self.get_regular_type_of_literal_type(&type_)
         } else {

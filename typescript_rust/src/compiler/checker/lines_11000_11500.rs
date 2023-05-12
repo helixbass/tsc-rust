@@ -7,12 +7,12 @@ use std::{borrow::Borrow, io};
 use super::MappedTypeModifiers;
 use crate::{
     add_range, append, concatenate, count_where, create_symbol_table, every, get_check_flags,
-    index_of, map, map_defined, reduce_left, same_map, some, try_map, try_map_defined, try_some,
-    CheckFlags, Diagnostics, IndexInfo, InternalSymbolName, Node, Number, ObjectTypeInterface,
-    OptionTry, ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, Ternary, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName,
-    UnionOrIntersectionTypeInterface,
+    index_of, map, map_defined, reduce_left, same_map, some, try_count_where, try_every, try_map,
+    try_map_defined, try_some, CheckFlags, Diagnostics, IndexInfo, InternalSymbolName, Node,
+    Number, ObjectTypeInterface, OptionTry, ResolvedTypeInterface, Signature, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -265,18 +265,22 @@ impl TypeChecker {
         type_: &Type, /*UnionType*/
     ) -> io::Result<()> {
         let type_as_union_type = type_.as_union_type();
-        let call_signatures =
-            self.get_union_signatures(&map(type_as_union_type.types(), |t: &Gc<Type>, _| {
-                if Gc::ptr_eq(t, &self.global_function_type()) {
+        let call_signatures = self.get_union_signatures(&try_map(
+            type_as_union_type.types(),
+            |t: &Gc<Type>, _| -> io::Result<_> {
+                Ok(if Gc::ptr_eq(t, &self.global_function_type()) {
                     vec![self.unknown_signature()]
                 } else {
-                    self.get_signatures_of_type(t, SignatureKind::Call)
-                }
-            }));
-        let construct_signatures = self
-            .get_union_signatures(&map(type_as_union_type.types(), |t: &Gc<Type>, _| {
+                    self.get_signatures_of_type(t, SignatureKind::Call)?
+                })
+            },
+        )?)?;
+        let construct_signatures = self.get_union_signatures(&try_map(
+            type_as_union_type.types(),
+            |t: &Gc<Type>, _| -> io::Result<_> {
                 self.get_signatures_of_type(t, SignatureKind::Construct)
-            }))?;
+            },
+        )?)?;
         let index_infos = self.get_union_index_infos(type_as_union_type.types())?;
         self.set_structured_type_members(
             type_as_union_type,
@@ -308,11 +312,12 @@ impl TypeChecker {
     }
 
     pub(super) fn find_mixins(&self, types: &[Gc<Type>]) -> io::Result<Vec<bool>> {
-        let constructor_type_count = count_where(Some(types), |t: &Gc<Type>, _| {
-            !self
-                .get_signatures_of_type(t, SignatureKind::Construct)
-                .is_empty()
-        });
+        let constructor_type_count =
+            try_count_where(Some(types), |t: &Gc<Type>, _| -> io::Result<_> {
+                Ok(!self
+                    .get_signatures_of_type(t, SignatureKind::Construct)?
+                    .is_empty())
+            })?;
         let mut mixin_flags = try_map(types, |t: &Gc<Type>, _| self.is_mixin_constructor_type(t))?;
         if constructor_type_count > 0
             && constructor_type_count == count_where(Some(&mixin_flags), |b: &bool, _| *b)
@@ -339,7 +344,7 @@ impl TypeChecker {
                 mixed_types.push(type_.type_wrapper());
             } else if mixin_flags[i] {
                 mixed_types.push(self.get_return_type_of_signature(
-                    self.get_signatures_of_type(&types[i], SignatureKind::Construct)[0].clone(),
+                    self.get_signatures_of_type(&types[i], SignatureKind::Construct)?[0].clone(),
                 )?);
             }
         }
@@ -355,11 +360,11 @@ impl TypeChecker {
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         let type_as_intersection_type = type_.as_intersection_type();
         let types = type_as_intersection_type.types();
-        let mixin_flags = self.find_mixins(types);
+        let mixin_flags = self.find_mixins(types)?;
         let mixin_count = count_where(Some(&mixin_flags), |b: &bool, _| *b);
         for (i, t) in types.iter().enumerate() {
             if !mixin_flags[i] {
-                let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct);
+                let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct)?;
                 if !signatures.is_empty() && mixin_count > 0 {
                     signatures = try_map(&signatures, |s: &Gc<Signature>, _| -> io::Result<_> {
                         let clone = self.clone_signature(s);
@@ -376,7 +381,7 @@ impl TypeChecker {
             }
             self.append_signatures(
                 &mut call_signatures,
-                &self.get_signatures_of_type(t, SignatureKind::Call),
+                &*self.get_signatures_of_type(t, SignatureKind::Call)?,
             );
             index_infos = reduce_left(
                 &self.get_index_infos_of_type(t),
@@ -408,16 +413,16 @@ impl TypeChecker {
         for sig in new_signatures {
             if
             /* !signatures ||*/
-            every(signatures, |s: &Gc<Signature>, _| {
-                self.compare_signatures_identical(
+            try_every(signatures, |s: &Gc<Signature>, _| -> io::Result<_> {
+                Ok(self.compare_signatures_identical(
                     s.clone(),
                     sig.clone(),
                     false,
                     false,
                     false,
-                    |a, b| Ok(self.compare_types_identical(a, b)),
-                )? == Ternary::False
-            }) {
+                    |a, b| self.compare_types_identical(a, b),
+                )? == Ternary::False)
+            })? {
                 append(signatures, Some(sig.clone()));
             }
         }
@@ -490,11 +495,11 @@ impl TypeChecker {
                 false,
             );
             let call_signatures = self.instantiate_signatures(
-                &self.get_signatures_of_type(&type_target, SignatureKind::Call),
+                &*self.get_signatures_of_type(&type_target, SignatureKind::Call)?,
                 type_as_object_type.maybe_mapper().unwrap(),
             );
             let construct_signatures = self.instantiate_signatures(
-                &self.get_signatures_of_type(&type_target, SignatureKind::Construct),
+                &*self.get_signatures_of_type(&type_target, SignatureKind::Construct)?,
                 type_as_object_type.maybe_mapper().unwrap(),
             );
             let index_infos = self.instantiate_index_infos(
@@ -1209,7 +1214,7 @@ impl TypeChecker {
                 .check_flags()
                 .intersects(CheckFlags::StripOptional)
             {
-                self.remove_missing_or_undefined_type(&prop_type)
+                self.remove_missing_or_undefined_type(&prop_type)?
             } else {
                 prop_type
             };

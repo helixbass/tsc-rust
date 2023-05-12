@@ -6,8 +6,10 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, IterationUse, JsxNames};
+use crate::debug_fail_if_none;
 use crate::return_ok_default_if_none;
 use crate::try_filter;
+use crate::try_map;
 use crate::try_reduce_left_no_initial_value_optional;
 use crate::OptionTry;
 use crate::{
@@ -414,14 +416,14 @@ impl TypeChecker {
         type_: &Type,
         node: &Node, /*SignatureDeclaration*/
     ) -> io::Result<Option<Gc<Signature>>> {
-        let signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
+        let signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
         let applicable_by_arity = try_filter(&signatures, |s| -> io::Result<_> {
             Ok(!self.is_arity_smaller(s, node)?)
         })?;
         Ok(if applicable_by_arity.len() == 1 {
             Some(applicable_by_arity[0].clone())
         } else {
-            self.get_intersected_signatures(&applicable_by_arity)
+            self.get_intersected_signatures(&applicable_by_arity)?
         })
     }
 
@@ -482,12 +484,12 @@ impl TypeChecker {
             self.get_apparent_type_of_contextual_type(node, Some(ContextFlags::Signature))?
         );
         if !type_.flags().intersects(TypeFlags::Union) {
-            return Ok(self.get_contextual_call_signature(&type_, node));
+            return self.get_contextual_call_signature(&type_, node);
         }
         let mut signature_list: Option<Vec<Gc<Signature>>> = None;
         let types = type_.as_union_or_intersection_type_interface().types();
         for current in types {
-            let signature = self.get_contextual_call_signature(current, node);
+            let signature = self.get_contextual_call_signature(current, node)?;
             if let Some(signature) = signature {
                 match signature_list.as_mut() {
                     None => {
@@ -550,9 +552,9 @@ impl TypeChecker {
     pub(super) fn check_synthetic_expression(
         &self,
         node: &Node, /*SyntheticExpression*/
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let node_as_synthetic_expression = node.as_synthetic_expression();
-        if node_as_synthetic_expression.is_spread {
+        Ok(if node_as_synthetic_expression.is_spread {
             self.get_indexed_access_type(
                 &node_as_synthetic_expression.type_,
                 &self.number_type(),
@@ -560,10 +562,10 @@ impl TypeChecker {
                 Option::<&Node>::None,
                 Option::<&Symbol>::None,
                 None,
-            )
+            )?
         } else {
             node_as_synthetic_expression.type_.clone()
-        }
+        })
     }
 
     pub(super) fn has_default_value(
@@ -687,8 +689,8 @@ impl TypeChecker {
         Ok(self.create_array_literal_type(&self.create_array_type(
             &*if !element_types.is_empty() {
                 self.get_union_type(
-                    &same_map(&element_types, |t: &Gc<Type>, i| {
-                        if element_flags[i].intersects(ElementFlags::Variadic) {
+                    &try_map(&element_types, |t: &Gc<Type>, i| -> io::Result<_> {
+                        Ok(if element_flags[i].intersects(ElementFlags::Variadic) {
                             self.get_indexed_access_type_or_undefined(
                                 t,
                                 &self.number_type(),
@@ -700,8 +702,8 @@ impl TypeChecker {
                             .unwrap_or_else(|| self.any_type())
                         } else {
                             t.clone()
-                        }
-                    }),
+                        })
+                    })?,
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
@@ -838,16 +840,17 @@ impl TypeChecker {
         Ok(ret)
     }
 
-    pub(super) fn is_symbol_with_numeric_name(&self, symbol: &Symbol) -> bool {
+    pub(super) fn is_symbol_with_numeric_name(&self, symbol: &Symbol) -> io::Result<bool> {
         let first_decl = symbol
             .maybe_declarations()
             .as_ref()
             .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
-        self.is_numeric_literal_name(&symbol.escaped_name())
+        Ok(self.is_numeric_literal_name(&symbol.escaped_name())
             || matches!(
                 first_decl.as_ref(),
-                Some(first_decl) if is_named_declaration(first_decl) && self.is_numeric_name(&first_decl.as_named_declaration().name())
-            )
+                Some(first_decl) if is_named_declaration(first_decl)
+                    && self.is_numeric_name(&first_decl.as_named_declaration().name())?
+            ))
     }
 
     pub(super) fn is_symbol_with_symbol_name(&self, symbol: &Symbol) -> io::Result<bool> {
@@ -914,11 +917,7 @@ impl TypeChecker {
         );
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().immediate_target.is_none() {
-            let node = self.get_declaration_of_alias_symbol(symbol);
-            if node.is_none() {
-                Debug_.fail(None);
-            }
-            let node = node.unwrap();
+            let node = debug_fail_if_none!(self.get_declaration_of_alias_symbol(symbol)?);
             links.borrow_mut().immediate_target =
                 self.get_target_of_alias_declaration(&node, Some(true))?;
         }

@@ -243,7 +243,7 @@ impl TypeChecker {
         }
         while type_arguments.len() < type_parameters.len() {
             type_arguments.push(
-                self.get_constraint_of_type_parameter(&type_parameters[type_arguments.len()])
+                self.get_constraint_of_type_parameter(&type_parameters[type_arguments.len()])?
                     .unwrap_or_else(|| self.get_default_type_argument_type(is_js)),
             );
         }
@@ -381,9 +381,9 @@ impl TypeChecker {
             return Ok(self.resolve_error_call(node));
         }
 
-        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call);
+        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call)?;
         let num_construct_signatures = self
-            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)
+            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)?
             .len();
 
         if self.is_untyped_function_call(
@@ -391,7 +391,7 @@ impl TypeChecker {
             &apparent_type,
             call_signatures.len(),
             num_construct_signatures,
-        ) {
+        )? {
             if !self.is_error_type(&func_type)
                 && node_as_call_expression.maybe_type_arguments().is_some()
             {
@@ -559,7 +559,7 @@ impl TypeChecker {
         }
 
         let construct_signatures =
-            self.get_signatures_of_type(&expression_type, SignatureKind::Construct);
+            self.get_signatures_of_type(&expression_type, SignatureKind::Construct)?;
         if !construct_signatures.is_empty() {
             if !self.is_constructor_accessible(node, &construct_signatures[0])? {
                 return Ok(self.resolve_error_call(node));
@@ -603,7 +603,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let call_signatures = self.get_signatures_of_type(&expression_type, SignatureKind::Call);
+        let call_signatures = self.get_signatures_of_type(&expression_type, SignatureKind::Call)?;
         if !call_signatures.is_empty() {
             let signature = self.resolve_call(
                 node,
@@ -658,15 +658,15 @@ impl TypeChecker {
         &self,
         target: &Symbol,
         type_: &Type, /*InterfaceType*/
-    ) -> bool {
-        let base_types = self.get_base_types(type_);
+    ) -> io::Result<bool> {
+        let base_types = self.get_base_types(type_)?;
         if length(Some(&base_types)) == 0 {
-            return false;
+            return Ok(false);
         }
         let first_base = &base_types[0];
         if first_base.flags().intersects(TypeFlags::Intersection) {
             let types = first_base.as_intersection_type().types();
-            let mixin_flags = self.find_mixins(types);
+            let mixin_flags = self.find_mixins(types)?;
             let mut i = 0;
             for intersection_member in first_base.as_intersection_type().types() {
                 if !mixin_flags[i] {
@@ -680,16 +680,16 @@ impl TypeChecker {
                                 target
                             )
                         ) {
-                            return true;
+                            return Ok(true);
                         }
                         if self.type_has_protected_accessible_base(target, intersection_member) {
-                            return true;
+                            return Ok(true);
                         }
                     }
                 }
                 i += 1;
             }
-            return false;
+            return Ok(false);
         }
         if matches!(
             first_base.maybe_symbol().as_ref(),
@@ -698,9 +698,9 @@ impl TypeChecker {
                 target
             )
         ) {
-            return true;
+            return Ok(true);
         }
-        self.type_has_protected_accessible_base(target, first_base)
+        Ok(self.type_has_protected_accessible_base(target, first_base))
     }
 
     pub(super) fn is_constructor_accessible(
@@ -785,13 +785,13 @@ impl TypeChecker {
             self.get_awaited_type_(apparent_type, Option::<&Node>::None, None, None)?;
         let maybe_missing_await = matches!(
             awaited_type.as_ref(),
-            Some(awaited_type) if !self.get_signatures_of_type(awaited_type, kind).is_empty()
+            Some(awaited_type) if !self.get_signatures_of_type(awaited_type, kind)?.is_empty()
         );
         if apparent_type.flags().intersects(TypeFlags::Union) {
             let types = apparent_type.as_union_type().types();
             let mut has_signatures = false;
             for constituent in types {
-                let signatures = self.get_signatures_of_type(constituent, kind);
+                let signatures = self.get_signatures_of_type(constituent, kind)?;
                 if !signatures.is_empty() {
                     has_signatures = true;
                     if error_info.is_some() {

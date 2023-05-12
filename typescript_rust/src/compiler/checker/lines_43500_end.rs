@@ -15,16 +15,16 @@ use crate::{
     is_omitted_expression, is_prefix_unary_expression, is_private_identifier,
     is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
     is_var_const, is_variable_declaration, length, maybe_is_class_like,
-    resolve_tripleslash_reference, skip_trivia, text_span_end, token_to_string,
-    AllAccessorDeclarations, CheckFlags, Debug_, DiagnosticMessage, Diagnostics, EmitResolver,
-    HasInitializerInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
-    NodeInterface, NonEmpty, ObjectFlags, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete,
-    ScriptTarget, Signature, SignatureFlags, SignatureKind, SourceFileLike, StringOrNumber, Symbol,
-    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult,
-    SyntaxKind, Ternary, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceSerializationKind,
+    resolve_tripleslash_reference, return_ok_default_if_none, skip_trivia, text_span_end,
+    token_to_string, try_find, AllAccessorDeclarations, CheckFlags, Debug_, DiagnosticMessage,
+    Diagnostics, EmitResolver, HasInitializerInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, IterationTypesKey,
+    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
+    NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeInterface, NonEmpty, ObjectFlags, OptionTry,
+    ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
+    SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -806,27 +806,29 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         let mut signature_kind = SignatureKind::Call;
         let has_signatures = !self
-            .get_signatures_of_type(source, signature_kind)
+            .get_signatures_of_type(source, signature_kind)?
             .is_empty()
             || {
                 signature_kind = SignatureKind::Construct;
                 !self
-                    .get_signatures_of_type(source, signature_kind)
+                    .get_signatures_of_type(source, signature_kind)?
                     .is_empty()
             };
         if has_signatures {
-            return find(
+            return Ok(try_find(
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Gc<Type>, _| !self.get_signatures_of_type(t, signature_kind).is_empty(),
-            )
-            .map(Clone::clone);
+                |t: &Gc<Type>, _| -> io::Result<_> {
+                    Ok(!self.get_signatures_of_type(t, signature_kind)?.is_empty())
+                },
+            )?
+            .cloned());
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn find_most_overlappy_type(
@@ -1154,14 +1156,17 @@ impl EmitResolver for EmitResolverCreateResolver {
         self.type_checker.is_implementation_of_overload(node)
     }
 
-    fn is_required_initialized_parameter(&self, node: &Node /*ParameterDeclaration*/) -> bool {
+    fn is_required_initialized_parameter(
+        &self,
+        node: &Node, /*ParameterDeclaration*/
+    ) -> io::Result<bool> {
         self.type_checker.is_required_initialized_parameter(node)
     }
 
     fn is_optional_uninitialized_parameter_property(
         &self,
         node: &Node, /*ParameterDeclaration*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         self.type_checker
             .is_optional_uninitialized_parameter_property(node)
     }
@@ -1288,7 +1293,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             .get_type_reference_serialization_kind(type_name, location)
     }
 
-    fn is_optional_parameter(&self, node: &Node /*ParameterDeclaration*/) -> bool {
+    fn is_optional_parameter(&self, node: &Node /*ParameterDeclaration*/) -> io::Result<bool> {
         self.type_checker.is_optional_parameter(node)
     }
 
@@ -1352,7 +1357,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         symbol: &Symbol,
         meaning: Option<SymbolFlags>,
     ) -> io::Result<Option<Vec<String>>> {
-        let file_to_directive = self.file_to_directive.as_ref()?;
+        let file_to_directive = return_ok_default_if_none!(self.file_to_directive.as_ref());
         if !self.is_symbol_from_type_declaration_file(symbol)? {
             return Ok(None);
         }

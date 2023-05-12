@@ -12,13 +12,13 @@ use crate::{
     get_span_of_token_at_position, get_text_of_node, has_static_modifier, has_syntactic_modifier,
     is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
     is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
-    maybe_for_each, some, try_for_each, try_for_each_bool, try_for_each_child, AsDoubleDeref,
-    ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FindAncestorCallbackReturn, HasInitializerInterface, HasTypeArgumentsInterface, IndexInfo,
-    InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ObjectFlags, OptionTry, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeFlags,
-    TypeInterface,
+    maybe_for_each, some, try_for_each, try_for_each_bool, try_for_each_child, try_some,
+    AsDoubleDeref, ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, HasInitializerInterface,
+    HasTypeArgumentsInterface, IndexInfo, InterfaceTypeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, OptionTry,
+    ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -389,18 +389,23 @@ impl TypeChecker {
             let error_node = local_prop_declaration
                 .clone()
                 .or_else(|| local_index_declaration.clone())
-                .or_else(|| {
-                    interface_declaration.clone().filter(|_| {
-                        !some(
-                            Some(&self.get_base_types(type_)),
-                            Some(|base: &Gc<Type>| {
-                                self.get_property_of_object_type(base, prop.escaped_name())?
-                                    .is_some()
-                                    && self.get_index_type_of_type_(base, &info.key_type).is_some()
-                            }),
-                        )
-                    })
-                });
+                .try_or_else(|| {
+                    interface_declaration
+                        .clone()
+                        .try_filter(|_| -> io::Result<_> {
+                            Ok(!try_some(
+                                Some(&self.get_base_types(type_)?),
+                                Some(|base: &Gc<Type>| -> io::Result<_> {
+                                    Ok(self
+                                        .get_property_of_object_type(base, prop.escaped_name())?
+                                        .is_some()
+                                        && self
+                                            .get_index_type_of_type_(base, &info.key_type)
+                                            .is_some())
+                                }),
+                            )?)
+                        })
+                })?;
             if error_node.is_some() && !self.is_type_assignable_to(prop_type, &info.type_)? {
                 self.error(
                     error_node,
@@ -458,18 +463,22 @@ impl TypeChecker {
             let error_node = local_check_declaration
                 .clone()
                 .or_else(|| local_index_declaration.clone())
-                .or_else(|| {
-                    interface_declaration.clone().filter(|_| {
-                        !some(
-                            Some(&self.get_base_types(type_)),
-                            Some(|base: &Gc<Type>| {
-                                self.get_index_info_of_type_(base, &check_info.key_type)
-                                    .is_some()
-                                    && self.get_index_type_of_type_(base, &info.key_type).is_some()
-                            }),
-                        )
-                    })
-                });
+                .try_or_else(|| {
+                    interface_declaration
+                        .clone()
+                        .try_filter(|_| -> io::Result<_> {
+                            Ok(!some(
+                                Some(&self.get_base_types(type_)?),
+                                Some(|base: &Gc<Type>| {
+                                    self.get_index_info_of_type_(base, &check_info.key_type)
+                                        .is_some()
+                                        && self
+                                            .get_index_type_of_type_(base, &info.key_type)
+                                            .is_some()
+                                }),
+                            ))
+                        })
+                })?;
             if error_node.is_some()
                 && !self.is_type_assignable_to(&check_info.type_, &info.type_)?
             {
@@ -694,7 +703,7 @@ impl TypeChecker {
                 let source_constraint = constraint
                     .as_ref()
                     .try_map(|constraint| self.get_type_from_type_node_(constraint))?;
-                let target_constraint = self.get_constraint_of_type_parameter(target);
+                let target_constraint = self.get_constraint_of_type_parameter(target)?;
                 if matches!(
                     (source_constraint.as_ref(), target_constraint.as_ref()),
                     (Some(source_constraint), Some(target_constraint)) if !self.is_type_identical_to(
@@ -709,7 +718,7 @@ impl TypeChecker {
                     .default
                     .as_ref()
                     .try_map(|source_default| self.get_type_from_type_node_(source_default))?;
-                let target_default = self.get_default_from_type_parameter_(target);
+                let target_default = self.get_default_from_type_parameter_(target)?;
                 if matches!(
                     (source_default.as_ref(), target_default.as_ref()),
                     (Some(source_default), Some(target_default)) if !self.is_type_identical_to(
@@ -841,7 +850,7 @@ impl TypeChecker {
                 )?;
             }
 
-            let base_types = self.get_base_types(&type_);
+            let base_types = self.get_base_types(&type_)?;
             if !base_types.is_empty() && self.produce_diagnostics {
                 let base_type = &base_types[0];
                 let base_constructor_type = self.get_base_constructor_type_of_class(&type_)?;
@@ -892,7 +901,7 @@ impl TypeChecker {
                     None,
                     None,
                     None,
-                ) {
+                )? {
                     self.issue_member_specific_error(
                         node,
                         &type_with_this,
@@ -922,7 +931,7 @@ impl TypeChecker {
                         let construct_signatures = self.get_signatures_of_type(
                             &base_constructor_type,
                             SignatureKind::Construct,
-                        );
+                        )?;
                         if construct_signatures
                             .iter()
                             .any(|signature| signature.flags.intersects(SignatureFlags::Abstract))
@@ -1016,7 +1025,7 @@ impl TypeChecker {
                                 None,
                                 None,
                                 None,
-                            ) {
+                            )? {
                                 self.issue_member_specific_error(
                                     node,
                                     &type_with_this,

@@ -175,7 +175,7 @@ impl TypeChecker {
             let target_symbol = self.resolve_alias(symbol)?;
             let export_symbol = symbol.maybe_declarations().as_ref().try_and_then(|_| {
                 self.get_target_of_alias_declaration(
-                    &self.get_declaration_of_alias_symbol(symbol).unwrap(),
+                    &self.get_declaration_of_alias_symbol(symbol)?.unwrap(),
                     Some(true),
                 )
             })?;
@@ -394,24 +394,30 @@ impl TypeChecker {
         self.has_base_type_check(check_base.as_deref(), type_)
     }
 
-    pub(super) fn has_base_type_check(&self, check_base: Option<&Type>, type_: &Type) -> bool {
-        if get_object_flags(type_)
-            .intersects(ObjectFlags::ClassOrInterface | ObjectFlags::Reference)
-        {
-            let target = self.get_target_type(type_);
-            matches!(check_base, Some(check_base) if ptr::eq(&*target, check_base))
-                || some(
-                    Some(&*self.get_base_types(&target)),
+    pub(super) fn has_base_type_check(
+        &self,
+        check_base: Option<&Type>,
+        type_: &Type,
+    ) -> io::Result<bool> {
+        Ok(
+            if get_object_flags(type_)
+                .intersects(ObjectFlags::ClassOrInterface | ObjectFlags::Reference)
+            {
+                let target = self.get_target_type(type_);
+                matches!(check_base, Some(check_base) if ptr::eq(&*target, check_base))
+                    || some(
+                        Some(&*self.get_base_types(&target)?),
+                        Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
+                    )
+            } else if type_.flags().intersects(TypeFlags::Intersection) {
+                some(
+                    Some(type_.as_union_or_intersection_type_interface().types()),
                     Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
                 )
-        } else if type_.flags().intersects(TypeFlags::Intersection) {
-            some(
-                Some(type_.as_union_or_intersection_type_interface().types()),
-                Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
-            )
-        } else {
-            false
-        }
+            } else {
+                false
+            },
+        )
     }
 
     pub(super) fn append_type_parameters(
@@ -627,7 +633,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
     ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
-        let outer_type_parameters = self.get_outer_type_parameters_of_class_or_interface(symbol);
+        let outer_type_parameters = self.get_outer_type_parameters_of_class_or_interface(symbol)?;
         let local_type_parameters =
             self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
         if outer_type_parameters.is_none() && local_type_parameters.is_none() {
@@ -640,7 +646,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_mixin_constructor_type(&self, type_: &Type) -> io::Result<bool> {
-        let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct);
+        let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if signatures.len() == 1 {
             let s = &signatures[0];
             if s.maybe_type_parameters().is_none()
@@ -650,7 +656,7 @@ impl TypeChecker {
                 let param_type = self.get_type_of_parameter(&s.parameters()[0])?;
                 return Ok(self.is_type_any(Some(&*param_type))
                     || matches!(
-                        self.get_element_type_of_array_type(&param_type),
+                        self.get_element_type_of_array_type(&param_type)?,
                         Some(element_type) if Gc::ptr_eq(&element_type, &self.any_type())
                     ));
             }
@@ -660,13 +666,13 @@ impl TypeChecker {
 
     pub(super) fn is_constructor_type(&self, type_: &Type) -> io::Result<bool> {
         if !self
-            .get_signatures_of_type(type_, SignatureKind::Construct)
+            .get_signatures_of_type(type_, SignatureKind::Construct)?
             .is_empty()
         {
             return Ok(true);
         }
         if type_.flags().intersects(TypeFlags::TypeVariable) {
-            let constraint = self.get_base_constraint_of_type(type_);
+            let constraint = self.get_base_constraint_of_type(type_)?;
             return Ok(matches!(
                 constraint,
                 Some(constraint) if self.is_mixin_constructor_type(&constraint)?
@@ -691,7 +697,7 @@ impl TypeChecker {
         let type_arg_count = length(type_argument_nodes);
         let is_javascript = is_in_js_file(Some(location));
         filter(
-            &self.get_signatures_of_type(type_, SignatureKind::Construct),
+            &self.get_signatures_of_type(type_, SignatureKind::Construct)?,
             |sig: &Gc<Signature>| {
                 (is_javascript
                     || type_arg_count
@@ -803,7 +809,7 @@ impl TypeChecker {
             }
             if !base_constructor_type.flags().intersects(TypeFlags::Any)
                 && !Gc::ptr_eq(&base_constructor_type, &self.null_widening_type())
-                && !self.is_constructor_type(&base_constructor_type)
+                && !self.is_constructor_type(&base_constructor_type)?
             {
                 let err = self.error(
                     Some(
@@ -828,7 +834,7 @@ impl TypeChecker {
                     let mut ctor_return = self.unknown_type();
                     if let Some(constraint) = constraint {
                         let ctor_sig =
-                            self.get_signatures_of_type(&constraint, SignatureKind::Construct);
+                            self.get_signatures_of_type(&constraint, SignatureKind::Construct)?;
                         if let Some(ctor_sig_0) = ctor_sig.get(0) {
                             ctor_return = self.get_return_type_of_signature(ctor_sig_0.clone())?;
                         }
@@ -975,7 +981,7 @@ impl TypeChecker {
                         Option::<&Node>::None,
                         Option::<&Symbol>::None,
                         None,
-                    )
+                    )?
                 } else {
                     t.type_wrapper()
                 }
@@ -1019,13 +1025,14 @@ impl TypeChecker {
         if let Some(base_constructor_type_symbol) = base_constructor_type
             .maybe_symbol()
             .as_ref()
-            .filter(|base_constructor_type_symbol| {
-                base_constructor_type_symbol
+            .try_filter(|base_constructor_type_symbol| -> io::Result<_> {
+                Ok(base_constructor_type_symbol
                     .flags()
                     .intersects(SymbolFlags::Class)
-                    && self
-                        .are_all_outer_type_parameters_applied(original_base_type.as_ref().unwrap())
-            })
+                    && self.are_all_outer_type_parameters_applied(
+                        original_base_type.as_ref().unwrap(),
+                    )?)
+            })?
         {
             base_type = self.get_type_from_class_or_interface_reference(
                 &base_type_node,
@@ -1066,7 +1073,7 @@ impl TypeChecker {
             return Ok(ret);
         }
         let reduced_base_type = self.get_reduced_type(&base_type)?;
-        if !self.is_valid_base_type(&reduced_base_type) {
+        if !self.is_valid_base_type(&reduced_base_type)? {
             let elaboration = self.elaborate_never_intersection(None, &base_type)?;
             let diagnostic = chain_diagnostic_messages(
                 elaboration,

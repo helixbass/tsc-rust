@@ -122,7 +122,7 @@ impl TypeChecker {
                 let signatures_of_type = self.get_signatures_of_type(
                     &*self.get_type_of_symbol(&self.get_symbol_of_node(node)?.unwrap())?,
                     SignatureKind::Call,
-                );
+                )?;
                 let signature = first_or_undefined(&signatures_of_type);
                 if signature.is_none() {
                     return Ok(());
@@ -404,7 +404,7 @@ impl TypeChecker {
                     .clone()
                     .unwrap();
                 if symbol.flags().intersects(SymbolFlags::Alias) {
-                    let declaration = self.get_declaration_of_alias_symbol(&symbol);
+                    let declaration = self.get_declaration_of_alias_symbol(&symbol)?;
                     return Ok(matches!(
                         declaration.as_ref(),
                         Some(declaration) if declaration.kind() == SyntaxKind::NamespaceImport
@@ -750,7 +750,7 @@ impl TypeChecker {
             }
             SyntaxKind::ExclamationToken => {
                 self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None);
-                let facts = self.get_type_facts(&operand_type, None)
+                let facts = self.get_type_facts(&operand_type, None)?
                     & (TypeFacts::Truthy | TypeFacts::Falsy);
                 match facts {
                     TypeFacts::Truthy => self.false_type(),

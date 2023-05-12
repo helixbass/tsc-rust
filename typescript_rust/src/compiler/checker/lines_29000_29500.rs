@@ -13,12 +13,12 @@ use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node, entity_name_to_string,
     find, find_index, is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element,
     is_jsx_self_closing_element, is_optional_chain, is_optional_chain_root, last, length, map,
-    maybe_every, node_is_missing, set_text_range_pos_end, some, try_map, AccessFlags, ContextFlags,
-    Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags,
-    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, JsxReferenceKind, Node,
-    NodeArray, NodeInterface, Number, ReadonlyTextRange, RelationComparisonResult, Signature,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeComparer, TypeFlags, TypeInterface, TypeMapper,
+    maybe_every, node_is_missing, set_text_range_pos_end, some, try_map, try_maybe_every,
+    AccessFlags, ContextFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
+    Diagnostics, ElementFlags, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
+    JsxReferenceKind, Node, NodeArray, NodeInterface, Number, ReadonlyTextRange,
+    RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -341,10 +341,12 @@ impl TypeChecker {
             let contextual_type = self.get_contextual_type_(
                 node,
                 Some(
-                    if maybe_every(
+                    if try_maybe_every(
                         signature.maybe_type_parameters().as_deref(),
-                        |p: &Gc<Type>, _| self.get_default_from_type_parameter_(p).is_some(),
-                    ) {
+                        |p: &Gc<Type>, _| -> io::Result<_> {
+                            Ok(self.get_default_from_type_parameter_(p)?.is_some())
+                        },
+                    )? {
                         ContextFlags::SkipBindingPatterns
                     } else {
                         ContextFlags::None
@@ -498,16 +500,16 @@ impl TypeChecker {
 
     pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
         Ok(if type_.flags().intersects(TypeFlags::Union) {
-            self.map_type(
+            self.try_map_type(
                 type_,
-                &mut |type_: &Type| Some(self.get_mutable_array_or_tuple_type(type_)?),
+                &mut |type_: &Type| Ok(Some(self.get_mutable_array_or_tuple_type(type_)?)),
                 None,
-            )
+            )?
             .unwrap()
         } else if type_.flags().intersects(TypeFlags::Any)
             || self.is_mutable_array_or_tuple(
                 &*self
-                    .get_base_constraint_of_type(type_)
+                    .get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| type_.type_wrapper()),
             )
         {
@@ -601,7 +603,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
                     None,
-                );
+                )?;
                 let arg_type = self.check_expression_with_contextual_type(
                     arg,
                     &contextual_type,
@@ -667,7 +669,7 @@ impl TypeChecker {
                 type_parameters.get(i).is_some(),
                 Some("Should not call checkTypeArguments with too many type arguments"),
             );
-            let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
+            let constraint = self.get_constraint_of_type_parameter(&type_parameters[i])?;
             if let Some(constraint) = constraint.as_ref() {
                 let error_info: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>> =
                     if report_errors && head_message.is_some() {
@@ -699,7 +701,7 @@ impl TypeChecker {
                     Some(type_argument_head_message),
                     error_info.clone(),
                     None,
-                ) {
+                )? {
                     return Ok(None);
                 }
             }
@@ -721,13 +723,13 @@ impl TypeChecker {
             None,
         )?)?;
         if length(Some(
-            &self.get_signatures_of_type(&tag_type, SignatureKind::Construct),
+            &self.get_signatures_of_type(&tag_type, SignatureKind::Construct)?,
         )) > 0
         {
             return Ok(JsxReferenceKind::Component);
         }
         if length(Some(
-            &self.get_signatures_of_type(&tag_type, SignatureKind::Call),
+            &self.get_signatures_of_type(&tag_type, SignatureKind::Call)?,
         )) > 0
         {
             return Ok(JsxReferenceKind::Function);
@@ -799,7 +801,7 @@ impl TypeChecker {
             return Ok(true);
         }
         let tag_type = tag_type.unwrap();
-        let tag_call_signatures = self.get_signatures_of_type(&tag_type, SignatureKind::Call);
+        let tag_call_signatures = self.get_signatures_of_type(&tag_type, SignatureKind::Call)?;
         if length(Some(&*tag_call_signatures)) == 0 {
             return Ok(true);
         }
@@ -821,7 +823,7 @@ impl TypeChecker {
         let factory_symbol = factory_symbol.unwrap();
 
         let factory_type = self.get_type_of_symbol(&factory_symbol)?;
-        let call_signatures = self.get_signatures_of_type(&factory_type, SignatureKind::Call);
+        let call_signatures = self.get_signatures_of_type(&factory_type, SignatureKind::Call)?;
         if length(Some(&*call_signatures)) == 0 {
             return Ok(true);
         }
@@ -830,7 +832,8 @@ impl TypeChecker {
         let mut max_param_count = 0;
         for sig in &call_signatures {
             let firstparam = self.get_type_at_position(sig, 0)?;
-            let signatures_of_param = self.get_signatures_of_type(&firstparam, SignatureKind::Call);
+            let signatures_of_param =
+                self.get_signatures_of_type(&firstparam, SignatureKind::Call)?;
             if length(Some(&*signatures_of_param)) == 0 {
                 continue;
             }
