@@ -31,7 +31,7 @@ impl TransformTypeScript {
     pub(super) fn serialize_type_list(
         &self,
         types: &[Gc<Node /*TypeNode*/>],
-    ) -> Gc<Node /*SerializedTypeNode*/> {
+    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
         let mut serialized_union: Option<Gc<Node /*SerializedTypeNode*/>> = Default::default();
         for type_node in types {
             let mut type_node = type_node.clone();
@@ -48,29 +48,29 @@ impl TransformTypeScript {
             {
                 continue;
             }
-            let serialized_individual = self.serialize_type_node(Some(&*type_node));
+            let serialized_individual = self.serialize_type_node(Some(&*type_node))?;
 
             if is_identifier(&serialized_individual)
                 && serialized_individual.as_identifier().escaped_text == "Object"
             {
-                return serialized_individual;
+                return Ok(serialized_individual);
             } else if let Some(serialized_union) = serialized_union.as_ref() {
                 if !is_identifier(serialized_union)
                     || !is_identifier(&serialized_individual)
                     || serialized_union.as_identifier().escaped_text
                         != serialized_individual.as_identifier().escaped_text
                 {
-                    return self
+                    return Ok(self
                         .factory
                         .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                        .wrap();
+                        .wrap());
                 }
             } else {
                 serialized_union = Some(serialized_individual);
             }
         }
 
-        serialized_union.unwrap_or_else(|| self.factory.create_void_zero())
+        Ok(serialized_union.unwrap_or_else(|| self.factory.create_void_zero()))
     }
 
     pub(super) fn serialize_type_reference_node(
@@ -98,10 +98,10 @@ impl TransformTypeScript {
                 })
                 .is_some()
                 {
-                    return self
+                    return Ok(self
                         .factory
                         .create_identifier("Object", Option::<Gc<NodeArray>>::None, None)
-                        .wrap();
+                        .wrap());
                 }
 
                 let serialized = self.serialize_entity_name_as_expression_fallback(
@@ -413,18 +413,18 @@ impl TransformTypeScript {
     pub(super) fn visit_expression_with_type_arguments(
         &self,
         node: &Node, /*ExpressionWithTypeArguments*/
-    ) -> Gc<Node /*ExpressionWithTypeArguments*/> {
-        self.factory.update_expression_with_type_arguments(
+    ) -> io::Result<Gc<Node /*ExpressionWithTypeArguments*/>> {
+        Ok(self.factory.update_expression_with_type_arguments(
             node,
-            visit_node(
+            try_visit_node(
                 Some(&*node.as_expression_with_type_arguments().expression),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_left_hand_side_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
+            )?
             .unwrap(),
             Option::<Gc<NodeArray>>::None,
-        )
+        ))
     }
 
     pub(super) fn should_emit_function_like_declaration(
@@ -453,7 +453,7 @@ impl TransformTypeScript {
                 None,
                 None,
             )?,
-            self.visit_property_name_of_class_element(node),
+            self.visit_property_name_of_class_element(node)?,
             None,
             None,
             try_visit_node(
@@ -527,8 +527,8 @@ impl TransformTypeScript {
                 Some(body),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-            ))?
-            .unwrap();
+            )?
+            .unwrap());
         }
 
         let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();

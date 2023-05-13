@@ -36,14 +36,14 @@ impl TransformDeclarations {
         if ignore_private != Some(true) && has_effective_modifier(node, ModifierFlags::Private) {
             return Ok(None);
         }
-        if self.should_print_with_initializer(node) {
+        if self.should_print_with_initializer(node)? {
             return Ok(None);
         }
         let should_use_resolver_type = node.kind() == SyntaxKind::Parameter
-            && (self.resolver.is_required_initialized_parameter(node)
+            && (self.resolver.is_required_initialized_parameter(node)?
                 || self
                     .resolver
-                    .is_optional_uninitialized_parameter_property(node));
+                    .is_optional_uninitialized_parameter_property(node)?);
         if let Some(type_) = type_ {
             if !should_use_resolver_type {
                 return try_visit_node(
@@ -284,7 +284,7 @@ impl TransformDeclarations {
                 if let Some(value_parameter) = value_parameter {
                     let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
                         input,
-                        &self.resolver.get_all_accessor_declarations(input),
+                        &self.resolver.get_all_accessor_declarations(input)?,
                     );
                     new_value_parameter = Some(self.ensure_parameter(
                         &value_parameter,
@@ -347,18 +347,20 @@ impl TransformDeclarations {
         &self,
         entity_name: &Node, /*EntityNameOrEntityNameExpression*/
         enclosing_declaration: &Node,
-    ) {
+    ) -> io::Result<()> {
         let visibility_result = self
             .resolver
-            .is_entity_name_visible(entity_name, enclosing_declaration);
+            .is_entity_name_visible(entity_name, enclosing_declaration)?;
         self.handle_symbol_accessibility_error(
             &visibility_result.into_symbol_accessibility_result(),
         );
         self.record_type_reference_directives_if_necessary(
             self.resolver
-                .get_type_reference_directives_for_entity_name(entity_name)
+                .get_type_reference_directives_for_entity_name(entity_name)?
                 .as_deref(),
         );
+
+        Ok(())
     }
 
     pub(super) fn preserve_js_doc(&self, updated: &Node, original: &Node) -> Gc<Node> {
@@ -376,7 +378,7 @@ impl TransformDeclarations {
         parent: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
         input: Option<&Node>,
     ) -> io::Result<Option<Gc<Node>>> {
-        let input = input?;
+        let input = return_ok_default_if_none!(input);
         self.set_result_has_external_module_indicator(
             self.result_has_external_module_indicator()
                 || !matches!(
@@ -399,7 +401,9 @@ impl TransformDeclarations {
                     ));
                 }
             } else {
-                let symbol = self.resolver.get_symbol_of_external_module_specifier(input);
+                let symbol = self
+                    .resolver
+                    .get_symbol_of_external_module_specifier(input)?;
                 if let Some(symbol) = symbol {
                     self.maybe_exported_modules_from_declaration_emit_mut()
                         .get_or_insert_with(|| vec![])
@@ -445,7 +449,7 @@ impl TransformDeclarations {
                 self.check_entity_name_visibility(
                     &decl_as_import_equals_declaration.module_reference,
                     &self.enclosing_declaration(),
-                );
+                )?;
                 self.set_get_symbol_accessibility_diagnostic(old_diag);
                 Some(decl.node_wrapper())
             },
@@ -480,8 +484,8 @@ impl TransformDeclarations {
                 self.resolver.is_declaration_visible(decl_import_clause)
             });
         if decl_import_clause_as_import_clause.named_bindings.is_none() {
-            return Ok(visible_default_binding.map(|visible_default_binding| {
-                self.factory.update_import_declaration(
+            return visible_default_binding.try_map(|visible_default_binding| -> io::Result<_> {
+                Ok(self.factory.update_import_declaration(
                     decl,
                     Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
@@ -497,8 +501,8 @@ impl TransformDeclarations {
                     )?
                     .unwrap(),
                     None,
-                )
-            }));
+                ))
+            });
         }
         let decl_import_clause_named_bindings = decl_import_clause_as_import_clause
             .named_bindings
@@ -585,7 +589,7 @@ impl TransformDeclarations {
                 ),
             ));
         }
-        if self.resolver.is_import_required_by_augmentation(decl) {
+        if self.resolver.is_import_required_by_augmentation(decl)? {
             return Ok(Some(
                 self.factory.update_import_declaration(
                     decl,
@@ -692,14 +696,14 @@ impl TransformDeclarations {
             if has_dynamic_name(input)
                 && !self.resolver.is_late_bound(
                     &get_parse_tree_node(Some(input), Option::<fn(&Node) -> bool>::None).unwrap(),
-                )
+                )?
             {
                 return Ok(None);
             }
         }
 
         if is_function_like(Some(input))
-            && self.resolver.is_implementation_of_overload(input) == Some(true)
+            && self.resolver.is_implementation_of_overload(input)? == Some(true)
         {
             return Ok(None);
         }
@@ -737,7 +741,7 @@ impl TransformDeclarations {
                 ) {
                     return Ok(None);
                 }
-                return Ok(self.visit_declaration_subtree_cleanup(
+                return self.visit_declaration_subtree_cleanup(
                     input,
                     can_produce_diagnostic,
                     previous_enclosing_declaration.as_ref(),
@@ -752,7 +756,7 @@ impl TransformDeclarations {
                         None,
                         None,
                     )),
-                ));
+                );
             }
         }
 
@@ -766,7 +770,7 @@ impl TransformDeclarations {
             self.check_entity_name_visibility(
                 &input.as_type_query_node().expr_name,
                 &self.enclosing_declaration(),
-            );
+            )?;
         }
 
         if should_enter_suppress_new_diagnostics_context_context {
@@ -786,7 +790,7 @@ impl TransformDeclarations {
                         self.check_entity_name_visibility(
                             &input_as_expression_with_type_arguments.expression,
                             &self.enclosing_declaration(),
-                        );
+                        )?;
                     }
                     let ref node = try_visit_each_child(
                         Some(input),
@@ -812,13 +816,13 @@ impl TransformDeclarations {
                                     .clone(),
                             ),
                         ),
-                    )
+                    )?
                 }
                 SyntaxKind::TypeReference => {
                     self.check_entity_name_visibility(
                         &input.as_type_reference_node().type_name,
                         &self.enclosing_declaration(),
-                    );
+                    )?;
                     let ref node = try_visit_each_child(
                         Some(input),
                         |node: &Node| self.visit_declaration_subtree(node),
@@ -838,7 +842,7 @@ impl TransformDeclarations {
                             node_as_type_reference_node.type_name.clone(),
                             node_as_type_reference_node.maybe_type_arguments(),
                         )),
-                    )
+                    )?
                 }
                 SyntaxKind::ConstructSignature => {
                     let input_as_construct_signature_declaration =
@@ -858,12 +862,12 @@ impl TransformDeclarations {
                                     input_as_construct_signature_declaration
                                         .maybe_type_parameters()
                                         .as_deref(),
-                                ),
+                                )?,
                                 self.update_params_list(
                                     input,
                                     Some(&input_as_construct_signature_declaration.parameters()),
                                     None,
-                                )
+                                )?
                                 .unwrap(),
                                 self.ensure_type(
                                     input,
@@ -874,7 +878,7 @@ impl TransformDeclarations {
                                 )?,
                             ),
                         ),
-                    )
+                    )?
                 }
                 SyntaxKind::Constructor => {
                     let input_as_constructor_declaration = input.as_constructor_declaration();
@@ -887,7 +891,7 @@ impl TransformDeclarations {
                                 input,
                                 Some(&input_as_constructor_declaration.parameters()),
                                 Some(ModifierFlags::None),
-                            ),
+                            )?,
                             None,
                         )
                         .wrap();
@@ -899,12 +903,12 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(&ctor),
-                    )
+                    )?
                 }
                 SyntaxKind::MethodDeclaration => {
                     let input_as_method_declaration = input.as_method_declaration();
                     if is_private_identifier(&input_as_method_declaration.name()) {
-                        return Ok(self.visit_declaration_subtree_cleanup(
+                        return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -912,7 +916,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        ));
+                        );
                     }
                     let sig = self
                         .factory
@@ -927,12 +931,12 @@ impl TransformDeclarations {
                                 input_as_method_declaration
                                     .maybe_type_parameters()
                                     .as_deref(),
-                            ),
+                            )?,
                             self.update_params_list(
                                 input,
                                 Some(&input_as_method_declaration.parameters()),
                                 None,
-                            )
+                            )?
                             .unwrap(),
                             self.ensure_type(
                                 input,
@@ -950,12 +954,12 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(&sig),
-                    )
+                    )?
                 }
                 SyntaxKind::GetAccessor => {
                     let input_as_get_accessor_declaration = input.as_get_accessor_declaration();
                     if is_private_identifier(&input_as_get_accessor_declaration.name()) {
-                        return Ok(self.visit_declaration_subtree_cleanup(
+                        return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -963,11 +967,11 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        ));
+                        );
                     }
                     let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
                         input,
-                        &self.resolver.get_all_accessor_declarations(input),
+                        &self.resolver.get_all_accessor_declarations(input)?,
                     );
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -984,16 +988,16 @@ impl TransformDeclarations {
                             self.update_accessor_params_list(
                                 input,
                                 has_effective_modifier(input, ModifierFlags::Private),
-                            ),
+                            )?,
                             self.ensure_type(input, accessor_type.as_deref(), None)?,
                             None,
                         )),
-                    )
+                    )?
                 }
                 SyntaxKind::SetAccessor => {
                     let input_as_set_accessor_declaration = input.as_set_accessor_declaration();
                     if is_private_identifier(&input_as_set_accessor_declaration.name()) {
-                        return Ok(self.visit_declaration_subtree_cleanup(
+                        return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1001,7 +1005,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        ));
+                        );
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1018,15 +1022,15 @@ impl TransformDeclarations {
                             self.update_accessor_params_list(
                                 input,
                                 has_effective_modifier(input, ModifierFlags::Private),
-                            ),
+                            )?,
                             None,
                         )),
-                    )
+                    )?
                 }
                 SyntaxKind::PropertyDeclaration => {
                     let input_as_property_declaration = input.as_property_declaration();
                     if is_private_identifier(&input_as_property_declaration.name()) {
-                        return Ok(self.visit_declaration_subtree_cleanup(
+                        return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1034,7 +1038,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        ));
+                        );
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1054,14 +1058,14 @@ impl TransformDeclarations {
                                 input_as_property_declaration.maybe_type().as_deref(),
                                 None,
                             )?,
-                            self.ensure_no_initializer(input),
+                            self.ensure_no_initializer(input)?,
                         )),
-                    )
+                    )?
                 }
                 SyntaxKind::PropertySignature => {
                     let input_as_property_signature = input.as_property_signature();
                     if is_private_identifier(&input_as_property_signature.name()) {
-                        return Ok(self.visit_declaration_subtree_cleanup(
+                        return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1069,7 +1073,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        ));
+                        );
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1089,12 +1093,12 @@ impl TransformDeclarations {
                                 None,
                             )?,
                         )),
-                    )
+                    )?
                 }
                 SyntaxKind::MethodSignature => {
                     let input_as_method_signature = input.as_method_signature();
                     if is_private_identifier(&input_as_method_signature.name()) {
-                        return Ok(self.visit_declaration_subtree_cleanup(
+                        return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1102,7 +1106,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             None,
-                        ));
+                        );
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1120,12 +1124,12 @@ impl TransformDeclarations {
                                 self.ensure_type_params(
                                     input,
                                     input_as_method_signature.maybe_type_parameters().as_deref(),
-                                ),
+                                )?,
                                 self.update_params_list(
                                     input,
                                     Some(&input_as_method_signature.parameters()),
                                     None,
-                                )
+                                )?
                                 .unwrap(),
                                 self.ensure_type(
                                     input,
@@ -1134,7 +1138,7 @@ impl TransformDeclarations {
                                 )?,
                             ),
                         ),
-                    )
+                    )?
                 }
                 SyntaxKind::CallSignature => {
                     let input_as_call_signature_declaration = input.as_call_signature_declaration();
@@ -1153,12 +1157,12 @@ impl TransformDeclarations {
                                     input_as_call_signature_declaration
                                         .maybe_type_parameters()
                                         .as_deref(),
-                                ),
+                                )?,
                                 self.update_params_list(
                                     input,
                                     Some(&input_as_call_signature_declaration.parameters()),
                                     None,
-                                )
+                                )?
                                 .unwrap(),
                                 self.ensure_type(
                                     input,
@@ -1167,7 +1171,7 @@ impl TransformDeclarations {
                                 )?,
                             ),
                         ),
-                    )
+                    )?
                 }
                 SyntaxKind::IndexSignature => {
                     let input_as_index_signature_declaration =
@@ -1188,7 +1192,7 @@ impl TransformDeclarations {
                                     input,
                                     Some(&input_as_index_signature_declaration.parameters()),
                                     None,
-                                )
+                                )?
                                 .unwrap(),
                                 try_visit_node(
                                     input_as_index_signature_declaration.maybe_type(),
@@ -1203,7 +1207,7 @@ impl TransformDeclarations {
                                 }),
                             ),
                         ),
-                    )
+                    )?
                 }
                 SyntaxKind::VariableDeclaration => {
                     let input_as_variable_declaration = input.as_variable_declaration();
@@ -1231,9 +1235,9 @@ impl TransformDeclarations {
                                 input_as_variable_declaration.maybe_type().as_deref(),
                                 None,
                             )?,
-                            self.ensure_no_initializer(input),
+                            self.ensure_no_initializer(input)?,
                         )),
-                    )
+                    )?
                 }
                 SyntaxKind::TypeParameter => {
                     let input_as_type_parameter_declaration = input.as_type_parameter_declaration();
@@ -1241,7 +1245,7 @@ impl TransformDeclarations {
                         && (input_as_type_parameter_declaration.default.is_some()
                             || input_as_type_parameter_declaration.constraint.is_some())
                     {
-                        return Ok(self.visit_declaration_subtree_cleanup(
+                        return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1254,7 +1258,7 @@ impl TransformDeclarations {
                                 None,
                                 None,
                             )),
-                        ));
+                        );
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1269,7 +1273,7 @@ impl TransformDeclarations {
                             &**self.context,
                         )?
                         .as_deref(),
-                    )
+                    )?
                 }
                 SyntaxKind::ConditionalType => {
                     let input_as_conditional_type_node = input.as_conditional_type_node();
@@ -1320,7 +1324,7 @@ impl TransformDeclarations {
                             true_type,
                             false_type,
                         )),
-                    )
+                    )?
                 }
                 SyntaxKind::FunctionType => {
                     let input_as_function_type_node = input.as_function_type_node();
@@ -1347,7 +1351,7 @@ impl TransformDeclarations {
                                     input,
                                     Some(&input_as_function_type_node.parameters()),
                                     None,
-                                )
+                                )?
                                 .unwrap(),
                                 try_visit_node(
                                     input_as_function_type_node.maybe_type(),
@@ -1357,7 +1361,7 @@ impl TransformDeclarations {
                                 )?,
                             ),
                         ),
-                    )
+                    )?
                 }
                 SyntaxKind::ConstructorType => {
                     let input_as_constructor_type_node = input.as_constructor_type_node();
@@ -1385,7 +1389,7 @@ impl TransformDeclarations {
                                     input,
                                     Some(&input_as_constructor_type_node.parameters()),
                                     None,
-                                )
+                                )?
                                 .unwrap(),
                                 try_visit_node(
                                     input_as_constructor_type_node.maybe_type(),
@@ -1395,12 +1399,12 @@ impl TransformDeclarations {
                                 )?,
                             ),
                         ),
-                    )
+                    )?
                 }
                 SyntaxKind::ImportType => {
                     let input_as_import_type_node = input.as_import_type_node();
                     if !is_literal_import_type_node(input) {
-                        return Ok(self.visit_declaration_subtree_cleanup(
+                        return self.visit_declaration_subtree_cleanup(
                             input,
                             can_produce_diagnostic,
                             previous_enclosing_declaration.as_ref(),
@@ -1408,7 +1412,7 @@ impl TransformDeclarations {
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
                             Some(input),
-                        ));
+                        );
                     }
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -1444,7 +1448,7 @@ impl TransformDeclarations {
                                 Some(input_as_import_type_node.is_type_of()),
                             ),
                         ),
-                    )
+                    )?
                 }
                 _ => Debug_.assert_never(
                     input,
@@ -1471,7 +1475,7 @@ impl TransformDeclarations {
             set_emit_flags(input, EmitFlags::SingleLine);
         }
 
-        Ok(self.visit_declaration_subtree_cleanup(
+        self.visit_declaration_subtree_cleanup(
             input,
             can_produce_diagnostic,
             previous_enclosing_declaration.as_ref(),
@@ -1484,6 +1488,6 @@ impl TransformDeclarations {
                 &**self.context,
             )?
             .as_deref(),
-        ))
+        )
     }
 }

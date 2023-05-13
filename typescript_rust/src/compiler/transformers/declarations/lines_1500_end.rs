@@ -98,7 +98,10 @@ impl TransformDeclarations {
         })
     }
 
-    pub(super) fn check_name(&self, node: &Node /*DeclarationDiagnosticProducing*/) {
+    pub(super) fn check_name(
+        &self,
+        node: &Node, /*DeclarationDiagnosticProducing*/
+    ) -> io::Result<()> {
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             old_diag = Some(self.get_symbol_accessibility_diagnostic());
@@ -110,7 +113,7 @@ impl TransformDeclarations {
         Debug_.assert(
             self.resolver.is_late_bound(
                 &get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None).unwrap(),
-            ),
+            )?,
             None,
         );
         let decl = node;
@@ -119,11 +122,13 @@ impl TransformDeclarations {
             .name()
             .as_has_expression()
             .expression();
-        self.check_entity_name_visibility(entity_name, &self.enclosing_declaration());
+        self.check_entity_name_visibility(entity_name, &self.enclosing_declaration())?;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
             self.set_get_symbol_accessibility_diagnostic(old_diag.unwrap());
         }
         self.set_error_name_node(None);
+
+        Ok(())
     }
 
     pub(super) fn should_strip_internal(&self, node: &Node) -> bool {
@@ -205,7 +210,7 @@ impl TransformDeclarations {
         nodes: Option<&NodeArray /*<HeritageClause>*/>,
     ) -> io::Result<Gc<NodeArray>> {
         Ok(self.factory.create_node_array(
-            nodes.try_map(|nodes| {
+            nodes.try_map(|nodes| -> io::Result<_> {
                 let ret = vec![];
                 for clause in nodes {
                     let clause_as_heritage_clause = clause.as_heritage_clause();

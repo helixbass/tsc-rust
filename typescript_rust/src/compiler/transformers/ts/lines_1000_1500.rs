@@ -122,7 +122,7 @@ impl TransformTypeScript {
         container: &Node, /*ClassLikeDeclaration*/
         all_decorators: Option<&AllDecorators>,
     ) -> io::Result<Option<Vec<Gc<Node>>>> {
-        let all_decorators = all_decorators?;
+        let all_decorators = return_ok_default_if_none!(all_decorators);
 
         let mut decorator_expressions: Vec<Gc<Node /*Expression*/>> = Default::default();
         add_range(
@@ -130,7 +130,8 @@ impl TransformTypeScript {
             try_maybe_map(
                 all_decorators.decorators.as_deref(),
                 |decorator: &Gc<Node>, _| self.transform_decorator(decorator),
-            )?
+            )
+            .transpose()?
             .as_deref(),
             None,
             None,
@@ -146,8 +147,7 @@ impl TransformTypeScript {
                         |parameter: &Option<NodeArrayOrVec>, index| -> io::Result<_> {
                             Ok(self
                                 .transform_decorators_of_parameter(parameter.as_deref(), index)?
-                                .map(IntoIterator::into_iter)
-                                .unwrap_or_empty())
+                                .unwrap_or_default())
                         },
                     )
                 })?
@@ -238,8 +238,8 @@ impl TransformTypeScript {
         &self,
         statements: &mut Vec<Gc<Node /*Statement*/>>,
         node: &Node, /*ClassDeclaration*/
-    ) {
-        let expression = self.generate_constructor_decoration_expression(node);
+    ) -> io::Result<()> {
+        let expression = self.generate_constructor_decoration_expression(node)?;
         if let Some(expression) = expression {
             statements.push(
                 self.factory
@@ -248,12 +248,14 @@ impl TransformTypeScript {
                     .set_original_node(Some(node.node_wrapper())),
             );
         }
+
+        Ok(())
     }
 
     pub(super) fn generate_constructor_decoration_expression(
         &self,
         node: &Node, /*ClassExpression | ClassDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let all_decorators = self.get_all_decorators_of_constructor(node);
         let decorator_expressions =
             self.transform_all_decorators_of_declaration(node, node, all_decorators.as_ref())?;
@@ -275,7 +277,7 @@ impl TransformTypeScript {
             Option::<&Node>::None,
             Option::<&Node>::None,
         );
-        Some(
+        Ok(Some(
             self.factory
                 .create_assignment(
                     local_name,
@@ -291,7 +293,7 @@ impl TransformTypeScript {
                 .wrap()
                 .set_emit_flags(EmitFlags::NoComments)
                 .set_source_map_range(Some((&move_range_past_decorators(node)).into())),
-        )
+        ))
     }
 
     pub(super) fn transform_decorator(
@@ -335,7 +337,7 @@ impl TransformTypeScript {
         decorator_expressions: &mut Vec<Gc<Node /*Expression*/>>,
     ) -> io::Result<()> {
         if USE_NEW_TYPE_METADATA_FORMAT {
-            self.add_new_type_metadata(node, container, decorator_expressions);
+            self.add_new_type_metadata(node, container, decorator_expressions)?;
         } else {
             self.add_old_type_metadata(node, container, decorator_expressions)?;
         }
@@ -359,13 +361,13 @@ impl TransformTypeScript {
             if self.should_add_param_types_metadata(node) {
                 decorator_expressions.push(self.emit_helpers().create_metadata_helper(
                     "design:paramtypes",
-                    self.serialize_parameter_types_of_node(node, container),
+                    self.serialize_parameter_types_of_node(node, container)?,
                 ));
             }
             if self.should_add_return_type_metadata(node) {
                 decorator_expressions.push(self.emit_helpers().create_metadata_helper(
                     "design:returntype",
-                    self.serialize_return_type_of_node(node),
+                    self.serialize_return_type_of_node(node)?,
                 ));
             }
         }
@@ -378,7 +380,7 @@ impl TransformTypeScript {
         node: &Node,      /*Declaration*/
         container: &Node, /*ClassLikeDeclaration*/
         decorator_expressions: &mut Vec<Gc<Node /*Expression*/>>,
-    ) {
+    ) -> io::Result<()> {
         if self.compiler_options.emit_decorator_metadata == Some(true) {
             let mut properties: Option<Vec<Gc<Node /*ObjectLiteralElementLike*/>>> =
                 Default::default();
@@ -398,7 +400,7 @@ impl TransformTypeScript {
                                             .create_token(SyntaxKind::EqualsGreaterThanToken)
                                             .wrap(),
                                     ),
-                                    self.serialize_type_of_node(node),
+                                    self.serialize_type_of_node(node)?,
                                 )
                                 .wrap(),
                         )
@@ -421,7 +423,7 @@ impl TransformTypeScript {
                                             .create_token(SyntaxKind::EqualsGreaterThanToken)
                                             .wrap(),
                                     ),
-                                    self.serialize_parameter_types_of_node(node, container),
+                                    self.serialize_parameter_types_of_node(node, container)?,
                                 )
                                 .wrap(),
                         )
@@ -444,7 +446,7 @@ impl TransformTypeScript {
                                             .create_token(SyntaxKind::EqualsGreaterThanToken)
                                             .wrap(),
                                     ),
-                                    self.serialize_return_type_of_node(node),
+                                    self.serialize_return_type_of_node(node)?,
                                 )
                                 .wrap(),
                         )
@@ -462,6 +464,8 @@ impl TransformTypeScript {
                 );
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn should_add_type_metadata(&self, node: &Node /*Declaration*/) -> bool {
@@ -494,9 +498,9 @@ impl TransformTypeScript {
     pub(super) fn get_accessor_type_node(
         &self,
         node: &Node, /*AccessorDeclaration*/
-    ) -> Option<Gc<Node>> {
-        let accessors = self.resolver.get_all_accessor_declarations(node);
-        accessors
+    ) -> io::Result<Option<Gc<Node>>> {
+        let accessors = self.resolver.get_all_accessor_declarations(node)?;
+        Ok(accessors
             .set_accessor
             .as_ref()
             .and_then(|accessors_set_accessor| {
@@ -509,7 +513,7 @@ impl TransformTypeScript {
                     .and_then(|accessors_get_accessor| {
                         get_effective_return_type_node(accessors_get_accessor)
                     })
-            })
+            }))
     }
 
     pub(super) fn serialize_type_of_node(
@@ -521,7 +525,7 @@ impl TransformTypeScript {
                 self.serialize_type_node(node.as_has_type().maybe_type())?
             }
             SyntaxKind::SetAccessor | SyntaxKind::GetAccessor => {
-                self.serialize_type_node(self.get_accessor_type_node(node))
+                self.serialize_type_node(self.get_accessor_type_node(node)?)?
             }
             SyntaxKind::ClassDeclaration
             | SyntaxKind::ClassExpression
@@ -537,7 +541,7 @@ impl TransformTypeScript {
         &self,
         node: &Node,
         container: &Node, /*ClassLikeDeclaration*/
-    ) -> Gc<Node /*ArrayLiteralExpression*/> {
+    ) -> io::Result<Gc<Node /*ArrayLiteralExpression*/>> {
         let value_declaration = if is_class_like(node) {
             get_first_constructor_with_body(node)
         } else if is_function_like(Some(node))
@@ -570,16 +574,17 @@ impl TransformTypeScript {
                 {
                     expressions.push(self.serialize_type_node(get_rest_parameter_element_type(
                         parameter_as_parameter_declaration.maybe_type(),
-                    )));
+                    ))?);
                 } else {
-                    expressions.push(self.serialize_type_of_node(parameter));
+                    expressions.push(self.serialize_type_of_node(parameter)?);
                 }
             }
         }
 
-        self.factory
+        Ok(self
+            .factory
             .create_array_literal_expression(Some(expressions), None)
-            .wrap()
+            .wrap())
     }
 
     pub(super) fn get_parameters_of_decorated_declaration(
@@ -604,17 +609,17 @@ impl TransformTypeScript {
     pub(super) fn serialize_return_type_of_node(
         &self,
         node: &Node,
-    ) -> Gc<Node /*SerializedTypeNode*/> {
+    ) -> io::Result<Gc<Node /*SerializedTypeNode*/>> {
         if is_function_like(Some(node)) && node.as_has_type().maybe_type().is_some() {
             return self.serialize_type_node(node.as_has_type().maybe_type());
         } else if is_async_function(node) {
-            return self
+            return Ok(self
                 .factory
                 .create_identifier("Promise", Option::<Gc<NodeArray>>::None, None)
-                .wrap();
+                .wrap());
         }
 
-        self.factory.create_void_zero()
+        Ok(self.factory.create_void_zero())
     }
 
     pub(super) fn serialize_type_node(
@@ -636,9 +641,7 @@ impl TransformTypeScript {
             }
 
             SyntaxKind::ParenthesizedType => {
-                return Ok(
-                    self.serialize_type_node(Some(&*node.as_parenthesized_type_node().type_))
-                );
+                return self.serialize_type_node(Some(&*node.as_parenthesized_type_node().type_));
             }
 
             SyntaxKind::FunctionType | SyntaxKind::ConstructorType => {
@@ -727,23 +730,22 @@ impl TransformTypeScript {
             }
 
             SyntaxKind::IntersectionType | SyntaxKind::UnionType => {
-                return Ok(
-                    self.serialize_type_list(&node.as_union_or_intersection_type_node().types())
-                );
+                return self
+                    .serialize_type_list(&node.as_union_or_intersection_type_node().types());
             }
 
             SyntaxKind::ConditionalType => {
                 let node_as_conditional_type_node = node.as_conditional_type_node();
-                return Ok(self.serialize_type_list(&[
+                return self.serialize_type_list(&[
                     node_as_conditional_type_node.true_type.clone(),
                     node_as_conditional_type_node.false_type.clone(),
-                ]));
+                ]);
             }
 
             SyntaxKind::TypeOperator => {
                 let node_as_type_operator_node = node.as_type_operator_node();
                 if node_as_type_operator_node.operator == SyntaxKind::ReadonlyKeyword {
-                    return Ok(self.serialize_type_node(Some(&*node_as_type_operator_node.type_)));
+                    return self.serialize_type_node(Some(&*node_as_type_operator_node.type_));
                 }
             }
 
@@ -765,7 +767,7 @@ impl TransformTypeScript {
             SyntaxKind::JSDocNullableType
             | SyntaxKind::JSDocNonNullableType
             | SyntaxKind::JSDocOptionalType => {
-                return Ok(self.serialize_type_node(node.as_has_type().maybe_type()));
+                return self.serialize_type_node(node.as_has_type().maybe_type());
             }
             _ => (),
         }

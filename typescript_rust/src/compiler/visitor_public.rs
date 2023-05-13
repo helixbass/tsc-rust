@@ -1,5 +1,5 @@
 use gc::Gc;
-use std::borrow::Borrow;
+use std::{borrow::Borrow, io};
 
 use crate::{
     is_array_binding_element, is_assert_clause, is_assert_entry, is_assertion_key,
@@ -291,6 +291,25 @@ pub fn visit_lexical_environment(
     unimplemented!()
 }
 
+pub fn try_visit_lexical_environment(
+    _statements: &NodeArray, /*<Statement>*/
+    _visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    _context: &(impl TransformationContext + ?Sized),
+    _start: Option<isize>,
+    _ensure_use_strict: Option<bool>,
+    _nodes_visitor: Option<
+        impl FnMut(
+            Option<&NodeArray>,
+            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+            Option<&dyn Fn(&Node) -> bool>,
+            Option<usize>,
+            Option<usize>,
+        ) -> io::Result<Option<Gc<NodeArray>>>,
+    >,
+) -> io::Result<Gc<NodeArray>> {
+    unimplemented!()
+}
+
 pub fn visit_parameter_list(
     _nodes: Option<&NodeArray>,
     _visitor: impl FnMut(&Node) -> VisitResult,
@@ -308,11 +327,11 @@ pub fn visit_parameter_list(
     unimplemented!()
 }
 
-pub fn try_visit_parameter_list<TError>(
+pub fn try_visit_parameter_list(
     nodes: Option<&NodeArray>,
-    visitor: impl FnMut(&Node) -> VisitResult,
+    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
-) -> Result<Option<Gc<NodeArray>>, TError> {
+) -> io::Result<Option<Gc<NodeArray>>> {
     try_visit_parameter_list_full(
         nodes,
         visitor,
@@ -324,14 +343,14 @@ pub fn try_visit_parameter_list<TError>(
                 Option<&dyn Fn(&Node) -> bool>,
                 Option<usize>,
                 Option<usize>,
-            ) -> Result<Option<Gc<NodeArray>, TError>>,
+            ) -> io::Result<Option<Gc<NodeArray>>>,
         >::None,
     )
 }
 
-pub fn try_visit_parameter_list_full<TError>(
+pub fn try_visit_parameter_list_full(
     _nodes: Option<&NodeArray>,
-    _visitor: impl FnMut(&Node) -> VisitResult,
+    _visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
     _context: &(impl TransformationContext + ?Sized),
     _nodes_visitor: Option<
         impl FnMut(
@@ -340,9 +359,9 @@ pub fn try_visit_parameter_list_full<TError>(
             Option<&dyn Fn(&Node) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> Result<Option<Gc<NodeArray>>, TError>,
+        ) -> io::Result<Option<Gc<NodeArray>>>,
     >,
-) -> Result<Option<Gc<NodeArray>>, TError> {
+) -> io::Result<Option<Gc<NodeArray>>> {
     unimplemented!()
 }
 

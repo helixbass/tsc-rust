@@ -49,22 +49,13 @@ impl TransformTypeScript {
                 None,
             ),
             node_as_method_declaration.maybe_asterisk_token(),
-            self.visit_property_name_of_class_element(node),
+            self.visit_property_name_of_class_element(node)?,
             None,
             Option::<Gc<NodeArray>>::None,
             try_visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
             )?
             .unwrap(),
             None,
@@ -72,14 +63,6 @@ impl TransformTypeScript {
                 node_as_method_declaration.maybe_body().as_deref(),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
             )?,
         );
         if !ptr::eq(&*updated, node) {
@@ -118,7 +101,7 @@ impl TransformTypeScript {
                 None,
                 None,
             ),
-            self.visit_property_name_of_class_element(node),
+            self.visit_property_name_of_class_element(node)?,
             try_visit_parameter_list(
                 Some(&node_as_get_accessor_declaration.parameters()),
                 |node: &Node| self.visitor(node),
@@ -163,7 +146,7 @@ impl TransformTypeScript {
                 None,
                 None,
             ),
-            self.visit_property_name_of_class_element(node),
+            self.visit_property_name_of_class_element(node)?,
             try_visit_parameter_list(
                 Some(&node_as_set_accessor_declaration.parameters()),
                 |node: &Node| self.visitor(node),
@@ -403,7 +386,11 @@ impl TransformTypeScript {
                     |export_name: &Node,
                      export_value: &Node,
                      location: Option<&dyn ReadonlyTextRange>| {
-                        self.create_namespace_export_expression(export_name, export_value, location)
+                        Ok(self.create_namespace_export_expression(
+                            export_name,
+                            export_value,
+                            location,
+                        ))
                     },
                 ),
             )?

@@ -223,24 +223,24 @@ impl TransformTypeScript {
     pub(super) fn transform_source_file_or_bundle(
         &self,
         node: &Node, /*SourceFile | Bundle*/
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         if node.kind() == SyntaxKind::Bundle {
             return self.transform_bundle(node);
         }
         self.transform_source_file(node)
     }
 
-    pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> Gc<Node> {
+    pub(super) fn transform_bundle(&self, node: &Node /*Bundle*/) -> io::Result<Gc<Node>> {
         let node_as_bundle = node.as_bundle();
-        self.factory
+        Ok(self.factory
             .create_bundle(
                 node_as_bundle
                     .source_files
                     .iter()
-                    .map(|source_file| {
-                        Some(self.transform_source_file(source_file.as_ref().unwrap()))
+                    .map(|source_file| -> io::Result<_> {
+                        Ok(Some(self.transform_source_file(source_file.as_ref().unwrap())?))
                     })
-                    .collect::<Vec<_>>(),
+                    .collect::<Result<Vec<_>, _>()?,
                 Some(map_defined(
                     Some(&node_as_bundle.prepends),
                     |prepend: &Gc<Node>, _| {
@@ -255,21 +255,21 @@ impl TransformTypeScript {
                     },
                 )),
             )
-            .wrap()
+            .wrap())
     }
 
-    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    pub(super) fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
         if node.as_source_file().is_declaration_file() {
-            return node.node_wrapper();
+            return Ok(node.node_wrapper());
         }
 
         self.set_current_source_file(Some(node.node_wrapper()));
 
-        let visited = self.save_state_and_invoke(node, |node: &Node| self.visit_source_file(node));
+        let visited = self.try_save_state_and_invoke(node, |node: &Node| self.visit_source_file(node))?;
         add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
 
         self.set_current_source_file(None);
-        visited
+        Ok(visited)
     }
 
     pub(super) fn save_state_and_invoke<TReturn>(
@@ -371,7 +371,7 @@ impl TransformTypeScript {
             | SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::ExportAssignment
             | SyntaxKind::ExportDeclaration => self.visit_elidable_statement(node)?,
-            _ => self.visitor_worker(node),
+            _ => self.visitor_worker(node)?,
         })
     }
 
@@ -403,13 +403,13 @@ impl TransformTypeScript {
         })
     }
 
-    pub(super) fn namespace_element_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
-        self.save_state_and_invoke(node, |node: &Node| {
+    pub(super) fn namespace_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
+        self.try_save_state_and_invoke(node, |node: &Node| {
             self.namespace_element_visitor_worker(node)
         })
     }
 
-    pub(super) fn namespace_element_visitor_worker(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    pub(super) fn namespace_element_visitor_worker(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
         if matches!(
             node.kind(),
             SyntaxKind::ExportDeclaration
@@ -419,7 +419,7 @@ impl TransformTypeScript {
             && node.as_import_equals_declaration().module_reference.kind()
                 == SyntaxKind::ExternalModuleReference
         {
-            return None;
+            return Ok(None);
         } else if node
             .transform_flags()
             .intersects(TransformFlags::ContainsTypeScript)
@@ -428,7 +428,7 @@ impl TransformTypeScript {
             return self.visit_type_script(node);
         }
 
-        Some(node.node_wrapper().into())
+        Ok(Some(node.node_wrapper().into()))
     }
 
     pub(super) fn class_element_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
@@ -444,7 +444,7 @@ impl TransformTypeScript {
             | SyntaxKind::GetAccessor
             | SyntaxKind::SetAccessor
             | SyntaxKind::MethodDeclaration
-            | SyntaxKind::ClassStaticBlockDeclaration => self.visitor_worker(node),
+            | SyntaxKind::ClassStaticBlockDeclaration => self.visitor_worker(node)?,
             SyntaxKind::SemicolonClassElement => Some(node.node_wrapper().into()),
             _ => Debug_.fail_bad_syntax_kind(node, None),
         })
@@ -534,7 +534,7 @@ impl TransformTypeScript {
             SyntaxKind::ClassExpression => Some(self.visit_class_expression(node)?.into()),
             SyntaxKind::HeritageClause => self.visit_heritage_clause(node)?.map(Into::into),
             SyntaxKind::ExpressionWithTypeArguments => {
-                Some(self.visit_expression_with_type_arguments(node).into())
+                Some(self.visit_expression_with_type_arguments(node)?.into())
             }
             SyntaxKind::MethodDeclaration => self.visit_method_declaration(node)?,
             SyntaxKind::GetAccessor => self.visit_get_accessor(node)?,
@@ -561,14 +561,14 @@ impl TransformTypeScript {
             SyntaxKind::JsxSelfClosingElement => self.visit_jsx_self_closing_element(node)?,
             SyntaxKind::JsxOpeningElement => self.visit_jsx_jsx_opening_element(node)?,
             _ => {
-                try_visit_each_child(Some(node), |node: &Node| self.visitor(node))?.map(Into::into)
+                try_visit_each_child(Some(node), |node: &Node| self.visitor(node), &**self.context)?.map(Into::into)
             }
         })
     }
 }
 
 impl TransformerInterface for TransformTypeScript {
-    fn call(&self, node: &Node) -> Gc<Node> {
+    fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
         self.transform_source_file_or_bundle(node)
     }
 }

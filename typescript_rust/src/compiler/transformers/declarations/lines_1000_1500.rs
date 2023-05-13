@@ -24,7 +24,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SingleNodeOrVecNode, StringOrNumber, Symbol,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolInterface, SyntaxKind,
-    VisitResult, VisitResultInterface, get_parse_node_factory, try_flat_map, try_visit_nodes, try_map, try_maybe_map, try_visit_node, return_ok_default_if_none, try_map_defined,
+    VisitResult, VisitResultInterface, get_parse_node_factory, try_flat_map, try_visit_nodes, try_map, try_maybe_map, try_visit_node, return_ok_default_if_none, try_map_defined, OptionTry,
 };
 
 impl TransformDeclarations {
@@ -37,9 +37,9 @@ impl TransformDeclarations {
         should_enter_suppress_new_diagnostics_context_context: bool,
         old_within_object_literal_type: Option<bool>,
         return_value: Option<&Node>,
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         if return_value.is_some() && can_produce_diagnostic && has_dynamic_name(input) {
-            self.check_name(input);
+            self.check_name(input)?;
         }
         if self.is_enclosing_declaration(input) {
             self.set_enclosing_declaration(previous_enclosing_declaration.cloned());
@@ -54,16 +54,16 @@ impl TransformDeclarations {
             return_value,
             Some(return_value) if ptr::eq(return_value, input)
         ) {
-            return return_value.map(Node::node_wrapper).map(Into::into);
+            return Ok(return_value.map(Node::node_wrapper).map(Into::into));
         }
-        return_value
+        Ok(return_value
             .map(|return_value| {
                 set_original_node(
                     self.preserve_js_doc(return_value, input),
                     Some(input.node_wrapper()),
                 )
             })
-            .map(Into::into)
+            .map(Into::into))
     }
 
     pub(super) fn is_private_method_type_parameter(
@@ -220,7 +220,7 @@ impl TransformDeclarations {
                     .map(Into::into));
             }
             SyntaxKind::ImportDeclaration => {
-                return self.transform_import_declaration(input).map(Into::into);
+                return self.transform_import_declaration(input)?.map(Into::into);
             }
             _ => (),
         }
@@ -229,7 +229,7 @@ impl TransformDeclarations {
         }
 
         if is_function_like(Some(input))
-            && self.resolver.is_implementation_of_overload(input) == Some(true)
+            && self.resolver.is_implementation_of_overload(input)? == Some(true)
         {
             return Ok(None);
         }
@@ -309,7 +309,7 @@ impl TransformDeclarations {
                                     input_as_interface_declaration
                                         .maybe_heritage_clauses()
                                         .as_deref(),
-                                ),
+                                )?,
                             ),
                             try_visit_nodes(
                                 Some(&input_as_interface_declaration.members),
@@ -347,7 +347,7 @@ impl TransformDeclarations {
                             input,
                             Some(&input_as_function_declaration.parameters()),
                             None,
-                        )
+                        )?
                         .unwrap(),
                         self.ensure_type(
                             input,
@@ -357,10 +357,10 @@ impl TransformDeclarations {
                         None,
                     )),
                 );
-                if let Some(clean) = clean.as_ref().filter(|_| {
-                    self.resolver.is_expando_function_declaration(input)
-                        && self.should_emit_function_properties(input)
-                }) {
+                if let Some(clean) = clean.as_ref().try_filter(|_| -> io::Result<_> {
+                    Ok(self.resolver.is_expando_function_declaration(input)?
+                        && self.should_emit_function_properties(input))
+                })? {
                     let ref clean = clean.as_single_node();
                     let clean_as_function_declaration = clean.as_function_declaration();
                     let props = self.resolver.get_properties_of_container_function(input)?;
@@ -746,7 +746,7 @@ impl TransformDeclarations {
                                                 .as_deref(),
                                             None,
                                         )?,
-                                        self.ensure_no_initializer(param),
+                                        self.ensure_no_initializer(param)?,
                                     ),
                                     param,
                                 )]
