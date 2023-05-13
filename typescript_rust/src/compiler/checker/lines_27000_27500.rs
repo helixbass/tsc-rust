@@ -12,8 +12,9 @@ use crate::{
     is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains, synthetic_factory,
     unescape_leading_underscores, Debug_, Diagnostics, IndexInfo, JsxFlags, ModuleResolutionKind,
     NodeArray, PragmaName, SymbolFlags, SymbolTable, TransientSymbolInterface, __String,
-    get_factory, get_object_flags, maybe_get_source_file_of_node, Node, NodeInterface, ObjectFlags,
-    OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    get_factory, get_object_flags, maybe_get_source_file_of_node, try_every, Node, NodeInterface,
+    ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -91,7 +92,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Instantiable) {
             let constraint = self.get_base_constraint_of_type(type_)?;
             if let Some(constraint) = constraint.as_ref() {
-                return Ok(self.is_valid_spread_type(constraint));
+                return self.is_valid_spread_type(constraint);
             }
         }
         Ok(type_.flags().intersects(
@@ -102,12 +103,12 @@ impl TypeChecker {
         ) || self
             .get_falsy_flags(type_)
             .intersects(TypeFlags::DefinitelyFalsy)
-            && self.is_valid_spread_type(&self.remove_definitely_falsy_types(type_))
+            && self.is_valid_spread_type(&self.remove_definitely_falsy_types(type_))?
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
-                && every(
+                && try_every(
                     &type_.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.is_valid_spread_type(type_),
-                ))
+                )?)
     }
 
     pub(super) fn check_jsx_self_closing_element_deferred(
@@ -337,7 +338,7 @@ impl TypeChecker {
                 if self.is_type_any(Some(&*expr_type)) {
                     has_spread_any_type = true;
                 }
-                if self.is_valid_spread_type(&expr_type) {
+                if self.is_valid_spread_type(&expr_type)? {
                     spread = self.get_spread_type(
                         &spread,
                         &expr_type,

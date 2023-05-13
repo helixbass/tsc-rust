@@ -8,6 +8,7 @@ use super::{
     get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id,
     MembersOrExportsResolutionKind,
 };
+use crate::return_ok_default_if_none;
 use crate::{
     add_range, add_related_info, are_option_gcs_equal, compare_diagnostics, compare_paths,
     create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
@@ -907,16 +908,13 @@ impl TypeChecker {
             } else {
                 None
             };
-            let main_module = self.resolve_external_module_name_worker(
-                &module_name,
-                &module_name,
-                module_not_found_error,
-                Some(true),
-            );
-            if main_module.is_none() {
-                return Ok(());
-            }
-            let main_module = main_module.unwrap();
+            let main_module = return_ok_default_if_none!(self
+                .resolve_external_module_name_worker(
+                    &module_name,
+                    &module_name,
+                    module_not_found_error,
+                    Some(true),
+                )?);
             let main_module = self
                 .resolve_external_module_symbol(Some(&*main_module), None)?
                 .unwrap();

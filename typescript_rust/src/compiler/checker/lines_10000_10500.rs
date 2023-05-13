@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::{borrow::Borrow, collections::HashMap};
 use std::{io, ptr};
 
+use crate::try_every;
 use crate::{
     concatenate, create_symbol_table, every, get_effective_constraint_of_type_parameter,
     get_effective_return_type_node, get_effective_type_annotation_node,
@@ -43,19 +44,19 @@ impl TypeChecker {
             if type_.flags().intersects(TypeFlags::TypeParameter) {
                 let constraint = self.get_base_constraint_of_type(type_)?;
                 if let Some(constraint) = constraint {
-                    return Ok(self.is_valid_base_type(&constraint));
+                    return self.is_valid_base_type(&constraint);
                 }
             }
         }
         Ok(type_
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::NonPrimitive | TypeFlags::Any)
-            && !self.is_generic_mapped_type(type_)
+            && !self.is_generic_mapped_type(type_)?
             || type_.flags().intersects(TypeFlags::Intersection)
-                && every(
+                && try_every(
                     type_.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.is_valid_base_type(type_),
-                ))
+                )?)
     }
 
     pub(super) fn resolve_base_types_of_interface(
@@ -78,7 +79,7 @@ impl TypeChecker {
                         let base_type =
                             self.get_reduced_type(&*self.get_type_from_type_node_(node)?)?;
                         if !self.is_error_type(&base_type) {
-                            if self.is_valid_base_type(&base_type) {
+                            if self.is_valid_base_type(&base_type)? {
                                 if !ptr::eq(type_, &*base_type)
                                     && !self.has_base_type(&base_type, Some(type_))
                                 {

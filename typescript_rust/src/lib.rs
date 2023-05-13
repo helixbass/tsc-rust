@@ -71,8 +71,9 @@ pub use compiler::core::{
     try_filter, try_find, try_find_index, try_find_last, try_first_defined, try_flat_map,
     try_for_each, try_for_each_bool, try_get_spelling_suggestion, try_map, try_map_defined,
     try_maybe_every, try_maybe_filter, try_maybe_first_defined, try_maybe_for_each, try_maybe_map,
-    try_reduce_left, try_reduce_left_no_initial_value_optional, try_some, AssertionLevel,
-    Cloneable, MultiMap, MultiMapOrdered, Pattern, SingleOrVec, UnderscoreEscapedMultiMap,
+    try_reduce_left, try_reduce_left_no_initial_value, try_reduce_left_no_initial_value_optional,
+    try_some, AssertionLevel, Cloneable, MultiMap, MultiMapOrdered, Pattern, SingleOrVec,
+    UnderscoreEscapedMultiMap,
 };
 pub use compiler::core_public::{
     version, version_major_minor, Comparer, Comparison, MapLike, Push, ReadonlyCollection,

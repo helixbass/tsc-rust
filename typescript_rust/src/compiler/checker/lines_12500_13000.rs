@@ -58,7 +58,8 @@ impl TypeChecker {
                 if is_java_script_implicit_any
                     && matches!(
                         default_type.as_ref(),
-                        Some(default_type) if self.is_type_identical_to(default_type, &self.unknown_type()) || self.is_type_identical_to(default_type, &self.empty_object_type())
+                        Some(default_type) if self.is_type_identical_to(default_type, &self.unknown_type())?
+                            || self.is_type_identical_to(default_type, &self.empty_object_type())?
                     )
                 {
                     default_type = Some(self.any_type());
@@ -886,7 +887,8 @@ impl TypeChecker {
                         })?
                         .unwrap_or_else(|| tp.clone()))
                 },
-            )?
+            )
+            .transpose()?
             .as_deref(),
             is_in_js_file(signature.declaration.as_deref()),
             None,

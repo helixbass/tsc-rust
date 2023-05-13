@@ -842,7 +842,7 @@ impl TypeChecker {
                 IterationTypeKind::Return,
                 return_type,
                 is_async,
-            )
+            )?
             .unwrap_or_else(|| self.error_type())
         } else if is_async {
             self.get_awaited_type_no_alias(return_type, Option::<&Node>::None, None, None)?

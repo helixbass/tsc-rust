@@ -596,7 +596,7 @@ impl TypeChecker {
                     self.get_applicable_index_info_for_name(
                         &apparent_type,
                         &right.as_identifier().escaped_text,
-                    )
+                    )?
                 } else {
                     None
                 };
@@ -1087,7 +1087,7 @@ impl TypeChecker {
                         .get_applicable_index_info_for_name(
                             subtype,
                             &prop_node.as_identifier().escaped_text,
-                        )
+                        )?
                         .is_none()
                 {
                     error_info = Some(chain_diagnostic_messages(

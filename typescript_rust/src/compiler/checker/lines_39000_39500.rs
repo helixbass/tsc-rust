@@ -401,7 +401,7 @@ impl TypeChecker {
             );
         } else {
             let source = self.check_expression(initializer, None, None)?;
-            if !self.is_type_assignable_to_kind(&source, TypeFlags::NumberLike, None) {
+            if !self.is_type_assignable_to_kind(&source, TypeFlags::NumberLike, None)? {
                 self.error(
                     Some(&**initializer),
                     &Diagnostics::Only_numeric_enums_can_have_computed_members_but_this_expression_has_type_0_If_you_do_not_need_exhaustiveness_checks_consider_using_an_object_literal_instead,

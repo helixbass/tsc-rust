@@ -279,7 +279,7 @@ impl TypeChecker {
                 &right_type,
                 TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
                 None,
-            )
+            )?
         {
             self.error(
                 Some(&*node_as_for_in_statement.expression),
@@ -475,7 +475,7 @@ impl TypeChecker {
             }
         }
 
-        if !self.is_array_like_type(&array_type) {
+        if !self.is_array_like_type(&array_type)? {
             if let Some(error_node) = error_node.as_ref() {
                 if !reported_error {
                     let allows_strings = use_.intersects(IterationUse::AllowsStringInputFlag)
@@ -486,7 +486,7 @@ impl TypeChecker {
                             input_type,
                             allows_strings,
                             downlevel_iteration,
-                        );
+                        )?;
                     self.error_and_maybe_suggest_await(
                         error_node,
                         maybe_missing_await

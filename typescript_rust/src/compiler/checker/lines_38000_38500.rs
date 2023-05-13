@@ -100,7 +100,9 @@ impl TypeChecker {
                         compared_expression_type =
                             self.get_base_type_of_literal_type(&expression_type)?;
                     }
-                    if !self.is_type_equality_comparable_to(&compared_expression_type, &case_type) {
+                    if !self
+                        .is_type_equality_comparable_to(&compared_expression_type, &case_type)?
+                    {
                         self.check_type_comparable_to(
                             &case_type,
                             &compared_expression_type,
@@ -353,7 +355,7 @@ impl TypeChecker {
         ) {
             return Ok(());
         }
-        let index_infos = self.get_applicable_index_infos(type_, prop_name_type);
+        let index_infos = self.get_applicable_index_infos(type_, prop_name_type)?;
         let interface_declaration = if get_object_flags(type_).intersects(ObjectFlags::Interface) {
             get_declaration_of_kind(&type_.symbol(), SyntaxKind::InterfaceDeclaration)
         } else {
@@ -429,7 +431,7 @@ impl TypeChecker {
         check_info: &IndexInfo,
     ) -> io::Result<()> {
         let declaration = check_info.declaration.as_ref();
-        let index_infos = self.get_applicable_index_infos(type_, &check_info.key_type);
+        let index_infos = self.get_applicable_index_infos(type_, &check_info.key_type)?;
         let interface_declaration = if get_object_flags(type_).intersects(ObjectFlags::Interface) {
             get_declaration_of_kind(&type_.symbol(), SyntaxKind::InterfaceDeclaration)
         } else {
@@ -709,7 +711,7 @@ impl TypeChecker {
                     (Some(source_constraint), Some(target_constraint)) if !self.is_type_identical_to(
                         source_constraint,
                         target_constraint
-                    )
+                    )?
                 ) {
                     return Ok(false);
                 }
@@ -723,7 +725,7 @@ impl TypeChecker {
                     (source_default.as_ref(), target_default.as_ref()),
                     (Some(source_default), Some(target_default)) if !self.is_type_identical_to(
                         source_default, target_default
-                    )
+                    )?
                 ) {
                     return Ok(false);
                 }
@@ -967,7 +969,7 @@ impl TypeChecker {
                                 && !self.is_type_identical_to(
                                     &*self.get_return_type_of_signature(sig.clone())?,
                                     base_type,
-                                ))
+                                )?)
                         },
                     )? {
                         self.error(
@@ -1004,7 +1006,7 @@ impl TypeChecker {
                     let t =
                         self.get_reduced_type(&*self.get_type_from_type_node_(type_ref_node)?)?;
                     if !self.is_error_type(&t) {
-                        if self.is_valid_base_type(&t) {
+                        if self.is_valid_base_type(&t)? {
                             let generic_diag = if matches!(
                                 t.maybe_symbol().as_ref(),
                                 Some(t_symbol) if t_symbol.flags().intersects(SymbolFlags::Class)

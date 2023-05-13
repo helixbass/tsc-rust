@@ -907,11 +907,11 @@ impl TypeChecker {
                 ignore_this_types,
                 ignore_return_types,
                 |source, target| {
-                    if partial_match {
+                    Ok(if partial_match {
                         self.compare_types_subtype_of(source, target)?
                     } else {
                         self.compare_types_identical(source, target)?
-                    }
+                    })
                 },
             )? != Ternary::False
             {
@@ -1117,7 +1117,7 @@ impl TypeChecker {
                         .unwrap_or_else(|| self.unknown_type()),
                     Some(mapper.clone()),
                 )?,
-            ) {
+            )? {
                 return Ok(false);
             }
         }

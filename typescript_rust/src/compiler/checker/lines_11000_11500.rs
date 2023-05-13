@@ -908,8 +908,8 @@ impl TypeChecker {
             vec![],
             vec![],
         );
-        let type_parameter = self.get_type_parameter_from_mapped_type(type_);
-        let constraint_type = self.get_constraint_type_from_mapped_type(type_);
+        let type_parameter = self.get_type_parameter_from_mapped_type(type_)?;
+        let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         let name_type = self.get_name_type_from_mapped_type(
             &type_as_mapped_type
                 .maybe_target()
@@ -919,7 +919,7 @@ impl TypeChecker {
             &type_as_mapped_type
                 .maybe_target()
                 .unwrap_or_else(|| type_.type_wrapper()),
-        );
+        )?;
         let modifiers_type =
             self.get_apparent_type(&*self.get_modifiers_type_from_mapped_type(type_)?)?;
         let template_modifiers = self.get_mapped_type_modifiers(type_);
@@ -948,7 +948,7 @@ impl TypeChecker {
                 },
             );
         } else {
-            self.for_each_type(
+            self.try_for_each_type(
                 &*self.get_lower_bound_of_key_type(&constraint_type)?,
                 |key_type| {
                     self.add_member_for_key_type_resolved_mapped_type_members(
@@ -961,10 +961,10 @@ impl TypeChecker {
                         &template_type,
                         &mut index_infos,
                         key_type,
-                    );
-                    Option::<()>::None
+                    )?;
+                    Ok(Option::<()>::None)
                 },
-            );
+            )?;
         }
         self.set_structured_type_members(
             type_as_mapped_type,
@@ -1201,7 +1201,7 @@ impl TypeChecker {
             )?;
             let mapper = Gc::new(self.append_type_mapping(
                 mapped_type_as_mapped_type.maybe_mapper(),
-                &self.get_type_parameter_from_mapped_type(mapped_type)?,
+                &*self.get_type_parameter_from_mapped_type(mapped_type)?,
                 &symbol_as_mapped_symbol.key_type(),
             ));
             let prop_type = self.instantiate_type(&template_type, Some(mapper))?;

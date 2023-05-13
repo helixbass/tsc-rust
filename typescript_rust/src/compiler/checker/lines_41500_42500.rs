@@ -388,21 +388,21 @@ impl TypeChecker {
             type_,
             TypeFlags::Void | TypeFlags::Nullable | TypeFlags::Never,
             None,
-        ) {
+        )? {
             TypeReferenceSerializationKind::VoidNullableOrNeverType
-        } else if self.is_type_assignable_to_kind(type_, TypeFlags::BooleanLike, None) {
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::BooleanLike, None)? {
             TypeReferenceSerializationKind::BooleanType
-        } else if self.is_type_assignable_to_kind(type_, TypeFlags::NumberLike, None) {
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::NumberLike, None)? {
             TypeReferenceSerializationKind::NumberLikeType
-        } else if self.is_type_assignable_to_kind(type_, TypeFlags::BigIntLike, None) {
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::BigIntLike, None)? {
             TypeReferenceSerializationKind::BigIntLikeType
-        } else if self.is_type_assignable_to_kind(type_, TypeFlags::StringLike, None) {
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::StringLike, None)? {
             TypeReferenceSerializationKind::StringLikeType
         } else if self.is_tuple_type(type_) {
             TypeReferenceSerializationKind::ArrayLikeType
-        } else if self.is_type_assignable_to_kind(type_, TypeFlags::ESSymbolLike, None) {
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::ESSymbolLike, None)? {
             TypeReferenceSerializationKind::ESSymbolType
-        } else if self.is_function_type(type_) {
+        } else if self.is_function_type(type_)? {
             TypeReferenceSerializationKind::TypeWithCallSignature
         } else if self.is_array_type(type_) {
             TypeReferenceSerializationKind::ArrayLikeType
@@ -695,7 +695,7 @@ impl TypeChecker {
     pub(super) fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*AnyImportOrReExport | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Gc<Node /*SourceFile*/>> {
+    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
         let specifier = if declaration.kind() == SyntaxKind::ModuleDeclaration {
             try_cast(
                 declaration.as_module_declaration().name(),
@@ -704,13 +704,16 @@ impl TypeChecker {
         } else {
             get_external_module_name(declaration)
         };
-        let module_symbol = self.resolve_external_module_name_worker(
+        let module_symbol = return_ok_default_if_none!(self.resolve_external_module_name_worker(
             specifier.as_ref().unwrap(),
             specifier.as_ref().unwrap(),
             None,
             None,
-        )?;
-        get_declaration_of_kind(&module_symbol, SyntaxKind::SourceFile)
+        )?);
+        Ok(get_declaration_of_kind(
+            &module_symbol,
+            SyntaxKind::SourceFile,
+        ))
     }
 
     pub(super) fn initialize_type_checker(&self) -> io::Result<()> {
@@ -1012,7 +1015,7 @@ impl TypeChecker {
             if is_effective_external_module(&source_file, &self.compiler_options)
                 && !location.flags().intersects(NodeFlags::Ambient)
             {
-                let helpers_module = self.resolve_helpers_module(&source_file, location);
+                let helpers_module = self.resolve_helpers_module(&source_file, location)?;
                 if !Gc::ptr_eq(&helpers_module, &self.unknown_symbol()) {
                     let unchecked_helpers = helpers & !self.requested_external_emit_helpers();
                     let mut helper = ExternalEmitHelpers::FirstEmitHelper;

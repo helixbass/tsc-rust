@@ -9,11 +9,11 @@ use super::{
 };
 use crate::{
     are_gc_slices_equal, are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map,
-    AccessFlags, DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface,
-    ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler, RelationComparisonResult,
-    Signature, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeComparer,
-    TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface,
-    VarianceFlags,
+    try_map, AccessFlags, DiagnosticMessageChain, InferenceFlags, InferencePriority, Node,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
+    RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeComparer, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback,
+    UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {
@@ -286,7 +286,7 @@ impl CheckTypeRelatedTo {
                             None,
                         )?
                     } else {
-                        self.type_checker.compare_types_identical(s, t)
+                        self.type_checker.compare_types_identical(s, t)?
                     };
                 } else if variance == VarianceFlags::Covariant {
                     related = self.is_related_to(
@@ -375,7 +375,7 @@ impl CheckTypeRelatedTo {
                     IntersectionState::None
                 }),
             &(*self.relation).borrow(),
-        );
+        )?;
         let entry = (*self.relation).borrow().get(&id).map(Clone::clone);
         if let Some(entry) = entry.as_ref() {
             if report_errors
@@ -629,7 +629,7 @@ impl CheckTypeRelatedTo {
                             target,
                             report_errors && !source.flags().intersects(TypeFlags::Primitive),
                             intersection_state & !IntersectionState::UnionIntersectionCheck,
-                        )
+                        )?
                     },
                 );
             }
@@ -657,10 +657,10 @@ impl CheckTypeRelatedTo {
             if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
                 && target.flags().intersects(TypeFlags::Primitive)
             {
-                let constraints = same_map(
+                let constraints = try_map(
                     source.as_union_or_intersection_type_interface().types(),
                     |type_: &Gc<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
-                );
+                )?;
                 if !are_gc_slices_equal(
                     &constraints,
                     source.as_union_or_intersection_type_interface().types(),
@@ -976,7 +976,7 @@ impl CheckTypeRelatedTo {
             } else {
                 let constraint = self
                     .type_checker
-                    .get_simplified_type_or_constraint(target_type);
+                    .get_simplified_type_or_constraint(target_type)?;
                 if let Some(constraint) = constraint.as_ref() {
                     if self.is_related_to(
                         &source,
@@ -993,7 +993,7 @@ impl CheckTypeRelatedTo {
                     {
                         return Ok(Ternary::True);
                     }
-                } else if self.type_checker.is_generic_mapped_type(target_type) {
+                } else if self.type_checker.is_generic_mapped_type(target_type)? {
                     let name_type = self
                         .type_checker
                         .get_name_type_from_mapped_type(target_type)?;
@@ -1157,7 +1157,7 @@ impl CheckTypeRelatedTo {
             if report_errors {
                 original_error_info = None;
             }
-        } else if self.type_checker.is_generic_mapped_type(target)
+        } else if self.type_checker.is_generic_mapped_type(target)?
             && !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation)
         {
             let keys_remapped = target
@@ -1183,7 +1183,7 @@ impl CheckTypeRelatedTo {
                 {
                     return Ok(Ternary::True);
                 }
-                if !self.type_checker.is_generic_mapped_type(&source) {
+                if !self.type_checker.is_generic_mapped_type(&source)? {
                     let target_keys = if keys_remapped {
                         self.type_checker
                             .get_name_type_from_mapped_type(target)?
@@ -1390,7 +1390,7 @@ impl CheckTypeRelatedTo {
             if !(source.flags().intersects(TypeFlags::IndexedAccess)
                 && target.flags().intersects(TypeFlags::IndexedAccess))
             {
-                let constraint = self.type_checker.get_constraint_of_type(&source);
+                let constraint = self.type_checker.get_constraint_of_type(&source)?;
                 if match constraint.as_ref() {
                     None => true,
                     Some(constraint) => {
@@ -1561,7 +1561,7 @@ impl CheckTypeRelatedTo {
                 if self.type_checker.is_type_identical_to(
                     &source_extends,
                     &target.as_conditional_type().extends_type,
-                ) && (self.is_related_to(
+                )? && (self.is_related_to(
                     &source.as_conditional_type().check_type,
                     &target.as_conditional_type().check_type,
                     Some(RecursionFlags::Both),
@@ -1657,8 +1657,8 @@ impl CheckTypeRelatedTo {
             {
                 return Ok(Ternary::True);
             }
-            if self.type_checker.is_generic_mapped_type(target) {
-                if self.type_checker.is_generic_mapped_type(&source) {
+            if self.type_checker.is_generic_mapped_type(target)? {
+                if self.type_checker.is_generic_mapped_type(&source)? {
                     result = self.mapped_type_related_to(&source, target, report_errors)?;
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
@@ -1670,7 +1670,7 @@ impl CheckTypeRelatedTo {
             let source_is_primitive = source.flags().intersects(TypeFlags::Primitive);
             if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
                 source = self.type_checker.get_apparent_type(&source)?;
-            } else if self.type_checker.is_generic_mapped_type(&source) {
+            } else if self.type_checker.is_generic_mapped_type(&source)? {
                 return Ok(Ternary::False);
             }
             if get_object_flags(&source).intersects(ObjectFlags::Reference)

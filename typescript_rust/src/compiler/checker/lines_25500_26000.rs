@@ -141,7 +141,7 @@ impl TypeChecker {
                 let mut literal = containing_literal.clone();
                 let mut type_ = contextual_type.clone();
                 while let Some(type_present) = type_.as_ref() {
-                    let this_type = self.get_this_type_from_contextual_type(type_present);
+                    let this_type = self.get_this_type_from_contextual_type(type_present)?;
                     if let Some(this_type) = this_type.as_ref() {
                         return Ok(Some(self.instantiate_type(
                             this_type,
@@ -504,7 +504,7 @@ impl TypeChecker {
                         IterationTypeKind::Yield,
                         contextual_return_type,
                         function_flags.intersects(FunctionFlags::Async),
-                    )
+                    )?
                 });
             }
         }
@@ -561,11 +561,11 @@ impl TypeChecker {
         let is_async = get_function_flags(Some(function_decl)).intersects(FunctionFlags::Async);
         let contextual_return_type = self.get_contextual_return_type(function_decl)?;
         if let Some(contextual_return_type) = contextual_return_type.as_ref() {
-            return Ok(self.get_iteration_type_of_generator_function_return_type(
+            return self.get_iteration_type_of_generator_function_return_type(
                 kind,
                 contextual_return_type,
                 is_async,
-            ));
+            );
         }
 
         Ok(None)

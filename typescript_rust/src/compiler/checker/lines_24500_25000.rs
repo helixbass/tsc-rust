@@ -49,7 +49,7 @@ impl GetFlowTypeOfReference {
         }
 
         let identifier_type = self.type_checker.get_type_of_expression(identifier)?;
-        if !self.type_checker.is_function_type(&identifier_type)
+        if !self.type_checker.is_function_type(&identifier_type)?
             && !self.type_checker.is_constructor_type(&identifier_type)?
         {
             return Ok(type_.type_wrapper());
@@ -89,18 +89,17 @@ impl GetFlowTypeOfReference {
                 || target.flags().intersects(TypeFlags::Object)
                     && get_object_flags(target).intersects(ObjectFlags::Class)
             {
-                return are_option_gcs_equal(
+                return Ok(are_option_gcs_equal(
                     source.maybe_symbol().as_ref(),
                     target.maybe_symbol().as_ref(),
-                );
+                ));
             }
 
             self.type_checker.is_type_subtype_of(source, target)
         };
 
-        Ok(self
-            .type_checker
-            .filter_type(type_, |t: &Type| is_constructed_by(t, &candidate)))
+        self.type_checker
+            .try_filter_type(type_, |t: &Type| is_constructed_by(t, &candidate))
     }
 
     pub(super) fn narrow_type_by_instanceof(
@@ -234,7 +233,7 @@ impl GetFlowTypeOfReference {
             }
         }
 
-        Ok(if self.type_checker.is_type_subtype_of(candidate, type_) {
+        Ok(if self.type_checker.is_type_subtype_of(candidate, type_)? {
             candidate.type_wrapper()
         } else if self.type_checker.is_type_assignable_to(type_, candidate)? {
             type_.type_wrapper()
@@ -305,7 +304,7 @@ impl GetFlowTypeOfReference {
                 let argument = &call_expression_as_call_expression.arguments[0];
                 if is_string_literal_like(argument)
                     && matches!(
-                        self.type_checker.get_accessed_property_name(&self.reference).as_ref(),
+                        self.type_checker.get_accessed_property_name(&self.reference)?.as_ref(),
                         Some(accessed_property_name) if accessed_property_name == &escape_leading_underscores(&argument.as_literal_like_node().text())
                     )
                 {
@@ -682,27 +681,30 @@ impl TypeChecker {
                 && ptr::eq(&*parent.as_call_expression().expression, node)
             || parent.kind() == SyntaxKind::ElementAccessExpression
                 && ptr::eq(&*parent.as_element_access_expression().expression, node)
-                && !(self.some_type(type_, |type_: &Type| {
+                && !(self.try_some_type(type_, |type_: &Type| {
                     self.is_generic_type_without_nullable_constraint(type_)
-                }) && self.is_generic_index_type(&*self.get_type_of_expression(
+                })? && self.is_generic_index_type(&*self.get_type_of_expression(
                     &parent.as_element_access_expression().argument_expression,
                 )?)))
     }
 
-    pub(super) fn is_generic_type_with_union_constraint(&self, type_: &Type) -> bool {
-        type_.flags().intersects(TypeFlags::Instantiable)
+    pub(super) fn is_generic_type_with_union_constraint(&self, type_: &Type) -> io::Result<bool> {
+        Ok(type_.flags().intersects(TypeFlags::Instantiable)
             && self
-                .get_base_constraint_or_type(type_)
+                .get_base_constraint_or_type(type_)?
                 .flags()
-                .intersects(TypeFlags::Nullable | TypeFlags::Union)
+                .intersects(TypeFlags::Nullable | TypeFlags::Union))
     }
 
-    pub(super) fn is_generic_type_without_nullable_constraint(&self, type_: &Type) -> bool {
-        type_.flags().intersects(TypeFlags::Instantiable)
+    pub(super) fn is_generic_type_without_nullable_constraint(
+        &self,
+        type_: &Type,
+    ) -> io::Result<bool> {
+        Ok(type_.flags().intersects(TypeFlags::Instantiable)
             && !self.maybe_type_of_kind(
-                &self.get_base_constraint_or_type(type_),
+                &*self.get_base_constraint_or_type(type_)?,
                 TypeFlags::Nullable,
-            )
+            ))
     }
 
     pub(super) fn has_non_binding_pattern_contextual_type_with_no_generic_types(
@@ -737,22 +739,22 @@ impl TypeChecker {
         let substitute_constraints = !matches!(
             check_mode,
             Some(check_mode) if check_mode.intersects(CheckMode::Inferential)
-        ) && self.some_type(type_, |type_: &Type| {
+        ) && self.try_some_type(type_, |type_: &Type| {
             self.is_generic_type_with_union_constraint(type_)
-        }) && (self.is_constraint_position(type_, reference)?
+        })? && (self.is_constraint_position(type_, reference)?
             || self.has_non_binding_pattern_contextual_type_with_no_generic_types(reference)?);
         Ok(if substitute_constraints {
-            self.map_type(
+            self.try_map_type(
                 type_,
                 &mut |t: &Type| {
-                    Some(if t.flags().intersects(TypeFlags::Instantiable) {
-                        self.get_base_constraint_or_type(t)
+                    Ok(Some(if t.flags().intersects(TypeFlags::Instantiable) {
+                        self.get_base_constraint_or_type(t)?
                     } else {
                         t.type_wrapper()
-                    })
+                    }))
                 },
                 None,
-            )
+            )?
             .unwrap()
         } else {
             type_.type_wrapper()

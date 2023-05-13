@@ -787,19 +787,19 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Gc<Type>> {
+    ) -> io::Result<Option<Gc<Type>>> {
         if get_object_flags(source).intersects(ObjectFlags::ObjectLiteral)
-            && self.some_type(union_target, |type_: &Type| self.is_array_like_type(type_))
+            && self.try_some_type(union_target, |type_: &Type| self.is_array_like_type(type_))?
         {
-            return find(
+            return Ok(try_find(
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Gc<Type>, _| !self.is_array_like_type(t),
-            )
-            .map(Clone::clone);
+                |t: &Gc<Type>, _| -> io::Result<_> { Ok(!self.is_array_like_type(t)?) },
+            )?
+            .cloned());
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn find_best_type_for_invokable(
@@ -1312,12 +1312,12 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_external_module_file_from_declaration(
         &self,
         node_in: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Gc<Node /*SourceFile*/>> {
+    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| has_possible_external_module_reference(node)),
         );
-        node.as_ref().and_then(|node| {
+        node.as_ref().try_and_then(|node| {
             self.type_checker
                 .get_external_module_file_from_declaration(node)
         })
@@ -1345,11 +1345,11 @@ impl EmitResolver for EmitResolverCreateResolver {
             None,
             Option::<&Node>::None,
         )?;
-        Ok(symbol
+        symbol
             .filter(|symbol| !Gc::ptr_eq(symbol, &self.type_checker.unknown_symbol()))
-            .and_then(|ref symbol| {
-                self.get_type_reference_directives_for_symbol(symbol, Some(meaning))
-            }))
+            .try_and_then(|ref sym -> io::Result<_>bol| {
+                Ok(self.get_type_reference_directives_for_symbol(symbol, Some(meaning)))
+            })
     }
 
     fn get_type_reference_directives_for_symbol(
@@ -1455,7 +1455,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_symbol_of_external_module_specifier(
         &self,
         module_name: &Node, /*StringLiteralLike*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         self.type_checker
             .resolve_external_module_name_worker(module_name, module_name, None, None)
     }
@@ -1534,13 +1534,9 @@ impl EmitResolver for EmitResolverCreateResolver {
             return Ok(false);
         }
         let ref file_symbol = file_symbol.unwrap();
-        let import_target = self
+        let ref import_target = return_ok_default_if_none!(self
             .type_checker
-            .get_external_module_file_from_declaration(node);
-        if import_target.is_none() {
-            return Ok(false);
-        }
-        let ref import_target = import_target.unwrap();
+            .get_external_module_file_from_declaration(node)?);
         if Gc::ptr_eq(import_target, file) {
             return Ok(false);
         }

@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::{cmp, io};
 
 use super::{ExpandingFlags, RecursionIdentity};
+use crate::try_some;
 use crate::{
     append_if_unique_gc, append_if_unique_rc, arrays_equal, contains, contains_gc, contains_rc,
     create_scanner, every, filter, get_check_flags, get_object_flags, map, some, CheckFlags,
@@ -255,7 +256,7 @@ impl TypeChecker {
                 && self
                     .is_type_assignable_to(&source.as_template_literal_type().types[0], target)?);
         }
-        Ok(self.is_type_assignable_to(source, target))
+        self.is_type_assignable_to(source, target)
     }
 
     pub(super) fn infer_types_from_template_literal_type(
@@ -296,12 +297,12 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
-    ) -> bool {
+    ) -> io::Result<bool> {
         let inferences = self.infer_types_from_template_literal_type(source, target);
         let target_as_template_literal_type = target.as_template_literal_type();
-        matches!(
+        Ok(matches!(
             inferences.as_ref(),
-            Some(inferences) if every(
+            Some(inferences) if try_every(
                 inferences,
                 |r: &Gc<Type>, i| {
                     self.is_valid_type_for_template_literal_placeholder(
@@ -309,8 +310,8 @@ impl TypeChecker {
                         &target_as_template_literal_type.types[i],
                     )
                 }
-            )
-        )
+            )?
+        ))
     }
 
     pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> Gc<Type> {
@@ -639,7 +640,7 @@ impl InferTypes {
     }
 
     pub(super) fn infer_from_types(&self, source: &Type, target: &Type) -> io::Result<()> {
-        if !self.type_checker.could_contain_type_variables(target) {
+        if !self.type_checker.could_contain_type_variables(target)? {
             return Ok(());
         }
         if ptr::eq(source, &*self.type_checker.wildcard_type()) {
@@ -688,7 +689,7 @@ impl InferTypes {
             let (sources, targets) = self.infer_from_matching_types(
                 &temp_sources,
                 &temp_targets,
-                |s: &Type, t: &Type| self.type_checker.is_type_closely_matched_by(s, t),
+                |s: &Type, t: &Type| Ok(self.type_checker.is_type_closely_matched_by(s, t)),
             );
             if targets.is_empty() {
                 return Ok(());
@@ -712,21 +713,21 @@ impl InferTypes {
                 Option::<&Type>::None,
             )?;
         } else if target.flags().intersects(TypeFlags::Intersection)
-            && some(
+            && try_some(
                 Some(target.as_union_or_intersection_type_interface().types()),
                 Some(|t: &Gc<Type>| {
-                    self.get_inference_info_for_type(t).is_some()
-                        || (self.type_checker.is_generic_mapped_type(t)
+                    Ok(self.get_inference_info_for_type(t).is_some()
+                        || (self.type_checker.is_generic_mapped_type(t)?
                             && self
                                 .get_inference_info_for_type(
                                     &self
                                         .type_checker
-                                        .get_homomorphic_type_variable(t)
+                                        .get_homomorphic_type_variable(t)?
                                         .unwrap_or_else(|| self.type_checker.never_type()),
                                 )
-                                .is_some())
+                                .is_some()))
                 }),
-            )
+            )?
         {
             if !source.flags().intersects(TypeFlags::Union) {
                 let (sources, targets) = self.infer_from_matching_types(
@@ -759,7 +760,7 @@ impl InferTypes {
             .flags()
             .intersects(TypeFlags::IndexedAccess | TypeFlags::Substitution)
         {
-            target = self.type_checker.get_actual_type_variable(&target);
+            target = self.type_checker.get_actual_type_variable(&target)?;
         }
         if target.flags().intersects(TypeFlags::TypeVariable) {
             if get_object_flags(&source).intersects(ObjectFlags::NonInferrableType)
@@ -1079,13 +1080,13 @@ impl InferTypes {
         &self,
         sources: &[Gc<Type>],
         targets: &[Gc<Type>],
-        mut matches: impl FnMut(&Type, &Type) -> bool,
+        mut matches: impl FnMut(&Type, &Type) -> io::Result<bool>,
     ) -> io::Result<(Vec<Gc<Type>>, Vec<Gc<Type>>)> {
         let mut matched_sources: Option<Vec<Gc<Type>>> = None;
         let mut matched_targets: Option<Vec<Gc<Type>>> = None;
         for t in targets {
             for s in sources {
-                if matches(s, t) {
+                if matches(s, t)? {
                     self.infer_from_types(s, t)?;
                     if matched_sources.is_none() {
                         matched_sources = Some(vec![]);

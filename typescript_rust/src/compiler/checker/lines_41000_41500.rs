@@ -4,6 +4,7 @@ use std::ptr;
 use std::{borrow::Borrow, io};
 
 use super::{is_declaration_name_or_import_property_name, IterationUse};
+use crate::try_filter;
 use crate::{
     cast_present, create_symbol_table, filter, find_ancestor, first_or_undefined, flat_map,
     for_each, for_each_entry_bool, get_check_flags, get_enclosing_block_scope_container,
@@ -43,11 +44,14 @@ impl TypeChecker {
             } else {
                 vec![object_type.clone()]
             };
-            return Ok(Some(flat_map(Some(&object_types), |t: &Gc<Type>, _| {
-                filter(&self.get_index_infos_of_type(t), |info: &Gc<IndexInfo>| {
-                    self.is_applicable_index_type(key_type, &info.key_type)
-                })
-            })));
+            return Ok(Some(try_flat_map(
+                Some(&object_types),
+                |t: &Gc<Type>, _| {
+                    try_filter(&self.get_index_infos_of_type(t), |info: &Gc<IndexInfo>| {
+                        self.is_applicable_index_type(key_type, &info.key_type)
+                    })
+                },
+            )?));
         }
         Ok(None)
     }
@@ -349,7 +353,7 @@ impl TypeChecker {
             }
             SyntaxKind::ComputedPropertyName => {
                 let ref name_type = self.check_computed_property_name(name)?;
-                if self.is_type_assignable_to_kind(name_type, TypeFlags::ESSymbolLike, None) {
+                if self.is_type_assignable_to_kind(name_type, TypeFlags::ESSymbolLike, None)? {
                     name_type.clone()
                 } else {
                     self.string_type()
@@ -392,7 +396,7 @@ impl TypeChecker {
         self.get_named_members(&props_by_name)
     }
 
-    pub(super) fn type_has_call_or_construct_signatures(&self, type_: &Type) -> bool {
+    pub(super) fn type_has_call_or_construct_signatures(&self, type_: &Type) -> io::Result<bool> {
         type_has_call_or_construct_signatures(type_, self)
     }
 

@@ -10,7 +10,7 @@ use crate::{
     is_type_parameter_declaration, map_defined, maybe_for_each, maybe_for_each_bool, Diagnostics,
     IteratorExt, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
     OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeSystemPropertyName, __String,
+    TypeSystemPropertyName, __String, try_map_defined,
 };
 
 impl TypeChecker {
@@ -187,7 +187,7 @@ impl TypeChecker {
         Ok(if optionality != 0 {
             optionality
         } else {
-            if self.is_generic_mapped_type(&modifiers_type) {
+            if self.is_generic_mapped_type(&modifiers_type)? {
                 self.get_mapped_type_optionality(&modifiers_type)
             } else {
                 0
@@ -440,7 +440,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*IndexedAccessType*/
     ) -> io::Result<Option<Gc<Type>>> {
-        Ok(if self.has_non_circular_base_constraint(type_) {
+        Ok(if self.has_non_circular_base_constraint(type_)? {
             self.get_constraint_from_indexed_access(type_)?
         } else {
             None
@@ -455,7 +455,7 @@ impl TypeChecker {
         Ok(if !ptr::eq(&*simplified, type_) {
             Some(simplified)
         } else {
-            self.get_constraint_of_type(type_)
+            self.get_constraint_of_type(type_)?
         })
     }
 
@@ -465,7 +465,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Type>>> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         let index_constraint =
-            self.get_simplified_type_or_constraint(&type_as_indexed_access_type.index_type);
+            self.get_simplified_type_or_constraint(&type_as_indexed_access_type.index_type)?;
         if let Some(index_constraint) = index_constraint.filter(|index_constraint| {
             !Gc::ptr_eq(index_constraint, &type_as_indexed_access_type.index_type)
         }) {
@@ -482,7 +482,7 @@ impl TypeChecker {
             }
         }
         let object_constraint =
-            self.get_simplified_type_or_constraint(&type_as_indexed_access_type.object_type);
+            self.get_simplified_type_or_constraint(&type_as_indexed_access_type.object_type)?;
         if let Some(object_constraint) = object_constraint.filter(|object_constraint| {
             !Gc::ptr_eq(object_constraint, &type_as_indexed_access_type.object_type)
         }) {
@@ -544,7 +544,7 @@ impl TypeChecker {
             let simplified =
                 self.get_simplified_type(&type_as_conditional_type.check_type, false)?;
             let constraint = if Gc::ptr_eq(&simplified, &type_as_conditional_type.check_type) {
-                self.get_constraint_of_type(&simplified)
+                self.get_constraint_of_type(&simplified)?
             } else {
                 Some(simplified)
             };
@@ -597,13 +597,13 @@ impl TypeChecker {
         let mut has_disjoint_domain_type = false;
         for t in types {
             if t.flags().intersects(TypeFlags::Instantiable) {
-                let mut constraint = self.get_constraint_of_type(t);
+                let mut constraint = self.get_constraint_of_type(t)?;
                 while let Some(constraint_present) = constraint.as_ref().filter(|constraint| {
                     constraint.flags().intersects(
                         TypeFlags::TypeParameter | TypeFlags::Index | TypeFlags::Conditional,
                     )
                 }) {
-                    constraint = self.get_constraint_of_type(constraint_present);
+                    constraint = self.get_constraint_of_type(constraint_present)?;
                 }
                 if let Some(constraint) = constraint {
                     if constraints.is_none() {
@@ -782,7 +782,7 @@ impl TypeChecker {
                 {
                     constraint
                 } else {
-                    self.get_base_constraint(stack, constraint.as_ref().unwrap())
+                    self.get_base_constraint(stack, constraint.as_ref().unwrap())?
                 },
             );
         }
@@ -791,7 +791,7 @@ impl TypeChecker {
             let mut base_types: Vec<Gc<Type>> = vec![];
             let mut different = false;
             for type_ in types {
-                let base_type = self.get_base_constraint(stack, type_);
+                let base_type = self.get_base_constraint(stack, type_)?;
                 if let Some(base_type) = base_type {
                     if !Gc::ptr_eq(&base_type, type_) {
                         different = true;
@@ -826,9 +826,9 @@ impl TypeChecker {
         if t.flags().intersects(TypeFlags::TemplateLiteral) {
             let t_as_template_literal_type = t.as_template_literal_type();
             let types = &t_as_template_literal_type.types;
-            let constraints = map_defined(Some(types), |type_: &Gc<Type>, _| {
+            let constraints = try_map_defined(Some(types), |type_: &Gc<Type>, _| {
                 self.get_base_constraint(stack, type_)
-            });
+            })?;
             return Ok(Some(if constraints.len() == types.len() {
                 self.get_template_literal_type(&t_as_template_literal_type.texts, &constraints)
             } else {
@@ -836,7 +836,7 @@ impl TypeChecker {
             }));
         }
         if t.flags().intersects(TypeFlags::StringMapping) {
-            let constraint = self.get_base_constraint(stack, &t.as_string_mapping_type().type_);
+            let constraint = self.get_base_constraint(stack, &t.as_string_mapping_type().type_)?;
             return Ok(Some(if let Some(constraint) = constraint {
                 self.get_string_mapping_type(&t.symbol(), &constraint)
             } else {
@@ -846,9 +846,9 @@ impl TypeChecker {
         if t.flags().intersects(TypeFlags::IndexedAccess) {
             let t_as_indexed_access_type = t.as_indexed_access_type();
             let base_object_type =
-                self.get_base_constraint(stack, &t_as_indexed_access_type.object_type);
+                self.get_base_constraint(stack, &t_as_indexed_access_type.object_type)?;
             let base_index_type =
-                self.get_base_constraint(stack, &t_as_indexed_access_type.index_type);
+                self.get_base_constraint(stack, &t_as_indexed_access_type.index_type)?;
             let base_indexed_access = if let (Some(base_object_type), Some(base_index_type)) =
                 (base_object_type, base_index_type)
             {
@@ -863,18 +863,16 @@ impl TypeChecker {
             } else {
                 None
             };
-            return Ok(base_indexed_access.and_then(|base_indexed_access| {
+            return base_indexed_access.try_and_then(|base_indexed_access| {
                 self.get_base_constraint(stack, &base_indexed_access)
-            }));
+            });
         }
         if t.flags().intersects(TypeFlags::Conditional) {
             let constraint = self.get_constraint_from_conditional_type(t)?;
-            return Ok(
-                /*constraint &&*/ self.get_base_constraint(stack, &constraint),
-            );
+            return /*constraint &&*/ self.get_base_constraint(stack, &constraint);
         }
         if t.flags().intersects(TypeFlags::Substitution) {
-            return Ok(self.get_base_constraint(stack, &t.as_substitution_type().substitute));
+            return self.get_base_constraint(stack, &t.as_substitution_type().substitute);
         }
         Ok(Some(t.type_wrapper()))
     }

@@ -91,7 +91,7 @@ impl CheckTypeRelatedTo {
                 && target_info.type_.flags().intersects(TypeFlags::Any)
             {
                 Ternary::True
-            } else if self.type_checker.is_generic_mapped_type(source) && target_has_string_index {
+            } else if self.type_checker.is_generic_mapped_type(source)? && target_has_string_index {
                 self.is_related_to(
                     &*self
                         .type_checker
@@ -243,29 +243,32 @@ impl CheckTypeRelatedTo {
 }
 
 impl TypeChecker {
-    pub(super) fn type_could_have_top_level_singleton_types(&self, type_: &Type) -> bool {
+    pub(super) fn type_could_have_top_level_singleton_types(
+        &self,
+        type_: &Type,
+    ) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Boolean) {
-            return false;
+            return Ok(false);
         }
 
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            return for_each_bool(
+            return Ok(for_each_bool(
                 type_.as_union_or_intersection_type_interface().types(),
                 |type_: &Gc<Type>, _| self.type_could_have_top_level_singleton_types(type_),
-            );
+            ));
         }
 
         if type_.flags().intersects(TypeFlags::Instantiable) {
-            let constraint = self.get_constraint_of_type(type_);
+            let constraint = self.get_constraint_of_type(type_)?;
             if let Some(constraint) = constraint
                 .as_ref()
                 .filter(|constraint| !ptr::eq(&***constraint, type_))
             {
-                return self.type_could_have_top_level_singleton_types(constraint);
+                return Ok(self.type_could_have_top_level_singleton_types(constraint));
             }
         }
 
-        self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
+        Ok(self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral))
     }
 
     pub(super) fn get_exact_optional_unassignable_properties(
@@ -322,14 +325,14 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Type>>> {
         let is_related_to = |source: &Type, target: &Type| {
             Ok(match is_related_to.as_ref() {
-                None => self.compare_types_assignable(source, target),
+                None => self.compare_types_assignable(source, target)?,
                 Some(is_related_to) => is_related_to(source, target)?,
             })
         };
         self.find_matching_discriminant_type(source, target, is_related_to, Some(true))?
             .or_else(|| self.find_matching_type_reference_or_type_alias_reference(source, target))
             .or_else(|| self.find_best_type_for_object_literal(source, target))
-            .or_else(|| self.find_best_type_for_invokable(source, target))
+            .try_or_else(|| self.find_best_type_for_invokable(source, target))?
             .try_or_else(|| self.find_most_overlappy_type(source, target))
     }
 
@@ -389,7 +392,8 @@ impl TypeChecker {
             .position(|item| *item == Some(true))
             .map(|position| position + match_ + 1);
         while let Some(next_match_present) = next_match {
-            if !self.is_type_identical_to(&target_types[match_], &target_types[next_match_present])
+            if !self
+                .is_type_identical_to(&target_types[match_], &target_types[next_match_present])?
             {
                 return Ok(default_value);
             }
@@ -655,7 +659,7 @@ impl TypeChecker {
             .id()
             .to_string();
         for t in &self.get_type_arguments(type_)? {
-            if self.is_unconstrained_type_parameter(t) {
+            if self.is_unconstrained_type_parameter(t)? {
                 let mut index = type_parameters
                     .iter()
                     .position(|type_| Gc::ptr_eq(type_, t));

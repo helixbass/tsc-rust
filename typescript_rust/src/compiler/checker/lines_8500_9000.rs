@@ -31,11 +31,11 @@ impl TypeChecker {
     pub(super) fn get_parent_element_access(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let ancestor = node.parent().parent();
-        match ancestor.kind() {
+        Ok(match ancestor.kind() {
             SyntaxKind::BindingElement | SyntaxKind::PropertyAssignment => {
-                self.get_synthetic_element_access(&ancestor)
+                self.get_synthetic_element_access(&ancestor)?
             }
             SyntaxKind::ArrayLiteralExpression => self.get_synthetic_element_access(&node.parent()),
             SyntaxKind::VariableDeclaration => {
@@ -43,7 +43,7 @@ impl TypeChecker {
             }
             SyntaxKind::BinaryExpression => Some(ancestor.as_binary_expression().right.clone()),
             _ => None,
-        }
+        })
     }
 
     pub(super) fn get_destructuring_property_name(
@@ -134,7 +134,7 @@ impl TypeChecker {
             if declaration_as_binding_element.dot_dot_dot_token.is_some() {
                 parent_type = self.get_reduced_type(&parent_type);
                 if parent_type.flags().intersects(TypeFlags::Unknown)
-                    || !self.is_valid_spread_type(&parent_type)
+                    || !self.is_valid_spread_type(&parent_type)?
                 {
                     self.error(
                         Some(declaration),
@@ -206,7 +206,7 @@ impl TypeChecker {
                 } else {
                     Some(self.create_array_type(&element_type, None))
                 };
-            } else if self.is_array_like_type(&parent_type) {
+            } else if self.is_array_like_type(&parent_type)? {
                 let index_type = self.get_number_literal_type(Number::new(index as f64));
                 let access_flags = AccessFlags::ExpressionPosition
                     | if self.has_default_value(declaration) {
@@ -247,7 +247,7 @@ impl TypeChecker {
                         )
                         .intersects(TypeFlags::Undefined)
                 {
-                    self.get_non_undefined_type(&type_)
+                    self.get_non_undefined_type(&type_)?
                 } else {
                     type_
                 },
@@ -257,7 +257,7 @@ impl TypeChecker {
             declaration,
             &*self.get_union_type(
                 &[
-                    self.get_non_undefined_type(&type_),
+                    self.get_non_undefined_type(&type_)?,
                     self.check_declaration_initializer(declaration, Option::<&Type>::None)?,
                 ],
                 Some(UnionReduction::Subtype),
@@ -1074,7 +1074,7 @@ impl TypeChecker {
             let declared_type = declared_type.as_ref().unwrap();
             if !self.is_error_type(declared_type)
                 && !self.is_error_type(&type_)
-                && !self.is_type_identical_to(&declared_type, &type_)
+                && !self.is_type_identical_to(&declared_type, &type_)?
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(
                     Option::<&Node>::None,
@@ -1301,7 +1301,7 @@ impl TypeChecker {
             }
             return Ok(result);
         }
-        if self.is_empty_array_literal_type(&type_) {
+        if self.is_empty_array_literal_type(&type_)? {
             self.report_implicit_any(expression, &self.any_array_type(), None);
             return Ok(self.any_array_type());
         }

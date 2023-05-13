@@ -255,9 +255,9 @@ impl TypeChecker {
             &source_signature,
             &signature,
             |source: &Type, target: &Type| {
-                self.infer_types(&context.inferences(), source, target, None, None);
+                self.infer_types(&context.inferences(), source, target, None, None)
             },
-        );
+        )?;
         if inference_context.is_none() {
             self.apply_to_return_types(
                 contextual_signature.clone(),
@@ -579,7 +579,7 @@ impl TypeChecker {
                 } else {
                     self.check_expression(&arg.as_spread_element().expression, None, None)?
                 };
-                if self.is_array_like_type(&spread_type) {
+                if self.is_array_like_type(&spread_type)? {
                     types.push(spread_type);
                     flags.push(ElementFlags::Variadic);
                 } else {

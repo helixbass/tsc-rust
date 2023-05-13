@@ -47,7 +47,10 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn extract_redundant_template_literals(&self, types: &mut Vec<Gc<Type>>) -> bool {
+    pub(super) fn extract_redundant_template_literals(
+        &self,
+        types: &mut Vec<Gc<Type>>,
+    ) -> io::Result<bool> {
         let mut i = types.len();
         let literals = filter(types, |t: &Gc<Type>| {
             t.flags().intersects(TypeFlags::StringLiteral)
@@ -59,15 +62,15 @@ impl TypeChecker {
                 continue;
             }
             for t2 in &literals {
-                if self.is_type_subtype_of(t2, &t) {
+                if self.is_type_subtype_of(t2, &t)? {
                     ordered_remove_item_at(types, i);
                     break;
                 } else if self.is_pattern_literal_type(&t) {
-                    return true;
+                    return Ok(true);
                 }
             }
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn each_is_union_containing(&self, types: &[Gc<Type>], flag: TypeFlags) -> bool {
@@ -190,7 +193,7 @@ impl TypeChecker {
         }
         if includes.intersects(TypeFlags::TemplateLiteral)
             && includes.intersects(TypeFlags::StringLiteral)
-            && self.extract_redundant_template_literals(&mut type_set)
+            && self.extract_redundant_template_literals(&mut type_set)?
         {
             return Ok(self.never_type());
         }
@@ -787,7 +790,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
             || self.is_generic_tuple_type(&type_)
-            || self.is_generic_mapped_type(&type_) && !self.has_distributive_name_type(&type_)?
+            || self.is_generic_mapped_type(&type_)? && !self.has_distributive_name_type(&type_)?
         {
             self.get_index_type_for_generic_type(&type_, strings_only)
         } else if get_object_flags(&type_).intersects(ObjectFlags::Mapped) {

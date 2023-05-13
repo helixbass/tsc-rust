@@ -245,7 +245,7 @@ impl TypeChecker {
                         .borrow_mut()
                         .type_ = Some(default_containing_object.clone());
                     *synth_type.maybe_synthetic_type() =
-                        Some(if self.is_valid_spread_type(type_) {
+                        Some(if self.is_valid_spread_type(type_)? {
                             self.get_spread_type(
                                 type_,
                                 &default_containing_object,
@@ -430,7 +430,7 @@ impl TypeChecker {
         let target_type = self.get_type_from_type_node_(type_)?;
         if self.produce_diagnostics && !self.is_error_type(&target_type) {
             let widened_type = self.get_widened_type(&expr_type)?;
-            if !self.is_type_comparable_to(&target_type, &widened_type) {
+            if !self.is_type_comparable_to(&target_type, &widened_type)? {
                 self.check_type_comparable_to(
                     &expr_type,
                     &target_type,

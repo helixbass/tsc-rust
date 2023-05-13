@@ -493,7 +493,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let signature_type_parameters_is_some = signature.maybe_type_parameters().is_some();
         Ok(signature_type_parameters_is_some
-            && self.is_function_type(&*self.get_return_type_of_signature(signature)?))
+            && self.is_function_type(&*self.get_return_type_of_signature(signature)?)?)
     }
 
     pub(super) fn is_untyped_function_call(
@@ -682,7 +682,7 @@ impl TypeChecker {
                         ) {
                             return Ok(true);
                         }
-                        if self.type_has_protected_accessible_base(target, intersection_member) {
+                        if self.type_has_protected_accessible_base(target, intersection_member)? {
                             return Ok(true);
                         }
                     }
@@ -700,7 +700,7 @@ impl TypeChecker {
         ) {
             return Ok(true);
         }
-        Ok(self.type_has_protected_accessible_base(target, first_base))
+        self.type_has_protected_accessible_base(target, first_base)
     }
 
     pub(super) fn is_constructor_accessible(
@@ -736,7 +736,7 @@ impl TypeChecker {
                     if self.type_has_protected_accessible_base(
                         &declaration.parent().symbol(),
                         &containing_type,
-                    ) {
+                    )? {
                         return Ok(true);
                     }
                 }

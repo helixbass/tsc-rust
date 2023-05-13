@@ -319,7 +319,11 @@ impl TypeChecker {
             return Ok(Some(ret));
         }
 
-        if self.all_types_assignable_to_kind(type_, TypeFlags::Primitive | TypeFlags::Never, None) {
+        if self.all_types_assignable_to_kind(
+            type_,
+            TypeFlags::Primitive | TypeFlags::Never,
+            None,
+        )? {
             return Ok(None);
         }
 
@@ -406,7 +410,11 @@ impl TypeChecker {
     }
 
     pub(super) fn is_thenable_type(&self, type_: &Type) -> io::Result<bool> {
-        if self.all_types_assignable_to_kind(type_, TypeFlags::Primitive | TypeFlags::Never, None) {
+        if self.all_types_assignable_to_kind(
+            type_,
+            TypeFlags::Primitive | TypeFlags::Never,
+            None,
+        )? {
             return Ok(false);
         }
 

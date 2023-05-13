@@ -292,8 +292,8 @@ impl TypeChecker {
         self.try_map_type(
             type_,
             &mut |t| -> io::Result<_> {
-                if self.is_generic_mapped_type(t) {
-                    let constraint = self.get_constraint_type_from_mapped_type(t);
+                if self.is_generic_mapped_type(t)? {
+                    let constraint = self.get_constraint_type_from_mapped_type(t)?;
                     let constraint_of_constraint = self
                         .get_base_constraint_of_type(&constraint)?
                         .unwrap_or(constraint);
@@ -469,30 +469,32 @@ impl TypeChecker {
             &attributes_type,
             &jsx_children_property_name,
         )?;
-        Ok(child_field_type.as_ref().and_then(|child_field_type| {
-            if real_children.len() == 1 {
-                Some(child_field_type.clone())
-            } else {
-                self.try_map_type(
-                    child_field_type,
-                    &mut |t: &Type| {
-                        Ok(if self.is_array_like_type(t) {
-                            Some(self.get_indexed_access_type(
-                                t,
-                                &self.get_number_literal_type(Number::new(child_index as f64)),
-                                None,
-                                Option::<&Node>::None,
-                                Option::<&Symbol>::None,
-                                None,
-                            )?)
-                        } else {
-                            Some(t.type_wrapper())
-                        })
-                    },
-                    Some(true),
-                )?
-            }
-        }))
+        child_field_type
+            .as_ref()
+            .try_and_then(|child_field_type| -> io::Result<_> {
+                Ok(if real_children.len() == 1 {
+                    Some(child_field_type.clone())
+                } else {
+                    self.try_map_type(
+                        child_field_type,
+                        &mut |t: &Type| {
+                            Ok(if self.is_array_like_type(t)? {
+                                Some(self.get_indexed_access_type(
+                                    t,
+                                    &self.get_number_literal_type(Number::new(child_index as f64)),
+                                    None,
+                                    Option::<&Node>::None,
+                                    Option::<&Symbol>::None,
+                                    None,
+                                )?)
+                            } else {
+                                Some(t.type_wrapper())
+                            })
+                        },
+                        Some(true),
+                    )?
+                })
+            })
     }
 
     pub(super) fn get_contextual_type_for_jsx_expression(
@@ -606,15 +608,15 @@ impl TypeChecker {
                                         s.escaped_name()
                                     )?)
                             }
-                        ),
+                        )?,
                         |s: &Gc<Symbol>, _| {
                             (
                                 Box::new({
                                     let type_checker = self.rc_wrapper();
                                     move || {
-                                        type_checker.undefined_type()
+                                        Ok(type_checker.undefined_type())
                                     }
-                                }) as Box<dyn Fn() -> Gc<Type>>,
+                                }) as Box<dyn Fn() -> io::Result<Gc<Type>>>,
                                 s.escaped_name().to_owned(),
                             )
                         }
@@ -938,7 +940,7 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::NonNullExpression => self.get_contextual_type_(&parent, context_flags)?,
-            SyntaxKind::JsxExpression => self.get_contextual_type_for_jsx_expression(&parent),
+            SyntaxKind::JsxExpression => self.get_contextual_type_for_jsx_expression(&parent)?,
             SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute => {
                 self.get_contextual_type_for_jsx_attribute_(&parent)?
             }

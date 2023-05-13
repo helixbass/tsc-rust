@@ -779,7 +779,7 @@ impl TypeChecker {
                             )?,
                             TypeFlags::NumberLike,
                             None,
-                        )
+                        )?
                 }
         };
         Ok(is_length_push_or_unshift || is_element_assignment)

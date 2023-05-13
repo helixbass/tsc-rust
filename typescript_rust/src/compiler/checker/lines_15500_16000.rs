@@ -92,8 +92,8 @@ impl TypeChecker {
                     .intersects(TypeFlags::Substitution)
             {
                 return self.get_indexed_access_type(
-                    &self.get_actual_type_variable(&type_as_indexed_access_type.object_type),
-                    &self.get_actual_type_variable(&type_as_indexed_access_type.index_type),
+                    &*self.get_actual_type_variable(&type_as_indexed_access_type.object_type)?,
+                    &*self.get_actual_type_variable(&type_as_indexed_access_type.index_type)?,
                     None,
                     Option::<&Node>::None,
                     Option::<&Symbol>::None,
@@ -177,7 +177,7 @@ impl TypeChecker {
             let check_type = self.instantiate_type(
                 &*self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
-                    &self.get_actual_type_variable(&(*root).borrow().check_type.clone()),
+                    &*self.get_actual_type_variable(&(*root).borrow().check_type.clone())?,
                 )?,
                 mapper.clone(),
             )?;
@@ -867,8 +867,8 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn is_non_generic_object_type(&self, type_: &Type) -> bool {
-        type_.flags().intersects(TypeFlags::Object) && !self.is_generic_mapped_type(type_)
+    pub(super) fn is_non_generic_object_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(type_.flags().intersects(TypeFlags::Object) && !self.is_generic_mapped_type(type_)?)
     }
 
     pub(super) fn is_empty_object_type_or_spreads_into_empty_object(&self, type_: &Type) -> bool {
@@ -1137,7 +1137,7 @@ impl TypeChecker {
                     result_links.type_ = Some(self.get_union_type(
                         &[
                             self.get_type_of_symbol(&left_prop)?,
-                            self.remove_missing_or_undefined_type(&right_type),
+                            self.remove_missing_or_undefined_type(&right_type)?,
                         ],
                         None,
                         Option::<&Symbol>::None,

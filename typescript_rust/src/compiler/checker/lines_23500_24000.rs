@@ -449,7 +449,7 @@ impl GetFlowTypeOfReference {
                         .get_assignment_reduced_type(
                             &self.declared_type,
                             &*self.get_initial_or_assigned_type(&flow)?,
-                        )
+                        )?
                         .into(),
                 ));
             }
@@ -646,7 +646,7 @@ impl GetFlowTypeOfReference {
                             &index_type,
                             TypeFlags::NumberLike,
                             None,
-                        ) {
+                        )? {
                             evolved_type = self.type_checker.add_evolving_array_element_type(
                                 &evolved_type,
                                 &node_as_binary_expression.right,

@@ -3,6 +3,7 @@ use std::ptr;
 use std::{convert::TryInto, io};
 
 use super::{CheckMode, TypeFacts};
+use crate::try_every;
 use crate::{
     add_related_info, are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic,
     every, first_or_undefined, get_check_flags, get_containing_class, get_containing_function,
@@ -52,7 +53,7 @@ impl TypeChecker {
                 let contextual_signature = self.get_contextual_signature(node)?;
                 if matches!(
                     contextual_signature.as_ref(),
-                    Some(contextual_signature) if self.could_contain_type_variables(&*self.get_return_type_of_signature(contextual_signature.clone())?)
+                    Some(contextual_signature) if self.could_contain_type_variables(&*self.get_return_type_of_signature(contextual_signature.clone())?)?
                 ) {
                     let links = self.get_node_links(node);
                     if let Some(links_context_free_type) =
@@ -91,7 +92,7 @@ impl TypeChecker {
             return Ok(self.any_function_type());
         }
 
-        let has_grammar_error = self.check_grammar_function_like_declaration(node);
+        let has_grammar_error = self.check_grammar_function_like_declaration(node)?;
         if !has_grammar_error && node.kind() == SyntaxKind::FunctionExpression {
             self.check_grammar_for_generator(node);
         }
@@ -804,17 +805,19 @@ impl TypeChecker {
         Ok(self.get_unary_result_type(&operand_type))
     }
 
-    pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> Gc<Type> {
+    pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> io::Result<Gc<Type>> {
         if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
-            return if self.is_type_assignable_to_kind(operand_type, TypeFlags::AnyOrUnknown, None)
-                || self.maybe_type_of_kind(operand_type, TypeFlags::NumberLike)
-            {
-                self.number_or_big_int_type()
-            } else {
-                self.bigint_type()
-            };
+            return Ok(
+                if self.is_type_assignable_to_kind(operand_type, TypeFlags::AnyOrUnknown, None)?
+                    || self.maybe_type_of_kind(operand_type, TypeFlags::NumberLike)
+                {
+                    self.number_or_big_int_type()
+                } else {
+                    self.bigint_type()
+                },
+            );
         }
-        self.number_type()
+        Ok(self.number_type())
     }
 
     pub(super) fn maybe_type_of_kind(&self, type_: &Type, kind: TypeFlags) -> bool {
@@ -875,14 +878,14 @@ impl TypeChecker {
         source: &Type,
         kind: TypeFlags,
         strict: Option<bool>,
-    ) -> bool {
-        if source.flags().intersects(TypeFlags::Union) {
-            every(source.as_union_type().types(), |sub_type: &Gc<Type>, _| {
+    ) -> io::Result<bool> {
+        Ok(if source.flags().intersects(TypeFlags::Union) {
+            try_every(source.as_union_type().types(), |sub_type: &Gc<Type>, _| {
                 self.all_types_assignable_to_kind(sub_type, kind, strict)
-            })
+            })?
         } else {
-            self.is_type_assignable_to_kind(source, kind, strict)
-        }
+            self.is_type_assignable_to_kind(source, kind, strict)?
+        })
     }
 
     pub(super) fn is_const_enum_object_type(&self, type_: &Type) -> bool {
@@ -903,14 +906,14 @@ impl TypeChecker {
         right: &Node, /*Expression*/
         left_type: &Type,
         right_type: &Type,
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         if ptr::eq(left_type, &*self.silent_never_type())
             || ptr::eq(right_type, &*self.silent_never_type())
         {
-            return self.silent_never_type();
+            return Ok(self.silent_never_type());
         }
         if !self.is_type_any(Some(left_type))
-            && self.all_types_assignable_to_kind(left_type, TypeFlags::Primitive, None)
+            && self.all_types_assignable_to_kind(left_type, TypeFlags::Primitive, None)?
         {
             self.error(
                 Some(left),
@@ -919,8 +922,8 @@ impl TypeChecker {
             );
         }
         if !(self.is_type_any(Some(right_type))
-            || self.type_has_call_or_construct_signatures(right_type)
-            || self.is_type_subtype_of(right_type, &self.global_function_type()))
+            || self.type_has_call_or_construct_signatures(right_type)?
+            || self.is_type_subtype_of(right_type, &self.global_function_type())?)
         {
             self.error(
                 Some(right),
@@ -928,7 +931,7 @@ impl TypeChecker {
                 None,
             );
         }
-        self.boolean_type()
+        Ok(self.boolean_type())
     }
 
     pub(super) fn check_in_expression(
@@ -964,14 +967,14 @@ impl TypeChecker {
                 &left_type,
                 TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
                 None,
-            ) || self.is_type_assignable_to_kind(
+            )? || self.is_type_assignable_to_kind(
                 &left_type,
                 TypeFlags::Index
                     | TypeFlags::TemplateLiteral
                     | TypeFlags::StringMapping
                     | TypeFlags::TypeParameter,
                 None,
-            )) {
+            )?) {
                 self.error(
                     Some(left),
                     &Diagnostics::The_left_hand_side_of_an_in_expression_must_be_a_private_identifier_or_of_type_any_string_number_or_symbol,
@@ -980,23 +983,23 @@ impl TypeChecker {
             }
         }
         let right_type = self.check_non_null_type(right_type, right)?;
-        let right_type_constraint = self.get_constraint_of_type(&right_type);
+        let right_type_constraint = self.get_constraint_of_type(&right_type)?;
         if !self.all_types_assignable_to_kind(
             &right_type,
             TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
             None,
-        ) || matches!(
+        )? || matches!(
             right_type_constraint.as_ref(),
             Some(right_type_constraint) if self.is_type_assignable_to_kind(
                 &right_type,
                 TypeFlags::UnionOrIntersection,
                 None,
-            ) &&
+            )? &&
                 !self.all_types_assignable_to_kind(
                     right_type_constraint,
                     TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
                     None,
-                ) ||
+                )? ||
                 !self.maybe_type_of_kind(right_type_constraint, TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object)
         ) {
             self.error(

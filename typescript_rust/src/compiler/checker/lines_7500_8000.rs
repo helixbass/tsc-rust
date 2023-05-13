@@ -471,7 +471,7 @@ impl SymbolTableToDeclarationStatements {
                 if let Some(base_info) = base_info.as_ref() {
                     if self
                         .type_checker
-                        .is_type_identical_to(&info.type_, &base_info.type_)
+                        .is_type_identical_to(&info.type_, &base_info.type_)?
                     {
                         continue;
                     }
@@ -778,7 +778,7 @@ impl MakeSerializePropertySymbol {
                             base_type,
                             p.escaped_name()
                         )?.unwrap()
-                    )
+                    )?
             )
         {
             return Ok(vec![]);

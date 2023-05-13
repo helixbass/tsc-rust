@@ -544,7 +544,8 @@ impl CheckTypeRelatedTo {
                             .is_type_assignable_to(&generalized_source, constraint)?
                             || {
                                 needs_original_source = Some(
-                                    self.type_checker.is_type_assignable_to(source, constraint),
+                                    self.type_checker
+                                        .is_type_assignable_to(source, constraint)?,
                                 );
                                 matches!(needs_original_source, Some(true))
                             })
@@ -849,7 +850,7 @@ impl CheckTypeRelatedTo {
 
         if source.flags().intersects(TypeFlags::TypeParameter)
             && matches!(
-                self.type_checker.get_constraint_of_type(&source),
+                self.type_checker.get_constraint_of_type(&source)?,
                 Some(constraint) if Gc::ptr_eq(&constraint, &target)
             )
         {
@@ -912,7 +913,7 @@ impl CheckTypeRelatedTo {
             && (self.type_checker.is_object_literal_type(&source)
                 && get_object_flags(&source).intersects(ObjectFlags::FreshLiteral));
         if is_performing_excess_property_checks {
-            if self.has_excess_properties(&source, &target, report_errors) {
+            if self.has_excess_properties(&source, &target, report_errors)? {
                 if report_errors {
                     self.report_relation_error(
                         head_message,
@@ -942,7 +943,7 @@ impl CheckTypeRelatedTo {
                 && (!self.type_checker.get_properties_of_type(&source)?.len() == 0
                     || self
                         .type_checker
-                        .type_has_call_or_construct_signatures(&source));
+                        .type_has_call_or_construct_signatures(&source)?);
         if is_performing_common_property_checks
             && !self.type_checker.has_common_properties(
                 &source,
@@ -1335,7 +1336,7 @@ impl CheckTypeRelatedTo {
                 .try_map(|prop| self.type_checker.get_type_of_symbol(prop))?
                 .or_else(|| {
                     self.type_checker
-                        .get_applicable_index_info_for_name(&type_, name)
+                        .get_applicable_index_info_for_name(&type_, name)?
                         .map(|index_info| index_info.type_.clone())
                 })
                 .unwrap_or_else(|| self.type_checker.undefined_type());
@@ -1409,7 +1410,7 @@ impl CheckTypeRelatedTo {
                     &reduced_target,
                     prop.escaped_name(),
                     is_comparing_jsx_attributes,
-                ) {
+                )? {
                     if report_errors {
                         let error_target =
                             self.type_checker.filter_type(&reduced_target, |type_| {

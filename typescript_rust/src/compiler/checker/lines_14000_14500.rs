@@ -5,6 +5,7 @@ use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 use std::{io, ptr};
 
+use crate::try_some;
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
@@ -101,7 +102,7 @@ impl TypeChecker {
                 if type_
                     .flags()
                     .intersects(TypeFlags::InstantiableNonPrimitive)
-                    || self.is_generic_mapped_type(type_)
+                    || self.is_generic_mapped_type(type_)?
                 {
                     self.add_element(
                         &mut last_required_index,
@@ -167,7 +168,7 @@ impl TypeChecker {
                         &mut last_optional_or_rest_index,
                         &mut expanded_types,
                         &mut expanded_declarations,
-                        &*if self.is_array_like_type(type_) {
+                        &*if self.is_array_like_type(type_)? {
                             self.get_index_type_of_type_(type_, &self.number_type())
                                 .unwrap_or_else(|| self.error_type())
                         } else {
@@ -214,23 +215,27 @@ impl TypeChecker {
             let last_optional_or_rest_index: usize =
                 last_optional_or_rest_index.try_into().unwrap();
             expanded_types[first_rest_index] = self.get_union_type(
-                &same_map(
+                &try_map(
                     &expanded_types[first_rest_index..last_optional_or_rest_index + 1],
-                    |t: &Gc<Type>, i| {
-                        if expanded_flags[first_rest_index + i].intersects(ElementFlags::Variadic) {
-                            self.get_indexed_access_type(
-                                t,
-                                &self.number_type(),
-                                None,
-                                Option::<&Node>::None,
-                                Option::<&Symbol>::None,
-                                None,
-                            )?
-                        } else {
-                            t.clone()
-                        }
+                    |t: &Gc<Type>, i| -> io::Result<_> {
+                        Ok(
+                            if expanded_flags[first_rest_index + i]
+                                .intersects(ElementFlags::Variadic)
+                            {
+                                self.get_indexed_access_type(
+                                    t,
+                                    &self.number_type(),
+                                    None,
+                                    Option::<&Node>::None,
+                                    Option::<&Symbol>::None,
+                                    None,
+                                )?
+                            } else {
+                                t.clone()
+                            },
+                        )
                     },
-                ),
+                )?,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -494,14 +499,14 @@ impl TypeChecker {
             return Ok(match_);
         }
         let has_empty_object = has_object_types
-            && some(
+            && try_some(
                 Some(&*types),
                 Some(|t: &Gc<Type>| {
-                    t.flags().intersects(TypeFlags::Object)
-                        && !self.is_generic_mapped_type(t)
-                        && self.is_empty_resolved_type(&self.resolve_structured_type_members(t))
+                    Ok(t.flags().intersects(TypeFlags::Object)
+                        && !self.is_generic_mapped_type(t)?
+                        && self.is_empty_resolved_type(&self.resolve_structured_type_members(t)))
                 }),
-            );
+            )?;
         let len = types.len();
         let mut i = len;
         let mut count = 0;

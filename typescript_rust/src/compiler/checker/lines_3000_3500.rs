@@ -806,7 +806,7 @@ impl TypeChecker {
         location: &Node,
         module_reference_expression: &Node, /*Expression*/
         ignore_errors: Option<bool>,
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
             == ModuleResolutionKind::Classic;
         let error_message = if is_classic {

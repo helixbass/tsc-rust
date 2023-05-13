@@ -135,7 +135,7 @@ impl TypeChecker {
                 }));
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                let prop_name = self.get_accessed_property_name(node);
+                let prop_name = self.get_accessed_property_name(node)?;
                 if let Some(prop_name) = prop_name.as_ref() {
                     let key = self.get_flow_cache_key(
                         &node.as_has_expression().expression(),
@@ -212,8 +212,8 @@ impl TypeChecker {
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 return Ok(is_access_expression(target)
-                    && self.get_accessed_property_name(source)
-                        == self.get_accessed_property_name(target)
+                    && self.get_accessed_property_name(source)?
+                        == self.get_accessed_property_name(target)?
                     && self.is_matching_reference(
                         &source.as_has_expression().expression(),
                         &target.as_has_expression().expression(),
@@ -223,7 +223,7 @@ impl TypeChecker {
                 let source_as_qualified_name = source.as_qualified_name();
                 return Ok(is_access_expression(target)
                     && matches!(
-                        self.get_accessed_property_name(target).as_ref(),
+                        self.get_accessed_property_name(target)?.as_ref(),
                         Some(accessed_property_name) if &source_as_qualified_name.right.as_identifier().escaped_text == accessed_property_name
                     )
                     && self.is_matching_reference(
@@ -644,7 +644,7 @@ impl TypeChecker {
             return self.is_type_assignable_to(source, target);
         }
         for t in source.as_union_or_intersection_type_interface().types() {
-            if self.is_type_assignable_to(t, target) {
+            if self.is_type_assignable_to(t, target)? {
                 return Ok(true);
             }
         }
@@ -689,7 +689,7 @@ impl TypeChecker {
             || (*resolved_as_resolved_type.members())
                 .borrow()
                 .contains_key("bind")
-                && self.is_type_subtype_of(type_, &self.global_function_type());
+                && self.is_type_subtype_of(type_, &self.global_function_type())?;
         ret
     }
 
@@ -860,7 +860,9 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Union) {
             return try_reduce_left(
                 type_.as_union_or_intersection_type_interface().types(),
-                |facts, t: &Gc<Type>, _| -> io::Result<_> Ok(facts | self.get_type_facts(t, Some(ignore_objects))),
+                |facts, t: &Gc<Type>, _| -> io::Result<_> {
+                    Ok(facts | self.get_type_facts(t, Some(ignore_objects))?)
+                },
                 TypeFacts::None,
                 None,
                 None,
@@ -899,7 +901,7 @@ impl TypeChecker {
         /*defaultExpression ? */
         self.get_union_type(
             &[
-                self.get_non_undefined_type(type_),
+                self.get_non_undefined_type(type_)?,
                 self.get_type_of_expression(default_expression)?,
             ],
             None,
@@ -924,7 +926,7 @@ impl TypeChecker {
             .get_type_of_property_of_type_(type_, &text)?
             .try_or_else(|| {
                 self.include_undefined_in_index_signature(
-                    self.get_applicable_index_info_for_name(type_, &text)
+                    self.get_applicable_index_info_for_name(type_, &text)?
                         .map(|applicable_index_info| applicable_index_info.type_.clone()),
                 )
             })?

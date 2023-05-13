@@ -7,6 +7,8 @@ use std::iter::once;
 use std::ptr;
 
 use super::InferTypes;
+use crate::try_some;
+use crate::OptionTry;
 use crate::PeekMoreExt;
 use crate::PeekableExt;
 use crate::VecExt;
@@ -204,7 +206,7 @@ impl InferTypes {
                 constraint_type,
                 InferencePriority::MappedTypeConstraint,
             );
-            let extended_constraint = self.type_checker.get_constraint_of_type(constraint_type);
+            let extended_constraint = self.type_checker.get_constraint_of_type(constraint_type)?;
             if matches!(
                 extended_constraint.as_ref(),
                 Some(extended_constraint) if self.infer_to_mapped_type(source, target, extended_constraint)?
@@ -344,8 +346,8 @@ impl InferTypes {
             )?;
             return Ok(());
         }
-        if self.type_checker.is_generic_mapped_type(source)
-            && self.type_checker.is_generic_mapped_type(target)
+        if self.type_checker.is_generic_mapped_type(source)?
+            && self.type_checker.is_generic_mapped_type(target)?
         {
             self.infer_from_types(
                 &*self
@@ -679,11 +681,11 @@ impl InferTypes {
                             None,
                         )?,
                         &target_info.key_type,
-                    ) {
+                    )? {
                         let prop_type = self.type_checker.get_type_of_symbol(prop)?;
                         prop_types.push(if prop.flags().intersects(SymbolFlags::Optional) {
                             self.type_checker
-                                .remove_missing_or_undefined_type(&prop_type)
+                                .remove_missing_or_undefined_type(&prop_type)?
                         } else {
                             prop_type
                         });
@@ -692,7 +694,7 @@ impl InferTypes {
                 for info in &self.type_checker.get_index_infos_of_type(source) {
                     if self
                         .type_checker
-                        .is_applicable_index_type(&info.key_type, &target_info.key_type)
+                        .is_applicable_index_type(&info.key_type, &target_info.key_type)?
                     {
                         prop_types.push(info.type_.clone());
                     }
@@ -726,16 +728,19 @@ impl InferTypes {
 }
 
 impl TypeChecker {
-    pub(super) fn is_type_or_base_identical_to(&self, s: &Type, t: &Type) -> bool {
-        if self.exact_optional_property_types == Some(true) && ptr::eq(t, &*self.missing_type()) {
-            ptr::eq(s, t)
-        } else {
-            self.is_type_identical_to(s, t)
-                || (t.flags().intersects(TypeFlags::String)
-                    && s.flags().intersects(TypeFlags::StringLiteral)
-                    || t.flags().intersects(TypeFlags::Number)
-                        && s.flags().intersects(TypeFlags::NumberLiteral))
-        }
+    pub(super) fn is_type_or_base_identical_to(&self, s: &Type, t: &Type) -> io::Result<bool> {
+        Ok(
+            if self.exact_optional_property_types == Some(true) && ptr::eq(t, &*self.missing_type())
+            {
+                ptr::eq(s, t)
+            } else {
+                self.is_type_identical_to(s, t)?
+                    || (t.flags().intersects(TypeFlags::String)
+                        && s.flags().intersects(TypeFlags::StringLiteral)
+                        || t.flags().intersects(TypeFlags::Number)
+                            && s.flags().intersects(TypeFlags::NumberLiteral))
+            },
+        )
     }
 
     pub(super) fn is_type_closely_matched_by(&self, s: &Type, t: &Type) -> bool {
@@ -901,15 +906,17 @@ impl TypeChecker {
                     inferred_type = Some(
                         if let Some(inferred_covariant_type) = inferred_covariant_type
                             .as_ref()
-                            .filter(|inferred_covariant_type| {
-                                !inferred_covariant_type.flags().intersects(TypeFlags::Never)
-                                    && some(
-                                        Some(inference_contra_candidates),
-                                        Some(|t: &Gc<Type>| {
-                                            self.is_type_subtype_of(inferred_covariant_type, t)
-                                        }),
-                                    )
-                            })
+                            .try_filter(|inferred_covariant_type| -> io::Result<_> {
+                                Ok(
+                                    !inferred_covariant_type.flags().intersects(TypeFlags::Never)
+                                        && try_some(
+                                            Some(inference_contra_candidates),
+                                            Some(|t: &Gc<Type>| {
+                                                self.is_type_subtype_of(inferred_covariant_type, t)
+                                            }),
+                                        )?,
+                                )
+                            })?
                         {
                             inferred_covariant_type.clone()
                         } else {
@@ -959,7 +966,7 @@ impl TypeChecker {
                                 None,
                             )?,
                             None,
-                        ) == Ternary::False
+                        )? == Ternary::False
                     }
                 } {
                     #[allow(unused_assignments)]

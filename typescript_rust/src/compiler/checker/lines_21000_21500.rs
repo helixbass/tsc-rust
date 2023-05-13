@@ -14,9 +14,10 @@ use crate::{
     TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, for_each_bool,
     get_name_of_declaration, get_object_flags, get_source_file_of_node,
     is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
-    try_map, try_some, DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags,
-    InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
+    try_for_each_bool, try_map, try_some, DiagnosticMessage, Diagnostics, InferenceContext,
+    InferenceFlags, InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature,
+    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    WideningContext,
 };
 
 impl TypeChecker {
@@ -823,12 +824,12 @@ impl TypeChecker {
                 && !self.is_non_generic_top_level_type(type_)
                 && (object_flags.intersects(ObjectFlags::Reference)
                     && (type_.as_type_reference_interface().maybe_node().is_some()
-                        || for_each_bool(
+                        || try_for_each_bool(
                             &self.get_type_arguments(type_)?,
                             |type_argument: &Gc<Type>, _| {
                                 self.could_contain_type_variables(type_argument)
                             },
-                        ))
+                        )?)
                     || object_flags.intersects(ObjectFlags::Anonymous)
                         && matches!(
                             type_.maybe_symbol().as_ref(),
@@ -843,10 +844,10 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && !type_.flags().intersects(TypeFlags::EnumLiteral)
                 && !self.is_non_generic_top_level_type(type_)
-                && some(
+                && try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
                     Some(|type_: &Gc<Type>| self.could_contain_type_variables(type_)),
-                );
+                )?;
         if type_.flags().intersects(TypeFlags::ObjectFlagsType) {
             let type_as_has_object_flags = type_.as_object_flags_type();
             type_as_has_object_flags.set_object_flags(
@@ -1143,7 +1144,7 @@ impl TypeComparerCompareTypesAssignable {
 }
 
 impl TypeComparer for TypeComparerCompareTypesAssignable {
-    fn call(&self, s: &Type, t: &Type, _report_errors: Option<bool>) -> Ternary {
+    fn call(&self, s: &Type, t: &Type, _report_errors: Option<bool>) -> io::Result<Ternary> {
         self.type_checker.compare_types_assignable(s, t)
     }
 }

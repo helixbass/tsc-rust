@@ -486,7 +486,7 @@ impl TypeChecker {
                     &type_,
                     TypeFlags::StringOrNumberLiteral,
                     Some(true),
-                ));
+                )?);
         }
         Ok(false)
     }

@@ -25,7 +25,7 @@ impl TypeChecker {
         target: &TypePredicate,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
-        compare_types: &mut impl FnMut(&Type, &Type, Option<bool>) -> Ternary,
+        compare_types: &mut impl FnMut(&Type, &Type, Option<bool>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
         if source.kind != target.kind {
             if report_errors {
@@ -88,7 +88,7 @@ impl TypeChecker {
                 source.type_.as_ref().unwrap(),
                 target.type_.as_ref().unwrap(),
                 Some(report_errors),
-            )
+            )?
         } else {
             Ternary::False
         };
@@ -142,9 +142,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_empty_object_type(&self, type_: &Type) -> bool {
-        if type_.flags().intersects(TypeFlags::Object) {
-            !self.is_generic_mapped_type(type_)
+    pub(super) fn is_empty_object_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(if type_.flags().intersects(TypeFlags::Object) {
+            !self.is_generic_mapped_type(type_)?
                 && self.is_empty_resolved_type(&self.resolve_structured_type_members(type_))
         } else if type_.flags().intersects(TypeFlags::NonPrimitive) {
             true
@@ -160,7 +160,7 @@ impl TypeChecker {
             )
         } else {
             false
-        }
+        })
     }
 
     pub(super) fn is_empty_anonymous_object_type(&self, type_: &Type) -> io::Result<bool> {
@@ -176,7 +176,7 @@ impl TypeChecker {
 
     pub(super) fn is_string_index_signature_only_type(&self, type_: &Type) -> io::Result<bool> {
         Ok(type_.flags().intersects(TypeFlags::Object)
-            && !self.is_generic_mapped_type(type_)
+            && !self.is_generic_mapped_type(type_)?
             && self.get_properties_of_type(type_)?.len() == 0
             && self.get_index_infos_of_type(type_).len() == 1
             && self
@@ -429,12 +429,12 @@ impl TypeChecker {
         {
             let related = (*relation)
                 .borrow()
-                .get(&self.get_relation_key(
+                .get(&*self.get_relation_key(
                     &source,
                     &target,
                     IntersectionState::None,
                     &(*relation).borrow(),
-                ))
+                )?)
                 .map(Clone::clone);
             if let Some(related) = related {
                 return Ok(related.intersects(RelationComparisonResult::Succeeded));

@@ -4,6 +4,7 @@ use std::rc::Rc;
 use std::{borrow::Borrow, io};
 
 use super::signature_has_rest_parameter;
+use crate::try_some;
 use crate::{
     add_related_info, append, chain_diagnostic_messages, concatenate, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, filter, find, find_ancestor, flat_map,
@@ -389,7 +390,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         check_base: Option<impl Borrow<Type>>,
-    ) -> bool {
+    ) -> io::Result<bool> {
         let check_base = check_base.map(|check_base| check_base.borrow().type_wrapper());
         self.has_base_type_check(check_base.as_deref(), type_)
     }
@@ -405,15 +406,15 @@ impl TypeChecker {
             {
                 let target = self.get_target_type(type_);
                 matches!(check_base, Some(check_base) if ptr::eq(&*target, check_base))
-                    || some(
+                    || try_some(
                         Some(&*self.get_base_types(&target)?),
                         Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
-                    )
+                    )?
             } else if type_.flags().intersects(TypeFlags::Intersection) {
-                some(
+                try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
                     Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
-                )
+                )?
             } else {
                 false
             },
@@ -693,10 +694,10 @@ impl TypeChecker {
         type_: &Type,
         type_argument_nodes: Option<&[Gc<Node /*TypeNode*/>]>,
         location: &Node,
-    ) -> Vec<Gc<Signature>> {
+    ) -> io::Result<Vec<Gc<Signature>>> {
         let type_arg_count = length(type_argument_nodes);
         let is_javascript = is_in_js_file(Some(location));
-        filter(
+        Ok(filter(
             &self.get_signatures_of_type(type_, SignatureKind::Construct)?,
             |sig: &Gc<Signature>| {
                 (is_javascript
@@ -704,7 +705,7 @@ impl TypeChecker {
                         >= self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref()))
                     && type_arg_count <= length(sig.maybe_type_parameters().as_deref())
             },
-        )
+        ))
     }
 
     pub(super) fn get_instantiated_constructors_for_type_arguments(
@@ -970,23 +971,25 @@ impl TypeChecker {
         type_: &Type, /*TupleType*/
     ) -> io::Result<Gc<Type>> {
         let type_as_tuple_type = type_.as_tuple_type();
-        let element_types = maybe_same_map(
+        let element_types = try_maybe_map(
             type_as_tuple_type.maybe_type_parameters(),
-            |t: &Gc<Type>, i| {
-                if type_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic) {
-                    self.get_indexed_access_type(
-                        t,
-                        &self.number_type(),
-                        None,
-                        Option::<&Node>::None,
-                        Option::<&Symbol>::None,
-                        None,
-                    )?
-                } else {
-                    t.type_wrapper()
-                }
+            |t: &Gc<Type>, i| -> io::Result<_> {
+                Ok(
+                    if type_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic) {
+                        self.get_indexed_access_type(
+                            t,
+                            &self.number_type(),
+                            None,
+                            Option::<&Node>::None,
+                            Option::<&Symbol>::None,
+                            None,
+                        )?
+                    } else {
+                        t.type_wrapper()
+                    },
+                )
             },
-        );
+        )?;
         Ok(self.create_array_type(
             &*self.get_union_type(
                 &element_types.unwrap_or_else(|| vec![]),

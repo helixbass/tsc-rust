@@ -74,7 +74,7 @@ impl GetFlowTypeOfReference {
                 && {
                     name = self
                         .type_checker
-                        .get_accessed_property_name(access.as_ref().unwrap());
+                        .get_accessed_property_name(access.as_ref().unwrap())?;
                     name.is_some()
                 }
                 && self
@@ -119,7 +119,7 @@ impl GetFlowTypeOfReference {
         access: &Node, /*AccessExpression | BindingElement*/
         mut narrow_type: impl FnMut(&Type) -> io::Result<Gc<Type>>,
     ) -> io::Result<Gc<Type>> {
-        let prop_name = self.type_checker.get_accessed_property_name(access);
+        let prop_name = self.type_checker.get_accessed_property_name(access)?;
         if prop_name.is_none() {
             return Ok(type_.type_wrapper());
         }
@@ -155,7 +155,7 @@ impl GetFlowTypeOfReference {
             Ok(!narrowed_prop_type.flags().intersects(TypeFlags::Never)
                 && self
                     .type_checker
-                    .is_type_comparable_to(&narrowed_prop_type, &discriminant_type))
+                    .is_type_comparable_to(&narrowed_prop_type, &discriminant_type)?)
         })
     }
 
@@ -173,14 +173,14 @@ impl GetFlowTypeOfReference {
         ) && type_.flags().intersects(TypeFlags::Union)
         {
             let key_property_name = self.type_checker.get_key_property_name(type_)?;
-            if let Some(key_property_name) =
-                key_property_name.as_ref().filter(|key_property_name| {
-                    matches!(
-                        self.type_checker.get_accessed_property_name(access).as_ref(),
+            if let Some(key_property_name) = key_property_name.as_ref().try_filter(
+                |key_property_name| -> io::Result<_> {
+                    Ok(matches!(
+                        self.type_checker.get_accessed_property_name(access)?.as_ref(),
                         Some(accessed_property_name) if *key_property_name == accessed_property_name
-                    )
-                })
-            {
+                    ))
+                },
+            )? {
                 let candidate = self.type_checker.get_constituent_type_for_key_type(
                     type_,
                     &*self.type_checker.get_type_of_expression(value)?,
@@ -225,7 +225,7 @@ impl GetFlowTypeOfReference {
         if clause_start < clause_end
             && type_.flags().intersects(TypeFlags::Union)
             && self.type_checker.get_key_property_name(type_)?
-                == self.type_checker.get_accessed_property_name(access)
+                == self.type_checker.get_accessed_property_name(access)?
         {
             let clause_types = self
                 .type_checker
@@ -327,7 +327,7 @@ impl GetFlowTypeOfReference {
         Ok(
             if self
                 .type_checker
-                .get_applicable_index_info_for_name(type_, prop_name)
+                .get_applicable_index_info_for_name(type_, prop_name)?
                 .is_some()
             {
                 true
@@ -503,7 +503,7 @@ impl GetFlowTypeOfReference {
                         && matches!(
                             self.type_checker.get_accessed_property_name(
                                 &self.reference
-                            ).as_ref(),
+                            )?.as_ref(),
                             Some(accessed_property_name) if accessed_property_name == &name
                         )
                     {
@@ -1022,17 +1022,17 @@ impl GetFlowTypeOfReference {
         let type_checker = self.type_checker.clone();
         let candidate = candidate.type_wrapper();
         move |type_: &Type| {
-            if type_checker.is_type_subtype_of(type_, &candidate) {
+            if type_checker.is_type_subtype_of(type_, &candidate)? {
                 return Ok(type_.type_wrapper());
             }
-            if type_checker.is_type_subtype_of(&candidate, type_) {
+            if type_checker.is_type_subtype_of(&candidate, type_)? {
                 return Ok(candidate.clone());
             }
             if type_.flags().intersects(TypeFlags::Instantiable) {
                 let constraint = type_checker
                     .get_base_constraint_of_type(type_)?
                     .unwrap_or_else(|| type_checker.any_type());
-                if type_checker.is_type_subtype_of(&candidate, &constraint) {
+                if type_checker.is_type_subtype_of(&candidate, &constraint)? {
                     return type_checker.get_intersection_type(
                         &vec![type_.type_wrapper(), candidate.clone()],
                         Option::<&Symbol>::None,

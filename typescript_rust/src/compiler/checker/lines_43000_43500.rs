@@ -567,7 +567,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*MethodDeclaration | MethodSignature*/
     ) -> io::Result<bool> {
-        if self.check_grammar_function_like_declaration(node) {
+        if self.check_grammar_function_like_declaration(node)? {
             return Ok(true);
         }
 

@@ -13,8 +13,8 @@ use crate::{
     is_declaration_readonly, is_in_js_file, is_jsdoc_type_assertion, is_omitted_expression,
     is_parameter, is_parenthesized_expression, is_property_assignment,
     is_shorthand_property_assignment, is_spread_element, is_template_span, map,
-    parse_pseudo_big_int, skip_parentheses, some, ContextFlags, Diagnostics, ElementFlags,
-    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Matches,
+    parse_pseudo_big_int, skip_parentheses, some, try_some, ContextFlags, Diagnostics,
+    ElementFlags, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Matches,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, PseudoBigInt,
     SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
@@ -124,7 +124,7 @@ impl TypeChecker {
             if self.is_empty_literal_type(&widened) {
                 self.report_implicit_any(declaration, &self.any_type(), None);
                 return Ok(self.any_type());
-            } else if self.is_empty_array_literal_type(&widened) {
+            } else if self.is_empty_array_literal_type(&widened)? {
                 self.report_implicit_any(declaration, &self.any_array_type(), None);
                 return Ok(self.any_array_type());
             }
@@ -146,12 +146,12 @@ impl TypeChecker {
                 let types = contextual_type
                     .as_union_or_intersection_type_interface()
                     .types();
-                return Ok(some(
+                return try_some(
                     Some(types),
                     Some(|t: &Gc<Type>| {
                         self.is_literal_of_contextual_type(candidate_type, Some(&**t))
                     }),
-                ));
+                );
             }
             if contextual_type
                 .flags()
@@ -168,7 +168,7 @@ impl TypeChecker {
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::BigIntLiteral)
                     || self.maybe_type_of_kind(&constraint, TypeFlags::ESSymbol)
                         && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol)
-                    || self.is_literal_of_contextual_type(candidate_type, Some(constraint)));
+                    || self.is_literal_of_contextual_type(candidate_type, Some(constraint))?);
             }
             return Ok(contextual_type.flags().intersects(
                 TypeFlags::StringLiteral
@@ -358,9 +358,9 @@ impl TypeChecker {
                                         target,
                                         Some(InferencePriority::None),
                                         Some(true),
-                                    );
+                                    )
                                 },
-                            );
+                            )?;
                             if some(
                                 Some(&inferences),
                                 Some(|inference: &Gc<InferenceInfo>| {
@@ -830,11 +830,11 @@ impl TypeChecker {
             SyntaxKind::ParenthesizedExpression => {
                 self.check_parenthesized_expression(node, check_mode)?
             }
-            SyntaxKind::ClassExpression => self.check_class_expression(node),
+            SyntaxKind::ClassExpression => self.check_class_expression(node)?,
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
                 self.check_function_expression_or_object_literal_method(node, check_mode)?
             }
-            SyntaxKind::TypeOfExpression => self.check_type_of_expression(node),
+            SyntaxKind::TypeOfExpression => self.check_type_of_expression(node)?,
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 self.check_assertion(node)?
             }

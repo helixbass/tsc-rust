@@ -725,11 +725,14 @@ pub trait EmitResolver: Trace + Finalize {
         &self,
         node: &Node, /*SignatureDeclaration*/
     ) -> io::Result<Option<bool>>;
-    fn is_required_initialized_parameter(&self, node: &Node /*ParameterDeclaration*/) -> bool;
+    fn is_required_initialized_parameter(
+        &self,
+        node: &Node, /*ParameterDeclaration*/
+    ) -> io::Result<bool>;
     fn is_optional_uninitialized_parameter_property(
         &self,
         node: &Node, /*ParameterDeclaration*/
-    ) -> bool;
+    ) -> io::Result<bool>;
     fn is_expando_function_declaration(
         &self,
         node: &Node, /*FunctionDeclaration*/

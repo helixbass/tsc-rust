@@ -137,7 +137,7 @@ impl TypeChecker {
         let constraint_type = self.get_constraint_type_from_mapped_type(type_)?;
         if constraint_type.flags().intersects(TypeFlags::Index) {
             let type_variable =
-                self.get_actual_type_variable(&constraint_type.as_index_type().type_);
+                self.get_actual_type_variable(&constraint_type.as_index_type().type_)?;
             if type_variable.flags().intersects(TypeFlags::TypeParameter) {
                 return Ok(Some(type_variable));
             }
@@ -152,7 +152,7 @@ impl TypeChecker {
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> io::Result<Gc<Type>> {
-        let type_variable = self.get_homomorphic_type_variable(type_);
+        let type_variable = self.get_homomorphic_type_variable(type_)?;
         if let Some(type_variable) = type_variable.as_ref() {
             let mapped_type_variable =
                 self.instantiate_type(type_variable, Some(mapper.clone()))?;
@@ -550,7 +550,7 @@ impl TypeChecker {
         alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> io::Result<Gc<Type>> {
-        if !self.could_contain_type_variables(type_) {
+        if !self.could_contain_type_variables(type_)? {
             return Ok(type_.type_wrapper());
         }
         if self.instantiation_depth() == 100 || self.instantiation_count() >= 5000000 {
@@ -1078,8 +1078,11 @@ impl TypeChecker {
         self.is_type_related_to(source, target, self.comparable_relation.clone())
     }
 
-    pub(super) fn are_types_comparable(&self, type1: &Type, type2: &Type) -> bool {
-        self.is_type_comparable_to(type1, type2) || self.is_type_comparable_to(type2, type1)
+    pub(super) fn are_types_comparable(&self, type1: &Type, type2: &Type) -> io::Result<bool> {
+        Ok(
+            self.is_type_comparable_to(type1, type2)?
+                || self.is_type_comparable_to(type2, type1)?,
+        )
     }
 
     pub(super) fn check_type_assignable_to(

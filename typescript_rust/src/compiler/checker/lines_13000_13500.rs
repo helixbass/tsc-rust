@@ -975,7 +975,7 @@ impl TypeChecker {
                     &extends_node.as_tuple_type_node().elements[0],
                 )?
             } else if ptr::eq(
-                &*self.get_actual_type_variable(&*self.get_type_from_type_node_(check_node)?),
+                &*self.get_actual_type_variable(&*self.get_type_from_type_node_(check_node)?)?,
                 type_,
             ) {
                 Some(self.get_type_from_type_node_(extends_node)?)

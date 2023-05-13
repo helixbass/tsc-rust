@@ -204,7 +204,7 @@ impl TypeChecker {
         if element.kind() != SyntaxKind::OmittedExpression {
             if element.kind() != SyntaxKind::SpreadElement {
                 let index_type = self.get_number_literal_type(Number::new(element_index as f64));
-                if self.is_array_like_type(source_type) {
+                if self.is_array_like_type(source_type)? {
                     let access_flags = AccessFlags::ExpressionPosition
                         | if self.has_default_value(element) {
                             AccessFlags::NoTupleBoundsCheck
@@ -433,8 +433,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_type_equality_comparable_to(&self, source: &Type, target: &Type) -> bool {
-        target.flags().intersects(TypeFlags::Nullable) || self.is_type_comparable_to(source, target)
+    pub(super) fn is_type_equality_comparable_to(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> io::Result<bool> {
+        Ok(target.flags().intersects(TypeFlags::Nullable)
+            || self.is_type_comparable_to(source, target)?)
     }
 
     pub(super) fn create_check_binary_expression(&self) -> CheckBinaryExpression {
@@ -612,17 +617,17 @@ impl TypeChecker {
                         Some(true)
                     )?;
                     let result_type: Gc<Type>;
-                    if self.is_type_assignable_to_kind(&left_type, TypeFlags::AnyOrUnknown, None)
+                    if self.is_type_assignable_to_kind(&left_type, TypeFlags::AnyOrUnknown, None)?
                         && self.is_type_assignable_to_kind(
                             &right_type,
                             TypeFlags::AnyOrUnknown,
                             None,
-                        )
+                        )?
                         || !(self.maybe_type_of_kind(&left_type, TypeFlags::BigIntLike)
                             || self.maybe_type_of_kind(&right_type, TypeFlags::BigIntLike))
                     {
                         result_type = self.number_type();
-                    } else if self.both_are_big_int_like(&left_type, &right_type) {
+                    } else if self.both_are_big_int_like(&left_type, &right_type)? {
                         match operator {
                             SyntaxKind::GreaterThanGreaterThanGreaterThanToken
                             | SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken => {
@@ -631,7 +636,7 @@ impl TypeChecker {
                                     operator_token,
                                     &left_type,
                                     &right_type,
-                                    Option::<fn(&Type, &Type) -> bool>::None,
+                                    Option::<fn(&Type, &Type) -> io::Result<bool>>::None,
                                 )?;
                             }
                             SyntaxKind::AsteriskAsteriskToken
@@ -680,41 +685,41 @@ impl TypeChecker {
 
                 let mut left_type = left_type.type_wrapper();
                 let mut right_type = right_type.type_wrapper();
-                if !self.is_type_assignable_to_kind(&left_type, TypeFlags::StringLike, None)
-                    && !self.is_type_assignable_to_kind(&right_type, TypeFlags::StringLike, None)
+                if !self.is_type_assignable_to_kind(&left_type, TypeFlags::StringLike, None)?
+                    && !self.is_type_assignable_to_kind(&right_type, TypeFlags::StringLike, None)?
                 {
                     left_type = self.check_non_null_type(&left_type, left)?;
                     right_type = self.check_non_null_type(&right_type, left)?;
                 }
 
                 let mut result_type: Option<Gc<Type>> = None;
-                if self.is_type_assignable_to_kind(&left_type, TypeFlags::NumberLike, Some(true))
+                if self.is_type_assignable_to_kind(&left_type, TypeFlags::NumberLike, Some(true))?
                     && self.is_type_assignable_to_kind(
                         &right_type,
                         TypeFlags::NumberLike,
                         Some(true),
-                    )
+                    )?
                 {
                     result_type = Some(self.number_type());
                 } else if self.is_type_assignable_to_kind(
                     &left_type,
                     TypeFlags::BigIntLike,
                     Some(true),
-                ) && self.is_type_assignable_to_kind(
+                )? && self.is_type_assignable_to_kind(
                     &right_type,
                     TypeFlags::BigIntLike,
                     Some(true),
-                ) {
+                )? {
                     result_type = Some(self.bigint_type());
                 } else if self.is_type_assignable_to_kind(
                     &left_type,
                     TypeFlags::StringLike,
                     Some(true),
-                ) || self.is_type_assignable_to_kind(
+                )? || self.is_type_assignable_to_kind(
                     &right_type,
                     TypeFlags::StringLike,
                     Some(true),
-                ) {
+                )? {
                     result_type = Some(self.string_type());
                 } else if self.is_type_any(Some(&*left_type))
                     || self.is_type_any(Some(&*right_type))
@@ -751,8 +756,14 @@ impl TypeChecker {
                         &left_type,
                         &right_type,
                         Some(|left: &Type, right: &Type| {
-                            self.is_type_assignable_to_kind(left, close_enough_kind, None)
-                                && self.is_type_assignable_to_kind(right, close_enough_kind, None)
+                            Ok(
+                                self.is_type_assignable_to_kind(left, close_enough_kind, None)?
+                                    && self.is_type_assignable_to_kind(
+                                        right,
+                                        close_enough_kind,
+                                        None,
+                                    )?,
+                            )
                         }),
                     );
                     return Ok(self.any_type());
@@ -806,15 +817,15 @@ impl TypeChecker {
                     operator_token,
                     error_node.as_deref(),
                     |left: &Type, right: &Type| {
-                        self.is_type_equality_comparable_to(left, right)
-                            || self.is_type_equality_comparable_to(right, left)
+                        Ok(self.is_type_equality_comparable_to(left, right)?
+                            || self.is_type_equality_comparable_to(right, left)?)
                     },
                 );
                 self.boolean_type()
             }
 
             SyntaxKind::InstanceOfKeyword => {
-                self.check_instance_of_expression(left, right, left_type, right_type)
+                self.check_instance_of_expression(left, right, left_type, right_type)?
             }
             SyntaxKind::InKeyword => {
                 self.check_in_expression(left, right, left_type, right_type)?

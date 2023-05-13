@@ -17,9 +17,11 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn both_are_big_int_like(&self, left: &Type, right: &Type) -> bool {
-        self.is_type_assignable_to_kind(left, TypeFlags::BigIntLike, None)
-            && self.is_type_assignable_to_kind(right, TypeFlags::BigIntLike, None)
+    pub(super) fn both_are_big_int_like(&self, left: &Type, right: &Type) -> io::Result<bool> {
+        Ok(
+            self.is_type_assignable_to_kind(left, TypeFlags::BigIntLike, None)?
+                && self.is_type_assignable_to_kind(right, TypeFlags::BigIntLike, None)?,
+        )
     }
 
     pub(super) fn check_assignment_declaration(
@@ -198,19 +200,19 @@ impl TypeChecker {
         right_type: &Type,
         operator_token: &Node,
         error_node: Option<impl Borrow<Node>>,
-        mut types_are_compatible: impl FnMut(&Type, &Type) -> bool,
-    ) -> bool {
-        if !types_are_compatible(left_type, right_type) {
+        mut types_are_compatible: impl FnMut(&Type, &Type) -> io::Result<bool>,
+    ) -> io::Result<bool> {
+        if !types_are_compatible(left_type, right_type)? {
             self.report_operator_error(
                 error_node,
                 operator_token,
                 left_type,
                 right_type,
                 Some(types_are_compatible),
-            );
-            return true;
+            )?;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn try_report_operator_error_unless(
@@ -469,7 +471,7 @@ impl TypeChecker {
                     IterationTypeKind::Next,
                     return_type,
                     is_async,
-                )
+                )?
                 .unwrap_or_else(|| self.any_type()));
         }
         let mut type_ = self.get_contextual_iteration_type(IterationTypeKind::Next, &func)?;
@@ -563,12 +565,12 @@ impl TypeChecker {
         Ok(
             if self.is_const_context(node)
                 || self.is_template_literal_context(node)
-                || self.some_type(
+                || self.try_some_type(
                     &self
                         .get_contextual_type_(node, None)?
                         .unwrap_or_else(|| self.unknown_type()),
                     |type_: &Type| self.is_template_literal_contextual_type(type_),
-                )
+                )?
             {
                 self.get_template_literal_type(
                     &texts
@@ -636,7 +638,7 @@ impl TypeChecker {
             && self.is_literal_of_contextual_type(
                 &type_,
                 self.instantiate_contextual_type(Some(contextual_type), node, None)?,
-            ) {
+            )? {
             self.get_regular_type_of_literal_type(&type_)
         } else {
             type_

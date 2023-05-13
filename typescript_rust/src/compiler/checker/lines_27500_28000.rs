@@ -483,7 +483,7 @@ impl TypeChecker {
                 .get_property_of_object_type(target_type, name)?
                 .is_some()
                 || self
-                    .get_applicable_index_info_for_name(target_type, name)
+                    .get_applicable_index_info_for_name(target_type, name)?
                     .is_some()
                 || self.is_late_bound_name(name)
                     && self

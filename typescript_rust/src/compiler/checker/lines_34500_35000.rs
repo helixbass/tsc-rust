@@ -152,7 +152,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         if self.produce_diagnostics {
-            if !self.check_grammar_function_like_declaration(node)
+            if !self.check_grammar_function_like_declaration(node)?
                 && !self.check_grammar_accessor(node)
             {
                 self.check_grammar_computed_property_name(
@@ -524,7 +524,7 @@ impl TypeChecker {
             if flags.intersects(ElementFlags::Variadic) {
                 let type_ =
                     self.get_type_from_type_node_(&e.as_has_type().maybe_type().unwrap())?;
-                if !self.is_array_like_type(&type_) {
+                if !self.is_array_like_type(&type_)? {
                     self.error(
                         Some(&**e),
                         &Diagnostics::A_rest_element_type_must_be_an_array_type,
@@ -637,7 +637,7 @@ impl TypeChecker {
         if self
             .get_index_info_of_type_(&apparent_object_type, &self.number_type())
             .is_some()
-            && self.is_type_assignable_to_kind(index_type, TypeFlags::NumberLike, None)
+            && self.is_type_assignable_to_kind(index_type, TypeFlags::NumberLike, None)?
         {
             return Ok(type_.type_wrapper());
         }

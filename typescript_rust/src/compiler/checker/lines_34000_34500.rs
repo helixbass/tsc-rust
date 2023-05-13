@@ -439,21 +439,21 @@ impl TypeChecker {
                                 IterationTypeKind::Yield,
                                 &return_type,
                                 function_flags.intersects(FunctionFlags::Async),
-                            )
+                            )?
                             .unwrap_or_else(|| self.any_type());
                         let generator_return_type = self
                             .get_iteration_type_of_generator_function_return_type(
                                 IterationTypeKind::Return,
                                 &return_type,
                                 function_flags.intersects(FunctionFlags::Async),
-                            )
+                            )?
                             .unwrap_or_else(|| generator_yield_type.clone());
                         let generator_next_type = self
                             .get_iteration_type_of_generator_function_return_type(
                                 IterationTypeKind::Next,
                                 &return_type,
                                 function_flags.intersects(FunctionFlags::Async),
-                            )
+                            )?
                             .unwrap_or_else(|| self.unknown_type());
                         let generator_instantiation = self.create_generator_return_type(
                             &generator_yield_type,

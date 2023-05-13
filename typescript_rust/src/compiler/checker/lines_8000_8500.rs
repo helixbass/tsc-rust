@@ -722,10 +722,11 @@ impl TypeChecker {
     ) -> io::Result<Gc<Type>> {
         Ok(self
             .get_type_of_property_of_type_(type_, name)?
-            .or_else(|| {
-                self.get_applicable_index_info_for_name(type_, name)
-                    .map(|index_info| index_info.type_.clone())
-            })
+            .try_or_else(|| -> io::Result<_> {
+                Ok(self
+                    .get_applicable_index_info_for_name(type_, name)?
+                    .map(|index_info| index_info.type_.clone()))
+            })?
             .unwrap_or_else(|| self.unknown_type()))
     }
 
@@ -854,20 +855,20 @@ impl TypeChecker {
     }
 
     pub(super) fn get_non_undefined_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
-        let type_or_constraint = if self.some_type(type_, |type_| {
+        let type_or_constraint = if self.try_some_type(type_, |type_| {
             self.is_generic_type_with_undefined_constraint(type_)
-        }) {
-            self.map_type(
+        })? {
+            self.try_map_type(
                 type_,
                 &mut |t| {
-                    Some(if t.flags().intersects(TypeFlags::Instantiable) {
-                        self.get_base_constraint_or_type(t)
+                    Ok(Some(if t.flags().intersects(TypeFlags::Instantiable) {
+                        self.get_base_constraint_or_type(t)?
                     } else {
                         t.type_wrapper()
-                    })
+                    }))
                 },
                 None,
-            )
+            )?
             .unwrap()
         } else {
             type_.type_wrapper()
@@ -880,7 +881,7 @@ impl TypeChecker {
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
         declared_type: &Type,
     ) -> io::Result<Gc<Type>> {
-        let reference = self.get_synthetic_element_access(node);
+        let reference = self.get_synthetic_element_access(node)?;
         Ok(if let Some(reference) = reference {
             self.get_flow_type_of_reference(
                 &reference,

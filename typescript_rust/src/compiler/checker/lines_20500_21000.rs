@@ -4,7 +4,6 @@ use std::ptr;
 use std::{borrow::Borrow, io};
 
 use super::{IterationTypeKind, TypeFacts};
-use crate::OptionTry;
 use crate::{
     are_option_gcs_equal, compiler::utilities_public::is_expression_of_optional_chain_root,
     create_symbol_table, every, find, get_check_flags, get_object_flags, is_optional_chain,
@@ -14,6 +13,7 @@ use crate::{
     SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
+use crate::{try_reduce_left_no_initial_value, OptionTry};
 
 impl TypeChecker {
     pub(super) fn compare_signatures_identical(
@@ -195,18 +195,18 @@ impl TypeChecker {
                 Option::<&Type>::None,
             )?
         } else {
-            reduce_left_no_initial_value(
+            try_reduce_left_no_initial_value(
                 &types.cloned().collect::<Vec<_>>(),
-                |s: Gc<Type>, t: &Gc<Type>, _| {
-                    if self.is_type_subtype_of(&s, t) {
+                |s: Gc<Type>, t: &Gc<Type>, _| -> io::Result<_> {
+                    Ok(if self.is_type_subtype_of(&s, t)? {
                         t.clone()
                     } else {
                         s
-                    }
+                    })
                 },
                 None,
                 None,
-            )
+            )?
         })
     }
 
@@ -240,15 +240,15 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_common_subtype(&self, types: &[Gc<Type>]) -> Gc<Type> {
-        reduce_left_no_initial_value(
+    pub(super) fn get_common_subtype(&self, types: &[Gc<Type>]) -> io::Result<Gc<Type>> {
+        try_reduce_left_no_initial_value(
             types,
-            |s: Gc<Type>, t: &Gc<Type>, _| {
-                if self.is_type_subtype_of(t, &s) {
+            |s: Gc<Type>, t: &Gc<Type>, _| -> io::Result<_> {
+                Ok(if self.is_type_subtype_of(t, &s)? {
                     t.clone()
                 } else {
                     s
-                }
+                })
             },
             None,
             None,
@@ -405,7 +405,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_array_or_tuple_like_type(&self, type_: &Type) -> io::Result<bool> {
-        Ok(self.is_array_like_type(type_) || self.is_tuple_like_type(type_)?)
+        Ok(self.is_array_like_type(type_)? || self.is_tuple_like_type(type_)?)
     }
 
     pub(super) fn get_tuple_element_type(
@@ -559,7 +559,7 @@ impl TypeChecker {
         contextual_type: Option<impl Borrow<Type>>,
     ) -> io::Result<Gc<Type>> {
         let mut type_ = type_.type_wrapper();
-        if !self.is_literal_of_contextual_type(&type_, contextual_type) {
+        if !self.is_literal_of_contextual_type(&type_, contextual_type)? {
             type_ =
                 self.get_widened_unique_es_symbol_type(&*self.get_widened_literal_type(&type_)?);
         }
@@ -613,7 +613,7 @@ impl TypeChecker {
                         kind,
                         contextual_signature_return_type,
                         is_async_generator,
-                    )
+                    )?
                 });
             type_ = Some(self.get_widened_literal_like_type_for_contextual_type(
                 type_present,
@@ -1036,8 +1036,8 @@ impl TypeChecker {
                 .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::Boolean)
     }
 
-    pub(super) fn is_object_type_with_inferable_index(&self, type_: &Type) -> bool {
-        if type_.flags().intersects(TypeFlags::Intersection) {
+    pub(super) fn is_object_type_with_inferable_index(&self, type_: &Type) -> io::Result<bool> {
+        Ok(if type_.flags().intersects(TypeFlags::Intersection) {
             every(
                 type_.as_union_or_intersection_type_interface().types(),
                 |type_: &Gc<Type>, _| self.is_object_type_with_inferable_index(type_),
@@ -1046,11 +1046,11 @@ impl TypeChecker {
             matches!(
                 type_.maybe_symbol().as_ref(),
                 Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
-            ) && !self.type_has_call_or_construct_signatures(type_)
+            ) && !self.type_has_call_or_construct_signatures(type_)?
                 || get_object_flags(type_).intersects(ObjectFlags::ReverseMapped)
                     && self
                         .is_object_type_with_inferable_index(&type_.as_reverse_mapped_type().source)
-        }
+        })
     }
 
     pub(super) fn create_symbol_with_type(

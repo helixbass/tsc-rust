@@ -258,17 +258,15 @@ impl TypeChecker {
         node: &Node,
         mut callback: impl FnMut(&Node) -> Option<TReturn>,
     ) -> Option<TReturn> {
-        self.try_for_each_enclosing_class(node, |node: &Node| -> Result<_, ()> {
-            Ok(callback(node))
-        })
-        .unwrap()
+        self.try_for_each_enclosing_class(node, |node: &Node| Ok(callback(node)))
+            .unwrap()
     }
 
-    pub(super) fn try_for_each_enclosing_class<TReturn, TError>(
+    pub(super) fn try_for_each_enclosing_class<TReturn>(
         &self,
         node: &Node,
-        mut callback: impl FnMut(&Node) -> Result<Option<TReturn>, TError>,
-    ) -> Result<Option<TReturn>, TError> {
+        mut callback: impl FnMut(&Node) -> io::Result<Option<TReturn>>,
+    ) -> io::Result<Option<TReturn>> {
         let mut result: Option<TReturn> = None;
 
         let mut node = Some(node.node_wrapper());
@@ -287,10 +285,10 @@ impl TypeChecker {
         Ok(result)
     }
 
-    pub(super) fn for_each_enclosing_class_bool<TCallback: FnMut(&Node) -> bool>(
+    pub(super) fn for_each_enclosing_class_bool(
         &self,
         node: &Node,
-        mut callback: TCallback,
+        mut callback: impl FnMut(&Node) -> bool,
     ) -> bool {
         let mut result = false;
 

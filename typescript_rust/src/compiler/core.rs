@@ -1374,6 +1374,21 @@ pub fn reduce_left_no_initial_value<TItem: Clone>(
     start: Option<usize>,
     count: Option<usize>,
 ) -> TItem {
+    try_reduce_left_no_initial_value(
+        array,
+        |a, b, c| -> Result<_, ()> { Ok(f(a, b, c)) },
+        start,
+        count,
+    )
+    .unwrap()
+}
+
+pub fn try_reduce_left_no_initial_value<TItem: Clone, TError>(
+    array: &[TItem],
+    mut f: impl FnMut(TItem, &TItem, usize) -> Result<TItem, TError>,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Result<TItem, TError> {
     if
     /*array &&*/
     !array.is_empty() {
@@ -1395,14 +1410,14 @@ pub fn reduce_left_no_initial_value<TItem: Clone>(
         let mut result = array[0].clone();
         pos += 1;
         while pos <= end {
-            result = f(result, &array[pos], pos);
+            result = f(result, &array[pos], pos)?;
             pos += 1;
         }
-        return result;
+        return Ok(result);
         // }
         // }
     }
-    panic!("Shouldn't call reduce_left_no_initial_value() with empty slice")
+    panic!("Shouldn't call try_reduce_left_no_initial_value() with empty slice")
 }
 
 pub fn reduce_left_no_initial_value_optional<TItem: Clone>(

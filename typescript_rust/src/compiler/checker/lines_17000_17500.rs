@@ -583,7 +583,7 @@ impl TypeChecker {
 
                         let mut issued_elaboration = false;
                         if target_prop.is_none() {
-                            let index_info = self.get_applicable_index_info(target, &name_type);
+                            let index_info = self.get_applicable_index_info(target, &name_type)?;
                             if let Some(index_info) = index_info.as_ref() {
                                 if let Some(index_info_declaration) =
                                     index_info.declaration.as_ref().filter(|declaration| {
@@ -877,14 +877,14 @@ impl TypeChecker {
                         error_output_container,
                     )? || result;
                 } else if !self.is_type_related_to(
-                    &self.get_indexed_access_type(
+                    &*self.get_indexed_access_type(
                         source,
                         &children_name_type,
                         None,
                         Option::<&Node>::None,
                         Option::<&Symbol>::None,
                         None,
-                    ),
+                    )?,
                     &children_target_type,
                     relation,
                 )? {
@@ -926,14 +926,14 @@ impl TypeChecker {
                         )? || result;
                     }
                 } else if !self.is_type_related_to(
-                    &self.get_indexed_access_type(
+                    &*self.get_indexed_access_type(
                         source,
                         &children_name_type,
                         None,
                         Option::<&Node>::None,
                         Option::<&Symbol>::None,
                         None,
-                    ),
+                    )?,
                     &children_target_type,
                     relation,
                 )? {
@@ -1261,7 +1261,7 @@ impl TypeChecker {
             if let Some(target_this_type) = target_this_type.as_ref() {
                 let related = if !strict_variance {
                     let mut related =
-                        compare_types.call(source_this_type, target_this_type, Some(false));
+                        compare_types.call(source_this_type, target_this_type, Some(false))?;
                     if related == Ternary::False {
                         related = compare_types.call(
                             target_this_type,
@@ -1356,7 +1356,7 @@ impl TypeChecker {
                         if !check_mode.intersects(SignatureCheckMode::Callback) && !strict_variance
                         {
                             let mut related =
-                                compare_types.call(source_type, target_type, Some(false));
+                                compare_types.call(source_type, target_type, Some(false))?;
                             if related == Ternary::False {
                                 related = compare_types.call(
                                     target_type,
@@ -1373,7 +1373,7 @@ impl TypeChecker {
                         && check_mode.intersects(SignatureCheckMode::StrictArity)
                         && i >= self.get_min_argument_count(&source, None)?
                         && i < self.get_min_argument_count(&target, None)?
-                        && compare_types.call(source_type, target_type, Some(false))
+                        && compare_types.call(source_type, target_type, Some(false))?
                             != Ternary::False
                     {
                         related = Ternary::False;
@@ -1482,8 +1482,11 @@ impl TypeChecker {
                 }
             } else {
                 result &= if check_mode.intersects(SignatureCheckMode::BivariantCallback) {
-                    let mut val =
-                        compare_types.call(&target_return_type, &source_return_type, Some(false));
+                    let mut val = compare_types.call(
+                        &target_return_type,
+                        &source_return_type,
+                        Some(false),
+                    )?;
                     if val == Ternary::False {
                         val = compare_types.call(
                             &source_return_type,
@@ -1497,7 +1500,7 @@ impl TypeChecker {
                         &source_return_type,
                         &target_return_type,
                         Some(report_errors),
-                    )
+                    )?
                 };
                 if result == Ternary::False && report_errors {
                     if let Some(incompatible_error_reporter) = incompatible_error_reporter {

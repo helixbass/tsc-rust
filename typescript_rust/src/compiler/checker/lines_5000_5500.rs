@@ -462,7 +462,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
     ) -> io::Result<Gc<Node>> {
-        if self.type_checker.is_generic_mapped_type(type_)
+        if self.type_checker.is_generic_mapped_type(type_)?
             || matches!(
                 type_
                     .maybe_as_mapped_type()

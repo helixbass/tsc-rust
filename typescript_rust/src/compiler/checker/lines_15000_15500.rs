@@ -401,7 +401,7 @@ impl TypeChecker {
                 index_type,
                 TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
                 None,
-            )
+            )?
         {
             if object_type
                 .flags()
@@ -444,7 +444,7 @@ impl TypeChecker {
                             index_type,
                             TypeFlags::String | TypeFlags::Number,
                             None,
-                        )
+                        )?
                     {
                         let index_node = self.get_index_node_for_access_expression(access_node);
                         self.error(
@@ -907,7 +907,7 @@ impl TypeChecker {
             .intersects(ObjectFlags::IsGenericIndexType)
     }
 
-    pub(super) fn get_generic_object_flags(&self, type_: &Type) -> ObjectFlags {
+    pub(super) fn get_generic_object_flags(&self, type_: &Type) -> io::Result<ObjectFlags> {
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             let type_as_union_or_intersection_type = type_.as_union_or_intersection_type();
             if !type_as_union_or_intersection_type
@@ -926,7 +926,9 @@ impl TypeChecker {
                         ),
                 );
             }
-            return type_as_union_or_intersection_type.object_flags() & ObjectFlags::IsGenericType;
+            return Ok(
+                type_as_union_or_intersection_type.object_flags() & ObjectFlags::IsGenericType
+            );
         }
         if type_.flags().intersects(TypeFlags::Substitution) {
             let type_as_substitution_type = type_.as_substitution_type();
@@ -941,12 +943,12 @@ impl TypeChecker {
                         | self.get_generic_object_flags(&type_as_substitution_type.base_type),
                 );
             }
-            return type_as_substitution_type.object_flags() & ObjectFlags::IsGenericType;
+            return Ok(type_as_substitution_type.object_flags() & ObjectFlags::IsGenericType);
         }
-        (if type_
+        Ok((if type_
             .flags()
             .intersects(TypeFlags::InstantiableNonPrimitive)
-            || self.is_generic_mapped_type(type_)
+            || self.is_generic_mapped_type(type_)?
             || self.is_generic_tuple_type(type_)
         {
             ObjectFlags::IsGenericObjectType
@@ -962,7 +964,7 @@ impl TypeChecker {
             ObjectFlags::IsGenericIndexType
         } else {
             ObjectFlags::None
-        }
+        })
     }
 
     pub(super) fn is_this_type_parameter(&self, type_: &Type) -> bool {
@@ -1134,7 +1136,7 @@ impl TypeChecker {
                 return Ok(element_type);
             }
         }
-        if self.is_generic_mapped_type(&object_type) {
+        if self.is_generic_mapped_type(&object_type)? {
             let ret = self
                 .try_map_type(
                     &*self.substitute_indexed_mapped_type(
@@ -1164,8 +1166,8 @@ impl TypeChecker {
         let false_type = self.get_false_type_from_conditional_type(type_)?;
         if false_type.flags().intersects(TypeFlags::Never)
             && Gc::ptr_eq(
-                &self.get_actual_type_variable(&true_type),
-                &self.get_actual_type_variable(check_type),
+                &self.get_actual_type_variable(&true_type)?,
+                &self.get_actual_type_variable(check_type)?,
             )
         {
             if check_type.flags().intersects(TypeFlags::Any)
@@ -1180,8 +1182,8 @@ impl TypeChecker {
             }
         } else if true_type.flags().intersects(TypeFlags::Never)
             && Gc::ptr_eq(
-                &self.get_actual_type_variable(&false_type),
-                &self.get_actual_type_variable(check_type),
+                &self.get_actual_type_variable(&false_type)?,
+                &self.get_actual_type_variable(check_type)?,
             )
         {
             if !check_type.flags().intersects(TypeFlags::Any)
@@ -1301,7 +1303,7 @@ impl TypeChecker {
                 &index_type,
                 TypeFlags::String | TypeFlags::Number,
                 None,
-            )
+            )?
         {
             index_type = self.string_type();
         }

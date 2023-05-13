@@ -609,7 +609,7 @@ impl TypeChecker {
 
             if !self.is_error_type(&type_)
                 && !self.is_error_type(&declaration_type)
-                && !self.is_type_identical_to(&type_, &declaration_type)
+                && !self.is_type_identical_to(&type_, &declaration_type)?
                 && !symbol.flags().intersects(SymbolFlags::Assignment)
             {
                 self.error_next_variable_or_property_declaration_must_have_same_type(

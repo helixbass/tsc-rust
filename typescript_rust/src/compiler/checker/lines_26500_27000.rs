@@ -610,7 +610,7 @@ impl TypeChecker {
                     check_mode,
                     force_tuple,
                 )?;
-                if self.is_array_like_type(&spread_type) {
+                if self.is_array_like_type(&spread_type)? {
                     element_types.push(spread_type);
                     element_flags.push(ElementFlags::Variadic);
                 } else if in_destructuring_pattern {
@@ -759,11 +759,11 @@ impl TypeChecker {
         &self,
         name: &Node, /*ComputedPropertyName*/
     ) -> io::Result<bool> {
-        Ok(self.is_type_assignable_to_kind(
+        self.is_type_assignable_to_kind(
             &*self.check_computed_property_name(name)?,
             TypeFlags::NumberLike,
             None,
-        ))
+        )
     }
 
     pub(super) fn is_numeric_literal_name(&self, name: &str) -> bool {
@@ -823,7 +823,7 @@ impl TypeChecker {
                     &links_resolved_type,
                     TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
                     None,
-                ) && !self.is_type_assignable_to(
+                )? && !self.is_type_assignable_to(
                     &links_resolved_type,
                     &self.string_number_symbol_type(),
                 )?
@@ -866,7 +866,7 @@ impl TypeChecker {
                         &*self.check_computed_property_name(&first_decl.as_named_declaration().name())?,
                         TypeFlags::ESSymbol,
                         None,
-                    )
+                    )?
             ))
     }
 
@@ -881,7 +881,8 @@ impl TypeChecker {
         for i in offset..properties.len() {
             let prop = &properties[i];
             if ptr::eq(key_type, &*self.string_type()) && !self.is_symbol_with_symbol_name(prop)?
-                || ptr::eq(key_type, &*self.number_type()) && self.is_symbol_with_numeric_name(prop)
+                || ptr::eq(key_type, &*self.number_type())
+                    && self.is_symbol_with_numeric_name(prop)?
                 || ptr::eq(key_type, &*self.es_symbol_type())
                     && self.is_symbol_with_symbol_name(prop)?
             {
@@ -1191,7 +1192,7 @@ impl TypeChecker {
                     None,
                     None,
                 )?)?;
-                if self.is_valid_spread_type(&type_) {
+                if self.is_valid_spread_type(&type_)? {
                     let merged_type = self.try_merge_union_of_object_type_and_empty_object(
                         &type_,
                         in_const_context,

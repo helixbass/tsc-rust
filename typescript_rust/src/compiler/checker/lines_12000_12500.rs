@@ -167,7 +167,7 @@ impl TypeChecker {
                     }
                 } else if is_union {
                     let index_info = if !self.is_late_bound_name(name) {
-                        self.get_applicable_index_info_for_name(&type_, name)
+                        self.get_applicable_index_info_for_name(&type_, name)?
                     } else {
                         None
                     };
@@ -648,7 +648,7 @@ impl TypeChecker {
         for info in index_infos {
             if Gc::ptr_eq(&info.key_type, &self.string_type()) {
                 string_index_info = Some(info.clone());
-            } else if self.is_applicable_index_type(key_type, &info.key_type) {
+            } else if self.is_applicable_index_type(key_type, &info.key_type)? {
                 if applicable_info.is_none() {
                     applicable_info = Some(info.clone());
                 } else {
@@ -681,7 +681,7 @@ impl TypeChecker {
         } else if applicable_info.is_some() {
             applicable_info
         } else if string_index_info.is_some()
-            && self.is_applicable_index_type(key_type, &self.string_type())
+            && self.is_applicable_index_type(key_type, &self.string_type())?
         {
             string_index_info
         } else {
@@ -696,7 +696,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(self.is_type_assignable_to(source, target)?
             || ptr::eq(target, &*self.string_type())
-                && self.is_type_assignable_to(source, &self.number_type())
+                && self.is_type_assignable_to(source, &self.number_type())?
             || ptr::eq(target, &*self.number_type())
                 && source.flags().intersects(TypeFlags::StringLiteral)
                 && self.is_numeric_literal_name(&source.as_string_literal_type().value))
@@ -710,8 +710,8 @@ impl TypeChecker {
         vec![]
     }
 
-    pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> Vec<Gc<IndexInfo>> {
-        self.get_index_infos_of_structured_type(&self.get_reduced_apparent_type(type_))
+    pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> io::Result<Vec<Gc<IndexInfo>>> {
+        Ok(self.get_index_infos_of_structured_type(&*self.get_reduced_apparent_type(type_)?))
     }
 
     pub(super) fn get_index_info_of_type_(

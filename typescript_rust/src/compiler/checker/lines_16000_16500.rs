@@ -949,14 +949,14 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         mut mapper: Gc<TypeMapper>,
-    ) -> Gc<Symbol> {
+    ) -> io::Result<Gc<Symbol>> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
         {
             let links = (*links).borrow();
             if let Some(type_) = links.type_.as_ref() {
-                if !self.could_contain_type_variables(&type_) {
-                    return symbol;
+                if !self.could_contain_type_variables(&type_)? {
+                    return Ok(symbol);
                 }
             }
         }
@@ -991,7 +991,7 @@ impl TypeChecker {
         if let Some(links_name_type) = (*links).borrow().name_type.clone() {
             result_links.name_type = Some(links_name_type);
         }
-        result.into()
+        Ok(result.into())
     }
 
     pub(super) fn get_object_type_instantiation(
