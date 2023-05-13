@@ -305,7 +305,7 @@ impl InferTypes {
     ) -> io::Result<()> {
         let matches = self
             .type_checker
-            .infer_types_from_template_literal_type(source, target);
+            .infer_types_from_template_literal_type(source, target)?;
         let target_as_template_literal_type = target.as_template_literal_type();
         let types = &target_as_template_literal_type.types;
         if matches.is_some()

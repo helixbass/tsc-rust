@@ -8,9 +8,9 @@ use std::{cmp, io};
 use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
     append_if_unique_gc, append_if_unique_rc, arrays_equal, contains, contains_gc, contains_rc,
-    create_scanner, every, filter, get_check_flags, get_object_flags, map, some, CheckFlags,
-    ElementFlags, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
+    create_scanner, every, filter, get_check_flags, get_object_flags, map, some, try_map,
+    CheckFlags, ElementFlags, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionReduction, VarianceFlags,
 };
 use crate::{try_every, try_some};
@@ -263,9 +263,9 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
-    ) -> Option<Vec<Gc<Type>>> {
+    ) -> io::Result<Option<Vec<Gc<Type>>>> {
         let target_as_template_literal_type = target.as_template_literal_type();
-        if source.flags().intersects(TypeFlags::StringLiteral) {
+        Ok(if source.flags().intersects(TypeFlags::StringLiteral) {
             self.infer_from_literal_parts_to_template_literal(
                 &vec![source.as_string_literal_type().value.clone()],
                 &vec![],
@@ -277,10 +277,10 @@ impl TypeChecker {
                 &source_as_template_literal_type.texts,
                 &target_as_template_literal_type.texts,
             ) {
-                Some(map(
+                Some(try_map(
                     &source_as_template_literal_type.types,
                     |type_: &Gc<Type>, _| self.get_string_like_type_for_type(type_),
-                ))
+                )?)
             } else {
                 self.infer_from_literal_parts_to_template_literal(
                     &source_as_template_literal_type.texts,
@@ -290,7 +290,7 @@ impl TypeChecker {
             }
         } else {
             None
-        }
+        })
     }
 
     pub(super) fn is_type_matched_by_template_literal_type(
@@ -298,7 +298,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
     ) -> io::Result<bool> {
-        let inferences = self.infer_types_from_template_literal_type(source, target);
+        let inferences = self.infer_types_from_template_literal_type(source, target)?;
         let target_as_template_literal_type = target.as_template_literal_type();
         Ok(matches!(
             inferences.as_ref(),
