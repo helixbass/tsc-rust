@@ -685,7 +685,7 @@ impl TypeChecker {
                     self.is_generic_type_without_nullable_constraint(type_)
                 })? && self.is_generic_index_type(&*self.get_type_of_expression(
                     &parent.as_element_access_expression().argument_expression,
-                )?)))
+                )?)?))
     }
 
     pub(super) fn is_generic_type_with_union_constraint(&self, type_: &Type) -> io::Result<bool> {
@@ -726,8 +726,8 @@ impl TypeChecker {
         };
         Ok(matches!(
             contextual_type.as_ref(),
-            Some(contextual_type) if !self.is_generic_type(contextual_type)
-        ))
+            Some(contextual_type) if !self.is_generic_type(contextual_type)?
+        ))?
     }
 
     pub(super) fn get_narrowable_type_for_reference(

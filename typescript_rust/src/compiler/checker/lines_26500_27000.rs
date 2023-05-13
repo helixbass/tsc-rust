@@ -1117,7 +1117,7 @@ impl TypeChecker {
                             .get_index_info_of_type_(
                                 contextual_type.as_ref().unwrap(),
                                 &self.string_type(),
-                            )
+                            )?
                             .is_none()
                     {
                         self.error(

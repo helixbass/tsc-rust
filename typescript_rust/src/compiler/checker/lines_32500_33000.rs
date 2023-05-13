@@ -917,7 +917,7 @@ impl TypeChecker {
                             AssignmentDeclarationKind::ModuleExports
                                 | AssignmentDeclarationKind::Prototype
                         ) && !self.is_empty_object_type(right_type)?
-                            && !self.is_function_object_type(right_type)
+                            && !self.is_function_object_type(right_type)?
                             && !get_object_flags(right_type).intersects(ObjectFlags::Class)
                     {
                         self.check_assignment_operator(

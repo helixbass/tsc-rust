@@ -227,7 +227,7 @@ impl TypeChecker {
         for info in source_infos {
             let index_type = &info.key_type;
             if every(types, |t: &Gc<Type>, _| {
-                self.get_index_info_of_type_(t, index_type).is_some()
+                self.get_index_info_of_type_(t, index_type)?.is_some()
             }) {
                 result.push(Gc::new(
                     self.create_index_info(
@@ -242,14 +242,15 @@ impl TypeChecker {
                             None,
                             Option::<&Type>::None,
                         )?,
-                        some(
+                        try_some(
                             Some(types),
-                            Some(|t: &Gc<Type>| {
-                                self.get_index_info_of_type_(t, index_type)
+                            Some(|t: &Gc<Type>| -> io::Result<_> {
+                                Ok(self
+                                    .get_index_info_of_type_(t, index_type)?
                                     .unwrap()
-                                    .is_readonly
+                                    .is_readonly)
                             }),
-                        ),
+                        )?,
                         None,
                     ),
                 ));
@@ -493,7 +494,7 @@ impl TypeChecker {
                 self.get_properties_of_object_type(&type_target),
                 type_as_object_type.maybe_mapper().unwrap(),
                 false,
-            );
+            )?;
             let call_signatures = self.instantiate_signatures(
                 &*self.get_signatures_of_type(&type_target, SignatureKind::Call)?,
                 type_as_object_type.maybe_mapper().unwrap(),
@@ -700,7 +701,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
         let index_info =
-            self.get_index_info_of_type_(&type_as_reverse_mapped_type.source, &self.string_type());
+            self.get_index_info_of_type_(&type_as_reverse_mapped_type.source, &self.string_type())?;
         let modifiers = self.get_mapped_type_modifiers(&type_as_reverse_mapped_type.mapped_type);
         let readonly_mask = if modifiers.intersects(MappedTypeModifiers::IncludeReadonly) {
             false

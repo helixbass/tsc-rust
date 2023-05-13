@@ -469,16 +469,17 @@ impl TypeChecker {
                     interface_declaration
                         .clone()
                         .try_filter(|_| -> io::Result<_> {
-                            Ok(!some(
+                            Ok(!try_some(
                                 Some(&self.get_base_types(type_)?),
-                                Some(|base: &Gc<Type>| {
-                                    self.get_index_info_of_type_(base, &check_info.key_type)
+                                Some(|base: &Gc<Type>| -> io::Result<_> {
+                                    Ok(self
+                                        .get_index_info_of_type_(base, &check_info.key_type)?
                                         .is_some()
                                         && self
                                             .get_index_type_of_type_(base, &info.key_type)
-                                            .is_some()
+                                            .is_some())
                                 }),
-                            ))
+                            )?)
                         })
                 })?;
             if error_node.is_some()

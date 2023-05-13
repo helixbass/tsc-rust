@@ -475,7 +475,7 @@ impl TypeChecker {
         if self.some_type(&type_, |t: &Type| {
             t.flags()
                 .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
-        }) || self.is_generic_type(&type_)
+        }) || self.is_generic_type(&type_)?
         {
             return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),

@@ -640,7 +640,7 @@ impl TypeChecker {
     pub(super) fn remove_string_literals_matched_by_template_literals(
         &self,
         types: &mut Vec<Gc<Type>>,
-    ) {
+    ) -> io::Result<()> {
         let templates = filter(types, |type_: &Gc<Type>| {
             self.is_pattern_literal_type(type_)
         });
@@ -661,6 +661,8 @@ impl TypeChecker {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(super) fn is_named_union_type(&self, type_: &Type) -> bool {

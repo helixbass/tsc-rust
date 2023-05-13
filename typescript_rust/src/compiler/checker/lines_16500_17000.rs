@@ -1065,7 +1065,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Object | TypeFlags::NonPrimitive)
         } else if ptr::eq(target, &*self.global_function_type()) {
-            source.flags().intersects(TypeFlags::Object) && self.is_function_object_type(source)
+            source.flags().intersects(TypeFlags::Object) && self.is_function_object_type(source)?
         } else {
             self.has_base_type(source, Some(self.get_target_type(target)))?
                 || self.is_array_type(target)

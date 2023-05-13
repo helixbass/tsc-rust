@@ -726,9 +726,10 @@ impl TypeChecker {
         &self,
         type_: &Type,
         key_type: &Type,
-    ) -> Option<Gc<Type>> {
-        self.get_index_info_of_type_(type_, key_type)
-            .map(|index_info| index_info.type_.clone())
+    ) -> io::Result<Option<Gc<Type>>> {
+        Ok(self
+            .get_index_info_of_type_(type_, key_type)?
+            .map(|index_info| index_info.type_.clone()))
     }
 
     pub(super) fn get_applicable_index_infos(

@@ -467,7 +467,7 @@ impl SymbolTableToDeclarationStatements {
             if let Some(base_type) = base_type.as_ref() {
                 let base_info = self
                     .type_checker
-                    .get_index_info_of_type_(base_type, &info.key_type);
+                    .get_index_info_of_type_(base_type, &info.key_type)?;
                 if let Some(base_info) = base_info.as_ref() {
                     if self
                         .type_checker

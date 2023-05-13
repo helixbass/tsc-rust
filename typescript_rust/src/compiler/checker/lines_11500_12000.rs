@@ -204,7 +204,7 @@ impl TypeChecker {
 
     pub(super) fn is_generic_mapped_type(&self, type_: &Type) -> io::Result<bool> {
         Ok(get_object_flags(type_).intersects(ObjectFlags::Mapped)
-            && self.is_generic_index_type(&*self.get_constraint_type_from_mapped_type(type_)?))
+            && self.is_generic_index_type(&*self.get_constraint_type_from_mapped_type(type_)?)?)
     }
 
     pub(super) fn resolve_structured_type_members(

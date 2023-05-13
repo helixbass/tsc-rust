@@ -635,13 +635,13 @@ impl TypeChecker {
         }
         let apparent_object_type = self.get_apparent_type(object_type)?;
         if self
-            .get_index_info_of_type_(&apparent_object_type, &self.number_type())
+            .get_index_info_of_type_(&apparent_object_type, &self.number_type())?
             .is_some()
             && self.is_type_assignable_to_kind(index_type, TypeFlags::NumberLike, None)?
         {
             return Ok(type_.type_wrapper());
         }
-        if self.is_generic_object_type(object_type) {
+        if self.is_generic_object_type(object_type)? {
             let property_name = self.get_property_name_from_index(index_type, Some(access_node));
             if let Some(property_name) = property_name.as_ref() {
                 let property_symbol = self

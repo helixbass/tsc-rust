@@ -51,26 +51,32 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Gc<Type> {
-        if type_
-            .flags()
-            .intersects(TypeFlags::Union | TypeFlags::Never)
-        {
-            self.map_type(
-                type_,
-                &mut |t| Some(self.get_string_mapping_type(symbol, t)),
-                None,
-            )
-            .unwrap()
-        } else if self.is_generic_index_type(type_) {
-            self.get_string_mapping_type_for_generic_type(symbol, type_)
-        } else if type_.flags().intersects(TypeFlags::StringLiteral) {
-            self.get_string_literal_type(
-                &self.apply_string_mapping(symbol, &type_.as_string_literal_type().value),
-            )
-        } else {
-            type_.type_wrapper()
-        }
+    pub(super) fn get_string_mapping_type(
+        &self,
+        symbol: &Symbol,
+        type_: &Type,
+    ) -> io::Result<Gc<Type>> {
+        Ok(
+            if type_
+                .flags()
+                .intersects(TypeFlags::Union | TypeFlags::Never)
+            {
+                self.map_type(
+                    type_,
+                    &mut |t| Some(self.get_string_mapping_type(symbol, t)),
+                    None,
+                )
+                .unwrap()
+            } else if self.is_generic_index_type(type_)? {
+                self.get_string_mapping_type_for_generic_type(symbol, type_)
+            } else if type_.flags().intersects(TypeFlags::StringLiteral) {
+                self.get_string_literal_type(
+                    &self.apply_string_mapping(symbol, &type_.as_string_literal_type().value),
+                )
+            } else {
+                type_.type_wrapper()
+            },
+        )
     }
 
     pub(super) fn apply_string_mapping(&self, symbol: &Symbol, str_: &str) -> String {
@@ -370,7 +376,7 @@ impl TypeChecker {
                 self.error_if_writing_to_readonly_index(
                     access_expression,
                     object_type,
-                    self.get_index_info_of_type_(object_type, &self.number_type()),
+                    self.get_index_info_of_type_(object_type, &self.number_type())?,
                 );
                 return self.try_map_type(
                     object_type,
@@ -411,7 +417,7 @@ impl TypeChecker {
             }
             let index_info = self
                 .get_applicable_index_info(object_type, index_type)?
-                .or_else(|| self.get_index_info_of_type_(object_type, &self.string_type()));
+                .try_or_else(|| self.get_index_info_of_type_(object_type, &self.string_type()))?;
             if let Some(index_info) = index_info.as_deref() {
                 if access_flags.intersects(AccessFlags::NoIndexSignatures)
                     && !Gc::ptr_eq(&index_info.key_type, &self.number_type())
@@ -921,7 +927,9 @@ impl TypeChecker {
                         | ObjectFlags::IsGenericTypeComputed
                         | try_reduce_left(
                             type_.as_union_or_intersection_type().types(),
-                            |flags, t: &Gc<Type>, _| flags | self.get_generic_object_flags(t),
+                            |flags, t: &Gc<Type>, _| -> io::Result<_> {
+                                Ok(flags | self.get_generic_object_flags(t))
+                            },
                             ObjectFlags::None,
                             None,
                             None,
@@ -1318,7 +1326,7 @@ impl TypeChecker {
         }
         let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
-        if self.is_generic_index_type(&index_type)
+        if self.is_generic_index_type(&index_type)?
             || if matches!(
                 access_node.as_ref(),
                 Some(access_node) if access_node.kind() != SyntaxKind::IndexedAccessType
@@ -1335,7 +1343,7 @@ impl TypeChecker {
                             .unwrap(),
                     )
             } else {
-                self.is_generic_object_type(object_type)
+                self.is_generic_object_type(object_type)?
                     && !(self.is_tuple_type(object_type)
                         && self.index_type_less_than(
                             &index_type,

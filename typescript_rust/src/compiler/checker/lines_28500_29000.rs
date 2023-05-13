@@ -628,7 +628,7 @@ impl TypeChecker {
     pub(super) fn has_numeric_property_names(&self, type_: &Type) -> io::Result<bool> {
         Ok(self.get_index_infos_of_type(type_)?.len() == 1
             && self
-                .get_index_info_of_type_(type_, &self.number_type())
+                .get_index_info_of_type_(type_, &self.number_type())?
                 .is_some())
     }
 
@@ -653,10 +653,10 @@ impl TypeChecker {
                                     &symbol
                                 )
                             )
-                            && self.has_numeric_property_names(
-                                &*self
-                                    .get_type_of_expression(&node_as_for_in_statement.expression)?,
-                            )
+                            && self
+                                .has_numeric_property_names(&*self.get_type_of_expression(
+                                    &node_as_for_in_statement.expression,
+                                )?)?
                     } {
                         return Ok(true);
                     }
@@ -750,7 +750,7 @@ impl TypeChecker {
             };
         let access_flags = if is_assignment_target(node) {
             AccessFlags::Writing
-                | if self.is_generic_object_type(&object_type)
+                | if self.is_generic_object_type(&object_type)?
                     && !self.is_this_type_parameter(&object_type)
                 {
                     AccessFlags::NoIndexSignatures

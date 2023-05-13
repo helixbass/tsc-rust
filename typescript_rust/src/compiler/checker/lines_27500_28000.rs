@@ -487,7 +487,7 @@ impl TypeChecker {
                     .is_some()
                 || self.is_late_bound_name(name)
                     && self
-                        .get_index_info_of_type_(target_type, &self.string_type())
+                        .get_index_info_of_type_(target_type, &self.string_type())?
                         .is_some()
                 || is_comparing_jsx_attributes && self.is_hyphenated_jsx_name(name)
             {

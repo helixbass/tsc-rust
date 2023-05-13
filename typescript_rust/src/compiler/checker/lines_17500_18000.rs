@@ -181,7 +181,7 @@ impl TypeChecker {
             && self.get_properties_of_type(type_)?.len() == 0
             && self.get_index_infos_of_type(type_)?.len() == 1
             && self
-                .get_index_info_of_type_(type_, &self.string_type())
+                .get_index_info_of_type_(type_, &self.string_type())?
                 .is_some()
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && try_every(

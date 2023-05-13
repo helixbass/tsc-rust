@@ -791,7 +791,7 @@ impl TypeChecker {
             None,
             Option::<&Type>::None,
         )?;
-        if self.is_generic_object_type(&source) || self.is_generic_index_type(&omit_key_type) {
+        if self.is_generic_object_type(&source)? || self.is_generic_index_type(&omit_key_type)? {
             if omit_key_type.flags().intersects(TypeFlags::Never) {
                 return Ok(source);
             }

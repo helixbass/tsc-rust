@@ -901,7 +901,7 @@ impl TypeChecker {
         signature: Gc<Signature>,
         mut mapper: Gc<TypeMapper>,
         erase_type_parameters: Option<bool>,
-    ) -> Signature {
+    ) -> io::Result<Signature> {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
         let mut fresh_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
         if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
@@ -944,7 +944,7 @@ impl TypeChecker {
         );
         result.target = Some(signature);
         result.mapper = Some(mapper);
-        result
+        Ok(result)
     }
 
     pub(super) fn instantiate_symbol(

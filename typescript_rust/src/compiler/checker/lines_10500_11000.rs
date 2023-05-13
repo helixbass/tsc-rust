@@ -502,7 +502,7 @@ impl TypeChecker {
                         .unwrap(),
                     mapper.clone().unwrap(),
                     type_parameters_len_is_1,
-                ),
+                )?,
             ));
             call_signatures = self.instantiate_signatures(
                 &*source_as_interface_type_with_declared_members.declared_call_signatures(),

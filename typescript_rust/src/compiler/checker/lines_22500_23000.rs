@@ -383,7 +383,7 @@ impl TypeChecker {
                         prop_symbol_links.borrow_mut().is_discriminant_property = Some(
                             prop_as_transient_symbol.check_flags() & CheckFlags::Discriminant
                                 == CheckFlags::Discriminant
-                                && !self.is_generic_type(&*self.get_type_of_symbol(&prop)?),
+                                && !self.is_generic_type(&*self.get_type_of_symbol(&prop)?)?,
                         );
                     }
                     return Ok((*prop_symbol_links)
@@ -808,7 +808,7 @@ impl TypeChecker {
                     } else {
                         TypeFacts::EmptyObjectFacts
                     }
-                } else if self.is_function_object_type(type_) {
+                } else if self.is_function_object_type(type_)? {
                     if self.strict_null_checks {
                         TypeFacts::FunctionStrictFacts
                     } else {

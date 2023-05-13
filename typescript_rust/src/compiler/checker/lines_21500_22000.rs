@@ -715,7 +715,7 @@ impl InferTypes {
         } else if target.flags().intersects(TypeFlags::Intersection)
             && try_some(
                 Some(target.as_union_or_intersection_type_interface().types()),
-                Some(|t: &Gc<Type>| {
+                Some(|t: &Gc<Type>| -> io::Result<_> {
                     Ok(self.get_inference_info_for_type(t).is_some()
                         || (self.type_checker.is_generic_mapped_type(t)?
                             && self

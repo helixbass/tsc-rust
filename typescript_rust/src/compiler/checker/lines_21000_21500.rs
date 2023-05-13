@@ -1004,7 +1004,7 @@ impl TypeChecker {
         constraint: &Type, /*IndexType*/
     ) -> io::Result<Option<Gc<Type>>> {
         if !(self
-            .get_index_info_of_type_(source, &self.string_type())
+            .get_index_info_of_type_(source, &self.string_type())?
             .is_some()
             || self.get_properties_of_type(source)?.len() != 0
                 && self.is_partially_inferable_type(source)?)

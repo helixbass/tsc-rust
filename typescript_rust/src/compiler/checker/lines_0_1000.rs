@@ -1699,7 +1699,11 @@ impl TypeChecker {
         self.get_type_of_property_of_type_(type_, &escape_leading_underscores(name))
     }
 
-    pub fn get_index_info_of_type(&self, type_: &Type, kind: IndexKind) -> Option<Gc<IndexInfo>> {
+    pub fn get_index_info_of_type(
+        &self,
+        type_: &Type,
+        kind: IndexKind,
+    ) -> io::Result<Option<Gc<IndexInfo>>> {
         self.get_index_info_of_type_(
             type_,
             &*if kind == IndexKind::String {
@@ -2463,10 +2467,10 @@ impl TypeChecker {
         &self,
         module_specifier_in: &Node, /*Expression*/
     ) -> io::Result<Option<Gc<Symbol>>> {
-        let module_specifier = get_parse_tree_node(
+        let module_specifier = return_ok_default_if_none!(get_parse_tree_node(
             Some(module_specifier_in),
             Some(|node: &Node| is_expression(node)),
-        )?;
+        ));
         self.resolve_external_module_name_(&module_specifier, &module_specifier, Some(true))
     }
 

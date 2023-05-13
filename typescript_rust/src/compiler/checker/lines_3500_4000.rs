@@ -16,9 +16,9 @@ use crate::{
     is_external_module_name_relative, is_import_call, is_import_declaration,
     is_module_exports_access_expression, is_object_literal_expression, is_type_literal_node,
     is_variable_declaration, length, mangle_scoped_package_name, map_defined, node_is_synthesized,
-    push_if_unique_gc, return_ok_none_if_none, try_for_each_entry, try_map_defined,
-    unescape_leading_underscores, Diagnostics, HasInitializerInterface, HasTypeInterface,
-    InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry,
+    push_if_unique_gc, return_ok_default_if_none, return_ok_none_if_none, try_for_each_entry,
+    try_map_defined, unescape_leading_underscores, Diagnostics, HasInitializerInterface,
+    HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry,
     ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
 };
 
@@ -550,7 +550,7 @@ impl TypeChecker {
         let module_symbol = self.resolve_external_module_symbol(Some(module_symbol), None)?;
 
         Ok(self
-            .visit_get_exports_of_module_worker(&mut visited_symbols, module_symbol)
+            .visit_get_exports_of_module_worker(&mut visited_symbols, module_symbol)?
             .map_or_else(
                 || self.empty_symbols(),
                 |symbol_table| Gc::new(GcCell::new(symbol_table)),
@@ -562,7 +562,7 @@ impl TypeChecker {
         visited_symbols: &mut Vec<Gc<Symbol>>,
         symbol: Option<Gc<Symbol>>,
     ) -> io::Result<Option<SymbolTable>> {
-        let symbol = symbol?;
+        let symbol = return_ok_default_if_none!(symbol);
         if !(symbol.maybe_exports().is_some() && push_if_unique_gc(visited_symbols, &symbol)) {
             return Ok(None);
         }
@@ -585,7 +585,7 @@ impl TypeChecker {
                         None,
                     )?;
                     let exported_symbols =
-                        self.visit_get_exports_of_module_worker(visited_symbols, resolved_module);
+                        self.visit_get_exports_of_module_worker(visited_symbols, resolved_module)?;
                     self.extend_export_symbols(
                         &mut nested_symbols,
                         exported_symbols.as_ref(),

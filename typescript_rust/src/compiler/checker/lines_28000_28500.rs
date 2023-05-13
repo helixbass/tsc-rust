@@ -590,7 +590,7 @@ impl TypeChecker {
             None => {
                 let index_info = if !is_private_identifier(right)
                     && (assignment_kind == AssignmentKind::None
-                        || !self.is_generic_object_type(left_type)
+                        || !self.is_generic_object_type(left_type)?
                         || self.is_this_type_parameter(left_type))
                 {
                     self.get_applicable_index_info_for_name(
@@ -1193,7 +1193,7 @@ impl TypeChecker {
                         );
                     } else {
                         let diagnostic = if self
-                            .container_seems_to_be_empty_dom_element(containing_type)
+                            .container_seems_to_be_empty_dom_element(containing_type)?
                         {
                             &*Diagnostics::Property_0_does_not_exist_on_type_1_Try_changing_the_lib_compiler_option_to_include_dom
                         } else {

@@ -669,7 +669,7 @@ impl InferTypes {
         let index_infos = self.type_checker.get_index_infos_of_type(target)?;
         if self
             .type_checker
-            .is_object_type_with_inferable_index(source)
+            .is_object_type_with_inferable_index(source)?
         {
             for target_info in &index_infos {
                 let mut prop_types: Vec<Gc<Type>> = vec![];
@@ -691,7 +691,7 @@ impl InferTypes {
                         });
                     }
                 }
-                for info in &self.type_checker.get_index_infos_of_type(source) {
+                for info in &self.type_checker.get_index_infos_of_type(source)? {
                     if self
                         .type_checker
                         .is_applicable_index_type(&info.key_type, &target_info.key_type)?

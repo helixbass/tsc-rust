@@ -1102,8 +1102,10 @@ impl CheckTypeRelatedTo {
                     .type_checker
                     .get_base_constraint_of_type(index_type)?
                     .unwrap_or_else(|| index_type.clone());
-                if !self.type_checker.is_generic_object_type(&base_object_type)
-                    && !self.type_checker.is_generic_index_type(&base_index_type)
+                if !self
+                    .type_checker
+                    .is_generic_object_type(&base_object_type)?
+                    && !self.type_checker.is_generic_index_type(&base_index_type)?
                 {
                     let access_flags = AccessFlags::Writing
                         | if !Gc::ptr_eq(&base_object_type, object_type) {

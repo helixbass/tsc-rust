@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::io;
 use std::rc::Rc;
 
+use crate::try_every;
 use crate::{
     HasTypeArgumentsInterface, __String, append, concatenate, create_symbol_table,
     declaration_name_to_string, every, find, get_declaration_modifier_flags_from_symbol,
@@ -181,7 +182,7 @@ impl TypeChecker {
                 )?,
                 mapper.clone(),
             )?;
-            let check_type_instantiable = self.is_generic_type(&check_type);
+            let check_type_instantiable = self.is_generic_type(&check_type)?;
             let extends_type = self.instantiate_type(
                 &*self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
@@ -230,7 +231,7 @@ impl TypeChecker {
             } else {
                 extends_type.clone()
             };
-            if !check_type_instantiable && !self.is_generic_type(&inferred_extends_type) {
+            if !check_type_instantiable && !self.is_generic_type(&inferred_extends_type)? {
                 if !inferred_extends_type
                     .flags()
                     .intersects(TypeFlags::AnyOrUnknown)
@@ -898,26 +899,26 @@ impl TypeChecker {
             return Ok(type_.type_wrapper());
         }
         let type_as_union_type = type_.as_union_type();
-        if every(type_as_union_type.types(), |type_: &Gc<Type>, _| {
+        if try_every(type_as_union_type.types(), |type_: &Gc<Type>, _| {
             self.is_empty_object_type_or_spreads_into_empty_object(type_)
-        }) {
+        })? {
             return Ok(try_find(type_as_union_type.types(), |type_: &Gc<Type>, _| {
                 self.is_empty_object_type(type_)
             })?
             .cloned()
             .unwrap_or_else(|| self.empty_object_type()));
         }
-        let first_type = find(type_as_union_type.types(), |type_: &Gc<Type>, _| {
+        let first_type = try_find(type_as_union_type.types(), |type_: &Gc<Type>, _| {
             !self.is_empty_object_type_or_spreads_into_empty_object(type_)
-        })
-        .map(Clone::clone);
+        })?
+        .cloned();
         if first_type.is_none() {
             return Ok(type_.type_wrapper());
         }
         let first_type = first_type.unwrap();
         let second_type = find(type_as_union_type.types(), |t: &Gc<Type>, _| {
             !Gc::ptr_eq(t, &first_type)
-                && !self.is_empty_object_type_or_spreads_into_empty_object(type_)
+                && !self.is_empty_object_type_or_spreads_into_empty_object(type_)?
         })
         .cloned();
         if second_type.is_some() {

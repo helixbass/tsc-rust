@@ -169,7 +169,7 @@ impl CheckTypeRelatedTo {
         for target_info in &target_infos {
             let source_info = self
                 .type_checker
-                .get_index_info_of_type_(source, &target_info.key_type);
+                .get_index_info_of_type_(source, &target_info.key_type)?;
             if !matches!(
                 source_info.as_ref(),
                 Some(source_info) if self.is_related_to(

@@ -494,7 +494,7 @@ impl TypeChecker {
         }
         let mut key_types: Vec<Gc<Type>> = vec![];
         if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
-            if !self.is_generic_index_type(&constraint_type) {
+            if !self.is_generic_index_type(&constraint_type)? {
                 let modifiers_type =
                     self.get_apparent_type(&*self.get_modifiers_type_from_mapped_type(type_)?)?;
                 self.try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
@@ -526,7 +526,7 @@ impl TypeChecker {
                 Ok(Option::<()>::None)
             })?;
         }
-        if self.is_generic_index_type(&constraint_type) {
+        if self.is_generic_index_type(&constraint_type)? {
             self.try_for_each_type(&constraint_type, |t| {
                 self.add_member_for_key_type_get_index_type_for_mapped_type(
                     name_type.as_ref(),
@@ -992,7 +992,7 @@ impl TypeChecker {
         new_texts: &mut Vec<String>,
         texts: &[String],
         types: &[Gc<Type>],
-    ) -> bool {
+    ) -> io::Result<bool> {
         for (i, t) in types.iter().enumerate() {
             if t.flags()
                 .intersects(TypeFlags::Literal | TypeFlags::Null | TypeFlags::Undefined)
@@ -1013,17 +1013,18 @@ impl TypeChecker {
                     &t_as_template_literal_type.texts,
                     &t_as_template_literal_type.types,
                 ) {
-                    return false;
+                    return Ok(false);
                 }
                 text.push_str(&texts[i + 1]);
-            } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t) {
+            } else if self.is_generic_index_type(t)? || self.is_pattern_literal_placeholder_type(t)
+            {
                 new_types.push(t.clone());
                 new_texts.push(text.clone());
                 *text = texts[i + 1].clone();
             } else {
-                return false;
+                return Ok(false);
             }
         }
-        true
+        Ok(true)
     }
 }

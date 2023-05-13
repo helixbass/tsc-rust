@@ -1073,17 +1073,17 @@ impl TypeChecker {
         Ok(vec![])
     }
 
-    pub(super) fn is_valid_index_key_type(&self, type_: &Type) -> bool {
-        type_
+    pub(super) fn is_valid_index_key_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(type_
             .flags()
             .intersects(TypeFlags::String | TypeFlags::Number | TypeFlags::ESSymbol)
             || self.is_pattern_literal_type(type_)
             || type_.flags().intersects(TypeFlags::Intersection)
-                && !self.is_generic_type(type_)
+                && !self.is_generic_type(type_)?
                 && some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
                     Some(|type_: &Gc<Type>| self.is_valid_index_key_type(type_)),
-                )
+                ))
     }
 
     pub(super) fn get_constraint_declaration(
