@@ -927,14 +927,14 @@ impl TypeChecker {
         &self,
         texts: &[String],
         types: &[Gc<Type>],
-    ) -> Gc<Type> {
+    ) -> io::Result<Gc<Type>> {
         let union_index = find_index(
             types,
             |t: &Gc<Type>, _| t.flags().intersects(TypeFlags::Never | TypeFlags::Union),
             None,
         );
         if let Some(union_index) = union_index {
-            return if self.check_cross_product_union(types) {
+            return Ok(if self.check_cross_product_union(types) {
                 self.map_type(
                     &types[union_index],
                     &mut |t| {
@@ -948,19 +948,19 @@ impl TypeChecker {
                 .unwrap()
             } else {
                 self.error_type()
-            };
+            });
         }
         if contains_gc(Some(types), &self.wildcard_type()) {
-            return self.wildcard_type();
+            return Ok(self.wildcard_type());
         }
         let mut new_types: Vec<Gc<Type>> = vec![];
         let mut new_texts: Vec<String> = vec![];
         let mut text = texts[0].clone();
         if !self.add_spans(&mut text, &mut new_types, &mut new_texts, texts, types)? {
-            return self.string_type();
+            return Ok(self.string_type());
         }
         if new_types.is_empty() {
-            return self.get_string_literal_type(&text);
+            return Ok(self.get_string_literal_type(&text));
         }
         new_texts.push(text);
         if every(&new_texts, |t: &String, _| t == "")
@@ -968,7 +968,7 @@ impl TypeChecker {
                 t.flags().intersects(TypeFlags::String)
             })
         {
-            return self.string_type();
+            return Ok(self.string_type());
         }
         let id = format!(
             "{}|{}|{}",
@@ -982,7 +982,7 @@ impl TypeChecker {
             self.template_literal_types()
                 .insert(id, type_.clone().unwrap());
         }
-        type_.unwrap()
+        Ok(type_.unwrap())
     }
 
     pub(super) fn add_spans(

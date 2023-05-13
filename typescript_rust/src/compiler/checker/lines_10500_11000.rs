@@ -507,11 +507,11 @@ impl TypeChecker {
             call_signatures = self.instantiate_signatures(
                 &*source_as_interface_type_with_declared_members.declared_call_signatures(),
                 mapper.clone().unwrap(),
-            );
+            )?;
             construct_signatures = self.instantiate_signatures(
                 &*source_as_interface_type_with_declared_members.declared_construct_signatures(),
                 mapper.clone().unwrap(),
-            );
+            )?;
             index_infos = self.instantiate_index_infos(
                 &*source_as_interface_type_with_declared_members.declared_index_infos(),
                 mapper.clone().unwrap(),
@@ -872,7 +872,7 @@ impl TypeChecker {
                             is_java_script,
                         )?
                         .as_deref(),
-                    )
+                    )?
                 } else {
                     self.clone_signature(&base_sig)
                 };

@@ -795,7 +795,7 @@ impl TypeChecker {
         &self,
         signature: Gc<Signature>,
         type_arguments: Option<&[Gc<Type>]>,
-    ) -> Gc<Signature> {
+    ) -> io::Result<Gc<Signature>> {
         if signature.maybe_instantiations().is_none() {
             *signature.maybe_instantiations() = Some(HashMap::new());
         }
@@ -805,11 +805,11 @@ impl TypeChecker {
         let mut instantiation = instantiations.get(&id).map(Clone::clone);
         if instantiation.is_none() {
             instantiation = Some(Gc::new(
-                self.create_signature_instantiation(signature.clone(), type_arguments),
+                self.create_signature_instantiation(signature.clone(), type_arguments)?,
             ));
             instantiations.insert(id, instantiation.clone().unwrap());
         }
-        instantiation.unwrap()
+        Ok(instantiation.unwrap())
     }
 
     pub(super) fn create_signature_instantiation(
@@ -835,16 +835,19 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_erased_signature(&self, signature: Gc<Signature>) -> Gc<Signature> {
-        if signature.maybe_type_parameters().is_some() {
+    pub(super) fn get_erased_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Gc<Signature>> {
+        Ok(if signature.maybe_type_parameters().is_some() {
             if signature.maybe_erased_signature_cache().is_none() {
                 *signature.maybe_erased_signature_cache() =
-                    Some(Gc::new(self.create_erased_signature(signature.clone())));
+                    Some(Gc::new(self.create_erased_signature(signature.clone())?));
             }
             signature.maybe_erased_signature_cache().clone().unwrap()
         } else {
             signature
-        }
+        })
     }
 
     pub(super) fn create_erased_signature(

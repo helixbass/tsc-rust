@@ -841,25 +841,27 @@ impl TypeChecker {
             SyntaxKind::NonNullExpression => self.check_non_null_assertion(node)?,
             SyntaxKind::MetaProperty => self.check_meta_property(node)?,
             SyntaxKind::DeleteExpression => self.check_delete_expression(node)?,
-            SyntaxKind::VoidExpression => self.check_void_expression(node),
-            SyntaxKind::AwaitExpression => self.check_await_expression(node),
-            SyntaxKind::PrefixUnaryExpression => self.check_prefix_unary_expression(node),
-            SyntaxKind::PostfixUnaryExpression => self.check_postfix_unary_expression(node),
-            SyntaxKind::BinaryExpression => self.check_binary_expression().call(node, check_mode),
+            SyntaxKind::VoidExpression => self.check_void_expression(node)?,
+            SyntaxKind::AwaitExpression => self.check_await_expression(node)?,
+            SyntaxKind::PrefixUnaryExpression => self.check_prefix_unary_expression(node)?,
+            SyntaxKind::PostfixUnaryExpression => self.check_postfix_unary_expression(node)?,
+            SyntaxKind::BinaryExpression => {
+                self.check_binary_expression().call(node, check_mode)?
+            }
             SyntaxKind::ConditionalExpression => {
                 self.check_conditional_expression(node, check_mode)?
             }
-            SyntaxKind::SpreadElement => self.check_spread_expression(node, check_mode),
+            SyntaxKind::SpreadElement => self.check_spread_expression(node, check_mode)?,
             SyntaxKind::OmittedExpression => self.undefined_widening_type(),
-            SyntaxKind::YieldExpression => self.check_yield_expression(node),
-            SyntaxKind::SyntheticExpression => self.check_synthetic_expression(node),
-            SyntaxKind::JsxExpression => self.check_jsx_expression(node, check_mode),
-            SyntaxKind::JsxElement => self.check_jsx_element(node, check_mode),
+            SyntaxKind::YieldExpression => self.check_yield_expression(node)?,
+            SyntaxKind::SyntheticExpression => self.check_synthetic_expression(node)?,
+            SyntaxKind::JsxExpression => self.check_jsx_expression(node, check_mode)?,
+            SyntaxKind::JsxElement => self.check_jsx_element(node, check_mode)?,
             SyntaxKind::JsxSelfClosingElement => {
                 self.check_jsx_self_closing_element(node, check_mode)?
             }
-            SyntaxKind::JsxFragment => self.check_jsx_fragment(node),
-            SyntaxKind::JsxAttributes => self.check_jsx_attributes(node, check_mode),
+            SyntaxKind::JsxFragment => self.check_jsx_fragment(node)?,
+            SyntaxKind::JsxAttributes => self.check_jsx_attributes(node, check_mode)?,
             SyntaxKind::JsxOpeningElement => {
                 Debug_.fail(Some("Shouldn't ever directly check a JsxOpeningElement"))
             }

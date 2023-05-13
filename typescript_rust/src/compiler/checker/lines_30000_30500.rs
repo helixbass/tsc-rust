@@ -215,7 +215,7 @@ impl TypeChecker {
                     type_parameters,
                     is_in_js_file(Some(node)),
                 )?),
-            ))
+            )?)
         } else {
             self.infer_signature_instantiation_for_overload_failure(
                 node,
@@ -277,7 +277,7 @@ impl TypeChecker {
         Ok(Gc::new(self.create_signature_instantiation(
             candidate,
             Some(&type_argument_types),
-        )))
+        )?))
     }
 
     pub(super) fn get_longest_candidate_index(

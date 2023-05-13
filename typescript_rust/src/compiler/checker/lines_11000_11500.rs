@@ -235,10 +235,10 @@ impl TypeChecker {
                         self.get_union_type(
                             &types
                                 .into_iter()
-                                .try_map(|t| -> io::Result<_> {
+                                .map(|t| -> io::Result<_> {
                                     Ok(self.get_index_type_of_type_(t, index_type)?.unwrap())
-                                })?
-                                .collect::<Vec<_>>(),
+                                })
+                                .collect::<Result<Vec<_>, _>>()?,
                             None,
                             Option::<&Symbol>::None,
                             None,
@@ -500,11 +500,11 @@ impl TypeChecker {
             let call_signatures = self.instantiate_signatures(
                 &*self.get_signatures_of_type(&type_target, SignatureKind::Call)?,
                 type_as_object_type.maybe_mapper().unwrap(),
-            );
+            )?;
             let construct_signatures = self.instantiate_signatures(
                 &*self.get_signatures_of_type(&type_target, SignatureKind::Construct)?,
                 type_as_object_type.maybe_mapper().unwrap(),
-            );
+            )?;
             let index_infos = self.instantiate_index_infos(
                 &self.get_index_infos_of_type(&type_target)?,
                 type_as_object_type.maybe_mapper().unwrap(),
