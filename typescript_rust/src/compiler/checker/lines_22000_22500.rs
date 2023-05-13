@@ -218,7 +218,7 @@ impl InferTypes {
                 .get_properties_of_type(source)?
                 .map(|ref property| self.type_checker.get_type_of_symbol(property))
                 .collect::<Result<Vec<_>, _>>()?;
-            let index_infos = self.type_checker.get_index_infos_of_type(source);
+            let index_infos = self.type_checker.get_index_infos_of_type(source)?;
             let index_types = index_infos.iter().map(|info| {
                 if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
                     info.type_.clone()
@@ -666,7 +666,7 @@ impl InferTypes {
         } else {
             InferencePriority::None
         };
-        let index_infos = self.type_checker.get_index_infos_of_type(target);
+        let index_infos = self.type_checker.get_index_infos_of_type(target)?;
         if self
             .type_checker
             .is_object_type_with_inferable_index(source)
@@ -836,7 +836,7 @@ impl TypeChecker {
                     None,
                 )?
             } else {
-                self.get_common_subtype(inference.maybe_contra_candidates().as_deref().unwrap())
+                self.get_common_subtype(inference.maybe_contra_candidates().as_deref().unwrap())?
             },
         )
     }

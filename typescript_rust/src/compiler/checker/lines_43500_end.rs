@@ -1347,8 +1347,8 @@ impl EmitResolver for EmitResolverCreateResolver {
         )?;
         symbol
             .filter(|symbol| !Gc::ptr_eq(symbol, &self.type_checker.unknown_symbol()))
-            .try_and_then(|ref sym -> io::Result<_>bol| {
-                Ok(self.get_type_reference_directives_for_symbol(symbol, Some(meaning)))
+            .try_and_then(|ref symbol| -> io::Result<_> {
+                self.get_type_reference_directives_for_symbol(symbol, Some(meaning))
             })
     }
 

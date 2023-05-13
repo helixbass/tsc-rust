@@ -81,7 +81,7 @@ impl TypeChecker {
                         if !self.is_error_type(&base_type) {
                             if self.is_valid_base_type(&base_type)? {
                                 if !ptr::eq(type_, &*base_type)
-                                    && !self.has_base_type(&base_type, Some(type_))
+                                    && !self.has_base_type(&base_type, Some(type_))?
                                 {
                                     let mut resolved_base_types = Vec::clone(
                                         type_as_interface_type
@@ -658,7 +658,7 @@ impl TypeChecker {
         symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
         mapper: Gc<TypeMapper>,
         mapping_this_only: bool,
-    ) -> SymbolTable {
+    ) -> io::Result<SymbolTable> {
         let mut result = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for symbol in symbols {
             let symbol: &Gc<Symbol> = symbol.borrow();
@@ -667,11 +667,11 @@ impl TypeChecker {
                 if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {
-                    self.instantiate_symbol(symbol, mapper.clone())
+                    self.instantiate_symbol(symbol, mapper.clone())?
                 },
             );
         }
-        result
+        Ok(result)
     }
 
     pub(super) fn add_inherited_members(

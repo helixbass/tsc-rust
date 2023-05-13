@@ -221,7 +221,7 @@ impl TypeChecker {
         &self,
         types: &[Gc<Type>],
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
-        let source_infos = self.get_index_infos_of_type(&types[0]);
+        let source_infos = self.get_index_infos_of_type(&types[0])?;
         // if (sourceInfos) {
         let mut result = vec![];
         for info in source_infos {
@@ -384,7 +384,7 @@ impl TypeChecker {
                 &*self.get_signatures_of_type(t, SignatureKind::Call)?,
             );
             index_infos = reduce_left(
-                &self.get_index_infos_of_type(t),
+                &self.get_index_infos_of_type(t)?,
                 |mut infos: Vec<Gc<IndexInfo>>, new_info: &Gc<IndexInfo>, _| {
                     self.append_index_info(&mut infos, new_info, false);
                     infos
@@ -503,7 +503,7 @@ impl TypeChecker {
                 type_as_object_type.maybe_mapper().unwrap(),
             );
             let index_infos = self.instantiate_index_infos(
-                &self.get_index_infos_of_type(&type_target),
+                &self.get_index_infos_of_type(&type_target)?,
                 type_as_object_type.maybe_mapper().unwrap(),
             )?;
             self.set_structured_type_members(
@@ -879,7 +879,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Any) {
             cb(&self.string_type())?;
         } else {
-            for info in self.get_index_infos_of_type(type_) {
+            for info in self.get_index_infos_of_type(type_)? {
                 if !strings_only
                     || info
                         .key_type
@@ -929,7 +929,7 @@ impl TypeChecker {
             TypeFlags::StringOrNumberLiteralOrUnique
         };
         if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
-            self.for_each_mapped_type_property_key_type_and_index_signature_key_type(
+            self.try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
                 &modifiers_type,
                 include,
                 self.keyof_strings_only,
@@ -946,7 +946,7 @@ impl TypeChecker {
                         key_type,
                     )
                 },
-            );
+            )?;
         } else {
             self.try_for_each_type(
                 &*self.get_lower_bound_of_key_type(&constraint_type)?,

@@ -561,7 +561,7 @@ impl TypeChecker {
                                 &module_name,
                                 &module_name,
                                 None,
-                            );
+                            )?;
                             if let Some(module_sym) = module_sym {
                                 let resolved_module_symbol =
                                     self.resolve_external_module_symbol(Some(&*module_sym), None)?;

@@ -186,7 +186,7 @@ impl TypeChecker {
             vec![],
             vec![],
             try_map(
-                &self.get_index_infos_of_type(type_),
+                &self.get_index_infos_of_type(type_)?,
                 |info: &Gc<IndexInfo>, _| -> io::Result<_> {
                     Ok(Gc::new(self.create_index_info(
                         info.key_type.clone(),
@@ -254,10 +254,10 @@ impl TypeChecker {
                         })
                     },
                 )?;
-                let union_reduction = if some(
+                let union_reduction = if try_some(
                     Some(&widened_types),
                     Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
-                ) {
+                )? {
                     UnionReduction::Subtype
                 } else {
                     UnionReduction::Literal
@@ -299,10 +299,10 @@ impl TypeChecker {
         let mut error_reported = false;
         if get_object_flags(type_).intersects(ObjectFlags::ContainsWideningType) {
             if type_.flags().intersects(TypeFlags::Union) {
-                if some(
+                if try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
                     Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
-                ) {
+                )? {
                     error_reported = true;
                 } else {
                     for t in type_.as_union_or_intersection_type_interface().types() {

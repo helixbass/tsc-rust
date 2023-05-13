@@ -1067,7 +1067,7 @@ impl TypeChecker {
         } else if ptr::eq(target, &*self.global_function_type()) {
             source.flags().intersects(TypeFlags::Object) && self.is_function_object_type(source)
         } else {
-            self.has_base_type(source, Some(self.get_target_type(target)))
+            self.has_base_type(source, Some(self.get_target_type(target)))?
                 || self.is_array_type(target)
                     && !self.is_readonly_array_type(target)
                     && self.is_type_derived_from(source, &self.global_readonly_array_type())?

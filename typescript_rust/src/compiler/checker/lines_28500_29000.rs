@@ -26,8 +26,11 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 impl TypeChecker {
-    pub(super) fn container_seems_to_be_empty_dom_element(&self, containing_type: &Type) -> bool {
-        matches!(
+    pub(super) fn container_seems_to_be_empty_dom_element(
+        &self,
+        containing_type: &Type,
+    ) -> io::Result<bool> {
+        Ok(matches!(
             self.compiler_options.lib.as_ref(),
             Some(compiler_options_lib) if compiler_options_lib.into_iter().position(|lib_item| lib_item == "dom").is_none()
         ) &&
@@ -43,7 +46,7 @@ impl TypeChecker {
                     }
                 )
             ) &&
-            self.is_empty_object_type(containing_type)
+            self.is_empty_object_type(containing_type)?)
     }
 
     pub(super) fn type_has_static_property(
@@ -622,11 +625,11 @@ impl TypeChecker {
         Ok(None)
     }
 
-    pub(super) fn has_numeric_property_names(&self, type_: &Type) -> bool {
-        self.get_index_infos_of_type(type_).len() == 1
+    pub(super) fn has_numeric_property_names(&self, type_: &Type) -> io::Result<bool> {
+        Ok(self.get_index_infos_of_type(type_)?.len() == 1
             && self
                 .get_index_info_of_type_(type_, &self.number_type())
-                .is_some()
+                .is_some())
     }
 
     pub(super) fn is_for_in_variable_for_numeric_property_names(

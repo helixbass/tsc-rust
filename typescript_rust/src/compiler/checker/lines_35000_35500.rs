@@ -478,7 +478,7 @@ impl TypeChecker {
                 None => true,
                 Some(base_constraint) => {
                     base_constraint.flags().intersects(TypeFlags::AnyOrUnknown)
-                        || self.is_empty_object_type(base_constraint)
+                        || self.is_empty_object_type(base_constraint)?
                         || self.is_thenable_type(base_constraint)?
                 }
             } {

@@ -838,7 +838,7 @@ impl TypeChecker {
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 self.check_assertion(node)?
             }
-            SyntaxKind::NonNullExpression => self.check_non_null_assertion(node),
+            SyntaxKind::NonNullExpression => self.check_non_null_assertion(node)?,
             SyntaxKind::MetaProperty => self.check_meta_property(node),
             SyntaxKind::DeleteExpression => self.check_delete_expression(node),
             SyntaxKind::VoidExpression => self.check_void_expression(node),

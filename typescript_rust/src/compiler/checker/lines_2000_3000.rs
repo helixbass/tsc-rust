@@ -3,6 +3,7 @@ use std::borrow::{Borrow, Cow};
 use std::{io, ptr};
 
 use super::ResolveNameNameArg;
+use crate::return_ok_default_if_none;
 use crate::{
     add_related_info, break_if_none, concatenate, create_diagnostic_for_node,
     declaration_name_to_string, deduplicate_gc, ends_with, escape_leading_underscores,
@@ -24,8 +25,9 @@ use crate::{
     should_preserve_const_enums, some, try_find, try_find_last, unescape_leading_underscores,
     AssignmentDeclarationKind, Debug_, Diagnostic, Diagnostics, Extension,
     FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, InterfaceTypeInterface,
-    InternalSymbolName, ModifierFlags, ModuleKind, Node, NodeFlags, NodeInterface, OptionTry,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker, TypeFlags, TypeInterface,
+    InternalSymbolName, IteratorExt, ModifierFlags, ModuleKind, Node, NodeFlags, NodeInterface,
+    OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -769,7 +771,7 @@ impl TypeChecker {
                     get_external_module_import_equals_declaration_expression(node)
                 }),
                 None,
-            );
+            )?;
             let resolved = self.resolve_external_module_symbol(immediate.as_deref(), None)?;
             self.mark_symbol_of_alias_declaration_if_type_only(
                 Some(node),
@@ -988,15 +990,11 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Symbol>>> {
         let node_parent = node.parent();
         let node_parent_as_import_declaration = node_parent.as_import_declaration();
-        let module_symbol = self.resolve_external_module_name_(
+        let module_symbol = return_ok_default_if_none!(self.resolve_external_module_name_(
             node,
             &node_parent_as_import_declaration.module_specifier,
             None,
-        );
-        if module_symbol.is_none() {
-            return Ok(None);
-        }
-        let module_symbol = module_symbol.unwrap();
+        )?);
         let export_default_symbol: Option<Gc<Symbol>>;
         if is_shorthand_ambient_module_symbol(&module_symbol) {
             export_default_symbol = Some(module_symbol.clone());
@@ -1133,17 +1131,23 @@ impl TypeChecker {
                     .cloned()
             });
             if let Some(export_star) = export_star {
-                let default_export = export_star.maybe_declarations().as_deref().and_then(|declarations| {
-                    declarations.iter().find(|decl| {
-                        is_export_declaration(decl) && matches!(
+                let default_export = export_star.maybe_declarations().as_deref().try_and_then(|declarations| -> io::Result<_> {
+                    Ok(declarations.iter().try_find_(|decl| -> io::Result<_> {
+                        Ok(is_export_declaration(decl) && matches!(
                             decl.as_export_declaration().module_specifier.as_ref(),
                             Some(decl_module_specifier) if matches!(
-                                self.resolve_external_module_name_(decl, decl_module_specifier, None).and_then(|resolved| resolved.maybe_exports().as_ref().map(|exports| exports.clone())),
+                                self.resolve_external_module_name_(
+                                    decl,
+                                    decl_module_specifier,
+                                    None
+                                )?.and_then(|resolved| {
+                                    resolved.maybe_exports().as_ref().map(|exports| exports.clone())
+                                }),
                                 Some(exports) if (*exports).borrow().contains_key(InternalSymbolName::Default)
                             )
-                        )
-                    }).cloned()
-                });
+                        ))
+                    })?.cloned())
+                })?;
                 if let Some(default_export) = default_export {
                     add_related_info(
                         &diagnostic,
@@ -1172,7 +1176,7 @@ impl TypeChecker {
             .as_import_declaration()
             .module_specifier
             .clone();
-        let immediate = self.resolve_external_module_name_(node, &module_specifier, None);
+        let immediate = self.resolve_external_module_name_(node, &module_specifier, None)?;
         let resolved = self.resolve_es_module_symbol(
             immediate.as_deref(),
             &module_specifier,
@@ -1198,9 +1202,9 @@ impl TypeChecker {
             .as_export_declaration()
             .module_specifier
             .clone();
-        let immediate = module_specifier.as_ref().and_then(|module_specifier| {
+        let immediate = module_specifier.as_ref().try_and_then(|module_specifier| {
             self.resolve_external_module_name_(node, module_specifier, None)
-        });
+        })?;
         let resolved = module_specifier.as_ref().try_and_then(|module_specifier| {
             self.resolve_es_module_symbol(
                 immediate.as_deref(),
@@ -1335,7 +1339,7 @@ impl TypeChecker {
                 Node::ExportDeclaration(node) => node.module_specifier.clone().unwrap(),
                 _ => panic!("Expected ImportDeclaration or ExportDeclaration"),
             });
-        let module_symbol = self.resolve_external_module_name_(node, &module_specifier, None);
+        let module_symbol = self.resolve_external_module_name_(node, &module_specifier, None)?;
         let name: Gc<Node> = if !is_property_access_expression(specifier) {
             specifier.as_has_property_name().maybe_property_name()
         } else {

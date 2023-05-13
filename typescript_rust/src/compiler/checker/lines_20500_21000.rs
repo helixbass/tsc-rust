@@ -4,6 +4,7 @@ use std::ptr;
 use std::{borrow::Borrow, io};
 
 use super::{IterationTypeKind, TypeFacts};
+use crate::try_every;
 use crate::{
     are_option_gcs_equal, compiler::utilities_public::is_expression_of_optional_chain_root,
     create_symbol_table, every, find, get_check_flags, get_object_flags, is_optional_chain,
@@ -605,16 +606,17 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Type>>> {
         let mut type_ = type_.map(|type_| type_.borrow().type_wrapper());
         if let Some(type_present) = type_.as_ref().filter(|type_| self.is_unit_type(type_)) {
-            let contextual_type =
-                contextual_signature_return_type.and_then(|contextual_signature_return_type| {
+            let contextual_type = contextual_signature_return_type.try_and_then(
+                |contextual_signature_return_type| {
                     let contextual_signature_return_type =
                         contextual_signature_return_type.borrow();
                     self.get_iteration_type_of_generator_function_return_type(
                         kind,
                         contextual_signature_return_type,
                         is_async_generator,
-                    )?
-                });
+                    )
+                },
+            )?;
             type_ = Some(self.get_widened_literal_like_type_for_contextual_type(
                 type_present,
                 contextual_type,
@@ -1038,18 +1040,19 @@ impl TypeChecker {
 
     pub(super) fn is_object_type_with_inferable_index(&self, type_: &Type) -> io::Result<bool> {
         Ok(if type_.flags().intersects(TypeFlags::Intersection) {
-            every(
+            try_every(
                 type_.as_union_or_intersection_type_interface().types(),
                 |type_: &Gc<Type>, _| self.is_object_type_with_inferable_index(type_),
-            )
+            )?
         } else {
             matches!(
                 type_.maybe_symbol().as_ref(),
                 Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
             ) && !self.type_has_call_or_construct_signatures(type_)?
                 || get_object_flags(type_).intersects(ObjectFlags::ReverseMapped)
-                    && self
-                        .is_object_type_with_inferable_index(&type_.as_reverse_mapped_type().source)
+                    && self.is_object_type_with_inferable_index(
+                        &type_.as_reverse_mapped_type().source,
+                    )?
         })
     }
 

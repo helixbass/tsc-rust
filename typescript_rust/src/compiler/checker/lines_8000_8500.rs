@@ -832,7 +832,7 @@ impl TypeChecker {
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
-            self.get_index_infos_of_type(&source),
+            self.get_index_infos_of_type(&source)?,
         );
         let result_as_interface_type = result.as_interface_type();
         result_as_interface_type.set_object_flags(

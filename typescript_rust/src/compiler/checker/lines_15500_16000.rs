@@ -11,9 +11,9 @@ use crate::{
     is_identifier, is_jsdoc_type_expression, is_jsdoc_type_literal, is_literal_import_type_node,
     is_optional_type_node, is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node,
     is_type_alias, is_type_operator_node, length, map, maybe_concatenate, maybe_filter,
-    node_is_missing, same_map, try_map, try_maybe_filter, AccessFlags, CheckFlags, ConditionalRoot,
-    ConditionalType, Diagnostics, IndexInfo, InferenceFlags, InferencePriority, MappedType,
-    ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags,
+    node_is_missing, same_map, try_find, try_map, try_maybe_filter, AccessFlags, CheckFlags,
+    ConditionalRoot, ConditionalType, Diagnostics, IndexInfo, InferenceFlags, InferencePriority,
+    MappedType, ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, UnionOrIntersectionTypeInterface,
@@ -680,7 +680,7 @@ impl TypeChecker {
                     .as_literal_type_node()
                     .literal,
                 None,
-            );
+            )?;
             if inner_module_symbol.is_none() {
                 let mut links = links.borrow_mut();
                 links.resolved_symbol = Some(self.unknown_symbol());
@@ -871,8 +871,11 @@ impl TypeChecker {
         Ok(type_.flags().intersects(TypeFlags::Object) && !self.is_generic_mapped_type(type_)?)
     }
 
-    pub(super) fn is_empty_object_type_or_spreads_into_empty_object(&self, type_: &Type) -> bool {
-        self.is_empty_object_type(type_)
+    pub(super) fn is_empty_object_type_or_spreads_into_empty_object(
+        &self,
+        type_: &Type,
+    ) -> io::Result<bool> {
+        Ok(self.is_empty_object_type(type_)?
             || type_.flags().intersects(
                 TypeFlags::Null
                     | TypeFlags::Undefined
@@ -883,7 +886,7 @@ impl TypeChecker {
                     | TypeFlags::EnumLike
                     | TypeFlags::NonPrimitive
                     | TypeFlags::Index,
-            )
+            ))
     }
 
     pub(super) fn try_merge_union_of_object_type_and_empty_object(
@@ -898,10 +901,10 @@ impl TypeChecker {
         if every(type_as_union_type.types(), |type_: &Gc<Type>, _| {
             self.is_empty_object_type_or_spreads_into_empty_object(type_)
         }) {
-            return Ok(find(type_as_union_type.types(), |type_: &Gc<Type>, _| {
+            return Ok(try_find(type_as_union_type.types(), |type_: &Gc<Type>, _| {
                 self.is_empty_object_type(type_)
-            })
-            .map(Clone::clone)
+            })?
+            .cloned()
             .unwrap_or_else(|| self.empty_object_type()));
         }
         let first_type = find(type_as_union_type.types(), |type_: &Gc<Type>, _| {
@@ -972,7 +975,7 @@ impl TypeChecker {
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
-            self.get_index_infos_of_type(type_),
+            self.get_index_infos_of_type(type_)?,
         );
         let spread_as_object_type = spread.as_object_type();
         spread_as_object_type.set_object_flags(
@@ -1064,15 +1067,15 @@ impl TypeChecker {
             return Ok(left);
         }
 
-        if self.is_generic_object_type(&left) || self.is_generic_object_type(&right) {
-            if self.is_empty_object_type(&left) {
+        if self.is_generic_object_type(&left)? || self.is_generic_object_type(&right)? {
+            if self.is_empty_object_type(&left)? {
                 return Ok(right);
             }
             if left.flags().intersects(TypeFlags::Intersection) {
                 let types = left.as_intersection_type().types();
                 let last_left = &types[types.len() - 1];
-                if self.is_non_generic_object_type(last_left)
-                    && self.is_non_generic_object_type(&right)
+                if self.is_non_generic_object_type(last_left)?
+                    && self.is_non_generic_object_type(&right)?
                 {
                     return self.get_intersection_type(
                         &concatenate(
@@ -1096,7 +1099,7 @@ impl TypeChecker {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut skipped_private_members: HashSet<__String> = HashSet::new();
         let index_infos = if Gc::ptr_eq(&left, &self.empty_object_type()) {
-            self.get_index_infos_of_type(&right)
+            self.get_index_infos_of_type(&right)?
         } else {
             self.get_union_index_infos(&[left.clone(), right.clone()])?
         };

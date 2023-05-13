@@ -681,7 +681,10 @@ impl TypeChecker {
         Ok(declared_type.type_wrapper())
     }
 
-    pub(super) fn is_function_object_type(&self, type_: &Type /*ObjectType*/) -> bool {
+    pub(super) fn is_function_object_type(
+        &self,
+        type_: &Type, /*ObjectType*/
+    ) -> io::Result<bool> {
         let resolved = self.resolve_structured_type_members(type_);
         let resolved_as_resolved_type = resolved.as_resolved_type();
         let ret = !resolved_as_resolved_type.call_signatures().is_empty()
@@ -690,7 +693,7 @@ impl TypeChecker {
                 .borrow()
                 .contains_key("bind")
                 && self.is_type_subtype_of(type_, &self.global_function_type())?;
-        ret
+        Ok(ret)
     }
 
     pub(super) fn get_type_facts(
@@ -798,7 +801,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Object) && !ignore_objects {
             return Ok(
                 if get_object_flags(type_).intersects(ObjectFlags::Anonymous)
-                    && self.is_empty_object_type(type_)
+                    && self.is_empty_object_type(type_)?
                 {
                     if self.strict_null_checks {
                         TypeFacts::EmptyObjectStrictFacts

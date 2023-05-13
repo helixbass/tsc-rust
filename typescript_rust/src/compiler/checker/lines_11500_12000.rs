@@ -308,7 +308,7 @@ impl TypeChecker {
                     }
                 }
                 if type_.flags().intersects(TypeFlags::Union)
-                    && self.get_index_infos_of_type(current).is_empty()
+                    && self.get_index_infos_of_type(current)?.is_empty()
                 {
                     break;
                 }

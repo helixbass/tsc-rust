@@ -11,9 +11,9 @@ use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot,
     OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
     for_each_bool, get_check_flags, get_selected_effective_modifier_flags, maybe_map, some,
-    try_filter, try_some, CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node, ObjectFlags,
-    ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, Signature, Symbol, SymbolFlags,
-    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    try_filter, try_for_each_bool, try_some, CheckFlags, Diagnostics, IndexInfo, ModifierFlags,
+    Node, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, Signature,
+    Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
@@ -77,7 +77,7 @@ impl CheckTypeRelatedTo {
         if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
             return self.index_signatures_identical_to(source, target);
         }
-        let index_infos = self.type_checker.get_index_infos_of_type(target);
+        let index_infos = self.type_checker.get_index_infos_of_type(target)?;
         let target_has_string_index = some(
             Some(&index_infos),
             Some(|info: &Gc<IndexInfo>| {
@@ -134,7 +134,7 @@ impl CheckTypeRelatedTo {
         if !intersection_state.intersects(IntersectionState::Source)
             && self
                 .type_checker
-                .is_object_type_with_inferable_index(source)
+                .is_object_type_with_inferable_index(source)?
         {
             return self.members_related_to_index_info(source, target_info, report_errors);
         }
@@ -161,8 +161,8 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target: &Type,
     ) -> io::Result<Ternary> {
-        let source_infos = self.type_checker.get_index_infos_of_type(source);
-        let target_infos = self.type_checker.get_index_infos_of_type(target);
+        let source_infos = self.type_checker.get_index_infos_of_type(source)?;
+        let target_infos = self.type_checker.get_index_infos_of_type(target)?;
         if source_infos.len() != target_infos.len() {
             return Ok(Ternary::False);
         }
@@ -252,10 +252,10 @@ impl TypeChecker {
         }
 
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            return Ok(for_each_bool(
+            return try_for_each_bool(
                 type_.as_union_or_intersection_type_interface().types(),
                 |type_: &Gc<Type>, _| self.type_could_have_top_level_singleton_types(type_),
-            ));
+            );
         }
 
         if type_.flags().intersects(TypeFlags::Instantiable) {
@@ -264,7 +264,7 @@ impl TypeChecker {
                 .as_ref()
                 .filter(|constraint| !ptr::eq(&***constraint, type_))
             {
-                return Ok(self.type_could_have_top_level_singleton_types(constraint));
+                return self.type_could_have_top_level_singleton_types(constraint);
             }
         }
 
@@ -331,7 +331,7 @@ impl TypeChecker {
         };
         self.find_matching_discriminant_type(source, target, is_related_to, Some(true))?
             .or_else(|| self.find_matching_type_reference_or_type_alias_reference(source, target))
-            .or_else(|| self.find_best_type_for_object_literal(source, target))
+            .try_or_else(|| self.find_best_type_for_object_literal(source, target))?
             .try_or_else(|| self.find_best_type_for_invokable(source, target))?
             .try_or_else(|| self.find_most_overlappy_type(source, target))
     }
@@ -788,7 +788,7 @@ impl TypeChecker {
         self.for_each_property_bool(prop, &mut |sp: &Symbol| {
             let source_class = self.get_declaring_class(sp)?;
             Ok(if let Some(source_class) = source_class.as_ref() {
-                self.has_base_type(source_class, base_class.as_deref())
+                self.has_base_type(source_class, base_class.as_deref())?
             } else {
                 false
             })
@@ -830,7 +830,7 @@ impl TypeChecker {
                     if get_declaration_modifier_flags_from_symbol(p, Some(writing))
                         .intersects(ModifierFlags::Protected)
                     {
-                        !self.has_base_type(check_class, self.get_declaring_class(p)?)
+                        !self.has_base_type(check_class, self.get_declaring_class(p)?)?
                     } else {
                         false
                     },

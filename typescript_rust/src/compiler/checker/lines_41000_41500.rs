@@ -47,9 +47,12 @@ impl TypeChecker {
             return Ok(Some(try_flat_map(
                 Some(&object_types),
                 |t: &Gc<Type>, _| {
-                    try_filter(&self.get_index_infos_of_type(t), |info: &Gc<IndexInfo>| {
-                        self.is_applicable_index_type(key_type, &info.key_type)
-                    })
+                    try_filter(
+                        &*self.get_index_infos_of_type(t)?,
+                        |info: &Gc<IndexInfo>| {
+                            self.is_applicable_index_type(key_type, &info.key_type)
+                        },
+                    )
                 },
             )?));
         }
@@ -507,7 +510,7 @@ impl TypeChecker {
             &module_reference_expression.parent(),
             module_reference_expression,
             None,
-        );
+        )?;
         if match module_symbol.as_ref() {
             None => true,
             Some(module_symbol) => is_shorthand_ambient_module_symbol(module_symbol),

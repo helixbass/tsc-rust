@@ -715,7 +715,7 @@ impl TypeChecker {
         location: &Node,
     ) -> io::Result<Vec<Gc<Signature>>> {
         let signatures =
-            self.get_constructors_for_type_arguments(type_, type_argument_nodes, location);
+            self.get_constructors_for_type_arguments(type_, type_argument_nodes, location)?;
         let type_arguments =
             try_maybe_map(type_argument_nodes, |type_argument_node: &Gc<Node>, _| {
                 self.get_type_from_type_node_(type_argument_node)
@@ -989,7 +989,8 @@ impl TypeChecker {
                     },
                 )
             },
-        )?;
+        )
+        .transpose()?;
         Ok(self.create_array_type(
             &*self.get_union_type(
                 &element_types.unwrap_or_else(|| vec![]),
@@ -1100,7 +1101,7 @@ impl TypeChecker {
             return Ok(ret);
         }
         if ptr::eq(type_, &*reduced_base_type)
-            || self.has_base_type(&reduced_base_type, Some(type_))
+            || self.has_base_type(&reduced_base_type, Some(type_))?
         {
             self.error(
                 type_.symbol().maybe_value_declaration(),

@@ -718,8 +718,8 @@ impl TypeChecker {
         &self,
         type_: &Type,
         key_type: &Type,
-    ) -> Option<Gc<IndexInfo>> {
-        self.find_index_info(&self.get_index_infos_of_type(type_), key_type)
+    ) -> io::Result<Option<Gc<IndexInfo>>> {
+        Ok(self.find_index_info(&self.get_index_infos_of_type(type_)?, key_type))
     }
 
     pub(super) fn get_index_type_of_type_(
@@ -737,7 +737,7 @@ impl TypeChecker {
         key_type: &Type,
     ) -> io::Result<Vec<Gc<IndexInfo>>> {
         try_filter(
-            &self.get_index_infos_of_type(type_),
+            &self.get_index_infos_of_type(type_)?,
             |info: &Gc<IndexInfo>| self.is_applicable_index_type(key_type, &info.key_type),
         )
     }
@@ -747,7 +747,7 @@ impl TypeChecker {
         type_: &Type,
         key_type: &Type,
     ) -> io::Result<Option<Gc<IndexInfo>>> {
-        self.find_applicable_index_info(&self.get_index_infos_of_type(type_), key_type)
+        self.find_applicable_index_info(&*self.get_index_infos_of_type(type_)?, key_type)
     }
 
     pub(super) fn get_applicable_index_info_for_name(

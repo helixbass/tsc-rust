@@ -518,7 +518,7 @@ impl CheckTypeRelatedTo {
         if self.type_checker.is_literal_type(source)
             && !self
                 .type_checker
-                .type_could_have_top_level_singleton_types(target)
+                .type_could_have_top_level_singleton_types(target)?
         {
             generalized_source = self.type_checker.get_base_type_of_literal_type(source)?;
             Debug_.assert(
@@ -1110,7 +1110,7 @@ impl CheckTypeRelatedTo {
             && !self.in_property_check()
             && (target.flags().intersects(TypeFlags::Intersection)
                 && (is_performing_excess_property_checks || is_performing_common_property_checks)
-                || self.type_checker.is_non_generic_object_type(&target)
+                || self.type_checker.is_non_generic_object_type(&target)?
                     && !self.type_checker.is_array_type(&target)
                     && !self.type_checker.is_tuple_type(&target)
                     && source.flags().intersects(TypeFlags::Intersection)
@@ -1334,11 +1334,12 @@ impl CheckTypeRelatedTo {
             let prop_type = prop
                 .as_ref()
                 .try_map(|prop| self.type_checker.get_type_of_symbol(prop))?
-                .or_else(|| {
-                    self.type_checker
+                .try_or_else(|| -> io::Result<_> {
+                    Ok(self
+                        .type_checker
                         .get_applicable_index_info_for_name(&type_, name)?
-                        .map(|index_info| index_info.type_.clone())
-                })
+                        .map(|index_info| index_info.type_.clone()))
+                })?
                 .unwrap_or_else(|| self.type_checker.undefined_type());
             if prop_types.is_none() {
                 prop_types = Some(vec![]);
@@ -1374,7 +1375,8 @@ impl CheckTypeRelatedTo {
             && (self
                 .type_checker
                 .is_type_subset_of(&self.type_checker.global_object_type(), target)?
-                || !is_comparing_jsx_attributes && self.type_checker.is_empty_object_type(target))
+                || !is_comparing_jsx_attributes
+                    && self.type_checker.is_empty_object_type(target)?)
         {
             return Ok(false);
         }

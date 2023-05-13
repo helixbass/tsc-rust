@@ -501,7 +501,7 @@ impl TypeChecker {
         let has_empty_object = has_object_types
             && try_some(
                 Some(&*types),
-                Some(|t: &Gc<Type>| {
+                Some(|t: &Gc<Type>| -> io::Result<_> {
                     Ok(t.flags().intersects(TypeFlags::Object)
                         && !self.is_generic_mapped_type(t)?
                         && self.is_empty_resolved_type(&self.resolve_structured_type_members(t)))
@@ -650,12 +650,12 @@ impl TypeChecker {
                 i -= 1;
                 let t = types[i].clone();
                 if t.flags().intersects(TypeFlags::StringLiteral)
-                    && some(
+                    && try_some(
                         Some(&templates),
                         Some(|template: &Gc<Type>| {
                             self.is_type_matched_by_template_literal_type(&t, template)
                         }),
-                    )
+                    )?
                 {
                     ordered_remove_item_at(types, i);
                 }

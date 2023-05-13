@@ -1585,7 +1585,7 @@ impl CheckTypeRelatedTo {
                 result &= related;
             }
         }
-        for info in &self.type_checker.get_index_infos_of_type(source) {
+        for info in &self.type_checker.get_index_infos_of_type(source)? {
             if self
                 .type_checker
                 .is_applicable_index_type(&info.key_type, key_type)?

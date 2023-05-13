@@ -843,7 +843,7 @@ impl CheckTypeRelatedTo {
                                 target.maybe_alias_type_arguments().as_deref(),
                                 &variances,
                                 intersection_state,
-                            );
+                            )?;
                             if let Some(variance_result) = variance_result {
                                 return Ok(variance_result);
                             }
@@ -1380,7 +1380,7 @@ impl CheckTypeRelatedTo {
             }
             if self
                 .type_checker
-                .is_type_matched_by_template_literal_type(&source, target)
+                .is_type_matched_by_template_literal_type(&source, target)?
             {
                 return Ok(Ternary::True);
             }
@@ -1653,7 +1653,7 @@ impl CheckTypeRelatedTo {
             if !Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation)
                 && !Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation)
                 && self.type_checker.is_partial_mapped_type(target)
-                && self.type_checker.is_empty_object_type(&source)
+                && self.type_checker.is_empty_object_type(&source)?
             {
                 return Ok(Ternary::True);
             }
@@ -1699,7 +1699,7 @@ impl CheckTypeRelatedTo {
                     Some(&*self.type_checker.get_type_arguments(target)?),
                     &variances,
                     intersection_state,
-                );
+                )?;
                 if let Some(variance_result) = variance_result {
                     return Ok(variance_result);
                 }
@@ -1734,9 +1734,9 @@ impl CheckTypeRelatedTo {
                 }
             } else if (Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation)
                 || Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation))
-                && self.type_checker.is_empty_object_type(target)
+                && self.type_checker.is_empty_object_type(target)?
                 && get_object_flags(target).intersects(ObjectFlags::FreshLiteral)
-                && !self.type_checker.is_empty_object_type(&source)
+                && !self.type_checker.is_empty_object_type(&source)?
             {
                 return Ok(Ternary::False);
             }

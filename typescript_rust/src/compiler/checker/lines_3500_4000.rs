@@ -561,10 +561,10 @@ impl TypeChecker {
         &self,
         visited_symbols: &mut Vec<Gc<Symbol>>,
         symbol: Option<Gc<Symbol>>,
-    ) -> Option<SymbolTable> {
+    ) -> io::Result<Option<SymbolTable>> {
         let symbol = symbol?;
         if !(symbol.maybe_exports().is_some() && push_if_unique_gc(visited_symbols, &symbol)) {
-            return None;
+            return Ok(None);
         }
         let symbol_exports = symbol.maybe_exports();
         let symbol_exports = symbol_exports.as_ref().unwrap();
@@ -583,7 +583,7 @@ impl TypeChecker {
                             .as_ref()
                             .unwrap(),
                         None,
-                    );
+                    )?;
                     let exported_symbols =
                         self.visit_get_exports_of_module_worker(visited_symbols, resolved_module);
                     self.extend_export_symbols(
@@ -618,7 +618,7 @@ impl TypeChecker {
                 Option::<&Node>::None,
             );
         }
-        Some(symbols)
+        Ok(Some(symbols))
     }
 
     pub(super) fn get_merged_symbol(
@@ -680,7 +680,7 @@ impl TypeChecker {
                     enclosing_declaration,
                     import_ref,
                     Some(true),
-                );
+                )?;
                 if resolved_module.is_none() {
                     continue;
                 }

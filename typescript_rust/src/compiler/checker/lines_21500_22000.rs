@@ -6,7 +6,6 @@ use std::rc::Rc;
 use std::{cmp, io};
 
 use super::{ExpandingFlags, RecursionIdentity};
-use crate::try_some;
 use crate::{
     append_if_unique_gc, append_if_unique_rc, arrays_equal, contains, contains_gc, contains_rc,
     create_scanner, every, filter, get_check_flags, get_object_flags, map, some, CheckFlags,
@@ -14,6 +13,7 @@ use crate::{
     SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionReduction, VarianceFlags,
 };
+use crate::{try_every, try_some};
 
 impl TypeChecker {
     pub(super) fn infer_reverse_mapped_type(
@@ -690,7 +690,7 @@ impl InferTypes {
                 &temp_sources,
                 &temp_targets,
                 |s: &Type, t: &Type| Ok(self.type_checker.is_type_closely_matched_by(s, t)),
-            );
+            )?;
             if targets.is_empty() {
                 return Ok(());
             }

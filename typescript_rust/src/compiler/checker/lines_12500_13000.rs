@@ -430,7 +430,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*StringLiteral*/
     ) -> io::Result<Gc<Type>> {
-        let module_sym = self.resolve_external_module_name_(name, name, None);
+        let module_sym = self.resolve_external_module_name_(name, name, None)?;
         if let Some(module_sym) = module_sym {
             let resolved_module_symbol =
                 self.resolve_external_module_symbol(Some(module_sym), None)?;
@@ -882,7 +882,7 @@ impl TypeChecker {
                         .as_type_parameter()
                         .target
                         .clone()
-                        .try_filter(|target| {
+                        .try_filter(|target| -> io::Result<_> {
                             Ok(self.get_constraint_of_type_parameter(target)?.is_none())
                         })?
                         .unwrap_or_else(|| tp.clone()))

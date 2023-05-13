@@ -37,7 +37,9 @@ impl TypeChecker {
             SyntaxKind::BindingElement | SyntaxKind::PropertyAssignment => {
                 self.get_synthetic_element_access(&ancestor)?
             }
-            SyntaxKind::ArrayLiteralExpression => self.get_synthetic_element_access(&node.parent()),
+            SyntaxKind::ArrayLiteralExpression => {
+                self.get_synthetic_element_access(&node.parent())?
+            }
             SyntaxKind::VariableDeclaration => {
                 ancestor.as_variable_declaration().maybe_initializer()
             }

@@ -9,6 +9,7 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, CheckTypeRelatedTo,
     ErrorReporter, IntersectionState,
 };
+use crate::try_some;
 use crate::{
     are_option_gcs_equal, are_option_rcs_equal, every, get_object_flags, get_symbol_id, some,
     symbol_name, try_every, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
@@ -149,15 +150,15 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::NonPrimitive) {
             true
         } else if type_.flags().intersects(TypeFlags::Union) {
-            some(
+            try_some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
                 Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
-            )
+            )?
         } else if type_.flags().intersects(TypeFlags::Intersection) {
-            every(
+            try_every(
                 type_.as_union_or_intersection_type_interface().types(),
                 |type_: &Gc<Type>, _| self.is_empty_object_type(type_),
-            )
+            )?
         } else {
             false
         })
@@ -178,7 +179,7 @@ impl TypeChecker {
         Ok(type_.flags().intersects(TypeFlags::Object)
             && !self.is_generic_mapped_type(type_)?
             && self.get_properties_of_type(type_)?.len() == 0
-            && self.get_index_infos_of_type(type_).len() == 1
+            && self.get_index_infos_of_type(type_)?.len() == 1
             && self
                 .get_index_info_of_type_(type_, &self.string_type())
                 .is_some()

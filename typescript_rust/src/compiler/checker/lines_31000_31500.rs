@@ -115,7 +115,7 @@ impl TypeChecker {
             }
         }
 
-        let module_symbol = self.resolve_external_module_name_(node, specifier, None);
+        let module_symbol = self.resolve_external_module_name_(node, specifier, None)?;
         if let Some(module_symbol) = module_symbol.as_ref() {
             let es_module_symbol =
                 self.resolve_es_module_symbol(Some(&**module_symbol), specifier, true, false)?;

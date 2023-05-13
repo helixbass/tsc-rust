@@ -18,7 +18,7 @@ use crate::{
     TypeReferenceInterface, UniqueESSymbolType, __String, get_assignment_declaration_kind,
     get_check_flags, get_host_signature_from_jsdoc, get_symbol_id, get_this_container,
     is_binary_expression, is_class_like, maybe_is_class_like, return_ok_none_if_none, try_map,
-    try_maybe_filter, try_some,
+    try_maybe_filter, try_some, OptionTry,
 };
 use local_macros::enum_unwrapped;
 
@@ -928,12 +928,14 @@ impl TypeChecker {
             signature
                 .maybe_this_parameter()
                 .as_ref()
-                .map(|this_parameter| self.instantiate_symbol(this_parameter, mapper.clone())),
-            self.instantiate_list(
+                .try_map(|this_parameter| {
+                    self.instantiate_symbol(this_parameter, mapper.clone())
+                })?,
+            self.try_instantiate_list(
                 Some(signature.parameters()),
                 Some(mapper.clone()),
                 |parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
-            )
+            )?
             .unwrap(),
             None,
             None,

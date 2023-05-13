@@ -312,12 +312,15 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_import_declaration(&self, node: &Node /*ImportDeclaration*/) {
+    pub(super) fn check_import_declaration(
+        &self,
+        node: &Node, /*ImportDeclaration*/
+    ) -> io::Result<()> {
         if self.check_grammar_module_element_context(
             node,
             &Diagnostics::An_import_declaration_can_only_be_used_in_a_namespace_or_module,
         ) {
-            return;
+            return Ok(());
         }
         if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
             self.grammar_error_on_first_token(
@@ -356,7 +359,7 @@ impl TypeChecker {
                             node,
                             &node_as_import_declaration.module_specifier,
                             None,
-                        );
+                        )?;
                         if module_existed.is_some() {
                             for_each(
                                 &import_clause_named_bindings.as_named_imports().elements,
@@ -371,6 +374,8 @@ impl TypeChecker {
             }
         }
         self.check_assert_clause(node);
+
+        Ok(())
     }
 
     pub(super) fn check_import_equals_declaration(
@@ -529,7 +534,7 @@ impl TypeChecker {
                         .as_ref()
                         .unwrap(),
                     None,
-                );
+                )?;
                 if let Some(module_symbol) = module_symbol
                     .as_ref()
                     .filter(|module_symbol| self.has_export_assignment_symbol(module_symbol))

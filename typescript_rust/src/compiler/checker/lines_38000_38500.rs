@@ -290,7 +290,7 @@ impl TypeChecker {
         symbol: &Symbol,
         is_static_index: Option<bool>,
     ) -> io::Result<()> {
-        let index_infos = self.get_index_infos_of_type(type_);
+        let index_infos = self.get_index_infos_of_type(type_)?;
         if index_infos.is_empty() {
             return Ok(());
         }
@@ -882,7 +882,7 @@ impl TypeChecker {
                             .maybe_type_arguments()
                             .as_double_deref(),
                         base_type_node,
-                    ) {
+                    )? {
                         if !self.check_type_argument_constraints(
                             base_type_node,
                             constructor.maybe_type_parameters().as_ref().unwrap(),

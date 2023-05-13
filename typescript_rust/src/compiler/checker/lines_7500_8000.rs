@@ -278,7 +278,7 @@ impl SymbolTableToDeclarationStatements {
             .intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped)
             && self
                 .type_checker
-                .get_index_infos_of_type(type_to_serialize)
+                .get_index_infos_of_type(type_to_serialize)?
                 .is_empty()
             && !self
                 .type_checker
@@ -463,7 +463,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<Vec<Gc<Node>>> {
         let mut results: Vec<Gc<Node /*IndexSignatureDeclaration*/>> = Default::default();
         let base_type = base_type.type_wrappered();
-        for info in &self.type_checker.get_index_infos_of_type(input) {
+        for info in &self.type_checker.get_index_infos_of_type(input)? {
             if let Some(base_type) = base_type.as_ref() {
                 let base_info = self
                     .type_checker

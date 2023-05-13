@@ -810,7 +810,9 @@ impl TypeChecker {
         }
         if match containing_type.as_ref() {
             None => true,
-            Some(containing_type) => !self.has_base_type(containing_type, Some(&*enclosing_class)),
+            Some(containing_type) => {
+                !self.has_base_type(containing_type, Some(&*enclosing_class))?
+            }
         } {
             if error_node.is_some() {
                 self.error(

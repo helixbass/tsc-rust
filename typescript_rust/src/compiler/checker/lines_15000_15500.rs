@@ -14,11 +14,11 @@ use crate::{
     is_assignment_target, is_call_like_expression, is_call_or_new_expression, is_delete_target,
     is_function_like, is_identifier, is_indexed_access_type_node, is_private_identifier,
     is_property_name, map, maybe_every, pseudo_big_int_to_string, reduce_left, some, try_every,
-    try_map, try_some, uncapitalize, unescape_leading_underscores, AccessFlags, AssignmentKind,
-    DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType, LiteralType, Node,
-    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    OptionTry, StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TypeFlags,
-    TypeInterface,
+    try_map, try_reduce_left, try_some, uncapitalize, unescape_leading_underscores, AccessFlags,
+    AssignmentKind, DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType, LiteralType,
+    Node, NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface,
+    ObjectTypeInterface, OptionTry, StringMappingType, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -893,18 +893,20 @@ impl TypeChecker {
             )
     }
 
-    pub(super) fn is_generic_type(&self, type_: &Type) -> bool {
-        self.get_generic_object_flags(type_) != ObjectFlags::None
+    pub(super) fn is_generic_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(self.get_generic_object_flags(type_)? != ObjectFlags::None)
     }
 
-    pub(super) fn is_generic_object_type(&self, type_: &Type) -> bool {
-        self.get_generic_object_flags(type_)
-            .intersects(ObjectFlags::IsGenericObjectType)
+    pub(super) fn is_generic_object_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(self
+            .get_generic_object_flags(type_)?
+            .intersects(ObjectFlags::IsGenericObjectType))
     }
 
-    pub(super) fn is_generic_index_type(&self, type_: &Type) -> bool {
-        self.get_generic_object_flags(type_)
-            .intersects(ObjectFlags::IsGenericIndexType)
+    pub(super) fn is_generic_index_type(&self, type_: &Type) -> io::Result<bool> {
+        Ok(self
+            .get_generic_object_flags(type_)?
+            .intersects(ObjectFlags::IsGenericIndexType))
     }
 
     pub(super) fn get_generic_object_flags(&self, type_: &Type) -> io::Result<ObjectFlags> {
@@ -917,13 +919,13 @@ impl TypeChecker {
                 type_as_union_or_intersection_type.set_object_flags(
                     type_as_union_or_intersection_type.object_flags()
                         | ObjectFlags::IsGenericTypeComputed
-                        | reduce_left(
+                        | try_reduce_left(
                             type_.as_union_or_intersection_type().types(),
                             |flags, t: &Gc<Type>, _| flags | self.get_generic_object_flags(t),
                             ObjectFlags::None,
                             None,
                             None,
-                        ),
+                        )?,
                 );
             }
             return Ok(
@@ -939,8 +941,8 @@ impl TypeChecker {
                 type_as_substitution_type.set_object_flags(
                     type_as_substitution_type.object_flags()
                         | ObjectFlags::IsGenericTypeComputed
-                        | self.get_generic_object_flags(&type_as_substitution_type.substitute)
-                        | self.get_generic_object_flags(&type_as_substitution_type.base_type),
+                        | self.get_generic_object_flags(&type_as_substitution_type.substitute)?
+                        | self.get_generic_object_flags(&type_as_substitution_type.base_type)?,
                 );
             }
             return Ok(type_as_substitution_type.object_flags() & ObjectFlags::IsGenericType);

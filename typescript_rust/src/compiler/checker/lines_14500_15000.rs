@@ -735,7 +735,7 @@ impl TypeChecker {
             .get_properties_of_type(type_)?
             .map(|ref prop| self.get_literal_type_from_property(prop, include, None))
             .collect::<Result<Vec<_>, _>>()?;
-        let index_infos = self.get_index_infos_of_type(type_);
+        let index_infos = self.get_index_infos_of_type(type_)?;
         let index_key_types = index_infos.iter().map(|info| {
             if !Gc::ptr_eq(info, &self.enum_number_index_info())
                 && self.is_key_type_included(&info.key_type, include)

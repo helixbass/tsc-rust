@@ -1267,11 +1267,11 @@ impl TypeChecker {
                             target_this_type,
                             source_this_type,
                             Some(report_errors),
-                        );
+                        )?;
                     }
                     related
                 } else {
-                    compare_types.call(target_this_type, source_this_type, Some(report_errors))
+                    compare_types.call(target_this_type, source_this_type, Some(report_errors))?
                 };
                 if related == Ternary::False {
                     if report_errors {
@@ -1362,11 +1362,11 @@ impl TypeChecker {
                                     target_type,
                                     source_type,
                                     Some(report_errors),
-                                );
+                                )?;
                             }
                             related
                         } else {
-                            compare_types.call(target_type, source_type, Some(report_errors))
+                            compare_types.call(target_type, source_type, Some(report_errors))?
                         }
                     };
                     if related != Ternary::False
@@ -1492,7 +1492,7 @@ impl TypeChecker {
                             &source_return_type,
                             &target_return_type,
                             Some(report_errors),
-                        );
+                        )?;
                     }
                     val
                 } else {

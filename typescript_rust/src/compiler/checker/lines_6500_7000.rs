@@ -12,15 +12,16 @@ use super::{
     MakeSerializePropertySymbolCreateProperty, NodeBuilderContext,
 };
 use crate::{
-    cast, create_empty_exports, create_symbol_table, every, filter, find_ancestor, find_index,
-    flat_map, for_each_entry, gc_cell_ref_unwrapped, get_effective_modifier_flags, get_factory,
-    get_name_of_declaration, get_symbol_id, group, has_scope_marker, has_syntactic_modifier,
-    id_text, indices_of, is_binary_expression, is_class_declaration, is_class_expression,
-    is_enum_declaration, is_export_assignment, is_export_declaration,
-    is_external_module_augmentation, is_external_module_indicator, is_external_or_common_js_module,
-    is_function_declaration, is_global_scope_augmentation, is_identifier, is_interface_declaration,
-    is_module_block, is_module_declaration, is_named_exports, is_property_access_expression,
-    is_source_file, is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
+    cast, continue_if_none, create_empty_exports, create_symbol_table, every, filter,
+    find_ancestor, find_index, flat_map, for_each_entry, gc_cell_ref_unwrapped,
+    get_effective_modifier_flags, get_factory, get_name_of_declaration, get_symbol_id, group,
+    has_scope_marker, has_syntactic_modifier, id_text, indices_of, is_binary_expression,
+    is_class_declaration, is_class_expression, is_enum_declaration, is_export_assignment,
+    is_export_declaration, is_external_module_augmentation, is_external_module_indicator,
+    is_external_or_common_js_module, is_function_declaration, is_global_scope_augmentation,
+    is_identifier, is_interface_declaration, is_module_block, is_module_declaration,
+    is_named_exports, is_property_access_expression, is_source_file,
+    is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
     needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_rc_node,
     unescape_leading_underscores, with_synthetic_factory_and_factory, InternalSymbolName,
@@ -1024,18 +1025,15 @@ impl SymbolTableToDeclarationStatements {
         if symbol.flags().intersects(SymbolFlags::ExportStar) {
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
                 for node in symbol_declarations {
-                    let resolved_module = self.type_checker.resolve_external_module_name_(
-                        node,
-                        node.as_export_declaration()
-                            .module_specifier
-                            .as_ref()
-                            .unwrap(),
-                        None,
-                    );
-                    if resolved_module.is_none() {
-                        continue;
-                    }
-                    let ref resolved_module = resolved_module.unwrap();
+                    let ref resolved_module =
+                        continue_if_none!(self.type_checker.resolve_external_module_name_(
+                            node,
+                            node.as_export_declaration()
+                                .module_specifier
+                                .as_ref()
+                                .unwrap(),
+                            None,
+                        )?);
                     self.add_result(
                         &get_factory()
                             .create_export_declaration(

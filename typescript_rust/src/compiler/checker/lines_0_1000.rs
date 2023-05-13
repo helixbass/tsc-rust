@@ -2443,10 +2443,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_jsx_namespace<TLocation: Borrow<Node>>(
-        &self,
-        location: Option<TLocation>,
-    ) -> String {
+    pub fn get_jsx_namespace(&self, location: Option<impl Borrow<Node>>) -> String {
         unescape_leading_underscores(&self.get_jsx_namespace_(location)).to_owned()
     }
 
@@ -2465,7 +2462,7 @@ impl TypeChecker {
     pub fn resolve_external_module_name(
         &self,
         module_specifier_in: &Node, /*Expression*/
-    ) -> Option<Gc<Symbol>> {
+    ) -> io::Result<Option<Gc<Symbol>>> {
         let module_specifier = get_parse_tree_node(
             Some(module_specifier_in),
             Some(|node: &Node| is_expression(node)),

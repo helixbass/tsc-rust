@@ -848,7 +848,7 @@ impl TypeChecker {
                             &node.parent(),
                         )
                 {
-                    return Ok(self.resolve_external_module_name_(node, node, ignore_errors));
+                    return self.resolve_external_module_name_(node, node, ignore_errors);
                 }
                 if is_call_expression(parent)
                     && is_bindable_object_define_property_call(parent)

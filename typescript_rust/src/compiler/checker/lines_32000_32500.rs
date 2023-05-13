@@ -747,7 +747,7 @@ impl TypeChecker {
                     }
                     return Ok(self.number_type());
                 }
-                self.get_unary_result_type(&operand_type)
+                self.get_unary_result_type(&operand_type)?
             }
             SyntaxKind::ExclamationToken => {
                 self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None);
@@ -773,7 +773,7 @@ impl TypeChecker {
                         &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
                     );
                 }
-                self.get_unary_result_type(&operand_type)
+                self.get_unary_result_type(&operand_type)?
             }
             _ => self.error_type(),
         })
@@ -802,7 +802,7 @@ impl TypeChecker {
                 &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
             );
         }
-        Ok(self.get_unary_result_type(&operand_type))
+        self.get_unary_result_type(&operand_type)
     }
 
     pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> io::Result<Gc<Type>> {

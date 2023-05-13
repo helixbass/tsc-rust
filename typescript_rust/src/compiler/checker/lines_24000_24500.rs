@@ -8,7 +8,7 @@ use crate::{
     has_static_modifier, id_text, is_element_access_expression, is_private_identifier,
     is_property_access_expression, is_string_literal_like, Debug_, SymbolFlags, SymbolInterface,
     SyntaxKind, __String, are_rc_slices_equal, is_access_expression, is_optional_chain, map,
-    same_map, try_map, Node, NodeInterface, Symbol, Type, TypeFlags, TypeInterface,
+    same_map, try_map, Node, NodeInterface, OptionTry, Symbol, Type, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
@@ -749,25 +749,25 @@ impl GetFlowTypeOfReference {
         }
         if assume_true {
             let filter_fn = |t: &Type| {
-                if operator == SyntaxKind::EqualsEqualsToken {
-                    self.type_checker.are_types_comparable(t, &value_type)
+                Ok(if operator == SyntaxKind::EqualsEqualsToken {
+                    self.type_checker.are_types_comparable(t, &value_type)?
                         || self
                             .type_checker
                             .is_coercible_under_double_equals(t, &value_type)
                 } else {
-                    self.type_checker.are_types_comparable(t, &value_type)
-                }
+                    self.type_checker.are_types_comparable(t, &value_type)?
+                })
             };
             return Ok(self.type_checker.replace_primitives_with_literals(
-                &self.type_checker.filter_type(type_, filter_fn),
+                &*self.type_checker.try_filter_type(type_, filter_fn)?,
                 &value_type,
             ));
         }
         if self.type_checker.is_unit_type(&value_type) {
-            return Ok(self.type_checker.filter_type(type_, |t: &Type| {
-                !(self.type_checker.is_unit_like_type(t)
-                    && self.type_checker.are_types_comparable(t, &value_type))
-            }));
+            return self.type_checker.try_filter_type(type_, |t: &Type| {
+                Ok(!(self.type_checker.is_unit_like_type(t)
+                    && self.type_checker.are_types_comparable(t, &value_type)?))
+            });
         }
         Ok(type_.type_wrapper())
     }
@@ -950,10 +950,10 @@ impl GetFlowTypeOfReference {
             self.type_checker.never_type()
         } else {
             self.type_checker.replace_primitives_with_literals(
-                &self.type_checker.filter_type(type_, |t: &Type| {
+                &*self.type_checker.try_filter_type(type_, |t: &Type| {
                     self.type_checker
                         .are_types_comparable(&discriminant_type, t)
-                }),
+                })?,
                 &discriminant_type,
             )
         };

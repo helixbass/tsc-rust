@@ -802,7 +802,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Gc<Node /*SourceFile*/>>;
+    ) -> io::Result<Option<Gc<Node /*SourceFile*/>>>;
     fn get_type_reference_directives_for_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
@@ -828,7 +828,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_symbol_of_external_module_specifier(
         &self,
         node: &Node, /*StringLiteralLike*/
-    ) -> Option<Gc<Symbol>>;
+    ) -> io::Result<Option<Gc<Symbol>>>;
     fn is_binding_captured_by_node(
         &self,
         node: &Node,
