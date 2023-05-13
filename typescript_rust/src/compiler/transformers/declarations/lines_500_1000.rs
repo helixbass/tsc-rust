@@ -375,7 +375,7 @@ impl TransformDeclarations {
         &self,
         parent: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
         input: Option<&Node>,
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let input = input?;
         self.set_result_has_external_module_indicator(
             self.result_has_external_module_indicator()
@@ -390,13 +390,13 @@ impl TransformDeclarations {
                     &**self.context.get_emit_host(),
                     &**self.resolver,
                     parent,
-                );
+                )?;
                 if let Some(new_name) = new_name.non_empty() {
-                    return Some(
+                    return Ok(Some(
                         self.factory
                             .create_string_literal(new_name, None, None)
                             .wrap(),
-                    );
+                    ));
                 }
             } else {
                 let symbol = self.resolver.get_symbol_of_external_module_specifier(input);
@@ -407,56 +407,58 @@ impl TransformDeclarations {
                 }
             }
         }
-        Some(input.node_wrapper())
+        Ok(Some(input.node_wrapper()))
     }
 
     pub(super) fn transform_import_equals_declaration(
         &self,
         decl: &Node, /*ImportEqualsDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         if !self.resolver.is_declaration_visible(decl) {
-            return None;
+            return Ok(None);
         }
         let decl_as_import_equals_declaration = decl.as_import_equals_declaration();
-        if decl_as_import_equals_declaration.module_reference.kind()
-            == SyntaxKind::ExternalModuleReference
-        {
-            let specifier = get_external_module_import_equals_declaration_expression(decl);
-            Some(
-                self.factory.update_import_equals_declaration(
-                    decl,
-                    Option::<Gc<NodeArray>>::None,
-                    decl.maybe_modifiers().clone(),
-                    decl_as_import_equals_declaration.is_type_only,
-                    decl_as_import_equals_declaration.name(),
-                    self.factory.update_external_module_reference(
-                        &decl_as_import_equals_declaration.module_reference,
-                        self.rewrite_module_specifier(decl, Some(&specifier))
-                            .unwrap(),
+        Ok(
+            if decl_as_import_equals_declaration.module_reference.kind()
+                == SyntaxKind::ExternalModuleReference
+            {
+                let specifier = get_external_module_import_equals_declaration_expression(decl);
+                Some(
+                    self.factory.update_import_equals_declaration(
+                        decl,
+                        Option::<Gc<NodeArray>>::None,
+                        decl.maybe_modifiers().clone(),
+                        decl_as_import_equals_declaration.is_type_only,
+                        decl_as_import_equals_declaration.name(),
+                        self.factory.update_external_module_reference(
+                            &decl_as_import_equals_declaration.module_reference,
+                            self.rewrite_module_specifier(decl, Some(&specifier))?
+                                .unwrap(),
+                        ),
                     ),
-                ),
-            )
-        } else {
-            let old_diag = self.get_symbol_accessibility_diagnostic();
-            self.set_get_symbol_accessibility_diagnostic(
-                create_get_symbol_accessibility_diagnostic_for_node(decl),
-            );
-            self.check_entity_name_visibility(
-                &decl_as_import_equals_declaration.module_reference,
-                &self.enclosing_declaration(),
-            );
-            self.set_get_symbol_accessibility_diagnostic(old_diag);
-            Some(decl.node_wrapper())
-        }
+                )
+            } else {
+                let old_diag = self.get_symbol_accessibility_diagnostic();
+                self.set_get_symbol_accessibility_diagnostic(
+                    create_get_symbol_accessibility_diagnostic_for_node(decl),
+                );
+                self.check_entity_name_visibility(
+                    &decl_as_import_equals_declaration.module_reference,
+                    &self.enclosing_declaration(),
+                );
+                self.set_get_symbol_accessibility_diagnostic(old_diag);
+                Some(decl.node_wrapper())
+            },
+        )
     }
 
     pub(super) fn transform_import_declaration(
         &self,
         decl: &Node, /*ImportDeclaration*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let decl_as_import_declaration = decl.as_import_declaration();
         if decl_as_import_declaration.import_clause.is_none() {
-            return Some(
+            return Ok(Some(
                 self.factory.update_import_declaration(
                     decl,
                     Option::<Gc<NodeArray>>::None,
@@ -465,11 +467,11 @@ impl TransformDeclarations {
                     self.rewrite_module_specifier(
                         decl,
                         Some(&decl_as_import_declaration.module_specifier),
-                    )
+                    )?
                     .unwrap(),
                     None,
                 ),
-            );
+            ));
         }
         let decl_import_clause = decl_as_import_declaration.import_clause.as_ref().unwrap();
         let decl_import_clause_as_import_clause = decl_import_clause.as_import_clause();
@@ -478,7 +480,7 @@ impl TransformDeclarations {
                 self.resolver.is_declaration_visible(decl_import_clause)
             });
         if decl_import_clause_as_import_clause.named_bindings.is_none() {
-            return visible_default_binding.map(|visible_default_binding| {
+            return Ok(visible_default_binding.map(|visible_default_binding| {
                 self.factory.update_import_declaration(
                     decl,
                     Option::<Gc<NodeArray>>::None,
@@ -492,11 +494,11 @@ impl TransformDeclarations {
                     self.rewrite_module_specifier(
                         decl,
                         Some(&decl_as_import_declaration.module_specifier),
-                    )
+                    )?
                     .unwrap(),
                     None,
                 )
-            });
+            }));
         }
         let decl_import_clause_named_bindings = decl_import_clause_as_import_clause
             .named_bindings
@@ -511,29 +513,31 @@ impl TransformDeclarations {
             } else {
                 None
             };
-            return if visible_default_binding.is_some() || named_bindings.is_some() {
-                Some(
-                    self.factory.update_import_declaration(
-                        decl,
-                        Option::<Gc<NodeArray>>::None,
-                        decl.maybe_modifiers().clone(),
-                        Some(self.factory.update_import_clause(
-                            decl_import_clause,
-                            decl_import_clause_as_import_clause.is_type_only,
-                            visible_default_binding,
-                            named_bindings.cloned(),
-                        )),
-                        self.rewrite_module_specifier(
+            return Ok(
+                if visible_default_binding.is_some() || named_bindings.is_some() {
+                    Some(
+                        self.factory.update_import_declaration(
                             decl,
-                            Some(&decl_as_import_declaration.module_specifier),
-                        )
-                        .unwrap(),
-                        None,
-                    ),
-                )
-            } else {
-                None
-            };
+                            Option::<Gc<NodeArray>>::None,
+                            decl.maybe_modifiers().clone(),
+                            Some(self.factory.update_import_clause(
+                                decl_import_clause,
+                                decl_import_clause_as_import_clause.is_type_only,
+                                visible_default_binding,
+                                named_bindings.cloned(),
+                            )),
+                            self.rewrite_module_specifier(
+                                decl,
+                                Some(&decl_as_import_declaration.module_specifier),
+                            )?
+                            .unwrap(),
+                            None,
+                        ),
+                    )
+                } else {
+                    None
+                },
+            );
         }
         let binding_list = map_defined(
             Some(
@@ -552,7 +556,7 @@ impl TransformDeclarations {
         if
         /*bindingList &&*/
         !binding_list.is_empty() || visible_default_binding.is_some() {
-            return Some(
+            return Ok(Some(
                 self.factory.update_import_declaration(
                     decl,
                     Option::<Gc<NodeArray>>::None,
@@ -575,14 +579,14 @@ impl TransformDeclarations {
                     self.rewrite_module_specifier(
                         decl,
                         Some(&decl_as_import_declaration.module_specifier),
-                    )
+                    )?
                     .unwrap(),
                     None,
                 ),
-            );
+            ));
         }
         if self.resolver.is_import_required_by_augmentation(decl) {
-            return Some(
+            return Ok(Some(
                 self.factory.update_import_declaration(
                     decl,
                     Option::<Gc<NodeArray>>::None,
@@ -591,13 +595,13 @@ impl TransformDeclarations {
                     self.rewrite_module_specifier(
                         decl,
                         Some(&decl_as_import_declaration.module_specifier),
-                    )
+                    )?
                     .unwrap(),
                     None,
                 ),
-            );
+            ));
         }
-        None
+        Ok(None)
     }
 
     pub(super) fn transform_and_replace_late_painted_statements(
@@ -788,24 +792,6 @@ impl TransformDeclarations {
                         Some(input),
                         |node: &Node| self.visit_declaration_subtree(node),
                         &**self.context,
-                        Option::<
-                            fn(
-                                Option<&NodeArray>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<usize>,
-                                Option<usize>,
-                            ) -> io::Result<Option<Gc<NodeArray>>>,
-                        >::None,
-                        Option::<fn(&Node) -> io::Result<VisitResult>>::None,
-                        Option::<
-                            fn(
-                                Option<&Node>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                            ) -> io::Result<Option<Gc<Node>>>,
-                        >::None,
                     )?
                     .unwrap();
                     let node_as_expression_with_type_arguments =
@@ -837,24 +823,6 @@ impl TransformDeclarations {
                         Some(input),
                         |node: &Node| self.visit_declaration_subtree(node),
                         &**self.context,
-                        Option::<
-                            fn(
-                                Option<&NodeArray>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<usize>,
-                                Option<usize>,
-                            ) -> io::Result<Option<Gc<NodeArray>>>,
-                        >::None,
-                        Option::<fn(&Node) -> io::Result<VisitResult>>::None,
-                        Option::<
-                            fn(
-                                Option<&Node>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                            ) -> io::Result<Option<Gc<Node>>>,
-                        >::None,
                     )?
                     .unwrap();
                     let node_as_type_reference_node = node.as_type_reference_node();
@@ -1299,25 +1267,6 @@ impl TransformDeclarations {
                             Some(input),
                             |node: &Node| self.visit_declaration_subtree(node),
                             &**self.context,
-                            Option::<
-                                fn(
-                                    Option<&NodeArray>,
-                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                    Option<&dyn Fn(&Node) -> bool>,
-                                    Option<usize>,
-                                    Option<usize>,
-                                )
-                                    -> io::Result<Option<Gc<NodeArray>>>,
-                            >::None,
-                            Option::<fn(&Node) -> io::Result<VisitResult>>::None,
-                            Option::<
-                                fn(
-                                    Option<&Node>,
-                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                    Option<&dyn Fn(&Node) -> bool>,
-                                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                                ) -> io::Result<Option<Gc<Node>>>,
-                            >::None,
                         )?
                         .as_deref(),
                     )
@@ -1481,7 +1430,7 @@ impl TransformDeclarations {
                                                 .as_literal_type_node()
                                                 .literal,
                                         ),
-                                    )
+                                    )?
                                     .unwrap(),
                                 ),
                                 input_as_import_type_node.qualifier.clone(),
@@ -1533,24 +1482,6 @@ impl TransformDeclarations {
                 Some(input),
                 |node: &Node| self.visit_declaration_subtree(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
             )?
             .as_deref(),
         ))

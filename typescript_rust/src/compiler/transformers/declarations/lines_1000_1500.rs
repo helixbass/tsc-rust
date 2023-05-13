@@ -99,7 +99,7 @@ impl TransformDeclarations {
                             self.rewrite_module_specifier(
                                 input,
                                 input_as_export_declaration.module_specifier.as_deref(),
-                            ),
+                            )?,
                             None,
                         )
                     .into(),
@@ -216,11 +216,11 @@ impl TransformDeclarations {
         match input.kind() {
             SyntaxKind::ImportEqualsDeclaration => {
                 return Ok(self
-                    .transform_import_equals_declaration(input)
+                    .transform_import_equals_declaration(input)?
                     .map(Into::into));
             }
             SyntaxKind::ImportDeclaration => {
-                return Ok(self.transform_import_declaration(input).map(Into::into));
+                return self.transform_import_declaration(input).map(Into::into);
             }
             _ => (),
         }
@@ -655,7 +655,7 @@ impl TransformDeclarations {
                                     self.rewrite_module_specifier(
                                         input,
                                         input_as_module_declaration.maybe_name().as_deref(),
-                                    )
+                                    )?
                                     .unwrap()
                                 } else {
                                     input_as_module_declaration.name()

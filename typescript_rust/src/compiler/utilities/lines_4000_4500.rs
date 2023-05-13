@@ -844,13 +844,13 @@ pub fn get_external_module_name_from_declaration(
     host: &(impl ResolveModuleNameResolutionHost + ?Sized),
     resolver: &(impl EmitResolver + ?Sized),
     declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
-) -> Option<String> {
-    let file = resolver.get_external_module_file_from_declaration(declaration);
+) -> io::Result<Option<String>> {
+    let file = resolver.get_external_module_file_from_declaration(declaration)?;
     if match file.as_ref() {
         None => true,
         Some(file) => file.as_source_file().is_declaration_file(),
     } {
-        return None;
+        return Ok(None);
     }
     let file = file.unwrap();
     let specifier = get_external_module_name(declaration);
@@ -864,14 +864,14 @@ pub fn get_external_module_name_from_declaration(
                 ),
             )
         {
-            return None;
+            return Ok(None);
         }
     }
-    Some(get_resolved_external_module_name(
+    Ok(Some(get_resolved_external_module_name(
         host,
         &file,
         Option::<&Node>::None,
-    ))
+    )))
 }
 
 pub fn get_external_module_name_from_path(

@@ -297,7 +297,8 @@ pub use compiler::transformers::declarations::diagnostics::{
 };
 pub use compiler::transformers::declarations::get_declaration_diagnostics;
 pub use compiler::transformers::destructuring::{
-    flatten_destructuring_assignment, flatten_destructuring_binding, FlattenLevel,
+    flatten_destructuring_assignment, flatten_destructuring_binding,
+    try_flatten_destructuring_assignment, FlattenLevel,
 };
 pub use compiler::transformers::tagged_template::{
     process_tagged_template_expression, ProcessLevel,
@@ -305,6 +306,7 @@ pub use compiler::transformers::tagged_template::{
 pub use compiler::transformers::utilities::{
     add_prologue_directives_and_initial_super_call, chain_bundle, get_original_node_id,
     get_properties, is_simple_inlineable_expression, maybe_get_original_node_id,
+    try_add_prologue_directives_and_initial_super_call,
 };
 pub use compiler::transformers::{
     is_internal_declaration, transform_class_fields, transform_declarations,
@@ -721,8 +723,9 @@ use compiler::utilities_public::{
     text_range_contains_position_inclusive,
 };
 pub use compiler::visitor_public::{
-    try_visit_each_child, try_visit_node, try_visit_nodes, visit_each_child, visit_function_body,
-    visit_iteration_body, visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
+    try_visit_each_child, try_visit_function_body, try_visit_node, try_visit_nodes,
+    try_visit_parameter_list, visit_each_child, visit_function_body, visit_iteration_body,
+    visit_lexical_environment, visit_node, visit_nodes, visit_parameter_list,
 };
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,

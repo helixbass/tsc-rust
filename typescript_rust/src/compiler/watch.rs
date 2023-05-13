@@ -857,7 +857,7 @@ fn emit_files_and_report_errors(
         if !is_list_files_only {
             add_range(
                 &mut all_diagnostics,
-                Some(&program.get_global_diagnostics(cancellation_token.clone())),
+                Some(&program.get_global_diagnostics(cancellation_token.clone())?),
                 None,
                 None,
             );

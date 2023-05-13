@@ -813,29 +813,6 @@ impl NodeBuilder {
                 ))
             },
             &*null_transformation_context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> io::Result<Option<Gc<NodeArray>>>,
-            >::None,
-            Some(|node: &Node| {
-                Ok(Some(
-                    self.elide_initializer_and_set_emit_flags(context, node)?
-                        .into(),
-                ))
-            }),
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> io::Result<Option<Gc<Node>>>,
-            >::None,
         )?
         .unwrap();
         if is_binding_element(&visited) {

@@ -1492,24 +1492,6 @@ impl NodeBuilder {
                     )
                 },
                 &*null_transformation_context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> io::Result<Option<Gc<NodeArray>>>,
-                >::None,
-                Option::<fn(&Node) -> io::Result<VisitResult>>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> io::Result<Option<Gc<Node>>>,
-                >::None,
             )?
             .unwrap()
             .into(),

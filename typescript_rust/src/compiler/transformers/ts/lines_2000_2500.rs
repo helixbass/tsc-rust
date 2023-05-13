@@ -20,15 +20,23 @@ use crate::{
 };
 
 use super::TransformTypeScript;
+use crate::try_flatten_destructuring_assignment;
+use crate::try_map;
+use crate::try_visit_each_child;
+use crate::try_visit_function_body;
+use crate::try_visit_node;
+use crate::try_visit_nodes;
+use crate::try_visit_parameter_list;
+use std::io;
 
 impl TransformTypeScript {
     pub(super) fn visit_method_declaration(
         &self,
         node: &Node, /*MethodDeclaration*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_method_declaration = node.as_method_declaration();
         if !self.should_emit_function_like_declaration(node) {
-            return None;
+            return Ok(None);
         }
         let updated = self.factory.update_method_declaration(
             node,
@@ -44,7 +52,7 @@ impl TransformTypeScript {
             self.visit_property_name_of_class_element(node),
             None,
             Option::<Gc<NodeArray>>::None,
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
@@ -57,10 +65,10 @@ impl TransformTypeScript {
                         Option<usize>,
                     ) -> Option<Gc<NodeArray>>,
                 >::None,
-            )
+            )?
             .unwrap(),
             None,
-            visit_function_body(
+            try_visit_function_body(
                 node_as_method_declaration.maybe_body().as_deref(),
                 |node: &Node| self.visitor(node),
                 &**self.context,
@@ -72,7 +80,7 @@ impl TransformTypeScript {
                         Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
                     ) -> Option<Gc<Node>>,
                 >::None,
-            ),
+            )?,
         );
         if !ptr::eq(&*updated, node) {
             set_comment_range(&updated, node);
@@ -81,7 +89,7 @@ impl TransformTypeScript {
                 Some((&move_range_past_decorators(node)).into()),
             );
         }
-        Some(updated.into())
+        Ok(Some(updated.into()))
     }
 
     pub(super) fn should_emit_accessor_declaration(
@@ -95,10 +103,10 @@ impl TransformTypeScript {
     pub(super) fn visit_get_accessor(
         &self,
         node: &Node, /*GetAccessorDeclaration*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
         if !self.should_emit_accessor_declaration(node) {
-            return None;
+            return Ok(None);
         }
         let updated = self.factory.update_get_accessor_declaration(
             node,
@@ -111,36 +119,19 @@ impl TransformTypeScript {
                 None,
             ),
             self.visit_property_name_of_class_element(node),
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_get_accessor_declaration.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-            )
+            )?
             .unwrap(),
             None,
             Some(
-                visit_function_body(
+                try_visit_function_body(
                     node_as_get_accessor_declaration.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap()),
             ),
         );
@@ -151,16 +142,16 @@ impl TransformTypeScript {
                 Some((&move_range_past_decorators(node)).into()),
             );
         }
-        Some(updated.into())
+        Ok(Some(updated.into()))
     }
 
     pub(super) fn visit_set_accessor(
         &self,
         node: &Node, /*SetAccessorDeclaration*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
         if !self.should_emit_accessor_declaration(node) {
-            return None;
+            return Ok(None);
         }
         let updated = self.factory.update_set_accessor_declaration(
             node,
@@ -173,35 +164,18 @@ impl TransformTypeScript {
                 None,
             ),
             self.visit_property_name_of_class_element(node),
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_set_accessor_declaration.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-            )
+            )?
             .unwrap(),
             Some(
-                visit_function_body(
+                try_visit_function_body(
                     node_as_set_accessor_declaration.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap()),
             ),
         );
@@ -212,20 +186,20 @@ impl TransformTypeScript {
                 Some((&move_range_past_decorators(node)).into()),
             );
         }
-        Some(updated.into())
+        Ok(Some(updated.into()))
     }
 
     pub(super) fn visit_function_declaration(
         &self,
         node: &Node, /*FunctionDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
         if !self.should_emit_function_like_declaration(node) {
-            return Some(
+            return Ok(Some(
                 self.factory
                     .create_not_emitted_statement(node.node_wrapper())
                     .into(),
-            );
+            ));
         }
         let updated = self.factory.update_function_declaration(
             node,
@@ -240,54 +214,37 @@ impl TransformTypeScript {
             node_as_function_declaration.maybe_asterisk_token(),
             node_as_function_declaration.maybe_name(),
             Option::<Gc<NodeArray>>::None,
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_function_declaration.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-            )
+            )?
             .unwrap(),
             None,
             Some(
-                visit_function_body(
+                try_visit_function_body(
                     node_as_function_declaration.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
                 .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap()),
             ),
         );
         if self.is_export_of_namespace(node) {
             let mut statements: Vec<Gc<Node /*Statement*/>> = vec![updated];
             self.add_export_member_assignment(&mut statements, node);
-            return Some(statements.into());
+            return Ok(Some(statements.into()));
         }
-        Some(updated.into())
+        Ok(Some(updated.into()))
     }
 
     pub(super) fn visit_function_expression(
         &self,
         node: &Node, /*FunctionExpression*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_function_expression = node.as_function_expression();
         if !self.should_emit_function_like_declaration(node) {
-            return self.factory.create_omitted_expression().wrap();
+            return Ok(self.factory.create_omitted_expression().wrap());
         }
         let updated = self.factory.update_function_expression(
             node,
@@ -301,41 +258,27 @@ impl TransformTypeScript {
             node_as_function_expression.maybe_asterisk_token(),
             node_as_function_expression.maybe_name(),
             Option::<Gc<NodeArray>>::None,
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_function_expression.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-            )
+            )?
             .unwrap(),
             None,
-            visit_function_body(
+            try_visit_function_body(
                 node_as_function_expression.maybe_body().as_deref(),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
+            )?
             .unwrap_or_else(|| self.factory.create_block(vec![], None).wrap()),
         );
-        updated
+        Ok(updated)
     }
 
-    pub(super) fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> VisitResult {
+    pub(super) fn visit_arrow_function(
+        &self,
+        node: &Node, /*ArrowFunction*/
+    ) -> io::Result<VisitResult> {
         let node_as_arrow_function = node.as_arrow_function();
         let updated = self.factory.update_arrow_function(
             node,
@@ -347,45 +290,31 @@ impl TransformTypeScript {
                 None,
             ),
             Option::<Gc<NodeArray>>::None,
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_arrow_function.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-            )
+            )?
             .unwrap(),
             None,
             node_as_arrow_function.equals_greater_than_token.clone(),
-            visit_function_body(
+            try_visit_function_body(
                 node_as_arrow_function.maybe_body().as_deref(),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
+            )?
             .unwrap(),
         );
-        Some(updated.into())
+        Ok(Some(updated.into()))
     }
 
-    pub(super) fn visit_parameter(&self, node: &Node /*ParameterDeclaration*/) -> VisitResult {
+    pub(super) fn visit_parameter(
+        &self,
+        node: &Node, /*ParameterDeclaration*/
+    ) -> io::Result<VisitResult> {
         let node_as_parameter_declaration = node.as_parameter_declaration();
         if parameter_is_this_keyword(node) {
-            return None;
+            return Ok(None);
         }
 
         let updated = self.factory.update_parameter_declaration(
@@ -393,20 +322,20 @@ impl TransformTypeScript {
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             node_as_parameter_declaration.dot_dot_dot_token.clone(),
-            visit_node(
+            try_visit_node(
                 node_as_parameter_declaration.maybe_name(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_binding_name),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
+            )?,
             None,
             None,
-            visit_node(
+            try_visit_node(
                 node_as_parameter_declaration.maybe_initializer(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
+            )?,
         );
         if !ptr::eq(&*updated, node) {
             set_comment_range(&updated, node);
@@ -423,66 +352,48 @@ impl TransformTypeScript {
                 EmitFlags::NoTrailingSourceMap,
             );
         }
-        Some(updated.into())
+        Ok(Some(updated.into()))
     }
 
     pub(super) fn visit_variable_statement(
         &self,
         node: &Node, /*VariableStatement*/
-    ) -> Option<Gc<Node /*Statement*/>> {
+    ) -> io::Result<Option<Gc<Node /*Statement*/>>> {
         let node_as_variable_statement = node.as_variable_statement();
-        if self.is_export_of_namespace(node) {
+        Ok(if self.is_export_of_namespace(node) {
             let variables = get_initialized_variables(&node_as_variable_statement.declaration_list);
             if variables.is_empty() {
-                return None;
+                return Ok(None);
             }
 
             Some(
                 self.factory
                     .create_expression_statement(
                         self.factory
-                            .inline_expressions(&map(&variables, |variable: &Gc<Node>, _| {
+                            .inline_expressions(&try_map(&variables, |variable: &Gc<Node>, _| {
                                 self.transform_initialized_variable(variable)
-                            })),
+                            })?),
                     )
                     .wrap()
                     .set_text_range(Some(node)),
             )
         } else {
-            visit_each_child(
+            try_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-        }
+            )?
+        })
     }
 
     pub(super) fn transform_initialized_variable(
         &self,
         node: &Node, /*InitializedVariableDeclaration*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let ref name = node_as_variable_declaration.name();
-        if is_binding_pattern(Some(&**name)) {
-            flatten_destructuring_assignment(
+        Ok(if is_binding_pattern(Some(&**name)) {
+            try_flatten_destructuring_assignment(
                 node,
                 Some(|node: &Node| self.visitor(node)),
                 &**self.context,
@@ -495,279 +406,269 @@ impl TransformTypeScript {
                         self.create_namespace_export_expression(export_name, export_value, location)
                     },
                 ),
-            )
+            )?
         } else {
             self.factory
                 .create_assignment(
                     self.get_namespace_member_name_with_source_maps_and_without_comments(name),
-                    visit_node(
+                    try_visit_node(
                         node_as_variable_declaration.maybe_initializer(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                 )
                 .wrap()
                 .set_text_range(Some(node))
-        }
+        })
     }
 
     pub(super) fn visit_variable_declaration(
         &self,
         node: &Node, /*VariableDeclaration*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_variable_declaration = node.as_variable_declaration();
-        Some(
+        Ok(Some(
             self.factory
                 .update_variable_declaration(
                     node,
-                    visit_node(
+                    try_visit_node(
                         node_as_variable_declaration.maybe_name(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_binding_name),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
+                    )?,
                     None,
                     None,
-                    visit_node(
+                    try_visit_node(
                         node_as_variable_declaration.maybe_initializer(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_parenthesized_expression(
         &self,
         node: &Node, /*ParenthesizedExpression*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
         let ref inner_expression = skip_outer_expressions(
             &node_as_parenthesized_expression.expression,
             Some(!OuterExpressionKinds::Assertions),
         );
         if is_assertion_expression(inner_expression) {
-            let expression = visit_node(
+            let expression = try_visit_node(
                 Some(&*node_as_parenthesized_expression.expression),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
+            )?
             .unwrap();
 
             if get_leading_comment_ranges_of_node(&expression, &self.current_source_file())
                 .is_non_empty()
             {
-                return self
+                return Ok(self
                     .factory
-                    .update_parenthesized_expression(node, expression);
+                    .update_parenthesized_expression(node, expression));
             }
-            return self
+            return Ok(self
                 .factory
                 .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-                .wrap();
+                .wrap());
         }
 
-        visit_each_child(
+        Ok(try_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .unwrap()
+        )?
+        .unwrap())
     }
 
     pub(super) fn visit_assertion_expression(
         &self,
         node: &Node, /*AssertionExpression*/
-    ) -> Gc<Node /*Expression*/> {
-        let expression = visit_node(
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        let expression = try_visit_node(
             Some(&*node.as_has_expression().expression()),
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
+        )?
         .unwrap();
-        self.factory
+        Ok(self
+            .factory
             .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-            .wrap()
+            .wrap())
     }
 
     pub(super) fn visit_non_null_expression(
         &self,
         node: &Node, /*NonNullExpression*/
-    ) -> Gc<Node /*Expression*/> {
-        let expression = visit_node(
+    ) -> io::Result<Gc<Node /*Expression*/>> {
+        let expression = try_visit_node(
             Some(&*node.as_non_null_expression().expression),
             Some(|node: &Node| self.visitor(node)),
             Some(is_left_hand_side_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
+        )?
         .unwrap();
-        self.factory
+        Ok(self
+            .factory
             .create_partially_emitted_expression(expression, Some(node.node_wrapper()))
-            .wrap()
+            .wrap())
     }
 
-    pub(super) fn visit_call_expression(&self, node: &Node /*CallExpression*/) -> VisitResult {
+    pub(super) fn visit_call_expression(
+        &self,
+        node: &Node, /*CallExpression*/
+    ) -> io::Result<VisitResult> {
         let node_as_call_expression = node.as_call_expression();
-        Some(
+        Ok(Some(
             self.factory
                 .update_call_expression(
                     node,
-                    visit_node(
+                    try_visit_node(
                         Some(&*node_as_call_expression.expression),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                     Option::<Gc<NodeArray>>::None,
-                    visit_nodes(
+                    try_visit_nodes(
                         Some(&node_as_call_expression.arguments),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         None,
                         None,
-                    )
+                    )?
                     .unwrap(),
                 )
                 .into(),
-        )
+        ))
     }
 
-    pub(super) fn visit_new_expression(&self, node: &Node /*NewExpression*/) -> VisitResult {
+    pub(super) fn visit_new_expression(
+        &self,
+        node: &Node, /*NewExpression*/
+    ) -> io::Result<VisitResult> {
         let node_as_new_expression = node.as_new_expression();
-        Some(
+        Ok(Some(
             self.factory
                 .update_new_expression(
                     node,
-                    visit_node(
+                    try_visit_node(
                         Some(&*node_as_new_expression.expression),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                     Option::<Gc<NodeArray>>::None,
-                    visit_nodes(
+                    try_visit_nodes(
                         node_as_new_expression.arguments.as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         None,
                         None,
-                    ),
+                    )?,
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_tagged_template_expression(
         &self,
         node: &Node, /*TaggedTemplateExpression*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_tagged_template_expression = node.as_tagged_template_expression();
-        Some(
+        Ok(Some(
             self.factory
                 .update_tagged_template_expression(
                     node,
-                    visit_node(
+                    try_visit_node(
                         Some(&*node_as_tagged_template_expression.tag),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                     Option::<Gc<NodeArray>>::None,
-                    visit_node(
+                    try_visit_node(
                         Some(&*node_as_tagged_template_expression.template),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_jsx_self_closing_element(
         &self,
         node: &Node, /*JsxSelfClosingElement*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
-        Some(
+        Ok(Some(
             self.factory
                 .update_jsx_self_closing_element(
                     node,
-                    visit_node(
+                    try_visit_node(
                         Some(&*node_as_jsx_self_closing_element.tag_name),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_tag_name_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                     Option::<Gc<NodeArray>>::None,
-                    visit_node(
+                    try_visit_node(
                         Some(&*node_as_jsx_self_closing_element.attributes),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_attributes),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn visit_jsx_jsx_opening_element(
         &self,
         node: &Node, /*JsxOpeningElement*/
-    ) -> VisitResult {
+    ) -> io::Result<VisitResult> {
         let node_as_jsx_opening_element = node.as_jsx_opening_element();
-        Some(
+        Ok(Some(
             self.factory
                 .update_jsx_opening_element(
                     node,
-                    visit_node(
+                    try_visit_node(
                         Some(&*node_as_jsx_opening_element.tag_name),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_tag_name_expression),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                     Option::<Gc<NodeArray>>::None,
-                    visit_node(
+                    try_visit_node(
                         Some(&*node_as_jsx_opening_element.attributes),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_jsx_attributes),
                         Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
+                    )?
                     .unwrap(),
                 )
                 .into(),
-        )
+        ))
     }
 
     pub(super) fn should_emit_enum_declaration(
@@ -780,13 +681,13 @@ impl TransformTypeScript {
     pub(super) fn visit_enum_declaration(
         &self,
         node: &Node, /*EnumDeclaration*/
-    ) -> VisitResult /*<Statement>*/ {
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         if !self.should_emit_enum_declaration(node) {
-            return Some(
+            return Ok(Some(
                 self.factory
                     .create_not_emitted_statement(node.node_wrapper())
                     .into(),
-            );
+            ));
         }
 
         let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
@@ -868,7 +769,7 @@ impl TransformTypeScript {
                                     )
                                     .wrap()]),
                                 None,
-                                self.transform_enum_body(node, &container_name),
+                                self.transform_enum_body(node, &container_name)?,
                             )
                             .wrap(),
                         Option::<Gc<NodeArray>>::None,
@@ -890,23 +791,23 @@ impl TransformTypeScript {
             self.factory
                 .create_end_of_declaration_marker(node.node_wrapper()),
         );
-        Some(statements.into())
+        Ok(Some(statements.into()))
     }
 
     pub(super) fn transform_enum_body(
         &self,
         node: &Node,       /*EnumDeclaration*/
         local_name: &Node, /*Identifier*/
-    ) -> Gc<Node /*Block*/> {
+    ) -> io::Result<Gc<Node /*Block*/>> {
         let node_as_enum_declaration = node.as_enum_declaration();
         let saved_current_namespace_local_name = self.maybe_current_namespace_container_name();
         self.set_current_namespace_container_name(Some(local_name.node_wrapper()));
 
         let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
         self.context.start_lexical_environment();
-        let members = map(&node_as_enum_declaration.members, |member: &Gc<Node>, _| {
+        let members = try_map(&node_as_enum_declaration.members, |member: &Gc<Node>, _| {
             self.transform_enum_member(member)
-        });
+        })?;
         insert_statements_after_standard_prologue(
             &mut statements,
             self.context.end_lexical_environment().as_deref(),
@@ -914,22 +815,23 @@ impl TransformTypeScript {
         add_range(&mut statements, Some(&members), None, None);
 
         self.set_current_namespace_container_name(saved_current_namespace_local_name);
-        self.factory
+        Ok(self
+            .factory
             .create_block(
                 self.factory
                     .create_node_array(Some(statements), None)
                     .set_text_range(Some(&*node_as_enum_declaration.members)),
                 Some(true),
             )
-            .wrap()
+            .wrap())
     }
 
     pub(super) fn transform_enum_member(
         &self,
         member: &Node, /*EnumMember*/
-    ) -> Gc<Node /*Statement*/> {
+    ) -> io::Result<Gc<Node /*Statement*/>> {
         let name = self.get_expression_for_property_name(member, false);
-        let value_expression = self.transform_enum_member_declaration_value(member);
+        let value_expression = self.transform_enum_member_declaration_value(member)?;
         let inner_assignment = self
             .factory
             .create_assignment(
@@ -957,18 +859,19 @@ impl TransformTypeScript {
                 )
                 .wrap()
         };
-        self.factory
+        Ok(self
+            .factory
             .create_expression_statement(set_text_range_rc_node(outer_assignment, Some(member)))
             .wrap()
-            .set_text_range(Some(member))
+            .set_text_range(Some(member)))
     }
 
     pub(super) fn transform_enum_member_declaration_value(
         &self,
         member: &Node, /*EnumMember*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let value = self.resolver.get_constant_value(member);
-        if let Some(value) = value {
+        Ok(if let Some(value) = value {
             match value {
                 StringOrNumber::String(value) => {
                     self.factory.create_string_literal(value, None, None).wrap()
@@ -980,17 +883,17 @@ impl TransformTypeScript {
         } else {
             self.enable_substitution_for_non_qualified_enum_members();
             if let Some(member_initializer) = member.as_enum_member().initializer.as_ref() {
-                visit_node(
+                try_visit_node(
                     Some(&**member_initializer),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
+                )?
                 .unwrap()
             } else {
                 self.factory.create_void_zero()
             }
-        }
+        })
     }
 
     pub(super) fn should_emit_module_declaration(

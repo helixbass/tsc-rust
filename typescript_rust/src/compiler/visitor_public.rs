@@ -308,6 +308,44 @@ pub fn visit_parameter_list(
     unimplemented!()
 }
 
+pub fn try_visit_parameter_list<TError>(
+    nodes: Option<&NodeArray>,
+    visitor: impl FnMut(&Node) -> VisitResult,
+    context: &(impl TransformationContext + ?Sized),
+) -> Result<Option<Gc<NodeArray>>, TError> {
+    try_visit_parameter_list_full(
+        nodes,
+        visitor,
+        context,
+        Option::<
+            fn(
+                Option<&NodeArray>,
+                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                Option<&dyn Fn(&Node) -> bool>,
+                Option<usize>,
+                Option<usize>,
+            ) -> Result<Option<Gc<NodeArray>, TError>>,
+        >::None,
+    )
+}
+
+pub fn try_visit_parameter_list_full<TError>(
+    _nodes: Option<&NodeArray>,
+    _visitor: impl FnMut(&Node) -> VisitResult,
+    _context: &(impl TransformationContext + ?Sized),
+    _nodes_visitor: Option<
+        impl FnMut(
+            Option<&NodeArray>,
+            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+            Option<&dyn Fn(&Node) -> bool>,
+            Option<usize>,
+            Option<usize>,
+        ) -> Result<Option<Gc<NodeArray>>, TError>,
+    >,
+) -> Result<Option<Gc<NodeArray>>, TError> {
+    unimplemented!()
+}
+
 pub fn visit_function_body(
     _node: Option<&Node /*ConciseBody*/>,
     _visitor: impl FnMut(&Node) -> VisitResult,
@@ -321,6 +359,42 @@ pub fn visit_function_body(
         ) -> Option<Gc<Node>>,
     >,
 ) -> Option<Gc<Node /*ConciseBody*/>> {
+    unimplemented!()
+}
+
+pub fn try_visit_function_body<TError>(
+    node: Option<&Node /*ConciseBody*/>,
+    visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
+    context: &(impl TransformationContext + ?Sized),
+) -> Result<Option<Gc<Node /*ConciseBody*/>>, TError> {
+    try_visit_function_body_full(
+        node,
+        visitor,
+        context,
+        Option::<
+            fn(
+                Option<&Node>,
+                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                Option<&dyn Fn(&Node) -> bool>,
+                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+            ) -> Result<Option<Gc<Node>>, TError>,
+        >::None,
+    )
+}
+
+pub fn try_visit_function_body_full<TError>(
+    _node: Option<&Node /*ConciseBody*/>,
+    _visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
+    _context: &(impl TransformationContext + ?Sized),
+    _node_visitor: Option<
+        impl FnMut(
+            Option<&Node>,
+            Option<&mut dyn FnMut(&Node) -> VisitResult>,
+            Option<&dyn Fn(&Node) -> bool>,
+            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+        ) -> Result<Option<Gc<Node>>, TError>,
+    >,
+) -> Result<Option<Gc<Node /*ConciseBody*/>>, TError> {
     unimplemented!()
 }
 
@@ -4083,6 +4157,36 @@ pub fn visit_each_child(
 }
 
 pub fn try_visit_each_child<TError>(
+    node: Option<impl Borrow<Node>>,
+    mut visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
+    context: &(impl TransformationContext + ?Sized),
+) -> Result<Option<Gc<Node>>, TError> {
+    return try_visit_each_child_full(
+        node,
+        visitor,
+        context,
+        Option::<
+            fn(
+                Option<&NodeArray>,
+                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                Option<&dyn Fn(&Node) -> bool>,
+                Option<usize>,
+                Option<usize>,
+            ) -> Result<Option<Gc<NodeArray>>, TError>,
+        >::None,
+        Option::<fn(&Node) -> Result<VisitResult, TError>>::None,
+        Option::<
+            fn(
+                Option<&Node>,
+                Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                Option<&dyn Fn(&Node) -> bool>,
+                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+            ) -> Result<Option<Gc<Node>>, TError>,
+        >::None,
+    );
+}
+
+pub fn try_visit_each_child_full<TError>(
     node: Option<impl Borrow<Node>>,
     mut visitor: impl FnMut(&Node) -> Result<VisitResult, TError>,
     context: &(impl TransformationContext + ?Sized),
