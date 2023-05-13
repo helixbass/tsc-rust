@@ -1457,12 +1457,12 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<Ternary> {
         self.type_checker.compare_signatures_related(
             if erase {
-                self.type_checker.get_erased_signature(source)
+                self.type_checker.get_erased_signature(source)?
             } else {
                 source
             },
             if erase {
-                self.type_checker.get_erased_signature(target)
+                self.type_checker.get_erased_signature(target)?
             } else {
                 target
             },

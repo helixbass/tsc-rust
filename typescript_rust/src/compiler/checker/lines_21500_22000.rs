@@ -314,18 +314,20 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> Gc<Type> {
-        if type_
-            .flags()
-            .intersects(TypeFlags::Any | TypeFlags::StringLike)
-        {
-            type_.type_wrapper()
-        } else {
-            self.get_template_literal_type(
-                &vec!["".to_owned(), "".to_owned()],
-                &vec![type_.type_wrapper()],
-            )
-        }
+    pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> io::Result<Gc<Type>> {
+        Ok(
+            if type_
+                .flags()
+                .intersects(TypeFlags::Any | TypeFlags::StringLike)
+            {
+                type_.type_wrapper()
+            } else {
+                self.get_template_literal_type(
+                    &vec!["".to_owned(), "".to_owned()],
+                    &vec![type_.type_wrapper()],
+                )?
+            },
+        )
     }
 
     pub(super) fn infer_from_literal_parts_to_template_literal(
@@ -469,7 +471,7 @@ impl TypeChecker {
         source_types: &[Gc<Type>],
         s: usize,
         p: usize,
-    ) {
+    ) -> io::Result<()> {
         let match_type = if s == *seg {
             self.get_string_literal_type(
                 &self.get_source_text(source_texts, remaining_end_text, last_source_index, s)
@@ -492,11 +494,13 @@ impl TypeChecker {
                     texts
                 },
                 &source_types[*seg..s],
-            )
+            )?
         };
         matches.push(match_type);
         *seg = s;
         *pos = p;
+
+        Ok(())
     }
 
     pub(super) fn infer_types(

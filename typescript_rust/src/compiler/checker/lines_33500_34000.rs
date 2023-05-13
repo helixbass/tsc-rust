@@ -343,7 +343,7 @@ impl TypeChecker {
                                 .get_signature_instantiation_without_filling_in_type_arguments(
                                     signature.clone(),
                                     Some(&unique_type_parameters),
-                                );
+                                )?;
                             let inferences =
                                 map(&*context.inferences(), |info: &Gc<InferenceInfo>, _| {
                                     Gc::new(self.create_inference_info(&info.type_parameter))

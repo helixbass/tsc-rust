@@ -177,7 +177,7 @@ impl GetFlowTypeOfReference {
                 self.type_checker.get_union_type(
                     &try_map(&construct_signatures, |signature: &Gc<Signature>, _| {
                         self.type_checker.get_return_type_of_signature(
-                            self.type_checker.get_erased_signature(signature.clone()),
+                            self.type_checker.get_erased_signature(signature.clone())?,
                         )
                     })?,
                     None,

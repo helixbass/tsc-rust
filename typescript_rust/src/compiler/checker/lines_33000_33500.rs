@@ -578,7 +578,7 @@ impl TypeChecker {
                         .map(|text| text.clone())
                         .collect::<Vec<_>>(),
                     &types,
-                )
+                )?
             } else {
                 self.string_type()
             },

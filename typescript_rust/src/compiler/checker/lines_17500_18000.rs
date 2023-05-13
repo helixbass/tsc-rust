@@ -110,8 +110,8 @@ impl TypeChecker {
         implementation: Gc<Signature>,
         overload: Gc<Signature>,
     ) -> io::Result<bool> {
-        let erased_source = self.get_erased_signature(implementation.clone());
-        let erased_target = self.get_erased_signature(overload.clone());
+        let erased_source = self.get_erased_signature(implementation.clone())?;
+        let erased_target = self.get_erased_signature(overload.clone())?;
 
         let source_return_type = self.get_return_type_of_signature(erased_source.clone())?;
         let target_return_type = self.get_return_type_of_signature(erased_target.clone())?;

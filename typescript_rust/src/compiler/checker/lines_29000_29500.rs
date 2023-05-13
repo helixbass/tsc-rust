@@ -374,7 +374,7 @@ impl TypeChecker {
                         self.get_signature_instantiation_without_filling_in_type_arguments(
                             contextual_signature.clone().unwrap(),
                             Some(contextual_signature_type_parameters),
-                        ),
+                        )?,
                     )
                 } else {
                     instantiated_type.clone()

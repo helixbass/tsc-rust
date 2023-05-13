@@ -613,7 +613,7 @@ impl InferTypes {
                 self.type_checker
                     .get_base_signature(source_signatures[source_len - len + i].clone())?,
                 self.type_checker
-                    .get_erased_signature(target_signatures[target_len - len + i].clone()),
+                    .get_erased_signature(target_signatures[target_len - len + i].clone())?,
                 skip_parameters,
             );
         }

@@ -773,7 +773,7 @@ impl TypeChecker {
                     is_javascript,
                 )?
                 .as_deref(),
-            );
+            )?;
         if let Some(inferred_type_parameters) = inferred_type_parameters {
             let return_signature = self.get_single_call_or_construct_signature(
                 &*self.get_return_type_of_signature(instantiated_signature.clone())?,

@@ -694,12 +694,12 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::TemplateLiteral) {
             let type_as_template_literal_type = type_.as_template_literal_type();
-            return Ok(self.get_template_literal_type(
+            return self.get_template_literal_type(
                 &type_as_template_literal_type.texts,
                 &self
                     .instantiate_types(Some(&type_as_template_literal_type.types), Some(mapper))?
                     .unwrap(),
-            ));
+            );
         }
         if flags.intersects(TypeFlags::StringMapping) {
             return self.get_string_mapping_type(

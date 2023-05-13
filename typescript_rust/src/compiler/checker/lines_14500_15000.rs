@@ -917,7 +917,7 @@ impl TypeChecker {
                         self.get_type_from_type_node_(&span.as_template_literal_type_span().type_)
                     },
                 )?,
-            ));
+            )?);
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
         Ok(ret)
@@ -935,16 +935,16 @@ impl TypeChecker {
         );
         if let Some(union_index) = union_index {
             return Ok(if self.check_cross_product_union(types) {
-                self.map_type(
+                self.try_map_type(
                     &types[union_index],
                     &mut |t| {
-                        Some(self.get_template_literal_type(
+                        Ok(Some(self.get_template_literal_type(
                             texts,
                             &replace_element(types, union_index, t.type_wrapper()),
-                        ))
+                        )?))
                     },
                     None,
-                )
+                )?
                 .unwrap()
             } else {
                 self.error_type()

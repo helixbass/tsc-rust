@@ -830,7 +830,7 @@ impl TypeChecker {
                 self.get_base_constraint(stack, type_)
             })?;
             return Ok(Some(if constraints.len() == types.len() {
-                self.get_template_literal_type(&t_as_template_literal_type.texts, &constraints)
+                self.get_template_literal_type(&t_as_template_literal_type.texts, &constraints)?
             } else {
                 self.string_type()
             }));
