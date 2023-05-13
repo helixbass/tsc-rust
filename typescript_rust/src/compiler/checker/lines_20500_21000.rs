@@ -72,7 +72,7 @@ impl TypeChecker {
                     return Ok(Ternary::False);
                 }
             }
-            source = Gc::new(self.instantiate_signature(source, mapper, Some(true)));
+            source = Gc::new(self.instantiate_signature(source, mapper, Some(true))?);
         }
         let mut result = Ternary::True;
         if !ignore_this_types {

@@ -226,16 +226,18 @@ impl TypeChecker {
         let mut result = vec![];
         for info in source_infos {
             let index_type = &info.key_type;
-            if every(types, |t: &Gc<Type>, _| {
-                self.get_index_info_of_type_(t, index_type)?.is_some()
-            }) {
+            if try_every(types, |t: &Gc<Type>, _| -> io::Result<_> {
+                Ok(self.get_index_info_of_type_(t, index_type)?.is_some())
+            })? {
                 result.push(Gc::new(
                     self.create_index_info(
                         index_type.clone(),
                         self.get_union_type(
                             &types
                                 .into_iter()
-                                .map(|t| self.get_index_type_of_type_(t, index_type).unwrap())
+                                .try_map(|t| -> io::Result<_> {
+                                    Ok(self.get_index_type_of_type_(t, index_type)?.unwrap())
+                                })?
                                 .collect::<Vec<_>>(),
                             None,
                             Option::<&Symbol>::None,
@@ -1138,7 +1140,7 @@ impl TypeChecker {
                 }
                 members.insert(prop_name.into_owned(), prop);
             }
-        } else if self.is_valid_index_key_type(prop_name_type)
+        } else if self.is_valid_index_key_type(prop_name_type)?
             || prop_name_type
                 .flags()
                 .intersects(TypeFlags::Any | TypeFlags::Enum)

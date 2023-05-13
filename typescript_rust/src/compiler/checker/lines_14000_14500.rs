@@ -169,7 +169,7 @@ impl TypeChecker {
                         &mut expanded_types,
                         &mut expanded_declarations,
                         &*if self.is_array_like_type(type_)? {
-                            self.get_index_type_of_type_(type_, &self.number_type())
+                            self.get_index_type_of_type_(type_, &self.number_type())?
                                 .unwrap_or_else(|| self.error_type())
                         } else {
                             self.error_type()

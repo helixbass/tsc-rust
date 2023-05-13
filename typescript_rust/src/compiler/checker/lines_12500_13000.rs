@@ -5,6 +5,7 @@ use std::ptr;
 use std::{borrow::Borrow, io};
 
 use super::signature_has_rest_parameter;
+use crate::try_some;
 use crate::{
     declaration_name_to_string, find_index, first_defined, for_each_child_bool,
     get_declaration_of_kind, get_effective_constraint_of_type_parameter,
@@ -748,9 +749,9 @@ impl TypeChecker {
             } else {
                 Some(sig_rest_type)
             };
-            return Ok(rest_type.and_then(|rest_type| {
+            return rest_type.try_and_then(|rest_type| {
                 self.get_index_type_of_type_(&rest_type, &self.number_type())
-            }));
+            });
         }
         Ok(None)
     }
@@ -815,7 +816,7 @@ impl TypeChecker {
         &self,
         signature: Gc<Signature>,
         type_arguments: Option<&[Gc<Type>]>,
-    ) -> Signature {
+    ) -> io::Result<Signature> {
         self.instantiate_signature(
             signature.clone(),
             Gc::new(self.create_signature_type_mapper(&signature, type_arguments)),
@@ -846,7 +847,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_erased_signature(&self, signature: Gc<Signature>) -> Signature {
+    pub(super) fn create_erased_signature(
+        &self,
+        signature: Gc<Signature>,
+    ) -> io::Result<Signature> {
         self.instantiate_signature(
             signature.clone(),
             Gc::new(self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap())),
@@ -936,7 +940,7 @@ impl TypeChecker {
                 signature.clone(),
                 Gc::new(self.create_type_mapper(type_parameters.clone(), Some(base_constraints))),
                 Some(true),
-            ));
+            )?);
             *signature.maybe_base_signature_cache() = Some(ret.clone());
             return Ok(ret);
         }
@@ -1043,7 +1047,7 @@ impl TypeChecker {
                         self.try_for_each_type(
                             &*self.get_type_from_type_node_(&parameter_type)?,
                             |key_type| {
-                                if self.is_valid_index_key_type(key_type)
+                                if self.is_valid_index_key_type(key_type)?
                                     && self.find_index_info(&index_infos, key_type).is_none()
                                 {
                                     index_infos.push(Gc::new(self.create_index_info(
@@ -1080,10 +1084,10 @@ impl TypeChecker {
             || self.is_pattern_literal_type(type_)
             || type_.flags().intersects(TypeFlags::Intersection)
                 && !self.is_generic_type(type_)?
-                && some(
+                && try_some(
                     Some(type_.as_union_or_intersection_type_interface().types()),
                     Some(|type_: &Gc<Type>| self.is_valid_index_key_type(type_)),
-                ))
+                )?)
     }
 
     pub(super) fn get_constraint_declaration(

@@ -1720,11 +1720,11 @@ impl CheckTypeRelatedTo {
                     return self.is_related_to(
                         &self
                             .type_checker
-                            .get_index_type_of_type_(&source, &self.type_checker.number_type())
+                            .get_index_type_of_type_(&source, &self.type_checker.number_type())?
                             .unwrap_or_else(|| self.type_checker.any_type()),
                         &self
                             .type_checker
-                            .get_index_type_of_type_(target, &self.type_checker.number_type())
+                            .get_index_type_of_type_(target, &self.type_checker.number_type())?
                             .unwrap_or_else(|| self.type_checker.any_type()),
                         Some(RecursionFlags::Both),
                         Some(report_errors),

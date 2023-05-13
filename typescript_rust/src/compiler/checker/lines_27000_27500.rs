@@ -665,7 +665,7 @@ impl TypeChecker {
                 }
 
                 let index_signature_type =
-                    self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type());
+                    self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type())?;
                 if index_signature_type.is_some() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
                     links.borrow_mut().resolved_symbol = Some(intrinsic_elements_type.symbol());

@@ -838,7 +838,7 @@ impl TypeChecker {
         if t.flags().intersects(TypeFlags::StringMapping) {
             let constraint = self.get_base_constraint(stack, &t.as_string_mapping_type().type_)?;
             return Ok(Some(if let Some(constraint) = constraint {
-                self.get_string_mapping_type(&t.symbol(), &constraint)
+                self.get_string_mapping_type(&t.symbol(), &constraint)?
             } else {
                 self.string_type()
             }));

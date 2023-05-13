@@ -668,15 +668,20 @@ impl TypeChecker {
         &self,
         signatures: &[Gc<Signature>],
         mapper: Gc<TypeMapper>,
-    ) -> Vec<Gc<Signature>> {
-        self.instantiate_list(
-            Some(signatures),
-            Some(mapper),
-            |signature: &Gc<Signature>, mapper| {
-                Gc::new(self.instantiate_signature(signature.clone(), mapper.unwrap(), None))
-            },
-        )
-        .unwrap()
+    ) -> io::Result<Vec<Gc<Signature>>> {
+        Ok(self
+            .try_instantiate_list(
+                Some(signatures),
+                Some(mapper),
+                |signature: &Gc<Signature>, mapper| {
+                    Ok(Gc::new(self.instantiate_signature(
+                        signature.clone(),
+                        mapper.unwrap(),
+                        None,
+                    )?))
+                },
+            )?
+            .unwrap())
     }
 
     pub(super) fn instantiate_index_infos(

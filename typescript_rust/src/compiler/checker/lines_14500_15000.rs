@@ -956,7 +956,7 @@ impl TypeChecker {
         let mut new_types: Vec<Gc<Type>> = vec![];
         let mut new_texts: Vec<String> = vec![];
         let mut text = texts[0].clone();
-        if !self.add_spans(&mut text, &mut new_types, &mut new_texts, texts, types) {
+        if !self.add_spans(&mut text, &mut new_types, &mut new_texts, texts, types)? {
             return self.string_type();
         }
         if new_types.is_empty() {
@@ -1012,7 +1012,7 @@ impl TypeChecker {
                     new_texts,
                     &t_as_template_literal_type.texts,
                     &t_as_template_literal_type.types,
-                ) {
+                )? {
                     return Ok(false);
                 }
                 text.push_str(&texts[i + 1]);

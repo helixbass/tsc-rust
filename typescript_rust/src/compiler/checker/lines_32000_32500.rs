@@ -148,7 +148,7 @@ impl TypeChecker {
                                     contextual_signature.clone(),
                                     inference_context.mapper(),
                                     None,
-                                ))
+                                )?)
                             } else {
                                 contextual_signature.clone()
                             };

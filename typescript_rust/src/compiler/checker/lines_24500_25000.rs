@@ -727,7 +727,7 @@ impl TypeChecker {
         Ok(matches!(
             contextual_type.as_ref(),
             Some(contextual_type) if !self.is_generic_type(contextual_type)?
-        ))?
+        ))
     }
 
     pub(super) fn get_narrowable_type_for_reference(

@@ -627,7 +627,7 @@ impl TypeChecker {
             && intrinsic_type_kinds.contains_key(symbol.escaped_name())
             && matches!(type_arguments, Some(type_arguments) if type_arguments.len() == 1)
         {
-            return Ok(self.get_string_mapping_type(symbol, &type_arguments.unwrap()[0]));
+            return self.get_string_mapping_type(symbol, &type_arguments.unwrap()[0]);
         }
         let links = self.get_symbol_links(symbol);
         let type_parameters = (*links).borrow().type_parameters.clone().unwrap();

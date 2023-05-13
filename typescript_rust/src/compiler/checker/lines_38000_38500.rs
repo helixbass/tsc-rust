@@ -402,7 +402,7 @@ impl TypeChecker {
                                         .get_property_of_object_type(base, prop.escaped_name())?
                                         .is_some()
                                         && self
-                                            .get_index_type_of_type_(base, &info.key_type)
+                                            .get_index_type_of_type_(base, &info.key_type)?
                                             .is_some())
                                 }),
                             )?)
@@ -476,7 +476,7 @@ impl TypeChecker {
                                         .get_index_info_of_type_(base, &check_info.key_type)?
                                         .is_some()
                                         && self
-                                            .get_index_type_of_type_(base, &info.key_type)
+                                            .get_index_type_of_type_(base, &info.key_type)?
                                             .is_some())
                                 }),
                             )?)

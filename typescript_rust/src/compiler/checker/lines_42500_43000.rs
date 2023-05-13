@@ -483,7 +483,7 @@ impl TypeChecker {
                 None,
             ));
         }
-        if !self.every_type(&type_, |type_: &Type| self.is_valid_index_key_type(type_)) {
+        if !self.try_every_type(&type_, |type_: &Type| self.is_valid_index_key_type(type_))? {
             return Ok(self.grammar_error_on_node(
                 &parameter_as_parameter_declaration.name(),
                 &Diagnostics::An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type,

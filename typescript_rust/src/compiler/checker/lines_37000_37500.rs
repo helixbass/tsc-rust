@@ -519,7 +519,7 @@ impl TypeChecker {
             });
         }
 
-        let array_element_type = self.get_index_type_of_type_(&array_type, &self.number_type());
+        let array_element_type = self.get_index_type_of_type_(&array_type, &self.number_type())?;
         if has_string_constituent {
             if let Some(array_element_type) = array_element_type.as_ref() {
                 if array_element_type.flags().intersects(TypeFlags::StringLike)

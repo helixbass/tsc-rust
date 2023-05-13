@@ -247,7 +247,7 @@ impl TypeChecker {
             }
         });
         let source_signature = if let Some(mapper) = mapper {
-            Gc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None))
+            Gc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None)?)
         } else {
             contextual_signature.clone()
         };

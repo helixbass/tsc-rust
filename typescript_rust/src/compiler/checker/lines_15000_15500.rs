@@ -61,11 +61,11 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::Union | TypeFlags::Never)
             {
-                self.map_type(
+                self.try_map_type(
                     type_,
-                    &mut |t| Some(self.get_string_mapping_type(symbol, t)),
+                    &mut |t| Ok(Some(self.get_string_mapping_type(symbol, t)?)),
                     None,
-                )
+                )?
                 .unwrap()
             } else if self.is_generic_index_type(type_)? {
                 self.get_string_mapping_type_for_generic_type(symbol, type_)
@@ -615,7 +615,7 @@ impl TypeChecker {
                                 ])
                             );
                         } else if self
-                            .get_index_type_of_type_(object_type, &self.number_type())
+                            .get_index_type_of_type_(object_type, &self.number_type())?
                             .is_some()
                         {
                             self.error(
@@ -928,7 +928,7 @@ impl TypeChecker {
                         | try_reduce_left(
                             type_.as_union_or_intersection_type().types(),
                             |flags, t: &Gc<Type>, _| -> io::Result<_> {
-                                Ok(flags | self.get_generic_object_flags(t))
+                                Ok(flags | self.get_generic_object_flags(t)?)
                             },
                             ObjectFlags::None,
                             None,

@@ -702,10 +702,10 @@ impl TypeChecker {
             ));
         }
         if flags.intersects(TypeFlags::StringMapping) {
-            return Ok(self.get_string_mapping_type(
+            return self.get_string_mapping_type(
                 &type_.symbol(),
                 &*self.instantiate_type(&type_.as_string_mapping_type().type_, Some(mapper))?,
-            ));
+            );
         }
         if flags.intersects(TypeFlags::IndexedAccess) {
             let new_alias_symbol = alias_symbol

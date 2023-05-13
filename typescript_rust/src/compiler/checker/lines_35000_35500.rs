@@ -472,7 +472,7 @@ impl TypeChecker {
             return Ok(type_.type_wrapper());
         }
 
-        if self.is_generic_object_type(type_) {
+        if self.is_generic_object_type(type_)? {
             let base_constraint = self.get_base_constraint_of_type(type_)?;
             if match base_constraint.as_ref() {
                 None => true,

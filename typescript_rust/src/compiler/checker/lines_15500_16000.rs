@@ -908,18 +908,24 @@ impl TypeChecker {
             .cloned()
             .unwrap_or_else(|| self.empty_object_type()));
         }
-        let first_type = try_find(type_as_union_type.types(), |type_: &Gc<Type>, _| {
-            !self.is_empty_object_type_or_spreads_into_empty_object(type_)
-        })?
+        let first_type = try_find(
+            type_as_union_type.types(),
+            |type_: &Gc<Type>, _| -> io::Result<_> {
+                Ok(!self.is_empty_object_type_or_spreads_into_empty_object(type_)?)
+            },
+        )?
         .cloned();
         if first_type.is_none() {
             return Ok(type_.type_wrapper());
         }
         let first_type = first_type.unwrap();
-        let second_type = find(type_as_union_type.types(), |t: &Gc<Type>, _| {
-            !Gc::ptr_eq(t, &first_type)
-                && !self.is_empty_object_type_or_spreads_into_empty_object(type_)?
-        })
+        let second_type = try_find(
+            type_as_union_type.types(),
+            |t: &Gc<Type>, _| -> io::Result<_> {
+                Ok(!Gc::ptr_eq(t, &first_type)
+                    && !self.is_empty_object_type_or_spreads_into_empty_object(type_)?)
+            },
+        )?
         .cloned();
         if second_type.is_some() {
             return Ok(type_.type_wrapper());

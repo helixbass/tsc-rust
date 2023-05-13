@@ -1714,7 +1714,11 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_index_type_of_type(&self, type_: &Type, kind: IndexKind) -> Option<Gc<Type>> {
+    pub fn get_index_type_of_type(
+        &self,
+        type_: &Type,
+        kind: IndexKind,
+    ) -> io::Result<Option<Gc<Type>>> {
         self.get_index_type_of_type_(
             type_,
             &*if kind == IndexKind::String {

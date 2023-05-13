@@ -71,7 +71,7 @@ impl TypeChecker {
                 context.clone(),
                 inference_context.non_fixing_mapper(),
                 None,
-            );
+            )?;
             self.assign_contextual_parameter_types(signature, &instantiated_context);
             let rest_pos = self.get_parameter_count(&context)? - 1;
             self.infer_types(

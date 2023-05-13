@@ -840,7 +840,7 @@ impl TypeChecker {
             }
             SyntaxKind::NonNullExpression => self.check_non_null_assertion(node)?,
             SyntaxKind::MetaProperty => self.check_meta_property(node)?,
-            SyntaxKind::DeleteExpression => self.check_delete_expression(node),
+            SyntaxKind::DeleteExpression => self.check_delete_expression(node)?,
             SyntaxKind::VoidExpression => self.check_void_expression(node),
             SyntaxKind::AwaitExpression => self.check_await_expression(node),
             SyntaxKind::PrefixUnaryExpression => self.check_prefix_unary_expression(node),

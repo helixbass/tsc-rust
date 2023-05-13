@@ -183,7 +183,7 @@ impl TypeChecker {
                 return Ok(Some(self.get_type_of_symbol(intrinsic_prop)?));
             }
             let index_signature_type =
-                self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type());
+                self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type())?;
             if index_signature_type.is_some() {
                 return Ok(index_signature_type);
             }
@@ -312,7 +312,7 @@ impl TypeChecker {
                     .get_index_type_of_type_(
                         &*self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?,
                         &self.string_type(),
-                    )
+                    )?
                     .unwrap_or_else(|| self.error_type());
                 links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);

@@ -615,7 +615,7 @@ impl TypeChecker {
                     element_flags.push(ElementFlags::Variadic);
                 } else if in_destructuring_pattern {
                     let rest_element_type = self
-                        .get_index_type_of_type_(&spread_type, &self.number_type())
+                        .get_index_type_of_type_(&spread_type, &self.number_type())?
                         .try_or_else(|| {
                             self.get_iterated_type_or_element_type(
                                 IterationUse::Destructuring,
