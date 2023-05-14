@@ -20,6 +20,7 @@ use crate::{
 use super::{ClassFacts, TransformTypeScript};
 use crate::try_visit_each_child;
 use crate::try_visit_lexical_environment;
+use crate::try_visit_lexical_environment_full;
 use crate::try_visit_nodes;
 use std::io;
 
@@ -34,7 +35,7 @@ impl TransformTypeScript {
 
         Ok(self.factory.update_source_file(
             node,
-            try_visit_lexical_environment(
+            try_visit_lexical_environment_full(
                 &node.as_source_file().statements(),
                 |node: &Node| self.source_element_visitor(node),
                 &**self.context,
@@ -43,7 +44,7 @@ impl TransformTypeScript {
                 Option::<
                     fn(
                         Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&mut dyn FnMut(&Node) -> io::Result<VisitResult>>,
                         Option<&dyn Fn(&Node) -> bool>,
                         Option<usize>,
                         Option<usize>,
