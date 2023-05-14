@@ -422,13 +422,21 @@ pub fn visit_iteration_body(
     visitor: impl FnMut(&Node) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
 ) -> Gc<Node /*Statement*/> {
+    try_visit_iteration_body(body, |a| Ok(visitor(a)), context).unwrap()
+}
+
+pub fn try_visit_iteration_body(
+    body: &Node, /*Statement*/
+    visitor: impl FnMut(&Node) -> io::Result<VisitResult>,
+    context: &(impl TransformationContext + ?Sized),
+) -> io::Result<Gc<Node /*Statement*/>> {
     context.start_block_scope();
-    let updated = visit_node(
+    let updated = try_visit_node(
         Some(body),
         Some(visitor),
         Some(is_statement),
         Some(|nodes: &[Gc<Node>]| context.factory().lift_to_block(nodes)),
-    )
+    )?
     .unwrap();
     let declarations = context.end_block_scope();
     if let Some(mut declarations) = declarations.non_empty()
@@ -436,12 +444,12 @@ pub fn visit_iteration_body(
     {
         if is_block(&updated) {
             declarations.extend(updated.as_block().statements.iter().cloned());
-            return context.factory().update_block(&updated, declarations);
+            return Ok(context.factory().update_block(&updated, declarations));
         }
         declarations.push(updated);
-        return context.factory().create_block(declarations, None).wrap();
+        return Ok(context.factory().create_block(declarations, None).wrap());
     }
-    updated
+    Ok(updated)
 }
 
 pub fn visit_each_child(

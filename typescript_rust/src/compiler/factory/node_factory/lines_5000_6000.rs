@@ -15,6 +15,7 @@ use crate::{
     SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
     UnparsedSource, UnparsedTextLike, VisitResult,
 };
+use std::io;
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn create_property_assignment<'name>(
@@ -697,11 +698,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn copy_prologue(
         &self,
+        source: &[Gc<Node /*Statement*/>],
+        target: &mut Vec<Gc<Node /*Statement*/>>,
+        ensure_use_strict: Option<bool>,
+        visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
+    ) -> usize {
+        self.try_copy_prologue(
+            source,
+            target,
+            ensure_use_strict,
+            visitor.map(|visitor| |a| Ok(visitor(a))),
+        )
+        .unwrap()
+    }
+
+    pub fn try_copy_prologue(
+        &self,
         _source: &[Gc<Node /*Statement*/>],
         _target: &mut Vec<Gc<Node /*Statement*/>>,
         _ensure_use_strict: Option<bool>,
-        _visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
-    ) -> usize {
+        _visitor: Option<impl FnMut(&Node) -> io::Result<VisitResult /*<Node>*/>>,
+    ) -> io::Result<usize> {
         unimplemented!()
     }
 

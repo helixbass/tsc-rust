@@ -5,7 +5,6 @@ use std::io;
 use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
-use crate::try_for_each_emitted_file;
 use crate::{
     base64_encode, combine_paths, compare_paths, compute_common_source_directory_of_filenames,
     create_diagnostic_collection, create_source_map_generator, create_text_writer,
@@ -181,7 +180,7 @@ pub fn try_for_each_emitted_file(
     only_build_info: Option<bool>,
     include_build_info: Option<bool>,
 ) -> io::Result<()> {
-    for_each_emitted_file_returns(
+    try_for_each_emitted_file_returns(
         host,
         |emit_file_names, node| -> io::Result<Option<()>> {
             action(emit_file_names, node)?;
@@ -1429,7 +1428,7 @@ impl EmitResolver for NotImplementedResolver {
     }
 
     fn is_late_bound(&self, _node: &Node /*Declaration*/) -> io::Result<bool> {
-        false
+        Ok(false)
     }
 
     fn collect_linked_aliases(

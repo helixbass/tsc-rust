@@ -7,6 +7,13 @@ use std::{
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 
+use crate::try_map;
+use crate::try_visit_each_child;
+use crate::try_visit_function_body;
+use crate::try_visit_iteration_body;
+use crate::try_visit_node;
+use crate::try_visit_nodes;
+use crate::try_visit_parameter_list;
 use crate::{
     is_concise_body, is_expression, is_for_initializer, is_statement, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, __String, add_emit_helper, add_emit_helpers,
@@ -23,10 +30,11 @@ use crate::{
     visit_node, visit_nodes, visit_parameter_list, BaseNodeFactorySynthetic, CompilerOptions,
     Debug_, EmitFlags, EmitHint, EmitResolver, FunctionFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeCheckFlags, NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
-    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TypeReferenceSerializationKind, VisitResult,
+    NodeCheckFlags, NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, OptionTry,
+    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
+    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TypeReferenceSerializationKind,
+    VisitResult,
 };
 use std::io;
 
@@ -186,9 +194,9 @@ impl TransformES2017 {
         self.context_flags.set(flags);
     }
 
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node> {
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> io::Result<Gc<Node>> {
         if node.as_source_file().is_declaration_file() {
-            return node.node_wrapper();
+            return Ok(node.node_wrapper());
         }
 
         self.set_context_flag(ContextFlags::NonTopLevel, false);
@@ -196,32 +204,14 @@ impl TransformES2017 {
             ContextFlags::HasLexicalThis,
             !is_effective_strict_mode_source_file(node, &self.compiler_options),
         );
-        let visited = visit_each_child(
+        let visited = try_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
+        )?
         .unwrap();
         add_emit_helpers(&visited, self.context.read_emit_helpers().as_deref());
-        visited
+        Ok(visited)
     }
 
     fn set_context_flag(&self, flag: ContextFlags, val: bool) {
@@ -250,85 +240,77 @@ impl TransformES2017 {
         mut cb: impl FnMut(&TValue) -> TReturn,
         value: &TValue,
     ) -> TReturn {
+        self.try_do_with_context(flags, |a| Ok(cb(a)), value)
+            .unwrap()
+    }
+
+    fn try_do_with_context<TValue, TReturn>(
+        &self,
+        flags: ContextFlags,
+        mut cb: impl FnMut(&TValue) -> io::Result<TReturn>,
+        value: &TValue,
+    ) -> io::Result<TReturn> {
         let context_flags_to_set = flags & !self.context_flags();
         if context_flags_to_set != ContextFlags::None {
             self.set_context_flag(context_flags_to_set, true);
-            let result = cb(value);
+            let result = cb(value)?;
             self.set_context_flag(context_flags_to_set, false);
-            return result;
+            return Ok(result);
         }
         cb(value)
     }
 
-    fn visit_default(&self, node: &Node) -> VisitResult {
-        visit_each_child(
+    fn visit_default(&self, node: &Node) -> io::Result<VisitResult> {
+        Ok(try_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
-        )
-        .map(Into::into)
+        )?
+        .map(Into::into))
     }
 
-    fn visitor(&self, node: &Node) -> VisitResult {
+    fn visitor(&self, node: &Node) -> io::Result<VisitResult> {
         if !node
             .transform_flags()
             .intersects(TransformFlags::ContainsES2017)
         {
-            return Some(node.node_wrapper().into());
+            return Ok(Some(node.node_wrapper().into()));
         }
-        match node.kind() {
+        Ok(match node.kind() {
             SyntaxKind::AsyncKeyword => None,
 
-            SyntaxKind::AwaitExpression => Some(self.visit_await_expression(node).into()),
+            SyntaxKind::AwaitExpression => Some(self.visit_await_expression(node)?.into()),
 
             SyntaxKind::MethodDeclaration => Some(
-                self.do_with_context(
+                self.try_do_with_context(
                     ContextFlags::NonTopLevel | ContextFlags::HasLexicalThis,
                     |node: &Node| self.visit_method_declaration(node),
                     node,
-                )
+                )?
                 .into(),
             ),
 
-            SyntaxKind::FunctionDeclaration => self.do_with_context(
+            SyntaxKind::FunctionDeclaration => self.try_do_with_context(
                 ContextFlags::NonTopLevel | ContextFlags::HasLexicalThis,
                 |node: &Node| self.visit_function_declaration(node),
                 node,
-            ),
+            )?,
 
             SyntaxKind::FunctionExpression => Some(
-                self.do_with_context(
+                self.try_do_with_context(
                     ContextFlags::NonTopLevel | ContextFlags::HasLexicalThis,
                     |node: &Node| self.visit_function_expression(node),
                     node,
-                )
+                )?
                 .into(),
             ),
 
             SyntaxKind::ArrowFunction => Some(
-                self.do_with_context(
+                self.try_do_with_context(
                     ContextFlags::NonTopLevel,
                     |node: &Node| self.visit_arrow_function(node),
                     node,
-                )
+                )?
                 .into(),
             ),
 
@@ -352,29 +334,11 @@ impl TransformES2017 {
                         }
                     }
                 }
-                visit_each_child(
+                try_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
                 .map(Into::into)
             }
 
@@ -385,29 +349,11 @@ impl TransformES2017 {
                 {
                     self.set_has_super_element_access(Some(true));
                 }
-                visit_each_child(
+                try_visit_each_child(
                     Some(node),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
                 .map(Into::into)
             }
 
@@ -415,55 +361,39 @@ impl TransformES2017 {
             | SyntaxKind::SetAccessor
             | SyntaxKind::Constructor
             | SyntaxKind::ClassDeclaration
-            | SyntaxKind::ClassExpression => self.do_with_context(
+            | SyntaxKind::ClassExpression => self.try_do_with_context(
                 ContextFlags::NonTopLevel | ContextFlags::HasLexicalThis,
                 |node: &Node| self.visit_default(node),
                 node,
-            ),
+            )?,
 
-            _ => visit_each_child(
+            _ => try_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
+            )?
             .map(Into::into),
-        }
+        })
     }
 
-    fn async_body_visitor(&self, node: &Node) -> VisitResult /*<Node>*/ {
+    fn async_body_visitor(&self, node: &Node) -> io::Result<VisitResult> /*<Node>*/ {
         if is_node_with_possible_hoisted_declaration(node) {
-            return match node.kind() {
+            return Ok(match node.kind() {
                 SyntaxKind::VariableStatement => self
-                    .visit_variable_statement_in_async_body(node)
+                    .visit_variable_statement_in_async_body(node)?
                     .map(Into::into),
                 SyntaxKind::ForStatement => {
-                    Some(self.visit_for_statement_in_async_body(node).into())
+                    Some(self.visit_for_statement_in_async_body(node)?.into())
                 }
                 SyntaxKind::ForInStatement => {
-                    Some(self.visit_for_in_statement_in_async_body(node).into())
+                    Some(self.visit_for_in_statement_in_async_body(node)?.into())
                 }
                 SyntaxKind::ForOfStatement => {
-                    Some(self.visit_for_of_statement_in_async_body(node).into())
+                    Some(self.visit_for_of_statement_in_async_body(node)?.into())
                 }
-                SyntaxKind::CatchClause => Some(self.visit_catch_clause_in_async_body(node).into()),
+                SyntaxKind::CatchClause => {
+                    Some(self.visit_catch_clause_in_async_body(node)?.into())
+                }
                 SyntaxKind::Block
                 | SyntaxKind::SwitchStatement
                 | SyntaxKind::CaseBlock
@@ -474,37 +404,22 @@ impl TransformES2017 {
                 | SyntaxKind::WhileStatement
                 | SyntaxKind::IfStatement
                 | SyntaxKind::WithStatement
-                | SyntaxKind::LabeledStatement => visit_each_child(
+                | SyntaxKind::LabeledStatement => try_visit_each_child(
                     Some(node),
                     |node: &Node| self.async_body_visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&NodeArray>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
-                    >::None,
-                    Option::<fn(&Node) -> VisitResult>::None,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
                 .map(Into::into),
                 _ => Debug_.assert_never(node, Some("Unhandled node.")),
-            };
+            });
         }
         self.visitor(node)
     }
 
-    fn visit_catch_clause_in_async_body(&self, node: &Node /*CatchClause*/) -> Gc<Node> {
+    fn visit_catch_clause_in_async_body(
+        &self,
+        node: &Node, /*CatchClause*/
+    ) -> io::Result<Gc<Node>> {
         let mut catch_clause_names: HashSet<__String> = Default::default();
         let node_as_catch_clause = node.as_catch_clause();
         self.record_declaration_name(
@@ -526,68 +441,36 @@ impl TransformES2017 {
                 }
             });
 
-        if let Some(catch_clause_unshadowed_names) = catch_clause_unshadowed_names {
-            let saved_enclosing_function_parameter_names =
-                self.maybe_enclosing_function_parameter_names().clone();
-            self.set_enclosing_function_parameter_names(Some(catch_clause_unshadowed_names));
-            let result = visit_each_child(
-                Some(node),
-                |node: &Node| self.async_body_visitor(node),
-                &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-            .unwrap();
-            self.set_enclosing_function_parameter_names(saved_enclosing_function_parameter_names);
-            result
-        } else {
-            visit_each_child(
-                Some(node),
-                |node: &Node| self.async_body_visitor(node),
-                &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
-            .unwrap()
-        }
+        Ok(
+            if let Some(catch_clause_unshadowed_names) = catch_clause_unshadowed_names {
+                let saved_enclosing_function_parameter_names =
+                    self.maybe_enclosing_function_parameter_names().clone();
+                self.set_enclosing_function_parameter_names(Some(catch_clause_unshadowed_names));
+                let result = try_visit_each_child(
+                    Some(node),
+                    |node: &Node| self.async_body_visitor(node),
+                    &**self.context,
+                )?
+                .unwrap();
+                self.set_enclosing_function_parameter_names(
+                    saved_enclosing_function_parameter_names,
+                );
+                result
+            } else {
+                try_visit_each_child(
+                    Some(node),
+                    |node: &Node| self.async_body_visitor(node),
+                    &**self.context,
+                )?
+                .unwrap()
+            },
+        )
     }
 
     fn visit_variable_statement_in_async_body(
         &self,
         node: &Node, /*VariableStatement*/
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let node_as_variable_statement = node.as_variable_statement();
         if self.is_variable_declaration_list_with_colliding_name(Some(
             &*node_as_variable_statement.declaration_list,
@@ -595,41 +478,23 @@ impl TransformES2017 {
             let expression = self.visit_variable_declaration_list_with_colliding_names(
                 &node_as_variable_statement.declaration_list,
                 false,
-            );
-            return expression
-                .map(|expression| self.factory.create_expression_statement(expression).wrap());
+            )?;
+            return Ok(expression
+                .map(|expression| self.factory.create_expression_statement(expression).wrap()));
         }
-        visit_each_child(
+        try_visit_each_child(
             Some(node),
             |node: &Node| self.visitor(node),
             &**self.context,
-            Option::<
-                fn(
-                    Option<&NodeArray>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<usize>,
-                    Option<usize>,
-                ) -> Option<Gc<NodeArray>>,
-            >::None,
-            Option::<fn(&Node) -> VisitResult>::None,
-            Option::<
-                fn(
-                    Option<&Node>,
-                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                    Option<&dyn Fn(&Node) -> bool>,
-                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                ) -> Option<Gc<Node>>,
-            >::None,
         )
     }
 
     fn visit_for_in_statement_in_async_body(
         &self,
         node: &Node, /*ForInStatement*/
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         let node_as_for_in_statement = node.as_for_in_statement();
-        self.factory.update_for_in_statement(
+        Ok(self.factory.update_for_in_statement(
             node,
             if self.is_variable_declaration_list_with_colliding_name(Some(
                 &*node_as_for_in_statement.initializer,
@@ -637,374 +502,296 @@ impl TransformES2017 {
                 self.visit_variable_declaration_list_with_colliding_names(
                     &node_as_for_in_statement.initializer,
                     true,
-                )
+                )?
                 .unwrap()
             } else {
-                visit_node(
+                try_visit_node(
                     Some(&*node_as_for_in_statement.initializer),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
+                )?
                 .unwrap()
             },
-            visit_node(
+            try_visit_node(
                 Some(&*node_as_for_in_statement.expression),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
+            )?
             .unwrap(),
-            visit_iteration_body(
+            try_visit_iteration_body(
                 &node_as_for_in_statement.statement,
                 |node: &Node| self.async_body_visitor(node),
                 &**self.context,
-            ),
-        )
+            )?,
+        ))
     }
 
     fn visit_for_of_statement_in_async_body(
         &self,
         node: &Node, /*ForOfStatement*/
-    ) -> Gc<Node> {
+    ) -> io::Result<Gc<Node>> {
         let node_as_for_of_statement = node.as_for_of_statement();
-        self.factory.update_for_of_statement(
+        Ok(self.factory.update_for_of_statement(
             node,
-            visit_node(
+            try_visit_node(
                 node_as_for_of_statement.await_modifier.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_token),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
+            )?,
             if self.is_variable_declaration_list_with_colliding_name(Some(
                 &*node_as_for_of_statement.initializer,
             )) {
                 self.visit_variable_declaration_list_with_colliding_names(
                     &node_as_for_of_statement.initializer,
                     true,
-                )
+                )?
                 .unwrap()
             } else {
-                visit_node(
+                try_visit_node(
                     Some(&*node_as_for_of_statement.initializer),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
+                )?
                 .unwrap()
             },
-            visit_node(
+            try_visit_node(
                 Some(&*node_as_for_of_statement.expression),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            )
+            )?
             .unwrap(),
-            visit_iteration_body(
+            try_visit_iteration_body(
                 &node_as_for_of_statement.statement,
                 |node: &Node| self.async_body_visitor(node),
                 &**self.context,
-            ),
-        )
+            )?,
+        ))
     }
 
-    fn visit_for_statement_in_async_body(&self, node: &Node /*ForStatement*/) -> Gc<Node> {
+    fn visit_for_statement_in_async_body(
+        &self,
+        node: &Node, /*ForStatement*/
+    ) -> io::Result<Gc<Node>> {
         let node_as_for_statement = node.as_for_statement();
         let initializer = node_as_for_statement.initializer.as_deref();
-        self.factory.update_for_statement(
+        Ok(self.factory.update_for_statement(
             node,
             if self.is_variable_declaration_list_with_colliding_name(initializer) {
                 self.visit_variable_declaration_list_with_colliding_names(
                     initializer.unwrap(),
                     false,
-                )
+                )?
             } else {
-                visit_node(
+                try_visit_node(
                     initializer,
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
+                )?
             },
-            visit_node(
+            try_visit_node(
                 node_as_for_statement.condition.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
-            visit_node(
+            )?,
+            try_visit_node(
                 node_as_for_statement.incrementor.as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_expression),
                 Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-            ),
-            visit_iteration_body(
+            )?,
+            try_visit_iteration_body(
                 &node_as_for_statement.statement,
                 |node: &Node| self.async_body_visitor(node),
                 &**self.context,
-            ),
-        )
+            )?,
+        ))
     }
 
     fn visit_await_expression(
         &self,
         node: &Node, /*AwaitExpression*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         if self.in_top_level_context() {
-            return visit_each_child(
+            return Ok(try_visit_each_child(
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-                Option::<fn(&Node) -> VisitResult>::None,
-                Option::<
-                    fn(
-                        Option<&Node>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                    ) -> Option<Gc<Node>>,
-                >::None,
-            )
+            ))?
             .unwrap();
         }
-        set_original_node(
+        Ok(set_original_node(
             set_text_range_rc_node(
                 self.factory
                     .create_yield_expression(
                         None,
-                        visit_node(
+                        try_visit_node(
                             Some(&*node.as_await_expression().expression),
                             Some(|node: &Node| self.visitor(node)),
                             Some(is_expression),
                             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                        ),
+                        )?,
                     )
                     .wrap(),
                 Some(node),
             ),
             Some(node.node_wrapper()),
-        )
+        ))
     }
 
-    fn visit_method_declaration(&self, node: &Node /*MethodDeclaration*/) -> Gc<Node> {
+    fn visit_method_declaration(
+        &self,
+        node: &Node, /*MethodDeclaration*/
+    ) -> io::Result<Gc<Node>> {
         let node_as_method_declaration = node.as_method_declaration();
-        self.factory.update_method_declaration(
+        Ok(self.factory.update_method_declaration(
             node,
             Option::<Gc<NodeArray>>::None,
-            visit_nodes(
+            try_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
                 None,
                 None,
-            ),
+            )?,
             node_as_method_declaration.maybe_asterisk_token(),
             node_as_method_declaration.name(),
             None,
             Option::<Gc<NodeArray>>::None,
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-            )
+            )?
             .unwrap(),
             None,
             if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
-                Some(self.transform_async_function_body(node))
+                Some(self.transform_async_function_body(node)?)
             } else {
-                visit_function_body(
+                try_visit_function_body(
                     node_as_method_declaration.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
             },
-        )
+        ))
     }
 
-    fn visit_function_declaration(&self, node: &Node /*FunctionDeclaration*/) -> VisitResult /*<Statement>*/
-    {
+    fn visit_function_declaration(
+        &self,
+        node: &Node, /*FunctionDeclaration*/
+    ) -> io::Result<VisitResult> /*<Statement>*/ {
         let node_as_function_declaration = node.as_function_declaration();
-        Some(
+        Ok(Some(
             self.factory
                 .update_function_declaration(
                     node,
                     Option::<Gc<NodeArray>>::None,
-                    visit_nodes(
+                    try_visit_nodes(
                         node.maybe_modifiers().as_deref(),
                         Some(|node: &Node| self.visitor(node)),
                         Some(is_modifier),
                         None,
                         None,
-                    ),
+                    )?,
                     node_as_function_declaration.maybe_asterisk_token(),
                     node_as_function_declaration.maybe_name(),
                     Option::<Gc<NodeArray>>::None,
-                    visit_parameter_list(
+                    try_visit_parameter_list(
                         Some(&node_as_function_declaration.parameters()),
                         |node: &Node| self.visitor(node),
                         &**self.context,
-                        Option::<
-                            fn(
-                                Option<&NodeArray>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<usize>,
-                                Option<usize>,
-                            ) -> Option<Gc<NodeArray>>,
-                        >::None,
-                    )
+                    )?
                     .unwrap(),
                     None,
                     if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
-                        Some(self.transform_async_function_body(node))
+                        Some(self.transform_async_function_body(node)?)
                     } else {
-                        visit_function_body(
+                        try_visit_function_body(
                             node_as_function_declaration.maybe_body().as_deref(),
                             |node: &Node| self.visitor(node),
                             &**self.context,
-                            Option::<
-                                fn(
-                                    Option<&Node>,
-                                    Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                    Option<&dyn Fn(&Node) -> bool>,
-                                    Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                                ) -> Option<Gc<Node>>,
-                            >::None,
-                        )
+                        )?
                     },
                 )
                 .into(),
-        )
+        ))
     }
 
     fn visit_function_expression(
         &self,
         node: &Node, /*FunctionExpression*/
-    ) -> Gc<Node /*Expression*/> {
+    ) -> io::Result<Gc<Node /*Expression*/>> {
         let node_as_function_expression = node.as_function_expression();
-        self.factory.update_function_expression(
+        Ok(self.factory.update_function_expression(
             node,
-            visit_nodes(
+            try_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
                 None,
                 None,
-            ),
+            )?,
             node_as_function_expression.maybe_asterisk_token(),
             node_as_function_expression.maybe_name(),
             Option::<Gc<NodeArray>>::None,
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_function_expression.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-            )
+            )?
             .unwrap(),
             None,
             if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
-                self.transform_async_function_body(node)
+                self.transform_async_function_body(node)?
             } else {
-                visit_function_body(
+                try_visit_function_body(
                     node_as_function_expression.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
                 .unwrap()
             },
-        )
+        ))
     }
 
-    fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> Gc<Node> {
+    fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> io::Result<Gc<Node>> {
         let node_as_arrow_function = node.as_arrow_function();
-        self.factory.update_arrow_function(
+        Ok(self.factory.update_arrow_function(
             node,
-            visit_nodes(
+            try_visit_nodes(
                 node.maybe_modifiers().as_deref(),
                 Some(|node: &Node| self.visitor(node)),
                 Some(is_modifier),
                 None,
                 None,
-            ),
+            )?,
             Option::<Gc<NodeArray>>::None,
-            visit_parameter_list(
+            try_visit_parameter_list(
                 Some(&node_as_arrow_function.parameters()),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-                Option::<
-                    fn(
-                        Option<&NodeArray>,
-                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                        Option<&dyn Fn(&Node) -> bool>,
-                        Option<usize>,
-                        Option<usize>,
-                    ) -> Option<Gc<NodeArray>>,
-                >::None,
-            )
+            )?
             .unwrap(),
             None,
             node_as_arrow_function.equals_greater_than_token.clone(),
             if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
-                self.transform_async_function_body(node)
+                self.transform_async_function_body(node)?
             } else {
-                visit_function_body(
+                try_visit_function_body(
                     node_as_arrow_function.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
-                    Option::<
-                        fn(
-                            Option<&Node>,
-                            Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                            Option<&dyn Fn(&Node) -> bool>,
-                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                        ) -> Option<Gc<Node>>,
-                    >::None,
-                )
+                )?
                 .unwrap()
             },
-        )
+        ))
     }
 
     fn record_declaration_name(&self, name: &Node, names: &mut HashSet<__String>) {
@@ -1042,14 +829,14 @@ impl TransformES2017 {
         &self,
         node: &Node, /*VariableDeclarationList*/
         has_receiver: bool,
-    ) -> Option<Gc<Node>> {
+    ) -> io::Result<Option<Gc<Node>>> {
         let node_as_variable_declaration_list = node.as_variable_declaration_list();
         self.hoist_variable_declaration_list(node);
 
         let variables = get_initialized_variables(node);
         if variables.is_empty() {
             if has_receiver {
-                return visit_node(
+                return try_visit_node(
                     Some(
                         self.factory
                             .converters()
@@ -1064,15 +851,13 @@ impl TransformES2017 {
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 );
             }
-            return None;
+            return Ok(None);
         }
 
-        Some(
-            self.factory
-                .inline_expressions(&map(&variables, |variable: &Gc<Node>, _| {
-                    self.transform_initialized_variable(variable)
-                })),
-        )
+        Ok(Some(self.factory.inline_expressions(&try_map(
+            &variables,
+            |variable: &Gc<Node>, _| self.transform_initialized_variable(variable),
+        )?)))
     }
 
     fn hoist_variable_declaration_list(&self, node: &Node /*VariableDeclarationList*/) {
@@ -1097,7 +882,10 @@ impl TransformES2017 {
         }
     }
 
-    fn transform_initialized_variable(&self, node: &Node /*VariableDeclaration*/) -> Gc<Node> {
+    fn transform_initialized_variable(
+        &self,
+        node: &Node, /*VariableDeclaration*/
+    ) -> io::Result<Gc<Node>> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let converted = set_source_map_range(
             self.factory
@@ -1110,13 +898,13 @@ impl TransformES2017 {
                 .wrap(),
             Some(node.into()),
         );
-        visit_node(
+        Ok(try_visit_node(
             Some(converted),
             Some(|node: &Node| self.visitor(node)),
             Some(is_expression),
             Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-        )
-        .unwrap()
+        )?
+        .unwrap())
     }
 
     fn collides_with_parameter_name(&self, name: &Node) -> bool {
@@ -1137,7 +925,7 @@ impl TransformES2017 {
     fn transform_async_function_body(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
-    ) -> Gc<Node /*ConciseBody*/> {
+    ) -> io::Result<Gc<Node /*ConciseBody*/>> {
         let node_as_function_like_declaration = node.as_function_like_declaration();
         self.context.resume_lexical_environment();
 
@@ -1148,7 +936,7 @@ impl TransformES2017 {
         .unwrap();
         let node_type = original.as_has_type().maybe_type();
         let promise_constructor = if self.language_version < ScriptTarget::ES2015 {
-            self.get_promise_constructor(node_type.as_deref())
+            self.get_promise_constructor(node_type.as_deref())?
         } else {
             None
         };
@@ -1178,7 +966,7 @@ impl TransformES2017 {
         let result: Gc<Node /*ConciseBody*/>;
         if !is_arrow_function {
             let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
-            let statement_offset = self.factory.copy_prologue(
+            let statement_offset = self.factory.try_copy_prologue(
                 &node_as_function_like_declaration
                     .maybe_body()
                     .unwrap()
@@ -1187,7 +975,7 @@ impl TransformES2017 {
                 &mut statements,
                 Some(false),
                 Some(|node: &Node| self.visitor(node)),
-            );
+            )?;
             statements.push(
                 self.factory
                     .create_return_statement(Some(
@@ -1200,7 +988,7 @@ impl TransformES2017 {
                                 self.transform_async_function_body_worker(
                                     &node_as_function_like_declaration.maybe_body().unwrap(),
                                     Some(statement_offset),
-                                ),
+                                )?,
                             ),
                     ))
                     .wrap(),
@@ -1269,7 +1057,7 @@ impl TransformES2017 {
                     self.transform_async_function_body_worker(
                         &node_as_function_like_declaration.maybe_body().unwrap(),
                         None,
-                    ),
+                    )?,
                 );
 
             let declarations = self.context.end_lexical_environment();
@@ -1304,57 +1092,62 @@ impl TransformES2017 {
             self.set_captured_super_properties(saved_captured_super_properties);
             self.set_has_super_element_access(saved_has_super_element_access);
         }
-        result
+        Ok(result)
     }
 
     fn transform_async_function_body_worker(
         &self,
         body: &Node, /*ConciseBody*/
         start: Option<usize>,
-    ) -> Gc<Node> {
-        if is_block(body) {
+    ) -> io::Result<Gc<Node>> {
+        Ok(if is_block(body) {
             self.factory.update_block(
                 body,
-                visit_nodes(
+                try_visit_nodes(
                     Some(&body.as_block().statements),
                     Some(|node: &Node| self.async_body_visitor(node)),
                     Some(is_statement),
                     start,
                     None,
-                )
+                )?
                 .unwrap(),
             )
         } else {
             self.factory.converters().convert_to_function_block(
-                &visit_node(
+                &try_visit_node(
                     Some(body),
                     Some(|node: &Node| self.async_body_visitor(node)),
                     Some(is_concise_body),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                )
+                )?
                 .unwrap(),
                 None,
             )
-        }
+        })
     }
 
-    fn get_promise_constructor(&self, type_: Option<&Node /*TypeNode*/>) -> Option<Gc<Node>> {
+    fn get_promise_constructor(
+        &self,
+        type_: Option<&Node /*TypeNode*/>,
+    ) -> io::Result<Option<Gc<Node>>> {
         type_
             .and_then(get_entity_name_from_type_node)
             .filter(|type_name| is_entity_name(type_name))
-            .and_then(|type_name| {
+            .try_and_then(|type_name| -> io::Result<_> {
                 let serialization_kind = self
                     .resolver
-                    .get_type_reference_serialization_kind(&type_name, None);
-                if matches!(
-                    serialization_kind,
-                    TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue
-                        | TypeReferenceSerializationKind::Unknown
-                ) {
-                    Some(type_name)
-                } else {
-                    None
-                }
+                    .get_type_reference_serialization_kind(&type_name, None)?;
+                Ok(
+                    if matches!(
+                        serialization_kind,
+                        TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue
+                            | TypeReferenceSerializationKind::Unknown
+                    ) {
+                        Some(type_name)
+                    } else {
+                        None
+                    },
+                )
             })
     }
 
@@ -1535,7 +1328,7 @@ impl TransformES2017 {
 
 impl TransformerInterface for TransformES2017 {
     fn call(&self, node: &Node) -> io::Result<Gc<Node>> {
-        Ok(self.transform_source_file(node))
+        self.transform_source_file(node)
     }
 }
 
