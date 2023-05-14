@@ -1545,7 +1545,7 @@ impl EmitResolver for NotImplementedResolver {
     fn get_constant_value(
         &self,
         _node: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
-    ) -> Option<StringOrNumber> {
+    ) -> io::Result<Option<StringOrNumber>> {
         unimplemented!()
     }
 

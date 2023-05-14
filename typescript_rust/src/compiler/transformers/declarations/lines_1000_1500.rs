@@ -1008,14 +1008,14 @@ impl TransformDeclarations {
                             ),
                             input_as_enum_declaration.name(),
                             Some(self.factory.create_node_array(
-                                Some(map_defined(
+                                Some(try_map_defined(
                                     Some(&input_as_enum_declaration.members),
-                                    |m: &Gc<Node>, _| {
+                                    |m: &Gc<Node>, _| -> io::Result<_> {
                                         if self.should_strip_internal(m) {
-                                            return None;
+                                            return Ok(None);
                                         }
-                                        let const_value = self.resolver.get_constant_value(m);
-                                        Some(self.preserve_js_doc(
+                                        let const_value = self.resolver.get_constant_value(m)?;
+                                        Ok(Some(self.preserve_js_doc(
                                             &self.factory.update_enum_member(
                                                 m,
                                                 m.as_enum_member().name(),
@@ -1040,9 +1040,9 @@ impl TransformDeclarations {
                                                 }),
                                             ),
                                             m,
-                                        ))
+                                        )))
                                     },
-                                )),
+                                )?),
                                 None,
                             )),
                         )

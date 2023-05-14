@@ -1085,9 +1085,9 @@ impl Program {
                 }
                 if !self.root_names().is_empty() {
                     self.maybe_resolved_project_references().as_ref().try_map(|resolved_project_references| -> io::Result<_> {
-                        resolved_project_references.iter().enumerate().for_each(|(index, parsed_ref)| {
+                        resolved_project_references.iter().enumerate().try_for_each(|(index, parsed_ref)| -> io::Result<_> {
                             if parsed_ref.is_none() {
-                                return;
+                                return Ok(());
                             }
                             let parsed_ref = parsed_ref.as_ref().unwrap();
                             let out = out_file(
@@ -1147,9 +1147,11 @@ impl Program {
                                     }
                                 }
                             }
-                        });
+                            
+                            Ok(())
+                        })?;
 
-    Ok(())
+                        Ok(())
                     })?;
                 }
             }
