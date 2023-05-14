@@ -1,16 +1,15 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::borrow::Borrow;
+use itertools::Either;
 use std::collections::HashMap;
 use std::ptr;
+use std::{borrow::Borrow, iter};
 
 use super::EmitResolverCreateResolver;
 use crate::{
     add_related_info, are_option_gcs_equal, bind_source_file, concatenate,
     create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text,
     for_each_child_bool, for_each_entry_bool, get_all_accessor_declarations,
-    get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name,
+    get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name, get_factory,
     get_first_identifier, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
     is_ambient_module, is_binding_pattern, is_declaration, is_declaration_readonly,
     is_effective_external_module, is_entity_name, is_enum_const, is_expression,
@@ -27,7 +26,7 @@ use crate::{
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags,
     NodeFlags, NodeInterface, ObjectFlags, PragmaArgumentName, PragmaName, Signature,
     SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind, UnwrapOrEmpty,
 };
 
 impl TypeChecker {
@@ -187,10 +186,10 @@ impl TypeChecker {
     pub(super) fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Gc<Symbol>> {
+    ) -> impl Iterator<Item = Gc<Symbol>> {
         let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
         if declaration.is_none() {
-            return vec![];
+            return Either::Right(iter::empty());
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration);
@@ -199,7 +198,7 @@ impl TypeChecker {
         } else {
             None
         }
-        .unwrap_or_else(|| vec![])
+        .unwrap_or_empty()
     }
 
     pub(super) fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags {
@@ -278,7 +277,7 @@ impl TypeChecker {
         let type_name = type_name.as_ref().unwrap();
 
         let mut location = location.map(|location| location.borrow().node_wrapper());
-        if let Some(location_present) = location.as_ref() {
+        if location.is_some() {
             location = get_parse_tree_node(location.as_deref(), Option::<fn(&Node) -> bool>::None);
             if location.is_none() {
                 return TypeReferenceSerializationKind::Unknown;
@@ -426,13 +425,7 @@ impl TypeChecker {
             Some(|node: &Node| is_variable_like_or_accessor(node)),
         );
         if declaration.is_none() {
-            return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| {
-                    factory
-                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .into()
-                },
-            ));
+            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
         }
         let declaration = declaration.as_ref().unwrap();
         let symbol = self.get_symbol_of_node(declaration);
@@ -473,13 +466,7 @@ impl TypeChecker {
             Some(|node: &Node| is_function_like(Some(node))),
         );
         if signature_declaration.is_none() {
-            return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| {
-                    factory
-                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .into()
-                },
-            ));
+            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
         }
         let signature_declaration = signature_declaration.as_ref().unwrap();
         let signature = self.get_signature_from_declaration_(signature_declaration);
@@ -500,13 +487,7 @@ impl TypeChecker {
     ) -> Option<Gc<Node /*TypeNode*/>> {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
-            return Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| {
-                    factory
-                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
-                        .into()
-                },
-            ));
+            return Some(get_factory().create_token(SyntaxKind::AnyKeyword).wrap());
         }
         let expr = expr.as_ref().unwrap();
         let ref type_ = self.get_widened_type(&self.get_regular_type_of_expression(expr));
@@ -611,13 +592,9 @@ impl TypeChecker {
                 Some(tracker),
             )
         } else if ptr::eq(type_, &*self.true_type()) {
-            Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_true(synthetic_factory).into(),
-            ))
+            Some(get_factory().create_true().wrap())
         } else if ptr::eq(type_, &*self.false_type()) {
-            Some(with_synthetic_factory_and_factory(
-                |synthetic_factory, factory| factory.create_false(synthetic_factory).into(),
-            ))
+            Some(get_factory().create_false().wrap())
         } else {
             None
         };
@@ -625,27 +602,15 @@ impl TypeChecker {
             return enum_result;
         }
         match type_ {
-            Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
-                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                    factory
-                        .create_big_int_literal(synthetic_factory, type_.value.clone())
-                        .into()
-                })
-            }
-            Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
-                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                    factory
-                        .create_numeric_literal(synthetic_factory, type_.value.clone(), None)
-                        .into()
-                })
-            }
-            Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
-                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                    factory
-                        .create_string_literal(synthetic_factory, type_.value.clone(), None, None)
-                        .into()
-                })
-            }
+            Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => get_factory()
+                .create_big_int_literal(type_.value.clone())
+                .wrap(),
+            Type::LiteralType(LiteralType::NumberLiteralType(type_)) => get_factory()
+                .create_numeric_literal(type_.value.clone(), None)
+                .wrap(),
+            Type::LiteralType(LiteralType::StringLiteralType(type_)) => get_factory()
+                .create_string_literal(type_.value.clone(), None, None)
+                .wrap(),
             _ => unreachable!(),
         }
     }
@@ -1191,11 +1156,9 @@ impl TypeChecker {
     }
 
     pub(super) fn check_grammar_decorators(&self, node: &Node) -> bool {
-        let node_decorators = node.maybe_decorators();
-        if node_decorators.is_none() {
+        if node.maybe_decorators().is_none() {
             return false;
         }
-        let node_decorators = node_decorators.as_ref().unwrap();
         if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent()) {
             if node.kind() == SyntaxKind::MethodDeclaration
                 && !node_is_present(node.as_method_declaration().maybe_body())

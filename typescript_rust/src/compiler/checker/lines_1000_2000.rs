@@ -1,50 +1,46 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use indexmap::IndexMap;
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{
     get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id,
     MembersOrExportsResolutionKind,
 };
 use crate::{
-    add_range, add_related_info, are_option_gcs_equal, are_option_rcs_equal, compare_diagnostics,
-    compare_paths, create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
+    add_range, add_related_info, are_option_gcs_equal, compare_diagnostics, compare_paths,
+    create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, create_symbol_table,
-    declaration_name_to_string, every, filter, find_ancestor, for_each, for_each_bool,
-    for_each_child_bool, get_ancestor, get_check_flags, get_containing_class,
-    get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag,
-    get_emit_script_target, get_enclosing_block_scope_container, get_expando_initializer,
-    get_jsdoc_deprecated_tag, get_jsdoc_root, get_local_symbol_for_export_default,
-    get_name_of_declaration, get_name_of_expando, get_or_update, get_root_declaration,
-    has_static_modifier, index_of_gc, index_of_rc, is_ambient_module, is_binding_element,
-    is_binding_pattern, is_class_declaration, is_class_element, is_class_like,
-    is_class_static_block_declaration, is_computed_property_name, is_external_or_common_js_module,
-    is_for_in_or_of_statement, is_function_like, is_global_scope_augmentation, is_identifier,
-    is_in_js_file, is_interface_declaration, is_jsdoc_template_tag, is_jsdoc_type_alias,
-    is_module_declaration, is_namespace_export_declaration, is_nullish_coalesce,
-    is_object_binding_pattern, is_optional_chain, is_parameter, is_parameter_declaration,
-    is_parameter_property_declaration, is_private_identifier, is_property_declaration,
-    is_require_call, is_source_file, is_static, is_this_property, is_type_alias_declaration,
-    is_type_node, length, maybe_for_each, node_is_synthesized, null_transformation_context,
-    out_file, push_if_unique_gc, push_if_unique_rc, set_text_range_pos_end, set_value_declaration,
-    some, synthetic_factory, try_cast, visit_each_child, CancellationTokenDebuggable, Comparison,
-    DiagnosticCategory, DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
-    DuplicateInfoForSymbol, EmitResolver, FindAncestorCallbackReturn, HasInitializerInterface,
-    InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray, NodeFlags,
-    PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange, ScriptTarget,
-    VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
-    get_first_identifier, get_or_update_indexmap, get_source_file_of_node, is_jsx_opening_fragment,
-    maybe_get_source_file_of_node, parse_isolated_entity_name, unescape_leading_underscores,
-    visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node,
-    NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable,
-    SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
+    declaration_name_to_string, every, find_ancestor, for_each, for_each_bool, for_each_child_bool,
+    get_ancestor, get_check_flags, get_containing_class, get_declaration_of_kind,
+    get_effective_container_for_jsdoc_template_tag, get_emit_script_target,
+    get_enclosing_block_scope_container, get_expando_initializer, get_jsdoc_deprecated_tag,
+    get_jsdoc_root, get_local_symbol_for_export_default, get_name_of_declaration,
+    get_name_of_expando, get_or_update, get_root_declaration, has_static_modifier, index_of_gc,
+    is_ambient_module, is_binding_element, is_binding_pattern, is_class_declaration,
+    is_class_element, is_class_like, is_class_static_block_declaration, is_computed_property_name,
+    is_external_or_common_js_module, is_for_in_or_of_statement, is_function_like,
+    is_global_scope_augmentation, is_identifier, is_in_js_file, is_interface_declaration,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_module_declaration,
+    is_namespace_export_declaration, is_nullish_coalesce, is_object_binding_pattern,
+    is_optional_chain, is_parameter, is_parameter_declaration, is_parameter_property_declaration,
+    is_private_identifier, is_property_declaration, is_require_call, is_source_file, is_static,
+    is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
+    node_is_synthesized, null_transformation_context, out_file, push_if_unique_gc,
+    set_text_range_pos_end, set_value_declaration, some, try_cast, visit_each_child,
+    CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Diagnostics, DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolver,
+    FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
+    NamedDeclarationInterface, NodeArray, NodeFlags, PatternAmbientModule, PragmaArgumentName,
+    PragmaName, ReadonlyTextRange, ScriptTarget, VisitResult, __String, create_diagnostic_for_node,
+    escape_leading_underscores, factory, get_first_identifier, get_or_update_indexmap,
+    get_source_file_of_node, is_jsx_opening_fragment, maybe_get_source_file_of_node,
+    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -152,25 +148,21 @@ impl TypeChecker {
         let _jsx_namespace = _jsx_namespace.clone().unwrap();
         let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
         if _jsx_factory_entity.is_none() {
-            *_jsx_factory_entity = synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    Some(
-                        factory_
-                            .create_qualified_name(
-                                synthetic_factory_,
-                                factory_
-                                    .create_identifier(
-                                        synthetic_factory_,
-                                        &unescape_leading_underscores(&_jsx_namespace),
-                                        Option::<Gc<NodeArray>>::None,
-                                        None,
-                                    )
-                                    .into(),
-                                "create_element",
-                            )
-                            .into(),
-                    )
-                })
+            *_jsx_factory_entity = factory.with(|factory_| {
+                Some(
+                    factory_
+                        .create_qualified_name(
+                            factory_
+                                .create_identifier(
+                                    &unescape_leading_underscores(&_jsx_namespace),
+                                    Option::<Gc<NodeArray>>::None,
+                                    None,
+                                )
+                                .wrap(),
+                            "createElement",
+                        )
+                        .wrap(),
+                )
             });
         }
         _jsx_namespace
@@ -325,9 +317,10 @@ impl TypeChecker {
         &self,
         is_error: bool,
         location: &Node,
-        message: DiagnosticMessageOrDiagnosticMessageChain,
+        message: impl Into<DiagnosticMessageOrDiagnosticMessageChain>,
         args: Option<Vec<String>>,
     ) {
+        let message = message.into();
         if location.pos() < 0 || location.end() < 0 {
             if !is_error {
                 return;
@@ -599,7 +592,9 @@ impl TypeChecker {
             if let Some(source_members) = source.maybe_members().as_ref() {
                 let mut target_members = target.maybe_members_mut();
                 if target_members.is_none() {
-                    *target_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *target_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
                 self.merge_symbol_table(
                     target_members.clone().unwrap(),
@@ -610,7 +605,9 @@ impl TypeChecker {
             if let Some(source_exports) = source.maybe_exports().as_ref() {
                 let mut target_exports = target.maybe_exports_mut();
                 if target_exports.is_none() {
-                    *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
                 self.merge_symbol_table(
                     target_exports.clone().unwrap(),
@@ -852,7 +849,9 @@ impl TypeChecker {
         if (*second).borrow().is_empty() {
             return Some(first);
         }
-        let combined = Gc::new(GcCell::new(create_symbol_table(None)));
+        let combined = Gc::new(GcCell::new(create_symbol_table(
+            Option::<&[Gc<Symbol>]>::None,
+        )));
         self.merge_symbol_table(combined.clone(), &(*first).borrow(), None);
         self.merge_symbol_table(combined.clone(), &(*second).borrow(), None);
         Some(combined)
@@ -1285,8 +1284,8 @@ impl TypeChecker {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                                 let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(declaration).unwrap());
-                                let static_blocks = filter(&declaration.parent().as_class_like_declaration().members(), |node: &Gc<Node>| is_class_static_block_declaration(node));
-                                if self.is_property_initialized_in_static_blocks(&prop_name, &type_, &static_blocks, declaration.parent().pos(), current.pos()) {
+                                let static_blocks = declaration.parent().as_class_like_declaration().members().owned_iter().filter(|node| is_class_static_block_declaration(node));
+                                if self.is_property_initialized_in_static_blocks(&prop_name, &type_, static_blocks, declaration.parent().pos(), current.pos()) {
                                     return true.into();
                                 }
                             }
@@ -1436,17 +1435,13 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn resolve_name_<
-        'name_arg,
-        TLocation: Borrow<Node>,
-        TNameArg: Into<ResolveNameNameArg<'name_arg>> + Clone,
-    >(
+    pub(super) fn resolve_name_<'name_arg>(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,
-        name_arg: Option<TNameArg>,
+        name_arg: Option<impl Into<ResolveNameNameArg<'name_arg>> + Clone>,
         is_use: bool,
         exclude_globals: Option<bool>,
     ) -> Option<Gc<Symbol>> {
@@ -1465,22 +1460,20 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn resolve_name_helper<
-        'name_arg,
-        TLocation: Borrow<Node>,
-        TNameArg: Into<ResolveNameNameArg<'name_arg>> + Clone,
-        TLookup: FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Gc<Symbol>>,
-    >(
+    pub(super) fn resolve_name_helper<'name_arg>(
         &self,
-        location: Option<TLocation>,
+        location: Option<impl Borrow<Node>>,
         name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,
-        name_arg: Option<TNameArg>,
+        name_arg: Option<impl Into<ResolveNameNameArg<'name_arg>> + Clone>,
         is_use: bool,
         exclude_globals: bool,
-        mut lookup: TLookup,
+        mut lookup: impl FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Gc<Symbol>>,
     ) -> Option<Gc<Symbol>> {
+        if name == "TextNode" {
+            panic!("resolve_name_helper() TextNode");
+        }
         let mut location: Option<Gc<Node>> = location.map(|node| node.borrow().node_wrapper());
         let original_location = location.clone();
         let mut result: Option<Gc<Symbol>> = None;
@@ -2056,7 +2049,7 @@ impl TypeChecker {
         }
         let result = result.unwrap();
 
-        if let Some(name_not_found_message) = name_not_found_message {
+        if name_not_found_message.is_some() {
             if let Some(property_with_invalid_initializer) =
                 property_with_invalid_initializer.as_ref()
             {
@@ -2120,7 +2113,7 @@ impl TypeChecker {
                     self.error_or_suggestion(
                         !matches!(self.compiler_options.allow_umd_global_access, Some(true)),
                         error_location.as_deref().unwrap(),
-                        Diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead.clone().into(),
+                        &*Diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead,
                         Some(vec![unescape_leading_underscores(name).to_owned()])
                     );
                 }
@@ -2189,13 +2182,29 @@ impl TypeChecker {
     }
 }
 
-pub(super) enum DiagnosticMessageOrDiagnosticMessageChain {
-    DiagnosticMessage(DiagnosticMessage),
+pub enum DiagnosticMessageOrDiagnosticMessageChain {
+    DiagnosticMessage(&'static DiagnosticMessage),
     DiagnosticMessageChain(DiagnosticMessageChain),
 }
 
-impl From<DiagnosticMessage> for DiagnosticMessageOrDiagnosticMessageChain {
-    fn from(value: DiagnosticMessage) -> Self {
+impl DiagnosticMessageOrDiagnosticMessageChain {
+    pub fn category(&self) -> DiagnosticCategory {
+        match self {
+            Self::DiagnosticMessage(value) => value.category,
+            Self::DiagnosticMessageChain(value) => value.category,
+        }
+    }
+
+    pub fn code(&self) -> u32 {
+        match self {
+            Self::DiagnosticMessage(value) => value.code,
+            Self::DiagnosticMessageChain(value) => value.code,
+        }
+    }
+}
+
+impl From<&'static DiagnosticMessage> for DiagnosticMessageOrDiagnosticMessageChain {
+    fn from(value: &'static DiagnosticMessage) -> Self {
         Self::DiagnosticMessage(value)
     }
 }

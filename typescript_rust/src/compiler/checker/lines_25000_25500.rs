@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
@@ -297,7 +295,7 @@ impl TypeChecker {
         let containing_class_decl = container.parent();
         let base_type_node = get_class_extends_heritage_element(&containing_class_decl);
 
-        if let Some(base_type_node) = base_type_node.as_ref() {
+        if base_type_node.is_some() {
             if !self.class_declaration_extends_null(&containing_class_decl) {
                 if matches!(
                     node.maybe_flow_node().as_ref(),
@@ -770,7 +768,7 @@ impl TypeChecker {
 
         let can_use_super_expression =
             self.is_legal_usage_of_super_expression(is_call_expression, container.as_deref());
-        let mut node_check_flag = NodeCheckFlags::None;
+        let node_check_flag: NodeCheckFlags;
 
         if !can_use_super_expression {
             let current = find_ancestor(Some(node), |n: &Node| {

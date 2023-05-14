@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 use local_macros::enum_unwrapped;
@@ -32,100 +30,81 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     fn parenthesize_left_side_of_binary(
         &self,
-        base_factory: &TBaseNodeFactory,
         binary_operator: SyntaxKind,
         left_side: &Node, /*Expression*/
     ) -> Gc<Node /*Expression*/>;
     fn parenthesize_right_side_of_binary(
         &self,
-        base_factory: &TBaseNodeFactory,
         binary_operator: SyntaxKind,
         left_side: Option<Gc<Node /*Expression*/>>,
         right_side: &Node, /*Expression*/
     ) -> Gc<Node /*Expression*/>;
     fn parenthesize_expression_of_computed_property_name(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
     ) -> Gc<Node /*Expression*/>;
     fn parenthesize_condition_of_conditional_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         condition: &Node, /*Expression*/
     ) -> Gc<Node /*Expression*/>;
     fn parenthesize_branch_of_conditional_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         branch: &Node, /*Expression*/
     ) -> Gc<Node /*Expression*/>;
     fn parenthesize_expression_of_export_default(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
     ) -> Gc<Node /*Expression*/>;
     fn parenthesize_expression_of_new(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
     ) -> Gc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_left_side_of_access(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
     ) -> Gc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_postfix_unary(
         &self,
-        base_factory: &TBaseNodeFactory,
         operand: &Node, /*Expression*/
     ) -> Gc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_prefix_unary(
         &self,
-        base_factory: &TBaseNodeFactory,
         operand: &Node, /*Expression*/
     ) -> Gc<Node /*UnaryExpression*/>;
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
-        base_factory: &TBaseNodeFactory,
         elements: NodeArrayOrVec, /*<Expression>*/
     ) -> Gc<NodeArray> /*<Expression>*/;
     fn parenthesize_expression_for_disallowed_comma(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
     ) -> Gc<Node /*Expression*/>;
     fn parenthesize_expression_of_expression_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
     ) -> Gc<Node /*Expression*/>;
     fn parenthesize_concise_body_of_arrow_function(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression | ConciseBody*/
     ) -> Gc<Node /*Expression | ConciseBody*/>;
     fn parenthesize_member_of_conditional_type(
         &self,
-        base_factory: &TBaseNodeFactory,
         member: &Node, /*TypeNode*/
     ) -> Gc<Node /*TypeNode*/>;
     fn parenthesize_member_of_element_type(
         &self,
-        base_factory: &TBaseNodeFactory,
         member: &Node, /*TypeNode*/
     ) -> Gc<Node /*TypeNode*/>;
     fn parenthesize_element_type_of_array_type(
         &self,
-        base_factory: &TBaseNodeFactory,
         member: &Node, /*TypeNode*/
     ) -> Gc<Node /*TypeNode*/>;
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
-        base_factory: &TBaseNodeFactory,
         members: NodeArrayOrVec, /*<TypeNode>*/
     ) -> Gc<NodeArray> /*<TypeNode>*/;
     fn parenthesize_type_arguments(
         &self,
-        base_factory: &TBaseNodeFactory,
         type_parameters: Option<NodeArrayOrVec /*<TypeNode>*/>,
     ) -> Option<Gc<NodeArray> /*<TypeNode>*/>;
 }
@@ -133,49 +112,42 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
 pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
     fn convert_to_function_block(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ConciseBody*/
         multi_line: Option<bool>,
     ) -> Gc<Node /*Block*/>;
     fn convert_to_function_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*FunctionDeclaration*/
     ) -> Gc<Node /*FunctionExpression*/>;
     fn convert_to_array_assignment_element(
         &self,
-        base_factory: &TBaseNodeFactory,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
     ) -> Gc<Node /*Expression*/>;
     fn convert_to_object_assignment_element(
         &self,
-        base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
     ) -> Gc<Node /*ObjectLiteralElementLike*/>;
     fn convert_to_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentPattern*/
     ) -> Gc<Node /*AssignmentPattern*/>;
     fn convert_to_object_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ObjectBindingOrAssignmentPattern*/
     ) -> Gc<Node /*ObjectLiteralExpression*/>;
     fn convert_to_array_assignment_pattern(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ArrayBindingOrAssignmentPattern*/
     ) -> Gc<Node /*ArrayLiteralExpression*/>;
     fn convert_to_assignment_element_target(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentElementTarget*/
     ) -> Gc<Node /*Expression*/>;
 }
 
 #[derive(Trace, Finalize)]
-pub struct NodeFactory<TBaseNodeFactory: 'static> {
+pub struct NodeFactory<TBaseNodeFactory: Trace + Finalize + 'static> {
+    pub base_factory: Gc<TBaseNodeFactory>,
     #[unsafe_ignore_trace]
     pub flags: NodeFactoryFlags,
     pub parenthesizer_rules: GcCell<Option<Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>>,
@@ -190,8 +162,11 @@ bitflags! {
     }
 }
 
-pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
+pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + Finalize>:
+    Trace + Finalize
+{
     fn factory(&self) -> Gc<NodeFactory<TBaseNodeFactory>>;
+    fn base_factory(&self) -> Gc<TBaseNodeFactory>;
 
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
 

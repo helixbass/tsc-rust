@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell, RefMut};
 use std::cmp;
@@ -52,8 +50,8 @@ impl TypeChecker {
         match_discriminant_properties: bool,
     ) -> Vec<Gc<Symbol>> {
         let properties = self.get_properties_of_type(target);
-        let mut ret = vec![];
-        for target_prop in &properties {
+        let mut ret: Vec<Gc<Symbol>> = vec![];
+        for ref target_prop in properties {
             if self.is_static_private_identifier_property(target_prop) {
                 continue;
             }
@@ -138,7 +136,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_inference(&self, inference: &InferenceInfo) -> Option<Gc<Type>> {
         if let Some(inference_candidates) = inference.maybe_candidates().as_ref() {
             Some(self.get_union_type(
-                inference_candidates.clone(),
+                inference_candidates,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
@@ -192,7 +190,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_big_int_string(&self, s: &str) -> bool {
-        let mut scanner = create_scanner(ScriptTarget::ESNext, false, None, None, None, None, None);
+        let scanner = create_scanner(ScriptTarget::ESNext, false, None, None, None, None, None);
         // TODO: if ErrorCallback was FnMut instead of Fn then using Cell here presumably wouldn't be necessary
         let success = Cell::new(true);
         let text = format!("{}n", s);
@@ -681,7 +679,7 @@ impl InferTypes {
                 return;
             }
             target = self.type_checker.get_union_type(
-                targets,
+                &targets,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -692,7 +690,7 @@ impl InferTypes {
                 return;
             }
             source = self.type_checker.get_union_type(
-                sources,
+                &sources,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -1046,11 +1044,11 @@ impl InferTypes {
         self.set_inference_priority(cmp::min(self.inference_priority(), save_inference_priority));
     }
 
-    pub(super) fn infer_from_matching_types<TMatches: FnMut(&Type, &Type) -> bool>(
+    pub(super) fn infer_from_matching_types(
         &self,
         sources: &[Gc<Type>],
         targets: &[Gc<Type>],
-        mut matches: TMatches,
+        mut matches: impl FnMut(&Type, &Type) -> bool,
     ) -> (Vec<Gc<Type>>, Vec<Gc<Type>>) {
         let mut matched_sources: Option<Vec<Gc<Type>>> = None;
         let mut matched_targets: Option<Vec<Gc<Type>>> = None;

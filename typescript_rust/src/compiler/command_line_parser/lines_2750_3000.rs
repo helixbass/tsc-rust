@@ -78,6 +78,7 @@ pub(crate) fn can_json_report_no_input_files(raw: Option<&serde_json::Value>) ->
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn update_error_for_no_input_files(
     file_names: &[String],
     config_file_name: &str,
@@ -99,7 +100,7 @@ pub(crate) fn update_error_for_no_input_files(
     existing_errors != config_parse_diagnostics.len()
 }
 
-#[derive(Builder)]
+#[derive(Builder, Debug)]
 pub struct ParsedTsconfig {
     pub raw: Option<serde_json::Value>,
     pub options: Option<Gc<CompilerOptions>>,
@@ -112,10 +113,10 @@ pub(super) fn is_successful_parsed_tsconfig(value: &ParsedTsconfig) -> bool {
     value.options.is_some()
 }
 
-pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfigHost>(
+pub(super) fn parse_config(
     json: Option<serde_json::Value>,
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
-    host: &THost,
+    source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
+    host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     config_file_name: Option<&str>,
     resolution_stack: &[&str],
@@ -193,7 +194,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
                 serde_json::Value::Object(map) => map,
                 _ => panic!("Expected object"),
             };
-            let mut raw = match own_config.raw.as_mut().unwrap() {
+            let raw = match own_config.raw.as_mut().unwrap() {
                 serde_json::Value::Object(map) => map,
                 _ => panic!("Expected object"),
             };
@@ -201,7 +202,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
             let mut set_property_in_raw_if_not_undefined = |property_name: &str| {
                 let base_raw_property = base_raw.get(property_name);
                 if let Some(serde_json::Value::Array(base_raw_property)) = base_raw_property {
-                    let mut raw_property = raw.entry(property_name);
+                    let raw_property = raw.entry(property_name);
                     raw_property.or_insert_with(|| {
                         serde_json::Value::Array(map(base_raw_property, |path, _| {
                             let path = match path {
@@ -258,9 +259,9 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
     own_config
 }
 
-pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
+pub(super) fn parse_own_config_of_json(
     json: serde_json::Value,
-    host: &THost,
+    host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     config_file_name: Option<&str>,
     errors: &mut Vec<Gc<Diagnostic>>,
@@ -338,19 +339,19 @@ pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
     }
 }
 
-pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
+pub(super) fn parse_own_config_of_json_source_file(
     source_file: &Node, /*TsConfigSourceFile*/
-    host: &THost,
+    host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     config_file_name: Option<&str>,
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
 ) -> ParsedTsconfig {
     let mut options = get_default_compiler_options(config_file_name);
-    let type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
-    let typing_options_type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
-    let watch_options: RefCell<Option<WatchOptions>> = RefCell::new(None);
-    let extended_config_path: RefCell<Option<String>> = RefCell::new(None);
-    let root_compiler_options: RefCell<Option<Vec<Gc<Node /*PropertyName*/>>>> = RefCell::new(None);
+    let type_acquisition: RefCell<Option<TypeAcquisition>> = Default::default();
+    let typing_options_type_acquisition: RefCell<Option<TypeAcquisition>> = Default::default();
+    let watch_options: RefCell<Option<WatchOptions>> = Default::default();
+    let extended_config_path: RefCell<Option<String>> = Default::default();
+    let root_compiler_options: RefCell<Option<Vec<Gc<Node /*PropertyName*/>>>> = Default::default();
 
     let base_path_string = base_path.to_owned();
     let options_iterator = ParseOwnConfigOfJsonSourceFileOptionsIterator::new(
@@ -427,7 +428,7 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     }
 }
 
-struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost> {
+struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost + ?Sized> {
     options: RefCell<&'a mut CompilerOptions>,
     base_path: &'a str,
     watch_options: &'a RefCell<Option<WatchOptions>>,
@@ -441,7 +442,7 @@ struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost>
     root_compiler_options: &'a RefCell<Option<Vec<Gc<Node>>>>,
 }
 
-impl<'a, THost: ParseConfigHost> ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost> {
+impl<'a, THost: ParseConfigHost + ?Sized> ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost> {
     pub fn new(
         options: &'a mut CompilerOptions,
         base_path: &'a str,
@@ -471,7 +472,7 @@ impl<'a, THost: ParseConfigHost> ParseOwnConfigOfJsonSourceFileOptionsIterator<'
     }
 }
 
-impl<'a, THost: ParseConfigHost> JsonConversionNotifier
+impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
     for ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost>
 {
     fn on_set_valid_option_key_value_in_parent(
@@ -531,7 +532,7 @@ impl<'a, THost: ParseConfigHost> JsonConversionNotifier
     fn on_set_valid_option_key_value_in_root(
         &self,
         key: &str,
-        key_node: &Node, /*PropertyName*/
+        _key_node: &Node, /*PropertyName*/
         value: Option<&serde_json::Value>,
         value_node: &Node, /*Expression*/
     ) {
@@ -571,8 +572,8 @@ impl<'a, THost: ParseConfigHost> JsonConversionNotifier
         &self,
         key: &str,
         key_node: &Node, /*PropertyName*/
-        value: Option<&serde_json::Value>,
-        value_node: &Node, /*Expression*/
+        _value: Option<&serde_json::Value>,
+        _value_node: &Node, /*Expression*/
     ) {
         if key == "excludes" {
             self.errors.borrow_mut().push(Gc::new(
@@ -600,15 +601,12 @@ impl<'a, THost: ParseConfigHost> JsonConversionNotifier
     }
 }
 
-pub(super) fn get_extends_config_path<
-    THost: ParseConfigHost,
-    TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
->(
+pub(super) fn get_extends_config_path(
     extended_config: &str,
-    host: &THost,
+    host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     errors: &mut Vec<Gc<Diagnostic>>,
-    mut create_diagnostic: TCreateDiagnostic,
+    mut create_diagnostic: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Gc<Diagnostic>,
 ) -> Option<String> {
     let extended_config = normalize_slashes(extended_config);
     if is_rooted_disk_path(&extended_config)

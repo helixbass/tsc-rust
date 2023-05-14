@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -9,23 +7,17 @@ use crate::{
     create_symbol_table, every, export_assignment_is_alias, for_each,
     get_assignment_declaration_kind, get_node_id, get_right_most_assigned_expression,
     get_this_container, has_dynamic_name, is_aliasable_expression, is_binary_expression,
-    is_bindable_static_access_expression, is_empty_object_literal, is_expression,
-    is_external_module, is_function_like_or_class_static_block_declaration, is_in_js_file,
-    is_jsdoc_type_alias, is_json_source_file, is_namespace_export, is_object_literal_expression,
+    is_bindable_static_access_expression, is_empty_object_literal, is_exports_identifier,
+    is_expression, is_external_module, is_function_like_or_class_static_block_declaration,
+    is_identifier, is_in_js_file, is_jsdoc_type_alias, is_json_source_file,
+    is_module_exports_access_expression, is_namespace_export, is_object_literal_expression,
     is_object_literal_method, is_part_of_type_query, is_private_identifier,
     is_property_access_expression, is_prototype_access, is_shorthand_property_assignment,
-    is_special_property_declaration, is_static, is_this_initialized_declaration,
+    is_source_file, is_special_property_declaration, is_static, is_this_initialized_declaration,
     remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
-    Diagnostics, HasStatementsInterface, InternalSymbolName, SymbolTable, SyntaxKind, __String,
-    is_exports_identifier, is_identifier, is_module_exports_access_expression, is_source_file,
-    Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
+    Diagnostics, HasStatementsInterface, InternalSymbolName, Node, NodeInterface, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
 };
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum ElementKind {
-    Property = 1,
-    Accessor = 2,
-}
 
 impl BinderType {
     pub(super) fn bind_worker(&self, node: &Node) {
@@ -554,7 +546,9 @@ impl BinderType {
             let file_symbol = self.file().symbol();
             let mut global_exports = file_symbol.maybe_global_exports();
             if global_exports.is_none() {
-                *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                    Option::<&[Gc<Symbol>]>::None,
+                ))));
             }
             self.declare_symbol(
                 &mut global_exports.as_ref().unwrap().borrow_mut(),
@@ -841,8 +835,9 @@ impl BinderType {
                             let mut constructor_symbol_members =
                                 constructor_symbol.maybe_members_mut();
                             if constructor_symbol_members.is_none() {
-                                *constructor_symbol_members =
-                                    Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                                *constructor_symbol_members = Some(Gc::new(GcCell::new(
+                                    create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                                )));
                             }
                             let constructor_symbol_members =
                                 constructor_symbol_members.clone().unwrap();

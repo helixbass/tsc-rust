@@ -1,6 +1,4 @@
-#![allow(non_upper_case_globals)]
-
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
@@ -22,26 +20,25 @@ use crate::{
     VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn create_omitted_expression(&self, base_factory: &TBaseNodeFactory) -> OmittedExpression {
-        let node = self.create_base_expression(base_factory, SyntaxKind::OmittedExpression);
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
+    pub fn create_omitted_expression(&self) -> OmittedExpression {
+        let node = self.create_base_expression(SyntaxKind::OmittedExpression);
         OmittedExpression::new(node)
     }
 
     pub fn create_expression_with_type_arguments(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node>, /*Expression*/
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
     ) -> ExpressionWithTypeArguments {
-        let node = self.create_base_node(base_factory, SyntaxKind::ExpressionWithTypeArguments);
-        let mut node = ExpressionWithTypeArguments::new(
+        let node = self.create_base_node(SyntaxKind::ExpressionWithTypeArguments);
+        let node = ExpressionWithTypeArguments::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(base_factory, &expression),
+                .parenthesize_left_side_of_access(&expression),
             type_arguments.and_then(|type_arguments| {
                 self.parenthesizer_rules()
-                    .parenthesize_type_arguments(base_factory, Some(type_arguments.into()))
+                    .parenthesize_type_arguments(Some(type_arguments.into()))
             }),
         );
         node.add_transform_flags(
@@ -54,7 +51,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_expression_with_type_arguments(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node,          /*ExpressionWithTypeArguments*/
         expression: Gc<Node>, /*Expression*/
         type_arguments: Option<impl Into<NodeArrayOrVec>>,
@@ -71,12 +67,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_arguments.as_ref(),
         ) {
             self.update(
-                self.create_expression_with_type_arguments(
-                    base_factory,
-                    expression,
-                    type_arguments,
-                )
-                .into(),
+                self.create_expression_with_type_arguments(expression, type_arguments)
+                    .wrap(),
                 node,
             )
         } else {
@@ -86,12 +78,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_as_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node>, /*Expression*/
         type_: Gc<Node /*TypeNode*/>,
     ) -> AsExpression {
-        let node = self.create_base_expression(base_factory, SyntaxKind::AsExpression);
-        let mut node = AsExpression::new(node, expression, type_);
+        let node = self.create_base_expression(SyntaxKind::AsExpression);
+        let node = AsExpression::new(node, expression, type_);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(Some(&*node.type_))
@@ -102,7 +93,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_as_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node,          /*AsExpression*/
         expression: Gc<Node>, /*Expression*/
         type_: Gc<Node /*TypeNode*/>,
@@ -111,11 +101,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_as_expression.expression, &expression)
             || !Gc::ptr_eq(&node_as_as_expression.type_, &type_)
         {
-            self.update(
-                self.create_as_expression(base_factory, expression, type_)
-                    .into(),
-                node,
-            )
+            self.update(self.create_as_expression(expression, type_).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -123,14 +109,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_non_null_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node>, /*Expression*/
     ) -> NonNullExpression {
-        let node = self.create_base_expression(base_factory, SyntaxKind::NonNullExpression);
-        let mut node = NonNullExpression::new(
+        let node = self.create_base_expression(SyntaxKind::NonNullExpression);
+        let node = NonNullExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(base_factory, &expression),
+                .parenthesize_left_side_of_access(&expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
@@ -140,20 +125,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_non_null_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node,          /*NonNullExpression*/
         expression: Gc<Node>, /*Expression*/
     ) -> Gc<Node> {
         let node_as_non_null_expression = node.as_non_null_expression();
         if is_non_null_chain(node) {
-            return self.update_non_null_chain(base_factory, node, expression);
+            return self.update_non_null_chain(node, expression);
         }
         if !Gc::ptr_eq(&node_as_non_null_expression.expression, &expression) {
-            self.update(
-                self.create_non_null_expression(base_factory, expression)
-                    .into(),
-                node,
-            )
+            self.update(self.create_non_null_expression(expression).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -161,15 +141,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_non_null_chain(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node>, /*Expression*/
     ) -> NonNullExpression {
-        let node = self.create_base_expression(base_factory, SyntaxKind::NonNullExpression);
+        let node = self.create_base_expression(SyntaxKind::NonNullExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
-        let mut node = NonNullExpression::new(
+        let node = NonNullExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(base_factory, &expression),
+                .parenthesize_left_side_of_access(&expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
@@ -179,7 +158,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_non_null_chain(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node,          /*NonNullChain*/
         expression: Gc<Node>, /*Expression*/
     ) -> Gc<Node> {
@@ -189,10 +167,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             Some("Cannot update a NonNullExpression using updateNonNullChain. Use updateNonNullExpression instead.")
         );
         if !Gc::ptr_eq(&node_as_non_null_expression.expression, &expression) {
-            self.update(
-                self.create_non_null_chain(base_factory, expression).into(),
-                node,
-            )
+            self.update(self.create_non_null_chain(expression).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -200,12 +175,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_meta_property(
         &self,
-        base_factory: &TBaseNodeFactory,
         keyword_token: SyntaxKind, /*MetaProperty["keywordToken"]*/
         name: Gc<Node>,            /*Identifier*/
     ) -> MetaProperty {
-        let node = self.create_base_expression(base_factory, SyntaxKind::MetaProperty);
-        let mut node = MetaProperty::new(node, keyword_token, name);
+        let node = self.create_base_expression(SyntaxKind::MetaProperty);
+        let node = MetaProperty::new(node, keyword_token, name);
         node.add_transform_flags(propagate_child_flags(Some(&*node.name)));
         match keyword_token {
             SyntaxKind::NewKeyword => {
@@ -223,15 +197,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_meta_property(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node,    /*MetaProperty*/
         name: Gc<Node>, /*Identifier*/
     ) -> Gc<Node> {
         let node_as_meta_property = node.as_meta_property();
         if !Gc::ptr_eq(&node_as_meta_property.name, &name) {
             self.update(
-                self.create_meta_property(base_factory, node_as_meta_property.keyword_token, name)
-                    .into(),
+                self.create_meta_property(node_as_meta_property.keyword_token, name)
+                    .wrap(),
                 node,
             )
         } else {
@@ -241,12 +214,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_template_span(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
         literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> TemplateSpan {
-        let node = self.create_base_node(base_factory, SyntaxKind::TemplateSpan);
-        let mut node = TemplateSpan::new(node, expression, literal);
+        let node = self.create_base_node(SyntaxKind::TemplateSpan);
+        let node = TemplateSpan::new(node, expression, literal);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(Some(&*node.literal))
@@ -257,7 +229,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_template_span(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*TemplateSpan*/
         expression: Gc<Node /*Expression*/>,
         literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
@@ -266,34 +237,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_template_span.expression, &expression)
             || !Gc::ptr_eq(&node_as_template_span.literal, &literal)
         {
-            self.update(
-                self.create_template_span(base_factory, expression, literal)
-                    .into(),
-                node,
-            )
+            self.update(self.create_template_span(expression, literal).wrap(), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_semicolon_class_element(
-        &self,
-        base_factory: &TBaseNodeFactory,
-    ) -> SemicolonClassElement {
-        let node = self.create_base_node(base_factory, SyntaxKind::SemicolonClassElement);
-        let mut node = SemicolonClassElement::new(node);
+    pub fn create_semicolon_class_element(&self) -> SemicolonClassElement {
+        let node = self.create_base_node(SyntaxKind::SemicolonClassElement);
+        let node = SemicolonClassElement::new(node);
         node.add_transform_flags(TransformFlags::ContainsES2015);
         node
     }
 
     pub fn create_block(
         &self,
-        base_factory: &TBaseNodeFactory,
         statements: impl Into<NodeArrayOrVec>, /*Statement*/
         multi_line: Option<bool>,
     ) -> Block {
-        let node = self.create_base_node(base_factory, SyntaxKind::Block);
-        let mut node = Block::new(
+        let node = self.create_base_node(SyntaxKind::Block);
+        let node = Block::new(
             node,
             self.create_node_array(Some(statements), None),
             multi_line,
@@ -304,7 +267,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_block(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node,                           /*Block*/
         statements: impl Into<NodeArrayOrVec>, /*Statement*/
     ) -> Gc<Node> {
@@ -312,8 +274,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let statements = statements.into();
         if has_node_array_changed(&node_as_block.statements, &statements) {
             self.update(
-                self.create_block(base_factory, statements, node_as_block.multi_line)
-                    .into(),
+                self.create_block(statements, node_as_block.multi_line)
+                    .wrap(),
                 node,
             )
         } else {
@@ -323,26 +285,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_variable_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         declaration_list: impl Into<RcNodeOrNodeArrayOrVec>,
     ) -> VariableStatement {
         let node = self.create_base_declaration(
-            base_factory,
             SyntaxKind::VariableStatement,
             Option::<Gc<NodeArray>>::None,
             modifiers,
         );
-        let mut node = VariableStatement::new(
+        let node = VariableStatement::new(
             node,
             match declaration_list.into() {
                 RcNodeOrNodeArrayOrVec::RcNode(declaration_list) => declaration_list,
                 RcNodeOrNodeArrayOrVec::NodeArray(declaration_list) => self
-                    .create_variable_declaration_list(base_factory, declaration_list, None)
-                    .into(),
+                    .create_variable_declaration_list(declaration_list, None)
+                    .wrap(),
                 RcNodeOrNodeArrayOrVec::Vec(declaration_list) => self
-                    .create_variable_declaration_list(base_factory, declaration_list, None)
-                    .into(),
+                    .create_variable_declaration_list(declaration_list, None)
+                    .wrap(),
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list)));
@@ -356,7 +316,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_variable_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*VariableStatement*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         declaration_list: Gc<Node /*VariableDeclarationList*/>,
@@ -370,8 +329,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             )
         {
             self.update(
-                self.create_variable_statement(base_factory, modifiers, declaration_list)
-                    .into(),
+                self.create_variable_statement(modifiers, declaration_list)
+                    .wrap(),
                 node,
             )
         } else {
@@ -379,21 +338,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_empty_statement(&self, base_factory: &TBaseNodeFactory) -> EmptyStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::EmptyStatement);
+    pub fn create_empty_statement(&self) -> EmptyStatement {
+        let node = self.create_base_node(SyntaxKind::EmptyStatement);
         EmptyStatement::new(node)
     }
 
     pub fn create_expression_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
     ) -> ExpressionStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::ExpressionStatement);
-        let mut node = ExpressionStatement::new(
+        let node = self.create_base_node(SyntaxKind::ExpressionStatement);
+        let node = ExpressionStatement::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_of_expression_statement(base_factory, &expression),
+                .parenthesize_expression_of_expression_statement(&expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
@@ -401,17 +359,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_expression_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ExpressionStatement*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
         let node_as_expression_statement = node.as_expression_statement();
         if !Gc::ptr_eq(&node_as_expression_statement.expression, &expression) {
-            self.update(
-                self.create_expression_statement(base_factory, expression)
-                    .into(),
-                node,
-            )
+            self.update(self.create_expression_statement(expression).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -419,13 +372,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_if_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
         then_statement: Gc<Node /*Statement*/>,
         else_statement: Option<Gc<Node /*Statement*/>>,
     ) -> IfStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::IfStatement);
-        let mut node = IfStatement::new(
+        let node = self.create_base_node(SyntaxKind::IfStatement);
+        let node = IfStatement::new(
             node,
             expression,
             self.as_embedded_statement(Some(then_statement)).unwrap(),
@@ -441,7 +393,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_if_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*IfStatement*/
         expression: Gc<Node /*Expression*/>,
         then_statement: Gc<Node /*Statement*/>,
@@ -456,8 +407,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             )
         {
             self.update(
-                self.create_if_statement(base_factory, expression, then_statement, else_statement)
-                    .into(),
+                self.create_if_statement(expression, then_statement, else_statement)
+                    .wrap(),
                 node,
             )
         } else {
@@ -467,12 +418,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_do_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         statement: Gc<Node /*Statement*/>,
         expression: Gc<Node /*Expression*/>,
     ) -> DoStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::DoStatement);
-        let mut node = DoStatement::new(
+        let node = self.create_base_node(SyntaxKind::DoStatement);
+        let node = DoStatement::new(
             node,
             self.as_embedded_statement(Some(statement)).unwrap(),
             expression,
@@ -486,7 +436,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_do_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*DoStatement*/
         statement: Gc<Node /*Statement*/>,
         expression: Gc<Node /*Expression*/>,
@@ -495,11 +444,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_do_statement.statement, &statement)
             || !Gc::ptr_eq(&node_as_do_statement.expression, &expression)
         {
-            self.update(
-                self.create_do_statement(base_factory, statement, expression)
-                    .into(),
-                node,
-            )
+            self.update(self.create_do_statement(statement, expression).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -507,12 +452,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_while_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> WhileStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::WhileStatement);
-        let mut node = WhileStatement::new(
+        let node = self.create_base_node(SyntaxKind::WhileStatement);
+        let node = WhileStatement::new(
             node,
             expression,
             self.as_embedded_statement(Some(statement)).unwrap(),
@@ -526,7 +470,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_while_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*WhileStatement*/
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
@@ -536,8 +479,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             || !Gc::ptr_eq(&node_as_while_statement.statement, &statement)
         {
             self.update(
-                self.create_while_statement(base_factory, expression, statement)
-                    .into(),
+                self.create_while_statement(expression, statement).wrap(),
                 node,
             )
         } else {
@@ -547,14 +489,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_for_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         initializer: Option<Gc<Node /*ForInitializer*/>>,
         condition: Option<Gc<Node /*Expression*/>>,
         incrementor: Option<Gc<Node /*Expression*/>>,
         statement: Gc<Node /*Statement*/>,
     ) -> ForStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::ForStatement);
-        let mut node = ForStatement::new(
+        let node = self.create_base_node(SyntaxKind::ForStatement);
+        let node = ForStatement::new(
             node,
             initializer,
             condition,
@@ -572,7 +513,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_for_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ForStatement*/
         initializer: Option<Gc<Node /*ForInitializer*/>>,
         condition: Option<Gc<Node /*Expression*/>>,
@@ -591,14 +531,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             || !Gc::ptr_eq(&node_as_for_statement.statement, &statement)
         {
             self.update(
-                self.create_for_statement(
-                    base_factory,
-                    initializer,
-                    condition,
-                    incrementor,
-                    statement,
-                )
-                .into(),
+                self.create_for_statement(initializer, condition, incrementor, statement)
+                    .wrap(),
                 node,
             )
         } else {
@@ -608,13 +542,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_for_in_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         initializer: Gc<Node /*ForInitializer*/>,
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> ForInStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::ForInStatement);
-        let mut node = ForInStatement::new(
+        let node = self.create_base_node(SyntaxKind::ForInStatement);
+        let node = ForInStatement::new(
             node,
             initializer,
             expression,
@@ -630,7 +563,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_for_in_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ForInStatement*/
         initializer: Gc<Node /*ForInitializer*/>,
         expression: Gc<Node /*Expression*/>,
@@ -642,8 +574,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             || !Gc::ptr_eq(&node_as_for_in_statement.statement, &statement)
         {
             self.update(
-                self.create_for_in_statement(base_factory, initializer, expression, statement)
-                    .into(),
+                self.create_for_in_statement(initializer, expression, statement)
+                    .wrap(),
                 node,
             )
         } else {
@@ -653,20 +585,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_for_of_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         await_modifier: Option<Gc<Node /*AwaitKeyword*/>>,
         initializer: Gc<Node /*ForInitializer*/>,
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> ForOfStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::ForOfStatement);
+        let node = self.create_base_node(SyntaxKind::ForOfStatement);
         let await_modifier_is_some = await_modifier.is_some();
-        let mut node = ForOfStatement::new(
+        let node = ForOfStatement::new(
             node,
             await_modifier,
             initializer,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+                .parenthesize_expression_for_disallowed_comma(&expression),
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
@@ -684,7 +615,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_for_of_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ForOfStatement*/
         await_modifier: Option<Gc<Node /*AwaitKeyword*/>>,
         initializer: Gc<Node /*ForInitializer*/>,
@@ -700,14 +630,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             || !Gc::ptr_eq(&node_as_for_of_statement.statement, &statement)
         {
             self.update(
-                self.create_for_of_statement(
-                    base_factory,
-                    await_modifier,
-                    initializer,
-                    expression,
-                    statement,
-                )
-                .into(),
+                self.create_for_of_statement(await_modifier, initializer, expression, statement)
+                    .wrap(),
                 node,
             )
         } else {
@@ -717,11 +641,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_continue_statement<'label>(
         &self,
-        base_factory: &TBaseNodeFactory,
         label: Option<impl Into<StrOrRcNode<'label>>>,
     ) -> ContinueStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::ContinueStatement);
-        let mut node = ContinueStatement::new(node, self.as_name(base_factory, label));
+        let node = self.create_base_node(SyntaxKind::ContinueStatement);
+        let node = ContinueStatement::new(node, self.as_name(label));
         node.add_transform_flags(
             propagate_child_flags(node.label.clone())
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
@@ -731,16 +654,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_continue_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ContinueStatement*/
         label: Option<Gc<Node /*Identifier*/>>,
     ) -> Gc<Node> {
         let node_as_continue_statement = node.as_continue_statement();
         if !are_option_gcs_equal(node_as_continue_statement.label.as_ref(), label.as_ref()) {
-            self.update(
-                self.create_continue_statement(base_factory, label).into(),
-                node,
-            )
+            self.update(self.create_continue_statement(label).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -748,11 +667,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_break_statement<'label>(
         &self,
-        base_factory: &TBaseNodeFactory,
         label: Option<impl Into<StrOrRcNode<'label>>>,
     ) -> BreakStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::BreakStatement);
-        let mut node = BreakStatement::new(node, self.as_name(base_factory, label));
+        let node = self.create_base_node(SyntaxKind::BreakStatement);
+        let node = BreakStatement::new(node, self.as_name(label));
         node.add_transform_flags(
             propagate_child_flags(node.label.clone())
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
@@ -762,16 +680,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_break_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*BreakStatement*/
         label: Option<Gc<Node /*Identifier*/>>,
     ) -> Gc<Node> {
         let node_as_break_statement = node.as_break_statement();
         if !are_option_gcs_equal(node_as_break_statement.label.as_ref(), label.as_ref()) {
-            self.update(
-                self.create_break_statement(base_factory, label).into(),
-                node,
-            )
+            self.update(self.create_break_statement(label).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -779,11 +693,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_return_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Option<Gc<Node /*Expression*/>>,
     ) -> ReturnStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::ReturnStatement);
-        let mut node = ReturnStatement::new(node, expression);
+        let node = self.create_base_node(SyntaxKind::ReturnStatement);
+        let node = ReturnStatement::new(node, expression);
         node.add_transform_flags(
             propagate_child_flags(node.expression.clone())
                 | TransformFlags::ContainsES2018
@@ -794,7 +707,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_return_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ReturnStatement*/
         expression: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
@@ -803,11 +715,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node_as_return_statement.expression.as_ref(),
             expression.as_ref(),
         ) {
-            self.update(
-                self.create_return_statement(base_factory, expression)
-                    .into(),
-                node,
-            )
+            self.update(self.create_return_statement(expression).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -815,12 +723,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_with_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
     ) -> WithStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::WithStatement);
-        let mut node = WithStatement::new(
+        let node = self.create_base_node(SyntaxKind::WithStatement);
+        let node = WithStatement::new(
             node,
             expression,
             self.as_embedded_statement(Some(statement)).unwrap(),
@@ -834,7 +741,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_with_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*WithStatement*/
         expression: Gc<Node /*Expression*/>,
         statement: Gc<Node /*Statement*/>,
@@ -844,8 +750,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             || !Gc::ptr_eq(&node_as_with_statement.statement, &statement)
         {
             self.update(
-                self.create_with_statement(base_factory, expression, statement)
-                    .into(),
+                self.create_with_statement(expression, statement).wrap(),
                 node,
             )
         } else {
@@ -855,15 +760,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_switch_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
         case_block: Gc<Node /*CaseBlock*/>,
     ) -> SwitchStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::SwitchStatement);
-        let mut node = SwitchStatement::new(
+        let node = self.create_base_node(SyntaxKind::SwitchStatement);
+        let node = SwitchStatement::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+                .parenthesize_expression_for_disallowed_comma(&expression),
             case_block,
         );
         node.add_transform_flags(
@@ -875,7 +779,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_switch_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*SwitchStatement*/
         expression: Gc<Node /*Expression*/>,
         case_block: Gc<Node /*CaseBlock*/>,
@@ -885,8 +788,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             || !Gc::ptr_eq(&node_as_switch_statement.case_block, &case_block)
         {
             self.update(
-                self.create_switch_statement(base_factory, expression, case_block)
-                    .into(),
+                self.create_switch_statement(expression, case_block).wrap(),
                 node,
             )
         } else {
@@ -896,14 +798,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_labeled_statement<'label>(
         &self,
-        base_factory: &TBaseNodeFactory,
         label: impl Into<StrOrRcNode<'label>>,
         statement: Gc<Node /*Statement*/>,
     ) -> LabeledStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::LabeledStatement);
-        let mut node = LabeledStatement::new(
+        let node = self.create_base_node(SyntaxKind::LabeledStatement);
+        let node = LabeledStatement::new(
             node,
-            self.as_name(base_factory, Some(label)).unwrap(),
+            self.as_name(Some(label)).unwrap(),
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
@@ -915,7 +816,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_labeled_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*LabeledStatement*/
         label: Gc<Node /*Identifier*/>,
         statement: Gc<Node /*Statement*/>,
@@ -924,39 +824,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if !Gc::ptr_eq(&node_as_labeled_statement.label, &label)
             || !Gc::ptr_eq(&node_as_labeled_statement.statement, &statement)
         {
-            self.update(
-                self.create_labeled_statement(base_factory, label, statement)
-                    .into(),
-                node,
-            )
+            self.update(self.create_labeled_statement(label, statement).wrap(), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn create_throw_statement(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        expression: Gc<Node /*Expression*/>,
-    ) -> ThrowStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::ThrowStatement);
-        let mut node = ThrowStatement::new(node, expression);
+    pub fn create_throw_statement(&self, expression: Gc<Node /*Expression*/>) -> ThrowStatement {
+        let node = self.create_base_node(SyntaxKind::ThrowStatement);
+        let node = ThrowStatement::new(node, expression);
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
     }
 
     pub fn update_throw_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ThrowStatement*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
         let node_as_throw_statement = node.as_throw_statement();
         if !Gc::ptr_eq(&node_as_throw_statement.expression, &expression) {
-            self.update(
-                self.create_throw_statement(base_factory, expression).into(),
-                node,
-            )
+            self.update(self.create_throw_statement(expression).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -964,13 +852,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_try_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         try_block: Gc<Node /*Block*/>,
         catch_clause: Option<Gc<Node /*CatchClause*/>>,
         finally_block: Option<Gc<Node /*Block*/>>,
     ) -> TryStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::TryStatement);
-        let mut node = TryStatement::new(node, try_block, catch_clause, finally_block);
+        let node = self.create_base_node(SyntaxKind::TryStatement);
+        let node = TryStatement::new(node, try_block, catch_clause, finally_block);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.try_block))
                 | propagate_child_flags(node.catch_clause.clone())
@@ -981,7 +868,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_try_statement(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*TryStatement*/
         try_block: Gc<Node /*Block*/>,
         catch_clause: Option<Gc<Node /*CatchClause*/>>,
@@ -999,8 +885,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             )
         {
             self.update(
-                self.create_try_statement(base_factory, try_block, catch_clause, finally_block)
-                    .into(),
+                self.create_try_statement(try_block, catch_clause, finally_block)
+                    .wrap(),
                 node,
             )
         } else {
@@ -1008,21 +894,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_debugger_statement(&self, base_factory: &TBaseNodeFactory) -> DebuggerStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::DebuggerStatement);
+    pub fn create_debugger_statement(&self) -> DebuggerStatement {
+        let node = self.create_base_node(SyntaxKind::DebuggerStatement);
         DebuggerStatement::new(node)
     }
 
     pub fn create_variable_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         name: Option<impl Into<StrOrRcNode<'name> /*BindingName*/>>,
         exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
         type_: Option<Gc<Node /*TypeNode*/>>,
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> VariableDeclaration {
         let node = self.create_base_variable_like_declaration(
-            base_factory,
             SyntaxKind::VariableDeclaration,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
@@ -1030,11 +914,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_,
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(base_factory, &initializer)
+                    .parenthesize_expression_for_disallowed_comma(&initializer)
             }),
         );
         let exclamation_token_is_some = exclamation_token.is_some();
-        let mut node = VariableDeclaration::new(node, exclamation_token);
+        let node = VariableDeclaration::new(node, exclamation_token);
         node.add_transform_flags(propagate_child_flags(node.exclamation_token.clone()));
         if exclamation_token_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1044,7 +928,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_variable_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*VariableDeclaration*/
         name: Option<Gc<Node /*BindingName*/>>,
         exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
@@ -1066,14 +949,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             initializer.as_ref(),
         ) {
             self.update(
-                self.create_variable_declaration(
-                    base_factory,
-                    name,
-                    exclamation_token,
-                    type_,
-                    initializer,
-                )
-                .into(),
+                self.create_variable_declaration(name, exclamation_token, type_, initializer)
+                    .wrap(),
                 node,
             )
         } else {
@@ -1083,14 +960,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_variable_declaration_list(
         &self,
-        base_factory: &TBaseNodeFactory,
         declarations: impl Into<NodeArrayOrVec>,
         flags: Option<NodeFlags>,
     ) -> VariableDeclarationList {
         let flags = flags.unwrap_or(NodeFlags::None);
-        let node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
+        let node = self.create_base_node(SyntaxKind::VariableDeclarationList);
         node.set_flags(node.flags() | (flags & NodeFlags::BlockScoped));
-        let mut node =
+        let node =
             VariableDeclarationList::new(node, self.create_node_array(Some(declarations), None));
         node.add_transform_flags(
             propagate_children_flags(Some(&node.declarations))
@@ -1106,7 +982,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_variable_declaration_list(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*VariableDeclarationList*/
         declarations: impl Into<NodeArrayOrVec>,
     ) -> Gc<Node> {
@@ -1117,12 +992,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             &declarations,
         ) {
             self.update(
-                self.create_variable_declaration_list(
-                    base_factory,
-                    declarations,
-                    Some(node.flags()),
-                )
-                .into(),
+                self.create_variable_declaration_list(declarations, Some(node.flags()))
+                    .wrap(),
                 node,
             )
         } else {
@@ -1132,7 +1003,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_function_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
@@ -1149,7 +1019,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         body: Option<Gc<Node /*Block*/>>,
     ) -> FunctionDeclaration {
         let mut node = self.create_base_function_like_declaration(
-            base_factory,
             SyntaxKind::FunctionDeclaration,
             decorators,
             modifiers,
@@ -1160,7 +1029,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             body,
         );
         node.asterisk_token = asterisk_token;
-        let mut node = FunctionDeclaration::new(node);
+        let node = FunctionDeclaration::new(node);
         if node.maybe_body().is_none()
             || modifiers_to_flags(node.maybe_modifiers().as_double_deref())
                 .intersects(ModifierFlags::Ambient)
@@ -1191,7 +1060,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_function_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*FunctionDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1235,7 +1103,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update_base_function_like_declaration(
                 self.create_function_declaration(
-                    base_factory,
                     decorators,
                     modifiers,
                     asterisk_token,
@@ -1245,7 +1112,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     type_,
                     body,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1255,7 +1122,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_class_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Option<
@@ -1273,7 +1139,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         members: impl Into<NodeArrayOrVec>, /*<ClassElement>*/
     ) -> ClassDeclaration {
         let node = self.create_base_class_like_declaration(
-            base_factory,
             SyntaxKind::ClassDeclaration,
             decorators,
             modifiers,
@@ -1282,7 +1147,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             heritage_clauses,
             members,
         );
-        let mut node = ClassDeclaration::new(node);
+        let node = ClassDeclaration::new(node);
         if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
             .intersects(ModifierFlags::Ambient)
         {
@@ -1301,7 +1166,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_class_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ClassDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1342,7 +1206,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_class_declaration(
-                    base_factory,
                     decorators,
                     modifiers,
                     name,
@@ -1350,7 +1213,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     heritage_clauses,
                     members,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1360,7 +1223,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_interface_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
@@ -1369,7 +1231,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         members: impl Into<NodeArrayOrVec>,
     ) -> InterfaceDeclaration {
         let node = self.create_base_interface_or_class_like_declaration(
-            base_factory,
             SyntaxKind::InterfaceDeclaration,
             decorators,
             modifiers,
@@ -1377,14 +1238,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_parameters,
             heritage_clauses,
         );
-        let mut node = InterfaceDeclaration::new(node, self.create_node_array(Some(members), None));
+        let node = InterfaceDeclaration::new(node, self.create_node_array(Some(members), None));
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_interface_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*InterfaceDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1418,7 +1278,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_interface_declaration(
-                    base_factory,
                     decorators,
                     modifiers,
                     name,
@@ -1426,7 +1285,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     heritage_clauses,
                     members,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1436,7 +1295,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_type_alias_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
@@ -1444,21 +1302,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_: Gc<Node /*TypeNode*/>,
     ) -> TypeAliasDeclaration {
         let node = self.create_base_generic_named_declaration(
-            base_factory,
             SyntaxKind::TypeAliasDeclaration,
             decorators,
             modifiers,
             Some(name),
             type_parameters,
         );
-        let mut node = TypeAliasDeclaration::new(node, type_);
+        let node = TypeAliasDeclaration::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_type_alias_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*TypeAliasDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1486,14 +1342,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_type_alias_declaration(
-                    base_factory,
                     decorators,
                     modifiers,
                     name,
                     type_parameters,
                     type_,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1503,20 +1358,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_enum_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: impl Into<StrOrRcNode<'name>>,
         members: Option<impl Into<NodeArrayOrVec>>,
     ) -> EnumDeclaration {
         let node = self.create_base_named_declaration(
-            base_factory,
             SyntaxKind::EnumDeclaration,
             decorators,
             modifiers,
             Some(name),
         );
-        let mut node = EnumDeclaration::new(node, self.create_node_array(members, None));
+        let node = EnumDeclaration::new(node, self.create_node_array(members, None));
         node.add_transform_flags(
             propagate_children_flags(Some(&node.members)) | TransformFlags::ContainsTypeScript,
         );
@@ -1528,7 +1381,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_enum_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*EnumDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1548,8 +1400,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }
         {
             self.update(
-                self.create_enum_declaration(base_factory, decorators, modifiers, name, members)
-                    .into(),
+                self.create_enum_declaration(decorators, modifiers, name, members)
+                    .wrap(),
                 node,
             )
         } else {
@@ -1559,7 +1411,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_module_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Gc<Node /*ModuleName*/>,
@@ -1567,12 +1418,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         flags: Option<NodeFlags>,
     ) -> ModuleDeclaration {
         let flags = flags.unwrap_or(NodeFlags::None);
-        let node = self.create_base_declaration(
-            base_factory,
-            SyntaxKind::ModuleDeclaration,
-            decorators,
-            modifiers,
-        );
+        let node =
+            self.create_base_declaration(SyntaxKind::ModuleDeclaration, decorators, modifiers);
         node.set_flags(
             node.flags()
                 | (flags
@@ -1580,7 +1427,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                         | NodeFlags::NestedNamespace
                         | NodeFlags::GlobalAugmentation)),
         );
-        let mut node = ModuleDeclaration::new(node, name, body);
+        let node = ModuleDeclaration::new(node, name, body);
         if modifiers_to_flags(node.maybe_modifiers().as_double_deref())
             .intersects(ModifierFlags::Ambient)
         {
@@ -1600,7 +1447,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_module_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ModuleDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1617,14 +1463,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_module_declaration(
-                    base_factory,
                     decorators,
                     modifiers,
                     name,
                     body,
                     Some(node.flags()),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1634,29 +1479,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_module_block(
         &self,
-        base_factory: &TBaseNodeFactory,
         statements: Option<impl Into<NodeArrayOrVec>>,
     ) -> ModuleBlock {
-        let node = self.create_base_node(base_factory, SyntaxKind::ModuleBlock);
-        let mut node = ModuleBlock::new(node, self.create_node_array(statements, None));
+        let node = self.create_base_node(SyntaxKind::ModuleBlock);
+        let node = ModuleBlock::new(node, self.create_node_array(statements, None));
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
     }
 
     pub fn update_module_block(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ModuleBlock*/
         statements: impl Into<NodeArrayOrVec>,
     ) -> Gc<Node> {
         let node_as_module_block = node.as_module_block();
         let statements = statements.into();
         if has_node_array_changed(&node_as_module_block.statements, &statements) {
-            self.update(
-                self.create_module_block(base_factory, Some(statements))
-                    .into(),
-                node,
-            )
+            self.update(self.create_module_block(Some(statements)).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -1664,53 +1503,47 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_case_block(
         &self,
-        base_factory: &TBaseNodeFactory,
         clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
     ) -> CaseBlock {
-        let node = self.create_base_node(base_factory, SyntaxKind::CaseBlock);
-        let mut node = CaseBlock::new(node, self.create_node_array(Some(clauses), None));
+        let node = self.create_base_node(SyntaxKind::CaseBlock);
+        let node = CaseBlock::new(node, self.create_node_array(Some(clauses), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.clauses)));
         node
     }
 
     pub fn update_case_block(
         &self,
-        base_factory: &TBaseNodeFactory,
-        node: &Node,                        /*CaseBlock*/
-        clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
+        _node: &Node,                        /*CaseBlock*/
+        _clauses: impl Into<NodeArrayOrVec>, /*<CaseOrDefaultClause>*/
     ) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn create_namespace_export_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         name: impl Into<StrOrRcNode<'name>>,
     ) -> NamespaceExportDeclaration {
         let node = self.create_base_named_declaration(
-            base_factory,
             SyntaxKind::NamespaceExportDeclaration,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             Some(name),
         );
-        let mut node = NamespaceExportDeclaration::new(node);
+        let node = NamespaceExportDeclaration::new(node);
         node.set_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
     pub fn update_namespace_export_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
-        node: &Node, /*NamespaceExportDeclaration*/
-        name: Gc<Node /*Identifier*/>,
+        _node: &Node, /*NamespaceExportDeclaration*/
+        _name: Gc<Node /*Identifier*/>,
     ) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn create_import_equals_declaration<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         is_type_only: bool,
@@ -1718,13 +1551,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         module_reference: Gc<Node /*ModuleReference*/>,
     ) -> ImportEqualsDeclaration {
         let node = self.create_base_named_declaration(
-            base_factory,
             SyntaxKind::ImportEqualsDeclaration,
             decorators,
             modifiers,
             Some(name),
         );
-        let mut node = ImportEqualsDeclaration::new(node, is_type_only, module_reference);
+        let node = ImportEqualsDeclaration::new(node, is_type_only, module_reference);
         node.add_transform_flags(propagate_child_flags(Some(&*node.module_reference)));
         if !is_external_module_reference(&node.module_reference) {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1737,7 +1569,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_import_equals_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ImportEqualsDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1758,14 +1589,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_import_equals_declaration(
-                    base_factory,
                     decorators,
                     modifiers,
                     is_type_only,
                     name,
                     module_reference,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1775,20 +1605,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_import_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         import_clause: Option<Gc<Node /*ImportClause*/>>,
         module_specifier: Gc<Node /*Expression*/>,
         assert_clause: Option<Gc<Node /*AssertClause*/>>,
     ) -> ImportDeclaration {
-        let node = self.create_base_declaration(
-            base_factory,
-            SyntaxKind::ImportDeclaration,
-            decorators,
-            modifiers,
-        );
-        let mut node = ImportDeclaration::new(node, import_clause, module_specifier, assert_clause);
+        let node =
+            self.create_base_declaration(SyntaxKind::ImportDeclaration, decorators, modifiers);
+        let node = ImportDeclaration::new(node, import_clause, module_specifier, assert_clause);
         node.add_transform_flags(
             propagate_child_flags(node.import_clause.clone())
                 | propagate_child_flags(Some(&*node.module_specifier)),
@@ -1798,7 +1623,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_import_declaration(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ImportDeclaration*/
         decorators: Option<impl Into<NodeArrayOrVec>>,
         modifiers: Option<impl Into<NodeArrayOrVec>>,
@@ -1826,14 +1650,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             self.update(
                 self.create_import_declaration(
-                    base_factory,
                     decorators,
                     modifiers,
                     import_clause,
                     module_specifier,
                     assert_clause,
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -1843,13 +1666,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_import_clause(
         &self,
-        base_factory: &TBaseNodeFactory,
         is_type_only: bool,
         name: Option<Gc<Node /*Identifier*/>>,
         named_bindings: Option<Gc<Node /*NamedImportBindings*/>>,
     ) -> ImportClause {
-        let node = self.create_base_node(base_factory, SyntaxKind::ImportClause);
-        let mut node = ImportClause::new(node, is_type_only, name, named_bindings);
+        let node = self.create_base_node(SyntaxKind::ImportClause);
+        let node = ImportClause::new(node, is_type_only, name, named_bindings);
         node.add_transform_flags(
             propagate_child_flags(node.name.clone())
                 | propagate_child_flags(node.named_bindings.clone()),
@@ -1865,7 +1687,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_import_clause(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*ImportClause*/
         is_type_only: bool,
         name: Option<Gc<Node /*Identifier*/>>,
@@ -1880,8 +1701,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             )
         {
             self.update(
-                self.create_import_clause(base_factory, is_type_only, name, named_bindings)
-                    .into(),
+                self.create_import_clause(is_type_only, name, named_bindings)
+                    .wrap(),
                 node,
             )
         } else {

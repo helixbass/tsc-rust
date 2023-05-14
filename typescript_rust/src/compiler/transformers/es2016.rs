@@ -2,23 +2,24 @@ use gc::{Finalize, Gc, Trace};
 
 use crate::{
     chain_bundle, compiler::factory::utilities_public::set_text_range_rc_node,
-    is_element_access_expression, is_expression, is_property_access_expression, set_text_range,
-    visit_each_child, visit_node, with_synthetic_factory, BaseNodeFactorySynthetic, Node,
-    NodeArray, NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    VisitResult,
+    is_element_access_expression, is_expression, is_property_access_expression, visit_each_child,
+    visit_node, BaseNodeFactorySynthetic, Node, NodeArray, NodeFactory, NodeInterface, SyntaxKind,
+    TransformFlags, TransformationContext, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 #[derive(Trace, Finalize)]
 struct TransformES2016 {
     context: Gc<Box<dyn TransformationContext>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
 impl TransformES2016 {
     fn new(context: Gc<Box<dyn TransformationContext>>) -> Self {
         Self {
             factory: context.factory(),
+            base_factory: context.base_factory(),
             context,
         }
     }
@@ -158,47 +159,36 @@ impl TransformES2016 {
                 None,
             );
             target = set_text_range_rc_node(
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_element_access_expression(
-                            synthetic_factory_,
-                            set_text_range_rc_node(
-                                self.factory
-                                    .create_assignment(
-                                        synthetic_factory_,
-                                        expression_temp.clone(),
-                                        left_as_element_access_expression.expression.clone(),
-                                    )
-                                    .into(),
-                                Some(&*left_as_element_access_expression.expression),
-                            ),
-                            set_text_range_rc_node(
-                                self.factory
-                                    .create_assignment(
-                                        synthetic_factory_,
-                                        argument_expression_temp.clone(),
-                                        left_as_element_access_expression
-                                            .argument_expression
-                                            .clone(),
-                                    )
-                                    .into(),
-                                Some(&*left_as_element_access_expression.argument_expression),
-                            ),
-                        )
-                        .into()
-                }),
+                self.factory
+                    .create_element_access_expression(
+                        set_text_range_rc_node(
+                            self.factory
+                                .create_assignment(
+                                    expression_temp.clone(),
+                                    left_as_element_access_expression.expression.clone(),
+                                )
+                                .wrap(),
+                            Some(&*left_as_element_access_expression.expression),
+                        ),
+                        set_text_range_rc_node(
+                            self.factory
+                                .create_assignment(
+                                    argument_expression_temp.clone(),
+                                    left_as_element_access_expression
+                                        .argument_expression
+                                        .clone(),
+                                )
+                                .wrap(),
+                            Some(&*left_as_element_access_expression.argument_expression),
+                        ),
+                    )
+                    .wrap(),
                 Some(&**left),
             );
             value = set_text_range_rc_node(
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_element_access_expression(
-                            synthetic_factory_,
-                            expression_temp,
-                            argument_expression_temp,
-                        )
-                        .into()
-                }),
+                self.factory
+                    .create_element_access_expression(expression_temp, argument_expression_temp)
+                    .wrap(),
                 Some(&**left),
             );
         } else if is_property_access_expression(left) {
@@ -208,36 +198,29 @@ impl TransformES2016 {
                 None,
             );
             target = set_text_range_rc_node(
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            set_text_range_rc_node(
-                                self.factory
-                                    .create_assignment(
-                                        synthetic_factory_,
-                                        expression_temp.clone(),
-                                        left_as_property_access_expression.expression.clone(),
-                                    )
-                                    .into(),
-                                Some(&*left_as_property_access_expression.expression),
-                            ),
-                            left_as_property_access_expression.name.clone(),
-                        )
-                        .into()
-                }),
+                self.factory
+                    .create_property_access_expression(
+                        set_text_range_rc_node(
+                            self.factory
+                                .create_assignment(
+                                    expression_temp.clone(),
+                                    left_as_property_access_expression.expression.clone(),
+                                )
+                                .wrap(),
+                            Some(&*left_as_property_access_expression.expression),
+                        ),
+                        left_as_property_access_expression.name.clone(),
+                    )
+                    .wrap(),
                 Some(&**left),
             );
             value = set_text_range_rc_node(
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            expression_temp,
-                            left_as_property_access_expression.name.clone(),
-                        )
-                        .into()
-                }),
+                self.factory
+                    .create_property_access_expression(
+                        expression_temp,
+                        left_as_property_access_expression.name.clone(),
+                    )
+                    .wrap(),
                 Some(&**left),
             );
         } else {
@@ -245,23 +228,19 @@ impl TransformES2016 {
             value = left.clone();
         }
         set_text_range_rc_node(
-            with_synthetic_factory(|synthetic_factory_| {
-                self.factory
-                    .create_assignment(
-                        synthetic_factory_,
-                        target,
-                        set_text_range_rc_node(
-                            self.factory.create_global_method_call(
-                                synthetic_factory_,
-                                "Math".to_owned(),
-                                "pow".to_owned(),
-                                vec![value, right.clone()],
-                            ),
-                            Some(node),
+            self.factory
+                .create_assignment(
+                    target,
+                    set_text_range_rc_node(
+                        self.factory.create_global_method_call(
+                            "Math".to_owned(),
+                            "pow".to_owned(),
+                            vec![value, right.clone()],
                         ),
-                    )
-                    .into()
-            }),
+                        Some(node),
+                    ),
+                )
+                .wrap(),
             Some(node),
         )
     }
@@ -283,14 +262,11 @@ impl TransformES2016 {
         )
         .unwrap();
         set_text_range_rc_node(
-            with_synthetic_factory(|synthetic_factory_| {
-                self.factory.create_global_method_call(
-                    synthetic_factory_,
-                    "Math".to_owned(),
-                    "pow".to_owned(),
-                    vec![left, right],
-                )
-            }),
+            self.factory.create_global_method_call(
+                "Math".to_owned(),
+                "pow".to_owned(),
+                vec![left, right],
+            ),
             Some(node),
         )
     }

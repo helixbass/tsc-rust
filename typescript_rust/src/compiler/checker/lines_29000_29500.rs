@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -408,7 +406,7 @@ impl TypeChecker {
                 );
                 context.set_return_mapper(
                     if some(
-                        Some(&return_context.inferences()),
+                        Some(&**return_context.inferences()),
                         Some(|inference: &Gc<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),

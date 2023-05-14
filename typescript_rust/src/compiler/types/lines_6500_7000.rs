@@ -1,7 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+use derive_builder::Builder;
+use gc::{Finalize, Gc, GcCellRef, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt;
@@ -9,9 +8,9 @@ use std::io;
 use std::rc::Rc;
 
 use super::{
-    BaseTextRange, CompilerOptions, FileReference, ModuleSpecifierResolutionHost, Node,
-    RedirectTargetsMap, ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SyntaxKind,
-    SynthesizedComment, TextRange,
+    BaseTextRange, CompilerOptions, FileReference, Node, RedirectTargetsMap,
+    ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SyntaxKind, SynthesizedComment,
+    TextRange,
 };
 use crate::{
     ref_unwrapped, CancellationToken, Cloneable, ModuleResolutionCache,
@@ -33,23 +32,23 @@ pub trait ModuleResolutionHost {
         overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>>;
-    fn trace(&self, s: &str) {}
+    fn trace(&self, _s: &str) {}
     fn is_trace_supported(&self) -> bool;
-    fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+    fn directory_exists(&self, _directory_name: &str) -> Option<bool> {
         None
     }
     fn is_directory_exists_supported(&self) -> bool;
-    fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
+    fn directory_exists_non_overridden(&self, _directory_name: &str) -> Option<bool> {
         None
     }
     fn set_overriding_directory_exists(
         &self,
         overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     );
-    fn realpath(&self, path: &str) -> Option<String> {
+    fn realpath(&self, _path: &str) -> Option<String> {
         None
     }
-    fn realpath_non_overridden(&self, path: &str) -> Option<String> {
+    fn realpath_non_overridden(&self, _path: &str) -> Option<String> {
         None
     }
     fn is_realpath_supported(&self) -> bool;
@@ -60,11 +59,11 @@ pub trait ModuleResolutionHost {
     fn get_current_directory(&self) -> Option<String> {
         None
     }
-    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+    fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
         None
     }
     fn is_get_directories_supported(&self) -> bool;
-    fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
+    fn get_directories_non_overridden(&self, _path: &str) -> Option<Vec<String>> {
         None
     }
     fn set_overriding_get_directories(
@@ -81,7 +80,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
         ParseConfigHost::file_exists(self, file_name)
     }
 
-    fn file_exists_non_overridden(&self, file_name: &str) -> bool {
+    fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
         // this is a guess that we don't need any of these overriding things for these implementors
         // of ModuleResolutionHost
         unreachable!()
@@ -89,7 +88,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_file_exists(
         &self,
-        overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -100,7 +99,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_directory_exists(
         &self,
-        overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -111,7 +110,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_realpath(
         &self,
-        overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -122,7 +121,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_get_directories(
         &self,
-        overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -131,13 +130,13 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
         ParseConfigHost::read_file(self, file_name)
     }
 
-    fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>> {
+    fn read_file_non_overridden(&self, _file_name: &str) -> io::Result<Option<String>> {
         unreachable!()
     }
 
     fn set_overriding_read_file(
         &self,
-        overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -166,25 +165,30 @@ pub trait ModuleResolutionHostOverrider: Trace + Finalize {
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     );
-    fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+    fn directory_exists(&self, _directory_name: &str) -> Option<bool> {
         None
     }
     fn create_directory(&self, directory: &str);
-    fn realpath(&self, path: &str) -> Option<String> {
+    fn realpath(&self, _path: &str) -> Option<String> {
         None
     }
-    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+    fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
         None
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Builder, Clone, Debug, Trace, Finalize)]
+#[builder(setter(into, strip_option))]
 pub struct ResolvedModuleFull {
     pub resolved_file_name: String,
+    #[builder(default)]
     pub is_external_library_import: Option<bool>,
+    #[builder(default)]
     pub original_path: Option<String>,
+    #[builder(default)]
     #[unsafe_ignore_trace]
     pub extension: Option<Extension>,
+    #[builder(default)]
     #[unsafe_ignore_trace]
     pub package_id: Option<PackageId>,
 }
@@ -201,7 +205,7 @@ impl Cloneable for ResolvedModuleFull {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PackageId {
     pub name: String,
     pub sub_module_name: String,
@@ -272,11 +276,31 @@ impl AsRef<str> for Extension {
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Debug, Trace, Finalize)]
 pub struct ResolvedModuleWithFailedLookupLocations {
     pub resolved_module: Option<Gc<ResolvedModuleFull>>,
     #[unsafe_ignore_trace]
-    pub failed_lookup_locations: RefCell<Vec<String>>,
+    failed_lookup_locations: RefCell<Vec<String>>,
+}
+
+impl ResolvedModuleWithFailedLookupLocations {
+    pub fn new(
+        resolved_module: Option<Gc<ResolvedModuleFull>>,
+        failed_lookup_locations: Vec<String>,
+    ) -> Self {
+        Self {
+            resolved_module,
+            failed_lookup_locations: RefCell::new(failed_lookup_locations),
+        }
+    }
+
+    pub fn failed_lookup_locations(&self) -> Ref<Vec<String>> {
+        self.failed_lookup_locations.borrow()
+    }
+
+    pub fn failed_lookup_locations_mut(&self) -> RefMut<Vec<String>> {
+        self.failed_lookup_locations.borrow_mut()
+    }
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -306,18 +330,19 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     ) -> Option<Gc<Node /*SourceFile*/>>;
     fn get_source_file_by_path(
         &self,
-        file_name: &str,
-        path: &Path,
-        language_version: ScriptTarget,
-        on_error: Option<&mut dyn FnMut(&str)>,
-        should_create_new_source_file: Option<bool>,
+        _file_name: &str,
+        _path: &Path,
+        _language_version: ScriptTarget,
+        _on_error: Option<&mut dyn FnMut(&str)>,
+        _should_create_new_source_file: Option<bool>,
     ) -> Option<Gc<Node /*SourceFile*/>> {
         None
     }
+    fn is_get_source_file_by_path_supported(&self) -> bool;
     fn get_cancellation_token(&self) -> Option<Gc<Box<dyn CancellationToken>>> {
         None
     }
-    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String;
+    fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> String;
     fn get_default_lib_location(&self) -> Option<String> {
         None
     }
@@ -348,11 +373,11 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn get_new_line(&self) -> String;
     fn read_directory(
         &self,
-        root_dir: &str,
-        extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: &[String],
-        depth: Option<usize>,
+        _root_dir: &str,
+        _extensions: &[&str],
+        _excludes: Option<&[String]>,
+        _includes: &[String],
+        _depth: Option<usize>,
     ) -> Option<Vec<String>> {
         None
     }
@@ -360,12 +385,12 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
 
     fn resolve_module_names(
         &self,
-        module_names: &[String],
-        containing_file: &str,
-        reused_names: Option<&[String]>,
-        redirected_reference: Option<&ResolvedProjectReference>,
-        options: &CompilerOptions,
-        containing_source_file: Option<&Node /*SourceFile*/>,
+        _module_names: &[String],
+        _containing_file: &str,
+        _reused_names: Option<&[String]>,
+        _redirected_reference: Option<&ResolvedProjectReference>,
+        _options: &CompilerOptions,
+        _containing_source_file: Option<&Node /*SourceFile*/>,
     ) -> Option<Vec<Option<ResolvedModuleFull>>> {
         None
     }
@@ -376,50 +401,51 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn is_resolve_type_reference_directives_supported(&self) -> bool;
     fn resolve_type_reference_directives(
         &self,
-        type_reference_directive_names: &[String],
-        containing_file: &str,
-        redirected_reference: Option<&ResolvedProjectReference>,
-        options: &CompilerOptions,
+        _type_reference_directive_names: &[String],
+        _containing_file: &str,
+        _redirected_reference: Option<&ResolvedProjectReference>,
+        _options: &CompilerOptions,
     ) -> Option<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
         None
     }
-    fn get_environment_variable(&self, name: &str) -> Option<String> {
+    fn get_environment_variable(&self, _name: &str) -> Option<String> {
         None
     }
     fn on_release_old_source_file(
         &self,
-        old_source_file: &Node, /*SourceFile*/
-        old_options: &CompilerOptions,
-        has_source_file_by_path: bool,
+        _old_source_file: &Node, /*SourceFile*/
+        _old_options: &CompilerOptions,
+        _has_source_file_by_path: bool,
     ) {
     }
     fn is_on_release_old_source_file_supported(&self) -> bool;
     fn on_release_parsed_command_line(
         &self,
-        config_file_name: &str,
-        old_resolved_ref: Option<ResolvedProjectReference>,
-        option_options: &CompilerOptions,
+        _config_file_name: &str,
+        _old_resolved_ref: Option<ResolvedProjectReference>,
+        _option_options: &CompilerOptions,
     ) {
     }
     fn is_on_release_parsed_command_line_supported(&self) -> bool;
-    fn has_invalidated_resolution(&self, source_file: &Path) -> Option<bool> {
+    fn has_invalidated_resolution(&self, _source_file: &Path) -> Option<bool> {
         None
     }
     fn has_changed_automatic_type_directive_names(&self) -> Option<bool> {
         None
     }
-    fn create_hash(&self, data: &str) -> Option<String> {
+    fn create_hash(&self, _data: &str) -> Option<String> {
         None
     }
-    fn get_parsed_command_line(&self, file_name: &str) -> Option<ParsedCommandLine> {
+    fn get_parsed_command_line(&self, _file_name: &str) -> Option<ParsedCommandLine> {
         None
     }
+    fn is_get_parsed_command_line_supported(&self) -> bool;
     fn use_source_of_project_reference_redirect(&self) -> Option<bool> {
         None
     }
 
-    fn create_directory(&self, directory: &str) {}
-    fn create_directory_non_overridden(&self, directory: &str) {}
+    fn create_directory(&self, _directory: &str) {}
+    fn create_directory_non_overridden(&self, _directory: &str) {}
     fn is_create_directory_supported(&self) -> bool;
     fn set_overriding_create_directory(
         &self,
@@ -566,6 +592,18 @@ impl From<&Node> for Gc<SourceMapRange> {
     }
 }
 
+impl From<&BaseTextRange> for SourceMapRange {
+    fn from(value: &BaseTextRange) -> Self {
+        Self::new(value.pos(), value.end(), None)
+    }
+}
+
+impl From<&BaseTextRange> for Gc<SourceMapRange> {
+    fn from(value: &BaseTextRange) -> Self {
+        Gc::new(value.into())
+    }
+}
+
 #[derive(Debug, Trace, Finalize)]
 pub enum SourceMapSource {
     SourceFile(Gc<Node /*SourceFile*/>),
@@ -705,9 +743,9 @@ impl SourceFileLike for SourceMapSourceConcrete {
 
     fn maybe_get_position_of_line_and_character(
         &self,
-        line: usize,
-        character: usize,
-        allow_edits: Option<bool>,
+        _line: usize,
+        _character: usize,
+        _allow_edits: Option<bool>,
     ) -> Option<usize> {
         None
     }

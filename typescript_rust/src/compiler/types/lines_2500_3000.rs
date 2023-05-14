@@ -1,8 +1,5 @@
-#![allow(non_upper_case_globals)]
-
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::rc::Rc;
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use std::cell::{Cell, Ref, RefCell};
 
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
@@ -1316,7 +1313,7 @@ impl NamedDeclarationInterface for SpreadAssignment {
         unreachable!()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, _name: Gc<Node>) {
         unreachable!()
     }
 }

@@ -2,7 +2,6 @@ use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::{
     get_closing_bracket, get_opening_bracket,
@@ -11,9 +10,9 @@ use super::{
 use crate::{
     get_comment_range, get_emit_flags, get_shebang, is_arrow_function, is_block,
     is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
-    is_unparsed_source, range_is_on_single_line, single_or_undefined, some, with_synthetic_factory,
-    AsDoubleDeref, BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_,
-    EmitFlags, EmitHint, HasInitializerInterface, HasStatementsInterface, HasTypeInterface,
+    is_unparsed_source, range_is_on_single_line, single_or_undefined, some, AsDoubleDeref,
+    BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags,
+    EmitHint, HasInitializerInterface, HasStatementsInterface, HasTypeInterface,
     HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
     Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
     SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
@@ -249,16 +248,16 @@ impl Printer {
         }
     }
 
-    pub(super) fn emit_node_with_prefix<TPrefixWriter: FnMut(&str), TEmit: FnMut(&Node)>(
+    pub(super) fn emit_node_with_prefix(
         &self,
         prefix: &str,
-        mut prefix_writer: TPrefixWriter,
+        mut prefix_writer: impl FnMut(&str),
         node: Option<&Node>,
-        emit: TEmit,
+        mut emit: impl FnMut(&Node),
     ) {
         if let Some(node) = node {
             prefix_writer(prefix);
-            self.emit(Some(node), None);
+            emit(node);
         }
     }
 

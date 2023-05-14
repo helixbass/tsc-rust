@@ -5,23 +5,22 @@ use std::{convert::TryInto, ptr};
 
 use crate::{
     add_emit_flags, append, compute_line_and_character_of_position, concatenate,
-    create_comment_directives_map, create_diagnostic_for_node,
-    create_diagnostic_for_node_in_source_file, create_diagnostic_for_range, create_file_diagnostic,
-    external_helpers_module_name_text, for_each_child_recursively, get_declaration_diagnostics,
-    get_external_module_name, get_jsx_implicit_import_base, get_jsx_runtime_import,
-    get_line_starts, get_text_of_identifier_or_literal, has_syntactic_modifier, is_ambient_module,
+    create_comment_directives_map, create_diagnostic_for_node_in_source_file,
+    create_diagnostic_for_range, create_file_diagnostic, external_helpers_module_name_text,
+    for_each_child_recursively, get_declaration_diagnostics, get_external_module_name, get_factory,
+    get_jsx_implicit_import_base, get_jsx_runtime_import, get_line_starts,
+    get_text_of_identifier_or_literal, has_syntactic_modifier, is_ambient_module,
     is_any_import_or_re_export, is_check_js_enabled_for_file, is_external_module,
     is_external_module_name_relative, is_import_call, is_literal_import_type_node,
     is_module_declaration, is_require_call, is_source_file_js, is_string_literal,
     is_string_literal_like, normalize_path, set_parent, set_parent_recursive, skip_type_checking,
-    sort_and_deduplicate_diagnostics, starts_with, token_to_string,
-    with_synthetic_factory_and_factory, CancellationTokenDebuggable, CommentDirective,
-    CommentDirectivesMap, Debug_, Diagnostic, DiagnosticMessage,
+    sort_and_deduplicate_diagnostics, starts_with, token_to_string, CancellationTokenDebuggable,
+    CommentDirective, CommentDirectivesMap, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithLocation, Diagnostics, EmitFlags,
-    FileIncludeReason, ForEachChildRecursivelyCallbackReturn, HasStatementsInterface,
-    LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Program,
-    ReadonlyTextRange, ResolvedProjectReference, ScriptKind, SortedArray, SourceFileLike,
-    SyntaxKind,
+    FileIncludeReason, FileReference, ForEachChildRecursivelyCallbackReturn,
+    HasStatementsInterface, LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeFlags,
+    NodeInterface, Program, ReadonlyTextRange, ResolvedProjectReference, ScriptKind, SortedArray,
+    SourceFileLike, SyntaxKind,
 };
 
 use super::DiagnosticCache;
@@ -840,7 +839,7 @@ impl Program {
         file_name: &str,
         is_default_lib: bool,
         ignore_no_default_lib: bool,
-        reason: &FileIncludeReason,
+        reason: Gc<FileIncludeReason>,
     ) {
         self.process_source_file(
             &normalize_path(file_name),
@@ -851,26 +850,37 @@ impl Program {
         );
     }
 
+    pub fn file_reference_is_equal_to(&self, a: &FileReference, b: &FileReference) -> bool {
+        a.file_name == b.file_name
+    }
+
+    pub fn module_name_is_equal_to(
+        &self,
+        a: &Node, /*StringLiteralLike | Identifier*/
+        b: &Node, /*StringLiteralLike | Identifier*/
+    ) -> bool {
+        if a.kind() == SyntaxKind::Identifier {
+            b.kind() == SyntaxKind::Identifier
+                && a.as_identifier().escaped_text == b.as_identifier().escaped_text
+        } else {
+            b.kind() == SyntaxKind::StringLiteral
+                && &*a.as_literal_like_node().text() == &*b.as_literal_like_node().text()
+        }
+    }
+
     pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Gc<Node> {
-        let external_helpers_module_reference: Gc<Node> =
-            with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                factory
-                    .create_string_literal(synthetic_factory, text.to_owned(), None, None)
-                    .into()
-            });
-        let import_decl: Gc<Node> =
-            with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                factory
-                    .create_import_declaration(
-                        synthetic_factory,
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
-                        None,
-                        external_helpers_module_reference.clone(),
-                        None,
-                    )
-                    .into()
-            });
+        let external_helpers_module_reference = get_factory()
+            .create_string_literal(text.to_owned(), None, None)
+            .wrap();
+        let import_decl = get_factory()
+            .create_import_declaration(
+                Option::<Gc<NodeArray>>::None,
+                Option::<Gc<NodeArray>>::None,
+                None,
+                external_helpers_module_reference.clone(),
+                None,
+            )
+            .wrap();
         add_emit_flags(import_decl.clone(), EmitFlags::NeverApplyImportHelper);
         set_parent(&external_helpers_module_reference, Some(&*import_decl));
         set_parent(&import_decl, Some(file));
@@ -985,7 +995,7 @@ impl Program {
                     || file.as_source_file().is_declaration_file())
             {
                 let node_name = node.as_named_declaration().name();
-                node_name.set_parent(node.node_wrapper());
+                node_name.set_parent(Some(node.node_wrapper()));
                 let name_text = get_text_of_identifier_or_literal(&node_name);
                 if is_external_module_file
                     || (in_ambient_module && !is_external_module_name_relative(&name_text))

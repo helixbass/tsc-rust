@@ -11,15 +11,11 @@ thread_local! {
     static runners_: GcCell<Vec<RunnerBase>> = Default::default();
 }
 
-fn with_runners<TReturn, TCallback: FnMut(&[RunnerBase]) -> TReturn>(
-    mut callback: TCallback,
-) -> TReturn {
+fn with_runners<TReturn>(mut callback: impl FnMut(&[RunnerBase]) -> TReturn) -> TReturn {
     runners_.with(|runners| callback(&runners.borrow()))
 }
 
-fn with_runners_mut<TReturn, TCallback: FnMut(&mut Vec<RunnerBase>) -> TReturn>(
-    mut callback: TCallback,
-) -> TReturn {
+fn with_runners_mut<TReturn>(mut callback: impl FnMut(&mut Vec<RunnerBase>) -> TReturn) -> TReturn {
     runners_.with(|runners| callback(&mut runners.borrow_mut()))
 }
 
@@ -80,6 +76,9 @@ fn handle_test_config() -> bool {
     with_runners_mut(|runners| {
         if runners.is_empty() {
             // unimplemented!()
+            runners.push(CompilerBaselineRunner::new_runner_base(
+                CompilerTestType::Conformance,
+            ));
             runners.push(CompilerBaselineRunner::new_runner_base(
                 CompilerTestType::Regression,
             ));

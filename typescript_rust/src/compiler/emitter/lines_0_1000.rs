@@ -1,4 +1,4 @@
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -11,25 +11,24 @@ use crate::{
     ensure_trailing_directory_separator, factory, file_extension_is, file_extension_is_one_of,
     filter, for_each_child, get_are_declaration_maps_enabled, get_base_file_name,
     get_declaration_emit_output_file_path, get_directory_path, get_emit_declarations,
-    get_emit_module_kind_from_module_and_target, get_new_line_character,
+    get_emit_module_kind_from_module_and_target, get_factory, get_new_line_character,
     get_normalized_absolute_path, get_own_emit_output_file_path, get_relative_path_from_directory,
     get_relative_path_to_directory_or_url, get_root_length, get_source_file_path_in_new_dir,
-    get_source_files_to_emit, get_sys, is_bundle, is_export_assignment, is_export_specifier,
-    is_expression, is_identifier, is_incremental_compilation, is_json_source_file,
-    is_option_str_empty, is_source_file, is_source_file_not_json, last_or_undefined, length,
-    no_emit_notification, no_emit_substitution, normalize_path, normalize_slashes, out_file,
-    remove_file_extension, resolve_path, transform_nodes, version, with_factory,
-    with_synthetic_factory_and_factory, write_file, BaseNodeFactorySynthetic, BuildInfo,
-    BundleBuildInfo, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
-    BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
-    DetachedCommentInfo, DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint,
-    EmitHost, EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter,
-    EmitTransformers, ExportedModulesFromDeclarationEmit, Extension, JsxEmit, ListFormat,
-    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
-    NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer,
-    PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,
-    SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange, TransformNodesTransformationResult,
-    TransformationResult, TransformerFactory,
+    get_source_files_to_emit, get_synthetic_factory, get_sys, is_bundle, is_export_assignment,
+    is_export_specifier, is_expression, is_identifier, is_incremental_compilation,
+    is_json_source_file, is_option_str_empty, is_source_file, is_source_file_not_json,
+    last_or_undefined, length, no_emit_notification, no_emit_substitution, normalize_path,
+    normalize_slashes, out_file, remove_file_extension, resolve_path, transform_nodes, version,
+    write_file, BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo, BundleFileInfo,
+    BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind, Comparison,
+    CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo, DiagnosticCollection,
+    EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost, EmitHostWriteFileCallback,
+    EmitResolver, EmitResult, EmitTextWriter, EmitTransformers, ExportedModulesFromDeclarationEmit,
+    Extension, JsxEmit, ListFormat, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node,
+    NodeArray, NodeId, NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine,
+    PrintHandlers, Printer, PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost,
+    SourceMapEmitResult, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
+    TransformNodesTransformationResult, TransformationResult, TransformerFactory,
 };
 
 lazy_static! {
@@ -85,16 +84,12 @@ pub fn for_each_emitted_file_returns<TReturn>(
     {
         let prepends = host.get_prepend_nodes();
         if !source_files.is_empty() || !prepends.is_empty() {
-            let bundle: Gc<Node> =
-                with_synthetic_factory_and_factory(|synthetic_factory, factory_| {
-                    factory_
-                        .create_bundle(
-                            synthetic_factory,
-                            source_files.into_iter().map(Option::Some).collect(),
-                            Some(prepends),
-                        )
-                        .into()
-                });
+            let bundle: Gc<Node> = get_factory()
+                .create_bundle(
+                    source_files.into_iter().map(Option::Some).collect(),
+                    Some(prepends),
+                )
+                .wrap();
             let result = action(
                 &get_output_paths_for(&bundle, host, force_dts_emit),
                 Some(&*bundle),
@@ -335,11 +330,11 @@ pub fn get_output_extension(file_name: &str, options: &CompilerOptions) -> Exten
     }
 }
 
-pub(crate) fn get_output_declaration_file_name<TGetCommonSourceDirectory: FnMut() -> String>(
-    input_file_name: &str,
-    config_file: &ParsedCommandLine,
-    ignore_case: bool,
-    get_common_source_directory: Option<&mut TGetCommonSourceDirectory>,
+pub(crate) fn get_output_declaration_file_name(
+    _input_file_name: &str,
+    _config_file: &ParsedCommandLine,
+    _ignore_case: bool,
+    _get_common_source_directory: Option<&mut impl FnMut() -> String>,
 ) -> String {
     unimplemented!()
 }
@@ -396,10 +391,10 @@ pub(crate) fn get_common_source_directory<
 
 pub(crate) fn get_common_source_directory_of_config(
     command_line: &ParsedCommandLine,
-    ignore_case: bool,
+    _ignore_case: bool,
 ) -> String {
-    let options = &command_line.options;
-    let file_names = &command_line.file_names;
+    let _options = &command_line.options;
+    let _file_names = &command_line.file_names;
     unimplemented!()
 }
 
@@ -735,17 +730,16 @@ fn emit_js_file_or_bundle(
         *emit_skipped = true;
         return;
     }
-    let transform = with_factory(|factory_| {
-        transform_nodes(
-            Some(resolver.clone()),
-            Some(host.clone()),
-            factory_.clone(),
-            compiler_options.clone(),
-            &[source_file_or_bundle.node_wrapper()],
-            script_transformers,
-            false,
-        )
-    });
+    let transform = transform_nodes(
+        Some(resolver.clone()),
+        Some(host.clone()),
+        get_factory(),
+        get_synthetic_factory(),
+        compiler_options.clone(),
+        &[source_file_or_bundle.node_wrapper()],
+        script_transformers,
+        false,
+    );
 
     let printer_options = PrinterOptions {
         remove_comments: compiler_options.remove_comments,
@@ -889,21 +883,16 @@ fn emit_declaration_file_or_bundle(
         })
     };
     let input_list_or_bundle = if out_file(&compiler_options).is_non_empty() {
-        vec![with_synthetic_factory_and_factory(
-            |synthetic_factory_, factory_| {
-                factory_
-                    .create_bundle(
-                        synthetic_factory_,
-                        files_for_emit.iter().cloned().map(Option::Some).collect(),
-                        if !is_source_file(source_file_or_bundle) {
-                            Some(source_file_or_bundle.as_bundle().prepends.clone())
-                        } else {
-                            None
-                        },
-                    )
-                    .into()
-            },
-        )]
+        vec![get_factory()
+            .create_bundle(
+                files_for_emit.iter().cloned().map(Option::Some).collect(),
+                if !is_source_file(source_file_or_bundle) {
+                    Some(source_file_or_bundle.as_bundle().prepends.clone())
+                } else {
+                    None
+                },
+            )
+            .wrap()]
     } else {
         files_for_emit.clone()
     };
@@ -912,17 +901,17 @@ fn emit_declaration_file_or_bundle(
             collect_linked_aliases(&**resolver, file_for_emit);
         });
     }
-    let declaration_transform = with_factory(|factory_| {
-        transform_nodes(
-            Some(resolver.clone()),
-            Some(host.clone()),
-            factory_.clone(),
-            compiler_options.clone(),
-            &input_list_or_bundle,
-            declaration_transformers,
-            false,
-        )
-    });
+    let declaration_transform = transform_nodes(
+        Some(resolver.clone()),
+        Some(host.clone()),
+        get_factory(),
+        get_synthetic_factory(),
+        compiler_options.clone(),
+        &input_list_or_bundle,
+        declaration_transformers,
+        false,
+    );
+
     if length(declaration_transform.diagnostics().as_deref()) > 0 {
         for diagnostic in declaration_transform.diagnostics().unwrap() {
             emitter_diagnostics.add(diagnostic);
@@ -1308,7 +1297,7 @@ pub(crate) fn get_build_info_text(build_info: &BuildInfo) -> String {
     serde_json::to_string(build_info).unwrap()
 }
 
-pub(crate) fn get_build_info(build_info_text: &str) -> Gc<BuildInfo> {
+pub(crate) fn get_build_info(_build_info_text: &str) -> Gc<BuildInfo> {
     unimplemented!()
 }
 
@@ -1324,260 +1313,270 @@ pub(crate) fn not_implemented_resolver() -> Gc<Box<dyn EmitResolver>> {
 struct NotImplementedResolver;
 
 impl EmitResolver for NotImplementedResolver {
-    fn has_global_name(&self, name: &str) -> bool {
+    fn has_global_name(&self, _name: &str) -> bool {
         unimplemented!()
     }
 
     fn get_referenced_export_container(
         &self,
-        node: &Node, /*Identifier*/
-        prefix_locals: Option<bool>,
+        _node: &Node, /*Identifier*/
+        _prefix_locals: Option<bool>,
     ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
         unimplemented!()
     }
 
     fn get_referenced_import_declaration(
         &self,
-        node: &Node, /*Identifier*/
+        _node: &Node, /*Identifier*/
     ) -> Option<Gc<Node /*Declaration*/>> {
         unimplemented!()
     }
 
-    fn is_declaration_with_colliding_name(&self, node: &Node /*Declaration*/) -> bool {
+    fn get_referenced_declaration_with_colliding_name(
+        &self,
+        _node: &Node, /*Identifier*/
+    ) -> Option<Gc<Node /*Declaration*/>> {
         unimplemented!()
     }
 
-    fn is_value_alias_declaration(&self, node: &Node) -> bool {
+    fn is_declaration_with_colliding_name(&self, _node: &Node /*Declaration*/) -> bool {
         unimplemented!()
     }
 
-    fn is_referenced_alias_declaration(&self, node: &Node, check_children: Option<bool>) -> bool {
+    fn is_value_alias_declaration(&self, _node: &Node) -> bool {
+        unimplemented!()
+    }
+
+    fn is_referenced_alias_declaration(&self, _node: &Node, _check_children: Option<bool>) -> bool {
         unimplemented!()
     }
 
     fn is_top_level_value_import_equals_with_entity_name(
         &self,
-        node: &Node, /*ImportEqualsDeclaration*/
+        _node: &Node, /*ImportEqualsDeclaration*/
     ) -> bool {
         unimplemented!()
     }
 
-    fn get_node_check_flags(&self, node: &Node) -> crate::NodeCheckFlags {
+    fn get_node_check_flags(&self, _node: &Node) -> crate::NodeCheckFlags {
         unimplemented!()
     }
 
-    fn is_declaration_visible(&self, node: &Node /*Declaration | AnyImportSyntax*/) -> bool {
+    fn is_declaration_visible(&self, _node: &Node /*Declaration | AnyImportSyntax*/) -> bool {
         unimplemented!()
     }
 
-    fn is_late_bound(&self, node: &Node /*Declaration*/) -> bool {
+    fn is_late_bound(&self, _node: &Node /*Declaration*/) -> bool {
         false
     }
 
     fn collect_linked_aliases(
         &self,
-        node: &Node, /*Identifier*/
-        set_visibility: Option<bool>,
+        _node: &Node, /*Identifier*/
+        _set_visibility: Option<bool>,
     ) -> Option<Vec<Gc<Node>>> {
         unimplemented!()
     }
 
     fn is_implementation_of_overload(
         &self,
-        node: &Node, /*SignatureDeclaration*/
+        _node: &Node, /*SignatureDeclaration*/
     ) -> Option<bool> {
         unimplemented!()
     }
 
-    fn is_required_initialized_parameter(&self, node: &Node /*ParameterDeclaration*/) -> bool {
+    fn is_required_initialized_parameter(
+        &self,
+        _node: &Node, /*ParameterDeclaration*/
+    ) -> bool {
         unimplemented!()
     }
 
     fn is_optional_uninitialized_parameter_property(
         &self,
-        node: &Node, /*ParameterDeclaration*/
+        _node: &Node, /*ParameterDeclaration*/
     ) -> bool {
         unimplemented!()
     }
 
-    fn is_expando_function_declaration(&self, node: &Node /*FunctionDeclaration*/) -> bool {
+    fn is_expando_function_declaration(&self, _node: &Node /*FunctionDeclaration*/) -> bool {
         unimplemented!()
     }
 
     fn get_properties_of_container_function(
         &self,
-        node: &Node, /*Declaration*/
+        _node: &Node, /*Declaration*/
     ) -> Vec<Gc<crate::Symbol>> {
         unimplemented!()
     }
 
     fn create_type_of_declaration(
         &self,
-        declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
-        enclosing_declaration: &Node,
-        flags: crate::NodeBuilderFlags,
-        tracker: Gc<Box<dyn crate::SymbolTracker>>,
-        add_undefined: Option<bool>,
+        _declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
+        _enclosing_declaration: &Node,
+        _flags: crate::NodeBuilderFlags,
+        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _add_undefined: Option<bool>,
     ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
     fn create_return_type_of_signature_declaration(
         &self,
-        signature_declaration: &Node, /*SignatureDeclaration*/
-        enclosing_declaration: &Node,
-        flags: crate::NodeBuilderFlags,
-        tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _signature_declaration: &Node, /*SignatureDeclaration*/
+        _enclosing_declaration: &Node,
+        _flags: crate::NodeBuilderFlags,
+        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
     ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
     fn create_type_of_expression(
         &self,
-        expr: &Node, /*Expression*/
-        enclosing_declaration: &Node,
-        flags: crate::NodeBuilderFlags,
-        tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _expr: &Node, /*Expression*/
+        _enclosing_declaration: &Node,
+        _flags: crate::NodeBuilderFlags,
+        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
     ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
     fn create_literal_const_value(
         &self,
-        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-        tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
 
     fn is_symbol_accessible(
         &self,
-        symbol: &crate::Symbol,
-        enclosing_declaration: Option<&Node>,
-        meaning: Option<crate::SymbolFlags>,
-        should_compute_alias_to_mark_visible: bool,
+        _symbol: &crate::Symbol,
+        _enclosing_declaration: Option<&Node>,
+        _meaning: Option<crate::SymbolFlags>,
+        _should_compute_alias_to_mark_visible: bool,
     ) -> crate::SymbolAccessibilityResult {
         unimplemented!()
     }
 
     fn is_entity_name_visible(
         &self,
-        entity_name: &Node, /*EntityNameOrEntityNameExpression*/
-        enclosing_declaration: &Node,
+        _entity_name: &Node, /*EntityNameOrEntityNameExpression*/
+        _enclosing_declaration: &Node,
     ) -> crate::SymbolVisibilityResult {
         unimplemented!()
     }
 
     fn get_constant_value(
         &self,
-        node: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
+        _node: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
     ) -> Option<crate::StringOrNumber> {
         unimplemented!()
     }
 
     fn get_referenced_value_declaration(
         &self,
-        reference: &Node, /*Identifier*/
+        _reference: &Node, /*Identifier*/
     ) -> Option<Gc<Node /*Declaration*/>> {
         unimplemented!()
     }
 
     fn get_type_reference_serialization_kind(
         &self,
-        type_name: &Node, /*EntityName*/
-        location: Option<&Node>,
+        _type_name: &Node, /*EntityName*/
+        _location: Option<&Node>,
     ) -> crate::TypeReferenceSerializationKind {
         unimplemented!()
     }
 
-    fn is_optional_parameter(&self, node: &Node /*ParameterDeclaration*/) -> bool {
+    fn is_optional_parameter(&self, _node: &Node /*ParameterDeclaration*/) -> bool {
         unimplemented!()
     }
 
     fn module_exports_some_value(
         &self,
-        module_reference_expression: &Node, /*Expression*/
+        _module_reference_expression: &Node, /*Expression*/
     ) -> bool {
         unimplemented!()
     }
 
-    fn is_arguments_local_binding(&self, node: &Node /*Identifier*/) -> bool {
+    fn is_arguments_local_binding(&self, _node: &Node /*Identifier*/) -> bool {
         unimplemented!()
     }
 
     fn get_external_module_file_from_declaration(
         &self,
-        declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
+        _declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
     ) -> Option<Gc<Node /*SourceFile*/>> {
         unimplemented!()
     }
 
     fn get_type_reference_directives_for_entity_name(
         &self,
-        name: &Node, /*EntityNameOrEntityNameExpression*/
+        _name: &Node, /*EntityNameOrEntityNameExpression*/
     ) -> Option<Vec<String>> {
         unimplemented!()
     }
 
     fn get_type_reference_directives_for_symbol(
         &self,
-        symbol: &crate::Symbol,
-        meaning: Option<crate::SymbolFlags>,
+        _symbol: &crate::Symbol,
+        _meaning: Option<crate::SymbolFlags>,
     ) -> Option<Vec<String>> {
         unimplemented!()
     }
 
     fn is_literal_const_declaration(
         &self,
-        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+        _node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> bool {
         unimplemented!()
     }
 
-    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>> {
+    fn get_jsx_factory_entity(&self, _location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>> {
         unimplemented!()
     }
 
     fn get_jsx_fragment_factory_entity(
         &self,
-        location: Option<&Node>,
+        _location: Option<&Node>,
     ) -> Option<Gc<Node /*EntityName*/>> {
         unimplemented!()
     }
 
     fn get_all_accessor_declarations(
         &self,
-        declaration: &Node, /*AccessorDeclaration*/
+        _declaration: &Node, /*AccessorDeclaration*/
     ) -> crate::AllAccessorDeclarations {
         unimplemented!()
     }
 
     fn get_symbol_of_external_module_specifier(
         &self,
-        node: &Node, /*StringLiteralLike*/
+        _node: &Node, /*StringLiteralLike*/
     ) -> Option<Gc<crate::Symbol>> {
         unimplemented!()
     }
 
     fn is_binding_captured_by_node(
         &self,
-        node: &Node,
-        decl: &Node, /*VariableDeclaration | BindingElement*/
+        _node: &Node,
+        _decl: &Node, /*VariableDeclaration | BindingElement*/
     ) -> bool {
         unimplemented!()
     }
 
     fn get_declaration_statements_for_source_file(
         &self,
-        node: &Node, /*SourceFile*/
-        flags: crate::NodeBuilderFlags,
-        tracker: Gc<Box<dyn crate::SymbolTracker>>,
-        bundled: Option<bool>,
+        _node: &Node, /*SourceFile*/
+        _flags: crate::NodeBuilderFlags,
+        _tracker: Gc<Box<dyn crate::SymbolTracker>>,
+        _bundled: Option<bool>,
     ) -> Option<Vec<Gc<Node /*Statement*/>>> {
         unimplemented!()
     }
 
-    fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool {
+    fn is_import_required_by_augmentation(&self, _decl: &Node /*ImportDeclaration*/) -> bool {
         unimplemented!()
     }
 }
@@ -1852,10 +1851,6 @@ impl Printer {
         !self.handlers.is_on_emit_node_supported()
     }
 
-    pub(super) fn is_on_emit_node_supported(&self) -> bool {
-        true
-    }
-
     pub(super) fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
         self.handlers.is_emit_notification_enabled(node)
     }
@@ -1910,12 +1905,6 @@ impl Printer {
 
     pub(super) fn maybe_bundle_file_info(&self) -> Option<Gc<GcCell<BundleFileInfo>>> {
         self.bundle_file_info.borrow().clone()
-    }
-
-    pub(super) fn maybe_bundle_file_info_mut(
-        &self,
-    ) -> GcCellRefMut<Option<Gc<GcCell<BundleFileInfo>>>> {
-        self.bundle_file_info.borrow_mut()
     }
 
     pub(super) fn bundle_file_info(&self) -> Gc<GcCell<BundleFileInfo>> {
@@ -2059,6 +2048,12 @@ impl Printer {
             self.detached_comments_info.borrow(),
             |detached_comments_info| detached_comments_info.as_ref().unwrap(),
         )
+    }
+
+    pub(super) fn maybe_detached_comments_info_mut(
+        &self,
+    ) -> RefMut<Option<Vec<DetachedCommentInfo>>> {
+        self.detached_comments_info.borrow_mut()
     }
 
     pub(super) fn detached_comments_info_mut(&self) -> RefMut<Vec<DetachedCommentInfo>> {

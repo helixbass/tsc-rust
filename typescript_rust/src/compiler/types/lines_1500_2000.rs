@@ -1,8 +1,5 @@
-#![allow(non_upper_case_globals)]
-
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
-use std::cell::{Cell, Ref, RefCell};
-use std::rc::Rc;
+use gc::{Finalize, Gc, GcCell, Trace};
+use std::cell::Cell;
 
 use super::{
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
@@ -49,7 +46,7 @@ impl NamedDeclarationInterface for SemicolonClassElement {
         unreachable!()
     }
 
-    fn set_name(&mut self, name: Gc<Node>) {
+    fn set_name(&mut self, _name: Gc<Node>) {
         unreachable!()
     }
 }

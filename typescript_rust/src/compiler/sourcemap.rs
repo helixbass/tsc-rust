@@ -12,6 +12,7 @@ use crate::{
 };
 
 pub struct SourceMapGeneratorOptions {
+    #[allow(dead_code)]
     extended_diagnostics: Option<bool>,
 }
 
@@ -28,7 +29,7 @@ pub fn create_source_map_generator(
     file: String,
     source_root: String,
     sources_directory_path: String,
-    generator_options: &SourceMapGeneratorOptions,
+    _generator_options: &SourceMapGeneratorOptions,
 ) -> Gc<Box<dyn SourceMapGenerator>> {
     SourceMapGeneratorConcrete::new(sources_directory_path, file, source_root, host)
 }
@@ -363,31 +364,31 @@ impl SourceMapGeneratorConcrete {
             generated_line >= self.pending_generated_line(),
             Some("generatedLine cannot backtrack"),
         );
-        Debug_.assert(
-            generated_character >= 0,
-            Some("generatedCharacter cannot be negative"),
-        );
-        Debug_.assert(
-            match source_index {
-                None => true,
-                Some(source_index) => source_index >= 0,
-            },
-            Some("sourceIndex cannot be negative"),
-        );
-        Debug_.assert(
-            match source_line {
-                None => true,
-                Some(source_line) => source_line >= 0,
-            },
-            Some("sourceLine cannot be negative"),
-        );
-        Debug_.assert(
-            match source_character {
-                None => true,
-                Some(source_character) => source_character >= 0,
-            },
-            Some("sourceCharacter cannot be negative"),
-        );
+        // Debug_.assert(
+        //     generated_character >= 0,
+        //     Some("generatedCharacter cannot be negative"),
+        // );
+        // Debug_.assert(
+        //     match source_index {
+        //         None => true,
+        //         Some(source_index) => source_index >= 0,
+        //     },
+        //     Some("sourceIndex cannot be negative"),
+        // );
+        // Debug_.assert(
+        //     match source_line {
+        //         None => true,
+        //         Some(source_line) => source_line >= 0,
+        //     },
+        //     Some("sourceLine cannot be negative"),
+        // );
+        // Debug_.assert(
+        //     match source_character {
+        //         None => true,
+        //         Some(source_character) => source_character >= 0,
+        //     },
+        //     Some("sourceCharacter cannot be negative"),
+        // );
         // enter();
         if self.is_new_generated_position(generated_line, generated_character)
             || self.is_backtracking_source_position(source_index, source_line, source_character)
@@ -617,10 +618,10 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
             generated_line >= self.pending_generated_line(),
             Some("generatedLine cannot backtrack"),
         );
-        Debug_.assert(
-            generated_character >= 0,
-            Some("generatedLine cannot be negative"),
-        );
+        // Debug_.assert(
+        //     generated_character >= 0,
+        //     Some("generatedLine cannot be negative"),
+        // );
         // enter();
         let mut source_index_to_new_source_index_map: HashMap<usize, usize> = Default::default();
         let mut name_index_to_new_name_index_map: Option<HashMap<usize, usize>> =
@@ -736,7 +737,7 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
     }
 }
 
-pub fn try_parse_raw_source_map(text: &str) -> Option<RawSourceMap> {
+pub fn try_parse_raw_source_map(_text: &str) -> Option<RawSourceMap> {
     unimplemented!()
 }
 
@@ -760,7 +761,7 @@ pub struct Mapping {
     pub name_index: Option<usize>,
 }
 
-pub fn decode_mappings(mappings: &str) -> MappingsDecoder {
+pub fn decode_mappings(_mappings: &str) -> MappingsDecoder {
     unimplemented!()
 }
 

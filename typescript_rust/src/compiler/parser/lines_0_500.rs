@@ -1,12 +1,8 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
-use gc::Gc;
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::rc::Rc;
 
-use super::ParserType;
 use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
     CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, SourceTextAsChars, SyntaxKind,
@@ -30,13 +26,18 @@ pub(super) enum SpeculationKind {
     Reparse,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 #[allow(non_snake_case)]
 pub struct ParseBaseNodeFactory {
+    #[unsafe_ignore_trace]
     NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
     TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
     PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    #[unsafe_ignore_trace]
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
 }
 
@@ -97,14 +98,22 @@ impl BaseNodeFactory for ParseBaseNodeFactory {
 }
 
 thread_local! {
-    pub static parse_base_node_factory: ParseBaseNodeFactory = ParseBaseNodeFactory::new();
+    pub static parse_base_node_factory: Gc<ParseBaseNodeFactory> = Gc::new(ParseBaseNodeFactory::new());
+}
+
+pub fn get_parse_base_node_factory() -> Gc<ParseBaseNodeFactory> {
+    parse_base_node_factory.with(|parse_base_node_factory_| parse_base_node_factory_.clone())
 }
 
 thread_local! {
     pub static parse_node_factory: Gc<NodeFactory<ParseBaseNodeFactory>> = create_node_factory::<ParseBaseNodeFactory>(
         NodeFactoryFlags::NoParenthesizerRules,
-        /*parse_base_node_factory.with(|_parse_base_node_factory| _parse_base_node_factory)*/
+        get_parse_base_node_factory(),
     );
+}
+
+pub fn get_parse_node_factory() -> Gc<NodeFactory<ParseBaseNodeFactory>> {
+    parse_node_factory.with(|parse_node_factory_| parse_node_factory_.clone())
 }
 
 pub fn with_parse_base_node_factory_and_factory<TReturn>(
@@ -112,7 +121,7 @@ pub fn with_parse_base_node_factory_and_factory<TReturn>(
 ) -> TReturn {
     parse_base_node_factory.with(|parse_base_node_factory_| {
         parse_node_factory
-            .with(|parse_node_factory_| callback(parse_base_node_factory_, parse_node_factory_))
+            .with(|parse_node_factory_| callback(&**parse_base_node_factory_, parse_node_factory_))
     })
 }
 

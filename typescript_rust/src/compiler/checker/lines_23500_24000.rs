@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell, RefMut};
@@ -283,7 +281,7 @@ impl GetFlowTypeOfReference {
                 }
                 shared_flow = Some(flow.clone());
             }
-            let mut type_: Option<FlowType> = None;
+            let type_: Option<FlowType>;
             if flags.intersects(FlowFlags::Assignment) {
                 type_ = self.get_type_at_flow_assignment(flow.clone());
                 if type_.is_none() {
@@ -517,7 +515,7 @@ impl GetFlowTypeOfReference {
             }
             if node_as_binary_expression.operator_token.kind() == SyntaxKind::BarBarToken {
                 return self.type_checker.get_union_type(
-                    vec![
+                    &[
                         self.narrow_type_by_assertion(type_, &node_as_binary_expression.left),
                         self.narrow_type_by_assertion(type_, &node_as_binary_expression.right),
                     ],
@@ -908,7 +906,7 @@ impl GetFlowTypeOfReference {
                     first_antecedent_type = Some(self.get_type_at_flow_node(antecedent.clone()));
                     flow_type = first_antecedent_type.clone().unwrap();
                 }
-                Some(first_antecedent_type) => {
+                Some(_) => {
                     self.type_checker
                         .flow_loop_nodes()
                         .insert(self.type_checker.flow_loop_count(), flow.clone());

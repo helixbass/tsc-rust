@@ -15,7 +15,7 @@ use crate::{
     WatchFileKind, WatchOptions,
 };
 
-pub fn generate_djb2_hash(data: &str) -> String {
+pub fn generate_djb2_hash(_data: &str) -> String {
     unimplemented!()
 }
 
@@ -95,36 +95,36 @@ pub trait System: ConvertToTSConfigHost + Trace + Finalize {
         depth: Option<usize>,
     ) -> Vec<String>;
     fn is_get_modified_time_supported(&self) -> bool;
-    fn get_modified_time(&self, path: &str) -> Option<SystemTime> {
+    fn get_modified_time(&self, _path: &str) -> Option<SystemTime> {
         panic!("Shouldn't call get_modified_time() unless supported")
     }
     fn is_set_modified_time_supported(&self) -> bool;
-    fn set_modified_time(&self, path: &str, time: SystemTime) {
+    fn set_modified_time(&self, _path: &str, _time: SystemTime) {
         panic!("Shouldn't call set_modified_time() unless supported")
     }
     fn is_delete_file_supported(&self) -> bool;
-    fn delete_file(&self, path: &str) {
+    fn delete_file(&self, _path: &str) {
         panic!("Shouldn't call delete_file() unless supported")
     }
     fn is_create_hash_supported(&self) -> bool;
-    fn create_hash(&self, data: &str) -> String {
+    fn create_hash(&self, _data: &str) -> String {
         panic!("Shouldn't call create_hash() unless supported")
     }
-    fn create_sha256_hash(&self, data: &str) -> Option<String> {
+    fn create_sha256_hash(&self, _data: &str) -> Option<String> {
         None
     }
     fn get_memory_usage(&self) -> Option<usize> {
         None
     }
     fn exit(&self, exit_code: Option<ExitStatus>) -> !;
-    fn enable_cpu_profiler(&self, path: &str, continuation: &mut dyn FnMut()) {
+    fn enable_cpu_profiler(&self, _path: &str, continuation: &mut dyn FnMut()) {
         continuation()
     }
     fn disable_cpu_profiler(&self /*, continuation: &dyn FnMut()*/) {}
     fn cpu_profiling_enabled(&self) -> Option<bool> {
         None
     }
-    fn realpath(&self, path: &str) -> Option<String> {
+    fn realpath(&self, _path: &str) -> Option<String> {
         None
     }
     fn is_realpath_supported(&self) -> bool;
@@ -134,20 +134,20 @@ pub trait System: ConvertToTSConfigHost + Trace + Finalize {
         None
     }
     // TODO: need to be able to return different types? How to do this without a generic trait method?
-    fn set_timeout(&self, callback: &dyn FnOnce(), ms: u32) {}
-    fn clear_timeout(&self, timeout_id: u32) {}
+    fn set_timeout(&self, _callback: &dyn FnOnce(), _ms: u32) {}
+    fn clear_timeout(&self, _timeout_id: u32) {}
     fn is_clear_screen_supported(&self) -> bool;
     fn clear_screen(&self) {
         panic!("Shouldn't call clear_screen() unless supported")
     }
     fn set_blocking(&self) {}
-    fn base64_decode(&self, input: &str) -> Option<String> {
+    fn base64_decode(&self, _input: &str) -> Option<String> {
         None
     }
-    fn base64_encode(&self, input: &str) -> Option<String> {
+    fn base64_encode(&self, _input: &str) -> Option<String> {
         None
     }
-    fn buffer_from(&self, input: String, encoding: Option<&str>) -> Option<Buffer> {
+    fn buffer_from(&self, _input: String, _encoding: Option<&str>) -> Option<Buffer> {
         None
     }
     fn now(&self) -> Option<SystemTime> {
@@ -156,7 +156,7 @@ pub trait System: ConvertToTSConfigHost + Trace + Finalize {
     fn disable_use_file_version_as_signature(&self) -> Option<bool> {
         None
     }
-    fn require(&self, base_dir: &str, module_name: &str) -> Option<RequireResult> {
+    fn require(&self, _base_dir: &str, _module_name: &str) -> Option<RequireResult> {
         None
     }
     fn default_watch_file_kind(&self) -> Option<WatchFileKind> {
@@ -218,7 +218,7 @@ impl SystemConcrete {
             }
 
             let stat: &dyn StatLike;
-            let mut maybe_stats: Option<Stats> = None;
+            let maybe_stats: Option<Stats>;
             if dirent.is_symbolic_link() {
                 let name = combine_paths(path, &[Some(&entry)]);
 
@@ -251,7 +251,7 @@ impl SystemConcrete {
         match entry_kind {
             FileSystemEntryKind::File => stat.is_file(),
             FileSystemEntryKind::Directory => stat.is_directory(),
-            _ => false,
+            // _ => false,
         }
     }
 }
@@ -284,7 +284,7 @@ impl System for SystemConcrete {
         print!("{}", s);
     }
 
-    fn buffer_from(&self, input: String, encoding: Option<&str>) -> Option<Buffer> {
+    fn buffer_from(&self, input: String, _encoding: Option<&str>) -> Option<Buffer> {
         Some(input.into_bytes())
     }
 
@@ -418,25 +418,25 @@ impl System for SystemConcrete {
 
     fn watch_file(
         &self,
-        path: &str,
-        callback: FileWatcherCallback,
-        polling_interval: Option<u32>,
-        options: Option<&WatchOptions>,
+        _path: &str,
+        _callback: FileWatcherCallback,
+        _polling_interval: Option<u32>,
+        _options: Option<&WatchOptions>,
     ) -> Rc<dyn FileWatcher> {
         unimplemented!()
     }
 
     fn watch_directory(
         &self,
-        path: &str,
-        callback: DirectoryWatcherCallback,
-        recursive: Option<bool>,
-        options: Option<&WatchOptions>,
+        _path: &str,
+        _callback: DirectoryWatcherCallback,
+        _recursive: Option<bool>,
+        _options: Option<&WatchOptions>,
     ) -> Rc<dyn FileWatcher> {
         unimplemented!()
     }
 
-    fn create_directory(&self, path: &str) {
+    fn create_directory(&self, _path: &str) {
         unimplemented!()
     }
 

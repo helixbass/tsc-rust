@@ -5,10 +5,10 @@ use gc::Gc;
 use super::TransformDeclarations;
 use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, flatten, for_each_bool,
-    get_effective_modifier_flags, get_parse_tree_node, has_effective_modifier, is_binding_pattern,
-    is_entity_name_expression, is_export_assignment, is_export_declaration, is_external_module,
-    is_internal_declaration, length, map_defined, some, visit_nodes, with_synthetic_factory,
-    with_synthetic_factory_and_factory, AllAccessorDeclarations, AsDoubleDeref, Debug_,
+    get_effective_modifier_flags, get_factory, get_parse_tree_node, has_effective_modifier,
+    is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
+    is_external_module, is_internal_declaration, map_defined, some, visit_nodes,
+    with_synthetic_factory, with_synthetic_factory_and_factory, AllAccessorDeclarations, Debug_,
     GetSymbolAccessibilityDiagnostic, HasTypeInterface, ModifierFlags, NamedDeclarationInterface,
     Node, NodeArray, NodeArrayOrVec, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
 };
@@ -43,21 +43,19 @@ impl TransformDeclarations {
         if nodes.is_empty() {
             return None;
         }
-        Some(with_synthetic_factory(|synthetic_factory_| {
+        Some(
             self.factory.update_variable_statement(
-                synthetic_factory_,
                 input,
                 Some(
                     self.factory
                         .create_node_array(self.ensure_modifiers(input), None),
                 ),
                 self.factory.update_variable_declaration_list(
-                    synthetic_factory_,
                     &input_as_variable_statement.declaration_list,
                     nodes,
                 ),
-            )
-        }))
+            ),
+        )
     }
 
     pub(super) fn recreate_binding_pattern(
@@ -85,17 +83,15 @@ impl TransformDeclarations {
             if is_binding_pattern(Some(&*e_name)) {
                 Some(self.recreate_binding_pattern(&e_name))
             } else {
-                Some(vec![with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_variable_declaration(
-                            synthetic_factory_,
-                            Some(e_name),
-                            None,
-                            self.ensure_type(e, None, None),
-                            None,
-                        )
-                        .into()
-                })])
+                Some(vec![self
+                    .factory
+                    .create_variable_declaration(
+                        Some(e_name),
+                        None,
+                        self.ensure_type(e, None, None),
+                        None,
+                    )
+                    .wrap()])
             }
         })
     }
@@ -150,11 +146,11 @@ impl TransformDeclarations {
         if current_flags == new_flags {
             return node.maybe_modifiers().map(Into::into);
         }
-        Some(with_synthetic_factory(|synthetic_factory_| {
+        Some(
             self.factory
-                .create_modifiers_from_modifier_flags(synthetic_factory_, new_flags)
-                .into()
-        }))
+                .create_modifiers_from_modifier_flags(new_flags)
+                .into(),
+        )
     }
 
     pub(super) fn ensure_modifier_flags(&self, node: &Node) -> ModifierFlags {
@@ -212,44 +208,41 @@ impl TransformDeclarations {
                     .into_iter()
                     .map(|clause| {
                         let clause_as_heritage_clause = clause.as_heritage_clause();
-                        with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_heritage_clause(
-                                synthetic_factory_,
-                                clause,
-                                visit_nodes(
-                                    Some(
-                                        &self.factory.create_node_array(
-                                            Some(
-                                                clause_as_heritage_clause
-                                                    .types
-                                                    .iter()
-                                                    .filter(|t| {
-                                                        let t_as_expression_with_type_arguments =
-                                                            t.as_expression_with_type_arguments();
-                                                        is_entity_name_expression(
-                                                            &t_as_expression_with_type_arguments
-                                                                .expression,
-                                                        ) || clause_as_heritage_clause.token
-                                                            == SyntaxKind::ExtendsKeyword
-                                                            && t_as_expression_with_type_arguments
-                                                                .expression
-                                                                .kind()
-                                                                == SyntaxKind::NullKeyword
-                                                    })
-                                                    .cloned()
-                                                    .collect::<Vec<_>>(),
-                                            ),
-                                            None,
+                        self.factory.update_heritage_clause(
+                            clause,
+                            visit_nodes(
+                                Some(
+                                    &self.factory.create_node_array(
+                                        Some(
+                                            clause_as_heritage_clause
+                                                .types
+                                                .iter()
+                                                .filter(|t| {
+                                                    let t_as_expression_with_type_arguments =
+                                                        t.as_expression_with_type_arguments();
+                                                    is_entity_name_expression(
+                                                        &t_as_expression_with_type_arguments
+                                                            .expression,
+                                                    ) || clause_as_heritage_clause.token
+                                                        == SyntaxKind::ExtendsKeyword
+                                                        && t_as_expression_with_type_arguments
+                                                            .expression
+                                                            .kind()
+                                                            == SyntaxKind::NullKeyword
+                                                })
+                                                .cloned()
+                                                .collect::<Vec<_>>(),
                                         ),
+                                        None,
                                     ),
-                                    Some(|node: &Node| self.visit_declaration_subtree(node)),
-                                    Option::<fn(&Node) -> bool>::None,
-                                    None,
-                                    None,
-                                )
-                                .unwrap(),
+                                ),
+                                Some(|node: &Node| self.visit_declaration_subtree(node)),
+                                Option::<fn(&Node) -> bool>::None,
+                                None,
+                                None,
                             )
-                        })
+                            .unwrap(),
+                        )
                     })
                     .filter(|clause| {
                         /*clause.types &&*/
@@ -274,12 +267,11 @@ pub(super) fn mask_modifiers(
     modifier_mask: Option<ModifierFlags>,
     modifier_additions: Option<ModifierFlags>,
 ) -> Vec<Gc<Node /*Modifier*/>> {
-    with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-        factory_.create_modifiers_from_modifier_flags(
-            synthetic_factory_,
-            mask_modifier_flags(node, modifier_mask, modifier_additions),
-        )
-    })
+    get_factory().create_modifiers_from_modifier_flags(mask_modifier_flags(
+        node,
+        modifier_mask,
+        modifier_additions,
+    ))
 }
 
 pub(super) fn mask_modifier_flags(

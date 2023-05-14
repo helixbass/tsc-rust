@@ -2,7 +2,6 @@ use gc::Gc;
 use regex::Regex;
 use std::collections::HashSet;
 use std::convert::TryInto;
-use std::rc::Rc;
 
 use super::ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule;
 use crate::{
@@ -10,12 +9,12 @@ use crate::{
     get_comment_range, get_emit_flags, get_line_and_character_of_position,
     get_text_of_jsdoc_comment, is_jsx_closing_element, is_jsx_opening_element,
     is_prologue_directive, is_unparsed_source, node_is_synthesized,
-    range_start_positions_are_on_same_line, with_factory, with_synthetic_factory,
-    BundleFileSection, BundleFileSectionKind, EmitFlags, FileReference, HasInitializerInterface,
-    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
-    JSDocTagInterface, JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SourceFileLike, StrOrNodeArray, SyntaxKind, TextRange,
+    range_start_positions_are_on_same_line, with_factory, BundleFileSection, BundleFileSectionKind,
+    EmitFlags, FileReference, HasInitializerInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, JSDocTagInterface,
+    JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, StrOrNodeArray,
+    SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -778,9 +777,9 @@ impl Printer {
         if node_as_source_file.is_declaration_file() {
             self.emit_triple_slash_directives(
                 node_as_source_file.has_no_default_lib(),
-                &node_as_source_file.referenced_files(),
-                &node_as_source_file.type_reference_directives(),
-                &node_as_source_file.lib_reference_directives(),
+                &(*node_as_source_file.referenced_files()).borrow(),
+                &(*node_as_source_file.type_reference_directives()).borrow(),
+                &(*node_as_source_file.lib_reference_directives()).borrow(),
             );
         }
     }

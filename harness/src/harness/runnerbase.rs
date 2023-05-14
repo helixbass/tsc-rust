@@ -29,6 +29,7 @@ thread_local! {
     static shard_id_: Cell<usize> = Cell::new(1);
 }
 
+#[allow(dead_code)]
 pub fn set_shards(count: usize) {
     shards_.with(|shards| {
         shards.set(count);
@@ -39,6 +40,7 @@ fn get_shards() -> usize {
     shards_.with(|shards| shards.get())
 }
 
+#[allow(dead_code)]
 pub fn set_shard_id(id: usize) {
     shard_id_.with(|shard_id| {
         shard_id.set(id);

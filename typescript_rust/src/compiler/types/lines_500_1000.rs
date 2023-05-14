@@ -1,16 +1,16 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::{cell::Cell, fmt};
 
 use crate::{
-    CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
-    HasChildrenInterface, HasDotDotDotTokenInterface, HasFileNameInterface,
-    HasLeftAndRightInterface, HasMembersInterface, HasModuleSpecifierInterface,
-    HasOldFileOfCurrentEmitInterface, HasTagNameInterface, HasTextsInterface, InferenceContext,
-    JSDocHeritageTagInterface, JsxOpeningLikeElementInterface, SourceFileLike, SyntheticExpression,
-    UnparsedSyntheticReference,
+    remove_all_comments, set_comment_range_rc, set_emit_flags, set_original_node,
+    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_rc_node,
+    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, GcVec, HasArgumentsInterface,
+    HasAssertClauseInterface, HasChildrenInterface, HasDotDotDotTokenInterface,
+    HasFileNameInterface, HasLeftAndRightInterface, HasMembersInterface,
+    HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface, HasTagNameInterface,
+    HasTextsInterface, InferenceContext, JSDocHeritageTagInterface, JsxOpeningLikeElementInterface,
+    SourceFileLike, SourceMapRange, SyntheticExpression, UnparsedSyntheticReference,
 };
 
 use super::{
@@ -171,6 +171,7 @@ pub type NodeId = usize;
 pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Gc<Node>;
     fn set_node_wrapper(&self, wrapper: Gc<Node>);
+    fn wrap(self) -> Gc<Node>;
     fn kind(&self) -> SyntaxKind;
     fn modifier_flags_cache(&self) -> ModifierFlags;
     fn set_modifier_flags_cache(&self, flags: ModifierFlags);
@@ -189,7 +190,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_id_override(&self, id_override: Gc<Box<dyn NodeIdOverride>>);
     fn maybe_parent(&self) -> Option<Gc<Node>>;
     fn parent(&self) -> Gc<Node>;
-    fn set_parent(&self, parent: Gc<Node>);
+    fn set_parent(&self, parent: Option<Gc<Node>>);
     fn maybe_original(&self) -> Option<Gc<Node>>;
     fn set_original(&self, original: Option<Gc<Node>>);
     fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
@@ -215,8 +216,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Gc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Option<Vec<Gc<Node /*JSDoc*/>>>);
-    fn maybe_js_doc_cache(&self) -> GcCellRef<Option<Vec<Gc<Node /*JSDocTag*/>>>>;
-    fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Gc<Node /*JSDocTag*/>>>);
+    fn maybe_js_doc_cache(&self) -> Option<GcVec<Gc<Node /*JSDocTag*/>>>;
+    fn set_js_doc_cache(&self, js_doc_cache: Option<GcVec<Gc<Node /*JSDocTag*/>>>);
     // IncrementalElement
     fn maybe_intersects_change(&self) -> Option<bool>;
     fn set_intersects_change(&self, intersects_change: Option<bool>);
@@ -238,7 +239,7 @@ pub trait NodeSymbolOverride: fmt::Debug + Trace + Finalize {
 }
 
 #[derive(Debug, Finalize, Trace)]
-#[ast_type(impl_from = false)]
+#[ast_type]
 pub enum Node {
     BaseNode(BaseNode),
     TypeParameterDeclaration(TypeParameterDeclaration),
@@ -424,12 +425,6 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn wrap(self) -> Gc<Node> {
-        let rc = Gc::new(self);
-        rc.set_node_wrapper(rc.clone());
-        rc
-    }
-
     pub fn maybe_as_named_declaration(&self) -> Option<&dyn NamedDeclarationInterface> {
         match self {
             Node::ImportClause(node) => Some(node),
@@ -1698,7 +1693,7 @@ impl Node {
     }
 }
 
-#[derive(Debug, Finalize, Trace)]
+#[derive(Finalize, Trace)]
 pub struct BaseNode {
     _node_wrapper: GcCell<Option<Gc<Node>>>,
     _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
@@ -1730,9 +1725,41 @@ pub struct BaseNode {
     inference_context: GcCell<Option<Gc<InferenceContext>>>,
     flow_node: GcCell<Option<Gc<FlowNode>>>,
     js_doc: GcCell<Option<Vec<Gc<Node>>>>,
-    js_doc_cache: GcCell<Option<Vec<Gc<Node>>>>,
+    js_doc_cache: GcCell<Option<GcVec<Gc<Node>>>>,
     #[unsafe_ignore_trace]
     intersects_change: Cell<Option<bool>>,
+}
+
+impl fmt::Debug for BaseNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BaseNode")
+            // .field("_node_wrapper", &self._node_wrapper)
+            // .field("_id_override", &self._id_override)
+            // .field("_symbol_override", &self._symbol_override)
+            .field("kind", &self.kind)
+            .field("flags", &self.flags)
+            // .field("modifier_flags_cache", &self.modifier_flags_cache)
+            .field("transform_flags", &self.transform_flags)
+            // .field("decorators", &self.decorators)
+            // .field("modifiers", &self.modifiers)
+            .field("id", &self.id)
+            // .field("parent", &self.parent)
+            // .field("original", &self.original)
+            .field("pos", &self.pos)
+            .field("end", &self.end)
+            // .field("symbol", &self.symbol)
+            // .field("locals", &self.locals)
+            // .field("next_container", &self.next_container)
+            // .field("local_symbol", &self.local_symbol)
+            // .field("emit_node", &self.emit_node)
+            // .field("contextual_type", &self.contextual_type)
+            // .field("inference_context", &self.inference_context)
+            // .field("flow_node", &self.flow_node)
+            // .field("js_doc", &self.js_doc)
+            // .field("js_doc_cache", &self.js_doc_cache)
+            // .field("intersects_change", &self.intersects_change)
+            .finish()
+    }
 }
 
 impl BaseNode {
@@ -1779,7 +1806,15 @@ impl NodeInterface for BaseNode {
     }
 
     fn set_node_wrapper(&self, wrapper: Gc<Node>) {
-        *self._node_wrapper.borrow_mut() = Some(wrapper);
+        let mut node_wrapper = self._node_wrapper.borrow_mut();
+        debug_assert!(node_wrapper.is_none());
+        *node_wrapper = Some(wrapper);
+    }
+
+    fn wrap(self) -> Gc<Node> {
+        let rc = Gc::new(Node::from(self));
+        rc.set_node_wrapper(rc.clone());
+        rc
     }
 
     fn kind(&self) -> SyntaxKind {
@@ -1864,8 +1899,8 @@ impl NodeInterface for BaseNode {
         self.parent.borrow().clone().unwrap()
     }
 
-    fn set_parent(&self, parent: Gc<Node>) {
-        *self.parent.borrow_mut() = Some(parent);
+    fn set_parent(&self, parent: Option<Gc<Node>>) {
+        *self.parent.borrow_mut() = parent;
     }
 
     fn maybe_original(&self) -> Option<Gc<Node>> {
@@ -1978,11 +2013,11 @@ impl NodeInterface for BaseNode {
         *self.js_doc.borrow_mut() = js_doc;
     }
 
-    fn maybe_js_doc_cache(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
-        self.js_doc_cache.borrow()
+    fn maybe_js_doc_cache(&self) -> Option<GcVec<Gc<Node>>> {
+        self.js_doc_cache.borrow().clone()
     }
 
-    fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Gc<Node>>>) {
+    fn set_js_doc_cache(&self, js_doc_cache: Option<GcVec<Gc<Node>>>) {
         *self.js_doc_cache.borrow_mut() = js_doc_cache;
     }
 
@@ -2019,14 +2054,6 @@ impl From<BaseNode> for Node {
     }
 }
 
-impl From<BaseNode> for Gc<Node> {
-    fn from(base_node: BaseNode) -> Self {
-        let rc = Gc::new(Node::BaseNode(base_node));
-        rc.set_node_wrapper(rc.clone());
-        rc
-    }
-}
-
 impl Clone for BaseNode {
     fn clone(&self) -> Self {
         Self {
@@ -2056,6 +2083,71 @@ impl Clone for BaseNode {
             js_doc_cache: self.js_doc_cache.clone(),
             intersects_change: self.intersects_change.clone(),
         }
+    }
+}
+
+pub trait NodeExt {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
+    fn set_text_range_pos(self, pos: isize) -> Self;
+    fn set_text_range_end(self, end: isize) -> Self;
+    fn set_emit_flags(self, emit_flags: EmitFlags) -> Self;
+    fn set_original_node(self, original: Option<Gc<Node>>) -> Self;
+    fn set_comment_range(self, range: &impl ReadonlyTextRange) -> Self;
+    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self;
+    fn start_on_new_line(self) -> Self;
+    fn and_set_parent(self, parent: Option<Gc<Node>>) -> Self;
+    fn and_set_original(self, original: Option<Gc<Node>>) -> Self;
+    fn remove_all_comments(self) -> Self;
+}
+
+impl NodeExt for Gc<Node> {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self {
+        set_text_range_rc_node(self, location)
+    }
+
+    fn set_text_range_pos(self, pos: isize) -> Self {
+        set_text_range_pos(&*self, pos);
+        self
+    }
+
+    fn set_text_range_end(self, end: isize) -> Self {
+        set_text_range_end(&*self, end);
+        self
+    }
+
+    fn set_emit_flags(self, emit_flags: EmitFlags) -> Self {
+        set_emit_flags(self, emit_flags)
+    }
+
+    fn set_original_node(self, original: Option<Gc<Node>>) -> Self {
+        set_original_node(self, original)
+    }
+
+    fn set_comment_range(self, range: &impl ReadonlyTextRange) -> Self {
+        set_comment_range_rc(self, range)
+    }
+
+    fn set_source_map_range(self, range: Option<Gc<SourceMapRange>>) -> Self {
+        set_source_map_range(self, range)
+    }
+
+    fn start_on_new_line(self) -> Self {
+        start_on_new_line(self)
+    }
+
+    fn and_set_parent(self, parent: Option<Gc<Node>>) -> Self {
+        self.set_parent(parent);
+        self
+    }
+
+    fn and_set_original(self, original: Option<Gc<Node>>) -> Self {
+        self.set_original(original);
+        self
+    }
+
+    fn remove_all_comments(self) -> Self {
+        remove_all_comments(&*self);
+        self
     }
 }
 

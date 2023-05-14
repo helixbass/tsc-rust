@@ -1,25 +1,22 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{IterationUse, JsxNames};
 use crate::{
-    cast, concatenate, filter, find_ancestor, get_assignment_declaration_kind, get_check_flags,
+    cast, find_ancestor, get_assignment_declaration_kind, get_check_flags,
     get_effective_type_annotation_node, get_element_or_property_access_name, get_jsdoc_type_tag,
     get_semantic_jsx_children, get_this_container, index_of_node, is_access_expression,
     is_const_type_reference, is_identifier, is_in_js_file, is_jsdoc_type_tag, is_jsx_attribute,
     is_jsx_attribute_like, is_jsx_attributes, is_jsx_element, is_jsx_opening_element,
-    is_object_literal_method, is_property_assignment, is_property_declaration,
-    is_property_signature, is_this_initialized_declaration, map, some,
+    is_object_literal_expression, is_object_literal_method, is_property_assignment,
+    is_property_declaration, is_property_signature, is_this_initialized_declaration, map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_,
-    InferenceInfo, JsxReferenceKind, NodeFlags, Number, Signature, SymbolFlags,
-    TransientSymbolInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    UnionReduction, __String, is_object_literal_expression, InferenceContext, Node, NodeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    InferenceContext, InferenceInfo, JsxReferenceKind, Node, NodeFlags, NodeInterface, Number,
+    Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeSystemPropertyName,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -551,57 +548,58 @@ impl TypeChecker {
         ).unwrap_or_else(|| {
             self.discriminate_type_by_discriminable_items(
                 contextual_type,
-                &concatenate(
-                    map(
-                        &filter(
-                            &node.as_object_literal_expression().properties,
-                            |p: &Gc<Node>| {
-                                p.maybe_symbol().is_some() &&
-                                    p.kind() == SyntaxKind::PropertyAssignment &&
-                                    self.is_possibly_discriminant_value(&p.as_has_initializer().maybe_initializer().unwrap()) &&
-                                    self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name())
-                            }
-                        ),
-                        |prop: &Gc<Node>, _| {
-                            let type_checker = self.rc_wrapper();
-                            let prop_clone = prop.clone();
+                node.as_object_literal_expression().properties.owned_iter()
+                    .filter(
+                        |p| {
+                            p.maybe_symbol().is_some() &&
+                                p.kind() == SyntaxKind::PropertyAssignment &&
+                                self.is_possibly_discriminant_value(&p.as_has_initializer().maybe_initializer().unwrap()) &&
+                                self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name())
+                        }
+                    ).map(
+                        |prop| {
                             (
-                                Box::new(move || {
-                                    type_checker.get_context_free_type_of_expression(&prop_clone.as_has_initializer().maybe_initializer().unwrap())
+                                Box::new({
+                                    let type_checker = self.rc_wrapper();
+                                    let prop_clone = prop.clone();
+                                    move || {
+                                        type_checker.get_context_free_type_of_expression(&prop_clone.as_has_initializer().maybe_initializer().unwrap())
+                                    }
                                 }) as Box<dyn Fn() -> Gc<Type>>,
                                 prop.symbol().escaped_name().to_owned(),
                             )
                         }
-                    ),
-                    map(
-                        &filter(
-                            &self.get_properties_of_type(contextual_type),
-                            |s: &Gc<Symbol>| {
-                                s.flags().intersects(SymbolFlags::Optional) &&
-                                    matches!(
-                                        node.maybe_symbol().as_ref(),
-                                        Some(node_symbol) if matches!(
-                                            node_symbol.maybe_members().clone(),
-                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
+                    ).chain(
+                        self.get_properties_of_type(contextual_type)
+                            .filter(
+                                |s| {
+                                    s.flags().intersects(SymbolFlags::Optional) &&
+                                        matches!(
+                                            node.maybe_symbol().as_ref(),
+                                            Some(node_symbol) if matches!(
+                                                node_symbol.maybe_members().clone(),
+                                                Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
+                                            )
+                                        ) &&
+                                        self.is_discriminant_property(
+                                            Some(contextual_type),
+                                            s.escaped_name()
                                         )
-                                    ) &&
-                                    self.is_discriminant_property(
-                                        Some(contextual_type),
-                                        s.escaped_name()
+                                }
+                            ).map(
+                                |s| {
+                                    (
+                                        Box::new({
+                                            let type_checker = self.rc_wrapper();
+                                            move || {
+                                                type_checker.undefined_type()
+                                            }
+                                        }) as Box<dyn Fn() -> Gc<Type>>,
+                                        s.escaped_name().to_owned(),
                                     )
-                            }
-                        ),
-                        |s: &Gc<Symbol>, _| {
-                            let type_checker = self.rc_wrapper();
-                            (
-                                Box::new(move || {
-                                    type_checker.undefined_type()
-                                }) as Box<dyn Fn() -> Gc<Type>>,
-                                s.escaped_name().to_owned(),
-                            )
-                        }
+                                }
+                            ),
                     ),
-                ),
                 |source: &Type, target: &Type| self.is_type_assignable_to(source, target),
                 Some(contextual_type),
                 None,
@@ -616,69 +614,73 @@ impl TypeChecker {
     ) -> Gc<Type> {
         self.discriminate_type_by_discriminable_items(
             contextual_type,
-            &concatenate(
-                map(
-                    &filter(
-                        &node.as_jsx_attributes().properties,
-                        |p: &Gc<Node>| {
-                            p.maybe_symbol().is_some() &&
-                                p.kind() == SyntaxKind::JsxAttribute &&
-                                self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name()) &&
-                                match p.as_jsx_attribute().initializer.as_ref() {
-                                    None => true,
-                                    Some(p_initializer) => self.is_possibly_discriminant_value(p_initializer)
-                                }
-                        }
-                    ),
-                    |prop: &Gc<Node>, _| {
-                        let type_checker = self.rc_wrapper();
-                        let prop_clone = prop.clone();
+            node.as_jsx_attributes().properties.owned_iter()
+                .filter(
+                    |p| {
+                        p.maybe_symbol().is_some() &&
+                            p.kind() == SyntaxKind::JsxAttribute &&
+                            self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name()) &&
+                            match p.as_jsx_attribute().initializer.as_ref() {
+                                None => true,
+                                Some(p_initializer) => self.is_possibly_discriminant_value(p_initializer)
+                            }
+                    }
+                )
+                .map(
+                    |prop| {
                         (
-                            Box::new(move || {
-                                if prop_clone.kind() != SyntaxKind::JsxAttribute {
-                                    return type_checker.true_type();
-                                }
-                                let prop_as_jsx_attribute = prop_clone.as_jsx_attribute();
-                                let prop_initializer = prop_as_jsx_attribute.initializer.as_ref();
-                                match prop_initializer {
-                                    None => type_checker.true_type(),
-                                    Some(prop_initializer) =>
-                                        type_checker.get_context_free_type_of_expression(prop_initializer)
+                            Box::new({
+                                let type_checker = self.rc_wrapper();
+                                let prop_clone = prop.clone();
+                                move || {
+                                    if prop_clone.kind() != SyntaxKind::JsxAttribute {
+                                        return type_checker.true_type();
+                                    }
+                                    let prop_as_jsx_attribute = prop_clone.as_jsx_attribute();
+                                    let prop_initializer = prop_as_jsx_attribute.initializer.as_ref();
+                                    match prop_initializer {
+                                        None => type_checker.true_type(),
+                                        Some(prop_initializer) =>
+                                            type_checker.get_context_free_type_of_expression(prop_initializer)
+                                    }
                                 }
                             }) as Box<dyn Fn() -> Gc<Type>>,
                             prop.symbol().escaped_name().to_owned(),
                         )
                     }
-                ),
-                map(
-                    &filter(
-                        &self.get_properties_of_type(contextual_type),
-                        |s: &Gc<Symbol>| {
-                            s.flags().intersects(SymbolFlags::Optional) &&
-                                matches!(
-                                    node.maybe_symbol().as_ref(),
-                                    Some(node_symbol) if matches!(
-                                        node_symbol.maybe_members().clone(),
-                                        Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
+                )
+                .chain(
+                    self.get_properties_of_type(contextual_type)
+                        .filter(
+                            |s| {
+                                s.flags().intersects(SymbolFlags::Optional) &&
+                                    matches!(
+                                        node.maybe_symbol().as_ref(),
+                                        Some(node_symbol) if matches!(
+                                            node_symbol.maybe_members().clone(),
+                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
+                                        )
+                                    ) &&
+                                    self.is_discriminant_property(
+                                        Some(contextual_type),
+                                        s.escaped_name()
                                     )
-                                ) &&
-                                self.is_discriminant_property(
-                                    Some(contextual_type),
-                                    s.escaped_name()
-                                )
-                        }
-                    ),
-                    |s: &Gc<Symbol>, _| {
-                        let type_checker = self.rc_wrapper();
-                        (
-                            Box::new(move || {
-                                type_checker.undefined_type()
-                            }) as Box<dyn Fn() -> Gc<Type>>,
-                            s.escaped_name().to_owned(),
+                            }
                         )
-                    }
+                        .map(
+                            |s| {
+                                (
+                                    Box::new({
+                                        let type_checker = self.rc_wrapper();
+                                        move || {
+                                            type_checker.undefined_type()
+                                        }
+                                    }) as Box<dyn Fn() -> Gc<Type>>,
+                                    s.escaped_name().to_owned(),
+                                )
+                            }
+                        ),
                 ),
-            ),
             |source: &Type, target: &Type| self.is_type_assignable_to(source, target),
             Some(contextual_type),
             None,
@@ -741,7 +743,7 @@ impl TypeChecker {
             if let Some(inference_context) =
                 inference_context.as_ref().filter(|inference_context| {
                     some(
-                        Some(&inference_context.inferences()),
+                        Some(&**inference_context.inferences()),
                         Some(|inference: &Gc<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),
@@ -779,7 +781,7 @@ impl TypeChecker {
         }
         if type_.flags().intersects(TypeFlags::Union) {
             return self.get_union_type(
-                map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
+                &map(type_.as_union_type().types(), |t: &Gc<Type>, _| {
                     self.instantiate_instantiable_types(t, mapper.clone())
                 }),
                 Some(UnionReduction::None),

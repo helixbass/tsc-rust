@@ -1,8 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -11,7 +9,8 @@ use super::{
     ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
 use crate::{
-    EvolvingArrayType, FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper, __String,
+    EvolvingArrayType, FreshObjectLiteralTypeInterface, GcVec, Number, TypeId, TypeMapper,
+    __String, gc_cell_ref_mut_unwrapped,
 };
 use local_macros::type_type;
 
@@ -69,7 +68,7 @@ impl LiteralTypeInterface for BaseLiteralType {
         *self.fresh_type.borrow_mut() = Some(fresh_type);
     }
 
-    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Gc<Type> {
+    fn get_or_initialize_fresh_type(&self, _type_checker: &TypeChecker) -> Gc<Type> {
         panic!("Shouldn't call get_or_initialize_fresh_type() on base BaseLiteralType");
     }
 
@@ -331,7 +330,7 @@ pub trait ObjectFlagsTypeInterface {
 pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
     fn set_members(&self, members: Option<Gc<GcCell<SymbolTable>>>);
-    fn maybe_properties(&self) -> GcCellRef<Option<Vec<Gc<Symbol>>>>;
+    fn maybe_properties(&self) -> Option<GcVec<Gc<Symbol>>>;
     fn maybe_call_signatures(&self) -> GcCellRef<Option<Vec<Gc<Signature>>>>;
     // fn maybe_properties(&self) -> Option<&[Gc<Symbol>]>;
     // fn properties(&self) -> &[Gc<Symbol>];
@@ -361,7 +360,7 @@ pub struct BaseObjectType {
     #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
     members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
-    properties: GcCell<Option<Vec<Gc<Symbol>>>>,
+    properties: GcCell<Option<GcVec<Gc<Symbol>>>>,
     call_signatures: GcCell<Option<Vec<Gc<Signature>>>>,
     construct_signatures: GcCell<Option<Vec<Gc<Signature>>>>,
     index_infos: GcCell<Option<Vec<Gc<IndexInfo>>>>,
@@ -446,8 +445,8 @@ impl ObjectTypeInterface for BaseObjectType {
         *self.members.borrow_mut() = members;
     }
 
-    fn maybe_properties(&self) -> GcCellRef<Option<Vec<Gc<Symbol>>>> {
-        self.properties.borrow()
+    fn maybe_properties(&self) -> Option<GcVec<Gc<Symbol>>> {
+        self.properties.borrow().clone()
     }
 
     fn maybe_call_signatures(&self) -> GcCellRef<Option<Vec<Gc<Signature>>>> {
@@ -471,7 +470,7 @@ pub trait ResolvableTypeInterface {
     fn resolve(
         &self,
         members: Gc<GcCell<SymbolTable>>,
-        properties: Vec<Gc<Symbol>>,
+        properties: GcVec<Gc<Symbol>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
@@ -483,7 +482,7 @@ impl ResolvableTypeInterface for BaseObjectType {
     fn resolve(
         &self,
         members: Gc<GcCell<SymbolTable>>,
-        properties: Vec<Gc<Symbol>>,
+        properties: GcVec<Gc<Symbol>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
@@ -505,17 +504,15 @@ impl ResolvedTypeInterface for BaseObjectType {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
-    fn properties(&self) -> GcCellRef<Vec<Gc<Symbol>>> {
-        GcCellRef::map(self.properties.borrow(), |option| option.as_ref().unwrap())
+    fn properties(&self) -> GcVec<Gc<Symbol>> {
+        self.properties.borrow().clone().unwrap()
     }
 
-    fn properties_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>, Vec<Gc<Symbol>>> {
-        GcCellRefMut::map(self.properties.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
+    fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Symbol>>>, GcVec<Gc<Symbol>>> {
+        gc_cell_ref_mut_unwrapped(&self.properties)
     }
 
-    fn set_properties(&self, properties: Vec<Gc<Symbol>>) {
+    fn set_properties(&self, properties: GcVec<Gc<Symbol>>) {
         *self.properties.borrow_mut() = Some(properties);
     }
 
@@ -1049,7 +1046,8 @@ pub trait UnionOrIntersectionTypeInterface: TypeInterface {
     fn maybe_property_cache_without_object_function_property_augment(
         &self,
     ) -> GcCellRefMut<Option<SymbolTable>>;
-    fn maybe_resolved_properties(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>>;
+    fn maybe_resolved_properties(&self) -> Option<GcVec<Gc<Symbol>>>;
+    fn maybe_resolved_properties_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Symbol>>>>;
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -1070,10 +1068,10 @@ pub struct BaseUnionOrIntersectionType {
     pub object_flags: Cell<ObjectFlags>,
     property_cache: GcCell<Option<SymbolTable>>,
     property_cache_without_object_function_property_augment: GcCell<Option<SymbolTable>>,
-    resolved_properties: GcCell<Option<Vec<Gc<Symbol>>>>,
+    resolved_properties: GcCell<Option<GcVec<Gc<Symbol>>>>,
     // ResolvedType Fields
     members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
-    properties: GcCell<Option<Vec<Gc<Symbol>>>>,
+    properties: GcCell<Option<GcVec<Gc<Symbol>>>>,
     call_signatures: GcCell<Option<Vec<Gc<Signature>>>>,
     construct_signatures: GcCell<Option<Vec<Gc<Signature>>>>,
     index_infos: GcCell<Option<Vec<Gc<IndexInfo>>>>,
@@ -1085,14 +1083,14 @@ impl BaseUnionOrIntersectionType {
             _type: base_type,
             types,
             object_flags: Cell::new(object_flags),
-            resolved_properties: GcCell::new(None),
-            members: GcCell::new(None),
-            property_cache: GcCell::new(None),
-            property_cache_without_object_function_property_augment: GcCell::new(None),
-            properties: GcCell::new(None),
-            call_signatures: GcCell::new(None),
-            construct_signatures: GcCell::new(None),
-            index_infos: GcCell::new(None),
+            resolved_properties: Default::default(),
+            members: Default::default(),
+            property_cache: Default::default(),
+            property_cache_without_object_function_property_augment: Default::default(),
+            properties: Default::default(),
+            call_signatures: Default::default(),
+            construct_signatures: Default::default(),
+            index_infos: Default::default(),
         }
     }
 }
@@ -1113,7 +1111,11 @@ impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
             .borrow_mut()
     }
 
-    fn maybe_resolved_properties(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>> {
+    fn maybe_resolved_properties(&self) -> Option<GcVec<Gc<Symbol>>> {
+        self.resolved_properties.borrow().clone()
+    }
+
+    fn maybe_resolved_properties_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Symbol>>>> {
         self.resolved_properties.borrow_mut()
     }
 }
@@ -1132,7 +1134,7 @@ impl ResolvableTypeInterface for BaseUnionOrIntersectionType {
     fn resolve(
         &self,
         members: Gc<GcCell<SymbolTable>>,
-        properties: Vec<Gc<Symbol>>,
+        properties: GcVec<Gc<Symbol>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
@@ -1154,17 +1156,15 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
-    fn properties(&self) -> GcCellRef<Vec<Gc<Symbol>>> {
-        GcCellRef::map(self.properties.borrow(), |option| option.as_ref().unwrap())
+    fn properties(&self) -> GcVec<Gc<Symbol>> {
+        self.properties.borrow().clone().unwrap()
     }
 
-    fn properties_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>, Vec<Gc<Symbol>>> {
-        GcCellRefMut::map(self.properties.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
+    fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Symbol>>>, GcVec<Gc<Symbol>>> {
+        gc_cell_ref_mut_unwrapped(&self.properties)
     }
 
-    fn set_properties(&self, properties: Vec<Gc<Symbol>>) {
+    fn set_properties(&self, properties: GcVec<Gc<Symbol>>) {
         *self.properties.borrow_mut() = Some(properties);
     }
 
@@ -1198,7 +1198,7 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
 
     fn set_object_type_without_abstract_construct_signatures(
         &self,
-        object_type_without_abstract_construct_signatures: Option<Gc<Type>>,
+        _object_type_without_abstract_construct_signatures: Option<Gc<Type>>,
     ) {
         panic!("Shouldn't call set_object_type_without_abstract_construct_signatures() on BaseUnionOrIntersectionType?")
     }
@@ -1219,8 +1219,8 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
         *self.members.borrow_mut() = members;
     }
 
-    fn maybe_properties(&self) -> GcCellRef<Option<Vec<Gc<Symbol>>>> {
-        self.properties.borrow()
+    fn maybe_properties(&self) -> Option<GcVec<Gc<Symbol>>> {
+        self.properties.borrow().clone()
     }
 
     fn maybe_call_signatures(&self) -> GcCellRef<Option<Vec<Gc<Signature>>>> {

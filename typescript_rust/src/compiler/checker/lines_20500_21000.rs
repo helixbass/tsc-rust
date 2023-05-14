@@ -1,19 +1,17 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
+use peekmore::PeekMore;
 use std::borrow::Borrow;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{IterationTypeKind, TypeFacts};
 use crate::{
-    are_option_gcs_equal, get_check_flags, is_outermost_optional_chain, CheckFlags, ElementFlags,
-    Number, SymbolInterface, SymbolTable, TransientSymbolInterface, __String, are_option_rcs_equal,
-    compiler::utilities_public::is_expression_of_optional_chain_root, create_symbol_table, every,
-    filter, find, get_object_flags, is_optional_chain, last, length, reduce_left_no_initial_value,
-    some, Debug_, InterfaceTypeInterface, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SyntaxKind, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypePredicate, UnionReduction,
+    are_option_gcs_equal, compiler::utilities_public::is_expression_of_optional_chain_root,
+    create_symbol_table, every, find, get_check_flags, get_object_flags, is_optional_chain,
+    is_outermost_optional_chain, last, length, reduce_left_no_initial_value, some, CheckFlags,
+    Debug_, ElementFlags, InterfaceTypeInterface, Node, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, PeekMoreExt, PeekableExt, Signature, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
@@ -147,7 +145,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn literal_types_with_same_base_type(&self, types: &[Gc<Type>]) -> bool {
+    pub(super) fn literal_types_with_same_base_type<'types>(
+        &self,
+        types: impl IntoIterator<Item = &'types Gc<Type>>,
+    ) -> bool {
         let mut common_base_type: Option<Gc<Type>> = None;
         for t in types {
             let base_type = self.get_base_type_of_literal_type(t);
@@ -163,13 +164,19 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_supertype_or_union(&self, types: &[Gc<Type>]) -> Gc<Type> {
-        if types.len() == 1 {
-            return types[0].clone();
+    pub(super) fn get_supertype_or_union<'types, TTypes>(&self, types: TTypes) -> Gc<Type>
+    where
+        TTypes: IntoIterator<Item = &'types Gc<Type>>,
+        TTypes::IntoIter: Clone,
+    {
+        let mut types = types.into_iter();
+        let mut types_peekmore = types.clone().peekmore();
+        if types_peekmore.is_len_equal_to(1) {
+            return types.next().unwrap().clone();
         }
-        if self.literal_types_with_same_base_type(types) {
+        if self.literal_types_with_same_base_type(types.clone()) {
             self.get_union_type(
-                types.to_owned(),
+                types,
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -177,7 +184,7 @@ impl TypeChecker {
             )
         } else {
             reduce_left_no_initial_value(
-                types,
+                &types.cloned().collect::<Vec<_>>(),
                 |s: Gc<Type>, t: &Gc<Type>, _| {
                     if self.is_type_subtype_of(&s, t) {
                         t.clone()
@@ -191,21 +198,28 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_common_supertype(&self, types: &[Gc<Type>]) -> Gc<Type> {
+    pub(super) fn get_common_supertype<'types, TTypes>(&self, types: TTypes) -> Gc<Type>
+    where
+        TTypes: IntoIterator<Item = &'types Gc<Type>>,
+        TTypes::IntoIter: Clone,
+    {
+        let types = types.into_iter();
         if !self.strict_null_checks {
             return self.get_supertype_or_union(types);
         }
-        let primary_types = filter(types, |t: &Gc<Type>| {
-            !t.flags().intersects(TypeFlags::Nullable)
-        });
-        if !primary_types.is_empty() {
+        let mut primary_types = types
+            .clone()
+            .filter(|t| !t.flags().intersects(TypeFlags::Nullable))
+            .cloned()
+            .peekable();
+        if !primary_types.is_empty_() {
             self.get_nullable_type(
-                &self.get_supertype_or_union(&primary_types),
+                &self.get_supertype_or_union(&primary_types.collect::<Vec<_>>()),
                 self.get_falsy_flags_of_types(types) & TypeFlags::Nullable,
             )
         } else {
             self.get_union_type(
-                types.to_owned(),
+                types,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
@@ -508,12 +522,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_widened_literal_like_type_for_contextual_type<
-        TContextualType: Borrow<Type>,
-    >(
+    pub(super) fn get_widened_literal_like_type_for_contextual_type(
         &self,
         type_: &Type,
-        contextual_type: Option<TContextualType>,
+        contextual_type: Option<impl Borrow<Type>>,
     ) -> Gc<Type> {
         let mut type_ = type_.type_wrapper();
         if !self.is_literal_of_contextual_type(&type_, contextual_type) {
@@ -683,7 +695,7 @@ impl TypeChecker {
                 self.get_intersection_type(&element_types, Option::<&Symbol>::None, None)
             } else {
                 self.get_union_type(
-                    element_types,
+                    &element_types,
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -714,7 +726,10 @@ impl TypeChecker {
         type_.as_big_int_literal_type().value.base_10_value == "0"
     }
 
-    pub(super) fn get_falsy_flags_of_types(&self, types: &[Gc<Type>]) -> TypeFlags {
+    pub(super) fn get_falsy_flags_of_types<'types>(
+        &self,
+        types: impl IntoIterator<Item = &'types Gc<Type>>,
+    ) -> TypeFlags {
         let mut result = TypeFlags::None;
         for t in types {
             result |= self.get_falsy_flags(t);
@@ -806,7 +821,7 @@ impl TypeChecker {
             type_.type_wrapper()
         } else if missing == TypeFlags::Undefined {
             self.get_union_type(
-                vec![type_.type_wrapper(), self.undefined_type()],
+                &[type_.type_wrapper(), self.undefined_type()],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -814,7 +829,7 @@ impl TypeChecker {
             )
         } else if missing == TypeFlags::Null {
             self.get_union_type(
-                vec![type_.type_wrapper(), self.null_type()],
+                &[type_.type_wrapper(), self.null_type()],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -822,7 +837,7 @@ impl TypeChecker {
             )
         } else {
             self.get_union_type(
-                vec![
+                &[
                     type_.type_wrapper(),
                     self.undefined_type(),
                     self.null_type(),
@@ -842,7 +857,7 @@ impl TypeChecker {
             type_.type_wrapper()
         } else {
             self.get_union_type(
-                vec![
+                &[
                     type_.type_wrapper(),
                     if is_property {
                         self.missing_type()
@@ -902,7 +917,7 @@ impl TypeChecker {
     pub(super) fn add_optional_type_marker(&self, type_: &Type) -> Gc<Type> {
         if self.strict_null_checks {
             self.get_union_type(
-                vec![type_.type_wrapper(), self.optional_type()],
+                &[type_.type_wrapper(), self.optional_type()],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -1037,8 +1052,8 @@ impl TypeChecker {
         type_: &Type,
         mut f: TCallback,
     ) -> SymbolTable {
-        let mut members = create_symbol_table(None);
-        for property in &self.get_properties_of_object_type(type_) {
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
+        for ref property in self.get_properties_of_object_type(type_) {
             let original = self.get_type_of_symbol(property);
             let updated = f(&original);
             members.insert(

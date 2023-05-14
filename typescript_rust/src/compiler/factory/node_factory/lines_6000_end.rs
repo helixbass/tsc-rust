@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -16,8 +14,8 @@ use crate::{
     is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
     is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
-    parse_base_node_factory, parse_node_factory, set_text_range, BaseNode, BaseNodeFactory,
-    BaseNodeFactoryConcrete, BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
+    parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
     HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface, InputFiles,
     InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
@@ -27,10 +25,9 @@ use crate::{
     SyntaxKind, TransformFlags,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn update_modifiers(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*HasModifiers*/
         modifiers: impl Into<VecNodeOrModifierFlags>,
     ) -> Gc<Node> {
@@ -38,13 +35,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let modifiers = match modifiers {
             VecNodeOrModifierFlags::VecNode(modifiers) => modifiers,
             VecNodeOrModifierFlags::ModifierFlags(modifiers) => {
-                self.create_modifiers_from_modifier_flags(base_factory, modifiers)
+                self.create_modifiers_from_modifier_flags(modifiers)
             }
         };
         if is_parameter(node) {
             let node_as_parameter_declaration = node.as_parameter_declaration();
             self.update_parameter_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -57,7 +53,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_property_signature(node) {
             let node_as_property_signature = node.as_property_signature();
             self.update_property_signature(
-                base_factory,
                 node,
                 Some(modifiers),
                 node_as_property_signature.name(),
@@ -67,7 +62,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_property_declaration(node) {
             let node_as_property_declaration = node.as_property_declaration();
             self.update_property_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -81,7 +75,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_method_signature(node) {
             let node_as_method_signature = node.as_method_signature();
             self.update_method_signature(
-                base_factory,
                 node,
                 Some(modifiers),
                 node_as_method_signature.name(),
@@ -93,7 +86,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_method_declaration(node) {
             let node_as_method_declaration = node.as_method_declaration();
             self.update_method_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -108,7 +100,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_constructor_declaration(node) {
             let node_as_constructor_declaration = node.as_constructor_declaration();
             self.update_constructor_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -118,7 +109,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_get_accessor_declaration(node) {
             let node_as_get_accessor_declaration = node.as_get_accessor_declaration();
             self.update_get_accessor_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -130,7 +120,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_set_accessor_declaration(node) {
             let node_as_set_accessor_declaration = node.as_set_accessor_declaration();
             self.update_set_accessor_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -141,7 +130,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_index_signature_declaration(node) {
             let node_as_index_signature_declaration = node.as_index_signature_declaration();
             self.update_index_signature(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -151,7 +139,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_function_expression(node) {
             let node_as_function_expression = node.as_function_expression();
             self.update_function_expression(
-                base_factory,
                 node,
                 Some(modifiers),
                 node_as_function_expression.maybe_asterisk_token(),
@@ -164,7 +151,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_arrow_function(node) {
             let node_as_arrow_function = node.as_arrow_function();
             self.update_arrow_function(
-                base_factory,
                 node,
                 Some(modifiers),
                 node_as_arrow_function.maybe_type_parameters(),
@@ -176,7 +162,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_class_expression(node) {
             let node_as_class_expression = node.as_class_expression();
             self.update_class_expression(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -188,7 +173,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_variable_statement(node) {
             let node_as_variable_statement = node.as_variable_statement();
             self.update_variable_statement(
-                base_factory,
                 node,
                 Some(modifiers),
                 node_as_variable_statement.declaration_list.clone(),
@@ -196,7 +180,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_function_declaration(node) {
             let node_as_function_declaration = node.as_function_declaration();
             self.update_function_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -210,7 +193,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_class_declaration(node) {
             let node_as_class_declaration = node.as_class_declaration();
             self.update_class_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -222,7 +204,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_interface_declaration(node) {
             let node_as_interface_declaration = node.as_interface_declaration();
             self.update_interface_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -234,7 +215,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_type_alias_declaration(node) {
             let node_as_type_alias_declaration = node.as_type_alias_declaration();
             self.update_type_alias_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -245,7 +225,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_enum_declaration(node) {
             let node_as_enum_declaration = node.as_enum_declaration();
             self.update_enum_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -255,7 +234,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_module_declaration(node) {
             let node_as_module_declaration = node.as_module_declaration();
             self.update_module_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -265,7 +243,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_import_equals_declaration(node) {
             let node_as_import_equals_declaration = node.as_import_equals_declaration();
             self.update_import_equals_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -276,7 +253,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_import_declaration(node) {
             let node_as_import_declaration = node.as_import_declaration();
             self.update_import_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -287,7 +263,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_export_assignment(node) {
             let node_as_export_assignment = node.as_export_assignment();
             self.update_export_assignment(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -296,7 +271,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_export_declaration(node) {
             let node_as_export_declaration = node.as_export_declaration();
             self.update_export_declaration(
-                base_factory,
                 node,
                 node.maybe_decorators(),
                 Some(modifiers),
@@ -319,47 +293,41 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub(super) fn as_name<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
-        base_factory: &TBaseNodeFactory,
         name: Option<TName>,
     ) -> Option<Gc<Node>> {
         name.map(|name| match name.into() {
             StrOrRcNode::Str(name) => self
-                .create_identifier(base_factory, name, Option::<Gc<NodeArray>>::None, None)
-                .into(),
+                .create_identifier(name, Option::<Gc<NodeArray>>::None, None)
+                .wrap(),
             StrOrRcNode::RcNode(name) => name,
         })
     }
 
     pub(super) fn as_expression<TValue: Into<StringOrNumberOrBoolOrRcNode>>(
         &self,
-        base_factory: &TBaseNodeFactory,
         value: Option<TValue>,
     ) -> Option<Gc<Node>> {
         value.map(|value| match value.into() {
-            StringOrNumberOrBoolOrRcNode::String(value) => self
-                .create_string_literal(base_factory, value, None, None)
-                .into(),
-            StringOrNumberOrBoolOrRcNode::Number(value) => self
-                .create_numeric_literal(base_factory, value, None)
-                .into(),
+            StringOrNumberOrBoolOrRcNode::String(value) => {
+                self.create_string_literal(value, None, None).wrap()
+            }
+            StringOrNumberOrBoolOrRcNode::Number(value) => {
+                self.create_numeric_literal(value, None).wrap()
+            }
             StringOrNumberOrBoolOrRcNode::Bool(value) => {
                 if value {
-                    self.create_true(base_factory).into()
+                    self.create_true().wrap()
                 } else {
-                    self.create_false(base_factory).into()
+                    self.create_false().wrap()
                 }
             }
             StringOrNumberOrBoolOrRcNode::RcNode(value) => value,
         })
     }
 
-    pub(super) fn as_token(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        value: SyntaxKindOrRcNode,
-    ) -> Gc<Node> {
+    pub(super) fn as_token(&self, value: SyntaxKindOrRcNode) -> Gc<Node> {
         match value {
-            SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(base_factory, value).into(),
+            SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(value).wrap(),
             SyntaxKindOrRcNode::RcNode(value) => value,
         }
     }
@@ -475,7 +443,7 @@ pub(super) fn get_cooked_text(
                 None,
             ));
         }
-        let mut raw_text_scanner_ref = raw_text_scanner_ref.as_mut().unwrap();
+        let raw_text_scanner_ref = raw_text_scanner_ref.as_mut().unwrap();
         match kind {
             SyntaxKind::NoSubstitutionTemplateLiteral => {
                 let text = format!("`{}`", raw_text);
@@ -539,7 +507,7 @@ pub(super) fn propagate_property_name_flags_of_child(
     transform_flags | (node.transform_flags() & TransformFlags::PropertyNamePropagatingFlags)
 }
 
-pub(super) fn propagate_child_flags<TNode: Borrow<Node>>(child: Option<TNode>) -> TransformFlags {
+pub(super) fn propagate_child_flags(child: Option<impl Borrow<Node>>) -> TransformFlags {
     if child.is_none() {
         return TransformFlags::None;
     }
@@ -628,27 +596,32 @@ thread_local! {
     pub(super) static base_factory_static: BaseNodeFactoryConcrete = create_base_node_factory();
 }
 
-pub(super) fn make_synthetic(node: BaseNode) -> BaseNode {
+pub(super) fn make_synthetic_ref(node: &impl NodeInterface) {
     node.set_flags(node.flags() | NodeFlags::Synthesized);
+}
+
+pub(super) fn make_synthetic(node: BaseNode) -> BaseNode {
+    make_synthetic_ref(&node);
     node
 }
 
 thread_local! {
-    pub static synthetic_factory: BaseNodeFactorySynthetic = BaseNodeFactorySynthetic::new();
+    pub static synthetic_factory: Gc<BaseNodeFactorySynthetic> = Gc::new(BaseNodeFactorySynthetic::new());
 }
 
-// pub fn get_synthetic_factory() -> BaseNodeFactorySynthetic {
-//     BaseNodeFactorySynthetic::new()
-// }
+pub fn get_synthetic_factory() -> Gc<BaseNodeFactorySynthetic> {
+    synthetic_factory.with(|synthetic_factory_| synthetic_factory_.clone())
+}
 
-pub fn with_synthetic_factory_and_factory<
-    TReturn,
-    TCallback: FnOnce(&BaseNodeFactorySynthetic, &Gc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
->(
-    callback: TCallback,
+pub fn with_synthetic_factory_and_factory<TReturn>(
+    callback: impl FnOnce(
+        &BaseNodeFactorySynthetic,
+        &Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    ) -> TReturn,
 ) -> TReturn {
-    synthetic_factory
-        .with(|synthetic_factory_| factory.with(|factory_| callback(synthetic_factory_, factory_)))
+    synthetic_factory.with(|synthetic_factory_| {
+        factory.with(|factory_| callback(&**synthetic_factory_, factory_))
+    })
 }
 
 pub fn with_factory<
@@ -660,13 +633,13 @@ pub fn with_factory<
     factory.with(|factory_| callback(factory_))
 }
 
-pub fn with_synthetic_factory<TReturn, TCallback: FnOnce(&BaseNodeFactorySynthetic) -> TReturn>(
-    callback: TCallback,
+pub fn with_synthetic_factory<TReturn>(
+    callback: impl FnOnce(&BaseNodeFactorySynthetic) -> TReturn,
 ) -> TReturn {
-    synthetic_factory.with(|synthetic_factory_| callback(synthetic_factory_))
+    synthetic_factory.with(|synthetic_factory_| callback(&**synthetic_factory_))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct BaseNodeFactorySynthetic {}
 
 impl BaseNodeFactorySynthetic {
@@ -705,11 +678,15 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
         make_synthetic(base_factory_static.with(|base_factory| base_factory.create_base_node(kind)))
     }
+
+    fn update_cloned_node<TNode: NodeInterface>(&self, node: &TNode) {
+        make_synthetic_ref(node);
+    }
 }
 
 thread_local! {
     pub static factory: Gc<NodeFactory<BaseNodeFactorySynthetic>> =
-        create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
+        create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess, get_synthetic_factory());
 }
 
 pub fn get_factory() -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
@@ -734,9 +711,9 @@ impl From<String> for PseudoBigIntOrString {
 }
 
 pub fn create_unparsed_source_file(
-    text_or_input_files: impl Into<StringOrRcNode>,
-    map_path_or_type: Option<&str>,
-    map_text_or_strip_internal: Option<impl Into<StringOrBool>>,
+    _text_or_input_files: impl Into<StringOrRcNode>,
+    _map_path_or_type: Option<&str>,
+    _map_text_or_strip_internal: Option<impl Into<StringOrBool>>,
 ) -> Gc<Node /*UnparsedSource*/> {
     unimplemented!()
 }
@@ -754,13 +731,8 @@ pub fn create_input_files(
     build_info: Option<Gc<BuildInfo>>,
     old_file_of_current_emit: Option<bool>,
 ) -> Gc<Node /*InputFiles*/> {
-    let mut node: InputFiles = parse_base_node_factory.with(|parse_base_node_factory_| {
-        parse_node_factory.with(|parse_node_factory_| {
-            parse_node_factory_
-                .create_input_files(parse_base_node_factory_)
-                .into()
-        })
-    });
+    let mut node: InputFiles = parse_node_factory
+        .with(|parse_node_factory_| parse_node_factory_.create_input_files().into());
     match javascript_text_or_read_file_text.into() {
         StringOrReadFileCallback::ReadFileCallback(javascript_text_or_read_file_text) => {
             node.initialize_with_read_file_callback(
@@ -788,7 +760,7 @@ pub fn create_input_files(
             );
         }
     }
-    node.into()
+    node.wrap()
 }
 
 pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {

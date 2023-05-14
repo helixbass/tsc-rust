@@ -1,6 +1,5 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
+use itertools::{Either, Itertools};
 use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::collections::HashSet;
@@ -65,7 +64,7 @@ impl CheckTypeRelatedTo {
             return Some(*result);
         }
         if some(
-            Some(&variances),
+            Some(variances),
             Some(|v: &VarianceFlags| v.intersects(VarianceFlags::AllowsStructuralFallback)),
         ) {
             *original_error_info = None;
@@ -192,7 +191,7 @@ impl CheckTypeRelatedTo {
         let source_properties = self.type_checker.get_properties_of_type(source);
         let source_properties_filtered = self
             .type_checker
-            .find_discriminant_properties(&source_properties, target);
+            .find_discriminant_properties(source_properties, target);
         if source_properties_filtered.is_none() {
             return Ternary::False;
         }
@@ -214,7 +213,7 @@ impl CheckTypeRelatedTo {
         let mut source_discriminant_types: Vec<Vec<Gc<Type>>> =
             Vec::with_capacity(source_properties_filtered.len());
         let mut excluded_properties: HashSet<__String> = HashSet::new();
-        for (i, source_property) in source_properties_filtered.iter().enumerate() {
+        for source_property in source_properties_filtered.iter() {
             let source_property_type = self
                 .type_checker
                 .get_non_missing_type_of_symbol(source_property);
@@ -1029,7 +1028,10 @@ impl CheckTypeRelatedTo {
         }
         if self.type_checker.is_object_literal_type(target) {
             for source_prop in &self.exclude_properties(
-                &self.type_checker.get_properties_of_type(source),
+                &self
+                    .type_checker
+                    .get_properties_of_type(source)
+                    .collect_vec(),
                 excluded_properties,
             ) {
                 if self
@@ -1067,7 +1069,8 @@ impl CheckTypeRelatedTo {
         let properties = self.type_checker.get_properties_of_type(target);
         let numeric_names_only =
             self.type_checker.is_tuple_type(source) && self.type_checker.is_tuple_type(target);
-        for target_prop in &self.exclude_properties(&properties, excluded_properties) {
+        for target_prop in &self.exclude_properties(&properties.collect_vec(), excluded_properties)
+        {
             let name = target_prop.escaped_name();
             if !target_prop.flags().intersects(SymbolFlags::Prototype)
                 && (!numeric_names_only
@@ -1110,11 +1113,17 @@ impl CheckTypeRelatedTo {
             return Ternary::False;
         }
         let source_properties = self.exclude_properties(
-            &self.type_checker.get_properties_of_object_type(source),
+            &self
+                .type_checker
+                .get_properties_of_object_type(source)
+                .collect_vec(),
             excluded_properties,
         );
         let target_properties = self.exclude_properties(
-            &self.type_checker.get_properties_of_object_type(target),
+            &self
+                .type_checker
+                .get_properties_of_object_type(target)
+                .collect_vec(),
             excluded_properties,
         );
         if source_properties.len() != target_properties.len() {
@@ -1504,12 +1513,14 @@ impl CheckTypeRelatedTo {
         let mut result = Ternary::True;
         let key_type = &target_info.key_type;
         let props = if source.flags().intersects(TypeFlags::Intersection) {
-            self.type_checker
-                .get_properties_of_union_or_intersection_type(source)
+            Either::Left(
+                self.type_checker
+                    .get_properties_of_union_or_intersection_type(source),
+            )
         } else {
-            self.type_checker.get_properties_of_object_type(source)
+            Either::Right(self.type_checker.get_properties_of_object_type(source))
         };
-        for prop in &props {
+        for ref prop in props {
             if self.type_checker.is_ignored_jsx_property(source, prop) {
                 continue;
             }

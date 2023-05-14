@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
@@ -337,7 +335,7 @@ impl TypeChecker {
         let properties = self.get_properties_of_type(left_type);
         // if (properties) {
         let right_as_private_identifier = right.as_private_identifier();
-        for_each(&properties, |symbol: &Gc<Symbol>, _| {
+        for_each(properties, |ref symbol: Gc<Symbol>, _| {
             let decl = symbol.maybe_value_declaration();
             if matches!(
                 decl.as_ref(),
@@ -466,7 +464,7 @@ impl TypeChecker {
         });
         let is_any_like = self.is_type_any(Some(&*apparent_type))
             || Gc::ptr_eq(&apparent_type, &self.silent_never_type());
-        let mut prop: Option<Gc<Symbol>> = None;
+        let prop: Option<Gc<Symbol>>;
         if is_private_identifier(right) {
             if self.language_version < ScriptTarget::ESNext {
                 if assignment_kind != AssignmentKind::None {
@@ -690,7 +688,7 @@ impl TypeChecker {
                     && !is_assignment_target(node)
                 {
                     self.get_union_type(
-                        vec![index_info.type_.clone(), self.undefined_type()],
+                        &[index_info.type_.clone(), self.undefined_type()],
                         None,
                         Option::<&Symbol>::None,
                         None,

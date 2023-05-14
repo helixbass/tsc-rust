@@ -1,17 +1,19 @@
 use gc::{Finalize, Gc, Trace};
+use itertools::Itertools;
+use jsonxf::Formatter;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path as StdPath;
 
 use harness::{
-    after, before, compiler, describe, get_file_based_test_configuration_description,
-    get_file_based_test_configurations, it, vpath, with_io, Compiler, EnumerateFilesOptions,
-    FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub, StringOrFileBasedTest,
-    TestCaseParser, TestRunnerKind, IO,
+    compiler, describe, get_file_based_test_configuration_description,
+    get_file_based_test_configurations, it, vpath, with_io, Baseline, Compiler,
+    EnumerateFilesOptions, FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub,
+    StringOrFileBasedTest, TestCaseParser, TestRunnerKind, Utils, IO,
 };
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
-    is_rooted_disk_path, some, to_path, CompilerOptions, Extension,
+    is_rooted_disk_path, regex, some, to_path, CompilerOptions, Extension,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -137,11 +139,12 @@ impl CompilerBaselineRunner {
                     )
                 }) {
                     let root_dir = if !test.file.contains("conformance") {
-                        "tests/cases/compiler/".to_owned()
-                        // "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                        // "tests/cases/compiler/".to_owned()
+                        "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
                     } else {
                         format!("{}/", get_directory_path(&test.file))
-                    };
+                    }
+                    .replace("../typescript_rust/typescript_src/", "");
                     payload = Some(TestCaseParser::make_units_from_test(
                         test.content.as_ref().unwrap(),
                         &test.file,
@@ -153,6 +156,39 @@ impl CompilerBaselineRunner {
                 compiler_test.verify_diagnostics();
             }
         });
+        it(
+            &format!("Correct module resolution tracing for {}", file_name),
+            {
+                let configuration = configuration.cloned();
+                let test = test.cloned();
+                let file_name = file_name.to_owned();
+                move || {
+                    let mut payload: Option<TestCaseParser::TestCaseContent> = None;
+                    if let Some(test) = test.as_ref().filter(|test| {
+                        matches!(
+                            test.content.as_ref(),
+                            Some(test_content) if !test_content.is_empty()
+                        )
+                    }) {
+                        let root_dir = if !test.file.contains("conformance") {
+                            // "tests/cases/compiler/".to_owned()
+                            "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                        } else {
+                            format!("{}/", get_directory_path(&test.file))
+                        }
+                        .replace("../typescript_rust/typescript_src/", "");
+                        payload = Some(TestCaseParser::make_units_from_test(
+                            test.content.as_ref().unwrap(),
+                            &test.file,
+                            Some(&root_dir),
+                            None,
+                        ));
+                    }
+                    let compiler_test = CompilerTest::new(file_name, payload, configuration);
+                    compiler_test.verify_module_resolution();
+                }
+            },
+        );
         // after({
         //     let compiler_test = compiler_test.clone();
         //     move || {
@@ -162,7 +198,7 @@ impl CompilerBaselineRunner {
     }
 
     fn parse_options(&self) {
-        if let Some(options) = self.options.as_ref().filter(|options| !options.is_empty()) {
+        if let Some(_options) = self.options.as_ref().filter(|options| !options.is_empty()) {
             unimplemented!()
         }
     }
@@ -215,6 +251,7 @@ impl RunnerBaseSub for CompilerBaselineRunner {
     }
 }
 
+#[allow(dead_code)]
 struct CompilerTest {
     file_name: String,
     just_name: String,
@@ -259,11 +296,12 @@ impl CompilerTest {
         }
 
         let root_dir = if !file_name.contains("conformance") {
-            "tests/cases/compiler/".to_owned()
-            // "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+            // "tests/cases/compiler/".to_owned()
+            "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
         } else {
             format!("{}/", get_directory_path(&file_name))
-        };
+        }
+        .replace("../typescript_rust/typescript_src/", "");
 
         if test_case_content.is_none() {
             test_case_content = Some(TestCaseParser::make_units_from_test(
@@ -438,7 +476,7 @@ impl CompilerTest {
         ]
     }
 
-    pub fn get_configurations<TFile: AsRef<StdPath>>(file: TFile) -> CompilerFileBasedTest {
+    pub fn get_configurations(file: impl AsRef<StdPath>) -> CompilerFileBasedTest {
         let file = file.as_ref();
         let content = with_io(|io| IO::read_file(io, file)).unwrap();
         let settings = TestCaseParser::extract_compiler_settings(&content);
@@ -463,6 +501,31 @@ impl CompilerTest {
             &self.result.diagnostics,
             Some(self.options.pretty == Some(true)),
         )
+    }
+
+    pub fn verify_module_resolution(&self) {
+        if self.options.trace_resolution == Some(true) {
+            Baseline::run_baseline(
+                &regex!(".tsx?$").replace(&self.configured_name, ".trace.json"),
+                Some(&{
+                    let mut fmt = Formatter::pretty_printer();
+                    fmt.indent = "    ".to_owned();
+                    fmt.format(
+                        &serde_json::to_string(
+                            &self
+                                .result
+                                .traces()
+                                .iter()
+                                .map(|trace| Utils::sanitize_trace_resolution_log_entry(trace))
+                                .collect_vec(),
+                        )
+                        .unwrap(),
+                    )
+                    .unwrap()
+                }),
+                None,
+            );
+        }
     }
 
     pub fn make_unit_name(name: &str, root: &str) -> String {

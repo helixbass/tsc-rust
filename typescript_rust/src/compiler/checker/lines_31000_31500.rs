@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -147,7 +145,7 @@ impl TypeChecker {
         original_symbol: &Symbol,
         anonymous_symbol: Option<TAnonymousSymbol>,
     ) -> Gc<Type> {
-        let mut member_table = create_symbol_table(None);
+        let mut member_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let new_symbol: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Alias,
@@ -618,7 +616,7 @@ impl TypeChecker {
         rest_parameter.escaped_name().to_owned()
     }
 
-    pub(super) fn get_parameter_identifier_name_at_position(
+    pub fn get_parameter_identifier_name_at_position(
         &self,
         signature: &Signature,
         pos: usize,

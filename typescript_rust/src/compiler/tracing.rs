@@ -1,4 +1,8 @@
-pub fn start_tracing(tracing_mode: &str /*Mode*/, trace_dir: &str, config_file: Option<&str>) {
+pub fn start_tracing(
+    _tracing_mode: &str, /*Mode*/
+    _trace_dir: &str,
+    _config_file: Option<&str>,
+) {
     unimplemented!()
 }
 

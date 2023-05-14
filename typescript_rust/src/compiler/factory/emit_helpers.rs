@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gc::Gc;
 
 use crate::{Comparison, EmitHelper, Node, TransformationContext};
@@ -8,24 +10,86 @@ use crate::{Comparison, EmitHelper, Node, TransformationContext};
 pub struct EmitHelperFactory {}
 
 impl EmitHelperFactory {
+    pub fn create_decorate_helper(
+        &self,
+        _decorator_expressions: &[Gc<Node /*Expression*/>],
+        _target: &Node, /*Expression*/
+        _member_name: Option<impl Borrow<Node /*Expression*/>>,
+        _descriptor: Option<impl Borrow<Node /*Expression*/>>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_metadata_helper(
+        &self,
+        _metadata_key: &str,
+        _metadata_value: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_param_helper(
+        &self,
+        _expression: Gc<Node /*Expression*/>,
+        _parameter_offset: usize,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_assign_helper(
+        &self,
+        _attributes_segments: &[Gc<Node /*Expression*/>],
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_await_helper(
+        &self,
+        _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_async_generator_helper(
+        &self,
+        _generator_func: Gc<Node /*FunctionExpression*/>,
+        _has_lexical_this: bool,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_async_delegator_helper(
+        &self,
+        _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
+    pub fn create_async_values_helper(
+        &self,
+        _expression: Gc<Node /*Expression*/>,
+    ) -> Gc<Node /*Expression*/> {
+        unimplemented!()
+    }
+
     pub fn create_awaiter_helper(
         &self,
-        has_lexical_this: bool,
-        has_lexical_arguments: bool,
-        promise_constructor: Option<Gc<Node /*EntityName | Expression*/>>,
-        body: Gc<Node /*Block*/>,
+        _has_lexical_this: bool,
+        _has_lexical_arguments: bool,
+        _promise_constructor: Option<Gc<Node /*EntityName | Expression*/>>,
+        _body: Gc<Node /*Block*/>,
     ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
 }
 
 pub fn create_emit_helper_factory(
-    context: Gc<Box<dyn TransformationContext>>,
+    _context: Gc<Box<dyn TransformationContext>>,
 ) -> EmitHelperFactory {
     unimplemented!()
 }
 
-pub(crate) fn compare_emit_helpers(x: &EmitHelper, y: &EmitHelper) -> Comparison {
+pub(crate) fn compare_emit_helpers(_x: &EmitHelper, _y: &EmitHelper) -> Comparison {
     unimplemented!()
 }
 

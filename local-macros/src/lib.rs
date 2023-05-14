@@ -21,7 +21,7 @@ struct AstTypeArgs {
 }
 
 impl AstTypeArgs {
-    fn ancestors_vec(&self) -> Vec<String> {
+    fn ancestors_vec(&self, ast_type_name: &Ident) -> Vec<String> {
         let mut vec = self.ancestors.as_ref().map_or_else(
             || vec![],
             |ancestors_str| {
@@ -32,7 +32,9 @@ impl AstTypeArgs {
                     .collect()
             },
         );
-        vec.push("Node".to_string());
+        if ast_type_name.to_string() != "Node" {
+            vec.push("Node".to_string());
+        }
         vec
     }
 
@@ -59,9 +61,25 @@ fn get_ast_struct_interface_impl(
     interface_name: &str,
     first_field_name: &Ident,
     ast_type_name: &Ident,
+    should_impl_from: bool,
 ) -> TokenStream2 {
     match interface_name {
         "NodeInterface" => {
+            let wrap = if should_impl_from {
+                quote! {
+                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                        let rc = ::gc::Gc::new(Into::<crate::Node>::into(self));
+                        crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
+                        rc
+                    }
+                }
+            } else {
+                quote! {
+                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                        unreachable!()
+                    }
+                }
+            };
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn node_wrapper(&self) -> ::gc::Gc<crate::Node> {
@@ -71,6 +89,8 @@ fn get_ast_struct_interface_impl(
                     fn set_node_wrapper(&self, wrapper: ::gc::Gc<crate::Node>) {
                         self.#first_field_name.set_node_wrapper(wrapper)
                     }
+
+                    #wrap
 
                     fn kind(&self) -> crate::SyntaxKind {
                         self.#first_field_name.kind()
@@ -144,7 +164,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.parent()
                     }
 
-                    fn set_parent(&self, parent: ::gc::Gc<crate::Node>) {
+                    fn set_parent(&self, parent: ::std::option::Option<::gc::Gc<crate::Node>>) {
                         self.#first_field_name.set_parent(parent)
                     }
 
@@ -248,11 +268,11 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_js_doc(js_doc)
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>> {
                         self.#first_field_name.maybe_js_doc_cache()
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>>) {
                         self.#first_field_name.set_js_doc_cache(js_doc_cache)
                     }
 
@@ -499,9 +519,25 @@ fn get_ast_enum_interface_impl(
     interface_name: &str,
     variant_names: &[&Ident],
     ast_type_name: &Ident,
+    should_impl_from: bool,
 ) -> TokenStream2 {
     match interface_name {
         "NodeInterface" => {
+            let wrap = if should_impl_from {
+                quote! {
+                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                        let rc = ::gc::Gc::new(Into::<crate::Node>::into(self));
+                        crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
+                        rc
+                    }
+                }
+            } else {
+                quote! {
+                    fn wrap(self) -> ::gc::Gc<crate::Node> {
+                        unreachable!()
+                    }
+                }
+            };
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn node_wrapper(&self) -> ::gc::Gc<crate::Node> {
@@ -515,6 +551,8 @@ fn get_ast_enum_interface_impl(
                             #(#ast_type_name::#variant_names(nested) => nested.set_node_wrapper(wrapper)),*
                         }
                     }
+
+                    #wrap
 
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
@@ -624,7 +662,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_parent(&self, parent: ::gc::Gc<crate::Node>) {
+                    fn set_parent(&self, parent: ::std::option::Option<::gc::Gc<crate::Node>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_parent(parent)),*
                         }
@@ -780,13 +818,13 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_js_doc_cache()),*
                         }
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Node>>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::gc::Gc<crate::Node>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc_cache(js_doc_cache)),*
                         }
@@ -1110,8 +1148,12 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             let mut interface_impls: TokenStream2 = quote! {};
             for interface in args.interfaces_vec() {
-                let interface_impl =
-                    get_ast_struct_interface_impl(&interface, &first_field_name, &ast_type_name);
+                let interface_impl = get_ast_struct_interface_impl(
+                    &interface,
+                    &first_field_name,
+                    &ast_type_name,
+                    args.should_impl_from(),
+                );
                 interface_impls = quote! {
                     #interface_impls
 
@@ -1129,8 +1171,12 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             let mut interface_impls: TokenStream2 = quote! {};
             for interface in args.interfaces_vec() {
-                let interface_impl =
-                    get_ast_enum_interface_impl(&interface, &variant_names, &ast_type_name);
+                let interface_impl = get_ast_enum_interface_impl(
+                    &interface,
+                    &variant_names,
+                    &ast_type_name,
+                    args.should_impl_from(),
+                );
                 interface_impls = quote! {
                     #interface_impls
 
@@ -1149,7 +1195,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         };
         let mut previous_variant_name = ast_type_name.clone();
         let mut into_implementations = quote! {};
-        for ancestor in args.ancestors_vec() {
+        for ancestor in args.ancestors_vec(&ast_type_name) {
             let ancestor_ident = Ident::new(&ancestor, previous_variant_name.span());
             construct_variant = quote! {
                 crate::#ancestor_ident::#previous_variant_name(#construct_variant)
@@ -1168,14 +1214,6 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         quote! {
             #into_implementations
-
-            impl ::std::convert::From<#ast_type_name> for ::gc::Gc<crate::Node> {
-                fn from(concrete: #ast_type_name) -> Self {
-                    let rc = ::gc::Gc::new(#construct_variant);
-                    crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
-                    rc
-                }
-            }
         }
     } else {
         quote! {}
@@ -1467,7 +1505,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_members(members)
                     }
 
-                    fn maybe_properties(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         self.#first_field_name.maybe_properties()
                     }
 
@@ -1492,7 +1530,7 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
                         self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures, index_infos)
                     }
 
@@ -1509,15 +1547,15 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.members()
                     }
 
-                    fn properties(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties(&self) -> crate::GcVec<::gc::Gc<crate::Symbol>> {
                         self.#first_field_name.properties()
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>, ::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>, crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         self.#first_field_name.properties_mut()
                     }
 
-                    fn set_properties(&self, properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>) {
+                    fn set_properties(&self, properties: crate::GcVec<::gc::Gc<crate::Symbol>>) {
                         self.#first_field_name.set_properties(properties)
                     }
 
@@ -1580,8 +1618,12 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_property_cache_without_object_function_property_augment()
                     }
 
-                    fn maybe_resolved_properties(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         self.#first_field_name.maybe_resolved_properties()
+                    }
+
+                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>> {
+                        self.#first_field_name.maybe_resolved_properties_mut()
                     }
                 }
             }
@@ -2056,7 +2098,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_properties(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_properties()),*
                         }
@@ -2091,7 +2133,7 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::gc::Gc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures, index_infos)),*
                         }
@@ -2114,19 +2156,19 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn properties(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties(&self) -> crate::GcVec<::gc::Gc<crate::Symbol>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties()),*
                         }
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>, ::std::vec::Vec<::gc::Gc<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>, crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties_mut()),*
                         }
                     }
 
-                    fn set_properties(&self, properties: ::std::vec::Vec<::gc::Gc<crate::Symbol>>) {
+                    fn set_properties(&self, properties: crate::GcVec<::gc::Gc<crate::Symbol>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_properties(properties)),*
                         }
@@ -2213,9 +2255,15 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_resolved_properties(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Symbol>>>> {
+                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties()),*
+                        }
+                    }
+
+                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::gc::Gc<crate::Symbol>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties_mut()),*
                         }
                     }
                 }
@@ -3269,7 +3317,7 @@ fn get_command_line_option_struct_interface_impl(
                     fn maybe_extra_validation(
                         &self,
                     ) -> ::std::option::Option<
-                        fn(::std::option::Option<&serde_json::Value>) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                        ::std::rc::Rc<dyn Fn(::std::option::Option<&serde_json::Value>) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>>,
                     > {
                         self.#first_field_name.maybe_extra_validation()
                     }
@@ -3277,7 +3325,7 @@ fn get_command_line_option_struct_interface_impl(
                     fn maybe_extra_validation_compiler_options_value(
                         &self,
                     ) -> ::std::option::Option<
-                        fn(&crate::CompilerOptionsValue) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                        ::std::rc::Rc<dyn Fn(&crate::CompilerOptionsValue) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>>,
                     > {
                         self.#first_field_name.maybe_extra_validation_compiler_options_value()
                     }
@@ -3426,7 +3474,7 @@ fn get_command_line_option_enum_interface_impl(
                     fn maybe_extra_validation(
                         &self,
                     ) -> ::std::option::Option<
-                        fn(::std::option::Option<&serde_json::Value>) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                        ::std::rc::Rc<dyn Fn(::std::option::Option<&serde_json::Value>) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>>,
                     > {
                         match self {
                             #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_extra_validation()),*
@@ -3436,7 +3484,7 @@ fn get_command_line_option_enum_interface_impl(
                     fn maybe_extra_validation_compiler_options_value(
                         &self,
                     ) -> ::std::option::Option<
-                        fn(&crate::CompilerOptionsValue) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                        ::std::rc::Rc<dyn Fn(&crate::CompilerOptionsValue) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>>,
                     > {
                         match self {
                             #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_extra_validation_compiler_options_value()),*

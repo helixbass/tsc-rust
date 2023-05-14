@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
@@ -14,9 +12,9 @@ use crate::{
     is_in_js_file, is_line_break, is_outermost_optional_chain, last, length, map_defined,
     min_and_max, skip_trivia, text_char_at_index, AsDoubleDeref, Debug_, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasTypeArgumentsInterface,
-    InferenceFlags, MinAndMax, ModifierFlags, Node, NodeInterface, ObjectFlags, ReadonlyTextRange,
-    ScriptTarget, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    InferenceFlags, Matches, MinAndMax, ModifierFlags, Node, NodeInterface, ObjectFlags,
+    ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SignatureKind, SourceFileLike,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
@@ -103,7 +101,7 @@ impl TypeChecker {
         if !rest_parameter_symbols.is_empty() {
             let type_ = self.create_array_type(
                 &self.get_union_type(
-                    map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
+                    &map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
                         self.try_get_rest_type_of_signature(candidate)
                     }),
                     Some(UnionReduction::Subtype),
@@ -164,7 +162,7 @@ impl TypeChecker {
         self.create_combined_symbol_for_overload_failure(
             sources,
             &self.get_union_type(
-                types.to_owned(),
+                types,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
@@ -575,9 +573,9 @@ impl TypeChecker {
                     .and_then(|expression_type_symbol| {
                         get_class_like_declaration_of_symbol(expression_type_symbol)
                     });
-            if let Some(value_decl) = value_decl
+            if value_decl
                 .as_ref()
-                .filter(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract))
+                .matches(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract))
             {
                 self.error(
                     Some(node),
@@ -786,7 +784,7 @@ impl TypeChecker {
                 let signatures = self.get_signatures_of_type(constituent, kind);
                 if !signatures.is_empty() {
                     has_signatures = true;
-                    if let Some(error_info) = error_info.as_ref() {
+                    if error_info.is_some() {
                         break;
                     }
                 } else {

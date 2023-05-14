@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
@@ -30,7 +28,7 @@ impl TypeChecker {
         right_type: &Type,
     ) {
         if kind == AssignmentDeclarationKind::ModuleExports {
-            for prop in &self.get_properties_of_object_type(right_type) {
+            for ref prop in self.get_properties_of_object_type(right_type) {
                 let prop_type = self.get_type_of_symbol(prop);
                 if matches!(
                     prop_type.maybe_symbol().as_ref(),
@@ -491,7 +489,7 @@ impl TypeChecker {
         let type2 =
             self.check_expression(&node_as_conditional_expression.when_false, check_mode, None);
         self.get_union_type(
-            vec![type1, type2],
+            &[type1, type2],
             Some(UnionReduction::Subtype),
             Option::<&Symbol>::None,
             None,

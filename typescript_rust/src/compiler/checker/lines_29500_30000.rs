@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
@@ -103,18 +101,15 @@ impl TypeChecker {
             TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
         >,
     ) -> Gc<Node> {
-        let result: Gc<Node> = parse_node_factory.with(|parse_node_factory_| {
-            parse_base_node_factory.with(|parse_base_node_factory_| {
-                parse_node_factory_
-                    .create_synthetic_expression(
-                        parse_base_node_factory_,
-                        type_.type_wrapper(),
-                        is_spread,
-                        tuple_name_source
-                            .map(|tuple_name_source| tuple_name_source.borrow().node_wrapper()),
-                    )
-                    .into()
-            })
+        let result = parse_node_factory.with(|parse_node_factory_| {
+            parse_node_factory_
+                .create_synthetic_expression(
+                    type_.type_wrapper(),
+                    is_spread,
+                    tuple_name_source
+                        .map(|tuple_name_source| tuple_name_source.borrow().node_wrapper()),
+                )
+                .wrap()
         });
         set_text_range(&*result, Some(parent));
         set_parent(&result, Some(parent));

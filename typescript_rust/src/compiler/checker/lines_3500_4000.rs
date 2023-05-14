@@ -1,6 +1,5 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
+use itertools::Itertools;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
@@ -79,7 +78,7 @@ impl TypeChecker {
                     module_reference.to_owned(),
                     resolved_file_name.clone()
                 ])
-            ).into(),
+            ),
             None
         );
     }
@@ -150,7 +149,11 @@ impl TypeChecker {
         merged.set_flags(merged.flags() | SymbolFlags::ValueModule);
         let merged_exports = merged
             .maybe_exports_mut()
-            .get_or_insert_with(|| Gc::new(GcCell::new(create_symbol_table(None))))
+            .get_or_insert_with(|| {
+                Gc::new(GcCell::new(create_symbol_table(
+                    Option::<&[Gc<Symbol>]>::None,
+                )))
+            })
             .clone();
         for (name, s) in &*(*module_symbol.exports()).borrow() {
             if name == InternalSymbolName::ExportEquals {
@@ -321,10 +324,7 @@ impl TypeChecker {
         self.symbols_to_array(&(*self.get_exports_of_module_(module_symbol)).borrow())
     }
 
-    pub(super) fn get_exports_and_properties_of_module(
-        &self,
-        module_symbol: &Symbol,
-    ) -> Vec<Gc<Symbol>> {
+    pub fn get_exports_and_properties_of_module(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
         let mut exports = self.get_exports_of_module_as_array(module_symbol);
         let export_equals = self
             .resolve_external_module_symbol(Some(module_symbol), None)
@@ -334,7 +334,7 @@ impl TypeChecker {
             if self.should_treat_properties_of_external_module_as_exports(&type_) {
                 add_range(
                     &mut exports,
-                    Some(&*self.get_properties_of_type(&type_)),
+                    Some(&*self.get_properties_of_type(&type_).collect_vec()),
                     None,
                     None,
                 );
@@ -343,10 +343,10 @@ impl TypeChecker {
         exports
     }
 
-    pub(super) fn for_each_export_and_property_of_module<TCallback: FnMut(&Symbol, &__String)>(
+    pub fn for_each_export_and_property_of_module(
         &self,
         module_symbol: &Symbol,
-        mut cb: TCallback,
+        mut cb: impl FnMut(&Symbol, &__String),
     ) {
         let exports = self.get_exports_of_module_(module_symbol);
         for (key, symbol) in &*(*exports).borrow() {
@@ -536,7 +536,7 @@ impl TypeChecker {
         let mut symbols = symbol_exports.clone();
         let export_stars = symbol_exports.get(InternalSymbolName::ExportStar);
         if let Some(export_stars) = export_stars {
-            let mut nested_symbols = create_symbol_table(None);
+            let mut nested_symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             let mut lookup_table = ExportCollisionTrackerTable::new();
             if let Some(export_stars_declarations) = export_stars.maybe_declarations().as_ref() {
                 for node in export_stars_declarations {
@@ -592,10 +592,7 @@ impl TypeChecker {
         let symbol = symbol?;
         let symbol = symbol.borrow();
         if let Some(symbol_merge_id) = symbol.maybe_merge_id() {
-            let merged = self
-                .merged_symbols()
-                .get(&symbol_merge_id)
-                .map(Clone::clone);
+            let merged = self.merged_symbols().get(&symbol_merge_id).cloned();
             Some(merged.unwrap_or_else(|| symbol.symbol_wrapper()))
         } else {
             Some(symbol.symbol_wrapper())

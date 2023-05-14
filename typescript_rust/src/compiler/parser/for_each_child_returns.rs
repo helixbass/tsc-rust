@@ -1452,7 +1452,7 @@ pub fn for_each_child_bool<
 >(
     node: &Node,
     mut cb_node: TNodeCallback,
-    mut cb_nodes: Option<TNodesCallback>,
+    cb_nodes: Option<TNodesCallback>,
 ) -> bool {
     // match for_each_child_returns(
     //     node,

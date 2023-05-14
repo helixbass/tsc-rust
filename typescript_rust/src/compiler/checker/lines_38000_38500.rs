@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
@@ -276,7 +274,7 @@ impl TypeChecker {
         if index_infos.is_empty() {
             return;
         }
-        for prop in &self.get_properties_of_object_type(type_) {
+        for ref prop in self.get_properties_of_object_type(type_) {
             if !(is_static_index == Some(true) && prop.flags().intersects(SymbolFlags::Prototype)) {
                 self.check_index_constraint_for_property(
                     type_,
@@ -429,20 +427,16 @@ impl TypeChecker {
                 .clone()
                 .or_else(|| local_index_declaration.clone())
                 .or_else(|| {
-                    interface_declaration
-                        .clone()
-                        .filter(|interface_declaration| {
-                            !some(
-                                Some(&self.get_base_types(type_)),
-                                Some(|base: &Gc<Type>| {
-                                    self.get_index_info_of_type_(base, &check_info.key_type)
-                                        .is_some()
-                                        && self
-                                            .get_index_type_of_type_(base, &info.key_type)
-                                            .is_some()
-                                }),
-                            )
-                        })
+                    interface_declaration.clone().filter(|_| {
+                        !some(
+                            Some(&self.get_base_types(type_)),
+                            Some(|base: &Gc<Type>| {
+                                self.get_index_info_of_type_(base, &check_info.key_type)
+                                    .is_some()
+                                    && self.get_index_type_of_type_(base, &info.key_type).is_some()
+                            }),
+                        )
+                    })
                 });
             if error_node.is_some() && !self.is_type_assignable_to(&check_info.type_, &info.type_) {
                 self.error(

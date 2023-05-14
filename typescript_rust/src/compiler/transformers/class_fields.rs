@@ -17,7 +17,7 @@ impl TransformClassFields {
 }
 
 impl TransformerInterface for TransformClassFields {
-    fn call(&self, node: &crate::Node) -> Gc<Node> {
+    fn call(&self, _node: &crate::Node) -> Gc<Node> {
         unimplemented!()
     }
 }

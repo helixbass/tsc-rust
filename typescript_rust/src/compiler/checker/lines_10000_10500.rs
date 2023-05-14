@@ -1,9 +1,7 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
+use std::{borrow::Borrow, collections::HashMap};
 
 use crate::{
     concatenate, create_symbol_table, every, get_effective_constraint_of_type_parameter,
@@ -454,7 +452,7 @@ impl TypeChecker {
             }
             if !member_type_list.is_empty() {
                 let enum_type = self.get_union_type(
-                    member_type_list,
+                    &member_type_list,
                     Some(UnionReduction::Literal),
                     Some(symbol),
                     None,
@@ -638,18 +636,19 @@ impl TypeChecker {
 
     pub(super) fn create_instantiated_symbol_table(
         &self,
-        symbols: &[Gc<Symbol>],
+        symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
         mapper: Gc<TypeMapper>,
         mapping_this_only: bool,
     ) -> SymbolTable {
-        let mut result = create_symbol_table(None);
+        let mut result = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for symbol in symbols {
+            let symbol: &Gc<Symbol> = symbol.borrow();
             result.insert(
                 symbol.escaped_name().to_owned(),
                 if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {
-                    self.instantiate_symbol(&symbol, mapper.clone())
+                    self.instantiate_symbol(symbol, mapper.clone())
                 },
             );
         }
@@ -659,9 +658,10 @@ impl TypeChecker {
     pub(super) fn add_inherited_members(
         &self,
         symbols: &mut SymbolTable,
-        base_symbols: &[Gc<Symbol>],
+        base_symbols: impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>,
     ) {
         for s in base_symbols {
+            let s: &Gc<Symbol> = s.borrow();
             if !symbols.contains_key(s.escaped_name())
                 && !self.is_static_private_identifier_property(s)
             {

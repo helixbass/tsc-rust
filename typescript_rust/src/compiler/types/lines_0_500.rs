@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{unsafe_empty_trace, Finalize, Trace};
 use std::cell::Cell;
 use std::ops::Deref;
@@ -64,7 +62,7 @@ impl ReadonlyTextRange for ReadonlyTextRangeConcrete {
         self.pos
     }
 
-    fn set_pos(&self, pos: isize) {
+    fn set_pos(&self, _pos: isize) {
         unreachable!()
     }
 
@@ -72,8 +70,16 @@ impl ReadonlyTextRange for ReadonlyTextRangeConcrete {
         self.end
     }
 
-    fn set_end(&self, end: isize) {
+    fn set_end(&self, _end: isize) {
         unreachable!()
+    }
+}
+
+impl<TReadonlyTextRange: ReadonlyTextRange> From<&TReadonlyTextRange>
+    for ReadonlyTextRangeConcrete
+{
+    fn from(value: &TReadonlyTextRange) -> Self {
+        Self::new(value.pos(), value.end())
     }
 }
 
@@ -98,6 +104,10 @@ impl BaseTextRange {
         }
     }
 
+    pub fn to_readonly_text_range(&self) -> impl ReadonlyTextRange {
+        ReadonlyTextRangeConcrete::new(self.pos(), self.end())
+    }
+
     pub fn into_readonly_text_range(self) -> impl ReadonlyTextRange {
         ReadonlyTextRangeConcrete::new(self.pos(), self.end())
     }
@@ -120,6 +130,30 @@ impl TextRange for BaseTextRange {
         self.end.set(end);
     }
 }
+
+impl<TReadonlyTextRange: ReadonlyTextRange> From<&TReadonlyTextRange> for BaseTextRange {
+    fn from(value: &TReadonlyTextRange) -> Self {
+        Self::new(value.pos(), value.end())
+    }
+}
+
+// impl<TTextRange: TextRange> ReadonlyTextRange for TTextRange {
+//     fn pos(&self) -> isize {
+//         TextRange::pos(self)
+//     }
+
+//     fn set_pos(&self, pos: isize) {
+//         TextRange::set_pos(self, pos);
+//     }
+
+//     fn end(&self) -> isize {
+//         TextRange::end(self)
+//     }
+
+//     fn set_end(&self, end: isize) {
+//         TextRange::set_pos(self, end);
+//     }
+// }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum SyntaxKind {

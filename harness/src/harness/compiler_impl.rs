@@ -1,7 +1,7 @@
 pub mod compiler {
     use gc::{Finalize, Gc, Trace};
-    use std::collections::HashMap;
     use std::ptr;
+    use std::{cell::Ref, collections::HashMap};
 
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
@@ -9,7 +9,7 @@ pub mod compiler {
         get_pre_emit_diagnostics, is_option_str_empty, length, some, Comparison, CompilerOptions,
         CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticMessage,
         DiagnosticRelatedInformation, EmitResult, Extension, ModuleKind, NewLineKind, Node,
-        Program, ScriptTarget, SourceFileLike,
+        NonEmpty, Program, ScriptTarget, SourceFileLike,
     };
 
     use crate::{
@@ -246,6 +246,10 @@ pub mod compiler {
             self.host.vfs()
         }
 
+        pub fn traces(&self) -> Ref<Vec<String>> {
+            self.host.traces()
+        }
+
         pub fn common_source_directory(&self) -> String {
             let common = self
                 .program
@@ -285,7 +289,7 @@ pub mod compiler {
                 } else {
                     self.options.out_dir.as_deref()
                 };
-                if let Some(out_dir) = out_dir.filter(|out_dir| !out_dir.is_empty()) {
+                if out_dir.is_non_empty() {
                     let common = self.common_source_directory();
                     if !common.is_empty() {
                         path = vpath::relative(

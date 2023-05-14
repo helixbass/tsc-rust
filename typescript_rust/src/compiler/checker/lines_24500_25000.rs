@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::ptr;
 use std::rc::Rc;
@@ -175,7 +173,7 @@ impl GetFlowTypeOfReference {
                 .get_signatures_of_type(&right_type, SignatureKind::Construct);
             target_type = Some(if !construct_signatures.is_empty() {
                 self.type_checker.get_union_type(
-                    map(&construct_signatures, |signature: &Gc<Signature>, _| {
+                    &map(&construct_signatures, |signature: &Gc<Signature>, _| {
                         self.type_checker.get_return_type_of_signature(
                             self.type_checker.get_erased_signature(signature.clone()),
                         )

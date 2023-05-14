@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -332,7 +330,7 @@ impl TypeChecker {
                 Some(return_types) => {
                     if !return_types.is_empty() {
                         return_type = Some(self.get_union_type(
-                            return_types,
+                            &return_types,
                             Some(UnionReduction::Subtype),
                             Option::<&Symbol>::None,
                             None,
@@ -347,7 +345,7 @@ impl TypeChecker {
             } = self.check_and_aggregate_yield_operand_types(func, check_mode);
             yield_type = if some(Some(&yield_types), Option::<fn(&Gc<Type>) -> bool>::None) {
                 Some(self.get_union_type(
-                    yield_types,
+                    &yield_types,
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
@@ -380,7 +378,7 @@ impl TypeChecker {
             }
 
             return_type = Some(self.get_union_type(
-                types,
+                &types,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,

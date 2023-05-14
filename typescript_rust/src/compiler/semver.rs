@@ -165,7 +165,7 @@ fn try_parse_components(text: &str) -> Option<Components> {
     })
 }
 
-fn compare_prerelease_identifiers(left: &[String], right: &[String]) -> Comparison {
+fn compare_prerelease_identifiers(_left: &[String], _right: &[String]) -> Comparison {
     unimplemented!()
 }
 
@@ -329,7 +329,7 @@ fn parse_partial(text: &str) -> Option<Partial> {
     })
 }
 
-fn parse_hyphen(left: &str, right: &str, comparators: &mut Vec<Comparator>) -> bool {
+fn parse_hyphen(_left: &str, _right: &str, _comparators: &mut Vec<Comparator>) -> bool {
     unimplemented!()
 }
 

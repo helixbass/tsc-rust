@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
@@ -342,7 +340,7 @@ impl TypeChecker {
 
         let onfulfilled_parameter_type = self.get_type_with_facts(
             &self.get_union_type(
-                map(&then_signatures, |then_signature: &Gc<Signature>, _| {
+                &map(&then_signatures, |then_signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(then_signature)
                 }),
                 None,
@@ -370,7 +368,7 @@ impl TypeChecker {
         }
 
         let ret = self.get_union_type(
-            map(
+            &map(
                 &onfulfilled_parameter_signatures,
                 |signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(signature)

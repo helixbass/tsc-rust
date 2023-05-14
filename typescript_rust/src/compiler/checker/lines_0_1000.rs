@@ -1,22 +1,25 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use indexmap::IndexMap;
 use regex::Regex;
 use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefMut};
 use std::collections::HashMap;
 use std::fmt;
 use std::iter::FromIterator;
 use std::ptr;
-use std::rc::Rc;
 
 use super::{is_not_accessor, is_not_overload};
 use crate::{
-    add_range, contains_parse_error, get_first_identifier, is_function_like,
-    is_property_access_expression, is_property_access_or_qualified_name_or_import_type_node,
-    is_source_file, parse_pseudo_big_int, skip_type_checking, unescape_leading_underscores,
+    add_range, contains_parse_error, create_diagnostic_collection, create_symbol_table,
+    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
+    get_emit_module_kind, get_emit_script_target, get_first_identifier, get_module_instance_state,
+    get_parse_tree_node, get_strict_option_value, get_use_define_for_class_fields,
+    is_assignment_pattern, is_call_like_expression, is_export_specifier, is_expression,
+    is_function_like, is_identifier, is_jsx_attribute_like, is_object_literal_element_like,
+    is_parameter, is_property_access_expression,
+    is_property_access_or_qualified_name_or_import_type_node, is_source_file, is_type_node,
+    object_allocator, parse_pseudo_big_int, skip_type_checking, sum, unescape_leading_underscores,
     BaseInterfaceType, CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags,
     ContextFlags, Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
@@ -28,13 +31,7 @@ use crate::{
     SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
     SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker,
     TypeCheckerHost, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags, __String,
-    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
-    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
-    get_module_instance_state, get_parse_tree_node, get_strict_option_value,
-    get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
-    is_export_specifier, is_expression, is_identifier, is_jsx_attribute_like,
-    is_object_literal_element_like, is_parameter, is_type_node, object_allocator, sum,
+    TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags,
 };
 
 lazy_static! {
@@ -158,6 +155,7 @@ impl fmt::Debug for IterationTypesResolver {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(super) enum WideningKind {
+    #[allow(dead_code)]
     Normal,
     FunctionReturn,
     GeneratorNext,
@@ -349,6 +347,7 @@ pub(crate) enum TypeSystemPropertyName {
     DeclaredType,
     ResolvedReturnType,
     ImmediateBaseConstraint,
+    #[allow(dead_code)]
     EnumTagType,
     ResolvedTypeArguments,
     ResolvedBaseTypes,
@@ -536,7 +535,7 @@ pub fn create_type_checker(
         inline_level: Default::default(),
         current_node: Default::default(),
 
-        empty_symbols: Gc::new(GcCell::new(create_symbol_table(None))),
+        empty_symbols: Gc::new(GcCell::new(create_symbol_table(Option::<&[Gc<Symbol>]>::None))),
 
         compiler_options: compiler_options.clone(),
         language_version: get_emit_script_target(&compiler_options),
@@ -571,7 +570,7 @@ pub fn create_type_checker(
         emit_resolver: Default::default(),
         node_builder: Default::default(),
 
-        globals: Gc::new(GcCell::new(create_symbol_table(None))),
+        globals: Gc::new(GcCell::new(create_symbol_table(Option::<&[Gc<Symbol>]>::None))),
         undefined_symbol: Default::default(),
         global_this_symbol: Default::default(),
 
@@ -1030,7 +1029,7 @@ pub fn create_type_checker(
     regular_true_type_as_freshable_intrinsic_type.set_fresh_type(type_checker.true_type());
     type_checker.regular_true_type = Some(regular_true_type);
     type_checker.boolean_type = Some(type_checker.get_union_type(
-        vec![
+        &[
             type_checker.regular_false_type(),
             type_checker.regular_true_type(),
         ],
@@ -1084,14 +1083,14 @@ pub fn create_type_checker(
             .into(),
     );
     type_checker.string_or_number_type = Some(type_checker.get_union_type(
-        vec![type_checker.string_type(), type_checker.number_type()],
+        &[type_checker.string_type(), type_checker.number_type()],
         None,
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
     ));
     type_checker.string_number_symbol_type = Some(type_checker.get_union_type(
-        vec![
+        &[
             type_checker.string_type(),
             type_checker.number_type(),
             type_checker.es_symbol_type(),
@@ -1107,14 +1106,14 @@ pub fn create_type_checker(
         type_checker.string_number_symbol_type()
     });
     type_checker.number_or_big_int_type = Some(type_checker.get_union_type(
-        vec![type_checker.number_type(), type_checker.bigint_type()],
+        &[type_checker.number_type(), type_checker.bigint_type()],
         None,
         Option::<&Symbol>::None,
         None,
         Option::<&Type>::None,
     ));
     type_checker.template_constraint_type = Some(type_checker.get_union_type(
-        vec![
+        &[
             type_checker.string_type(),
             type_checker.number_type(),
             type_checker.boolean_type(),
@@ -1160,8 +1159,9 @@ pub fn create_type_checker(
         InternalSymbolName::Type.to_owned(),
         None,
     );
-    *empty_type_literal_symbol.maybe_members_mut() =
-        Some(Gc::new(GcCell::new(create_symbol_table(None))));
+    *empty_type_literal_symbol.maybe_members_mut() = Some(Gc::new(GcCell::new(
+        create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+    )));
     type_checker.empty_type_literal_symbol = Some(empty_type_literal_symbol.into());
     type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(
         Some(type_checker.empty_type_literal_symbol()),
@@ -2233,10 +2233,7 @@ impl TypeChecker {
         self.get_exports_of_module_as_array(module_symbol)
     }
 
-    pub fn get_symbol_walker<TAccept: FnMut(&Symbol) -> bool>(
-        &self,
-        accept: Option<TAccept>,
-    ) -> SymbolWalker {
+    pub fn get_symbol_walker(&self, _accept: Option<impl FnMut(&Symbol) -> bool>) -> SymbolWalker {
         unimplemented!() // TODO: figure out how to implement this
     }
 
@@ -2455,7 +2452,7 @@ impl TypeChecker {
             return vec![];
         }
 
-        let mut diagnostics: Option<Vec<Gc<Diagnostic>>> = None;
+        let mut diagnostics: Option<Vec<Gc<Diagnostic>>>;
         self.set_cancellation_token(ct);
 
         self.check_source_file(&file);

@@ -1,6 +1,5 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
+use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -25,16 +24,29 @@ use local_macros::{enum_unwrapped, symbol_type};
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
 
-#[derive(Trace, Finalize)]
+#[derive(Builder, Trace, Finalize)]
+#[builder(setter(into, strip_option))]
 pub struct ResolvedProjectReference {
     pub command_line: Gc<ParsedCommandLine>,
     pub source_file: Gc<Node /*SourceFile*/>,
-    pub references: Option<Vec<Option<Gc<ResolvedProjectReference>>>>,
+    #[builder(setter(skip))]
+    references: GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
+}
+
+impl ResolvedProjectReference {
+    pub fn maybe_references(&self) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+        self.references.borrow()
+    }
+
+    pub fn set_references(&self, references: Option<Vec<Option<Gc<ResolvedProjectReference>>>>) {
+        *self.references.borrow_mut() = references;
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StructureIsReused {
     Not,
+    SafeModules,
     Completely,
 }
 
@@ -93,6 +105,7 @@ impl EmitTransformers {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) struct SourceMapEmitResult {
     pub input_source_file_names: Vec<String>,
     pub source_map: RawSourceMap,
@@ -116,6 +129,7 @@ impl ExitStatus {
         ExitStatus::ProjectReferenceCycle_OutputsSkipped;
 }
 
+#[allow(dead_code)]
 pub struct EmitResult {
     pub emit_skipped: bool,
     pub diagnostics: Vec<Gc<Diagnostic>>,
@@ -451,7 +465,7 @@ pub(crate) trait OutofbandVarianceMarkerHandler: Trace + Finalize {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum MemberOverrideStatus {
+pub enum MemberOverrideStatus {
     Ok,
     NeedsOverride,
     HasInvalidOverride,
@@ -678,6 +692,10 @@ pub trait EmitResolver: Trace + Finalize {
         prefix_locals: Option<bool>,
     ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>;
     fn get_referenced_import_declaration(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> Option<Gc<Node /*Declaration*/>>;
+    fn get_referenced_declaration_with_colliding_name(
         &self,
         node: &Node, /*Identifier*/
     ) -> Option<Gc<Node /*Declaration*/>>;

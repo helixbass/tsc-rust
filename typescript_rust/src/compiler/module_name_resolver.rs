@@ -11,18 +11,18 @@ use crate::{
     directory_probably_exists, directory_separator, directory_separator_str, ends_with, every,
     extension_is_ts, file_extension_is, file_extension_is_one_of, filter, first_defined, for_each,
     for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
-    get_emit_module_kind, get_normalized_absolute_path, get_path_components,
-    get_path_from_path_components, get_paths_base_path, get_relative_path_from_directory,
-    get_root_length, has_js_file_extension, has_trailing_directory_separator,
-    is_external_module_name_relative, is_rooted_disk_path, last_index_of, match_pattern_or_exact,
-    matched_text, maybe_for_each, normalize_path, normalize_path_and_parts, normalize_slashes,
-    options_have_module_resolution_changes, package_id_to_string, path_is_relative, pattern_text,
-    read_json, remove_file_extension, remove_prefix, sort, starts_with, string_contains, to_path,
-    try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
-    version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
-    Diagnostics, Extension, MapLike, Matches, ModuleKind, ModuleResolutionHost,
-    ModuleResolutionKind, PackageId, Path, PathAndParts, ResolvedModuleFull,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    get_emit_module_kind, get_mode_for_resolution_at_index, get_normalized_absolute_path,
+    get_path_components, get_path_from_path_components, get_paths_base_path,
+    get_relative_path_from_directory, get_root_length, has_js_file_extension,
+    has_trailing_directory_separator, is_external_module_name_relative, is_rooted_disk_path,
+    last_index_of, match_pattern_or_exact, matched_text, maybe_for_each, normalize_path,
+    normalize_path_and_parts, normalize_slashes, options_have_module_resolution_changes,
+    package_id_to_string, path_is_relative, pattern_text, read_json, remove_file_extension,
+    remove_prefix, sort, starts_with, string_contains, to_path, try_get_extension_from_path,
+    try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
+    Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike,
+    ModuleKind, ModuleResolutionHost, ModuleResolutionKind, Node, PackageId, Path, PathAndParts,
+    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
 };
@@ -132,13 +132,12 @@ fn create_resolved_module_with_failed_lookup_locations(
 ) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     if let Some(result_from_cache) = result_from_cache {
         result_from_cache
-            .failed_lookup_locations
-            .borrow_mut()
+            .failed_lookup_locations_mut()
             .append(&mut failed_lookup_locations);
         return result_from_cache;
     }
-    Gc::new(ResolvedModuleWithFailedLookupLocations {
-        resolved_module: resolved.map(|resolved| {
+    Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+        resolved.map(|resolved| {
             let Resolved {
                 path: resolved_path,
                 extension: resolved_extension,
@@ -160,8 +159,8 @@ fn create_resolved_module_with_failed_lookup_locations(
                 package_id: resolved_package_id,
             })
         }),
-        failed_lookup_locations: RefCell::new(failed_lookup_locations),
-    })
+        failed_lookup_locations,
+    ))
 }
 
 pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {
@@ -398,6 +397,7 @@ fn read_package_json_types_version_paths(
     let best_version_key = &result.version;
     let best_version_paths = &result.paths;
     if !matches!(best_version_paths, serde_json::Value::Object(_)) {
+        #[allow(unreachable_code)]
         if state.trace_enabled {
             trace(
                 state.host,
@@ -463,7 +463,7 @@ pub fn get_effective_type_roots<
         return options.type_roots.clone();
     }
 
-    let mut current_directory: Option<String> = None;
+    let current_directory: Option<String>;
     if let Some(options_config_file_path) = options.config_file_path.as_ref() {
         current_directory = Some(get_directory_path(options_config_file_path));
     } else
@@ -1207,7 +1207,7 @@ impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
         self.directory_to_module_name_map.clear();
     }
 
-    fn update(&self, options: &CompilerOptions) {
+    fn update(&self, _options: &CompilerOptions) {
         unimplemented!()
     }
 }
@@ -1275,6 +1275,24 @@ impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
             .insert(result.clone(), (specifier.to_owned(), mode));
         result
     }
+}
+
+pub(crate) fn zip_to_mode_aware_cache<TValue: Clone + Trace + Finalize>(
+    file: &Node, /*SourceFile*/
+    keys: &[String],
+    values: &[TValue],
+) -> ModeAwareCache<TValue> {
+    let file_as_source_file = file.as_source_file();
+    Debug_.assert(keys.len() == values.len(), None);
+    let map = create_mode_aware_cache();
+    for (i, key) in keys.into_iter().enumerate() {
+        map.set(
+            key,
+            get_mode_for_resolution_at_index(file_as_source_file, i),
+            values[i].clone(),
+        );
+    }
+    map
 }
 
 pub fn create_module_resolution_cache(
@@ -1546,7 +1564,7 @@ impl PerDirectoryResolutionCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLook
         unimplemented!()
     }
 
-    fn update(&self, options: &CompilerOptions) {
+    fn update(&self, _options: &CompilerOptions) {
         unimplemented!()
     }
 }
@@ -1610,7 +1628,7 @@ pub fn resolve_module_name(
         .as_ref()
         .and_then(|per_folder_cache| per_folder_cache.get(module_name, resolution_mode));
 
-    if let Some(result) = result.as_ref() {
+    if result.is_some() {
         if trace_enabled {
             trace(
                 host,
@@ -1697,15 +1715,14 @@ pub fn resolve_module_name(
                     cache.as_deref(),
                     redirected_reference.clone(),
                 ));
-            }
-            _ => {
-                Debug_.fail(Some(&format!(
-                    "Unexpected moduleResolution: {:?}",
-                    module_resolution
-                )));
-            }
+            } // _ => {
+              //     Debug_.fail(Some(&format!(
+              //         "Unexpected moduleResolution: {:?}",
+              //         module_resolution
+              //     )));
+              // }
         }
-        if let Some(ref result_resolved_module) = result
+        if let Some(ref _result_resolved_module) = result
             .as_ref()
             .and_then(|result| result.resolved_module.clone())
         {
@@ -2590,7 +2607,7 @@ fn load_js_or_exact_ts_file_name(
         )
     {
         let result = try_file(candidate, only_record_failures, state);
-        return result.map(|result| PathAndExtension {
+        return result.map(|_| PathAndExtension {
             path: candidate.to_owned(),
             ext: for_each(
                 [Extension::Dts, Extension::Dcts, Extension::Dmts],
@@ -3261,12 +3278,12 @@ fn load_module_from_exports(
 }
 
 fn load_module_from_imports(
-    extensions: Extensions,
-    module_name: &str,
-    directory: &str,
-    state: &ModuleResolutionState,
-    cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    _extensions: Extensions,
+    _module_name: &str,
+    _directory: &str,
+    _state: &ModuleResolutionState,
+    _cache: Option<&ModuleResolutionCache>,
+    _redirected_reference: Option<&ResolvedProjectReference>,
 ) -> SearchResult<Resolved> {
     unimplemented!()
 }
@@ -3583,7 +3600,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
     }
 }
 
-pub(crate) fn is_applicable_versioned_types_key(conditions: &[String], key: &str) -> bool {
+pub(crate) fn is_applicable_versioned_types_key(_conditions: &[String], _key: &str) -> bool {
     unimplemented!()
 }
 

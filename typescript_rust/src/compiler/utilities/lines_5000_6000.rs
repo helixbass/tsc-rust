@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use base64::{engine::general_purpose, Engine as _};
 use gc::Gc;
 use regex::{Captures, Regex};
@@ -19,14 +17,15 @@ use crate::{
     is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
     is_namespace_export_declaration, is_property_access_expression, is_property_name,
     is_qualified_name, parse_config_file_text_to_json, position_is_synthesized, skip_trivia,
-    unescape_leading_underscores, walk_up_parenthesized_expressions, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, BundleFileSection,
-    CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, HasInitializerInterface,
-    MapLike, ModifierFlags, NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface,
-    ObjectFlags, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    token_to_string, unescape_leading_underscores, walk_up_parenthesized_expressions,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseTextRange,
+    BaseType, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    Extension, HasInitializerInterface, MapLike, ModifierFlags, NamedDeclarationInterface,
+    NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, Signature,
+    SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind,
 };
 
 pub fn get_first_identifier(node: &Node) -> Gc<Node /*Identifier*/> {
@@ -253,6 +252,45 @@ pub fn get_new_line_character<TGetNewLine: Fn() -> String>(
     }
 }
 
+pub fn create_range(pos: isize, end: Option<isize>) -> BaseTextRange {
+    let end = end.unwrap_or(pos);
+    Debug_.assert(end >= pos || end == -1, None);
+    BaseTextRange::new(pos, end)
+}
+
+pub fn move_range_pos(range: &impl ReadonlyTextRange, pos: isize) -> BaseTextRange {
+    create_range(pos, Some(range.end()))
+}
+
+pub fn move_range_past_decorators(node: &Node) -> BaseTextRange {
+    if let Some(node_decorators) = node
+        .maybe_decorators()
+        .filter(|node_decorators| !node_decorators.is_empty())
+    {
+        move_range_pos(node, node_decorators.end())
+    } else {
+        node.into()
+    }
+}
+
+pub fn move_range_past_modifiers(node: &Node) -> BaseTextRange {
+    if let Some(node_modifiers) = node
+        .maybe_modifiers()
+        .filter(|node_modifiers| !node_modifiers.is_empty())
+    {
+        move_range_pos(node, node_modifiers.end())
+    } else {
+        move_range_past_decorators(node)
+    }
+}
+
+pub fn create_token_range(pos: isize, token: SyntaxKind) -> BaseTextRange {
+    create_range(
+        pos,
+        Some(pos + isize::try_from(token_to_string(token).unwrap().len()).unwrap()),
+    )
+}
+
 pub fn range_is_on_single_line(
     range: &impl ReadonlyTextRange,
     source_file: &Node, /*SourceFile*/
@@ -304,14 +342,11 @@ pub fn range_end_is_on_same_line_as_range_start(
     )
 }
 
-pub fn get_lines_between_range_end_and_range_start<
-    TRange1: ReadonlyTextRange,
-    TRange2: ReadonlyTextRange,
->(
-    range1: &TRange1,
-    range2: &TRange2,
-    source_file: &Node, /*SourceFile*/
-    include_second_range_comments: bool,
+pub fn get_lines_between_range_end_and_range_start(
+    _range1: &impl ReadonlyTextRange,
+    _range2: &impl ReadonlyTextRange,
+    _source_file: &Node, /*SourceFile*/
+    _include_second_range_comments: bool,
 ) -> usize {
     unimplemented!()
 }
@@ -343,19 +378,19 @@ pub fn get_start_position_of_range(
 }
 
 pub fn get_lines_between_position_and_preceding_non_whitespace_character(
-    pos: isize,
-    stop_pos: isize,
-    source_file: &Node, /*SourceFile*/
-    include_comments: Option<bool>,
+    _pos: isize,
+    _stop_pos: isize,
+    _source_file: &Node, /*SourceFile*/
+    _include_comments: Option<bool>,
 ) -> usize {
     unimplemented!()
 }
 
 pub fn get_lines_between_position_and_next_non_whitespace_character(
-    pos: isize,
-    stop_pos: isize,
-    source_file: &Node, /*SourceFile*/
-    include_comments: Option<bool>,
+    _pos: isize,
+    _stop_pos: isize,
+    _source_file: &Node, /*SourceFile*/
+    _include_comments: Option<bool>,
 ) -> usize {
     unimplemented!()
 }
@@ -431,7 +466,7 @@ pub fn get_declaration_modifier_flags_from_symbol(
     ModifierFlags::None
 }
 
-pub fn get_combined_local_and_export_symbol_flags(symbol: &Symbol) -> SymbolFlags {
+pub fn get_combined_local_and_export_symbol_flags(_symbol: &Symbol) -> SymbolFlags {
     unimplemented!()
 }
 
@@ -616,7 +651,7 @@ pub fn is_access_expression(node: &Node) -> bool {
     )
 }
 
-pub fn is_bundle_file_text_like(section: &BundleFileSection) -> bool {
+pub fn is_bundle_file_text_like(_section: &BundleFileSection) -> bool {
     unimplemented!()
 }
 
@@ -820,7 +855,7 @@ pub fn attach_file_to_diagnostic(
     Debug_.assert_equal(&diagnostic.file_name, &*file_name, None, None);
     Debug_.assert_less_than_or_equal(diagnostic.start(), length);
     Debug_.assert_less_than_or_equal(diagnostic.start() + diagnostic.length(), length);
-    let mut diagnostic_with_location = DiagnosticWithLocation::new(BaseDiagnostic::new(
+    let diagnostic_with_location = DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
             diagnostic.category(),
             diagnostic.code(),

@@ -1,6 +1,5 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
+use derive_builder::Builder;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use serde::Serialize;
 use std::borrow::Cow;
@@ -17,7 +16,7 @@ use super::{
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
     TypePredicate,
 };
-use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String};
+use crate::{Debug_, GcVec, ObjectFlags, ScriptKind, TypeFlags, __String, are_option_gcs_equal};
 use local_macros::{enum_unwrapped, type_type};
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -166,9 +165,9 @@ pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {
     fn members(&self) -> Gc<GcCell<SymbolTable>>;
-    fn properties(&self) -> GcCellRef<Vec<Gc<Symbol>>>;
-    fn properties_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Symbol>>>, Vec<Gc<Symbol>>>;
-    fn set_properties(&self, properties: Vec<Gc<Symbol>>);
+    fn properties(&self) -> GcVec<Gc<Symbol>>;
+    fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Gc<Symbol>>>, GcVec<Gc<Symbol>>>;
+    fn set_properties(&self, properties: GcVec<Gc<Symbol>>);
     fn call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
     fn set_call_signatures(&self, call_signatures: Vec<Gc<Signature>>);
     fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
@@ -1155,7 +1154,7 @@ impl PartialEq for DiagnosticMessage {
 
 impl Eq for DiagnosticMessage {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiagnosticMessageChain {
     pub message_text: String,
     pub category: DiagnosticCategory,
@@ -1179,7 +1178,7 @@ impl DiagnosticMessageChain {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub enum Diagnostic {
     DiagnosticWithLocation(DiagnosticWithLocation),
     DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
@@ -1202,7 +1201,7 @@ pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
     fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>>;
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
     related_information: GcCell<Option<Vec<Gc<DiagnosticRelatedInformation>>>>,
@@ -1298,6 +1297,12 @@ impl DiagnosticInterface for BaseDiagnostic {
 impl From<BaseDiagnostic> for Diagnostic {
     fn from(base_diagnostic: BaseDiagnostic) -> Self {
         Diagnostic::BaseDiagnostic(base_diagnostic)
+    }
+}
+
+impl From<BaseDiagnostic> for Gc<Diagnostic> {
+    fn from(value: BaseDiagnostic) -> Self {
+        Gc::new(value.into())
     }
 }
 
@@ -1451,7 +1456,7 @@ impl DiagnosticInterface for Diagnostic {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DiagnosticMessageText {
     String(String),
     DiagnosticMessageChain(DiagnosticMessageChain),
@@ -1484,7 +1489,7 @@ pub trait DiagnosticRelatedInformationInterface {
     fn message_text(&self) -> &DiagnosticMessageText;
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub enum DiagnosticRelatedInformation {
     BaseDiagnosticRelatedInformation(BaseDiagnosticRelatedInformation),
     Diagnostic(Diagnostic),
@@ -1623,28 +1628,45 @@ impl From<Diagnostic> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Builder, Clone, Debug, Trace, Finalize)]
+#[builder(setter(into))]
 pub struct BaseDiagnosticRelatedInformation {
     #[unsafe_ignore_trace]
     category: Cell<DiagnosticCategory>,
     code: u32,
+    #[builder(default)]
     file: Option<Gc<Node /*SourceFile*/>>,
+    #[builder(default, setter(custom))]
     #[unsafe_ignore_trace]
     start: Cell<Option<isize>>,
+    #[builder(default, setter(custom))]
     #[unsafe_ignore_trace]
     length: Cell<Option<isize>>,
     #[unsafe_ignore_trace]
     message_text: DiagnosticMessageText,
 }
 
+impl Eq for BaseDiagnosticRelatedInformation {}
+
+impl PartialEq for BaseDiagnosticRelatedInformation {
+    fn eq(&self, other: &Self) -> bool {
+        self.category == other.category
+            && self.code == other.code
+            && are_option_gcs_equal(self.file.as_ref(), other.file.as_ref())
+            && self.start == other.start
+            && self.length == other.length
+            && self.message_text == other.message_text
+    }
+}
+
 impl BaseDiagnosticRelatedInformation {
-    pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
+    pub fn new(
         category: DiagnosticCategory,
         code: u32,
         file: Option<Gc<Node>>,
         start: Option<isize>,
         length: Option<isize>,
-        message_text: TDiagnosticMessageText,
+        message_text: impl Into<DiagnosticMessageText>,
     ) -> Self {
         Self {
             category: Cell::new(category),
@@ -1707,7 +1729,21 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+impl BaseDiagnosticRelatedInformationBuilder {
+    pub fn start(&mut self, value: impl Into<Option<isize>>) -> &mut Self {
+        let value = value.into();
+        self.start = Some(Cell::new(value));
+        self
+    }
+
+    pub fn length(&mut self, value: impl Into<Option<isize>>) -> &mut Self {
+        let value = value.into();
+        self.length = Some(Cell::new(value));
+        self
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct DiagnosticWithLocation {
     _diagnostic: BaseDiagnostic,
 }
@@ -1822,7 +1858,7 @@ impl From<DiagnosticWithLocation> for Gc<DiagnosticRelatedInformation> {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct DiagnosticWithDetachedLocation {
     _diagnostic: BaseDiagnostic,
     pub file_name: String,
@@ -1912,6 +1948,12 @@ impl DiagnosticInterface for DiagnosticWithDetachedLocation {
 impl From<DiagnosticWithDetachedLocation> for Diagnostic {
     fn from(diagnostic_with_detached_location: DiagnosticWithDetachedLocation) -> Self {
         Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location)
+    }
+}
+
+impl From<DiagnosticWithDetachedLocation> for Gc<Diagnostic> {
+    fn from(value: DiagnosticWithDetachedLocation) -> Self {
+        Gc::new(value.into())
     }
 }
 

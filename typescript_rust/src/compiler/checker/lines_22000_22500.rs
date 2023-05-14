@@ -1,17 +1,18 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
+use itertools::Either;
+use peekmore::PeekMore;
 use std::cmp;
+use std::iter::once;
 use std::ptr;
-use std::rc::Rc;
 
 use super::InferTypes;
+use crate::PeekMoreExt;
+use crate::PeekableExt;
 use crate::{
-    concatenate, every, filter, find, flat_map, get_object_flags, map, same_map, some,
-    DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, InferenceContext, InferenceFlags,
-    InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction,
+    every, find, flat_map, get_object_flags, some, DiagnosticMessage, Diagnostics, ElementFlags,
+    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
+    ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl InferTypes {
@@ -119,7 +120,7 @@ impl InferTypes {
                 if !unmatched.is_empty() {
                     self.infer_from_types(
                         &self.type_checker.get_union_type(
-                            unmatched,
+                            &unmatched,
                             None,
                             Option::<&Symbol>::None,
                             None,
@@ -206,23 +207,21 @@ impl InferTypes {
             ) {
                 return true;
             }
-            let prop_types = map(
-                &self.type_checker.get_properties_of_type(source),
-                |property: &Gc<Symbol>, _| self.type_checker.get_type_of_symbol(property),
-            );
-            let index_types = map(
-                &self.type_checker.get_index_infos_of_type(source),
-                |info: &Gc<IndexInfo>, _| {
-                    if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
-                        info.type_.clone()
-                    } else {
-                        self.type_checker.never_type()
-                    }
-                },
-            );
+            let prop_types = self
+                .type_checker
+                .get_properties_of_type(source)
+                .map(|ref property| self.type_checker.get_type_of_symbol(property));
+            let index_infos = self.type_checker.get_index_infos_of_type(source);
+            let index_types = index_infos.iter().map(|info| {
+                if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
+                    info.type_.clone()
+                } else {
+                    self.type_checker.never_type()
+                }
+            });
             self.infer_from_types(
                 &self.type_checker.get_union_type(
-                    concatenate(prop_types, index_types),
+                    prop_types.chain(index_types),
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -554,7 +553,7 @@ impl InferTypes {
 
     pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) {
         let properties = self.type_checker.get_properties_of_object_type(target);
-        for target_prop in &properties {
+        for ref target_prop in properties {
             let source_prop =
                 self.type_checker
                     .get_property_of_type_(source, target_prop.escaped_name(), None);
@@ -638,7 +637,7 @@ impl InferTypes {
         {
             for target_info in &index_infos {
                 let mut prop_types: Vec<Gc<Type>> = vec![];
-                for prop in &self.type_checker.get_properties_of_type(source) {
+                for ref prop in self.type_checker.get_properties_of_type(source) {
                     if self.type_checker.is_applicable_index_type(
                         &self.type_checker.get_literal_type_from_property(
                             prop,
@@ -667,7 +666,7 @@ impl InferTypes {
                 if !prop_types.is_empty() {
                     self.infer_with_priority(
                         &self.type_checker.get_union_type(
-                            prop_types,
+                            &prop_types,
                             None,
                             Option::<&Symbol>::None,
                             None,
@@ -745,15 +744,21 @@ impl TypeChecker {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral | ObjectFlags::ArrayLiteral)
     }
 
-    pub(super) fn union_object_and_array_literal_candidates(
-        &self,
-        candidates: &[Gc<Type>],
-    ) -> Vec<Gc<Type>> {
-        if candidates.len() > 1 {
-            let object_literals = filter(candidates, |candidate: &Gc<Type>| {
-                self.is_object_or_array_literal_type(candidate)
-            });
-            if !object_literals.is_empty() {
+    pub(super) fn union_object_and_array_literal_candidates<'self_and_candidates, TCandidates>(
+        &'self_and_candidates self,
+        candidates: TCandidates,
+    ) -> impl Iterator<Item = Gc<Type>> + 'self_and_candidates
+    where
+        TCandidates: IntoIterator<Item = &'self_and_candidates Gc<Type>> + Clone,
+        TCandidates::IntoIter: Clone + 'self_and_candidates,
+    {
+        let candidates = candidates.into_iter();
+        if candidates.clone().peekmore().is_len_greater_than(1) {
+            let mut object_literals = candidates
+                .clone()
+                .filter(|candidate| self.is_object_or_array_literal_type(candidate))
+                .peekable();
+            if !object_literals.is_empty_() {
                 let literals_type = self.get_union_type(
                     object_literals,
                     Some(UnionReduction::Subtype),
@@ -761,15 +766,15 @@ impl TypeChecker {
                     None,
                     Option::<&Type>::None,
                 );
-                return concatenate(
-                    filter(candidates, |t: &Gc<Type>| {
-                        !self.is_object_or_array_literal_type(t)
-                    }),
-                    vec![literals_type],
+                return Either::Left(
+                    candidates
+                        .filter(|t| !self.is_object_or_array_literal_type(t))
+                        .cloned()
+                        .chain(once(literals_type)),
                 );
             }
         }
-        candidates.to_owned()
+        Either::Right(candidates.cloned())
     }
 
     pub(super) fn get_contravariant_inference(&self, inference: &InferenceInfo) -> Gc<Type> {
@@ -792,9 +797,9 @@ impl TypeChecker {
         inference: &InferenceInfo,
         signature: Gc<Signature>,
     ) -> Gc<Type> {
-        let candidates = self.union_object_and_array_literal_candidates(
-            inference.maybe_candidates().as_deref().unwrap(),
-        );
+        let inference_candidates = inference.maybe_candidates();
+        let candidates = self
+            .union_object_and_array_literal_candidates(inference_candidates.as_deref().unwrap());
         let primitive_constraint = self.has_primitive_constraint(&inference.type_parameter);
         let widen_literal_types = !primitive_constraint
             && inference.top_level()
@@ -803,23 +808,23 @@ impl TypeChecker {
                     &self.get_return_type_of_signature(signature),
                     &inference.type_parameter,
                 ));
-        let base_candidates = if primitive_constraint {
-            same_map(&candidates, |candidate: &Gc<Type>, _| {
-                self.get_regular_type_of_literal_type(candidate)
-            })
-        } else if widen_literal_types {
-            same_map(&candidates, |candidate: &Gc<Type>, _| {
-                self.get_widened_literal_type(candidate)
-            })
-        } else {
+        let base_candidates: Vec<_> = if primitive_constraint {
             candidates
+                .map(|candidate| self.get_regular_type_of_literal_type(&candidate))
+                .collect()
+        } else if widen_literal_types {
+            candidates
+                .map(|candidate| self.get_widened_literal_type(&candidate))
+                .collect()
+        } else {
+            candidates.collect()
         };
         let unwidened_type = if matches!(
             inference.maybe_priority(),
             Some(inference_priority) if inference_priority.intersects(InferencePriority::PriorityImpliesCombination)
         ) {
             self.get_union_type(
-                base_candidates,
+                &base_candidates,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
@@ -909,7 +914,10 @@ impl TypeChecker {
                         ) == Ternary::False
                     }
                 } {
-                    inferred_type = Some(instantiated_constraint.clone());
+                    #[allow(unused_assignments)]
+                    {
+                        inferred_type = Some(instantiated_constraint.clone());
+                    }
                     *inference.maybe_inferred_type_mut() = Some(instantiated_constraint);
                 }
             }

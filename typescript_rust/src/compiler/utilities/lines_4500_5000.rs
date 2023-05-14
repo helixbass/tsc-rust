@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::cmp;
@@ -20,8 +18,8 @@ use crate::{
     is_heritage_clause, is_in_js_file, is_jsdoc_property_like_tag, is_jsdoc_signature,
     is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression, is_parameter,
     is_pinned_comment, is_property_access_entity_name_expression, is_white_space_single_line, last,
-    maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, synthetic_factory,
-    text_char_at_index, text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange,
+    maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, text_char_at_index,
+    text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange, DetachedCommentInfo,
     EmitTextWriter, ModifierFlags, ModifiersArray, Node, NodeFlags, NodeInterface,
     ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
 };
@@ -33,7 +31,7 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Gc<Node /*TypeN
     let type_ = node
         .maybe_as_has_type()
         .and_then(|has_type| has_type.maybe_type());
-    if type_.is_some() && !is_in_js_file(Some(node)) {
+    if type_.is_some() || !is_in_js_file(Some(node)) {
         return type_;
     }
     if is_jsdoc_property_like_tag(node) {
@@ -195,15 +193,12 @@ pub fn emit_comments<
         });
 }
 
-pub fn emit_detached_comments<
-    TWriteComment: FnMut(&SourceTextAsChars, &[usize], &dyn EmitTextWriter, isize, isize, &str),
-    TNode: ReadonlyTextRange,
->(
+pub fn emit_detached_comments(
     text: &SourceTextAsChars,
     line_map: &[usize],
     writer: &dyn EmitTextWriter,
-    mut write_comment: TWriteComment,
-    node: &TNode,
+    write_comment: impl FnMut(&SourceTextAsChars, &[usize], &dyn EmitTextWriter, isize, isize, &str),
+    node: &impl ReadonlyTextRange,
     new_line: &str,
     remove_comments: bool,
 ) -> Option<DetachedCommentInfo> {
@@ -283,11 +278,6 @@ pub fn emit_detached_comments<
     }
 
     current_detached_comment_info
-}
-
-pub struct DetachedCommentInfo {
-    pub node_pos: isize,
-    pub detached_comment_end_pos: isize,
 }
 
 pub fn write_comment_range(
@@ -566,17 +556,10 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
 pub fn create_modifiers(modifier_flags: ModifierFlags) -> Option<ModifiersArray> {
     if modifier_flags != ModifierFlags::None {
         Some(factory.with(|factory_| {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory_.create_node_array(
-                    Some(
-                        factory_.create_modifiers_from_modifier_flags(
-                            synthetic_factory_,
-                            modifier_flags,
-                        ),
-                    ),
-                    None,
-                )
-            })
+            factory_.create_node_array(
+                Some(factory_.create_modifiers_from_modifier_flags(modifier_flags)),
+                None,
+            )
         }))
     } else {
         None

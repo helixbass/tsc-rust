@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
 use indexmap::IndexMap;
@@ -19,28 +17,28 @@ use super::{
     full_triple_slash_reference_type_reference_directive_reg_ex,
 };
 use crate::{
-    HasStatementsInterface, Type, __String, binary_search_copy_key, compare_values,
-    create_mode_aware_cache, escape_jsx_attribute_string, escape_leading_underscores,
-    escape_non_ascii_string, escape_string, find_ancestor, for_each_child_bool,
-    full_triple_slash_amd_reference_path_reg_ex, full_triple_slash_reference_path_reg_ex,
-    get_base_file_name, get_combined_node_flags, get_compiler_option_value, get_emit_module_kind,
-    get_line_and_character_of_position, get_line_starts, get_mode_for_resolution_at_index,
-    get_root_declaration, get_strict_option_value, has_jsdoc_nodes, id_text, is_big_int_literal,
-    is_export_declaration, is_external_module, is_function_like_or_class_static_block_declaration,
-    is_identifier, is_import_call, is_import_type_node, is_in_jsdoc, is_jsdoc_node,
-    is_jsdoc_type_expression, is_line_break, is_module_declaration, is_namespace_export,
-    is_numeric_literal, is_private_identifier, is_prologue_directive, is_source_file,
-    is_string_literal, is_string_or_numeric_literal_like, is_white_space_like,
-    maybe_text_char_at_index, module_resolution_option_declarations, node_is_synthesized,
+    binary_search_copy_key, compare_values, create_mode_aware_cache, escape_jsx_attribute_string,
+    escape_leading_underscores, escape_non_ascii_string, escape_string, find_ancestor,
+    for_each_child_bool, full_triple_slash_amd_reference_path_reg_ex,
+    full_triple_slash_reference_path_reg_ex, get_base_file_name, get_combined_node_flags,
+    get_compiler_option_value, get_emit_module_kind, get_line_and_character_of_position,
+    get_line_starts, get_mode_for_resolution_at_index, get_root_declaration,
+    get_strict_option_value, has_jsdoc_nodes, id_text, is_big_int_literal, is_export_declaration,
+    is_external_module, is_function_like_or_class_static_block_declaration, is_identifier,
+    is_import_call, is_import_type_node, is_in_jsdoc, is_jsdoc_node, is_jsdoc_type_expression,
+    is_line_break, is_module_declaration, is_namespace_export, is_numeric_literal,
+    is_private_identifier, is_prologue_directive, is_source_file, is_string_literal,
+    is_string_or_numeric_literal_like, is_white_space_like, maybe_text_char_at_index,
+    module_resolution_option_declarations, node_is_synthesized,
     options_affecting_program_structure, skip_trivia, starts_with_use_strict, text_char_at_index,
     text_substring, trim_string_start, CharacterCodes, CommandLineOption, CommentDirective,
     CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_, EmitFlags, EmitTextWriter,
-    IndexInfo, LiteralLikeNodeInterface, ModeAwareCache, ModuleKind, NamedDeclarationInterface,
-    Node, NodeArray, NodeFlags, NodeInterface, PackageId, ProjectReference, ReadonlyCollection,
-    ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
-    SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
-    TokenFlags, UnderscoreEscapedMap,
+    HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface, ModeAwareCache, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PackageId,
+    ProjectReference, ReadonlyCollection, ReadonlyTextRange, ResolvedModuleFull,
+    ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface, SourceFileLike,
+    SourceTextAsChars, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextRange, TokenFlags, Type, UnderscoreEscapedMap,
 };
 
 thread_local! {
@@ -78,10 +76,13 @@ pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
 
 // function hasEntries
 
-pub fn create_symbol_table(symbols: Option<&[Gc<Symbol>]>) -> SymbolTable {
+pub fn create_symbol_table(
+    symbols: Option<impl IntoIterator<Item = impl Borrow<Gc<Symbol>>>>,
+) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
+            let symbol: &Gc<Symbol> = symbol.borrow();
             result.insert(symbol.escaped_name().to_owned(), symbol.clone());
         }
     }
@@ -348,9 +349,9 @@ struct SingleLineStringWriterSymbolTracker;
 impl SymbolTracker for SingleLineStringWriterSymbolTracker {
     fn track_symbol(
         &self,
-        symbol: &Symbol,
-        enclosing_declaration: Option<Gc<Node>>,
-        meaning: SymbolFlags,
+        _symbol: &Symbol,
+        _enclosing_declaration: Option<Gc<Node>>,
+        _meaning: SymbolFlags,
     ) -> Option<bool> {
         Some(false)
     }
@@ -464,13 +465,9 @@ impl<TReturn> From<Option<TReturn>> for ForEachAncestorReturn<TReturn> {
     }
 }
 
-pub fn for_each_ancestor<
-    TReturn,
-    TCallbackReturn: Into<ForEachAncestorReturn<TReturn>>,
-    TCallback: FnMut(&Node) -> TCallbackReturn,
->(
+pub fn for_each_ancestor<TReturn, TCallbackReturn: Into<ForEachAncestorReturn<TReturn>>>(
     node: &Node,
-    mut callback: TCallback,
+    mut callback: impl FnMut(&Node) -> TCallbackReturn,
 ) -> Option<TReturn> {
     let mut node = node.node_wrapper();
     loop {
@@ -679,24 +676,22 @@ pub fn type_directive_is_equal_to(
         && old_resolution.original_path == new_resolution.original_path
 }
 
-pub fn has_changes_in_resolutions<
-    TValue: Clone + Trace + Finalize,
-    TName: AsRef<str>,
-    TOldSourceFile: Borrow<Node>,
-    TComparer: FnMut(&TValue, &TValue) -> bool,
->(
-    names: &[TName],
+pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
+    names: &[impl AsRef<str>],
     new_resolutions: &[TValue],
-    old_resolutions: Option<ModeAwareCache<TValue>>,
-    old_source_file: Option<TOldSourceFile /*SourceFile*/>,
-    mut comparer: TComparer,
+    old_resolutions: Option<&ModeAwareCache<TValue>>,
+    old_source_file: Option<
+        impl Borrow<Node>,
+        /*SourceFile*/
+    >,
+    mut comparer: impl FnMut(&TValue, &TValue) -> bool,
 ) -> bool {
     Debug_.assert(names.len() == new_resolutions.len(), None);
 
     for (i, name) in names.iter().enumerate() {
         let name = name.as_ref();
         let new_resolution = &new_resolutions[i];
-        let old_resolution = old_resolutions.as_ref().and_then(|old_resolutions| {
+        let old_resolution = old_resolutions.and_then(|old_resolutions| {
             old_resolutions.get(
                 name,
                 old_source_file.as_ref().and_then(|old_source_file| {
@@ -791,10 +786,7 @@ pub fn is_statement_with_locals(node: &Node) -> bool {
     )
 }
 
-pub fn get_start_position_of_line<TSourceFile: SourceFileLike>(
-    line: usize,
-    source_file: &TSourceFile,
-) -> usize {
+pub fn get_start_position_of_line(line: usize, source_file: &impl SourceFileLike) -> usize {
     // Debug.assert(line >= 0);
     get_line_starts(source_file)[line]
 }
@@ -812,10 +804,7 @@ pub fn node_pos_to_string(node: &Node) -> String {
     )
 }
 
-pub fn get_end_line_position<TSourceFile: SourceFileLike>(
-    line: usize,
-    source_file: &TSourceFile,
-) -> usize {
+pub fn get_end_line_position(line: usize, source_file: &impl SourceFileLike) -> usize {
     // Debug.assert(line >= 0);
     let line_starts = get_line_starts(source_file);
 
@@ -834,10 +823,10 @@ pub fn get_end_line_position<TSourceFile: SourceFileLike>(
     }
 }
 
-pub fn is_file_level_unique_name<THasGlobalName: FnOnce(&str) -> bool>(
+pub fn is_file_level_unique_name(
     source_file: &Node, /*SourceFile*/
     name: &str,
-    mut has_global_name: Option<THasGlobalName>,
+    has_global_name: Option<impl FnOnce(&str) -> bool>,
 ) -> bool {
     (match has_global_name {
         None => true,
@@ -847,7 +836,7 @@ pub fn is_file_level_unique_name<THasGlobalName: FnOnce(&str) -> bool>(
         .contains_key(name)
 }
 
-pub fn node_is_missing<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn node_is_missing(node: Option<impl Borrow<Node>>) -> bool {
     if node.is_none() {
         return true;
     }
@@ -857,14 +846,14 @@ pub fn node_is_missing<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
-pub fn node_is_present<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+pub fn node_is_present(node: Option<impl Borrow<Node>>) -> bool {
     !node_is_missing(node)
 }
 
-fn insert_statements_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
+fn insert_statements_after_prologue(
     to: &mut Vec<Gc<Node>>,
     from: Option<&[Gc<Node>]>,
-    mut is_prologue_directive: TIsPrologueDirective,
+    mut is_prologue_directive: impl FnMut(&Node) -> bool,
 ) {
     if from.is_none() {
         return /*to*/;
@@ -886,10 +875,10 @@ fn insert_statements_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
     );
 }
 
-fn insert_statement_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
+fn insert_statement_after_prologue(
     to: &mut Vec<Gc<Node>>,
     statement: Option<Gc<Node>>,
-    mut is_prologue_directive: TIsPrologueDirective,
+    mut is_prologue_directive: impl FnMut(&Node) -> bool,
 ) {
     if statement.is_none() {
         return /*to*/;
@@ -1065,9 +1054,9 @@ pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
     )
 }
 
-pub fn get_non_decorator_token_pos_of_node<TSourceFile: Borrow<Node>>(
+pub fn get_non_decorator_token_pos_of_node(
     node: &Node,
-    source_file: Option<TSourceFile>,
+    source_file: Option<impl Borrow<Node>>,
 ) -> isize {
     if node_is_missing(Some(node)) || node.maybe_decorators().is_none() {
         return get_token_pos_of_node(node, source_file, None);
@@ -1492,7 +1481,7 @@ fn can_use_original_text(node: &Node /*LiteralLikeNode*/, flags: GetLiteralTextF
     !is_big_int_literal(node)
 }
 
-pub fn get_text_of_constant_value<TValue: Into<StringOrNumber>>(value: TValue) -> String {
+pub fn get_text_of_constant_value(value: impl Into<StringOrNumber>) -> String {
     match value.into() {
         StringOrNumber::String(value) => format!("\"{}\"", escape_non_ascii_string(&value, None)),
         StringOrNumber::Number(value) => format!("{}", value),

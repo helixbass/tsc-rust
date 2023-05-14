@@ -20,12 +20,11 @@ use crate::{
     ref_mut_unwrapped, ref_unwrapped, set_emit_flags, set_original_node, set_source_map_range,
     set_text_range, set_text_range_node_array, set_text_range_rc_node,
     unescape_leading_underscores, visit_each_child, visit_function_body, visit_iteration_body,
-    visit_node, visit_nodes, visit_parameter_list, with_synthetic_factory,
-    BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags, EmitHint, EmitResolver,
-    FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
-    HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags,
-    NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange, ScriptTarget,
-    SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
+    visit_node, visit_nodes, visit_parameter_list, BaseNodeFactorySynthetic, CompilerOptions,
+    Debug_, EmitFlags, EmitHint, EmitResolver, FunctionFlags, FunctionLikeDeclarationInterface,
+    GeneratedIdentifierFlags, HasInitializerInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeCheckFlags, NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TypeReferenceSerializationKind, VisitResult,
 };
@@ -596,13 +595,8 @@ impl TransformES2017 {
                 &node_as_variable_statement.declaration_list,
                 false,
             );
-            return expression.map(|expression| {
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_expression_statement(synthetic_factory_, expression)
-                        .into()
-                })
-            });
+            return expression
+                .map(|expression| self.factory.create_expression_statement(expression).wrap());
         }
         visit_each_child(
             Some(node),
@@ -634,41 +628,38 @@ impl TransformES2017 {
         node: &Node, /*ForInStatement*/
     ) -> Gc<Node> {
         let node_as_for_in_statement = node.as_for_in_statement();
-        with_synthetic_factory(|synthetic_factory_| {
-            self.factory.update_for_in_statement(
-                synthetic_factory_,
-                node,
-                if self.is_variable_declaration_list_with_colliding_name(Some(
-                    &*node_as_for_in_statement.initializer,
-                )) {
-                    self.visit_variable_declaration_list_with_colliding_names(
-                        &node_as_for_in_statement.initializer,
-                        true,
-                    )
-                    .unwrap()
-                } else {
-                    visit_node(
-                        Some(&*node_as_for_in_statement.initializer),
-                        Some(|node: &Node| self.visitor(node)),
-                        Some(is_for_initializer),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
-                    .unwrap()
-                },
+        self.factory.update_for_in_statement(
+            node,
+            if self.is_variable_declaration_list_with_colliding_name(Some(
+                &*node_as_for_in_statement.initializer,
+            )) {
+                self.visit_variable_declaration_list_with_colliding_names(
+                    &node_as_for_in_statement.initializer,
+                    true,
+                )
+                .unwrap()
+            } else {
                 visit_node(
-                    Some(&*node_as_for_in_statement.expression),
+                    Some(&*node_as_for_in_statement.initializer),
                     Some(|node: &Node| self.visitor(node)),
-                    Some(is_expression),
+                    Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )
-                .unwrap(),
-                visit_iteration_body(
-                    &node_as_for_in_statement.statement,
-                    |node: &Node| self.async_body_visitor(node),
-                    &**self.context,
-                ),
+                .unwrap()
+            },
+            visit_node(
+                Some(&*node_as_for_in_statement.expression),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )
-        })
+            .unwrap(),
+            visit_iteration_body(
+                &node_as_for_in_statement.statement,
+                |node: &Node| self.async_body_visitor(node),
+                &**self.context,
+            ),
+        )
     }
 
     fn visit_for_of_statement_in_async_body(
@@ -676,88 +667,82 @@ impl TransformES2017 {
         node: &Node, /*ForOfStatement*/
     ) -> Gc<Node> {
         let node_as_for_of_statement = node.as_for_of_statement();
-        with_synthetic_factory(|synthetic_factory_| {
-            self.factory.update_for_of_statement(
-                synthetic_factory_,
-                node,
+        self.factory.update_for_of_statement(
+            node,
+            visit_node(
+                node_as_for_of_statement.await_modifier.as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_token),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            if self.is_variable_declaration_list_with_colliding_name(Some(
+                &*node_as_for_of_statement.initializer,
+            )) {
+                self.visit_variable_declaration_list_with_colliding_names(
+                    &node_as_for_of_statement.initializer,
+                    true,
+                )
+                .unwrap()
+            } else {
                 visit_node(
-                    node_as_for_of_statement.await_modifier.as_deref(),
+                    Some(&*node_as_for_of_statement.initializer),
                     Some(|node: &Node| self.visitor(node)),
-                    Some(is_token),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                ),
-                if self.is_variable_declaration_list_with_colliding_name(Some(
-                    &*node_as_for_of_statement.initializer,
-                )) {
-                    self.visit_variable_declaration_list_with_colliding_names(
-                        &node_as_for_of_statement.initializer,
-                        true,
-                    )
-                    .unwrap()
-                } else {
-                    visit_node(
-                        Some(&*node_as_for_of_statement.initializer),
-                        Some(|node: &Node| self.visitor(node)),
-                        Some(is_for_initializer),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
-                    .unwrap()
-                },
-                visit_node(
-                    Some(&*node_as_for_of_statement.expression),
-                    Some(|node: &Node| self.visitor(node)),
-                    Some(is_expression),
+                    Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )
-                .unwrap(),
-                visit_iteration_body(
-                    &node_as_for_of_statement.statement,
-                    |node: &Node| self.async_body_visitor(node),
-                    &**self.context,
-                ),
+                .unwrap()
+            },
+            visit_node(
+                Some(&*node_as_for_of_statement.expression),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )
-        })
+            .unwrap(),
+            visit_iteration_body(
+                &node_as_for_of_statement.statement,
+                |node: &Node| self.async_body_visitor(node),
+                &**self.context,
+            ),
+        )
     }
 
     fn visit_for_statement_in_async_body(&self, node: &Node /*ForStatement*/) -> Gc<Node> {
         let node_as_for_statement = node.as_for_statement();
         let initializer = node_as_for_statement.initializer.as_deref();
-        with_synthetic_factory(|synthetic_factory_| {
-            self.factory.update_for_statement(
-                synthetic_factory_,
-                node,
-                if self.is_variable_declaration_list_with_colliding_name(initializer) {
-                    self.visit_variable_declaration_list_with_colliding_names(
-                        initializer.unwrap(),
-                        false,
-                    )
-                } else {
-                    visit_node(
-                        initializer,
-                        Some(|node: &Node| self.visitor(node)),
-                        Some(is_for_initializer),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
-                },
+        self.factory.update_for_statement(
+            node,
+            if self.is_variable_declaration_list_with_colliding_name(initializer) {
+                self.visit_variable_declaration_list_with_colliding_names(
+                    initializer.unwrap(),
+                    false,
+                )
+            } else {
                 visit_node(
-                    node_as_for_statement.condition.as_deref(),
+                    initializer,
                     Some(|node: &Node| self.visitor(node)),
-                    Some(is_expression),
+                    Some(is_for_initializer),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                ),
-                visit_node(
-                    node_as_for_statement.incrementor.as_deref(),
-                    Some(|node: &Node| self.visitor(node)),
-                    Some(is_expression),
-                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                ),
-                visit_iteration_body(
-                    &node_as_for_statement.statement,
-                    |node: &Node| self.async_body_visitor(node),
-                    &**self.context,
-                ),
-            )
-        })
+                )
+            },
+            visit_node(
+                node_as_for_statement.condition.as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            visit_node(
+                node_as_for_statement.incrementor.as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_expression),
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+            ),
+            visit_iteration_body(
+                &node_as_for_statement.statement,
+                |node: &Node| self.async_body_visitor(node),
+                &**self.context,
+            ),
+        )
     }
 
     fn visit_await_expression(
@@ -792,20 +777,17 @@ impl TransformES2017 {
         }
         set_original_node(
             set_text_range_rc_node(
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_yield_expression(
-                            synthetic_factory_,
-                            None,
-                            visit_node(
-                                Some(&*node.as_await_expression().expression),
-                                Some(|node: &Node| self.visitor(node)),
-                                Some(is_expression),
-                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                            ),
-                        )
-                        .into()
-                }),
+                self.factory
+                    .create_yield_expression(
+                        None,
+                        visit_node(
+                            Some(&*node.as_await_expression().expression),
+                            Some(|node: &Node| self.visitor(node)),
+                            Some(is_expression),
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                        ),
+                    )
+                    .wrap(),
                 Some(node),
             ),
             Some(node.node_wrapper()),
@@ -814,66 +796,62 @@ impl TransformES2017 {
 
     fn visit_method_declaration(&self, node: &Node /*MethodDeclaration*/) -> Gc<Node> {
         let node_as_method_declaration = node.as_method_declaration();
-        with_synthetic_factory(|synthetic_factory_| {
-            self.factory.update_method_declaration(
-                synthetic_factory_,
-                node,
-                Option::<Gc<NodeArray>>::None,
-                visit_nodes(
-                    node.maybe_modifiers().as_deref(),
-                    Some(|node: &Node| self.visitor(node)),
-                    Some(is_modifier),
-                    None,
-                    None,
-                ),
-                node_as_method_declaration.maybe_asterisk_token(),
-                node_as_method_declaration.name(),
+        self.factory.update_method_declaration(
+            node,
+            Option::<Gc<NodeArray>>::None,
+            visit_nodes(
+                node.maybe_modifiers().as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_modifier),
                 None,
-                Option::<Gc<NodeArray>>::None,
-                visit_parameter_list(
-                    Some(&node_as_method_declaration.parameters()),
+                None,
+            ),
+            node_as_method_declaration.maybe_asterisk_token(),
+            node_as_method_declaration.name(),
+            None,
+            Option::<Gc<NodeArray>>::None,
+            visit_parameter_list(
+                Some(&node_as_method_declaration.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            None,
+            if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+                Some(self.transform_async_function_body(node))
+            } else {
+                visit_function_body(
+                    node_as_method_declaration.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
                     Option::<
                         fn(
-                            Option<&NodeArray>,
+                            Option<&Node>,
                             Option<&mut dyn FnMut(&Node) -> VisitResult>,
                             Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
+                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                        ) -> Option<Gc<Node>>,
                     >::None,
                 )
-                .unwrap(),
-                None,
-                if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
-                    Some(self.transform_async_function_body(node))
-                } else {
-                    visit_function_body(
-                        node_as_method_declaration.maybe_body().as_deref(),
-                        |node: &Node| self.visitor(node),
-                        &**self.context,
-                        Option::<
-                            fn(
-                                Option<&Node>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                            ) -> Option<Gc<Node>>,
-                        >::None,
-                    )
-                },
-            )
-        })
+            },
+        )
     }
 
     fn visit_function_declaration(&self, node: &Node /*FunctionDeclaration*/) -> VisitResult /*<Statement>*/
     {
         let node_as_function_declaration = node.as_function_declaration();
         Some(
-            with_synthetic_factory(|synthetic_factory_| {
-                self.factory.update_function_declaration(
-                    synthetic_factory_,
+            self.factory
+                .update_function_declaration(
                     node,
                     Option::<Gc<NodeArray>>::None,
                     visit_nodes(
@@ -920,8 +898,7 @@ impl TransformES2017 {
                         )
                     },
                 )
-            })
-            .into(),
+                .into(),
         )
     }
 
@@ -930,109 +907,103 @@ impl TransformES2017 {
         node: &Node, /*FunctionExpression*/
     ) -> Gc<Node /*Expression*/> {
         let node_as_function_expression = node.as_function_expression();
-        with_synthetic_factory(|synthetic_factory_| {
-            self.factory.update_function_expression(
-                synthetic_factory_,
-                node,
-                visit_nodes(
-                    node.maybe_modifiers().as_deref(),
-                    Some(|node: &Node| self.visitor(node)),
-                    Some(is_modifier),
-                    None,
-                    None,
-                ),
-                node_as_function_expression.maybe_asterisk_token(),
-                node_as_function_expression.maybe_name(),
-                Option::<Gc<NodeArray>>::None,
-                visit_parameter_list(
-                    Some(&node_as_function_expression.parameters()),
+        self.factory.update_function_expression(
+            node,
+            visit_nodes(
+                node.maybe_modifiers().as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_modifier),
+                None,
+                None,
+            ),
+            node_as_function_expression.maybe_asterisk_token(),
+            node_as_function_expression.maybe_name(),
+            Option::<Gc<NodeArray>>::None,
+            visit_parameter_list(
+                Some(&node_as_function_expression.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            None,
+            if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+                self.transform_async_function_body(node)
+            } else {
+                visit_function_body(
+                    node_as_function_expression.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
                     Option::<
                         fn(
-                            Option<&NodeArray>,
+                            Option<&Node>,
                             Option<&mut dyn FnMut(&Node) -> VisitResult>,
                             Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
+                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                        ) -> Option<Gc<Node>>,
                     >::None,
                 )
-                .unwrap(),
-                None,
-                if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
-                    self.transform_async_function_body(node)
-                } else {
-                    visit_function_body(
-                        node_as_function_expression.maybe_body().as_deref(),
-                        |node: &Node| self.visitor(node),
-                        &**self.context,
-                        Option::<
-                            fn(
-                                Option<&Node>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                            ) -> Option<Gc<Node>>,
-                        >::None,
-                    )
-                    .unwrap()
-                },
-            )
-        })
+                .unwrap()
+            },
+        )
     }
 
     fn visit_arrow_function(&self, node: &Node /*ArrowFunction*/) -> Gc<Node> {
         let node_as_arrow_function = node.as_arrow_function();
-        with_synthetic_factory(|synthetic_factory_| {
-            self.factory.update_arrow_function(
-                synthetic_factory_,
-                node,
-                visit_nodes(
-                    node.maybe_modifiers().as_deref(),
-                    Some(|node: &Node| self.visitor(node)),
-                    Some(is_modifier),
-                    None,
-                    None,
-                ),
-                Option::<Gc<NodeArray>>::None,
-                visit_parameter_list(
-                    Some(&node_as_arrow_function.parameters()),
+        self.factory.update_arrow_function(
+            node,
+            visit_nodes(
+                node.maybe_modifiers().as_deref(),
+                Some(|node: &Node| self.visitor(node)),
+                Some(is_modifier),
+                None,
+                None,
+            ),
+            Option::<Gc<NodeArray>>::None,
+            visit_parameter_list(
+                Some(&node_as_arrow_function.parameters()),
+                |node: &Node| self.visitor(node),
+                &**self.context,
+                Option::<
+                    fn(
+                        Option<&NodeArray>,
+                        Option<&mut dyn FnMut(&Node) -> VisitResult>,
+                        Option<&dyn Fn(&Node) -> bool>,
+                        Option<usize>,
+                        Option<usize>,
+                    ) -> Option<Gc<NodeArray>>,
+                >::None,
+            )
+            .unwrap(),
+            None,
+            node_as_arrow_function.equals_greater_than_token.clone(),
+            if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
+                self.transform_async_function_body(node)
+            } else {
+                visit_function_body(
+                    node_as_arrow_function.maybe_body().as_deref(),
                     |node: &Node| self.visitor(node),
                     &**self.context,
                     Option::<
                         fn(
-                            Option<&NodeArray>,
+                            Option<&Node>,
                             Option<&mut dyn FnMut(&Node) -> VisitResult>,
                             Option<&dyn Fn(&Node) -> bool>,
-                            Option<usize>,
-                            Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
+                            Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
+                        ) -> Option<Gc<Node>>,
                     >::None,
                 )
-                .unwrap(),
-                None,
-                node_as_arrow_function.equals_greater_than_token.clone(),
-                if get_function_flags(Some(node)).intersects(FunctionFlags::Async) {
-                    self.transform_async_function_body(node)
-                } else {
-                    visit_function_body(
-                        node_as_arrow_function.maybe_body().as_deref(),
-                        |node: &Node| self.visitor(node),
-                        &**self.context,
-                        Option::<
-                            fn(
-                                Option<&Node>,
-                                Option<&mut dyn FnMut(&Node) -> VisitResult>,
-                                Option<&dyn Fn(&Node) -> bool>,
-                                Option<&dyn Fn(&[Gc<Node>]) -> Gc<Node>>,
-                            ) -> Option<Gc<Node>>,
-                        >::None,
-                    )
-                    .unwrap()
-                },
-            )
-        })
+                .unwrap()
+            },
+        )
     }
 
     fn record_declaration_name(&self, name: &Node, names: &mut HashSet<__String>) {
@@ -1078,16 +1049,15 @@ impl TransformES2017 {
         if variables.is_empty() {
             if has_receiver {
                 return visit_node(
-                    Some(with_synthetic_factory(|synthetic_factory_| {
+                    Some(
                         self.factory
                             .converters()
                             .convert_to_assignment_element_target(
-                                synthetic_factory_,
                                 &node_as_variable_declaration_list.declarations[0]
                                     .as_variable_declaration()
                                     .name(),
-                            )
-                    })),
+                            ),
+                    ),
                     Some(|node: &Node| self.visitor(node)),
                     Some(is_expression),
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
@@ -1096,14 +1066,12 @@ impl TransformES2017 {
             return None;
         }
 
-        Some(with_synthetic_factory(|synthetic_factory_| {
-            self.factory.inline_expressions(
-                synthetic_factory_,
-                &map(&variables, |variable: &Gc<Node>, _| {
+        Some(
+            self.factory
+                .inline_expressions(&map(&variables, |variable: &Gc<Node>, _| {
                     self.transform_initialized_variable(variable)
-                }),
-            )
-        }))
+                })),
+        )
     }
 
     fn hoist_variable_declaration_list(&self, node: &Node /*VariableDeclarationList*/) {
@@ -1131,20 +1099,14 @@ impl TransformES2017 {
     fn transform_initialized_variable(&self, node: &Node /*VariableDeclaration*/) -> Gc<Node> {
         let node_as_variable_declaration = node.as_variable_declaration();
         let converted = set_source_map_range(
-            with_synthetic_factory(|synthetic_factory_| {
-                self.factory
-                    .create_assignment(
-                        synthetic_factory_,
-                        self.factory
-                            .converters()
-                            .convert_to_assignment_element_target(
-                                synthetic_factory_,
-                                &node_as_variable_declaration.name(),
-                            ),
-                        node_as_variable_declaration.maybe_initializer().unwrap(),
-                    )
-                    .into()
-            }),
+            self.factory
+                .create_assignment(
+                    self.factory
+                        .converters()
+                        .convert_to_assignment_element_target(&node_as_variable_declaration.name()),
+                    node_as_variable_declaration.maybe_initializer().unwrap(),
+                )
+                .wrap(),
             Some(node.into()),
         );
         visit_node(
@@ -1215,39 +1177,33 @@ impl TransformES2017 {
         let result: Gc<Node /*ConciseBody*/>;
         if !is_arrow_function {
             let mut statements: Vec<Gc<Node /*Statement*/>> = Default::default();
-            let statement_offset = with_synthetic_factory(|synthetic_factory_| {
-                self.factory.copy_prologue(
-                    synthetic_factory_,
-                    &node_as_function_like_declaration
-                        .maybe_body()
-                        .unwrap()
-                        .as_block()
-                        .statements,
-                    &mut statements,
-                    Some(false),
-                    Some(|node: &Node| self.visitor(node)),
-                )
-            });
-            statements.push(with_synthetic_factory(|synthetic_factory_| {
+            let statement_offset = self.factory.copy_prologue(
+                &node_as_function_like_declaration
+                    .maybe_body()
+                    .unwrap()
+                    .as_block()
+                    .statements,
+                &mut statements,
+                Some(false),
+                Some(|node: &Node| self.visitor(node)),
+            );
+            statements.push(
                 self.factory
-                    .create_return_statement(
-                        synthetic_factory_,
-                        Some(
-                            self.context
-                                .get_emit_helper_factory()
-                                .create_awaiter_helper(
-                                    self.in_has_lexical_this_context(),
-                                    has_lexical_arguments,
-                                    promise_constructor.clone(),
-                                    self.transform_async_function_body_worker(
-                                        &node_as_function_like_declaration.maybe_body().unwrap(),
-                                        Some(statement_offset),
-                                    ),
+                    .create_return_statement(Some(
+                        self.context
+                            .get_emit_helper_factory()
+                            .create_awaiter_helper(
+                                self.in_has_lexical_this_context(),
+                                has_lexical_arguments,
+                                promise_constructor.clone(),
+                                self.transform_async_function_body_worker(
+                                    &node_as_function_like_declaration.maybe_body().unwrap(),
+                                    Some(statement_offset),
                                 ),
-                        ),
-                    )
-                    .into()
-            }));
+                            ),
+                    ))
+                    .wrap(),
+            );
 
             insert_statements_after_standard_prologue(
                 &mut statements,
@@ -1278,11 +1234,7 @@ impl TransformES2017 {
                 }
             }
 
-            let block: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
-                self.factory
-                    .create_block(synthetic_factory_, statements, Some(true))
-                    .into()
-            });
+            let block = self.factory.create_block(statements, Some(true)).wrap();
             set_text_range(
                 &*block,
                 node_as_function_like_declaration.maybe_body().as_deref(),
@@ -1323,30 +1275,24 @@ impl TransformES2017 {
             if let Some(declarations) = declarations.non_empty()
             /*some(declarations)*/
             {
-                let block = with_synthetic_factory(|synthetic_factory_| {
-                    self.factory.converters().convert_to_function_block(
-                        synthetic_factory_,
-                        &expression,
-                        None,
-                    )
-                });
+                let block = self
+                    .factory
+                    .converters()
+                    .convert_to_function_block(&expression, None);
                 let block_as_block = block.as_block();
-                result = with_synthetic_factory(|synthetic_factory_| {
-                    self.factory.update_block(
-                        synthetic_factory_,
-                        &block,
-                        set_text_range_node_array(
-                            self.factory.create_node_array(
-                                Some(concatenate(
-                                    declarations,
-                                    block_as_block.statements.to_vec(),
-                                )),
-                                None,
-                            ),
-                            Some(&*block_as_block.statements),
+                result = self.factory.update_block(
+                    &block,
+                    set_text_range_node_array(
+                        self.factory.create_node_array(
+                            Some(concatenate(
+                                declarations,
+                                block_as_block.statements.to_vec(),
+                            )),
+                            None,
                         ),
-                    )
-                });
+                        Some(&*block_as_block.statements),
+                    ),
+                );
             } else {
                 result = expression;
             }
@@ -1366,34 +1312,28 @@ impl TransformES2017 {
         start: Option<usize>,
     ) -> Gc<Node> {
         if is_block(body) {
-            with_synthetic_factory(|synthetic_factory_| {
-                self.factory.update_block(
-                    synthetic_factory_,
-                    body,
-                    visit_nodes(
-                        Some(&body.as_block().statements),
-                        Some(|node: &Node| self.async_body_visitor(node)),
-                        Some(is_statement),
-                        start,
-                        None,
-                    )
-                    .unwrap(),
-                )
-            })
-        } else {
-            with_synthetic_factory(|synthetic_factory_| {
-                self.factory.converters().convert_to_function_block(
-                    synthetic_factory_,
-                    &visit_node(
-                        Some(body),
-                        Some(|node: &Node| self.async_body_visitor(node)),
-                        Some(is_concise_body),
-                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
-                    )
-                    .unwrap(),
+            self.factory.update_block(
+                body,
+                visit_nodes(
+                    Some(&body.as_block().statements),
+                    Some(|node: &Node| self.async_body_visitor(node)),
+                    Some(is_statement),
+                    start,
                     None,
                 )
-            })
+                .unwrap(),
+            )
+        } else {
+            self.factory.converters().convert_to_function_block(
+                &visit_node(
+                    Some(body),
+                    Some(|node: &Node| self.async_body_visitor(node)),
+                    Some(is_concise_body),
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
+                )
+                .unwrap(),
+                None,
+            )
         }
     }
 
@@ -1468,22 +1408,18 @@ impl TransformES2017 {
         let node_as_property_access_expression = node.as_property_access_expression();
         if node_as_property_access_expression.expression.kind() == SyntaxKind::SuperKeyword {
             return set_text_range_rc_node(
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            self.factory.create_unique_name(
-                                synthetic_factory_,
-                                "_super",
-                                Some(
-                                    GeneratedIdentifierFlags::Optimistic
-                                        | GeneratedIdentifierFlags::FileLevel,
-                                ),
+                self.factory
+                    .create_property_access_expression(
+                        self.factory.create_unique_name(
+                            "_super",
+                            Some(
+                                GeneratedIdentifierFlags::Optimistic
+                                    | GeneratedIdentifierFlags::FileLevel,
                             ),
-                            node_as_property_access_expression.name.clone(),
-                        )
-                        .into()
-                }),
+                        ),
+                        node_as_property_access_expression.name.clone(),
+                    )
+                    .wrap(),
                 Some(node),
             );
         }
@@ -1513,28 +1449,22 @@ impl TransformES2017 {
             } else {
                 self.substitute_element_access_expression(expression)
             };
-            return with_synthetic_factory(|synthetic_factory_| {
-                self.factory
-                    .create_call_expression(
-                        synthetic_factory_,
-                        self.factory
-                            .create_property_access_expression(
-                                synthetic_factory_,
-                                argument_expression,
-                                "call",
-                            )
-                            .into(),
-                        Option::<Gc<NodeArray>>::None,
-                        Some(
-                            [
-                                vec![self.factory.create_this(synthetic_factory_).into()],
-                                node_as_call_expression.arguments.to_vec(),
-                            ]
-                            .concat(),
-                        ),
-                    )
-                    .into()
-            });
+            return self
+                .factory
+                .create_call_expression(
+                    self.factory
+                        .create_property_access_expression(argument_expression, "call")
+                        .wrap(),
+                    Option::<Gc<NodeArray>>::None,
+                    Some(
+                        [
+                            vec![self.factory.create_this().wrap()],
+                            node_as_call_expression.arguments.to_vec(),
+                        ]
+                        .concat(),
+                    ),
+                )
+                .wrap();
         }
         node.node_wrapper()
     }
@@ -1561,50 +1491,41 @@ impl TransformES2017 {
             .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
         {
             set_text_range_rc_node(
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            self.factory
-                                .create_call_expression(
-                                    synthetic_factory_,
-                                    self.factory.create_unique_name(
-                                        synthetic_factory_,
-                                        "_superIndex",
-                                        Some(
-                                            GeneratedIdentifierFlags::Optimistic
-                                                | GeneratedIdentifierFlags::FileLevel,
-                                        ),
+                self.factory
+                    .create_property_access_expression(
+                        self.factory
+                            .create_call_expression(
+                                self.factory.create_unique_name(
+                                    "_superIndex",
+                                    Some(
+                                        GeneratedIdentifierFlags::Optimistic
+                                            | GeneratedIdentifierFlags::FileLevel,
                                     ),
-                                    Option::<Gc<NodeArray>>::None,
-                                    Some(vec![argument_expression.node_wrapper()]),
-                                )
-                                .into(),
-                            "value",
-                        )
-                        .into()
-                }),
+                                ),
+                                Option::<Gc<NodeArray>>::None,
+                                Some(vec![argument_expression.node_wrapper()]),
+                            )
+                            .wrap(),
+                        "value",
+                    )
+                    .wrap(),
                 Some(location),
             )
         } else {
             set_text_range_rc_node(
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_call_expression(
-                            synthetic_factory_,
-                            self.factory.create_unique_name(
-                                synthetic_factory_,
-                                "_superIndex",
-                                Some(
-                                    GeneratedIdentifierFlags::Optimistic
-                                        | GeneratedIdentifierFlags::FileLevel,
-                                ),
+                self.factory
+                    .create_call_expression(
+                        self.factory.create_unique_name(
+                            "_superIndex",
+                            Some(
+                                GeneratedIdentifierFlags::Optimistic
+                                    | GeneratedIdentifierFlags::FileLevel,
                             ),
-                            Option::<Gc<NodeArray>>::None,
-                            Some(vec![argument_expression.node_wrapper()]),
-                        )
-                        .into()
-                }),
+                        ),
+                        Option::<Gc<NodeArray>>::None,
+                        Some(vec![argument_expression.node_wrapper()]),
+                    )
+                    .wrap(),
                 Some(location),
             )
         }
@@ -1749,14 +1670,12 @@ pub fn create_super_access_variable_statement(
     names.iter().for_each(|key| {
         let name = unescape_leading_underscores(key);
         let mut getter_and_setter: Vec<Gc<Node /*PropertyAssignment*/>> = Default::default();
-        getter_and_setter.push(with_synthetic_factory(|synthetic_factory_| {
+        getter_and_setter.push(
             factory
                 .create_property_assignment(
-                    synthetic_factory_,
                     "get",
                     factory
                         .create_arrow_function(
-                            synthetic_factory_,
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             vec![],
@@ -1765,35 +1684,31 @@ pub fn create_super_access_variable_statement(
                             set_emit_flags(
                                 factory
                                     .create_property_access_expression(
-                                        synthetic_factory_,
                                         set_emit_flags(
-                                            factory.create_super(synthetic_factory_).into(),
+                                            factory.create_super().wrap(),
                                             EmitFlags::NoSubstitution,
                                         ),
                                         name,
                                     )
-                                    .into(),
+                                    .wrap(),
                                 EmitFlags::NoSubstitution,
                             ),
                         )
-                        .into(),
+                        .wrap(),
                 )
-                .into()
-        }));
+                .wrap(),
+        );
         if has_binding {
-            getter_and_setter.push(with_synthetic_factory(|synthetic_factory_| {
+            getter_and_setter.push(
                 factory
                     .create_property_assignment(
-                        synthetic_factory_,
                         "set",
                         factory
                             .create_arrow_function(
-                                synthetic_factory_,
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 vec![factory
                                     .create_parameter_declaration(
-                                        synthetic_factory_,
                                         Option::<Gc<NodeArray>>::None,
                                         Option::<Gc<NodeArray>>::None,
                                         None,
@@ -1802,116 +1717,98 @@ pub fn create_super_access_variable_statement(
                                         None,
                                         None,
                                     )
-                                    .into()],
+                                    .wrap()],
                                 None,
                                 None,
                                 factory
                                     .create_assignment(
-                                        synthetic_factory_,
                                         set_emit_flags(
                                             factory
                                                 .create_property_access_expression(
-                                                    synthetic_factory_,
                                                     set_emit_flags(
-                                                        factory
-                                                            .create_super(synthetic_factory_)
-                                                            .into(),
+                                                        factory.create_super().wrap(),
                                                         EmitFlags::NoSubstitution,
                                                     ),
                                                     name,
                                                 )
-                                                .into(),
+                                                .wrap(),
                                             EmitFlags::NoSubstitution,
                                         ),
                                         factory
                                             .create_identifier(
-                                                synthetic_factory_,
                                                 "v",
                                                 Option::<Gc<NodeArray>>::None,
                                                 None,
                                             )
-                                            .into(),
+                                            .wrap(),
                                     )
-                                    .into(),
+                                    .wrap(),
                             )
-                            .into(),
+                            .wrap(),
                     )
-                    .into()
-            }));
+                    .wrap(),
+            );
         }
-        accessors.push(with_synthetic_factory(|synthetic_factory_| {
+        accessors.push(
             factory
                 .create_property_assignment(
-                    synthetic_factory_,
                     name,
                     factory
-                        .create_object_literal_expression(
-                            synthetic_factory_,
-                            Some(getter_and_setter),
-                            None,
-                        )
-                        .into(),
+                        .create_object_literal_expression(Some(getter_and_setter), None)
+                        .wrap(),
                 )
-                .into()
-        }));
+                .wrap(),
+        );
     });
-    with_synthetic_factory(|synthetic_factory_| {
-        factory
-            .create_variable_statement(
-                synthetic_factory_,
-                Option::<Gc<NodeArray>>::None,
-                Gc::<Node>::from(factory.create_variable_declaration_list(
-                    synthetic_factory_,
+    factory
+        .create_variable_statement(
+            Option::<Gc<NodeArray>>::None,
+            factory
+                .create_variable_declaration_list(
                     vec![factory
-                            .create_variable_declaration(
-                                synthetic_factory_,
-                                Some(factory.create_unique_name(
-                                    synthetic_factory_,
-                                    "_super",
-                                    Some(
-                                        GeneratedIdentifierFlags::Optimistic
-                                            | GeneratedIdentifierFlags::FileLevel,
-                                    ),
-                                )),
-                                None,
-                                None,
+                        .create_variable_declaration(
+                            Some(factory.create_unique_name(
+                                "_super",
                                 Some(
-                                    factory
-                                        .create_call_expression(
-                                            synthetic_factory_,
-                                            factory
-                                                .create_property_access_expression(
-                                                    synthetic_factory_,
-                                                    factory
-                                                        .create_identifier(
-                                                            synthetic_factory_,
-                                                            "Object",
-                                                            Option::<Gc<NodeArray>>::None,
-                                                            None,
-                                                        )
-                                                        .into(),
-                                                    "create",
-                                                )
-                                                .into(),
-                                            Option::<Gc<NodeArray>>::None,
-                                            Some(vec![
-                                                factory.create_null(synthetic_factory_).into(),
-                                                factory
-                                                    .create_object_literal_expression(
-                                                        synthetic_factory_,
-                                                        Some(accessors),
-                                                        Some(true),
-                                                    )
-                                                    .into(),
-                                            ]),
-                                        )
-                                        .into(),
+                                    GeneratedIdentifierFlags::Optimistic
+                                        | GeneratedIdentifierFlags::FileLevel,
                                 ),
-                            )
-                            .into()],
+                            )),
+                            None,
+                            None,
+                            Some(
+                                factory
+                                    .create_call_expression(
+                                        factory
+                                            .create_property_access_expression(
+                                                factory
+                                                    .create_identifier(
+                                                        "Object",
+                                                        Option::<Gc<NodeArray>>::None,
+                                                        None,
+                                                    )
+                                                    .wrap(),
+                                                "create",
+                                            )
+                                            .wrap(),
+                                        Option::<Gc<NodeArray>>::None,
+                                        Some(vec![
+                                            factory.create_null().wrap(),
+                                            factory
+                                                .create_object_literal_expression(
+                                                    Some(accessors),
+                                                    Some(true),
+                                                )
+                                                .wrap(),
+                                        ]),
+                                    )
+                                    .wrap(),
+                            ),
+                        )
+                        .wrap()],
                     Some(NodeFlags::Const),
-                )),
-            )
-            .into()
-    })
+                )
+                .wrap(),
+        )
+        .wrap()
 }

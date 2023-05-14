@@ -1,16 +1,12 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_function_type_node, is_jsdoc_nullable_type, is_modifier_kind,
     set_text_range, some, token_is_identifier_or_keyword, token_to_string, DiagnosticMessage,
-    Diagnostics, ImportTypeNode, IndexSignatureDeclaration, InferTypeNode, KeywordTypeNode,
-    LiteralTypeNode, MappedTypeNode, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface,
-    ParameterDeclaration, ReadonlyTextRange, SyntaxKind, TupleTypeNode, TypeLiteralNode,
-    TypeOperatorNode, TypeParameterDeclaration, TypeQueryNode,
+    Diagnostics, ImportTypeNode, InferTypeNode, KeywordTypeNode, LiteralTypeNode, MappedTypeNode,
+    Node, NodeArray, NodeFlags, NodeInterface, ParameterDeclaration, ReadonlyTextRange, SyntaxKind,
+    TupleTypeNode, TypeLiteralNode, TypeOperatorNode, TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -23,25 +19,23 @@ impl ParserType {
             let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
             return self.with_jsdoc(
                 self.finish_node(
-                    self.factory
-                        .create_jsdoc_function_type(self, parameters, type_),
+                    self.factory().create_jsdoc_function_type(parameters, type_),
                     pos,
                     None,
                 )
-                .into(),
+                .wrap(),
                 has_jsdoc,
             );
         }
         self.finish_node(
-            self.factory.create_type_reference_node(
-                self,
+            self.factory().create_type_reference_node(
                 self.parse_identifier_name(None).wrap(),
                 Option::<Gc<NodeArray>>::None,
             ),
             pos,
             None,
         )
-        .into()
+        .wrap()
     }
 
     pub(super) fn parse_jsdoc_parameter(&self) -> ParameterDeclaration {
@@ -55,8 +49,7 @@ impl ParserType {
             self.parse_expected(SyntaxKind::ColonToken, None, None);
         }
         self.finish_node(
-            self.factory.create_parameter_declaration(
-                self,
+            self.factory().create_parameter_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 None,
@@ -74,7 +67,7 @@ impl ParserType {
         self.scanner().set_in_jsdoc_type(true);
         let pos = self.get_node_pos();
         if self.parse_optional(SyntaxKind::ModuleKeyword) {
-            let module_tag = self.factory.create_jsdoc_namepath_type(self, None);
+            let module_tag = self.factory().create_jsdoc_namepath_type(None);
             loop {
                 match self.token() {
                     SyntaxKind::CloseBraceToken
@@ -90,7 +83,7 @@ impl ParserType {
             }
 
             self.scanner_mut().set_in_jsdoc_type(false);
-            return self.finish_node(module_tag, pos, None).into();
+            return self.finish_node(module_tag, pos, None).wrap();
         }
 
         let has_dot_dot_dot = self.parse_optional(SyntaxKind::DotDotDotToken);
@@ -99,21 +92,21 @@ impl ParserType {
         if has_dot_dot_dot {
             type_ = self
                 .finish_node(
-                    self.factory.create_jsdoc_variadic_type(self, Some(type_)),
+                    self.factory().create_jsdoc_variadic_type(Some(type_)),
                     pos,
                     None,
                 )
-                .into();
+                .wrap();
         }
         if self.token() == SyntaxKind::EqualsToken {
             self.next_token();
             return self
                 .finish_node(
-                    self.factory.create_jsdoc_optional_type(self, Some(type_)),
+                    self.factory().create_jsdoc_optional_type(Some(type_)),
                     pos,
                     None,
                 )
-                .into();
+                .wrap();
         }
         type_
     }
@@ -122,8 +115,8 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::TypeOfKeyword, None, None);
         self.finish_node(
-            self.factory
-                .create_type_query_node(self, self.parse_entity_name(true, None).wrap()),
+            self.factory()
+                .create_type_query_node(self.parse_entity_name(true, None).wrap()),
             pos,
             None,
         )
@@ -147,12 +140,9 @@ impl ParserType {
         } else {
             None
         };
-        let mut node = self.factory.create_type_parameter_declaration(
-            self,
-            name.wrap(),
-            constraint,
-            default_type,
-        );
+        let mut node =
+            self.factory()
+                .create_type_parameter_declaration(name.wrap(), constraint, default_type);
         node.expression = expression;
         self.finish_node(node, pos, None)
     }
@@ -163,7 +153,7 @@ impl ParserType {
         if self.token() == SyntaxKind::LessThanToken {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeParameters,
-                || self.parse_type_parameter().into(),
+                || self.parse_type_parameter().wrap(),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ));
@@ -222,8 +212,7 @@ impl ParserType {
         };
 
         if self.token() == SyntaxKind::ThisKeyword {
-            let node = self.factory.create_parameter_declaration(
-                self,
+            let node = self.factory().create_parameter_declaration(
                 decorators.clone(),
                 Option::<Gc<NodeArray>>::None,
                 None,
@@ -241,7 +230,7 @@ impl ParserType {
                 );
             }
 
-            return self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc);
+            return self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc);
         }
 
         let saved_top_level = self.top_level();
@@ -254,8 +243,7 @@ impl ParserType {
         let initializer = self.parse_initializer();
         let node = self.with_jsdoc(
             self.finish_node(
-                self.factory.create_parameter_declaration(
-                    self,
+                self.factory().create_parameter_declaration(
                     decorators,
                     modifiers,
                     dot_dot_dot_token.map(Node::wrap),
@@ -267,7 +255,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         );
         self.set_top_level(saved_top_level);
@@ -319,7 +307,7 @@ impl ParserType {
         let parameters = if flags.intersects(SignatureFlags::JSDoc) {
             self.parse_delimited_list(
                 ParsingContext::JSDocParameters,
-                || self.parse_jsdoc_parameter().into(),
+                || self.parse_jsdoc_parameter().wrap(),
                 None,
             )
         } else {
@@ -376,12 +364,12 @@ impl ParserType {
         let type_ = self.parse_return_type(SyntaxKind::ColonToken, true);
         self.parse_type_member_semicolon();
         let node: Node = if kind == SyntaxKind::CallSignature {
-            self.factory
-                .create_call_signature(self, type_parameters, parameters, type_)
+            self.factory()
+                .create_call_signature(type_parameters, parameters, type_)
                 .into()
         } else {
-            self.factory
-                .create_construct_signature(self, type_parameters, parameters, type_)
+            self.factory()
+                .create_construct_signature(type_parameters, parameters, type_)
                 .into()
         };
         self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
@@ -446,9 +434,9 @@ impl ParserType {
         let type_ = self.parse_type_annotation();
         self.parse_type_member_semicolon();
         let node = self
-            .factory
-            .create_index_signature(self, decorators, modifiers, parameters, type_);
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+            .factory()
+            .create_index_signature(decorators, modifiers, parameters, type_);
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_property_or_method_signature(
@@ -468,9 +456,8 @@ impl ParserType {
             let parameters = self.parse_parameters(SignatureFlags::Type);
             let type_ = self.parse_return_type(SyntaxKind::ColonToken, true);
             node = self
-                .factory
+                .factory()
                 .create_method_signature(
-                    self,
                     modifiers,
                     Some(name.wrap()),
                     question_token.map(|question_token| question_token.wrap()),
@@ -481,8 +468,7 @@ impl ParserType {
                 .into();
         } else {
             let type_ = self.parse_type_annotation();
-            let mut node_as_property_signature = self.factory.create_property_signature(
-                self,
+            let mut node_as_property_signature = self.factory().create_property_signature(
                 modifiers,
                 name.wrap(),
                 question_token.map(|question_token| question_token.wrap()),
@@ -595,8 +581,8 @@ impl ParserType {
     pub(super) fn parse_type_literal(&self) -> TypeLiteralNode {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory
-                .create_type_literal_node(self, Some(self.parse_object_type_members())),
+            self.factory()
+                .create_type_literal_node(Some(self.parse_object_type_members())),
             pos,
             None,
         )
@@ -635,8 +621,8 @@ impl ParserType {
         self.parse_expected(SyntaxKind::InKeyword, None, None);
         let type_ = self.parse_type();
         self.finish_node(
-            self.factory
-                .create_type_parameter_declaration(self, name.wrap(), Some(type_), None),
+            self.factory()
+                .create_type_parameter_declaration(name.wrap(), Some(type_), None),
             pos,
             None,
         )
@@ -680,10 +666,9 @@ impl ParserType {
         });
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         self.finish_node(
-            self.factory.create_mapped_type_node(
-                self,
+            self.factory().create_mapped_type_node(
                 readonly_token.map(|readonly_token| readonly_token.wrap()),
-                type_parameter.into(),
+                type_parameter.wrap(),
                 name_type,
                 question_token.map(|question_token| question_token.wrap()),
                 type_,
@@ -699,20 +684,17 @@ impl ParserType {
         if self.parse_optional(SyntaxKind::DotDotDotToken) {
             return self
                 .finish_node(
-                    self.factory.create_rest_type_node(self, self.parse_type()),
+                    self.factory().create_rest_type_node(self.parse_type()),
                     pos,
                     None,
                 )
-                .into();
+                .wrap();
         }
         let type_ = self.parse_type();
         if is_jsdoc_nullable_type(&type_) {
             let type_type = type_.as_base_jsdoc_unary_type().type_.clone().unwrap();
             if type_.pos() == type_type.pos() {
-                let node: Node = self
-                    .factory
-                    .create_optional_type_node(self, type_type)
-                    .into();
+                let node: Node = self.factory().create_optional_type_node(type_type).into();
                 set_text_range(&node, Some(&*type_));
                 node.set_flags(type_.flags());
                 return node.wrap();
@@ -744,14 +726,13 @@ impl ParserType {
             let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
             self.parse_expected(SyntaxKind::ColonToken, None, None);
             let type_ = self.parse_tuple_element_type();
-            let node = self.factory.create_named_tuple_member(
-                self,
+            let node = self.factory().create_named_tuple_member(
                 dot_dot_dot_token.map(|dot_dot_dot_token| dot_dot_dot_token.wrap()),
                 name.wrap(),
                 question_token.map(|question_token| question_token.wrap()),
                 type_,
             );
-            return self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc);
+            return self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc);
         }
         self.parse_tuple_element_type()
     }
@@ -759,15 +740,13 @@ impl ParserType {
     pub(super) fn parse_tuple_type(&self) -> TupleTypeNode {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory.create_tuple_type_node(
-                self,
-                Some(self.parse_bracketed_list(
+            self.factory()
+                .create_tuple_type_node(Some(self.parse_bracketed_list(
                     ParsingContext::TupleElementTypes,
                     || self.parse_tuple_element_name_or_tuple_element_type(),
                     SyntaxKind::OpenBracketToken,
                     SyntaxKind::CloseBracketToken,
-                )),
-            ),
+                ))),
             pos,
             None,
         )
@@ -779,7 +758,7 @@ impl ParserType {
         let type_ = self.parse_type();
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         self.finish_node(
-            self.factory.create_parenthesized_type(self, type_).into(),
+            self.factory().create_parenthesized_type(type_).into(),
             pos,
             None,
         )
@@ -793,11 +772,11 @@ impl ParserType {
             let pos = self.get_node_pos();
             self.next_token();
             let modifier = self.finish_node(
-                self.factory.create_token(self, SyntaxKind::AbstractKeyword),
+                self.factory().create_token(SyntaxKind::AbstractKeyword),
                 pos,
                 None,
             );
-            modifiers = Some(self.create_node_array(vec![modifier.into()], pos, None, None));
+            modifiers = Some(self.create_node_array(vec![modifier.wrap()], pos, None, None));
         }
         modifiers
     }
@@ -811,13 +790,13 @@ impl ParserType {
         let parameters = self.parse_parameters(SignatureFlags::Type);
         let type_ = self.parse_return_type(SyntaxKind::EqualsGreaterThanToken, false);
         let node: Node = if is_constructor_type {
-            self.factory
-                .create_constructor_type_node(self, modifiers, type_parameters, parameters, type_)
+            self.factory()
+                .create_constructor_type_node(modifiers, type_parameters, parameters, type_)
                 .into()
         } else {
             let function_type_node: Node = self
-                .factory
-                .create_function_type_node(self, type_parameters, parameters, type_)
+                .factory()
+                .create_function_type_node(type_parameters, parameters, type_)
                 .into();
             // if !is_constructor_type {
             function_type_node.set_modifiers(modifiers);
@@ -850,16 +829,15 @@ impl ParserType {
         };
         if negative {
             expression = self.finish_node(
-                self.factory
-                    .create_prefix_unary_expression(self, SyntaxKind::MinusToken, expression.wrap())
+                self.factory()
+                    .create_prefix_unary_expression(SyntaxKind::MinusToken, expression.wrap())
                     .into(),
                 pos,
                 None,
             );
         }
         self.finish_node(
-            self.factory
-                .create_literal_type_node(self, expression.wrap()),
+            self.factory().create_literal_type_node(expression.wrap()),
             pos,
             None,
         )
@@ -885,8 +863,7 @@ impl ParserType {
         };
         let type_arguments = self.parse_type_arguments_of_type_reference();
         self.finish_node(
-            self.factory.create_import_type_node(
-                self,
+            self.factory().create_import_type_node(
                 type_,
                 qualifier.map(|qualifier| qualifier.wrap()),
                 type_arguments,
@@ -921,58 +898,58 @@ impl ParserType {
                 .unwrap_or_else(|| self.parse_type_reference().wrap()),
             SyntaxKind::AsteriskEqualsToken => {
                 self.scanner().re_scan_asterisk_equals_token();
-                self.parse_jsdoc_all_type().into()
+                self.parse_jsdoc_all_type().wrap()
             }
-            SyntaxKind::AsteriskToken => self.parse_jsdoc_all_type().into(),
+            SyntaxKind::AsteriskToken => self.parse_jsdoc_all_type().wrap(),
             SyntaxKind::QuestionQuestionToken => {
                 self.scanner().re_scan_question_token();
-                self.parse_jsdoc_unknown_or_nullable_type().into()
+                self.parse_jsdoc_unknown_or_nullable_type().wrap()
             }
-            SyntaxKind::QuestionToken => self.parse_jsdoc_unknown_or_nullable_type().into(),
+            SyntaxKind::QuestionToken => self.parse_jsdoc_unknown_or_nullable_type().wrap(),
             SyntaxKind::FunctionKeyword => self.parse_jsdoc_function_type(),
-            SyntaxKind::ExclamationToken => self.parse_jsdoc_non_nullable_type().into(),
+            SyntaxKind::ExclamationToken => self.parse_jsdoc_non_nullable_type().wrap(),
             SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::StringLiteral
             | SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
             | SyntaxKind::TrueKeyword
             | SyntaxKind::FalseKeyword
-            | SyntaxKind::NullKeyword => self.parse_literal_type_node(None).into(),
+            | SyntaxKind::NullKeyword => self.parse_literal_type_node(None).wrap(),
             SyntaxKind::MinusToken => {
                 if self.look_ahead_bool(|| self.next_token_is_numeric_or_big_int_literal()) {
-                    self.parse_literal_type_node(Some(true)).into()
+                    self.parse_literal_type_node(Some(true)).wrap()
                 } else {
                     self.parse_type_reference().wrap()
                 }
             }
-            SyntaxKind::VoidKeyword => self.parse_token_node().into(),
+            SyntaxKind::VoidKeyword => self.parse_token_node().wrap(),
             SyntaxKind::ThisKeyword => {
                 let this_keyword = self.parse_this_type_node();
                 if self.token() == SyntaxKind::IsKeyword
                     && !self.scanner().has_preceding_line_break()
                 {
-                    self.parse_this_type_predicate(this_keyword.into()).into()
+                    self.parse_this_type_predicate(this_keyword.wrap()).wrap()
                 } else {
-                    this_keyword.into()
+                    this_keyword.wrap()
                 }
             }
             SyntaxKind::TypeOfKeyword => {
                 if self.look_ahead_bool(|| self.is_start_of_type_of_import_type()) {
-                    self.parse_import_type().into()
+                    self.parse_import_type().wrap()
                 } else {
-                    self.parse_type_query().into()
+                    self.parse_type_query().wrap()
                 }
             }
             SyntaxKind::OpenBraceToken => {
                 if self.look_ahead_bool(|| self.is_start_of_mapped_type()) {
-                    self.parse_mapped_type().into()
+                    self.parse_mapped_type().wrap()
                 } else {
-                    self.parse_type_literal().into()
+                    self.parse_type_literal().wrap()
                 }
             }
-            SyntaxKind::OpenBracketToken => self.parse_tuple_type().into(),
+            SyntaxKind::OpenBracketToken => self.parse_tuple_type().wrap(),
             SyntaxKind::OpenParenToken => self.parse_parenthesized_type().wrap(),
-            SyntaxKind::ImportKeyword => self.parse_import_type().into(),
+            SyntaxKind::ImportKeyword => self.parse_import_type().wrap(),
             SyntaxKind::AssertsKeyword => {
                 if self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword_on_same_line())
                 {
@@ -981,7 +958,7 @@ impl ParserType {
                     self.parse_type_reference().wrap()
                 }
             }
-            SyntaxKind::TemplateHead => self.parse_template_type().into(),
+            SyntaxKind::TemplateHead => self.parse_template_type().wrap(),
             _ => self.parse_type_reference().wrap(),
         }
     }
@@ -1054,12 +1031,11 @@ impl ParserType {
                     self.next_token();
                     type_ = self
                         .finish_node(
-                            self.factory
-                                .create_jsdoc_non_nullable_type(self, Some(type_)),
+                            self.factory().create_jsdoc_non_nullable_type(Some(type_)),
                             pos,
                             None,
                         )
-                        .into();
+                        .wrap();
                 }
                 SyntaxKind::QuestionToken => {
                     if self.look_ahead_bool(|| self.next_token_is_start_of_type()) {
@@ -1068,11 +1044,11 @@ impl ParserType {
                     self.next_token();
                     type_ = self
                         .finish_node(
-                            self.factory.create_jsdoc_nullable_type(self, Some(type_)),
+                            self.factory().create_jsdoc_nullable_type(Some(type_)),
                             pos,
                             None,
                         )
-                        .into();
+                        .wrap();
                 }
                 SyntaxKind::OpenBracketToken => {
                     self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
@@ -1081,21 +1057,17 @@ impl ParserType {
                         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
                         type_ = self
                             .finish_node(
-                                self.factory
-                                    .create_indexed_access_type_node(self, type_, index_type),
+                                self.factory()
+                                    .create_indexed_access_type_node(type_, index_type),
                                 pos,
                                 None,
                             )
-                            .into();
+                            .wrap();
                     } else {
                         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
                         type_ = self
-                            .finish_node(
-                                self.factory.create_array_type_node(self, type_),
-                                pos,
-                                None,
-                            )
-                            .into();
+                            .finish_node(self.factory().create_array_type_node(type_), pos, None)
+                            .wrap();
                     }
                 }
                 _ => {
@@ -1113,11 +1085,8 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(operator, None, None);
         self.finish_node(
-            self.factory.create_type_operator_node(
-                self,
-                operator,
-                self.parse_type_operator_or_higher(),
-            ),
+            self.factory()
+                .create_type_operator_node(operator, self.parse_type_operator_or_higher()),
             pos,
             None,
         )
@@ -1126,8 +1095,7 @@ impl ParserType {
     pub(super) fn parse_type_parameter_of_infer_type(&self) -> TypeParameterDeclaration {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory.create_type_parameter_declaration(
-                self,
+            self.factory().create_type_parameter_declaration(
                 self.parse_identifier(None, None).wrap(),
                 None,
                 None,
@@ -1141,8 +1109,8 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::InferKeyword, None, None);
         self.finish_node(
-            self.factory
-                .create_infer_type_node(self, self.parse_type_parameter().into()),
+            self.factory()
+                .create_infer_type_node(self.parse_type_parameter_of_infer_type().wrap()),
             pos,
             None,
         )
@@ -1152,9 +1120,9 @@ impl ParserType {
         let operator = self.token();
         match operator {
             SyntaxKind::KeyOfKeyword | SyntaxKind::UniqueKeyword | SyntaxKind::ReadonlyKeyword => {
-                self.parse_type_operator(operator).into()
+                self.parse_type_operator(operator).wrap()
             }
-            SyntaxKind::InferKeyword => self.parse_infer_type().into(),
+            SyntaxKind::InferKeyword => self.parse_infer_type().wrap(),
             _ => self.parse_postfix_type_or_higher(),
         }
     }
@@ -1224,7 +1192,7 @@ impl ParserType {
         self.parse_union_or_intersection_type(
             SyntaxKind::AmpersandToken,
             || self.parse_type_operator_or_higher(),
-            |types| self.factory.create_intersection_type_node(self, types),
+            |types| self.factory().create_intersection_type_node(types),
         )
     }
 
@@ -1232,7 +1200,7 @@ impl ParserType {
         self.parse_union_or_intersection_type(
             SyntaxKind::BarToken,
             || self.parse_intersection_type_or_higher(),
-            |types| self.factory.create_union_type_node(self, types),
+            |types| self.factory().create_union_type_node(types),
         )
     }
 
@@ -1312,8 +1280,7 @@ impl ParserType {
         let type_ = self.parse_type();
         if let Some(type_predicate_variable) = type_predicate_variable {
             self.finish_node(
-                self.factory.create_type_predicate_node(
-                    self,
+                self.factory().create_type_predicate_node(
                     None,
                     type_predicate_variable.wrap(),
                     Some(type_),
@@ -1321,7 +1288,7 @@ impl ParserType {
                 pos,
                 None,
             )
-            .into()
+            .wrap()
         } else {
             type_
         }

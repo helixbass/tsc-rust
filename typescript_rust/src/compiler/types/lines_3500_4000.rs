@@ -1,11 +1,8 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io;
-use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
@@ -162,11 +159,11 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     module_name: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
-    referenced_files: RefCell<Option<Vec<FileReference>>>,
+    referenced_files: RefCell<Option<Rc<RefCell<Vec<FileReference>>>>>,
     #[unsafe_ignore_trace]
-    type_reference_directives: RefCell<Option<Vec<FileReference>>>,
+    type_reference_directives: RefCell<Option<Rc<RefCell<Vec<FileReference>>>>>,
     #[unsafe_ignore_trace]
-    lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
+    lib_reference_directives: RefCell<Option<Rc<RefCell<Vec<FileReference>>>>>,
     #[unsafe_ignore_trace]
     language_variant: Cell<LanguageVariant>,
     #[unsafe_ignore_trace]
@@ -315,8 +312,16 @@ impl SourceFile {
         }
     }
 
+    pub fn set_statements(&mut self, statements: Gc<NodeArray>) {
+        self.contents.statements = statements;
+    }
+
     pub fn end_of_file_token(&self) -> Gc<Node> {
         self.contents.end_of_file_token.clone()
+    }
+
+    pub fn set_end_of_file_token(&mut self, end_of_file_token: Gc<Node>) {
+        self.contents.end_of_file_token = end_of_file_token;
     }
 
     pub fn file_name(&self) -> Ref<String> {
@@ -418,45 +423,53 @@ impl SourceFile {
         self.contents.module_name.borrow_mut()
     }
 
-    pub fn maybe_referenced_files(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.contents.referenced_files.borrow()
+    pub fn maybe_referenced_files(&self) -> Option<Rc<RefCell<Vec<FileReference>>>> {
+        self.contents.referenced_files.borrow().clone()
     }
 
-    pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.contents.referenced_files.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub fn referenced_files(&self) -> Rc<RefCell<Vec<FileReference>>> {
+        self.contents.referenced_files.borrow().clone().unwrap()
     }
 
-    pub fn set_referenced_files(&self, referenced_files: Vec<FileReference>) {
+    pub fn set_referenced_files(&self, referenced_files: Rc<RefCell<Vec<FileReference>>>) {
         *self.contents.referenced_files.borrow_mut() = Some(referenced_files);
     }
 
-    pub fn maybe_type_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.contents.type_reference_directives.borrow()
+    pub fn maybe_type_reference_directives(&self) -> Option<Rc<RefCell<Vec<FileReference>>>> {
+        self.contents.type_reference_directives.borrow().clone()
     }
 
-    pub fn type_reference_directives(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.contents.type_reference_directives.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub fn type_reference_directives(&self) -> Rc<RefCell<Vec<FileReference>>> {
+        self.contents
+            .type_reference_directives
+            .borrow()
+            .clone()
+            .unwrap()
     }
 
-    pub fn set_type_reference_directives(&self, type_reference_directives: Vec<FileReference>) {
+    pub fn set_type_reference_directives(
+        &self,
+        type_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+    ) {
         *self.contents.type_reference_directives.borrow_mut() = Some(type_reference_directives);
     }
 
-    pub fn maybe_lib_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.contents.lib_reference_directives.borrow()
+    pub fn maybe_lib_reference_directives(&self) -> Option<Rc<RefCell<Vec<FileReference>>>> {
+        self.contents.lib_reference_directives.borrow().clone()
     }
 
-    pub fn lib_reference_directives(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.contents.lib_reference_directives.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub fn lib_reference_directives(&self) -> Rc<RefCell<Vec<FileReference>>> {
+        self.contents
+            .lib_reference_directives
+            .borrow()
+            .clone()
+            .unwrap()
     }
 
-    pub fn set_lib_reference_directives(&self, lib_reference_directives: Vec<FileReference>) {
+    pub fn set_lib_reference_directives(
+        &self,
+        lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+    ) {
         *self.contents.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
     }
 
@@ -501,13 +514,6 @@ impl SourceFile {
 
     pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> GcCellRefMut<Option<Gc<Node>>> {
         self.contents.common_js_module_indicator.borrow_mut()
-    }
-
-    pub(crate) fn set_common_js_module_indicator(
-        &self,
-        common_js_module_indicator: Option<Gc<Node>>,
-    ) {
-        *self.contents.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
     }
 
     pub(crate) fn maybe_js_global_augmentations(
@@ -762,9 +768,9 @@ impl SourceFileLike for SourceFile {
 
     fn maybe_get_position_of_line_and_character(
         &self,
-        line: usize,
-        character: usize,
-        allow_edits: Option<bool>,
+        _line: usize,
+        _character: usize,
+        _allow_edits: Option<bool>,
     ) -> Option<usize> {
         None
     }
@@ -783,15 +789,19 @@ impl PragmaContext for SourceFile {
         self.contents.check_js_directive.borrow_mut()
     }
 
-    fn maybe_referenced_files(&self) -> RefMut<Option<Vec<FileReference>>> {
+    fn maybe_referenced_files_mut(&self) -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>> {
         self.contents.referenced_files.borrow_mut()
     }
 
-    fn maybe_type_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
+    fn maybe_type_reference_directives_mut(
+        &self,
+    ) -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>> {
         self.contents.type_reference_directives.borrow_mut()
     }
 
-    fn maybe_lib_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
+    fn maybe_lib_reference_directives_mut(
+        &self,
+    ) -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>> {
         self.contents.lib_reference_directives.borrow_mut()
     }
 
@@ -1062,17 +1072,6 @@ enum InputFilesInitializedState {
     InitializedWithString(InputFilesInitializedWithString),
 }
 
-impl InputFilesInitializedState {
-    fn as_initialized_with_read_file_callback(&self) -> &InputFilesInitializedWithReadFileCallback {
-        if let Self::InitializedWithReadFileCallback(value) = self {
-            Some(value)
-        } else {
-            None
-        }
-        .unwrap()
-    }
-}
-
 impl Default for InputFilesInitializedState {
     fn default() -> Self {
         Self::Uninitialized
@@ -1278,9 +1277,9 @@ impl SourceFileLike for UnparsedSource {
 
     fn maybe_get_position_of_line_and_character(
         &self,
-        line: usize,
-        character: usize,
-        allow_edits: Option<bool>,
+        _line: usize,
+        _character: usize,
+        _allow_edits: Option<bool>,
     ) -> Option<usize> {
         unimplemented!()
     }
@@ -1414,31 +1413,9 @@ pub trait ParseConfigHost {
     fn file_exists(&self, path: &str) -> bool;
 
     fn read_file(&self, path: &str) -> io::Result<Option<String>>;
-    fn trace(&self, s: &str) {}
+    fn trace(&self, _s: &str) {}
     fn is_trace_supported(&self) -> bool;
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
-}
-
-pub struct ResolvedConfigFileName(String);
-
-impl ResolvedConfigFileName {
-    pub fn new(string: String) -> Self {
-        string.into()
-    }
-}
-
-impl Deref for ResolvedConfigFileName {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<String> for ResolvedConfigFileName {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
 }
 
 pub trait WriteFileCallback: Trace + Finalize {
@@ -1473,28 +1450,28 @@ pub enum FileIncludeKind {
     AutomaticTypeDirectiveFile,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct RootFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.RootFile*/
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct LibFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.LibFile*/
     pub index: Option<usize>,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct ProjectReferenceFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*ProjectReferenceFileKind*/
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct ReferencedFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*ReferencedFileKind*/
@@ -1503,7 +1480,7 @@ pub struct ReferencedFile {
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct AutomaticTypeDirectiveFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.AutomaticTypeDirectiveFile*/
@@ -1512,7 +1489,7 @@ pub struct AutomaticTypeDirectiveFile {
     pub package_id: Option<PackageId>,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub enum FileIncludeReason {
     RootFile(RootFile),
     LibFile(LibFile),
@@ -1559,21 +1536,27 @@ pub enum FilePreprocessingDiagnosticsKind {
     FilePreprocessingFileExplainingDiagnostic,
 }
 
+#[derive(Trace, Finalize)]
 pub struct FilePreprocessingReferencedDiagnostic {
+    #[unsafe_ignore_trace]
     pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic*/
     pub reason: ReferencedFile,
     pub diagnostic: &'static DiagnosticMessage,
     pub args: Option<Vec<String>>,
 }
 
+#[derive(Trace, Finalize)]
 pub struct FilePreprocessingFileExplainingDiagnostic {
+    #[unsafe_ignore_trace]
     pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic*/
+    #[unsafe_ignore_trace]
     pub file: Option<Path>,
-    pub file_processing_reason: FileIncludeReason,
+    pub file_processing_reason: Gc<FileIncludeReason>,
     pub diagnostic: &'static DiagnosticMessage,
     pub args: Option<Vec<String>>,
 }
 
+#[derive(Trace, Finalize)]
 pub enum FilePreprocessingDiagnostics {
     FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic),
     FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic),
@@ -1628,19 +1611,18 @@ pub struct Program {
     pub(crate) common_source_directory: RefCell<Option<String>>,
     pub(crate) diagnostics_producing_type_checker: GcCell<Option<Gc<TypeChecker>>>,
     pub(crate) no_diagnostics_type_checker: GcCell<Option<Gc<TypeChecker>>>,
+    #[allow(dead_code)]
     #[unsafe_ignore_trace]
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
-    #[unsafe_ignore_trace]
-    pub(crate) file_reasons: Rc<RefCell<MultiMap<Path, FileIncludeReason>>>,
+    pub(crate) file_reasons: GcCell<Gc<GcCell<MultiMap<Path, Gc<FileIncludeReason>>>>>,
     pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
-        Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>,
-    #[unsafe_ignore_trace]
-    pub(crate) file_processing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
+        GcCell<Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>>,
+    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Gc<FilePreprocessingDiagnostics>>>>,
 
     pub(crate) max_node_module_js_depth: usize,
     #[unsafe_ignore_trace]
@@ -1687,7 +1669,7 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
     #[unsafe_ignore_trace]
-    pub(crate) redirect_targets_map: Rc<RefCell<RedirectTargetsMap>>,
+    pub(crate) redirect_targets_map: RefCell<Rc<RefCell<RedirectTargetsMap>>>,
     #[unsafe_ignore_trace]
     pub(crate) uses_uri_style_node_core_modules: Cell<Option<bool>>,
 

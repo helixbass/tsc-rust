@@ -1,18 +1,21 @@
 use gc::{Finalize, Gc, Trace};
 use indexmap::IndexMap;
 use regex::{Captures, Regex};
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
-use std::hash;
 use std::hash::Hash;
 use std::mem;
 use std::rc::Rc;
+use std::{hash, iter};
 
-use crate::{__String, text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
+use crate::{
+    __String, text_char_at_index, Comparison, Debug_, Node, NodeArrayOrVec, PeekableExt,
+    SortedArray, SourceTextAsChars,
+};
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
     array.map_or(0, |array| array.len())
@@ -348,9 +351,55 @@ pub fn flat_map_to_mutable<
     TCallback: FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
 >(
     array: Option<TCollection>,
-    mut mapfn: TCallback,
+    mapfn: TCallback,
 ) -> Vec<TReturn> {
     flat_map(array, mapfn)
+}
+
+pub fn same_flat_map_rc_node(
+    array: NodeArrayOrVec,
+    mut mapfn: impl FnMut(&Gc<Node>, usize) -> SingleOrVec<Gc<Node>>,
+) -> NodeArrayOrVec {
+    let mut result: Option<Vec<Gc<Node>>> = Default::default();
+    // if (array) {
+    for (i, item) in array.iter().enumerate() {
+        let mapped = mapfn(item, i);
+        if result.is_some()
+            || match &mapped {
+                SingleOrVec::Single(mapped) => !Gc::ptr_eq(item, mapped),
+                SingleOrVec::Vec(_) => true,
+            }
+        {
+            let result = result.get_or_insert_with(|| array[..i].to_owned());
+            match mapped {
+                SingleOrVec::Vec(mapped) => {
+                    add_range(result, Some(&mapped), None, None);
+                }
+                SingleOrVec::Single(mapped) => {
+                    result.push(mapped);
+                }
+            }
+        }
+    }
+    // }
+    result.map_or(array, Into::into)
+}
+
+pub enum SingleOrVec<TItem> {
+    Single(TItem),
+    Vec(Vec<TItem>),
+}
+
+impl<TItem> From<TItem> for SingleOrVec<TItem> {
+    fn from(value: TItem) -> Self {
+        Self::Single(value)
+    }
+}
+
+impl<TItem> From<Vec<TItem>> for SingleOrVec<TItem> {
+    fn from(value: Vec<TItem>) -> Self {
+        Self::Vec(value)
+    }
 }
 
 pub fn map_defined<TCollection: IntoIterator, TReturn>(
@@ -394,9 +443,24 @@ pub fn try_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) 
     false
 }
 
-pub fn some<TItem>(array: Option<&[TItem]>, predicate: Option<impl FnMut(&TItem) -> bool>) -> bool {
+pub fn some<'item, TItem, TArray>(
+    array: Option<TArray>,
+    predicate: Option<impl FnMut(&TItem) -> bool>,
+) -> bool
+where
+    TItem: 'item,
+    TArray: IntoIterator<Item = &'item TItem>,
+    TArray::IntoIter: Clone,
+{
     array.map_or(false, |array| {
-        predicate.map_or(!array.is_empty(), |predicate| array.iter().any(predicate))
+        let mut array = array.into_iter();
+        predicate.map_or_else(
+            {
+                let array_clone = array.clone();
+                || !array_clone.peekable().is_empty_()
+            },
+            |predicate| array.any(predicate),
+        )
     })
 }
 
@@ -578,6 +642,33 @@ pub fn sort_and_deduplicate<
             None => ComparerOrEqualityComparer::Comparer(comparer),
         },
     )
+}
+
+pub fn array_is_equal_to<TItem>(
+    array1: Option<&[TItem]>,
+    array2: Option<&[TItem]>,
+    mut equality_comparer: impl FnMut(&TItem, &TItem, usize) -> bool,
+) -> bool {
+    if array1.is_none() && array2.is_none() {
+        return true;
+    }
+    if array1.is_none() || array2.is_none() {
+        return false;
+    }
+    let array1 = array1.unwrap();
+    let array2 = array2.unwrap();
+
+    if array1.len() != array2.len() {
+        return false;
+    }
+
+    for (i, (array1_i, array2_i)) in iter::zip(array1, array2).enumerate() {
+        if !equality_comparer(array1_i, array2_i, i) {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub fn relative_complement<TItem: Clone, TComparer: FnMut(&TItem, &TItem) -> Comparison>(
@@ -787,7 +878,7 @@ pub fn comparison_to_ordering(comparison: Comparison) -> Ordering {
 pub fn stable_sort_indices<TItem, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     indices: &mut Vec<usize>,
-    mut comparer: TComparer,
+    comparer: TComparer,
 ) {
     indices.sort_by(|x, y| {
         let by_comparer = comparer(&array[*x], &array[*y]);
@@ -1066,12 +1157,9 @@ pub fn reduce_left<TItem, TMemo, TCallback: FnMut(TMemo, &TItem, usize) -> TMemo
     initial
 }
 
-pub fn reduce_left_no_initial_value<
-    TItem: Clone,
-    TCallback: FnMut(TItem, &TItem, usize) -> TItem,
->(
+pub fn reduce_left_no_initial_value<TItem: Clone>(
     array: &[TItem],
-    mut f: TCallback,
+    mut f: impl FnMut(TItem, &TItem, usize) -> TItem,
     start: Option<usize>,
     count: Option<usize>,
 ) -> TItem {
@@ -1233,7 +1321,7 @@ mod _MultiMapDeriveTraceScope {
             comparer: TComparer,
         ) {
             {
-                let mut values = self.0.entry(key);
+                let values = self.0.entry(key);
                 match values {
                     Entry::Occupied(mut values) => {
                         unordered_remove_item(values.get_mut(), value, comparer);
@@ -1248,6 +1336,10 @@ mod _MultiMapDeriveTraceScope {
 
         pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
             self.0.get(key)
+        }
+
+        pub fn contains_key(&self, key: &TKey) -> bool {
+            self.0.contains_key(key)
         }
 
         pub fn values(&self) -> Values<TKey, Vec<TValue>> {
@@ -1274,14 +1366,89 @@ pub use _MultiMapDeriveTraceScope::MultiMap;
 
 pub fn create_multi_map<TKey: Trace + Finalize, TValue: Trace + Finalize>() -> MultiMap<TKey, TValue>
 {
-    MultiMap(HashMap::new())
+    MultiMap(Default::default())
 }
 
-pub type UnderscoreEscapedMultiMap<TValue: Trace + Finalize> = MultiMap<__String, TValue>;
+pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
 
 pub fn create_underscore_escaped_multi_map<TValue: Trace + Finalize>(
 ) -> UnderscoreEscapedMultiMap<TValue> {
     create_multi_map()
+}
+
+mod _MultiMapOrderedDeriveTraceScope {
+    use indexmap::map::{Entry, IntoValues, Values};
+
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Debug, Trace, Finalize)]
+    pub struct MultiMapOrdered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+        // TODO: make the nested hash map private and implement iteration on the wrapper
+        pub IndexMap<TKey, Vec<TValue>>,
+    );
+
+    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize>
+        MultiMapOrdered<TKey, TValue>
+    {
+        pub fn add(&mut self, key: TKey, value: TValue) {
+            let values = self.0.entry(key).or_insert(vec![]);
+            values.push(value);
+        }
+
+        pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
+            &mut self,
+            key: TKey,
+            value: &TValue,
+            comparer: TComparer,
+        ) {
+            {
+                let values = self.0.entry(key);
+                match values {
+                    Entry::Occupied(mut values) => {
+                        unordered_remove_item(values.get_mut(), value, comparer);
+                        if values.get().is_empty() {
+                            values.remove_entry();
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+
+        pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
+            self.0.get(key)
+        }
+
+        pub fn contains_key(&self, key: &TKey) -> bool {
+            self.0.contains_key(key)
+        }
+
+        pub fn values(&self) -> Values<TKey, Vec<TValue>> {
+            self.0.values()
+        }
+
+        pub fn into_values(self) -> IntoValues<TKey, Vec<TValue>> {
+            self.0.into_values()
+        }
+    }
+
+    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> IntoIterator
+        for MultiMapOrdered<TKey, TValue>
+    {
+        type Item = (TKey, Vec<TValue>);
+        type IntoIter = <IndexMap<TKey, Vec<TValue>> as IntoIterator>::IntoIter;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.into_iter()
+        }
+    }
+}
+pub use _MultiMapOrderedDeriveTraceScope::MultiMapOrdered;
+
+pub fn create_multi_map_ordered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+) -> MultiMapOrdered<TKey, TValue> {
+    MultiMapOrdered(Default::default())
 }
 
 pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {
@@ -1312,7 +1479,7 @@ pub fn cast_present<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -
     Debug_.fail(Some("Invalid cast. The supplied value {:?} did not pass the test." /*'${Debug.getFunctionName(test)'*/));
 }
 
-fn identity<TValue>(x: TValue) -> TValue {
+pub fn identity<TValue>(x: TValue) -> TValue {
     x
 }
 
@@ -1459,20 +1626,22 @@ pub fn compare_booleans(a: bool, b: bool) -> Comparison {
     compare_values(Some(if a { 1 } else { 0 }), Some(if b { 1 } else { 0 }))
 }
 
-pub fn get_spelling_suggestion<
-    'candidates,
-    TCandidate,
-    TGetName: FnMut(&TCandidate) -> Option<String>,
->(
+// TODO: it looked like all the `candidates` types are cheaply cloneable
+// so returning a cloned item was easier than messing more with how to try
+// and still return a reference (Option<&'candidates TCandidate>) when
+// `candidates` now needed to iterate over `impl Borrow<TCandidate>` (vs
+// only supporting iterating over references)
+pub fn get_spelling_suggestion<'candidates, TCandidate: Clone>(
     name: &str,
-    candidates: &'candidates [TCandidate],
-    mut get_name: TGetName,
-) -> Option<&'candidates TCandidate> {
+    candidates: impl IntoIterator<Item = impl Borrow<TCandidate>>,
+    mut get_name: impl FnMut(&TCandidate) -> Option<String>,
+) -> Option<TCandidate> {
     let name_len_as_f64 = name.len() as f64;
     let maximum_length_difference = f64::min(2.0, (name_len_as_f64 * 0.34).floor());
     let mut best_distance = (name_len_as_f64 * 0.4).floor() + 1.0;
-    let mut best_candidate = None;
+    let mut best_candidate: Option<TCandidate> = None;
     for candidate in candidates {
+        let candidate: &TCandidate = candidate.borrow();
         let candidate_name = get_name(candidate);
         if let Some(candidate_name) = candidate_name {
             if (TryInto::<isize>::try_into(candidate_name.len()).unwrap()
@@ -1500,7 +1669,7 @@ pub fn get_spelling_suggestion<
 
                 Debug_.assert(distance < best_distance, None);
                 best_distance = distance;
-                best_candidate = Some(candidate);
+                best_candidate = Some(candidate.clone());
             }
         }
     }

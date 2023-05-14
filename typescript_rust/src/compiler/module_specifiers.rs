@@ -155,13 +155,13 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
         self.host.file_exists(file_name)
     }
 
-    fn file_exists_non_overridden(&self, file_name: &str) -> bool {
+    fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
         unreachable!()
     }
 
     fn set_overriding_file_exists(
         &self,
-        overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -170,13 +170,13 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
         self.host.read_file(file_name).unwrap()
     }
 
-    fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>> {
+    fn read_file_non_overridden(&self, _file_name: &str) -> io::Result<Option<String>> {
         unreachable!()
     }
 
     fn set_overriding_read_file(
         &self,
-        overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -193,13 +193,13 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
         unreachable!()
     }
 
-    fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
+    fn directory_exists_non_overridden(&self, _directory_name: &str) -> Option<bool> {
         unreachable!()
     }
 
     fn set_overriding_directory_exists(
         &self,
-        overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -208,7 +208,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
         self.host.realpath(path)
     }
 
-    fn realpath_non_overridden(&self, path: &str) -> Option<String> {
+    fn realpath_non_overridden(&self, _path: &str) -> Option<String> {
         unreachable!()
     }
 
@@ -218,7 +218,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_realpath(
         &self,
-        overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -227,7 +227,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
         Some(self.host.get_current_directory())
     }
 
-    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+    fn get_directories(&self, _path: &str) -> Option<Vec<String>> {
         unreachable!()
     }
 
@@ -235,13 +235,13 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
         unreachable!()
     }
 
-    fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
+    fn get_directories_non_overridden(&self, _path: &str) -> Option<Vec<String>> {
         unreachable!()
     }
 
     fn set_overriding_get_directories(
         &self,
-        overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -371,7 +371,7 @@ pub fn get_module_specifiers_with_cache_info(
         };
     }
 
-    let (specifiers, module_source_file, mut module_paths, cache) =
+    let (specifiers, module_source_file, module_paths, cache) =
         try_get_module_specifiers_from_cache_worker(
             module_symbol,
             importing_source_file,
@@ -446,7 +446,7 @@ fn compute_module_specifiers(
                 Some(&host.get_current_directory()),
                 info.get_canonical_file_name,
             )),
-            |reason: &FileIncludeReason, _| {
+            |reason: &Gc<FileIncludeReason>, _| {
                 if reason.kind() != FileIncludeKind::Import
                     || reason.as_referenced_file().file
                         != *importing_source_file_as_source_file.path()
@@ -492,7 +492,7 @@ fn compute_module_specifiers(
                 Some(specifier.clone()),
             );
         }
-        if let Some(specifier) = specifier.as_ref() {
+        if specifier.is_some() {
             if module_path.is_redirect {
                 return node_modules_specifiers.unwrap();
             }
@@ -528,6 +528,7 @@ fn compute_module_specifiers(
 
 struct Info {
     pub get_canonical_file_name: fn(&str) -> String,
+    #[allow(dead_code)]
     pub importing_source_file_name: Path,
     pub source_directory: Path,
 }
@@ -1153,6 +1154,7 @@ fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Gc<N
     namespace_declaration
 }
 
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum MatchingMode {
     Exact,
@@ -1161,15 +1163,15 @@ enum MatchingMode {
 }
 
 fn try_get_module_name_from_exports(
-    options: &CompilerOptions,
-    target_file_path: &str,
-    package_directory: &str,
-    package_name: &str,
-    exports: &serde_json::Value,
-    conditions: &[&str],
+    _options: &CompilerOptions,
+    _target_file_path: &str,
+    _package_directory: &str,
+    _package_name: &str,
+    _exports: &serde_json::Value,
+    _conditions: &[&str],
     mode: Option<MatchingMode>,
 ) -> Option<TryGetModuleNameFromExportsReturn> {
-    let mode = mode.unwrap_or(MatchingMode::Exact);
+    let _mode = mode.unwrap_or(MatchingMode::Exact);
     unimplemented!()
 }
 
@@ -1178,12 +1180,12 @@ struct TryGetModuleNameFromExportsReturn {
 }
 
 fn try_get_module_name_from_root_dirs(
-    root_dirs: &[String],
-    module_file_name: &str,
-    source_directory: &str,
-    get_canonical_file_name: fn(&str) -> String,
-    ending: Ending,
-    compiler_options: &CompilerOptions,
+    _root_dirs: &[String],
+    _module_file_name: &str,
+    _source_directory: &str,
+    _get_canonical_file_name: fn(&str) -> String,
+    _ending: Ending,
+    _compiler_options: &CompilerOptions,
 ) -> Option<String> {
     unimplemented!()
 }
@@ -1324,7 +1326,7 @@ fn try_get_any_file_from_path(
     let extensions = flatten(&get_supported_extensions(
         Some(
             &CompilerOptionsBuilder::default()
-                .allow_js(Some(true))
+                .allow_js(true)
                 .build()
                 .unwrap(),
         ),
@@ -1398,24 +1400,24 @@ fn try_directory_with_package_json(
                 None
             };
             if let Some(from_exports) = from_exports {
-                let mut with_js_extension =
-                    if !has_ts_file_extension(&from_exports.module_file_to_try) {
-                        from_exports
-                    } else {
-                        TryGetModuleNameFromExportsReturn {
-                            module_file_to_try: format!(
-                                "{}{}",
-                                remove_file_extension(&from_exports.module_file_to_try),
-                                match try_get_js_extension_for_file(
-                                    &from_exports.module_file_to_try,
-                                    options,
-                                ) {
-                                    Some(extension) => extension.to_str(),
-                                    None => "undefined",
-                                }
-                            ),
-                        }
-                    };
+                let with_js_extension = if !has_ts_file_extension(&from_exports.module_file_to_try)
+                {
+                    from_exports
+                } else {
+                    TryGetModuleNameFromExportsReturn {
+                        module_file_to_try: format!(
+                            "{}{}",
+                            remove_file_extension(&from_exports.module_file_to_try),
+                            match try_get_js_extension_for_file(
+                                &from_exports.module_file_to_try,
+                                options,
+                            ) {
+                                Some(extension) => extension.to_str(),
+                                None => "undefined",
+                            }
+                        ),
+                    }
+                };
                 return TryDirectoryWithPackageJsonReturn {
                     module_file_to_try: with_js_extension.module_file_to_try,
                     package_root_path: None,
@@ -1480,7 +1482,7 @@ fn try_directory_with_package_json(
 }
 
 fn serde_json_value_to_map_like_vec_string(
-    value: &serde_json::Value,
+    _value: &serde_json::Value,
 ) -> HashMap<String, Vec<String>> {
     unimplemented!()
 }
@@ -1503,7 +1505,7 @@ fn get_node_module_path_parts(full_path: &str) -> Option<NodeModulePathParts> {
     let mut top_level_node_modules_index = 0;
     let mut top_level_package_name_index = 0;
     let mut package_root_index: isize = 0;
-    let mut file_name_index = 0;
+    let file_name_index: usize/* = 0*/;
 
     let mut part_start = 0;
     let mut part_end = Some(0);

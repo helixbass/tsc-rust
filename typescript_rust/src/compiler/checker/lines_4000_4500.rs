@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -146,7 +144,7 @@ impl TypeChecker {
         object_flags: ObjectFlags,
         symbol: Option<TSymbol>,
     ) -> BaseObjectType {
-        let mut type_ = self.create_type(TypeFlags::Object);
+        let type_ = self.create_type(TypeFlags::Object);
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
@@ -154,7 +152,7 @@ impl TypeChecker {
 
     pub(super) fn create_typeof_type(&self) -> Gc<Type> {
         self.get_union_type(
-            typeof_eq_facts
+            &typeof_eq_facts
                 .keys()
                 .map(|key| -> Gc<Type> { self.get_string_literal_type(key).into() })
                 .collect::<Vec<_>>(),
@@ -169,7 +167,7 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
     ) -> TypeParameter {
-        let mut type_ = self.create_type(TypeFlags::TypeParameter);
+        let type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
             let symbol = symbol.borrow();
             type_.set_symbol(Some(symbol.symbol_wrapper()));
@@ -252,13 +250,13 @@ impl TypeChecker {
     {
         type_.resolve(
             members.clone(),
-            vec![],
+            vec![].into(),
             call_signatures,
             construct_signatures,
             index_infos,
         );
         if !Gc::ptr_eq(&members, &self.empty_symbols()) {
-            type_.set_properties(self.get_named_members(&(*members).borrow()));
+            type_.set_properties(self.get_named_members(&(*members).borrow()).into());
         }
         // type_
     }
@@ -412,7 +410,7 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
                         {
                             if table.is_none() {
-                                table = Some(create_symbol_table(None));
+                                table = Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None));
                             }
                             table
                                 .as_mut()

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -19,14 +17,13 @@ use crate::{
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, maybe_get_source_file_of_node, parse_base_node_factory,
     parse_node_factory, push_if_unique_gc, set_parent, set_text_range, starts_with, symbol_name,
-    synthetic_factory, try_add_to_set, using_single_line_string_writer,
-    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
-    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    try_add_to_set, using_single_line_string_writer, walk_up_parenthesized_types, CharacterCodes,
+    CheckFlags, EmitHint, EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol,
+    SymbolFlags, SymbolId, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
+    TypeSystemEntity, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -67,53 +64,47 @@ impl TypeChecker {
     ) {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let predicate: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| {
-                factory_
-                    .create_type_predicate_node(
-                        synthetic_factory_,
-                        if matches!(
-                            type_predicate.kind,
-                            TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
-                        ) {
-                            Some(
-                                factory_
-                                    .create_token(synthetic_factory_, SyntaxKind::AssertsKeyword)
-                                    .into(),
-                            )
-                        } else {
-                            None
-                        },
-                        if matches!(
-                            type_predicate.kind,
-                            TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
-                        ) {
-                            Into::<Gc<Node>>::into(factory_.create_identifier(
-                                synthetic_factory_,
+        let predicate = factory.with(|factory_| {
+            factory_
+                .create_type_predicate_node(
+                    if matches!(
+                        type_predicate.kind,
+                        TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
+                    ) {
+                        Some(factory_.create_token(SyntaxKind::AssertsKeyword).wrap())
+                    } else {
+                        None
+                    },
+                    if matches!(
+                        type_predicate.kind,
+                        TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
+                    ) {
+                        factory_
+                            .create_identifier(
                                 type_predicate.parameter_name.as_ref().unwrap(),
                                 Option::<Gc<NodeArray>>::None,
                                 None,
-                            ))
-                        } else {
-                            factory_.create_this_type_node(synthetic_factory_).into()
-                        },
-                        type_predicate.type_.as_ref().and_then(|type_| {
-                            self.node_builder().type_to_type_node(
-                                type_,
-                                enclosing_declaration.as_deref(),
-                                Some(
-                                    self.to_node_builder_flags(Some(flags))
-                                        | NodeBuilderFlags::IgnoreErrors
-                                        | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
-                                ),
-                                None,
                             )
-                        }),
-                    )
-                    .into()
-            })
+                            .wrap()
+                    } else {
+                        factory_.create_this_type_node().wrap()
+                    },
+                    type_predicate.type_.as_ref().and_then(|type_| {
+                        self.node_builder().type_to_type_node(
+                            type_,
+                            enclosing_declaration.as_deref(),
+                            Some(
+                                self.to_node_builder_flags(Some(flags))
+                                    | NodeBuilderFlags::IgnoreErrors
+                                    | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
+                            ),
+                            None,
+                        )
+                    }),
+                )
+                .wrap()
         });
-        let mut printer = create_printer(
+        let printer = create_printer(
             PrinterOptionsBuilder::default()
                 .remove_comments(Some(true))
                 .build()
@@ -343,12 +334,12 @@ impl TypeChecker {
                     | SyntaxKind::FunctionExpression
                     | SyntaxKind::ArrowFunction => {
                         if let Some(context) = context {
-                            if !context.encountered_error.get()
+                            if !context.encountered_error()
                                 && !context
                                     .flags()
                                     .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
                             {
-                                context.encountered_error.set(true);
+                                context.set_encountered_error(true);
                             }
                         }
                         return if declaration.kind() == SyntaxKind::ClassExpression {
@@ -768,7 +759,7 @@ impl TypeChecker {
                 .unwrap();
         }
         let omit_key_type = self.get_union_type(
-            map(properties, |property: &Gc<Node>, _| {
+            &map(properties, |property: &Gc<Node>, _| {
                 self.get_literal_type_from_property_name(property)
             }),
             None,
@@ -793,7 +784,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(&source) {
             if !self.is_type_assignable_to(
                 &self.get_literal_type_from_property(
@@ -886,38 +877,25 @@ impl TypeChecker {
             .clone()
             .and_then(|parent_access_flow_node| {
                 let prop_name = self.get_destructuring_property_name(node)?;
-                let literal: Gc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
-                    parse_node_factory.with(|parse_node_factory_| {
-                        parse_node_factory_
-                            .create_string_literal(parse_base_node_factory_, prop_name, None, None)
-                            .into()
-                    })
+                let literal = parse_node_factory.with(|parse_node_factory_| {
+                    parse_node_factory_
+                        .create_string_literal(prop_name, None, None)
+                        .wrap()
                 });
                 set_text_range(&*literal, Some(node));
                 let lhs_expr = if is_left_hand_side_expression(&parent_access) {
                     parent_access.clone()
                 } else {
-                    parse_base_node_factory.with(|parse_base_node_factory_| {
-                        parse_node_factory.with(|parse_node_factory_| {
-                            parse_node_factory_
-                                .create_parenthesized_expression(
-                                    parse_base_node_factory_,
-                                    parent_access.clone(),
-                                )
-                                .into()
-                        })
-                    })
-                };
-                let result: Gc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
                     parse_node_factory.with(|parse_node_factory_| {
                         parse_node_factory_
-                            .create_element_access_expression(
-                                parse_base_node_factory_,
-                                lhs_expr.clone(),
-                                literal.clone(),
-                            )
-                            .into()
+                            .create_parenthesized_expression(parent_access.clone())
+                            .wrap()
                     })
+                };
+                let result = parse_node_factory.with(|parse_node_factory_| {
+                    parse_node_factory_
+                        .create_element_access_expression(lhs_expr.clone(), literal.clone())
+                        .wrap()
                 });
                 set_text_range(&*result, Some(node));
                 set_parent(&literal, Some(&*result));

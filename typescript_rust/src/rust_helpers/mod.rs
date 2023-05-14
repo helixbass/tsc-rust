@@ -4,14 +4,17 @@ use std::mem;
 use std::rc::Rc;
 
 pub mod cell;
+pub mod combinators;
 pub mod debugging;
 pub mod deref;
+pub mod hash_map;
 pub mod io;
 pub mod iterator;
 pub mod number;
 pub mod option;
 pub mod sys;
 pub mod uri;
+pub mod vec;
 pub mod weak_self;
 
 pub fn is_same_variant<TEnum>(value: &TEnum, other_value: &TEnum) -> bool {
@@ -74,7 +77,7 @@ pub fn index_of_gc<TItem: Trace + Finalize>(slice: &[Gc<TItem>], item: &Gc<TItem
     index_of(slice, item, |a: &Gc<TItem>, b: &Gc<TItem>| Gc::ptr_eq(a, b))
 }
 
-pub fn are_option_rcs_equal<TItem>(a: Option<&Rc<TItem>>, b: Option<&Rc<TItem>>) -> bool {
+pub fn are_option_rcs_equal<TItem: ?Sized>(a: Option<&Rc<TItem>>, b: Option<&Rc<TItem>>) -> bool {
     match (a, b) {
         (None, None) => true,
         (Some(a), Some(b)) => Rc::ptr_eq(a, b),

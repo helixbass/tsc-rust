@@ -17,7 +17,7 @@ impl TransformGenerators {
 }
 
 impl TransformerInterface for TransformGenerators {
-    fn call(&self, node: &crate::Node) -> Gc<Node> {
+    fn call(&self, _node: &Node) -> Gc<Node> {
         unimplemented!()
     }
 }

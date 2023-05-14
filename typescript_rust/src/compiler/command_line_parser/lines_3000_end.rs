@@ -36,10 +36,10 @@ pub struct ExtendedConfigCacheEntry {
     pub extended_config: Option<Rc<ParsedTsconfig>>,
 }
 
-pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
-    source_file: Option<TSourceFile>,
+pub(crate) fn get_extended_config(
+    source_file: Option<impl Borrow<Node>>,
     extended_config_path: &str,
-    host: &THost,
+    host: &(impl ParseConfigHost + ?Sized),
     resolution_stack: &[&str],
     errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
@@ -406,9 +406,10 @@ pub(crate) fn convert_json_option(
         } else if matches!(opt_type, CommandLineOptionType::Map(_)) {
             return convert_json_option_of_custom_type(
                 opt,
-                value.map(|value| match value {
-                    serde_json::Value::String(value) => &**value,
-                    _ => panic!("Expected string"),
+                value.and_then(|value| match value {
+                    serde_json::Value::String(value) => Some(&**value),
+                    serde_json::Value::Null => None,
+                    _ => unreachable!(),
                 }),
                 errors,
             );
@@ -656,7 +657,7 @@ pub(crate) fn get_file_names_from_config_specs(
     config_file_specs: &ConfigFileSpecs,
     base_path: &str,
     options: &CompilerOptions,
-    host: &impl ParseConfigHost,
+    host: &(impl ParseConfigHost + ?Sized),
     extra_file_extensions: Option<&[FileExtensionInfo]>,
 ) -> Vec<String> {
     let base_path = normalize_path(base_path);
@@ -776,6 +777,7 @@ pub(crate) fn get_file_names_from_config_specs(
     literal_files
 }
 
+#[allow(dead_code)]
 pub(crate) fn is_excluded_file(
     path_to_check: &str,
     spec: &ConfigFileSpecs,
@@ -834,6 +836,7 @@ pub(super) fn invalid_dot_dot_after_recursive_wildcard(s: &str) -> bool {
     last_dot_index > wildcard_index
 }
 
+#[allow(dead_code)]
 pub(crate) fn matches_exclude(
     path_to_check: &str,
     exclude_specs: Option<&[String]>,
@@ -880,11 +883,11 @@ pub(super) fn matches_exclude_worker(
             .unwrap()
 }
 
-pub(super) fn validate_specs<TJsonSourceFile: Borrow<Node> + Clone>(
+pub(super) fn validate_specs(
     specs: &[String],
     errors: &mut Vec<Gc<Diagnostic>>,
     disallow_trailing_recursion: bool,
-    json_source_file: Option<TJsonSourceFile /*TsConfigSourceFile*/>,
+    json_source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
     spec_key: &str,
 ) -> Vec<String> {
     specs
@@ -903,7 +906,7 @@ pub(super) fn validate_specs<TJsonSourceFile: Borrow<Node> + Clone>(
             }
             diag_is_none
         })
-        .map(Clone::clone)
+        .cloned()
         .collect()
 }
 
@@ -1114,6 +1117,7 @@ pub(super) fn remove_wildcard_files_with_lower_priority_extension(
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn convert_compiler_options_for_telemetry(
     opts: &CompilerOptions,
 ) -> HashMap<String, CompilerOptionsValue> {
@@ -1188,8 +1192,10 @@ pub(super) fn get_default_value_for_option(option: &CommandLineOption) -> Compil
         CommandLineOptionType::String => CompilerOptionsValue::String(Some(
             if option.is_file_path() { "./" } else { "" }.to_owned(),
         )),
-        CommandLineOptionType::Object => panic!("Not sure what the default should be"),
-        CommandLineOptionType::List => CompilerOptionsValue::VecString(Some(vec![])),
+        CommandLineOptionType::Object => {
+            CompilerOptionsValue::MapLikeVecString(Some(Default::default()))
+        }
+        CommandLineOptionType::List => CompilerOptionsValue::VecString(Some(Default::default())),
         CommandLineOptionType::Map(map) => CompilerOptionsValue::String(Some(
             map.keys()
                 .next()

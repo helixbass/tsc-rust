@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -76,7 +74,9 @@ impl BinderType {
             .wrap();
         self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = type_literal_symbol.maybe_members_mut();
-        *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+        *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
+            Option::<&[Gc<Symbol>]>::None,
+        ))));
         type_literal_symbol_members
             .as_ref()
             .unwrap()
@@ -195,8 +195,9 @@ impl BinderType {
                         let mut block_scope_container_locals =
                             block_scope_container.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
-                            *block_scope_container_locals =
-                                Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                            *block_scope_container_locals = Some(Gc::new(GcCell::new(
+                                create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                            )));
                             self.add_to_container_chain(&block_scope_container);
                         }
                     }
@@ -215,8 +216,9 @@ impl BinderType {
                 {
                     let mut block_scope_container_locals = block_scope_container.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
-                        *block_scope_container_locals =
-                            Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                        *block_scope_container_locals = Some(Gc::new(GcCell::new(
+                            create_symbol_table(Option::<&[Gc<Symbol>]>::None),
+                        )));
                         self.add_to_container_chain(&block_scope_container);
                     }
                 }

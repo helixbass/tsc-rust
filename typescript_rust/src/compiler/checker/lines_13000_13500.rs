@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::convert::{TryFrom, TryInto};
@@ -287,9 +285,9 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_alias_id<TAliasSymbol: Borrow<Symbol>>(
+    pub(super) fn get_alias_id(
         &self,
-        alias_symbol: Option<TAliasSymbol>,
+        alias_symbol: Option<impl Borrow<Symbol>>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> String {
         if let Some(alias_symbol) = alias_symbol {

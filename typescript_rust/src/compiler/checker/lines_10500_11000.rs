@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -245,7 +243,7 @@ impl TypeChecker {
                 ),
             );
 
-            let mut late_symbols = create_symbol_table(None);
+            let mut late_symbols = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             let early_symbols_ref = early_symbols
                 .as_ref()
                 .map(|early_symbols| (**early_symbols).borrow());
@@ -536,7 +534,7 @@ impl TypeChecker {
                     base_type.clone()
                 };
                 let properties = self.get_properties_of_type(&instantiated_base_type);
-                self.add_inherited_members(&mut members.borrow_mut(), &properties);
+                self.add_inherited_members(&mut members.borrow_mut(), properties);
                 call_signatures = concatenate(
                     call_signatures,
                     self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Call),
@@ -556,11 +554,11 @@ impl TypeChecker {
                             None,
                         ))]
                     };
-                let inherited_index_infos_filtered =
-                    filter(&inherited_index_infos, |info: &Gc<IndexInfo>| {
-                        self.find_index_info(&index_infos, &info.key_type).is_none()
-                    });
-                index_infos = concatenate(index_infos, inherited_index_infos_filtered);
+                let inherited_index_infos_filtered = inherited_index_infos
+                    .into_iter()
+                    .filter(|info| self.find_index_info(&index_infos, &info.key_type).is_none())
+                    .collect::<Vec<_>>();
+                index_infos.extend(inherited_index_infos_filtered);
             }
         }
         self.set_structured_type_members(
@@ -986,7 +984,7 @@ impl TypeChecker {
                                     Some(this_type),
                                 ));
                             }
-                            let mut s_not_wrapped =
+                            let s_not_wrapped =
                                 self.create_union_signature(signature, union_signatures);
                             *s_not_wrapped.maybe_this_parameter_mut() = this_parameter;
                             s = Gc::new(s_not_wrapped);

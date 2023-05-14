@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::convert::TryInto;
@@ -246,7 +244,7 @@ impl TypeChecker {
         Some(self.widen_type_inferred_from_initializer(
             declaration,
             &self.get_union_type(
-                vec![
+                &[
                     self.get_non_undefined_type(&type_),
                     self.check_declaration_initializer(declaration, Option::<&Type>::None),
                 ],
@@ -610,53 +608,41 @@ impl TypeChecker {
             },
         );
         let reference: Gc<Node> = if are_all_module_exports {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            factory_
-                                .create_property_access_expression(
-                                    synthetic_factory_,
-                                    factory_
-                                        .create_identifier(
-                                            synthetic_factory_,
-                                            "module",
-                                            Option::<Gc<NodeArray>>::None,
-                                            None,
-                                        )
-                                        .into(),
-                                    Into::<Gc<Node>>::into(factory_.create_identifier(
-                                        synthetic_factory_,
+            factory.with(|factory_| {
+                factory_
+                    .create_property_access_expression(
+                        factory_
+                            .create_property_access_expression(
+                                factory_
+                                    .create_identifier(
+                                        "module",
+                                        Option::<Gc<NodeArray>>::None,
+                                        None,
+                                    )
+                                    .wrap(),
+                                factory_
+                                    .create_identifier(
                                         "exports",
                                         Option::<Gc<NodeArray>>::None,
                                         None,
-                                    )),
-                                )
-                                .into(),
-                            access_name,
-                        )
-                        .into()
-                })
+                                    )
+                                    .wrap(),
+                            )
+                            .wrap(),
+                        access_name,
+                    )
+                    .wrap()
             })
         } else {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            factory_
-                                .create_identifier(
-                                    synthetic_factory_,
-                                    "exports",
-                                    Option::<Gc<NodeArray>>::None,
-                                    None,
-                                )
-                                .into(),
-                            access_name,
-                        )
-                        .into()
-                })
+            factory.with(|factory_| {
+                factory_
+                    .create_property_access_expression(
+                        factory_
+                            .create_identifier("exports", Option::<Gc<NodeArray>>::None, None)
+                            .wrap(),
+                        access_name,
+                    )
+                    .wrap()
             })
         };
         if are_all_module_exports {
@@ -689,29 +675,23 @@ impl TypeChecker {
         static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
     ) -> Option<Gc<Type>> {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    Into::<Gc<Node>>::into(factory_.create_private_identifier(
-                        synthetic_factory_,
-                        (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
-                    ))
+            factory.with(|factory_| {
+                factory_
+                    .create_private_identifier((&*symbol.escaped_name()).split("@").nth(1).unwrap())
+                    .wrap()
                     .into()
-                })
             })
         } else {
             unescape_leading_underscores(symbol.escaped_name()).into()
         };
         for static_block in static_blocks {
-            let reference: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_property_access_expression(
-                            synthetic_factory_,
-                            factory_.create_this(synthetic_factory_).into(),
-                            access_name.clone(),
-                        )
-                        .into()
-                })
+            let reference = factory.with(|factory_| {
+                factory_
+                    .create_property_access_expression(
+                        factory_.create_this().wrap(),
+                        access_name.clone(),
+                    )
+                    .wrap()
             });
             set_parent(
                 &reference.as_property_access_expression().expression,
@@ -751,28 +731,19 @@ impl TypeChecker {
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> Option<Gc<Type>> {
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    Into::<Gc<Node>>::into(factory_.create_private_identifier(
-                        synthetic_factory_,
-                        (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
-                    ))
+            factory.with(|factory_| {
+                factory_
+                    .create_private_identifier((&*symbol.escaped_name()).split("@").nth(1).unwrap())
+                    .wrap()
                     .into()
-                })
             })
         } else {
             unescape_leading_underscores(symbol.escaped_name()).into()
         };
-        let reference: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| {
-                factory_
-                    .create_property_access_expression(
-                        synthetic_factory_,
-                        factory_.create_this(synthetic_factory_).into(),
-                        access_name,
-                    )
-                    .into()
-            })
+        let reference = factory.with(|factory_| {
+            factory_
+                .create_property_access_expression(factory_.create_this().wrap(), access_name)
+                .wrap()
         });
         set_parent(
             &reference.as_property_access_expression().expression,
@@ -971,7 +942,7 @@ impl TypeChecker {
                     types
                 };
                 type_ = Some(self.get_union_type(
-                    source_types,
+                    &source_types,
                     Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
@@ -1013,7 +984,9 @@ impl TypeChecker {
         {
             return None;
         }
-        let exports = Gc::new(GcCell::new(create_symbol_table(None)));
+        let exports = Gc::new(GcCell::new(create_symbol_table(
+            Option::<&[Gc<Symbol>]>::None,
+        )));
         let mut decl = decl.node_wrapper();
         while is_binary_expression(&decl) || is_property_access_expression(&decl) {
             let s = self.get_symbol_of_node(&decl);
@@ -1151,7 +1124,7 @@ impl TypeChecker {
             && symbol.escaped_name() == InternalSymbolName::ExportEquals
         {
             let exported_type = self.resolve_structured_type_members(&type_);
-            let mut members = create_symbol_table(None);
+            let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
             let exported_type_as_resolved_type = exported_type.as_resolved_type();
             copy_entries(
                 &*(*exported_type_as_resolved_type.members()).borrow(),
@@ -1161,8 +1134,9 @@ impl TypeChecker {
             if let Some(resolved_symbol) = resolved_symbol.as_ref() {
                 let mut resolved_symbol_exports = resolved_symbol.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
-                    *resolved_symbol_exports =
-                        Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *resolved_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
             }
             for (name, s) in &*(*resolved_symbol.as_deref().unwrap_or(symbol).exports()).borrow() {
@@ -1228,7 +1202,7 @@ impl TypeChecker {
                             .symbol_links()
                             .borrow_mut()
                             .type_ = Some(self.get_union_type(
-                            vec![
+                            &[
                                 self.get_type_of_symbol(s),
                                 self.get_type_of_symbol(&exported_member),
                             ],

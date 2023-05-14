@@ -1,10 +1,7 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,
@@ -213,7 +210,7 @@ pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize)
     range
 }
 
-fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> &TRange {
+pub(crate) fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> &TRange {
     range.set_end(end);
     range
 }
@@ -237,7 +234,7 @@ pub fn set_node_flags(node: Option<impl Borrow<Node>>, new_flags: NodeFlags) -> 
 pub fn set_parent(child: &Node, parent: Option<impl Borrow<Node>>) -> &Node {
     if let Some(parent) = parent {
         let parent = parent.borrow();
-        child.set_parent(parent.node_wrapper());
+        child.set_parent(Some(parent.node_wrapper()));
     }
     child
 }
@@ -249,7 +246,7 @@ pub fn maybe_set_parent<TChild: Borrow<Node>>(
     if let Some(child) = child.as_ref() {
         let child = child.borrow();
         if let Some(parent) = parent {
-            child.set_parent(parent.clone());
+            child.set_parent(Some(parent.clone()));
         }
     }
     child
@@ -379,7 +376,7 @@ pub fn contains_ignored_path(path: &str) -> bool {
     )
 }
 
-pub fn get_containing_node_array(node: &Node) -> Option<Gc<NodeArray>> {
+pub fn get_containing_node_array(_node: &Node) -> Option<Gc<NodeArray>> {
     unimplemented!()
 }
 

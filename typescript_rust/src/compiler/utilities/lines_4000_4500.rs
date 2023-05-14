@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -214,14 +212,6 @@ impl TextWriter {
         self.set_line_pos(0);
         self.set_has_trailing_comment(false);
         self.set_output_as_chars(vec![]);
-    }
-
-    fn get_text_pos_with_write_line(&self) -> Option<usize> {
-        Some(if self.line_start() {
-            self.output_as_chars().len()
-        } else {
-            self.output_as_chars().len() + self.new_line.len()
-        })
     }
 }
 
@@ -570,7 +560,7 @@ impl EmitTextWriter for TrailingSemicolonDeferringWriter {
         self.writer.write_literal(s)
     }
 
-    fn write_trailing_semicolon(&self, text: &str) {
+    fn write_trailing_semicolon(&self, _text: &str) {
         self.pending_trailing_semicolon.set(true);
     }
 
@@ -1016,9 +1006,9 @@ pub struct EmitFileNames {
     pub build_info_path: Option<String>,
 }
 
-pub fn get_source_files_to_emit<TTargetSourceFile: Borrow<Node>>(
+pub fn get_source_files_to_emit(
     host: &dyn EmitHost,
-    target_source_file: Option<TTargetSourceFile /*SourceFile*/>,
+    target_source_file: Option<impl Borrow<Node> /*SourceFile*/>,
     force_dts_emit: Option<bool>,
 ) -> Vec<Gc<Node /*SourceFile*/>> {
     let options = ScriptReferenceHost::get_compiler_options(host);

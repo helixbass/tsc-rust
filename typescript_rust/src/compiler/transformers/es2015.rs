@@ -17,7 +17,7 @@ impl TransformES2015 {
 }
 
 impl TransformerInterface for TransformES2015 {
-    fn call(&self, node: &crate::Node) -> Gc<Node> {
+    fn call(&self, _node: &crate::Node) -> Gc<Node> {
         unimplemented!()
     }
 }

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use regex::Regex;
 use std::borrow::Borrow;
@@ -652,14 +650,14 @@ pub fn is_child_of_node_with_kind(node: &Node, kind: SyntaxKind) -> bool {
     false
 }
 
-pub fn for_each_return_statement<TVisitor: FnMut(&Node)>(
+pub fn for_each_return_statement(
     body: &Node, /*Block | Statement*/
-    mut visitor: TVisitor,
+    mut visitor: impl FnMut(&Node),
 ) {
     for_each_return_statement_traverse(body, &mut visitor)
 }
 
-fn for_each_return_statement_traverse<TVisitor: FnMut(&Node)>(node: &Node, visitor: &mut TVisitor) {
+fn for_each_return_statement_traverse(node: &Node, visitor: &mut impl FnMut(&Node)) {
     match node.kind() {
         SyntaxKind::ReturnStatement => {
             visitor(node);
@@ -689,16 +687,16 @@ fn for_each_return_statement_traverse<TVisitor: FnMut(&Node)>(node: &Node, visit
     };
 }
 
-pub fn for_each_return_statement_bool<TVisitor: FnMut(&Node) -> bool>(
+pub fn for_each_return_statement_bool(
     body: &Node, /*Block | Statement*/
-    mut visitor: TVisitor,
+    mut visitor: impl FnMut(&Node) -> bool,
 ) -> bool {
     for_each_return_statement_bool_traverse(body, &mut visitor)
 }
 
-fn for_each_return_statement_bool_traverse<TVisitor: FnMut(&Node) -> bool>(
+fn for_each_return_statement_bool_traverse(
     node: &Node,
-    visitor: &mut TVisitor,
+    visitor: &mut impl FnMut(&Node) -> bool,
 ) -> bool {
     match node.kind() {
         SyntaxKind::ReturnStatement => visitor(node),
@@ -725,14 +723,11 @@ fn for_each_return_statement_bool_traverse<TVisitor: FnMut(&Node) -> bool>(
     }
 }
 
-pub fn for_each_yield_expression<TVisitor: FnMut(&Node)>(
-    body: &Node, /*Block*/
-    mut visitor: TVisitor,
-) {
+pub fn for_each_yield_expression(body: &Node /*Block*/, mut visitor: impl FnMut(&Node)) {
     for_each_yield_expression_traverse(body, &mut visitor)
 }
 
-fn for_each_yield_expression_traverse<TVisitor: FnMut(&Node)>(node: &Node, visitor: &mut TVisitor) {
+fn for_each_yield_expression_traverse(node: &Node, visitor: &mut impl FnMut(&Node)) {
     match node.kind() {
         SyntaxKind::YieldExpression => {
             visitor(node);
@@ -770,8 +765,8 @@ fn for_each_yield_expression_traverse<TVisitor: FnMut(&Node)>(node: &Node, visit
     };
 }
 
-pub fn get_rest_parameter_element_type<TNode: Borrow<Node>>(
-    node: Option<TNode /*TypeNode*/>,
+pub fn get_rest_parameter_element_type(
+    node: Option<impl Borrow<Node> /*TypeNode*/>,
 ) -> Option<Gc<Node /*TypeNode*/>> {
     if node.is_none() {
         return None;

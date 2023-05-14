@@ -3,8 +3,8 @@ use std::borrow::Borrow;
 use gc::{Finalize, Gc, Trace};
 
 use crate::{
-    get_node_id, get_original_node, Node, NodeId, TransformationContext, Transformer,
-    WrapCustomTransformerFactoryHandleDefault,
+    get_node_id, get_original_node, BaseNodeFactory, Node, NodeFactory, NodeId,
+    TransformationContext, Transformer, VisitResult, WrapCustomTransformerFactoryHandleDefault,
 };
 
 pub fn get_original_node_id(node: &Node) -> NodeId {
@@ -52,4 +52,25 @@ pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> 
         static CHAIN_BUNDLE: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(ChainBundle));
     }
     CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
+}
+
+pub fn is_simple_inlineable_expression(_expression: &Node /*Expression*/) -> bool {
+    unimplemented!()
+}
+
+pub fn add_prologue_directives_and_initial_super_call(
+    _factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
+    _ctor: &Node, /*ConstructorDeclaration*/
+    _result: &mut Vec<Gc<Node /*Statement*/>>,
+    _visitor: impl FnMut(&Node) -> VisitResult,
+) -> usize {
+    unimplemented!()
+}
+
+pub fn get_properties(
+    _node: &Node, /*ClassExpression | ClassDeclaration*/
+    _require_initializer: bool,
+    _is_static: bool,
+) -> Vec<Gc<Node /*PropertyDeclaration*/>> {
+    unimplemented!()
 }

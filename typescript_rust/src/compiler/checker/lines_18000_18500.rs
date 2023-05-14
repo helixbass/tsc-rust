@@ -1,8 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::borrow::Cow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -269,38 +267,36 @@ impl CheckTypeRelatedTo {
             }
 
             let mut related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
-            if let Some(head_message) = self.head_message.as_ref() {
-                if let Some(error_node) = self.maybe_error_node().as_ref() {
-                    if result == Ternary::False {
-                        if let Some(source_symbol) = self.source.maybe_symbol() {
-                            let links = self.type_checker.get_symbol_links(&source_symbol);
-                            if let Some(links_originating_import) =
-                                (*links).borrow().originating_import.clone().filter(
-                                    |links_originating_import| {
-                                        !is_import_call(links_originating_import)
-                                    },
-                                )
-                            {
-                                let helpful_retry = self.type_checker.check_type_related_to(
-                                    &self.type_checker.get_type_of_symbol(
-                                        (*links).borrow().target.as_ref().unwrap(),
-                                    ),
-                                    &self.target,
-                                    self.relation.clone(),
-                                    Option::<&Node>::None,
-                                    None,
-                                    None,
-                                    None,
-                                );
-                                if helpful_retry {
-                                    let diag: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(&links_originating_import, &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead, None).into();
-                                    if related_information.is_none() {
-                                        related_information = Some(vec![]);
-                                        append(related_information.as_mut().unwrap(), Some(diag));
-                                    }
+            if self.head_message.is_some() && self.maybe_error_node().is_some() {
+                if result == Ternary::False {
+                    if let Some(source_symbol) = self.source.maybe_symbol() {
+                        let links = self.type_checker.get_symbol_links(&source_symbol);
+                        if let Some(links_originating_import) =
+                            (*links).borrow().originating_import.clone().filter(
+                                |links_originating_import| {
+                                    !is_import_call(links_originating_import)
+                                },
+                            )
+                        {
+                            let helpful_retry = self.type_checker.check_type_related_to(
+                                &self
+                                    .type_checker
+                                    .get_type_of_symbol((*links).borrow().target.as_ref().unwrap()),
+                                &self.target,
+                                self.relation.clone(),
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            );
+                            if helpful_retry {
+                                let diag: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(&links_originating_import, &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead, None).into();
+                                if related_information.is_none() {
+                                    related_information = Some(vec![]);
+                                    append(related_information.as_mut().unwrap(), Some(diag));
                                 }
-                            };
-                        }
+                            }
+                        };
                     }
                 }
             }
@@ -929,7 +925,7 @@ impl CheckTypeRelatedTo {
                     .flags()
                     .intersects(TypeFlags::Object | TypeFlags::Intersection)
                 && self.type_checker.is_weak_type(&target)
-                && (!self.type_checker.get_properties_of_type(&source).is_empty()
+                && (!self.type_checker.get_properties_of_type(&source).len() == 0
                     || self
                         .type_checker
                         .type_has_call_or_construct_signatures(&source));
@@ -1331,7 +1327,7 @@ impl CheckTypeRelatedTo {
                 prop_types
             };
         self.type_checker.get_union_type(
-            reduce_left(types, append_prop_type, None, None, None).unwrap_or_else(|| vec![]),
+            &reduce_left(types, append_prop_type, None, None, None).unwrap_or_else(|| vec![]),
             None,
             Option::<&Symbol>::None,
             None,

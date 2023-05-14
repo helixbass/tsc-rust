@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
@@ -274,7 +272,7 @@ impl TypeChecker {
         let object_lit_type =
             self.check_expression_cached(&d_as_call_expression.arguments[2], None);
         let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value");
-        if let Some(value_type) = value_type.as_ref() {
+        if value_type.is_some() {
             let writable_prop = self.get_property_of_type_(&object_lit_type, "writable", None);
             let writable_type = writable_prop
                 .as_ref()

@@ -1,11 +1,10 @@
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::io;
 use std::iter::FromIterator;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -30,7 +29,8 @@ use crate::{
     is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
     is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
     is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs,
-    maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
+    maybe_for_each, out_file, parse_isolated_entity_name,
+    parse_json_source_file_config_file_content, path_is_absolute, path_is_relative,
     remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
     resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
     string_contains, supported_js_extensions_flat, target_option_declaration,
@@ -43,10 +43,11 @@ use crate::{
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
     FileReference, GetCanonicalFileName, JsxEmit, ModuleKind, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
-    Program, ProjectReference, ReadFileCallback, ReferencedFile, ResolvedConfigFileName,
-    ResolvedModuleFull, ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget,
-    SymlinkCache, SyntaxKind, WriteFileCallback,
+    NodeFlags, NodeInterface, NodeWrappered, ParseConfigFileHost, ParseConfigHost,
+    ParsedCommandLine, Path, PeekableExt, Program, ProjectReference, ReadFileCallback,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedProjectReferenceBuilder,
+    ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind, UnwrapOrEmpty,
+    WriteFileCallback,
 };
 
 impl Program {
@@ -55,7 +56,9 @@ impl Program {
         maybe_for_each(
             file_as_source_file
                 .maybe_lib_reference_directives()
-                .as_ref(),
+                .as_ref()
+                .map(|file_lib_reference_directives| (**file_lib_reference_directives).borrow())
+                .as_deref(),
             |lib_reference: &FileReference, index| -> Option<()> {
                 let lib_name = to_file_name_lower_case(&lib_reference.file_name);
                 let lib_file_name = lib_map.with(|lib_map_| lib_map_.get(&&*lib_name).copied());
@@ -64,17 +67,17 @@ impl Program {
                         &self.path_for_lib_file(lib_file_name),
                         true,
                         true,
-                        &FileIncludeReason::ReferencedFile(ReferencedFile {
+                        Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
                             kind: FileIncludeKind::LibReferenceDirective,
                             file: file_as_source_file.path().clone(),
                             index,
-                        }),
+                        })),
                     );
                 } else {
                     let unqualified_lib_name =
                         remove_suffix(remove_prefix(&lib_name, "lib."), ".d.ts");
                     let suggestion = libs.with(|libs_| {
-                        get_spelling_suggestion(unqualified_lib_name, libs_, |lib| {
+                        get_spelling_suggestion(unqualified_lib_name, libs_, |lib: &&str| {
                             Some((*lib).to_owned())
                         })
                         .map(|suggestion| (*suggestion).to_owned())
@@ -87,7 +90,7 @@ impl Program {
                     self.maybe_file_processing_diagnostics().get_or_insert_with(|| {
                         vec![]
                     }).push(
-                        FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
+                        Gc::new(FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
                             kind: FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic,
                             reason: ReferencedFile {
                                 kind: FileIncludeKind::LibReferenceDirective,
@@ -105,7 +108,7 @@ impl Program {
                                     lib_name,
                                 ])
                             }
-                        })
+                        }))
                     );
                 }
                 None
@@ -192,11 +195,11 @@ impl Program {
                         resolved_file_name,
                         false,
                         false,
-                        &FileIncludeReason::ReferencedFile(ReferencedFile {
+                        Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
                             kind: FileIncludeKind::Import,
                             file: file_as_source_file.path().clone(),
                             index,
-                        }),
+                        })),
                         resolution.package_id.as_ref(),
                     );
                 }
@@ -252,14 +255,14 @@ impl Program {
         &self,
         ref_: &ProjectReference,
     ) -> Option<Gc<ResolvedProjectReference>> {
-        if self.maybe_project_reference_redirects().is_none() {
-            *self.maybe_project_reference_redirects() = Some(HashMap::new());
+        if self.maybe_project_reference_redirects_mut().is_none() {
+            *self.maybe_project_reference_redirects_mut() = Some(HashMap::new());
         }
 
         let ref_path = resolve_project_reference_path(ref_);
         let source_file_path = self.to_path(&ref_path);
         let from_cache = self
-            .maybe_project_reference_redirects()
+            .maybe_project_reference_redirects_mut()
             .as_ref()
             .unwrap()
             .get(&source_file_path)
@@ -267,7 +270,84 @@ impl Program {
         if let Some(from_cache) = from_cache {
             return from_cache;
         }
-        unimplemented!()
+
+        let command_line: Option<ParsedCommandLine>;
+        let source_file: Option<Gc<Node /*JsonSourceFile*/>>;
+        if self.host().is_get_parsed_command_line_supported() {
+            command_line = self.host().get_parsed_command_line(&ref_path);
+            if command_line.is_none() {
+                self.add_file_to_files_by_name(Option::<&Node>::None, &source_file_path, None);
+                self.project_reference_redirects_mut()
+                    .insert(source_file_path.clone(), None);
+                return None;
+            }
+            let command_line = command_line.as_ref().unwrap();
+            source_file =
+                Some(Debug_.check_defined(command_line.options.config_file.clone(), None));
+            let source_file = source_file.as_ref().unwrap();
+            Debug_.assert(
+                match source_file.as_source_file().maybe_path().as_ref() {
+                    None => true,
+                    Some(source_file_path_) => source_file_path_ == &source_file_path,
+                },
+                None,
+            );
+            self.add_file_to_files_by_name(Some(&**source_file), &source_file_path, None);
+        } else {
+            let base_path = get_normalized_absolute_path(
+                &get_directory_path(&ref_path),
+                Some(&CompilerHost::get_current_directory(&**self.host())),
+            );
+            source_file = self
+                .host()
+                .get_source_file(&ref_path, ScriptTarget::JSON, None, None);
+            self.add_file_to_files_by_name(source_file.as_deref(), &source_file_path, None);
+            if source_file.is_none() {
+                self.project_reference_redirects_mut()
+                    .insert(source_file_path.clone(), None);
+                return None;
+            }
+            let source_file = source_file.as_ref().unwrap();
+            command_line = Some(parse_json_source_file_config_file_content(
+                source_file,
+                &**self.config_parsing_host(),
+                &base_path,
+                None,
+                Some(&ref_path),
+                None,
+                None,
+                None,
+                None,
+            ));
+        }
+        let source_file = source_file.unwrap();
+        let source_file_as_source_file = source_file.as_source_file();
+        source_file_as_source_file.set_file_name(ref_path.clone());
+        source_file_as_source_file.set_path(source_file_path.clone());
+        source_file_as_source_file.set_resolved_path(Some(source_file_path.clone()));
+        source_file_as_source_file.set_original_file_name(Some(ref_path));
+        let command_line = Gc::new(command_line.unwrap());
+
+        let resolved_ref = Gc::new(
+            ResolvedProjectReferenceBuilder::default()
+                .command_line(command_line.clone())
+                .source_file(source_file)
+                .build()
+                .unwrap(),
+        );
+        self.project_reference_redirects_mut()
+            .insert(source_file_path, Some(resolved_ref.clone()));
+        if let Some(command_line_project_references) = command_line.project_references.as_ref() {
+            resolved_ref.set_references(Some(
+                command_line_project_references
+                    .into_iter()
+                    .map(|command_line_project_reference| {
+                        self.parse_project_reference_config_file(command_line_project_reference)
+                    })
+                    .collect(),
+            ));
+        }
+        Some(resolved_ref)
     }
 
     pub fn verify_compiler_options(&self) {
@@ -1056,23 +1136,24 @@ impl Program {
         }
     }
 
-    pub fn create_diagnostic_explaining_file<TFile: Borrow<Node>>(
+    pub fn create_diagnostic_explaining_file(
         &self,
-        file: Option<TFile>,
-        mut file_processing_reason: Option<&FileIncludeReason>,
+        file: Option<impl Borrow<Node>>,
+        mut file_processing_reason: Option<Gc<FileIncludeReason>>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Gc<Diagnostic> {
         let mut file_include_reasons: Option<Vec<DiagnosticMessageChain>> = None;
         let mut related_info: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
-        let mut location_reason = if is_referenced_file(file_processing_reason) {
-            file_processing_reason
+        let mut location_reason = if is_referenced_file(file_processing_reason.as_deref()) {
+            file_processing_reason.clone()
         } else {
             None
         };
         let file = file.map(|file| file.borrow().node_wrapper());
         let file_reasons = self.file_reasons();
         if let Some(file) = file.as_ref() {
+            let file_reasons = (*file_reasons).borrow();
             if let Some(reasons) = file_reasons.get(&*file.as_source_file().path()) {
                 for reason in reasons {
                     self.process_reason(
@@ -1080,13 +1161,13 @@ impl Program {
                         &mut location_reason,
                         &mut related_info,
                         &mut file_processing_reason,
-                        reason,
+                        reason.clone(),
                     );
                 }
             }
         }
         if file_processing_reason.is_some() {
-            let file_processing_reason_present = file_processing_reason.unwrap();
+            let file_processing_reason_present = file_processing_reason.clone().unwrap();
             self.process_reason(
                 &mut file_include_reasons,
                 &mut location_reason,
@@ -1153,28 +1234,25 @@ impl Program {
         }
     }
 
-    pub fn process_reason<'a>(
+    pub fn process_reason(
         &self,
         file_include_reasons: &mut Option<Vec<DiagnosticMessageChain>>,
-        location_reason: &mut Option<&'a FileIncludeReason>,
+        location_reason: &mut Option<Gc<FileIncludeReason>>,
         related_info: &mut Option<Vec<Gc<DiagnosticRelatedInformation>>>,
-        file_processing_reason: &mut Option<&FileIncludeReason>,
-        reason: &'a FileIncludeReason,
+        file_processing_reason: &mut Option<Gc<FileIncludeReason>>,
+        reason: Gc<FileIncludeReason>,
     ) {
         file_include_reasons.get_or_insert_with(|| vec![]).push(
-            file_include_reason_to_diagnostics(self, reason, Option::<fn(&str) -> String>::None),
+            file_include_reason_to_diagnostics(self, &reason, Option::<fn(&str) -> String>::None),
         );
-        if location_reason.is_none() && is_referenced_file(Some(reason)) {
-            *location_reason = Some(reason);
+        if location_reason.is_none() && is_referenced_file(Some(&reason)) {
+            *location_reason = Some(reason.clone());
         } else if !matches!(
-            *location_reason,
-            Some(location_reason) if ptr::eq(
-                location_reason,
-                reason
-            )
+            location_reason.clone(),
+            Some(location_reason) if location_reason == reason
         ) {
             if let Some(related_information) =
-                self.file_include_reason_to_related_information(reason)
+                self.file_include_reason_to_related_information(&reason)
             {
                 related_info
                     .get_or_insert_with(|| vec![])
@@ -1182,30 +1260,29 @@ impl Program {
             }
         }
         if matches!(
-            *file_processing_reason,
-            Some(file_processing_reason) if ptr::eq(
-                reason,
-                file_processing_reason
-            )
+            file_processing_reason.clone(),
+            Some(file_processing_reason) if reason == file_processing_reason
         ) {
             *file_processing_reason = None
         }
     }
 
-    pub fn add_file_preprocessing_file_explaining_diagnostic<TFile: Borrow<Node>>(
+    pub fn add_file_preprocessing_file_explaining_diagnostic(
         &self,
-        file: Option<TFile>,
-        file_processing_reason: &FileIncludeReason,
+        file: Option<impl Borrow<Node>>,
+        file_processing_reason: Gc<FileIncludeReason>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        self.maybe_file_processing_diagnostics().get_or_insert_with(|| vec![]).push(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
-            kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
-            file: file.map(|file| file.borrow().as_source_file().path().clone()),
-            file_processing_reason: file_processing_reason.clone(),
-            diagnostic,
-            args,
-        }))
+        self.maybe_file_processing_diagnostics()
+            .get_or_insert_with(|| vec![])
+            .push(Gc::new(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
+                kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
+                file: file.map(|file| file.borrow().as_source_file().path().clone()),
+                file_processing_reason: file_processing_reason.clone(),
+                diagnostic,
+                args,
+            })))
     }
 
     pub fn add_program_diagnostic_explaining_file(
@@ -1265,7 +1342,7 @@ impl Program {
         }
 
         let options_config_file = self.options.config_file.as_ref()?;
-        let mut config_file_node: Option<Gc<Node>> = None;
+        let config_file_node: Option<Gc<Node>>;
         let message: &DiagnosticMessage;
         match reason.kind() {
             FileIncludeKind::RootFile => {
@@ -1306,19 +1383,19 @@ impl Program {
             | FileIncludeKind::OutputFromProjectReference => {
                 let reason_as_project_reference_file = reason.as_project_reference_file();
                 let referenced_resolved_ref = Debug_.check_defined(
-                    self.maybe_resolved_project_references().as_ref().and_then(
-                        |resolved_project_references| {
+                    self.maybe_resolved_project_references_mut()
+                        .as_ref()
+                        .and_then(|resolved_project_references| {
                             resolved_project_references
                                 .get(reason_as_project_reference_file.index)
                                 .cloned()
                                 .flatten()
-                        },
-                    ),
+                        }),
                     None,
                 );
                 let reference_info = for_each_project_reference(
                     self.maybe_project_references().as_deref(),
-                    self.maybe_resolved_project_references().as_deref(),
+                    self.maybe_resolved_project_references_mut().as_deref(),
                     |resolved_ref, parent, index| {
                         if matches!(
                             resolved_ref.as_ref(),
@@ -1345,8 +1422,8 @@ impl Program {
                 )?;
                 let (source_file, index) = reference_info;
                 let references_syntax = first_defined(
-                    &get_ts_config_prop_array(Some(&*source_file), "references"),
-                    |property: &Gc<Node>, _| {
+                    get_ts_config_prop_array(Some(&*source_file), "references"),
+                    |property: Gc<Node>, _| {
                         property.as_has_initializer().maybe_initializer().filter(
                             |property_initializer| {
                                 is_array_literal_expression(property_initializer)
@@ -1440,7 +1517,7 @@ impl Program {
         };
         for_each_project_reference(
             self.maybe_project_references().as_deref(),
-            self.maybe_resolved_project_references().as_deref(),
+            self.maybe_resolved_project_references_mut().as_deref(),
             |resolved_ref: Option<Gc<ResolvedProjectReference>>,
              parent: Option<&ResolvedProjectReference>,
              index|
@@ -1556,7 +1633,7 @@ impl Program {
             let ref path_prop_initializer =
                 path_prop.as_has_initializer().maybe_initializer().unwrap();
             if is_object_literal_expression(path_prop_initializer) {
-                for key_props in &get_property_assignment(path_prop_initializer, key, None) {
+                for key_props in get_property_assignment(path_prop_initializer, key, None) {
                     let ref initializer =
                         key_props.as_has_initializer().maybe_initializer().unwrap();
                     if is_array_literal_expression(initializer) {
@@ -1615,7 +1692,10 @@ impl Program {
         }
     }
 
-    pub fn get_options_syntax_by_name(&self, name: &str) -> Option<Vec<Gc<Node>>> {
+    pub fn get_options_syntax_by_name<'name>(
+        &self,
+        name: &'name str,
+    ) -> Option<impl Iterator<Item = Gc<Node>> + 'name> {
         let compiler_options_object_literal_syntax =
             self.get_compiler_options_object_literal_syntax();
         compiler_options_object_literal_syntax.as_ref().map(
@@ -1625,18 +1705,18 @@ impl Program {
         )
     }
 
-    pub fn get_options_paths_syntax(&self) -> Vec<Gc<Node>> {
-        self.get_options_syntax_by_name("paths").unwrap_or_default()
+    pub fn get_options_paths_syntax(&self) -> impl Iterator<Item = Gc<Node>> {
+        self.get_options_syntax_by_name("paths").unwrap_or_empty()
     }
 
-    pub fn get_options_syntax_by_value(&self, name: &str, value: &str) -> Option<Gc<Node>> {
+    pub fn get_options_syntax_by_value(&self, _name: &str, _value: &str) -> Option<Gc<Node>> {
         unimplemented!()
     }
 
     pub fn get_options_syntax_by_array_element_value(
         &self,
-        name: &str,
-        value: &str,
+        _name: &str,
+        _value: &str,
     ) -> Option<Gc<Node>> {
         unimplemented!()
     }
@@ -1667,14 +1747,50 @@ impl Program {
         self.create_diagnostic_for_option(false, option1, None, message, args);
     }
 
-    pub fn create_diagnostic_for_reference<TSourceFile: Borrow<Node>>(
+    pub fn create_diagnostic_for_reference(
         &self,
-        source_file: Option<TSourceFile /*JsonSourceFile*/>,
+        source_file: Option<impl Borrow<Node> /*JsonSourceFile*/>,
         index: usize,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        unimplemented!()
+        let source_file = source_file.node_wrappered();
+        let references_syntax = first_defined(
+            get_ts_config_prop_array(
+                source_file
+                    .clone()
+                    .or_else(|| self.options.config_file.clone()),
+                "references",
+            ),
+            |ref property: Gc<Node>, _| {
+                let property_as_property_assignment = property.as_property_assignment();
+                is_array_literal_expression(&property_as_property_assignment.initializer)
+                    .then(|| property_as_property_assignment.initializer.clone())
+            },
+        );
+        if let Some(references_syntax) = references_syntax.filter(|references_syntax| {
+            references_syntax
+                .as_array_literal_expression()
+                .elements
+                .len()
+                > index
+        }) {
+            self.program_diagnostics_mut().add(
+                create_diagnostic_for_node_in_source_file(
+                    source_file
+                        .as_ref()
+                        .or_else(|| self.options.config_file.as_ref())
+                        .unwrap(),
+                    &references_syntax.as_array_literal_expression().elements[index],
+                    message,
+                    args,
+                )
+                .into(),
+            );
+        } else {
+            self.program_diagnostics_mut()
+                .add(create_compiler_diagnostic(message, args).into());
+        }
     }
 
     pub fn create_diagnostic_for_option(
@@ -1740,7 +1856,7 @@ impl Program {
         args: Option<Vec<String>>,
     ) -> bool {
         let props = get_property_assignment(object_literal, key1, key2);
-        for prop in &props {
+        for prop in props.clone() {
             self.program_diagnostics_mut().add(Gc::new(
                 create_diagnostic_for_node_in_source_file(
                     self.options.config_file.as_ref().unwrap(),
@@ -1755,7 +1871,7 @@ impl Program {
                 .into(),
             ));
         }
-        !props.is_empty()
+        !props.peekable().is_empty_()
     }
 
     pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Gc<Diagnostic>) {
@@ -1852,7 +1968,7 @@ impl Program {
         !symlinks.has_processed_resolutions() {
             symlinks.set_symlinks_from_resolutions(
                 &self.files(),
-                Some(&self.resolved_type_reference_directives()),
+                Some(&(*self.resolved_type_reference_directives()).borrow()),
             );
         }
         symlinks
@@ -1988,14 +2104,14 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
         }
     }
 
-    fn handle_directory_could_be_symlink(&self, directory: &str) {
+    fn handle_directory_could_be_symlink(&self, _directory: &str) {
         unimplemented!()
     }
 
     fn file_or_directory_exists_using_source(
         &self,
-        file_or_directory: &str,
-        is_file: bool,
+        _file_or_directory: &str,
+        _is_file: bool,
     ) -> bool {
         unimplemented!()
     }
@@ -2090,22 +2206,22 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             .or_else(|| self.host_compiler_host.realpath_non_overridden(s))
     }
 
-    fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
+    fn read_file(&self, _file_name: &str) -> io::Result<Option<String>> {
         unreachable!()
     }
 
     fn write_file(
         &self,
-        file_name: &str,
-        data: &str,
-        write_byte_order_mark: bool,
-        on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+        _file_name: &str,
+        _data: &str,
+        _write_byte_order_mark: bool,
+        _on_error: Option<&mut dyn FnMut(&str)>,
+        _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ) {
         unreachable!()
     }
 
-    fn create_directory(&self, directory: &str) {
+    fn create_directory(&self, _directory: &str) {
         unreachable!()
     }
 }
@@ -2222,17 +2338,17 @@ pub trait CompilerHostLike: Trace + Finalize {
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn read_directory(
         &self,
-        root_dir: &str,
-        extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: &[String],
-        depth: Option<usize>,
+        _root_dir: &str,
+        _extensions: &[&str],
+        _excludes: Option<&[String]>,
+        _includes: &[String],
+        _depth: Option<usize>,
     ) -> Option<Vec<String>> {
         None
     }
-    fn trace(&self, s: &str) {}
+    fn trace(&self, _s: &str) {}
     fn is_trace_supported(&self) -> bool;
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {}
+    fn on_un_recoverable_config_file_diagnostic(&self, _diagnostic: Gc<Diagnostic>) {}
 
     // These exist to allow "forwarding" CompilerHost -> CompilerHostLike -> DirectoryStructureHost
     fn is_read_directory_implemented(&self) -> bool;
@@ -2250,7 +2366,7 @@ pub struct CompilerHostLikeRcDynCompilerHost {
 
 impl CompilerHostLikeRcDynCompilerHost {
     pub fn new(host: Gc<Box<dyn CompilerHost>>) -> Self {
-        Self { host }
+        host.into()
     }
 }
 
@@ -2318,6 +2434,12 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
     }
 }
 
+impl From<Gc<Box<dyn CompilerHost>>> for CompilerHostLikeRcDynCompilerHost {
+    fn from(host: Gc<Box<dyn CompilerHost>>) -> Self {
+        Self { host }
+    }
+}
+
 #[derive(Trace, Finalize)]
 pub struct DirectoryStructureHostRcDynCompilerHostLike {
     host: Gc<Box<dyn CompilerHostLike>>,
@@ -2334,16 +2456,18 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         self.host.file_exists(path)
     }
 
-    fn read_file(&self, path: &str, encoding: Option<&str>) -> io::Result<Option<String>> {
+    fn read_file(&self, path: &str, _encoding: Option<&str>) -> io::Result<Option<String>> {
         self.host.read_file(path)
     }
 
     fn directory_exists(&self, path: &str) -> Option<bool> {
         self.host.directory_exists(path)
     }
+
     fn get_directories(&self, path: &str) -> Option<Vec<String>> {
         self.host.get_directories(path)
     }
+
     fn read_directory(
         &self,
         path: &str,
@@ -2355,6 +2479,7 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         self.host
             .read_directory(path, extensions, exclude, include.unwrap(), depth)
     }
+
     fn is_read_directory_implemented(&self) -> bool {
         self.host.is_read_directory_implemented()
     }
@@ -2372,7 +2497,7 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
     }
 }
 
-pub(crate) fn parse_config_host_from_compiler_host_like(
+pub fn parse_config_host_from_compiler_host_like(
     host: Gc<Box<dyn CompilerHostLike>>,
     directory_structure_host: Option<Gc<Box<dyn DirectoryStructureHost>>>,
 ) -> ParseConfigHostFromCompilerHostLike {
@@ -2503,7 +2628,8 @@ pub(crate) fn create_prepend_nodes(
     nodes
 }
 
-pub fn resolve_project_reference_path(ref_: &ProjectReference) -> ResolvedConfigFileName {
+pub fn resolve_project_reference_path(ref_: &ProjectReference) -> String /*ResolvedConfigFileName*/
+{
     let passed_in_ref = ref_;
     resolve_config_file_project_name(&passed_in_ref.path)
 }
@@ -2523,7 +2649,7 @@ pub fn get_resolution_diagnostic(
     }
 }
 
-fn need_jsx(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+pub(super) fn need_jsx(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
     if options.jsx.is_some() {
         None
     } else {
@@ -2531,7 +2657,7 @@ fn need_jsx(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
     }
 }
 
-fn need_allow_js(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+pub(super) fn need_allow_js(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
     if get_allow_js_compiler_option(options) || !get_strict_option_value(options, "noImplicitAny") {
         None
     } else {
@@ -2539,7 +2665,9 @@ fn need_allow_js(options: &CompilerOptions) -> Option<&'static DiagnosticMessage
     }
 }
 
-fn need_resolve_json_module(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+pub(super) fn need_resolve_json_module(
+    options: &CompilerOptions,
+) -> Option<&'static DiagnosticMessage> {
     if matches!(options.resolve_json_module, Some(true)) {
         None
     } else {
@@ -2547,7 +2675,7 @@ fn need_resolve_json_module(options: &CompilerOptions) -> Option<&'static Diagno
     }
 }
 
-fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
+pub(super) fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
     let file_as_source_file = file.as_source_file();
     let imports = file_as_source_file.maybe_imports();
     let imports = imports.as_ref().unwrap();

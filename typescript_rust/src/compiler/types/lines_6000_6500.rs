@@ -1,19 +1,19 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use derive_builder::Builder;
 use gc::{unsafe_empty_trace, Finalize, Gc, GcCell, Trace};
+use indexmap::IndexMap;
 use serde::Serialize;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
-    hash_map_to_compiler_options, CompilerHost, Diagnostic, MapLike, Number, OptionsNameMap,
-    ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
+    are_option_gcs_equal, hash_map_to_compiler_options, CompilerHost, Diagnostic, GcVec, MapLike,
+    Number, OptionsNameMap, ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
 };
 use local_macros::{command_line_option_type, enum_unwrapped};
 
@@ -22,11 +22,15 @@ pub struct PluginImport {
     pub name: String,
 }
 
-#[derive(Debug, Serialize, Trace, Finalize)]
+#[derive(Debug, Builder, Serialize, Trace, Finalize)]
+#[builder(setter(strip_option, into))]
 pub struct ProjectReference {
     pub path: String,
+    #[builder(default)]
     pub original_path: Option<String>,
+    #[builder(default)]
     pub prepend: Option<bool>,
+    #[builder(default)]
     pub circular: Option<bool>,
 }
 
@@ -57,6 +61,7 @@ pub enum PollingWatchKind {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[serde(untagged)]
 pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),
@@ -133,6 +138,10 @@ impl CompilerOptionsValue {
 
     pub fn as_option_bool(&self) -> Option<bool> {
         enum_unwrapped!(self, [CompilerOptionsValue, Bool]).clone()
+    }
+
+    pub fn as_option_string(&self) -> Option<&String> {
+        enum_unwrapped!(self, [CompilerOptionsValue, String]).as_ref()
     }
 
     pub fn into_option_bool(self) -> Option<bool> {
@@ -388,7 +397,7 @@ mod _CompilerOptionsDeriveTraceScope {
     use local_macros::Trace;
 
     #[derive(Builder, Clone, Debug, Default, Serialize, Trace, Finalize)]
-    #[builder(default)]
+    #[builder(setter(into, strip_option), default)]
     pub struct CompilerOptions {
         pub all: Option<bool>,
         pub allow_js: Option<bool>,
@@ -1021,8 +1030,8 @@ mod _CompilerOptionsDeriveTraceScope {
     impl ToHashMapOfCompilerOptionsValues for CompilerOptions {
         fn to_hash_map_of_compiler_options_values(
             &self,
-        ) -> HashMap<&'static str, CompilerOptionsValue> {
-            let mut result = HashMap::new();
+        ) -> IndexMap<&'static str, CompilerOptionsValue> {
+            let mut result = IndexMap::new();
 
             if self.all.is_some() {
                 result.insert("all", self.all.into());
@@ -1445,12 +1454,143 @@ mod _CompilerOptionsDeriveTraceScope {
             result
         }
     }
+
+    impl Eq for CompilerOptions {}
+
+    impl PartialEq for CompilerOptions {
+        fn eq(&self, other: &Self) -> bool {
+            self.all == other.all
+                && self.allow_js == other.allow_js
+                && self.allow_non_ts_extensions == other.allow_non_ts_extensions
+                && self.allow_synthetic_default_imports == other.allow_synthetic_default_imports
+                && self.allow_umd_global_access == other.allow_umd_global_access
+                && self.allow_unreachable_code == other.allow_unreachable_code
+                && self.allow_unused_labels == other.allow_unused_labels
+                && self.always_strict == other.always_strict
+                && self.base_url == other.base_url
+                && self.build == other.build
+                && self.charset == other.charset
+                && self.check_js == other.check_js
+                && self.config_file_path == other.config_file_path
+                && are_option_gcs_equal(self.config_file.as_ref(), other.config_file.as_ref())
+                && self.declaration == other.declaration
+                && self.declaration_map == other.declaration_map
+                && self.emit_declaration_only == other.emit_declaration_only
+                && self.declaration_dir == other.declaration_dir
+                && self.diagnostics == other.diagnostics
+                && self.extended_diagnostics == other.extended_diagnostics
+                && self.disable_size_limit == other.disable_size_limit
+                && self.disable_source_of_project_reference_redirect
+                    == other.disable_source_of_project_reference_redirect
+                && self.disable_solution_searching == other.disable_solution_searching
+                && self.disable_referenced_project_load == other.disable_referenced_project_load
+                && self.downlevel_iteration == other.downlevel_iteration
+                && self.emit_bom == other.emit_bom
+                && self.emit_decorator_metadata == other.emit_decorator_metadata
+                && self.exact_optional_property_types == other.exact_optional_property_types
+                && self.experimental_decorators == other.experimental_decorators
+                && self.force_consistent_casing_in_file_names
+                    == other.force_consistent_casing_in_file_names
+                && self.generate_cpu_profile == other.generate_cpu_profile
+                && self.generate_trace == other.generate_trace
+                && self.help == other.help
+                && self.import_helpers == other.import_helpers
+                && self.imports_not_used_as_values == other.imports_not_used_as_values
+                && self.init == other.init
+                && self.inline_source_map == other.inline_source_map
+                && self.inline_sources == other.inline_sources
+                && self.isolated_modules == other.isolated_modules
+                && self.jsx == other.jsx
+                && self.keyof_strings_only == other.keyof_strings_only
+                && self.lib == other.lib
+                && self.list_emitted_files == other.list_emitted_files
+                && self.list_files == other.list_files
+                && self.explain_files == other.explain_files
+                && self.list_files_only == other.list_files_only
+                && self.locale == other.locale
+                && self.map_root == other.map_root
+                && self.max_node_module_js_depth == other.max_node_module_js_depth
+                && self.module == other.module
+                && self.module_resolution == other.module_resolution
+                && self.new_line == other.new_line
+                && self.no_emit == other.no_emit
+                && self.no_emit_for_js_files == other.no_emit_for_js_files
+                && self.no_emit_helpers == other.no_emit_helpers
+                && self.no_emit_on_error == other.no_emit_on_error
+                && self.no_error_truncation == other.no_error_truncation
+                && self.no_fallthrough_cases_in_switch == other.no_fallthrough_cases_in_switch
+                && self.no_implicit_any == other.no_implicit_any
+                && self.no_implicit_returns == other.no_implicit_returns
+                && self.no_implicit_this == other.no_implicit_this
+                && self.no_strict_generic_checks == other.no_strict_generic_checks
+                && self.no_unused_locals == other.no_unused_locals
+                && self.no_unused_parameters == other.no_unused_parameters
+                && self.no_implicit_use_strict == other.no_implicit_use_strict
+                && self.no_property_access_from_index_signature
+                    == other.no_property_access_from_index_signature
+                && self.assume_changes_only_affect_direct_dependencies
+                    == other.assume_changes_only_affect_direct_dependencies
+                && self.no_lib == other.no_lib
+                && self.no_resolve == other.no_resolve
+                && self.no_unchecked_indexed_access == other.no_unchecked_indexed_access
+                && self.out == other.out
+                && self.out_dir == other.out_dir
+                && self.out_file == other.out_file
+                && self.paths == other.paths
+                && self.paths_base_path == other.paths_base_path
+                && self.plugins == other.plugins
+                && self.preserve_const_enums == other.preserve_const_enums
+                && self.no_implicit_override == other.no_implicit_override
+                && self.preserve_symlinks == other.preserve_symlinks
+                && self.preserve_value_imports == other.preserve_value_imports
+                && self.preserve_watch_output == other.preserve_watch_output
+                && self.project == other.project
+                && self.pretty == other.pretty
+                && self.react_namespace == other.react_namespace
+                && self.jsx_factory == other.jsx_factory
+                && self.jsx_fragment_factory == other.jsx_fragment_factory
+                && self.jsx_import_source == other.jsx_import_source
+                && self.composite == other.composite
+                && self.incremental == other.incremental
+                && self.ts_build_info_file == other.ts_build_info_file
+                && self.remove_comments == other.remove_comments
+                && self.root_dir == other.root_dir
+                && self.root_dirs == other.root_dirs
+                && self.skip_lib_check == other.skip_lib_check
+                && self.skip_default_lib_check == other.skip_default_lib_check
+                && self.source_map == other.source_map
+                && self.source_root == other.source_root
+                && self.strict == other.strict
+                && self.strict_function_types == other.strict_function_types
+                && self.strict_bind_call_apply == other.strict_bind_call_apply
+                && self.strict_null_checks == other.strict_null_checks
+                && self.strict_property_initialization == other.strict_property_initialization
+                && self.strip_internal == other.strip_internal
+                && self.suppress_excess_property_errors == other.suppress_excess_property_errors
+                && self.suppress_implicit_any_index_errors
+                    == other.suppress_implicit_any_index_errors
+                && self.suppress_output_path_check == other.suppress_output_path_check
+                && self.target == other.target
+                && self.trace_resolution == other.trace_resolution
+                && self.use_unknown_in_catch_variables == other.use_unknown_in_catch_variables
+                && self.resolve_json_module == other.resolve_json_module
+                && self.types == other.types
+                && self.type_roots == other.type_roots
+                && self.version == other.version
+                && self.watch == other.watch
+                && self.es_module_interop == other.es_module_interop
+                && self.show_config == other.show_config
+                && self.use_define_for_class_fields == other.use_define_for_class_fields
+        }
+    }
 }
+
 pub use _CompilerOptionsDeriveTraceScope::{CompilerOptions, CompilerOptionsBuilder};
 
 pub trait ToHashMapOfCompilerOptionsValues {
-    fn to_hash_map_of_compiler_options_values(&self)
-        -> HashMap<&'static str, CompilerOptionsValue>;
+    fn to_hash_map_of_compiler_options_values(
+        &self,
+    ) -> IndexMap<&'static str, CompilerOptionsValue>;
 }
 
 pub fn extend_compiler_options(a: &CompilerOptions, b: &CompilerOptions) -> CompilerOptions {
@@ -1730,7 +1870,8 @@ pub fn maybe_extend_compiler_options(
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Builder, Clone, Debug, Default, Eq, PartialEq)]
+#[builder(default, setter(into, strip_option))]
 pub struct WatchOptions {
     pub watch_file: Option<WatchFileKind>,
     pub watch_directory: Option<WatchDirectoryKind>,
@@ -1744,8 +1885,8 @@ pub struct WatchOptions {
 impl ToHashMapOfCompilerOptionsValues for WatchOptions {
     fn to_hash_map_of_compiler_options_values(
         &self,
-    ) -> HashMap<&'static str, CompilerOptionsValue> {
-        let mut result = HashMap::new();
+    ) -> IndexMap<&'static str, CompilerOptionsValue> {
+        let mut result = IndexMap::new();
 
         if self.watch_file.is_some() {
             result.insert("watchFile", self.watch_file.into());
@@ -1892,7 +2033,7 @@ pub enum LanguageVariant {
 
 #[derive(Debug)]
 pub struct ParsedCommandLineWithBaseOptions {
-    pub options: HashMap<String, CompilerOptionsValue>,
+    pub options: IndexMap<String, CompilerOptionsValue>,
     pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub file_names: Vec<String>,
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
@@ -1919,23 +2060,38 @@ impl ParsedCommandLineWithBaseOptions {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
-pub struct ParsedCommandLine {
-    pub options: Gc<CompilerOptions>,
-    #[unsafe_ignore_trace]
-    pub type_acquisition: Option<Rc<TypeAcquisition>>,
-    pub file_names: Vec<String>,
-    #[unsafe_ignore_trace]
-    pub project_references: Option<Vec<Rc<ProjectReference>>>,
-    #[unsafe_ignore_trace]
-    pub watch_options: Option<Rc<WatchOptions>>,
-    #[unsafe_ignore_trace]
-    pub raw: Option<serde_json::Value>,
-    pub errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
-    #[unsafe_ignore_trace]
-    pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
-    pub compile_on_save: Option<bool>,
+mod _ParsedCommandLineDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Builder, Debug, Default, Trace, Finalize)]
+    #[builder(default, setter(into, strip_option))]
+    pub struct ParsedCommandLine {
+        pub options: Gc<CompilerOptions>,
+        #[unsafe_ignore_trace]
+        pub type_acquisition: Option<Rc<TypeAcquisition>>,
+        pub file_names: Vec<String>,
+        #[unsafe_ignore_trace]
+        pub project_references: Option<Vec<Rc<ProjectReference>>>,
+        #[unsafe_ignore_trace]
+        pub watch_options: Option<Rc<WatchOptions>>,
+        #[unsafe_ignore_trace]
+        pub raw: Option<serde_json::Value>,
+        #[builder(setter(custom))]
+        pub errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
+        #[unsafe_ignore_trace]
+        pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
+        pub compile_on_save: Option<bool>,
+    }
+
+    impl ParsedCommandLineBuilder {
+        pub fn errors(&mut self, value: impl Into<Vec<Gc<Diagnostic>>>) -> &mut Self {
+            self.errors = Some(Gc::new(GcCell::new(value.into())));
+            self
+        }
+    }
 }
+pub use _ParsedCommandLineDeriveTraceScope::{ParsedCommandLine, ParsedCommandLineBuilder};
 
 bitflags! {
     pub struct WatchDirectoryFlags: u32 {
@@ -1967,19 +2123,25 @@ mod _CreateProgramOptionsDeriveTraceScope {
     use super::*;
     use local_macros::Trace;
 
-    #[derive(Trace, Finalize)]
+    #[derive(Builder, Default, Trace, Finalize)]
+    #[builder(default, setter(into))]
     pub struct CreateProgramOptions {
         #[unsafe_ignore_trace]
         pub root_names: Vec<String>,
         pub options: Gc<CompilerOptions>,
         #[unsafe_ignore_trace]
         pub project_references: Option<Vec<Rc<ProjectReference>>>,
+        #[builder(setter(strip_option))]
         pub host: Option<Gc<Box<dyn CompilerHost>>>,
+        #[builder(setter(strip_option))]
         pub old_program: Option<Gc<Box<Program>>>,
+        #[builder(setter(strip_option))]
         pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
     }
 }
-pub use _CreateProgramOptionsDeriveTraceScope::CreateProgramOptions;
+pub use _CreateProgramOptionsDeriveTraceScope::{
+    CreateProgramOptions, CreateProgramOptionsBuilder,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CommandLineOptionMapTypeValue {
@@ -1994,6 +2156,60 @@ pub enum CommandLineOptionMapTypeValue {
     WatchFileKind(WatchFileKind),
     WatchDirectoryKind(WatchDirectoryKind),
     PollingWatchKind(PollingWatchKind),
+}
+
+impl From<ScriptTarget> for CommandLineOptionMapTypeValue {
+    fn from(value: ScriptTarget) -> Self {
+        Self::ScriptTarget(value)
+    }
+}
+
+impl From<ModuleKind> for CommandLineOptionMapTypeValue {
+    fn from(value: ModuleKind) -> Self {
+        Self::ModuleKind(value)
+    }
+}
+
+impl From<JsxEmit> for CommandLineOptionMapTypeValue {
+    fn from(value: JsxEmit) -> Self {
+        Self::JsxEmit(value)
+    }
+}
+
+impl From<ImportsNotUsedAsValues> for CommandLineOptionMapTypeValue {
+    fn from(value: ImportsNotUsedAsValues) -> Self {
+        Self::ImportsNotUsedAsValues(value)
+    }
+}
+
+impl From<ModuleResolutionKind> for CommandLineOptionMapTypeValue {
+    fn from(value: ModuleResolutionKind) -> Self {
+        Self::ModuleResolutionKind(value)
+    }
+}
+
+impl From<NewLineKind> for CommandLineOptionMapTypeValue {
+    fn from(value: NewLineKind) -> Self {
+        Self::NewLineKind(value)
+    }
+}
+
+impl From<WatchFileKind> for CommandLineOptionMapTypeValue {
+    fn from(value: WatchFileKind) -> Self {
+        Self::WatchFileKind(value)
+    }
+}
+
+impl From<WatchDirectoryKind> for CommandLineOptionMapTypeValue {
+    fn from(value: WatchDirectoryKind) -> Self {
+        Self::WatchDirectoryKind(value)
+    }
+}
+
+impl From<PollingWatchKind> for CommandLineOptionMapTypeValue {
+    fn from(value: PollingWatchKind) -> Self {
+        Self::PollingWatchKind(value)
+    }
 }
 
 impl CommandLineOptionMapTypeValue {
@@ -2020,14 +2236,14 @@ impl CommandLineOptionMapTypeValue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum CommandLineOptionType {
     String,
     Number,
     Boolean,
     Object,
     List,
-    Map(HashMap<&'static str, CommandLineOptionMapTypeValue /*number | string*/>),
+    Map(IndexMap<&'static str, CommandLineOptionMapTypeValue /*number | string*/>),
 }
 
 impl CommandLineOptionType {
@@ -2042,15 +2258,27 @@ impl CommandLineOptionType {
         }
     }
 
-    pub fn as_map(&self) -> &HashMap<&'static str, CommandLineOptionMapTypeValue> {
+    pub fn as_map(&self) -> &IndexMap<&'static str, CommandLineOptionMapTypeValue> {
         enum_unwrapped!(self, [CommandLineOptionType, Map])
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringOrDiagnosticMessage {
     String(String),
     DiagnosticMessage(&'static DiagnosticMessage),
+}
+
+impl From<String> for StringOrDiagnosticMessage {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<&'static DiagnosticMessage> for StringOrDiagnosticMessage {
+    fn from(value: &'static DiagnosticMessage) -> Self {
+        Self::DiagnosticMessage(value)
+    }
 }
 
 pub trait CommandLineOptionInterface {
@@ -2079,37 +2307,81 @@ pub trait CommandLineOptionInterface {
     fn maybe_extra_validation(
         &self,
     ) -> Option<
-        fn(Option<&serde_json::Value>) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        Rc<
+            dyn Fn(
+                Option<&serde_json::Value>,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
     >;
     fn maybe_extra_validation_compiler_options_value(
         &self,
     ) -> Option<
-        fn(&CompilerOptionsValue) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        Rc<
+            dyn Fn(
+                &CompilerOptionsValue,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
     >;
 }
 
+#[derive(Builder)]
+#[builder(setter(strip_option))]
 pub struct CommandLineOptionBase {
+    #[builder(setter(skip), default)]
     pub _command_line_option_wrapper: RefCell<Option<Gc<CommandLineOption>>>,
+    #[builder(setter(into))]
     pub name: String,
     pub type_: CommandLineOptionType,
+    #[builder(default)]
     pub is_file_path: Option<bool>,
+    #[builder(setter(into), default)]
     pub short_name: Option<String>,
+    #[builder(default)]
     pub description: Option<&'static DiagnosticMessage>,
+    #[builder(setter(into), default)]
     pub default_value_description: Option<StringOrDiagnosticMessage>,
+    #[builder(default)]
     pub param_type: Option<&'static DiagnosticMessage>,
+    #[builder(default)]
     pub is_tsconfig_only: Option<bool>,
+    #[builder(default)]
     pub is_command_line_only: Option<bool>,
+    #[builder(default)]
     pub show_in_simplified_help_view: Option<bool>,
+    #[builder(default)]
     pub category: Option<&'static DiagnosticMessage>,
+    #[builder(default)]
     pub strict_flag: Option<bool>,
+    #[builder(default)]
     pub affects_source_file: Option<bool>,
+    #[builder(default)]
     pub affects_module_resolution: Option<bool>,
+    #[builder(default)]
     pub affects_bind_diagnostics: Option<bool>,
+    #[builder(default)]
     pub affects_semantic_diagnostics: Option<bool>,
+    #[builder(default)]
     pub affects_emit: Option<bool>,
+    #[builder(default)]
     pub affects_program_structure: Option<bool>,
+    #[builder(default)]
     pub transpile_option_value: Option<Option<bool>>,
-    // extra_validation: Option<Box<dyn Fn(CompilerOptionsValue) -> (DiagnosticMessage, Vec<String>)>>,
+    #[builder(default)]
+    pub extra_validation: Option<
+        Rc<
+            dyn Fn(
+                Option<&serde_json::Value>,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
+    >,
+    #[builder(default)]
+    pub extra_validation_compiler_options_value: Option<
+        Rc<
+            dyn Fn(
+                &CompilerOptionsValue,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
+    >,
 }
 
 impl CommandLineOptionInterface for CommandLineOptionBase {
@@ -2200,21 +2472,71 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
     fn maybe_extra_validation(
         &self,
     ) -> Option<
-        fn(Option<&serde_json::Value>) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        Rc<
+            dyn Fn(
+                Option<&serde_json::Value>,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
     > {
-        None
+        self.extra_validation.clone()
     }
 
     fn maybe_extra_validation_compiler_options_value(
         &self,
     ) -> Option<
-        fn(&CompilerOptionsValue) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        Rc<
+            dyn Fn(
+                &CompilerOptionsValue,
+            ) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+        >,
     > {
-        None
+        self.extra_validation_compiler_options_value.clone()
+    }
+}
+
+impl fmt::Debug for CommandLineOptionBase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CommandLineOptionBase")
+            // .field(
+            //     "_command_line_option_wrapper",
+            //     &self._command_line_option_wrapper,
+            // )
+            .field("name", &self.name)
+            .field("type_", &self.type_)
+            .field("is_file_path", &self.is_file_path)
+            .field("short_name", &self.short_name)
+            .field("description", &self.description)
+            .field("default_value_description", &self.default_value_description)
+            .field("param_type", &self.param_type)
+            .field("is_tsconfig_only", &self.is_tsconfig_only)
+            .field("is_command_line_only", &self.is_command_line_only)
+            .field(
+                "show_in_simplified_help_view",
+                &self.show_in_simplified_help_view,
+            )
+            .field("category", &self.category)
+            .field("strict_flag", &self.strict_flag)
+            .field("affects_source_file", &self.affects_source_file)
+            .field("affects_module_resolution", &self.affects_module_resolution)
+            .field("affects_bind_diagnostics", &self.affects_bind_diagnostics)
+            .field(
+                "affects_semantic_diagnostics",
+                &self.affects_semantic_diagnostics,
+            )
+            .field("affects_emit", &self.affects_emit)
+            .field("affects_program_structure", &self.affects_program_structure)
+            .field("transpile_option_value", &self.transpile_option_value)
+            // .field("extra_validation", &self.extra_validation)
+            // .field(
+            //     "extra_validation_compiler_options_value",
+            //     &self.extra_validation_compiler_options_value,
+            // )
+            .finish()
     }
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfStringType {
     _command_line_option_base: CommandLineOptionBase,
 }
@@ -2228,6 +2550,7 @@ impl CommandLineOptionOfStringType {
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfNumberType {
     _command_line_option_base: CommandLineOptionBase,
 }
@@ -2241,6 +2564,7 @@ impl CommandLineOptionOfNumberType {
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfBooleanType {
     _command_line_option_base: CommandLineOptionBase,
 }
@@ -2254,6 +2578,7 @@ impl CommandLineOptionOfBooleanType {
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfCustomType {
     _command_line_option_base: CommandLineOptionBase,
 }
@@ -2273,7 +2598,7 @@ pub struct AlternateModeDiagnostics {
 
 pub trait DidYouMeanOptionsDiagnostics {
     fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>>;
-    fn option_declarations(&self) -> Vec<Gc<CommandLineOption>>;
+    fn option_declarations(&self) -> GcVec<Gc<CommandLineOption>>;
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
 }
@@ -2299,6 +2624,16 @@ impl TsConfigOnlyOption {
             element_options,
             extra_key_diagnostics,
         }
+    }
+}
+
+impl fmt::Debug for TsConfigOnlyOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TsConfigOnlyOption")
+            .field("_command_line_option_base", &self._command_line_option_base)
+            .field("element_options", &self.element_options)
+            // .field("extra_key_diagnostics", &self.extra_key_diagnostics)
+            .finish()
     }
 }
 
@@ -2335,6 +2670,7 @@ impl From<Rc<dyn ParseCommandLineWorkerDiagnostics>>
 }
 
 #[command_line_option_type]
+#[derive(Debug)]
 pub struct CommandLineOptionOfListType {
     _command_line_option_base: CommandLineOptionBase,
     pub element: Gc<CommandLineOption>,
@@ -2353,6 +2689,7 @@ impl CommandLineOptionOfListType {
 }
 
 #[command_line_option_type(impl_from = false)]
+#[derive(Debug)]
 pub enum CommandLineOption {
     CommandLineOptionOfCustomType(CommandLineOptionOfCustomType),
     CommandLineOptionOfStringType(CommandLineOptionOfStringType),
@@ -2392,6 +2729,7 @@ impl CommandLineOption {
             Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
                 CommandLineOptionType::String => CompilerOptionsValue::VecString(None),
                 CommandLineOptionType::Object => CompilerOptionsValue::VecPluginImport(None),
+                CommandLineOptionType::Map(_) => CompilerOptionsValue::VecString(None),
                 _ => panic!("Unexpected element type"),
             },
         }
@@ -2400,28 +2738,27 @@ impl CommandLineOption {
     pub fn to_compiler_options_value(&self, value: &serde_json::Value) -> CompilerOptionsValue {
         match self {
             Self::CommandLineOptionOfCustomType(_) => unimplemented!(),
-            Self::CommandLineOptionOfStringType(_) => {
-                CompilerOptionsValue::String(Some(match value {
-                    serde_json::Value::String(value) => value.clone(),
-                    _ => panic!("Expected string"),
-                }))
-            }
-            Self::CommandLineOptionOfNumberType(_) => {
-                CompilerOptionsValue::Usize(Some(match value {
-                    serde_json::Value::Number(value) => value.as_u64().unwrap().try_into().unwrap(),
-                    _ => panic!("Expected number"),
-                }))
-            }
-            Self::CommandLineOptionOfBooleanType(_) => {
-                CompilerOptionsValue::Bool(Some(match value {
-                    serde_json::Value::Bool(value) => *value,
-                    _ => panic!("Expected number"),
-                }))
-            }
+            Self::CommandLineOptionOfStringType(_) => CompilerOptionsValue::String(match value {
+                serde_json::Value::String(value) => Some(value.clone()),
+                serde_json::Value::Null => None,
+                _ => unreachable!(),
+            }),
+            Self::CommandLineOptionOfNumberType(_) => CompilerOptionsValue::Usize(match value {
+                serde_json::Value::Number(value) => {
+                    Some(value.as_u64().unwrap().try_into().unwrap())
+                }
+                serde_json::Value::Null => None,
+                _ => unreachable!(),
+            }),
+            Self::CommandLineOptionOfBooleanType(_) => CompilerOptionsValue::Bool(match value {
+                serde_json::Value::Bool(value) => Some(*value),
+                serde_json::Value::Null => None,
+                _ => unreachable!(),
+            }),
             Self::TsConfigOnlyOption(_) => {
-                CompilerOptionsValue::MapLikeVecString(Some(match value {
+                CompilerOptionsValue::MapLikeVecString(match value {
                     serde_json::Value::Object(value) => {
-                        HashMap::from_iter(value.into_iter().map(|(key, value)| {
+                        Some(HashMap::from_iter(value.into_iter().map(|(key, value)| {
                             (
                                 key.clone(),
                                 match value {
@@ -2429,20 +2766,87 @@ impl CommandLineOption {
                                         .into_iter()
                                         .map(|item| match item {
                                             serde_json::Value::String(item) => item.clone(),
-                                            _ => panic!("Expected string"),
+                                            _ => unreachable!(),
                                         })
                                         .collect(),
                                     // Looks like eg "paths": {"*": "*"} is accepted
                                     serde_json::Value::String(value) => vec![value.clone()],
-                                    _ => panic!("Expected array or string"),
+                                    _ => unreachable!(),
                                 },
                             )
-                        }))
+                        })))
                     }
-                    _ => panic!("Expected object"),
-                }))
+                    serde_json::Value::Null => None,
+                    _ => unreachable!(),
+                })
             }
-            Self::CommandLineOptionOfListType(list_type) => unimplemented!(),
+            Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
+                CommandLineOptionType::String => CompilerOptionsValue::VecString(match value {
+                    serde_json::Value::Array(value) => Some(
+                        value
+                            .into_iter()
+                            .map(|item| match item {
+                                serde_json::Value::String(value) => value.clone(),
+                                _ => unreachable!(),
+                            })
+                            .collect(),
+                    ),
+                    serde_json::Value::Null => None,
+                    _ => unreachable!(),
+                }),
+                CommandLineOptionType::Object => {
+                    CompilerOptionsValue::VecPluginImport(match value {
+                        serde_json::Value::Array(value) => Some(
+                            value
+                                .into_iter()
+                                .map(|_item| {
+                                    unimplemented!();
+                                })
+                                .collect(),
+                        ),
+                        serde_json::Value::Null => None,
+                        _ => unreachable!(),
+                    })
+                }
+                CommandLineOptionType::Map(map) => CompilerOptionsValue::VecString(match value {
+                    serde_json::Value::Array(value) => Some(
+                        value
+                            .into_iter()
+                            .filter_map(|item| match item {
+                                serde_json::Value::String(value) => map
+                                    .get(&&*value.to_lowercase())
+                                    .map(|map_value| match map_value {
+                                        CommandLineOptionMapTypeValue::StaticStr(map_value) => {
+                                            (*map_value).to_owned()
+                                        }
+                                        CommandLineOptionMapTypeValue::String(map_value) => {
+                                            map_value.clone()
+                                        }
+                                        _ => unreachable!(),
+                                    }),
+                                _ => unreachable!(),
+                            })
+                            .collect(),
+                    ),
+                    serde_json::Value::Null => None,
+                    _ => unreachable!(),
+                }),
+                _ => panic!("Unexpected element type"),
+            },
+        }
+    }
+}
+
+impl TryFrom<CommandLineOptionBase> for Gc<CommandLineOption> {
+    type Error = &'static str;
+
+    fn try_from(value: CommandLineOptionBase) -> Result<Self, Self::Error> {
+        match &value.type_ {
+            CommandLineOptionType::Map(_) => Ok(CommandLineOptionOfCustomType::new(value).into()),
+            CommandLineOptionType::String => Ok(CommandLineOptionOfStringType::new(value).into()),
+            CommandLineOptionType::Number => Ok(CommandLineOptionOfNumberType::new(value).into()),
+            CommandLineOptionType::Boolean => Ok(CommandLineOptionOfBooleanType::new(value).into()),
+            _ => Err("Didn't pass a simple CommandLineOptionType"),
         }
     }
 }
@@ -2454,7 +2858,6 @@ unsafe impl Trace for CommandLineOption {
 
 #[non_exhaustive]
 pub struct CharacterCodes;
-#[allow(non_upper_case_globals)]
 impl CharacterCodes {
     pub const null_character: char = '\u{0000}';
     pub const max_ascii_character: char = '\u{007f}';

@@ -1,6 +1,5 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, Trace};
+use itertools::Itertools;
 use std::{collections::HashMap, convert::TryInto};
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
@@ -626,7 +625,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_ambient_modules(&self) -> Vec<Gc<Symbol>> {
+    pub fn get_ambient_modules(&self) -> Vec<Gc<Symbol>> {
         if self.ambient_modules_cache.borrow().is_none() {
             let mut ambient_modules_cache = self.ambient_modules_cache.borrow_mut();
             *ambient_modules_cache = Some(vec![]);
@@ -903,22 +902,19 @@ impl TypeChecker {
             let source_properties = self.get_properties_of_type(source);
             // if (sourceProperties) {
             let source_properties_filtered =
-                self.find_discriminant_properties(&source_properties, target);
+                self.find_discriminant_properties(source_properties, target);
             if let Some(source_properties_filtered) = source_properties_filtered.as_ref() {
                 return self.discriminate_type_by_discriminable_items(
                     target,
-                    &*source_properties_filtered
-                        .into_iter()
-                        .map(|p: &Gc<Symbol>| {
-                            let p_clone = p.clone();
-                            let type_checker = self.rc_wrapper();
-                            (
-                                Box::new(move || type_checker.get_type_of_symbol(&p_clone))
-                                    as Box<dyn Fn() -> Gc<Type>>,
-                                p.escaped_name().to_owned(),
-                            )
-                        })
-                        .collect::<Vec<_>>(),
+                    source_properties_filtered.into_iter().map(|p| {
+                        let p_clone = p.clone();
+                        let type_checker = self.rc_wrapper();
+                        (
+                            Box::new(move || type_checker.get_type_of_symbol(&p_clone))
+                                as Box<dyn Fn() -> Gc<Type>>,
+                            p.escaped_name().to_owned(),
+                        )
+                    }),
                     |source: &Type, target: &Type| is_related_to(source, target) != Ternary::False,
                     Option::<&Type>::None,
                     skip_partial,
@@ -1043,7 +1039,7 @@ impl EmitResolverCreateResolver {
             .as_mut()
             .unwrap()
             .insert((&**file_as_source_file.path()).to_owned(), key.to_owned());
-        for file_reference in &*file_as_source_file.referenced_files() {
+        for file_reference in &*(*file_as_source_file.referenced_files()).borrow() {
             let file_name = &file_reference.file_name;
             let resolved_file =
                 resolve_tripleslash_reference(file_name, &file_as_source_file.file_name());
@@ -1073,7 +1069,15 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Identifier*/
     ) -> Option<Gc<Node /*Declaration*/>> {
-        self.get_referenced_import_declaration(node)
+        self.type_checker.get_referenced_import_declaration(node)
+    }
+
+    fn get_referenced_declaration_with_colliding_name(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> Option<Gc<Node /*Declaration*/>> {
+        self.type_checker
+            .get_referenced_declaration_with_colliding_name(node)
     }
 
     fn is_declaration_with_colliding_name(&self, node: &Node /*Declaration*/) -> bool {
@@ -1110,7 +1114,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_node_check_flags(&self, node_in: &Node) -> NodeCheckFlags {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
         node.as_ref().map_or(NodeCheckFlags::None, |node| {
-            self.type_checker.get_node_check_flags(node_in)
+            self.type_checker.get_node_check_flags(node)
         })
     }
 
@@ -1165,7 +1169,9 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Declaration*/
     ) -> Vec<Gc<Symbol>> {
-        self.type_checker.get_properties_of_container_function(node)
+        self.type_checker
+            .get_properties_of_container_function(node)
+            .collect_vec()
     }
 
     fn create_type_of_declaration(
@@ -1471,7 +1477,6 @@ impl EmitResolver for EmitResolverCreateResolver {
             ),
             Some("Non-sourcefile node passed into getDeclarationsForSourceFile"),
         );
-        let n = n.unwrap();
         let sym = self.type_checker.get_symbol_of_node(node);
         if sym.is_none() {
             return match node.maybe_locals().as_ref() {

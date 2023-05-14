@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -304,7 +302,7 @@ impl TypeChecker {
         let return_expression = node_as_arrow_function.maybe_body().unwrap();
         let source_return = self.get_return_type_of_signature(source_sig);
         let target_return = self.get_union_type(
-            map(&target_signatures, |signature: &Gc<Signature>, _| {
+            &map(&target_signatures, |signature: &Gc<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             }),
             None,

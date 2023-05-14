@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use regex::Regex;
 use std::cell::{Ref, RefMut};
 use std::convert::TryInto;
@@ -255,9 +253,10 @@ impl Scanner {
         on_error: Option<ErrorCallback>,
         allow_multiline_jsx_text: Option<bool>,
     ) -> SyntaxKind /*JsxTokenSyntaxKind*/ {
+        let allow_multiline_jsx_text = allow_multiline_jsx_text.unwrap_or(true);
         self.set_pos(self.start_pos());
         self.set_token_pos(self.start_pos());
-        self.set_token(self.scan_jsx_token(on_error, allow_multiline_jsx_text))
+        self.set_token(self.scan_jsx_token(on_error, Some(allow_multiline_jsx_text)))
     }
 
     pub(crate) fn re_scan_less_than_token(&self) -> SyntaxKind {
@@ -290,7 +289,7 @@ impl Scanner {
         on_error: Option<ErrorCallback>,
         allow_multiline_jsx_text: Option<bool>,
     ) -> SyntaxKind /*JsxTokenSyntaxKind*/ {
-        let allow_multiline_jsx_text = allow_multiline_jsx_text.unwrap_or(false);
+        let allow_multiline_jsx_text = allow_multiline_jsx_text.unwrap_or(true);
         self.set_start_pos(self.pos());
         self.set_token_pos(self.pos());
 
@@ -420,10 +419,7 @@ impl Scanner {
         }
     }
 
-    pub(crate) fn re_scan_jsx_attribute_value(
-        &self,
-        on_error: Option<ErrorCallback>,
-    ) -> SyntaxKind {
+    pub fn re_scan_jsx_attribute_value(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
         self.set_pos(self.start_pos());
         self.set_token_pos(self.start_pos());
         self.scan_jsx_attribute_value(on_error)
@@ -708,7 +704,7 @@ pub(super) fn code_point_at(s: &SourceTextAsChars, i: usize) -> char {
     s[i]
 }
 
-pub(super) fn char_size(ch: char) -> usize {
+pub(super) fn char_size(_ch: char) -> usize {
     1
 }
 

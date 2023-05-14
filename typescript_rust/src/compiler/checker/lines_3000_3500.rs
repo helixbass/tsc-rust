@@ -1,10 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     declaration_name_to_string, entity_name_to_string, file_extension_is, find, find_ancestor,
@@ -397,10 +393,10 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_fully_qualified_name<TContainingLocation: Borrow<Node>>(
+    pub(super) fn get_fully_qualified_name(
         &self,
         symbol: &Symbol,
-        containing_location: Option<TContainingLocation>,
+        containing_location: Option<impl Borrow<Node>>,
     ) -> String {
         if let Some(symbol_parent) = symbol.maybe_parent() {
             format!(

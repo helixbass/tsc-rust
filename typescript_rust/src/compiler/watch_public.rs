@@ -1,5 +1,4 @@
 use gc::Gc;
-use std::rc::Rc;
 
 use crate::{
     create_compiler_host_worker, get_sys, BuilderProgram, CompilerHost, CompilerOptions,
@@ -42,9 +41,7 @@ pub trait WatchCompilerHostOfConfigFile<TBuilderProgram: BuilderProgram>:
 {
 }
 
-pub fn create_watch_program<TBuilderProgram: BuilderProgram>(
-    host: &dyn WatchCompilerHostOfConfigFile<TBuilderProgram>,
-) /* -> */
+pub fn create_watch_program(_host: &dyn WatchCompilerHostOfConfigFile<impl BuilderProgram>) /* -> */
 {
     unimplemented!()
 }

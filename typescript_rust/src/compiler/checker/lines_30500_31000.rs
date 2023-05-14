@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -27,7 +25,8 @@ use crate::{
     DiagnosticRelatedInformationInterface, Diagnostics, HasInitializerInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String, get_factory,
+    Matches,
 };
 
 impl TypeChecker {
@@ -311,49 +310,32 @@ impl TypeChecker {
                 None,
             )
         });
-        let declaration: Gc<Node> = factory.with(|factory_| {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory_
-                    .create_function_type_node(
-                        synthetic_factory_,
+        let declaration = get_factory()
+            .create_function_type_node(
+                Option::<Gc<NodeArray>>::None,
+                vec![get_factory()
+                    .create_parameter_declaration(
                         Option::<Gc<NodeArray>>::None,
-                        vec![factory_
-                            .create_parameter_declaration(
-                                synthetic_factory_,
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
-                                None,
-                                Some("props"),
-                                None,
-                                self.node_builder().type_to_type_node(
-                                    result,
-                                    Some(node),
-                                    None,
-                                    None,
-                                ),
-                                None,
-                            )
-                            .into()],
-                        Some(if let Some(return_node) = return_node {
-                            factory_
-                                .create_type_reference_node(
-                                    synthetic_factory_,
-                                    return_node,
-                                    Option::<Gc<NodeArray>>::None,
-                                )
-                                .into()
-                        } else {
-                            factory_
-                                .create_keyword_type_node(
-                                    synthetic_factory_,
-                                    SyntaxKind::AnyKeyword,
-                                )
-                                .into()
-                        }),
+                        Option::<Gc<NodeArray>>::None,
+                        None,
+                        Some("props"),
+                        None,
+                        self.node_builder()
+                            .type_to_type_node(result, Some(node), None, None),
+                        None,
                     )
-                    .into()
-            })
-        });
+                    .wrap()],
+                Some(if let Some(return_node) = return_node {
+                    get_factory()
+                        .create_type_reference_node(return_node, Option::<Gc<NodeArray>>::None)
+                        .wrap()
+                } else {
+                    get_factory()
+                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                        .wrap()
+                }),
+            )
+            .wrap();
         let parameter_symbol: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::FunctionScopedVariable,
@@ -607,13 +589,17 @@ impl TypeChecker {
             {
                 let mut inferred_exports = inferred.maybe_exports_mut();
                 if inferred_exports.is_none() {
-                    *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
             }
             {
                 let mut inferred_members = inferred.maybe_members_mut();
                 if inferred_members.is_none() {
-                    *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
+                    *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                        Option::<&[Gc<Symbol>]>::None,
+                    ))));
                 }
             }
             inferred.set_flags(inferred.flags() | (source.flags() & SymbolFlags::Class));
@@ -830,14 +816,14 @@ impl TypeChecker {
         if node.kind() == SyntaxKind::NewExpression {
             let declaration = signature.declaration.as_ref();
 
-            if let Some(declaration) = declaration.filter(|declaration| {
+            if declaration.matches(|declaration| {
                 !matches!(
                     declaration.kind(),
                     SyntaxKind::Constructor
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
                 ) && !is_jsdoc_construct_signature(declaration)
-                    && !self.is_js_constructor(Some(&***declaration))
+                    && !self.is_js_constructor(Some(&**declaration))
             }) {
                 if self.no_implicit_any {
                     self.error(

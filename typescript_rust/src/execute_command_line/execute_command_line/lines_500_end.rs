@@ -22,7 +22,7 @@ use crate::{
     CreateWatchCompilerHostOfConfigFileInput, CustomTransformers, Diagnostic, DiagnosticReporter,
     Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
     IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine, Path, Program,
-    ProgramHost, ReportEmitErrorSummary, ScriptTarget, SemanticDiagnosticsBuilderProgram,
+    ProgramHost, ReportEmitErrorSummary, SemanticDiagnosticsBuilderProgram,
     SolutionBuilderHostBase, System, ToPath, WatchCompilerHost, WatchOptions, WatchStatusReporter,
 };
 
@@ -314,11 +314,9 @@ impl ReportEmitErrorSummary for ReportEmitErrorSummaryConcrete {
     }
 }
 
-pub(super) fn perform_compilation<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
+pub(super) fn perform_compilation(
     sys: Gc<Box<dyn System>>,
-    mut cb: TCallback,
+    mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
 ) {
@@ -345,7 +343,7 @@ pub(super) fn perform_compilation<
     enable_statistics_and_tracing(&**sys, &options, false);
 
     let program_options = CreateProgramOptions {
-        root_names: config.file_names.clone(),
+        root_names: file_names.clone(),
         options: options.clone(),
         project_references: project_references.clone(),
         host: Some(host),
@@ -430,13 +428,11 @@ pub(super) fn perform_incremental_compilation<
 }
 
 pub(super) fn update_solution_builder_host<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     TEmitAndSemanticDiagnosticsBuilderProgram: EmitAndSemanticDiagnosticsBuilderProgram,
-    TBuildHost: SolutionBuilderHostBase<TEmitAndSemanticDiagnosticsBuilderProgram>,
 >(
     sys: &dyn System,
-    mut cb: TCallback,
-    build_host: &mut TBuildHost,
+    _cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+    build_host: &mut impl SolutionBuilderHostBase<TEmitAndSemanticDiagnosticsBuilderProgram>,
 ) {
     update_create_program(sys, build_host.as_program_host());
     // TODO: how to model this?
@@ -447,9 +443,9 @@ pub(super) fn update_solution_builder_host<
     // buildHost.afterEmitBundle = cb;
 }
 
-pub(super) fn update_create_program<TBuilderProgram: BuilderProgram>(
-    sys: &dyn System,
-    host: &dyn ProgramHost<TBuilderProgram>,
+pub(super) fn update_create_program(
+    _sys: &dyn System,
+    _host: &dyn ProgramHost<impl BuilderProgram>,
 ) {
     // TODO: how to model this?
     // const compileUsingBuilder = host.createProgram;
@@ -463,13 +459,11 @@ pub(super) fn update_create_program<TBuilderProgram: BuilderProgram>(
 }
 
 pub(super) fn update_watch_compilation_host<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     TEmitAndSemanticDiagnosticsBuilderProgram: EmitAndSemanticDiagnosticsBuilderProgram,
-    TWatchCompilerHost: WatchCompilerHost<TEmitAndSemanticDiagnosticsBuilderProgram>,
 >(
     sys: &dyn System,
-    mut cb: TCallback,
-    watch_compiler_host: &mut TWatchCompilerHost,
+    _cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+    watch_compiler_host: &mut impl WatchCompilerHost<TEmitAndSemanticDiagnosticsBuilderProgram>,
 ) {
     update_create_program(sys, watch_compiler_host.as_program_host());
     // TODO: how to model this?
@@ -491,16 +485,14 @@ pub(super) fn create_watch_status_reporter(
     ))
 }
 
-pub(super) fn create_watch_of_config_file<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
+pub(super) fn create_watch_of_config_file(
     system: Gc<Box<dyn System>>,
-    mut cb: TCallback,
+    cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
     config_parse_result: Rc<ParsedCommandLine>,
     options_to_extend: Gc<CompilerOptions>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
-    extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
+    _extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
 ) {
     let mut watch_compiler_host =
         create_watch_compiler_host_of_config_file(CreateWatchCompilerHostOfConfigFileInput {
@@ -527,15 +519,13 @@ pub(super) fn create_watch_of_config_file<
     create_watch_program(&watch_compiler_host);
 }
 
-pub(super) fn create_watch_of_files_and_compiler_options<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
-    system: &dyn System,
-    mut cb: TCallback,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
-    root_files: &[String],
-    options: Gc<CompilerOptions>,
-    watch_options: Option<Rc<WatchOptions>>,
+pub(super) fn create_watch_of_files_and_compiler_options(
+    _system: &dyn System,
+    _cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+    _report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    _root_files: &[String],
+    _options: Gc<CompilerOptions>,
+    _watch_options: Option<Rc<WatchOptions>>,
 ) {
     unimplemented!()
 }
@@ -579,17 +569,17 @@ pub(super) fn report_statistics(sys: &dyn System, program: &Program) {
         // tracing?.stopTracing();
     }
 
-    let mut statistics: Vec<Statistic> = vec![];
+    let /*mut*/ _statistics: Vec<Statistic> = vec![];
     if can_report_diagnostics(sys, &compiler_options) {
         unimplemented!()
     }
 }
 
 pub(super) fn write_config_file(
-    sys: &dyn System,
-    report_diagnostic: &dyn DiagnosticReporter,
-    options: &CompilerOptions,
-    file_names: &[String],
+    _sys: &dyn System,
+    _report_diagnostic: &dyn DiagnosticReporter,
+    _options: &CompilerOptions,
+    _file_names: &[String],
 ) {
     unimplemented!()
 }

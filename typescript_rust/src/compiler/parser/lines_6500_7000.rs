@@ -1,18 +1,12 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_async_modifier, is_class_member_modifier, is_keyword, is_modifier_kind,
     modifiers_to_flags, some, token_is_identifier_or_keyword, ArrayBindingPattern, AsDoubleDeref,
-    Block, ClassDeclaration, ClassExpression, ClassStaticBlockDeclaration, ConstructorDeclaration,
-    Debug_, Decorator, DiagnosticMessage, Diagnostics, FunctionDeclaration,
-    FunctionLikeDeclarationInterface, HasTypeInterface, HasTypeParametersInterface,
-    MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface,
-    ObjectBindingPattern, PropertyDeclaration, SyntaxKind, VariableDeclaration,
-    VariableDeclarationList,
+    Debug_, Decorator, DiagnosticMessage, Diagnostics, FunctionLikeDeclarationInterface,
+    HasTypeInterface, HasTypeParametersInterface, ModifierFlags, Node, NodeArray, NodeFlags,
+    NodeInterface, ObjectBindingPattern, SyntaxKind, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -21,12 +15,12 @@ impl ParserType {
         self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
         let elements = self.parse_delimited_list(
             ParsingContext::ObjectBindingElements,
-            || self.parse_object_binding_element().into(),
+            || self.parse_object_binding_element().wrap(),
             None,
         );
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         self.finish_node(
-            self.factory.create_object_binding_pattern(self, elements),
+            self.factory().create_object_binding_pattern(elements),
             pos,
             None,
         )
@@ -42,7 +36,7 @@ impl ParserType {
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory.create_array_binding_pattern(self, elements),
+            self.factory().create_array_binding_pattern(elements),
             pos,
             None,
         )
@@ -62,10 +56,10 @@ impl ParserType {
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Gc<Node /*Identifier | BindingPattern*/> {
         if self.token() == SyntaxKind::OpenBracketToken {
-            return self.parse_array_binding_pattern().into();
+            return self.parse_array_binding_pattern().wrap();
         }
         if self.token() == SyntaxKind::OpenBraceToken {
-            return self.parse_object_binding_pattern().into();
+            return self.parse_object_binding_pattern().wrap();
         }
         self.parse_binding_identifier(private_identifier_diagnostic_message)
             .wrap()
@@ -93,7 +87,7 @@ impl ParserType {
             && self.token() == SyntaxKind::ExclamationToken
             && !self.scanner().has_preceding_line_break()
         {
-            exclamation_token = Some(self.parse_token_node().into());
+            exclamation_token = Some(self.parse_token_node().wrap());
         }
         let type_ = self.parse_type_annotation();
         let initializer = if self.is_in_or_of_keyword(self.token()) {
@@ -101,14 +95,13 @@ impl ParserType {
         } else {
             self.parse_initializer()
         };
-        let node = self.factory.create_variable_declaration(
-            self,
+        let node = self.factory().create_variable_declaration(
             Some(name),
             exclamation_token,
             type_,
             initializer,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_variable_declaration_list(
@@ -156,8 +149,8 @@ impl ParserType {
         }
 
         self.finish_node(
-            self.factory
-                .create_variable_declaration_list(self, declarations, Some(flags)),
+            self.factory()
+                .create_variable_declaration_list(declarations, Some(flags)),
             pos,
             None,
         )
@@ -176,13 +169,11 @@ impl ParserType {
     ) -> Gc<Node /*VariableStatement*/> {
         let declaration_list = self.parse_variable_declaration_list(false);
         self.parse_semicolon();
-        let node = self.factory.create_variable_statement(
-            self,
-            modifiers,
-            Into::<Gc<Node>>::into(declaration_list),
-        );
+        let node = self
+            .factory()
+            .create_variable_statement(modifiers, declaration_list.wrap());
         node.set_decorators(decorators);
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_function_declaration(
@@ -223,8 +214,7 @@ impl ParserType {
             Some(&Diagnostics::or_expected),
         );
         self.set_await_context(saved_await_context);
-        let node = self.factory.create_function_declaration(
-            self,
+        let node = self.factory().create_function_declaration(
             decorators,
             modifiers,
             asterisk_token.map(Node::wrap),
@@ -234,7 +224,7 @@ impl ParserType {
             type_,
             body,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_constructor_name(&self) -> bool {
@@ -269,8 +259,7 @@ impl ParserType {
                     SignatureFlags::None,
                     Some(&Diagnostics::or_expected),
                 );
-                let mut node = self.factory.create_constructor_declaration(
-                    self,
+                let mut node = self.factory().create_constructor_declaration(
                     decorators,
                     modifiers,
                     Some(parameters),
@@ -278,7 +267,7 @@ impl ParserType {
                 );
                 *node.maybe_type_parameters_mut() = type_parameters;
                 node.set_type(type_);
-                return Some(self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc));
+                return Some(self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc));
             }
             None
         })
@@ -314,8 +303,7 @@ impl ParserType {
         let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
         let body =
             self.parse_function_block_or_semicolon(is_generator | is_async, diagnostic_message);
-        let node = self.factory.create_method_declaration(
-            self,
+        let node = self.factory().create_method_declaration(
             decorators,
             modifiers,
             asterisk_token,
@@ -327,7 +315,7 @@ impl ParserType {
             body,
         );
         *node.maybe_exclamation_token() = exclamation_token;
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_property_declaration(
@@ -352,8 +340,7 @@ impl ParserType {
             || self.parse_initializer(),
         );
         self.parse_semicolon_after_property_name(&*name, type_.clone(), initializer.clone());
-        let node: Gc<Node> = self.factory.create_property_declaration(
-            self,
+        let node: Gc<Node> = self.factory().create_property_declaration(
             decorators,
             modifiers,
             name,
@@ -408,23 +395,22 @@ impl ParserType {
         modifiers: Option<Gc<NodeArray>>,
         kind: SyntaxKind, /*AccessorDeclaration["kind"]*/
     ) -> Gc<Node /*AccessorDeclaration*/> {
-        let name: Gc<Node> = self.parse_property_name().wrap();
+        let name = self.parse_property_name().wrap();
         let type_parameters = self.parse_type_parameters();
         let parameters = self.parse_parameters(SignatureFlags::None);
         let type_: Option<Gc<Node>> = self.parse_return_type(SyntaxKind::ColonToken, false);
         let body: Option<Gc<Node>> =
             self.parse_function_block_or_semicolon(SignatureFlags::None, None);
         let node: Node = if kind == SyntaxKind::GetAccessor {
-            self.factory
+            self.factory()
                 .create_get_accessor_declaration(
-                    self, decorators, modifiers, name, parameters, type_, body,
+                    decorators, modifiers, name, parameters, type_, body,
                 )
                 .into()
         } else {
-            let mut node_as_set_accessor_declaration =
-                self.factory.create_set_accessor_declaration(
-                    self, decorators, modifiers, name, parameters, body,
-                );
+            let mut node_as_set_accessor_declaration = self
+                .factory()
+                .create_set_accessor_declaration(decorators, modifiers, name, parameters, body);
             if let Some(type_) = type_ {
                 node_as_set_accessor_declaration.set_type(Some(type_));
             }
@@ -499,12 +485,12 @@ impl ParserType {
         let body: Gc<Node> = self.parse_class_static_block_body();
         self.with_jsdoc(
             self.finish_node(
-                self.factory
-                    .create_class_static_block_declaration(self, decorators, modifiers, body),
+                self.factory()
+                    .create_class_static_block_declaration(decorators, modifiers, body),
                 pos,
                 None,
             )
-            .into(),
+            .wrap(),
             has_jsdoc,
         )
     }
@@ -543,7 +529,7 @@ impl ParserType {
             return None;
         }
         let expression = self.do_in_decorator_context(|| self.parse_decorator_expression());
-        Some(self.finish_node(self.factory.create_decorator(self, expression), pos, None))
+        Some(self.finish_node(self.factory().create_decorator(expression), pos, None))
     }
 
     pub(super) fn parse_decorators(&self) -> Option<Gc<NodeArray> /*<Decorator>*/> {
@@ -559,7 +545,7 @@ impl ParserType {
                 list = Some(vec![]);
             }
             let list = list.as_mut().unwrap();
-            append(list, Some(decorator.into()));
+            append(list, Some(decorator.wrap()));
         }
         list.map(|list| self.create_node_array(list, pos, None, None))
     }
@@ -595,7 +581,7 @@ impl ParserType {
         }
 
         Some(
-            self.finish_node(self.factory.create_token(self, kind), pos, None)
+            self.finish_node(self.factory().create_token(kind), pos, None)
                 .into(),
         )
     }
@@ -637,13 +623,13 @@ impl ParserType {
         if self.token() == SyntaxKind::AsyncKeyword {
             let pos = self.get_node_pos();
             self.next_token();
-            let modifier: Gc<Node> = self
+            let modifier = self
                 .finish_node(
-                    self.factory.create_token(self, SyntaxKind::AsyncKeyword),
+                    self.factory().create_token(SyntaxKind::AsyncKeyword),
                     pos,
                     None,
                 )
-                .into();
+                .wrap();
             modifiers = Some(self.create_node_array(vec![modifier], pos, None, None));
         }
         modifiers
@@ -654,8 +640,8 @@ impl ParserType {
         if self.token() == SyntaxKind::SemicolonToken {
             self.next_token();
             return self
-                .finish_node(self.factory.create_semicolon_class_element(self), pos, None)
-                .into();
+                .finish_node(self.factory().create_semicolon_class_element(), pos, None)
+                .wrap();
         }
 
         let has_jsdoc = self.has_preceding_jsdoc_comment();

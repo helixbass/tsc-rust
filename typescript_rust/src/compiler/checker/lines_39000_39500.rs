@@ -1,7 +1,5 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
-use std::ptr;
+use std::{borrow::Borrow, ptr};
 
 use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
@@ -79,22 +77,19 @@ impl TypeChecker {
         &self,
         prop_name: &Node, /*Identifier | PrivateIdentifier*/
         prop_type: &Type,
-        static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
+        static_blocks: impl IntoIterator<Item = Gc<Node /*ClassStaticBlockDeclaration*/>>,
         start_pos: isize,
         end_pos: isize,
     ) -> bool {
-        for static_block in static_blocks {
+        for ref static_block in static_blocks {
             if static_block.pos() >= start_pos && static_block.pos() <= end_pos {
                 let reference: Gc<Node> = factory.with(|factory_| {
-                    synthetic_factory.with(|synthetic_factory_| {
-                        factory_
-                            .create_property_access_expression(
-                                synthetic_factory_,
-                                factory_.create_this(synthetic_factory_).into(),
-                                prop_name.node_wrapper(),
-                            )
-                            .into()
-                    })
+                    factory_
+                        .create_property_access_expression(
+                            factory_.create_this().wrap(),
+                            prop_name.node_wrapper(),
+                        )
+                        .wrap()
                 });
                 set_parent(
                     &reference.as_property_access_expression().expression,
@@ -127,16 +122,13 @@ impl TypeChecker {
         prop_type: &Type,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> bool {
-        let reference: Gc<Node> = factory.with(|factory_| {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory_
-                    .create_property_access_expression(
-                        synthetic_factory_,
-                        factory_.create_this(synthetic_factory_).into(),
-                        prop_name.node_wrapper(),
-                    )
-                    .into()
-            })
+        let reference = factory.with(|factory_| {
+            factory_
+                .create_property_access_expression(
+                    factory_.create_this().wrap(),
+                    prop_name.node_wrapper(),
+                )
+                .wrap()
         });
         set_parent(
             &reference.as_property_access_expression().expression,
@@ -948,6 +940,7 @@ impl TypeChecker {
                 let symbol = self.get_symbol_of_node(node);
                 if let Some(symbol) = symbol.as_ref() {
                     let mut report_error = !symbol.flags().intersects(SymbolFlags::Transient);
+                    #[allow(unused_assignments)]
                     if !report_error {
                         report_error = matches!(
                             symbol.maybe_parent().as_ref().and_then(|symbol_parent| {

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, RefCell, RefMut};
@@ -9,21 +7,21 @@ use std::rc::Rc;
 
 use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
-    factory as factory_static, gc_cell_ref_unwrapped, get_emit_flags, get_emit_module_kind,
-    get_emit_script_target, get_jsx_transform_enabled, get_parse_tree_node, is_bundle,
+    gc_cell_ref_unwrapped, get_emit_flags, get_emit_module_kind, get_emit_script_target,
+    get_factory, get_jsx_transform_enabled, get_parse_tree_node, get_synthetic_factory, is_bundle,
     is_source_file, maybe_get_source_file_of_node, maybe_map, not_implemented, set_emit_flags,
-    some, synthetic_factory, transform_class_fields, transform_declarations,
-    transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
-    transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
-    transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
-    transform_system_module, transform_type_script, BaseNodeFactorySynthetic, CompilerOptions,
-    CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_, Diagnostic,
-    EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver,
-    EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags,
-    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerFactoryOrCustomTransformerFactory, TransformerInterface,
+    some, transform_class_fields, transform_declarations, transform_ecmascript_module,
+    transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
+    transform_es2020, transform_es2021, transform_es5, transform_esnext, transform_generators,
+    transform_jsx, transform_module, transform_node_module, transform_system_module,
+    transform_type_script, BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext,
+    CustomTransformer, CustomTransformers, Debug_, Diagnostic, EmitFlags, EmitHelper,
+    EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver, EmitTransformers,
+    LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface,
+    ScriptTarget, SyntaxKind, TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, TransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
+    TransformerInterface,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -76,7 +74,9 @@ fn get_script_transformers(
     custom_transformers: Option<&CustomTransformers>,
     emit_only_dts_files: Option<bool>,
 ) -> Vec<TransformerFactory> {
-    return vec![];
+    if true {
+        return vec![];
+    }
     let emit_only_dts_files = emit_only_dts_files.unwrap_or(false);
     if emit_only_dts_files {
         return vec![];
@@ -303,6 +303,7 @@ pub fn transform_nodes(
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Gc<Box<dyn EmitHost>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    base_factory: Gc<BaseNodeFactorySynthetic>,
     options: Gc<CompilerOptions>,
     nodes: &[Gc<Node>],
     transformers: &[TransformerFactory],
@@ -312,31 +313,23 @@ pub fn transform_nodes(
     // returning the concrete type is fine?
     // ) -> Gc<Box<dyn TransformationResult>> {
 ) -> Gc<Box<TransformNodesTransformationResult>> {
-    let mut lexical_environment_variable_declarations: Option<Vec<Gc<Node>>> = None;
-    let mut lexical_environment_function_declarations: Option<Vec<Gc<Node>>> = None;
-    let mut lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
-    let mut lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
-    let mut emit_helpers: Option<Vec<Gc<EmitHelper>>> = None;
-    let state = TransformationState::Uninitialized;
-    let diagnostics: Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> = vec![];
-    let mut transformed: Vec<Gc<Node>> = vec![];
-
     let transformation_result = TransformNodesTransformationResult::new(
-        transformed,
-        state,
+        vec![],
+        TransformationState::Uninitialized,
         nodes.to_owned(),
-        lexical_environment_variable_declarations,
-        lexical_environment_function_declarations,
-        lexical_environment_variable_declarations_stack,
-        lexical_environment_function_declarations_stack,
-        emit_helpers,
-        diagnostics,
+        None,
+        None,
+        vec![],
+        vec![],
+        None,
+        vec![],
         transformers.to_owned(),
         allow_dts_files,
         options,
         resolver,
         host,
         factory,
+        base_factory,
     );
     transformation_result.call();
     transformation_result
@@ -388,6 +381,7 @@ pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     created_emit_helper_factory: RefCell<Option<Rc<EmitHelperFactory>>>,
     factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    base_factory: Gc<BaseNodeFactorySynthetic>,
 }
 
 impl TransformNodesTransformationResult {
@@ -407,6 +401,7 @@ impl TransformNodesTransformationResult {
         resolver: Option<Gc<Box<dyn EmitResolver>>>,
         host: Option<Gc<Box<dyn EmitHost>>>,
         factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+        base_factory: Gc<BaseNodeFactorySynthetic>,
     ) -> Gc<Box<Self>> {
         let dyn_transformation_context_wrapper: Gc<Box<dyn TransformationContext>> =
             Gc::new(Box::new(Self {
@@ -452,6 +447,7 @@ impl TransformNodesTransformationResult {
                 host,
                 created_emit_helper_factory: Default::default(),
                 factory,
+                base_factory,
             }));
         let downcasted: Gc<Box<Self>> =
             unsafe { mem::transmute(dyn_transformation_context_wrapper.clone()) };
@@ -476,7 +472,7 @@ impl TransformNodesTransformationResult {
         *self._rc_wrapper.borrow_mut() = Some(rc);
     }
 
-    fn rc_wrapper(&self) -> Gc<Box<TransformNodesTransformationResult>> {
+    pub fn rc_wrapper(&self) -> Gc<Box<TransformNodesTransformationResult>> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
@@ -506,13 +502,6 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_statements(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.lexical_environment_statements.borrow_mut()
-    }
-
-    fn set_lexical_environment_statements(
-        &self,
-        lexical_environment_statements: Option<Vec<Gc<Node>>>,
-    ) {
-        *self.lexical_environment_statements.borrow_mut() = lexical_environment_statements;
     }
 
     fn lexical_environment_variable_declarations_stack(
@@ -722,6 +711,10 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         self.factory.clone()
     }
 
+    fn base_factory(&self) -> Gc<BaseNodeFactorySynthetic> {
+        self.base_factory.clone()
+    }
+
     fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         self.options.clone()
     }
@@ -836,19 +829,18 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             if let Some(lexical_environment_variable_declarations) =
                 lexical_environment_variable_declarations.as_ref()
             {
-                let statement = synthetic_factory
-                    .with(|synthetic_factory_| {
-                        self.factory.create_variable_statement(
-                            synthetic_factory_,
-                            Option::<Gc<NodeArray>>::None,
-                            Into::<Gc<Node>>::into(self.factory.create_variable_declaration_list(
-                                synthetic_factory_,
+                let statement = self
+                    .factory
+                    .create_variable_statement(
+                        Option::<Gc<NodeArray>>::None,
+                        self.factory
+                            .create_variable_declaration_list(
                                 lexical_environment_variable_declarations.clone(),
                                 None,
-                            )),
-                        )
-                    })
-                    .into();
+                            )
+                            .wrap(),
+                    )
+                    .wrap();
 
                 let statement = set_emit_flags(statement, EmitFlags::CustomPrologue);
 
@@ -924,17 +916,9 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             Some("Cannot modify the lexical environment after transformation has completed."),
         );
         let decl = set_emit_flags(
-            synthetic_factory.with(|synthetic_factory_| {
-                self.factory()
-                    .create_variable_declaration(
-                        synthetic_factory_,
-                        Some(name.node_wrapper()),
-                        None,
-                        None,
-                        None,
-                    )
-                    .into()
-            }),
+            self.factory()
+                .create_variable_declaration(Some(name.node_wrapper()), None, None, None)
+                .wrap(),
             EmitFlags::NoNestedSourceMaps,
         );
         let mut lexical_environment_variable_declarations =
@@ -986,36 +970,32 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             block_scoped_variable_declarations.as_deref(),
             Option::<fn(&Gc<Node>) -> bool>::None,
         ) {
-            Some(vec![synthetic_factory.with(|synthetic_factory_| {
-                self.factory()
-                    .create_variable_statement(
-                        synthetic_factory_,
-                        Option::<Gc<NodeArray>>::None,
-                        Into::<Gc<Node>>::into(
-                            self.factory().create_variable_declaration_list(
-                                synthetic_factory_,
-                                block_scoped_variable_declarations
-                                    .as_ref()
-                                    .unwrap()
-                                    .iter()
-                                    .map(|identifier| {
-                                        self.factory()
-                                            .create_variable_declaration(
-                                                synthetic_factory_,
-                                                Some(identifier.clone()),
-                                                None,
-                                                None,
-                                                None,
-                                            )
-                                            .into()
-                                    })
-                                    .collect::<Vec<Gc<Node>>>(),
-                                Some(NodeFlags::Let),
-                            ),
-                        ),
-                    )
-                    .into()
-            })])
+            Some(vec![self
+                .factory()
+                .create_variable_statement(
+                    Option::<Gc<NodeArray>>::None,
+                    self.factory()
+                        .create_variable_declaration_list(
+                            block_scoped_variable_declarations
+                                .as_ref()
+                                .unwrap()
+                                .iter()
+                                .map(|identifier| {
+                                    self.factory()
+                                        .create_variable_declaration(
+                                            Some(identifier.clone()),
+                                            None,
+                                            None,
+                                            None,
+                                        )
+                                        .wrap()
+                                })
+                                .collect::<Vec<_>>(),
+                            Some(NodeFlags::Let),
+                        )
+                        .wrap(),
+                )
+                .wrap()])
         } else {
             None
         };
@@ -1317,7 +1297,11 @@ impl TransformationContextNull {
 
 impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContextNull {
     fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
-        factory_static.with(|factory_| factory_.clone())
+        get_factory()
+    }
+
+    fn base_factory(&self) -> Gc<BaseNodeFactorySynthetic> {
+        get_synthetic_factory()
     }
 
     fn get_compiler_options(&self) -> Gc<CompilerOptions> {
@@ -1386,7 +1370,7 @@ impl TransformationContext for TransformationContextNull {
 
     fn override_on_substitute_node(
         &self,
-        overrider: &mut dyn FnMut(
+        _overrider: &mut dyn FnMut(
             Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
         )
             -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -1406,9 +1390,10 @@ impl TransformationContext for TransformationContextNull {
 
     fn override_on_emit_node(
         &self,
-        overrider: &mut dyn FnMut(
+        _overrider: &mut dyn FnMut(
             Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
-        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        )
+            -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) {
         unreachable!("maybe?")
     }

@@ -1,8 +1,9 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, iter};
 
 use gc::Gc;
+use itertools::Either;
 
-use crate::{Node, NodeInterface, Symbol, SymbolInterface, Type, TypeInterface};
+use crate::{Node, NodeArray, NodeInterface, Symbol, SymbolInterface, Type, TypeInterface};
 
 pub trait NonEmpty {
     fn non_empty(self) -> Self;
@@ -49,7 +50,27 @@ impl<TItem> NonEmpty for Option<&[TItem]> {
     }
 }
 
+impl<TItem> NonEmpty for Option<&Vec<TItem>> {
+    fn non_empty(self) -> Self {
+        self.filter(|value| !value.is_empty())
+    }
+
+    fn is_non_empty(self) -> bool {
+        self.non_empty().is_some()
+    }
+}
+
 impl<TItem> NonEmpty for Option<Vec<TItem>> {
+    fn non_empty(self) -> Self {
+        self.filter(|value| !value.is_empty())
+    }
+
+    fn is_non_empty(self) -> bool {
+        self.non_empty().is_some()
+    }
+}
+
+impl NonEmpty for Option<Gc<NodeArray>> {
     fn non_empty(self) -> Self {
         self.filter(|value| !value.is_empty())
     }
@@ -144,5 +165,26 @@ impl<TValue> Matches for Option<TValue> {
 
     fn matches(self, predicate: impl FnOnce(Self::Unwrapped) -> bool) -> bool {
         self.map(predicate) == Some(true)
+    }
+}
+
+pub trait UnwrapOrEmpty {
+    type TIterator: Iterator;
+
+    fn unwrap_or_empty(
+        self,
+    ) -> Either<Self::TIterator, iter::Empty<<Self::TIterator as Iterator>::Item>>;
+}
+
+impl<TIterator: Iterator> UnwrapOrEmpty for Option<TIterator> {
+    type TIterator = TIterator;
+
+    fn unwrap_or_empty(
+        self,
+    ) -> Either<TIterator, iter::Empty<<Self::TIterator as Iterator>::Item>> {
+        self.map_or_else(
+            || Either::Right(iter::empty()),
+            |iterator| Either::Left(iterator),
+        )
     }
 }

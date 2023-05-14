@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::ptr;
@@ -653,7 +651,7 @@ impl TypeChecker {
                 )
             } else {
                 self.get_union_type(
-                    new_types,
+                    &new_types,
                     Some(UnionReduction::Literal),
                     new_alias_symbol,
                     new_alias_type_arguments.as_deref(),
@@ -940,7 +938,7 @@ impl TypeChecker {
                 let result = self.create_object_type(ObjectFlags::Anonymous, type_.maybe_symbol());
                 result.resolve(
                     resolved_as_resolved_type.members(),
-                    resolved_as_resolved_type.properties().clone(),
+                    resolved_as_resolved_type.properties(),
                     vec![],
                     vec![],
                     vec![],

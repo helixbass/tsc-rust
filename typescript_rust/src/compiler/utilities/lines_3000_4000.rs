@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::Gc;
 use regex::{Captures, Regex};
@@ -11,7 +9,6 @@ use std::convert::TryFrom;
 use std::iter::FromIterator;
 use std::ops::Deref;
 use std::ptr;
-use std::rc::Rc;
 
 use super::is_quote_or_backtick;
 use crate::{
@@ -829,7 +826,7 @@ impl DiagnosticCollection {
     }
 
     pub fn lookup(&self, diagnostic: Gc<Diagnostic>) -> Option<Gc<Diagnostic>> {
-        let mut diagnostics: Option<&SortedArray<Gc<Diagnostic>>> = None;
+        let diagnostics: Option<&SortedArray<Gc<Diagnostic>>>;
         if let Some(diagnostic_file) = diagnostic.maybe_file() {
             diagnostics = self
                 .file_diagnostics

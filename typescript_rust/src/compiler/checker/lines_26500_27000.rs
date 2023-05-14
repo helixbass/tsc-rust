@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::cmp;
@@ -218,7 +216,7 @@ impl TypeChecker {
         let left = left.unwrap();
         let right = right.unwrap();
         let this_type = self.get_union_type(
-            vec![
+            &[
                 self.get_type_of_symbol(&left),
                 self.instantiate_type(&self.get_type_of_symbol(&right), mapper),
             ],
@@ -267,7 +265,7 @@ impl TypeChecker {
                 shorter_param_type = self.instantiate_type(&shorter_param_type, mapper.clone());
             }
             let union_param_type = self.get_union_type(
-                vec![longest_param_type, shorter_param_type],
+                &[longest_param_type, shorter_param_type],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -675,7 +673,7 @@ impl TypeChecker {
         self.create_array_literal_type(&self.create_array_type(
             &*if !element_types.is_empty() {
                 self.get_union_type(
-                    same_map(&element_types, |t: &Gc<Type>, i| {
+                    &same_map(&element_types, |t: &Gc<Type>, i| {
                         if element_flags[i].intersects(ElementFlags::Variadic) {
                             self.get_indexed_access_type_or_undefined(
                                 t,
@@ -873,7 +871,7 @@ impl TypeChecker {
         }
         let union_type = if !prop_types.is_empty() {
             self.get_union_type(
-                prop_types,
+                &prop_types,
                 Some(UnionReduction::Subtype),
                 Option::<&Symbol>::None,
                 None,
@@ -920,11 +918,11 @@ impl TypeChecker {
 
         let node_as_object_literal_expression = node.as_object_literal_expression();
         let mut all_properties_table = if self.strict_null_checks {
-            Some(create_symbol_table(None))
+            Some(create_symbol_table(Option::<&[Gc<Symbol>]>::None))
         } else {
             None
         };
-        let mut properties_table = create_symbol_table(None);
+        let mut properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut properties_array: Vec<Gc<Symbol>> = vec![];
         let mut spread: Gc<Type> = self.empty_object_type();
 
@@ -1164,7 +1162,7 @@ impl TypeChecker {
                         in_const_context,
                     );
                     properties_array = vec![];
-                    properties_table = create_symbol_table(None);
+                    properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                     has_computed_string_property = false;
                     has_computed_number_property = false;
                     has_computed_symbol_property = false;
@@ -1291,7 +1289,7 @@ impl TypeChecker {
                     in_const_context,
                 );
                 properties_array = vec![];
-                properties_table = create_symbol_table(None);
+                properties_table = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
                 has_computed_string_property = false;
                 has_computed_number_property = false;
             }

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell};
@@ -299,7 +297,7 @@ impl TypeChecker {
         self.maybe_type_of_kind(source, TypeFlags::Undefined) && self.contains_missing_type(target)
     }
 
-    pub(super) fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Gc<Symbol>> {
+    pub fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Gc<Symbol>> {
         self.get_properties_of_type(type_)
             .into_iter()
             .filter(|target_prop: &Gc<Symbol>| {
@@ -308,11 +306,11 @@ impl TypeChecker {
             .collect()
     }
 
-    pub(super) fn get_best_matching_type<TIsRelatedTo: Fn(&Type, &Type) -> Ternary>(
+    pub(super) fn get_best_matching_type(
         &self,
         source: &Type,
         target: &Type, /*UnionOrIntersectionType*/
-        is_related_to: Option<TIsRelatedTo>,
+        is_related_to: Option<impl Fn(&Type, &Type) -> Ternary>,
     ) -> Option<Gc<Type>> {
         let is_related_to = |source: &Type, target: &Type| match is_related_to.as_ref() {
             None => self.compare_types_assignable(source, target),
@@ -325,15 +323,12 @@ impl TypeChecker {
             .or_else(|| self.find_most_overlappy_type(source, target))
     }
 
-    pub(super) fn discriminate_type_by_discriminable_items<
-        TRelated: FnMut(&Type, &Type) -> bool,
-        TDefaultValue: Borrow<Type>,
-    >(
+    pub(super) fn discriminate_type_by_discriminable_items(
         &self,
         target: &Type, /*UnionType*/
-        discriminators: &[(Box<dyn Fn() -> Gc<Type>>, __String)],
-        mut related: TRelated,
-        default_value: Option<TDefaultValue>,
+        discriminators: impl IntoIterator<Item = (Box<dyn Fn() -> Gc<Type>>, __String)>,
+        mut related: impl FnMut(&Type, &Type) -> bool,
+        default_value: Option<impl Borrow<Type>>,
         skip_partial: Option<bool>,
     ) -> Option<Gc<Type>> {
         let target_as_union_type = target.as_union_type();
@@ -342,7 +337,7 @@ impl TypeChecker {
             .into_iter()
             .map(|_| Option::<bool>::None)
             .collect();
-        for (get_discriminating_type, property_name) in discriminators {
+        for (get_discriminating_type, ref property_name) in discriminators {
             let target_prop = self.get_union_or_intersection_property(target, property_name, None);
             if matches!(skip_partial, Some(true))
                 && matches!(
@@ -424,7 +419,7 @@ impl TypeChecker {
         target: &Type,
         is_comparing_jsx_attributes: bool,
     ) -> bool {
-        for prop in &self.get_properties_of_type(source) {
+        for ref prop in self.get_properties_of_type(source) {
             if self.is_known_property(target, prop.escaped_name(), is_comparing_jsx_attributes) {
                 return true;
             }
@@ -657,8 +652,8 @@ impl TypeChecker {
         let mut target = target.type_wrapper();
         if ptr::eq(relation, &*self.identity_relation()) && source.id() > target.id() {
             let temp = source.clone();
-            let source = target.clone();
-            let target = temp;
+            source = target.clone();
+            target = temp;
         }
         let post_fix = if intersection_state != IntersectionState::None {
             format!(":{}", intersection_state.bits())

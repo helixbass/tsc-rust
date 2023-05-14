@@ -1,10 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
 use std::ptr;
-use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{

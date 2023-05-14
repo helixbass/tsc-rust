@@ -3,10 +3,9 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node,
-    maybe_get_source_file_of_node, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, Node,
-    NodeInterface, ReadonlyTextRange, SnippetElement, SourceMapRange, StringOrNumber, SyntaxKind,
-    SynthesizedComment,
+    get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, BaseTextRange, Debug_,
+    EmitFlags, EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement,
+    SourceMapRange, StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
@@ -76,13 +75,17 @@ pub fn dispose_emit_nodes(source_file: Option<impl Borrow<Node> /*SourceFile*/>)
     }
 }
 
+pub fn remove_all_comments<TNode: Borrow<Node>>(_node: TNode) -> TNode {
+    unimplemented!()
+}
+
 pub fn set_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
     get_or_create_emit_node(node.borrow()).borrow_mut().flags = Some(emit_flags);
     node
 }
 
-pub fn add_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
-    let emit_node = get_or_create_emit_node(&node);
+pub fn add_emit_flags<TNode: Borrow<Node>>(node: TNode, emit_flags: EmitFlags) -> TNode {
+    let emit_node = get_or_create_emit_node(node.borrow());
     let mut emit_node = emit_node.borrow_mut();
     emit_node.flags = Some(emit_node.flags.unwrap_or(EmitFlags::None) | emit_flags);
     node
@@ -94,8 +97,13 @@ pub fn get_source_map_range(node: &Node) -> Gc<SourceMapRange> {
         .unwrap_or_else(|| node.into())
 }
 
-pub fn set_source_map_range(node: Gc<Node>, range: Option<Gc<SourceMapRange>>) -> Gc<Node> {
-    get_or_create_emit_node(&node).borrow_mut().source_map_range = range;
+pub fn set_source_map_range<TNode: Borrow<Node>>(
+    node: TNode,
+    range: Option<Gc<SourceMapRange>>,
+) -> TNode {
+    get_or_create_emit_node(node.borrow())
+        .borrow_mut()
+        .source_map_range = range;
     node
 }
 
@@ -122,7 +130,7 @@ pub fn get_comment_range(node: &Node) -> BaseTextRange {
 pub fn set_comment_range(node: &Node, range: &impl ReadonlyTextRange /*TextRange*/)
 /*-> Gc<Node>*/
 {
-    // unimplemented!()
+    get_or_create_emit_node(node).borrow_mut().comment_range = Some(range.into());
 }
 
 pub fn set_comment_range_rc(
@@ -141,7 +149,7 @@ pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedC
 pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
 /*-> Gc<Node>*/
 {
-    unimplemented!()
+    get_or_create_emit_node(node).borrow_mut().leading_comments = comments;
 }
 
 pub fn set_synthetic_leading_comments_rc(
@@ -159,7 +167,20 @@ pub fn add_synthetic_leading_comment(
     has_trailing_new_line: Option<bool>,
 ) /*-> Gc<Node>*/
 {
-    unimplemented!()
+    let mut synthetic_leading_comments = get_synthetic_leading_comments(node);
+    if synthetic_leading_comments.is_none() {
+        synthetic_leading_comments = Some(Default::default());
+    }
+    synthetic_leading_comments
+        .as_mut()
+        .unwrap()
+        .push(Rc::new(SynthesizedComment {
+            kind,
+            has_trailing_new_line,
+            text: text.to_owned(),
+            has_leading_new_line: None,
+        }));
+    set_synthetic_leading_comments(node, synthetic_leading_comments);
 }
 
 pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
@@ -167,16 +188,22 @@ pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<Synthesized
         .and_then(|node_emit_node| (*node_emit_node).borrow().trailing_comments.clone())
 }
 
+pub fn set_synthetic_trailing_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
+/*-> Gc<Node>*/
+{
+    get_or_create_emit_node(node).borrow_mut().trailing_comments = comments;
+}
+
 pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
 }
 
-pub fn add_emit_helper(node: &Node, helper: Gc<EmitHelper>) -> Gc<Node> {
+pub fn add_emit_helper(_node: &Node, _helper: Gc<EmitHelper>) -> Gc<Node> {
     unimplemented!()
 }
 
-pub fn add_emit_helpers(node: &Node, helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
+pub fn add_emit_helpers(_node: &Node, _helpers: Option<&[Gc<EmitHelper>]>) -> Gc<Node> {
     unimplemented!()
 }
 

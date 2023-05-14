@@ -7,4 +7,5 @@ pub mod harness_utils;
 pub mod runnerbase;
 pub mod util;
 pub mod vfs_util;
+pub mod virtual_file_system_with_watch;
 pub mod vpath_util;

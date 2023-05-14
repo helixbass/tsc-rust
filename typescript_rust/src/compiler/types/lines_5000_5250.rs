@@ -1,11 +1,8 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use indexmap::IndexMap;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::Cell;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
@@ -119,6 +116,7 @@ impl PatternAmbientModule {
 }
 
 bitflags! {
+    #[derive(Default)]
     pub struct NodeCheckFlags: u32 {
         const None = 0;
         const TypeChecked = 0x00000001;

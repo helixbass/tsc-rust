@@ -1,6 +1,6 @@
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+use gc::{Finalize, Gc, GcCell, Trace};
 use regex::{Captures, Regex};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -97,11 +97,7 @@ impl IncrementalParserSyntaxCursorCreated {
     }
 
     fn maybe_current(&self) -> Option<Gc<Node>> {
-        self.current.borrow().as_ref().map(|option| option.clone())
-    }
-
-    fn current(&self) -> Gc<Node> {
-        self.current.borrow().clone().unwrap()
+        self.current.borrow().clone()
     }
 
     fn set_current(&self, current: Option<Gc<Node>>) {
@@ -225,18 +221,20 @@ pub(crate) trait PragmaContext {
     fn language_version(&self) -> ScriptTarget;
     fn maybe_pragmas(&self) -> RefMut<Option<ReadonlyPragmaMap>>;
     fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>>;
-    fn maybe_referenced_files(&self) -> RefMut<Option<Vec<FileReference>>>;
-    fn maybe_type_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>>;
-    fn maybe_lib_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>>;
+    fn maybe_referenced_files_mut(&self) -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>>;
+    fn maybe_type_reference_directives_mut(
+        &self,
+    ) -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>>;
+    fn maybe_lib_reference_directives_mut(&self)
+        -> RefMut<Option<Rc<RefCell<Vec<FileReference>>>>>;
     fn maybe_amd_dependencies(&self) -> RefMut<Option<Vec<AmdDependency>>>;
     fn maybe_has_no_default_lib(&self) -> Option<bool>;
     fn set_has_no_default_lib(&self, has_no_default_lib: bool);
     fn maybe_module_name(&self) -> RefMut<Option<String>>;
 }
 
-pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
-    context: &TContext,
-    source_text: &str,
+pub(crate) fn process_comment_pragmas(
+    context: &impl PragmaContext,
     source_text_as_chars: &SourceTextAsChars,
 ) {
     let mut pragmas: Vec<PragmaPseudoMapEntry> = vec![];
@@ -272,21 +270,24 @@ pub(crate) fn process_pragmas_into_fields<
 ) {
     let mut context_check_js_directive = context.maybe_check_js_directive();
     *context_check_js_directive = None;
-    let mut context_referenced_files = context.maybe_referenced_files();
-    *context_referenced_files = Some(vec![]);
-    let mut context_type_reference_directives = context.maybe_type_reference_directives();
-    *context_type_reference_directives = Some(vec![]);
-    let mut context_lib_reference_directives = context.maybe_lib_reference_directives();
-    *context_lib_reference_directives = Some(vec![]);
+    let mut context_referenced_files = context.maybe_referenced_files_mut();
+    *context_referenced_files = Some(Default::default());
+    let context_referenced_files = context_referenced_files.clone().unwrap();
+    let mut context_type_reference_directives = context.maybe_type_reference_directives_mut();
+    *context_type_reference_directives = Some(Default::default());
+    let context_type_reference_directives = context_type_reference_directives.clone().unwrap();
+    let mut context_lib_reference_directives = context.maybe_lib_reference_directives_mut();
+    *context_lib_reference_directives = Some(Default::default());
+    let context_lib_reference_directives = context_lib_reference_directives.clone().unwrap();
     let mut context_amd_dependencies = context.maybe_amd_dependencies();
     *context_amd_dependencies = Some(vec![]);
     context.set_has_no_default_lib(false);
     for (key, entry_or_list) in context.maybe_pragmas().as_ref().unwrap() {
         match key {
             PragmaName::Reference => {
-                let referenced_files = context_referenced_files.as_mut().unwrap();
-                let type_reference_directives = context_type_reference_directives.as_mut().unwrap();
-                let lib_reference_directives = context_lib_reference_directives.as_mut().unwrap();
+                let mut referenced_files = context_referenced_files.borrow_mut();
+                let mut type_reference_directives = context_type_reference_directives.borrow_mut();
+                let mut lib_reference_directives = context_lib_reference_directives.borrow_mut();
                 for arg in entry_or_list {
                     let types = arg.arguments.get(&PragmaArgumentName::Types);
                     let lib = arg.arguments.get(&PragmaArgumentName::Lib);

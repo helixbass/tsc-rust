@@ -18,7 +18,7 @@ use crate::{
     is_set_accessor_declaration, is_source_file, is_string_literal_like, is_tuple_type_node,
     is_type_alias_declaration, is_type_node, is_type_query_node, length, map_defined, maybe_map,
     needs_scope_marker, set_comment_range_rc, set_emit_flags, some, visit_each_child, visit_node,
-    visit_nodes, with_synthetic_factory, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
+    visit_nodes, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
     GetSymbolAccessibilityDiagnostic, HasQuestionTokenInterface, HasTypeArgumentsInterface,
     HasTypeInterface, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node,
     NodeArray, NodeInterface, NonEmpty, ReadonlyTextRange, SignatureDeclarationInterface,
@@ -62,19 +62,19 @@ impl TransformDeclarations {
                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 )
             } else {
-                Some(with_synthetic_factory(|synthetic_factory_| {
+                Some(
                     self.factory
-                        .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
-                        .into()
-                }))
+                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                        .wrap(),
+                )
             };
         }
         if node.kind() == SyntaxKind::SetAccessor {
-            return Some(with_synthetic_factory(|synthetic_factory_| {
+            return Some(
                 self.factory
-                    .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
-                    .into()
-            }));
+                    .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                    .wrap(),
+            );
         }
         self.set_error_name_node(node.as_named_declaration().maybe_name());
         let mut old_diag: Option<GetSymbolAccessibilityDiagnostic> = None;
@@ -160,11 +160,9 @@ impl TransformDeclarations {
         return_value
             .map(|return_value| return_value.borrow().node_wrapper())
             .unwrap_or_else(|| {
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory
-                        .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
-                        .into()
-                })
+                self.factory
+                    .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                    .wrap()
             })
     }
 
@@ -294,10 +292,9 @@ impl TransformDeclarations {
                 }
             }
             if new_value_parameter.is_none() {
-                new_value_parameter = Some(with_synthetic_factory(|synthetic_factory_| {
+                new_value_parameter = Some(
                     self.factory
                         .create_parameter_declaration(
-                            synthetic_factory_,
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             None,
@@ -306,8 +303,8 @@ impl TransformDeclarations {
                             None,
                             None,
                         )
-                        .into()
-                }));
+                        .wrap(),
+                );
             }
             let new_value_parameter = new_value_parameter.unwrap();
             new_params.push(new_value_parameter);
@@ -393,11 +390,11 @@ impl TransformDeclarations {
                     parent,
                 );
                 if let Some(new_name) = new_name.non_empty() {
-                    return Some(with_synthetic_factory(|synthetic_factory_| {
+                    return Some(
                         self.factory
-                            .create_string_literal(synthetic_factory_, new_name, None, None)
-                            .into()
-                    }));
+                            .create_string_literal(new_name, None, None)
+                            .wrap(),
+                    );
                 }
             } else {
                 let symbol = self.resolver.get_symbol_of_external_module_specifier(input);
@@ -423,22 +420,20 @@ impl TransformDeclarations {
             == SyntaxKind::ExternalModuleReference
         {
             let specifier = get_external_module_import_equals_declaration_expression(decl);
-            Some(with_synthetic_factory(|synthetic_factory_| {
+            Some(
                 self.factory.update_import_equals_declaration(
-                    synthetic_factory_,
                     decl,
                     Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
                     decl_as_import_equals_declaration.is_type_only,
                     decl_as_import_equals_declaration.name(),
                     self.factory.update_external_module_reference(
-                        synthetic_factory_,
                         &decl_as_import_equals_declaration.module_reference,
                         self.rewrite_module_specifier(decl, Some(&specifier))
                             .unwrap(),
                     ),
-                )
-            }))
+                ),
+            )
         } else {
             let old_diag = self.get_symbol_accessibility_diagnostic();
             self.set_get_symbol_accessibility_diagnostic(
@@ -459,9 +454,8 @@ impl TransformDeclarations {
     ) -> Option<Gc<Node>> {
         let decl_as_import_declaration = decl.as_import_declaration();
         if decl_as_import_declaration.import_clause.is_none() {
-            return Some(with_synthetic_factory(|synthetic_factory_| {
+            return Some(
                 self.factory.update_import_declaration(
-                    synthetic_factory_,
                     decl,
                     Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
@@ -472,8 +466,8 @@ impl TransformDeclarations {
                     )
                     .unwrap(),
                     None,
-                )
-            }));
+                ),
+            );
         }
         let decl_import_clause = decl_as_import_declaration.import_clause.as_ref().unwrap();
         let decl_import_clause_as_import_clause = decl_import_clause.as_import_clause();
@@ -483,27 +477,23 @@ impl TransformDeclarations {
             });
         if decl_import_clause_as_import_clause.named_bindings.is_none() {
             return visible_default_binding.map(|visible_default_binding| {
-                with_synthetic_factory(|synthetic_factory_| {
-                    self.factory.update_import_declaration(
-                        synthetic_factory_,
-                        decl,
-                        Option::<Gc<NodeArray>>::None,
-                        decl.maybe_modifiers().clone(),
-                        Some(self.factory.update_import_clause(
-                            synthetic_factory_,
-                            decl_import_clause,
-                            decl_import_clause_as_import_clause.is_type_only,
-                            Some(visible_default_binding),
-                            None,
-                        )),
-                        self.rewrite_module_specifier(
-                            decl,
-                            Some(&decl_as_import_declaration.module_specifier),
-                        )
-                        .unwrap(),
+                self.factory.update_import_declaration(
+                    decl,
+                    Option::<Gc<NodeArray>>::None,
+                    decl.maybe_modifiers().clone(),
+                    Some(self.factory.update_import_clause(
+                        decl_import_clause,
+                        decl_import_clause_as_import_clause.is_type_only,
+                        Some(visible_default_binding),
                         None,
+                    )),
+                    self.rewrite_module_specifier(
+                        decl,
+                        Some(&decl_as_import_declaration.module_specifier),
                     )
-                })
+                    .unwrap(),
+                    None,
+                )
             });
         }
         let decl_import_clause_named_bindings = decl_import_clause_as_import_clause
@@ -520,14 +510,12 @@ impl TransformDeclarations {
                 None
             };
             return if visible_default_binding.is_some() || named_bindings.is_some() {
-                Some(with_synthetic_factory(|synthetic_factory_| {
+                Some(
                     self.factory.update_import_declaration(
-                        synthetic_factory_,
                         decl,
                         Option::<Gc<NodeArray>>::None,
                         decl.maybe_modifiers().clone(),
                         Some(self.factory.update_import_clause(
-                            synthetic_factory_,
                             decl_import_clause,
                             decl_import_clause_as_import_clause.is_type_only,
                             visible_default_binding,
@@ -539,8 +527,8 @@ impl TransformDeclarations {
                         )
                         .unwrap(),
                         None,
-                    )
-                }))
+                    ),
+                )
             } else {
                 None
             };
@@ -562,14 +550,12 @@ impl TransformDeclarations {
         if
         /*bindingList &&*/
         !binding_list.is_empty() || visible_default_binding.is_some() {
-            return Some(with_synthetic_factory(|synthetic_factory_| {
+            return Some(
                 self.factory.update_import_declaration(
-                    synthetic_factory_,
                     decl,
                     Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
                     Some(self.factory.update_import_clause(
-                        synthetic_factory_,
                         decl_import_clause,
                         decl_import_clause_as_import_clause.is_type_only,
                         visible_default_binding,
@@ -577,7 +563,6 @@ impl TransformDeclarations {
                         /*bindingList &&*/
                         !binding_list.is_empty() {
                             Some(self.factory.update_named_imports(
-                                synthetic_factory_,
                                 decl_import_clause_named_bindings,
                                 binding_list,
                             ))
@@ -591,13 +576,12 @@ impl TransformDeclarations {
                     )
                     .unwrap(),
                     None,
-                )
-            }));
+                ),
+            );
         }
         if self.resolver.is_import_required_by_augmentation(decl) {
-            return Some(with_synthetic_factory(|synthetic_factory_| {
+            return Some(
                 self.factory.update_import_declaration(
-                    synthetic_factory_,
                     decl,
                     Option::<Gc<NodeArray>>::None,
                     decl.maybe_modifiers().clone(),
@@ -608,8 +592,8 @@ impl TransformDeclarations {
                     )
                     .unwrap(),
                     None,
-                )
-            }));
+                ),
+            );
         }
         None
     }
@@ -621,7 +605,8 @@ impl TransformDeclarations {
         while length(self.maybe_late_marked_statements().as_deref()) > 0 {
             let ref i = self.late_marked_statements_mut().remove(0);
             if !is_late_visibility_painted_statement(i) {
-                return Debug_.fail(Some(
+                /*return*/
+                Debug_.fail(Some(
                     &format!(
                         "Late replaced statement was found which is not handled by the declaration transformer!: {:?}",
                         i.kind()
@@ -752,17 +737,14 @@ impl TransformDeclarations {
                     &old_diag,
                     should_enter_suppress_new_diagnostics_context_context,
                     old_within_object_literal_type,
-                    Some(&with_synthetic_factory(|synthetic_factory_| {
-                        self.factory.create_property_declaration(
-                            synthetic_factory_,
-                            Option::<Gc<NodeArray>>::None,
-                            self.ensure_modifiers(input),
-                            input.as_named_declaration().name(),
-                            None,
-                            None,
-                            None,
-                        )
-                    })),
+                    Some(&self.factory.create_property_declaration(
+                        Option::<Gc<NodeArray>>::None,
+                        self.ensure_modifiers(input),
+                        input.as_named_declaration().name(),
+                        None,
+                        None,
+                        None,
+                    )),
                 );
             }
         }
@@ -832,16 +814,15 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_expression_with_type_arguments(
-                                synthetic_factory_,
+                        Some(
+                            &self.factory.update_expression_with_type_arguments(
                                 node,
                                 node_as_expression_with_type_arguments.expression.clone(),
                                 node_as_expression_with_type_arguments
                                     .maybe_type_arguments()
                                     .clone(),
-                            )
-                        })),
+                            ),
+                        ),
                     )
                 }
                 SyntaxKind::TypeReference => {
@@ -881,14 +862,11 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_type_reference_node(
-                                synthetic_factory_,
-                                node,
-                                node_as_type_reference_node.type_name.clone(),
-                                node_as_type_reference_node.maybe_type_arguments(),
-                            )
-                        })),
+                        Some(&self.factory.update_type_reference_node(
+                            node,
+                            node_as_type_reference_node.type_name.clone(),
+                            node_as_type_reference_node.maybe_type_arguments(),
+                        )),
                     )
                 }
                 SyntaxKind::ConstructSignature => {
@@ -901,9 +879,8 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_construct_signature(
-                                synthetic_factory_,
+                        Some(
+                            &self.factory.update_construct_signature(
                                 input,
                                 self.ensure_type_params(
                                     input,
@@ -924,27 +901,25 @@ impl TransformDeclarations {
                                         .as_deref(),
                                     None,
                                 ),
-                            )
-                        })),
+                            ),
+                        ),
                     )
                 }
                 SyntaxKind::Constructor => {
                     let input_as_constructor_declaration = input.as_constructor_declaration();
-                    let ctor: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
-                        self.factory
-                            .create_constructor_declaration(
-                                synthetic_factory_,
-                                Option::<Gc<NodeArray>>::None,
-                                self.ensure_modifiers(input),
-                                self.update_params_list(
-                                    input,
-                                    Some(&input_as_constructor_declaration.parameters()),
-                                    Some(ModifierFlags::None),
-                                ),
-                                None,
-                            )
-                            .into()
-                    });
+                    let ctor = self
+                        .factory
+                        .create_constructor_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            self.ensure_modifiers(input),
+                            self.update_params_list(
+                                input,
+                                Some(&input_as_constructor_declaration.parameters()),
+                                Some(ModifierFlags::None),
+                            ),
+                            None,
+                        )
+                        .wrap();
                     self.visit_declaration_subtree_cleanup(
                         input,
                         can_produce_diagnostic,
@@ -968,36 +943,34 @@ impl TransformDeclarations {
                             None,
                         );
                     }
-                    let sig: Gc<Node> = with_synthetic_factory(|synthetic_factory_| {
-                        self.factory
-                            .create_method_declaration(
-                                synthetic_factory_,
-                                Option::<Gc<NodeArray>>::None,
-                                self.ensure_modifiers(input),
-                                None,
-                                input_as_method_declaration.name(),
-                                input_as_method_declaration.maybe_question_token(),
-                                self.ensure_type_params(
-                                    input,
-                                    input_as_method_declaration
-                                        .maybe_type_parameters()
-                                        .as_deref(),
-                                ),
-                                self.update_params_list(
-                                    input,
-                                    Some(&input_as_method_declaration.parameters()),
-                                    None,
-                                )
-                                .unwrap(),
-                                self.ensure_type(
-                                    input,
-                                    input_as_method_declaration.maybe_type().as_deref(),
-                                    None,
-                                ),
+                    let sig = self
+                        .factory
+                        .create_method_declaration(
+                            Option::<Gc<NodeArray>>::None,
+                            self.ensure_modifiers(input),
+                            None,
+                            input_as_method_declaration.name(),
+                            input_as_method_declaration.maybe_question_token(),
+                            self.ensure_type_params(
+                                input,
+                                input_as_method_declaration
+                                    .maybe_type_parameters()
+                                    .as_deref(),
+                            ),
+                            self.update_params_list(
+                                input,
+                                Some(&input_as_method_declaration.parameters()),
                                 None,
                             )
-                            .into()
-                    });
+                            .unwrap(),
+                            self.ensure_type(
+                                input,
+                                input_as_method_declaration.maybe_type().as_deref(),
+                                None,
+                            ),
+                            None,
+                        )
+                        .wrap();
                     self.visit_declaration_subtree_cleanup(
                         input,
                         can_produce_diagnostic,
@@ -1032,21 +1005,18 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_get_accessor_declaration(
-                                synthetic_factory_,
+                        Some(&self.factory.update_get_accessor_declaration(
+                            input,
+                            Option::<Gc<NodeArray>>::None,
+                            self.ensure_modifiers(input),
+                            input_as_get_accessor_declaration.name(),
+                            self.update_accessor_params_list(
                                 input,
-                                Option::<Gc<NodeArray>>::None,
-                                self.ensure_modifiers(input),
-                                input_as_get_accessor_declaration.name(),
-                                self.update_accessor_params_list(
-                                    input,
-                                    has_effective_modifier(input, ModifierFlags::Private),
-                                ),
-                                self.ensure_type(input, accessor_type.as_deref(), None),
-                                None,
-                            )
-                        })),
+                                has_effective_modifier(input, ModifierFlags::Private),
+                            ),
+                            self.ensure_type(input, accessor_type.as_deref(), None),
+                            None,
+                        )),
                     )
                 }
                 SyntaxKind::SetAccessor => {
@@ -1069,20 +1039,17 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_set_accessor_declaration(
-                                synthetic_factory_,
+                        Some(&self.factory.update_set_accessor_declaration(
+                            input,
+                            Option::<Gc<NodeArray>>::None,
+                            self.ensure_modifiers(input),
+                            input_as_set_accessor_declaration.name(),
+                            self.update_accessor_params_list(
                                 input,
-                                Option::<Gc<NodeArray>>::None,
-                                self.ensure_modifiers(input),
-                                input_as_set_accessor_declaration.name(),
-                                self.update_accessor_params_list(
-                                    input,
-                                    has_effective_modifier(input, ModifierFlags::Private),
-                                ),
-                                None,
-                            )
-                        })),
+                                has_effective_modifier(input, ModifierFlags::Private),
+                            ),
+                            None,
+                        )),
                     )
                 }
                 SyntaxKind::PropertyDeclaration => {
@@ -1105,22 +1072,19 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_property_declaration(
-                                synthetic_factory_,
+                        Some(&self.factory.update_property_declaration(
+                            input,
+                            Option::<Gc<NodeArray>>::None,
+                            self.ensure_modifiers(input),
+                            input_as_property_declaration.name(),
+                            input_as_property_declaration.maybe_question_token(),
+                            self.ensure_type(
                                 input,
-                                Option::<Gc<NodeArray>>::None,
-                                self.ensure_modifiers(input),
-                                input_as_property_declaration.name(),
-                                input_as_property_declaration.maybe_question_token(),
-                                self.ensure_type(
-                                    input,
-                                    input_as_property_declaration.maybe_type().as_deref(),
-                                    None,
-                                ),
-                                self.ensure_no_initializer(input),
-                            )
-                        })),
+                                input_as_property_declaration.maybe_type().as_deref(),
+                                None,
+                            ),
+                            self.ensure_no_initializer(input),
+                        )),
                     )
                 }
                 SyntaxKind::PropertySignature => {
@@ -1143,20 +1107,17 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_property_signature(
-                                synthetic_factory_,
+                        Some(&self.factory.update_property_signature(
+                            input,
+                            self.ensure_modifiers(input),
+                            input_as_property_signature.name(),
+                            input_as_property_signature.maybe_question_token(),
+                            self.ensure_type(
                                 input,
-                                self.ensure_modifiers(input),
-                                input_as_property_signature.name(),
-                                input_as_property_signature.maybe_question_token(),
-                                self.ensure_type(
-                                    input,
-                                    input_as_property_signature.maybe_type().as_deref(),
-                                    None,
-                                ),
-                            )
-                        })),
+                                input_as_property_signature.maybe_type().as_deref(),
+                                None,
+                            ),
+                        )),
                     )
                 }
                 SyntaxKind::MethodSignature => {
@@ -1179,9 +1140,8 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_method_signature(
-                                synthetic_factory_,
+                        Some(
+                            &self.factory.update_method_signature(
                                 input,
                                 self.ensure_modifiers(input),
                                 input_as_method_signature.name(),
@@ -1201,8 +1161,8 @@ impl TransformDeclarations {
                                     input_as_method_signature.maybe_type().as_deref(),
                                     None,
                                 ),
-                            )
-                        })),
+                            ),
+                        ),
                     )
                 }
                 SyntaxKind::CallSignature => {
@@ -1214,9 +1174,8 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_call_signature(
-                                synthetic_factory_,
+                        Some(
+                            &self.factory.update_call_signature(
                                 input,
                                 self.ensure_type_params(
                                     input,
@@ -1235,8 +1194,8 @@ impl TransformDeclarations {
                                     input_as_call_signature_declaration.maybe_type().as_deref(),
                                     None,
                                 ),
-                            )
-                        })),
+                            ),
+                        ),
                     )
                 }
                 SyntaxKind::IndexSignature => {
@@ -1249,9 +1208,8 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_index_signature(
-                                synthetic_factory_,
+                        Some(
+                            &self.factory.update_index_signature(
                                 input,
                                 Option::<Gc<NodeArray>>::None,
                                 self.ensure_modifiers(input),
@@ -1268,17 +1226,12 @@ impl TransformDeclarations {
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 )
                                 .unwrap_or_else(|| {
-                                    with_synthetic_factory(|synthetic_factory_| {
-                                        self.factory
-                                            .create_keyword_type_node(
-                                                synthetic_factory_,
-                                                SyntaxKind::AnyKeyword,
-                                            )
-                                            .into()
-                                    })
+                                    self.factory
+                                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                                        .wrap()
                                 }),
-                            )
-                        })),
+                            ),
+                        ),
                     )
                 }
                 SyntaxKind::VariableDeclaration => {
@@ -1298,20 +1251,17 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_variable_declaration(
-                                synthetic_factory_,
+                        Some(&self.factory.update_variable_declaration(
+                            input,
+                            input_as_variable_declaration.maybe_name(),
+                            None,
+                            self.ensure_type(
                                 input,
-                                input_as_variable_declaration.maybe_name(),
+                                input_as_variable_declaration.maybe_type().as_deref(),
                                 None,
-                                self.ensure_type(
-                                    input,
-                                    input_as_variable_declaration.maybe_type().as_deref(),
-                                    None,
-                                ),
-                                self.ensure_no_initializer(input),
-                            )
-                        })),
+                            ),
+                            self.ensure_no_initializer(input),
+                        )),
                     )
                 }
                 SyntaxKind::TypeParameter => {
@@ -1327,15 +1277,12 @@ impl TransformDeclarations {
                             &old_diag,
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
-                            Some(&with_synthetic_factory(|synthetic_factory_| {
-                                self.factory.update_type_parameter_declaration(
-                                    synthetic_factory_,
-                                    input,
-                                    input_as_type_parameter_declaration.name(),
-                                    None,
-                                    None,
-                                )
-                            })),
+                            Some(&self.factory.update_type_parameter_declaration(
+                                input,
+                                input_as_type_parameter_declaration.name(),
+                                None,
+                                None,
+                            )),
                         );
                     }
                     self.visit_declaration_subtree_cleanup(
@@ -1413,16 +1360,13 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_conditional_type_node(
-                                synthetic_factory_,
-                                input,
-                                check_type,
-                                extends_type,
-                                true_type,
-                                false_type,
-                            )
-                        })),
+                        Some(&self.factory.update_conditional_type_node(
+                            input,
+                            check_type,
+                            extends_type,
+                            true_type,
+                            false_type,
+                        )),
                     )
                 }
                 SyntaxKind::FunctionType => {
@@ -1434,9 +1378,8 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_function_type_node(
-                                synthetic_factory_,
+                        Some(
+                            &self.factory.update_function_type_node(
                                 input,
                                 visit_nodes(
                                     input_as_function_type_node
@@ -1459,8 +1402,8 @@ impl TransformDeclarations {
                                     Option::<fn(&Node) -> bool>::None,
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 ),
-                            )
-                        })),
+                            ),
+                        ),
                     )
                 }
                 SyntaxKind::ConstructorType => {
@@ -1472,9 +1415,8 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_constructor_type_node(
-                                synthetic_factory_,
+                        Some(
+                            &self.factory.update_constructor_type_node(
                                 input,
                                 self.ensure_modifiers(input),
                                 visit_nodes(
@@ -1498,8 +1440,8 @@ impl TransformDeclarations {
                                     Option::<fn(&Node) -> bool>::None,
                                     Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                 ),
-                            )
-                        })),
+                            ),
+                        ),
                     )
                 }
                 SyntaxKind::ImportType => {
@@ -1522,12 +1464,10 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(&with_synthetic_factory(|synthetic_factory_| {
-                            self.factory.update_import_type_node(
-                                synthetic_factory_,
+                        Some(
+                            &self.factory.update_import_type_node(
                                 input,
                                 self.factory.update_literal_type_node(
-                                    synthetic_factory_,
                                     &input_as_import_type_node.argument,
                                     self.rewrite_module_specifier(
                                         input,
@@ -1549,8 +1489,8 @@ impl TransformDeclarations {
                                     None,
                                 ),
                                 Some(input_as_import_type_node.is_type_of()),
-                            )
-                        })),
+                            ),
+                        ),
                     )
                 }
                 _ => Debug_.assert_never(

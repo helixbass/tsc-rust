@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use crate::{object_allocator, BaseNode, SyntaxKind};
+use crate::{object_allocator, BaseNode, NodeInterface, SyntaxKind};
 
 pub trait BaseNodeFactory {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode;
@@ -8,6 +8,7 @@ pub trait BaseNodeFactory {
     fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode;
+    fn update_cloned_node<TNode: NodeInterface>(&self, _node: &TNode) {}
 }
 
 pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {

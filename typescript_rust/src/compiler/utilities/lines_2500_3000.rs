@@ -1,9 +1,6 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
-use std::rc::Rc;
 
 use crate::{
     add_range, find, find_ancestor, first_or_undefined, for_each_bool,
@@ -143,12 +140,12 @@ pub fn is_default_import(
             .is_some()
 }
 
-pub fn for_each_import_clause_declaration_bool<TAction: FnMut(&Node) -> bool>(
+pub fn for_each_import_clause_declaration_bool(
     node: &Node, /*ImportClause*/
-    mut action: TAction,
+    mut action: impl FnMut(&Node) -> bool,
 ) -> bool {
     let node_as_import_clause = node.as_import_clause();
-    if let Some(node_name) = node_as_import_clause.name.as_ref() {
+    if node_as_import_clause.name.is_some() {
         let result = action(node);
         if result {
             return result;
@@ -381,11 +378,11 @@ pub fn get_jsdoc_comments_and_tags(
             /*result = */
             add_range(
                 result.as_mut().unwrap(),
-                Some(&(if no_cache {
-                    get_jsdoc_parameter_tags_no_cache
+                Some(&if no_cache {
+                    get_jsdoc_parameter_tags_no_cache(node_present).collect::<Vec<_>>()
                 } else {
-                    get_jsdoc_parameter_tags
-                })(node_present)),
+                    get_jsdoc_parameter_tags(node_present).collect::<Vec<_>>()
+                }),
                 None,
                 None,
             );
@@ -397,11 +394,11 @@ pub fn get_jsdoc_comments_and_tags(
             /*result = */
             add_range(
                 result.as_mut().unwrap(),
-                Some(&(if no_cache {
-                    get_jsdoc_type_parameter_tags_no_cache
+                Some(&if no_cache {
+                    get_jsdoc_type_parameter_tags_no_cache(node_present).collect::<Vec<_>>()
                 } else {
-                    get_jsdoc_type_parameter_tags
-                })(node_present)),
+                    get_jsdoc_type_parameter_tags(node_present).collect::<Vec<_>>()
+                }),
                 None,
                 None,
             );

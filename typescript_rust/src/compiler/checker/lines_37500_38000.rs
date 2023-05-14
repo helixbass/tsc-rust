@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
@@ -675,7 +673,7 @@ impl TypeChecker {
             let method_parameter_type = if let Some(method_parameter_types) = method_parameter_types
             {
                 self.get_union_type(
-                    method_parameter_types,
+                    &method_parameter_types,
                     None,
                     Option::<&Symbol>::None,
                     None,
@@ -742,7 +740,7 @@ impl TypeChecker {
         Some(self.create_iteration_types(
             Some(yield_type),
             Some(self.get_union_type(
-                return_types.unwrap(),
+                &return_types.unwrap(),
                 None,
                 Option::<&Symbol>::None,
                 None,

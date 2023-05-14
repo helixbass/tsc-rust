@@ -17,7 +17,7 @@ impl TransformES2019 {
 }
 
 impl TransformerInterface for TransformES2019 {
-    fn call(&self, node: &crate::Node) -> Gc<Node> {
+    fn call(&self, _node: &crate::Node) -> Gc<Node> {
         unimplemented!()
     }
 }

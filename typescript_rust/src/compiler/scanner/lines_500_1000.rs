@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use regex::Regex;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
@@ -301,7 +299,7 @@ pub(crate) fn is_shebang_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
 //     pos = pos + shebang.len();
 //     text_str_num_chars(text, original_pos, pos)
 // }
-pub(crate) fn scan_shebang_trivia(text: &SourceTextAsChars, pos: usize) -> usize {
+pub(crate) fn scan_shebang_trivia(text: &SourceTextAsChars, _pos: usize) -> usize {
     get_shebang(text).unwrap().len()
 }
 
@@ -342,10 +340,8 @@ pub(super) fn iterate_comment_ranges<
                     Some(CharacterCodes::line_feed)
                 ) {
                     pos += 1;
-                    pos_as_usize += 1;
                 }
                 pos += 1;
-                pos_as_usize += 1;
                 if trailing {
                     break;
                 }
@@ -359,7 +355,6 @@ pub(super) fn iterate_comment_ranges<
             }
             CharacterCodes::line_feed => {
                 pos += 1;
-                pos_as_usize += 1;
                 if trailing {
                     break;
                 }
@@ -376,7 +371,6 @@ pub(super) fn iterate_comment_ranges<
             | CharacterCodes::form_feed
             | CharacterCodes::space => {
                 pos += 1;
-                pos_as_usize += 1;
                 continue;
             }
             CharacterCodes::slash => {
@@ -454,7 +448,6 @@ pub(super) fn iterate_comment_ranges<
                         pending_has_trailing_new_line = Some(true);
                     }
                     pos += 1;
-                    pos_as_usize += 1;
                     continue;
                 }
                 break;
@@ -695,7 +688,7 @@ pub fn create_scanner(
     /*onError?: ErrorCallback,*/ start: Option<usize>,
     length: Option<usize>,
 ) -> Scanner {
-    let mut scanner = Scanner::new(language_version, skip_trivia, language_variant);
+    let scanner = Scanner::new(language_version, skip_trivia, language_variant);
     scanner.set_text(text_initial_as_chars, text_initial, start, length);
     /*if Debug.isDebugging {
     Object.defineProperty(scanner, "__debugShowCurrentPositionInText"*/

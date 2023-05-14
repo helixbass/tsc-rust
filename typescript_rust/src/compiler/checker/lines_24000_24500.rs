@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
 use std::ptr;
 use std::rc::Rc;
@@ -24,7 +22,7 @@ impl GetFlowTypeOfReference {
             return self
                 .type_checker
                 .get_evolving_array_type(&self.type_checker.get_union_type(
-                    map(types, |type_: &Gc<Type>, _| {
+                    &map(types, |type_: &Gc<Type>, _| {
                         self.type_checker
                             .get_element_type_of_evolving_array_type(type_)
                     }),
@@ -35,10 +33,10 @@ impl GetFlowTypeOfReference {
                 ));
         }
         let result = self.type_checker.get_union_type(
-            same_map(types, |type_: &Gc<Type>, _| {
+            &same_map(types, |type_: &Gc<Type>, _| {
                 self.type_checker.finalize_evolving_array_type(type_)
             }),
-            None,
+            Some(subtype_reduction),
             Option::<&Symbol>::None,
             None,
             Option::<&Type>::None,
@@ -215,7 +213,7 @@ impl GetFlowTypeOfReference {
             let clause_types = self.type_checker.get_switch_clause_types(switch_statement);
             let clause_types = &clause_types[clause_start..clause_end];
             let candidate = self.type_checker.get_union_type(
-                map(clause_types, |t: &Gc<Type>, _| {
+                &map(clause_types, |t: &Gc<Type>, _| {
                     self.type_checker
                         .get_constituent_type_for_key_type(type_, t)
                         .unwrap_or_else(|| self.type_checker.unknown_type())
@@ -515,7 +513,7 @@ impl GetFlowTypeOfReference {
                     )
                 } else {
                     self.type_checker.get_union_type(
-                        vec![
+                        &[
                             self.narrow_type(&type_, &expr_as_binary_expression.left, false),
                             self.narrow_type(&type_, &expr_as_binary_expression.right, false),
                         ],
@@ -529,7 +527,7 @@ impl GetFlowTypeOfReference {
             SyntaxKind::BarBarToken => {
                 return if assume_true {
                     self.type_checker.get_union_type(
-                        vec![
+                        &[
                             self.narrow_type(&type_, &expr_as_binary_expression.left, true),
                             self.narrow_type(&type_, &expr_as_binary_expression.right, true),
                         ],
@@ -660,7 +658,7 @@ impl GetFlowTypeOfReference {
             && value_type.flags().intersects(TypeFlags::Null)
         {
             return self.type_checker.get_union_type(
-                vec![
+                &[
                     self.type_checker.null_type(),
                     self.type_checker.undefined_type(),
                 ],
@@ -796,7 +794,7 @@ impl GetFlowTypeOfReference {
                 self.type_checker.non_primitive_type()
             } else {
                 self.type_checker.get_union_type(
-                    vec![
+                    &[
                         self.type_checker.non_primitive_type(),
                         self.type_checker.null_type(),
                     ],
@@ -902,7 +900,7 @@ impl GetFlowTypeOfReference {
                 }
             }
             return self.type_checker.get_union_type(
-                match ground_clause_types {
+                &match ground_clause_types {
                     None => clause_types.to_owned(),
                     Some(ground_clause_types) => ground_clause_types,
                 },
@@ -913,7 +911,7 @@ impl GetFlowTypeOfReference {
             );
         }
         let discriminant_type = self.type_checker.get_union_type(
-            clause_types.to_owned(),
+            clause_types,
             None,
             Option::<&Symbol>::None,
             None,
@@ -946,7 +944,7 @@ impl GetFlowTypeOfReference {
             default_type
         } else {
             self.type_checker.get_union_type(
-                vec![case_type, default_type],
+                &[case_type, default_type],
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -971,7 +969,7 @@ impl GetFlowTypeOfReference {
             "object" => {
                 if type_.flags().intersects(TypeFlags::Unknown) {
                     Some(self.type_checker.get_union_type(
-                        vec![
+                        &[
                             self.type_checker.non_primitive_type(),
                             self.type_checker.null_type(),
                         ],
@@ -1086,13 +1084,13 @@ impl GetFlowTypeOfReference {
         }
         let implied_type = self.type_checker.get_type_with_facts(
             &self.type_checker.get_union_type(
-                clause_witnesses
+                &clause_witnesses
                     .iter()
                     .map(|text| {
                         self.get_implied_type_from_typeof_guard(type_, text)
                             .unwrap_or_else(|| type_.type_wrapper())
                     })
-                    .collect(),
+                    .collect::<Vec<_>>(),
                 None,
                 Option::<&Symbol>::None,
                 None,

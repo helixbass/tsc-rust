@@ -1,10 +1,7 @@
-#![allow(non_upper_case_globals)]
-
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+use std::cell::Cell;
 use std::ops::Deref;
-use std::rc::Rc;
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
@@ -12,13 +9,16 @@ use super::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
     ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
-use local_macros::ast_type;
+use crate::set_text_range_node_array;
+use local_macros::{ast_type, enum_unwrapped};
 
 mod _NodeArrayDeriveTraceScope {
+    use std::slice;
+
     use super::*;
     use local_macros::Trace;
 
-    #[derive(Clone, Debug, Trace, Finalize)]
+    #[derive(Clone, Trace, Finalize)]
     pub struct NodeArray {
         _rc_wrapper: GcCell<Option<Gc<NodeArray>>>,
         _nodes: Vec<Gc<Node>>,
@@ -31,6 +31,20 @@ mod _NodeArrayDeriveTraceScope {
         transform_flags: Cell<Option<TransformFlags>>,
         #[unsafe_ignore_trace]
         is_missing_list: Cell<bool>,
+    }
+
+    impl std::fmt::Debug for NodeArray {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("NodeArray")
+                // .field("_rc_wrapper", &self._rc_wrapper)
+                .field("_nodes", &self._nodes)
+                .field("pos", &self.pos)
+                .field("end", &self.end)
+                .field("has_trailing_comma", &self.has_trailing_comma)
+                .field("transform_flags", &self.transform_flags)
+                .field("is_missing_list", &self.is_missing_list)
+                .finish()
+        }
     }
 
     impl NodeArray {
@@ -59,7 +73,11 @@ mod _NodeArrayDeriveTraceScope {
         }
 
         pub fn iter(&self) -> NodeArrayIter {
-            NodeArrayIter(Box::new(self._nodes.iter()))
+            NodeArrayIter(self._nodes.iter())
+        }
+
+        pub fn owned_iter(&self) -> NodeArrayOwnedIter {
+            self.rc_wrapper().into()
         }
 
         pub fn len(&self) -> usize {
@@ -123,9 +141,8 @@ mod _NodeArrayDeriveTraceScope {
         }
     }
 
-    pub struct NodeArrayIter<'node_array>(
-        Box<dyn Iterator<Item = &'node_array Gc<Node>> + 'node_array>,
-    );
+    #[derive(Clone)]
+    pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Gc<Node>>);
 
     impl<'node_array> Iterator for NodeArrayIter<'node_array> {
         type Item = &'node_array Gc<Node>;
@@ -144,6 +161,35 @@ mod _NodeArrayDeriveTraceScope {
         }
     }
 
+    #[derive(Clone, Trace, Finalize)]
+    pub struct NodeArrayOwnedIter {
+        node_array: Gc<NodeArray>,
+        index: usize,
+    }
+
+    impl From<Gc<NodeArray>> for NodeArrayOwnedIter {
+        fn from(value: Gc<NodeArray>) -> Self {
+            Self {
+                node_array: value,
+                index: 0,
+            }
+        }
+    }
+
+    impl Iterator for NodeArrayOwnedIter {
+        type Item = Gc<Node>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.index >= self.node_array.len() {
+                None
+            } else {
+                let ret = self.node_array[self.index].clone();
+                self.index += 1;
+                Some(ret)
+            }
+        }
+    }
+
     impl Deref for NodeArray {
         type Target = [Gc<Node>];
 
@@ -154,11 +200,33 @@ mod _NodeArrayDeriveTraceScope {
 }
 pub use _NodeArrayDeriveTraceScope::NodeArray;
 
-#[derive(Clone, Debug)]
-pub enum NodeArrayOrVec {
-    NodeArray(Gc<NodeArray>),
-    Vec(Vec<Gc<Node>>),
+pub trait NodeArrayExt {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
 }
+
+impl NodeArrayExt for Gc<NodeArray> {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self {
+        set_text_range_node_array(self, location)
+    }
+}
+
+mod _NodeArrayOrVecDeriveTraceScope {
+    use super::*;
+    use local_macros::Trace;
+
+    #[derive(Clone, Debug, Trace, Finalize)]
+    pub enum NodeArrayOrVec {
+        NodeArray(Gc<NodeArray>),
+        Vec(Vec<Gc<Node>>),
+    }
+
+    impl NodeArrayOrVec {
+        pub fn as_vec_owned(self) -> Vec<Gc<Node>> {
+            enum_unwrapped!(self, [NodeArrayOrVec, Vec])
+        }
+    }
+}
+pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
 
 impl From<Gc<NodeArray>> for NodeArrayOrVec {
     fn from(node_array: Gc<NodeArray>) -> Self {

@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -1059,7 +1057,7 @@ impl TypeChecker {
                 .symbol_links()
                 .borrow_mut()
                 .type_ = Some(self.get_union_type(
-                literal_types,
+                &literal_types,
                 None,
                 Option::<&Symbol>::None,
                 None,

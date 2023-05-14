@@ -1,10 +1,8 @@
-#![allow(non_upper_case_globals)]
-
 use gc::Gc;
+use itertools::Either;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
 
 use super::signature_has_rest_parameter;
 use crate::{
@@ -17,14 +15,14 @@ use crate::{
     is_constructor_type_node, is_function_like, is_function_like_declaration, is_in_js_file,
     is_jsdoc_construct_signature, is_jsdoc_parameter_tag, is_jsdoc_signature,
     is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
-    is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map_defined,
-    maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment, some,
-    CheckFlags, Debug_, HasInitializerInterface, HasTypeInterface, IndexInfo,
-    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NodeArray, NodeCheckFlags,
-    ReadonlyTextRange, Signature, SignatureDeclarationInterface, SignatureFlags, SymbolTable,
-    TransientSymbolInterface, TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName,
-    UnionReduction, __String, map, Diagnostics, Node, NodeInterface, ObjectFlags, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map,
+    map_defined, maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment,
+    some, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface, IndexInfo,
+    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, Signature, SignatureDeclarationInterface,
+    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction,
 };
 
 impl TypeChecker {
@@ -246,14 +244,13 @@ impl TypeChecker {
         let last_param =
             last_or_undefined(&declaration.as_signature_declaration().parameters()).cloned();
         let last_param_tags = if let Some(last_param) = last_param.as_ref() {
-            get_jsdoc_parameter_tags(last_param)
+            Either::Left(get_jsdoc_parameter_tags(last_param))
         } else {
-            get_jsdoc_tags(declaration)
-                .into_iter()
-                .filter(|tag: &Gc<Node>| is_jsdoc_parameter_tag(tag))
-                .collect()
+            Either::Right(
+                get_jsdoc_tags(declaration).filter(|tag: &Gc<Node>| is_jsdoc_parameter_tag(tag)),
+            )
         };
-        let last_param_variadic_type = first_defined(&last_param_tags, |p: &Gc<Node>, _| {
+        let last_param_variadic_type = first_defined(last_param_tags, |p: Gc<Node>, _| {
             p.as_jsdoc_property_like_tag()
                 .type_expression
                 .as_ref()
@@ -289,7 +286,7 @@ impl TypeChecker {
                 self.any_array_type()
             },
         );
-        if let Some(last_param_variadic_type) = last_param_variadic_type {
+        if last_param_variadic_type.is_some() {
             parameters.pop();
         };
         parameters.push(synthetic_args_symbol);
@@ -566,7 +563,7 @@ impl TypeChecker {
     ) -> Gc<Type> {
         if !matches!(kind, Some(TypeFlags::Intersection)) {
             self.get_union_type(
-                types.to_owned(),
+                types,
                 union_reduction,
                 Option::<&Symbol>::None,
                 None,
@@ -720,6 +717,7 @@ impl TypeChecker {
             ) >= 0
     }
 
+    #[allow(dead_code)]
     pub(super) fn get_rest_type_of_signature(&self, signature: &Signature) -> Gc<Type> {
         self.try_get_rest_type_of_signature(signature)
             .unwrap_or_else(|| self.any_type())
@@ -765,7 +763,7 @@ impl TypeChecker {
                 &self.get_return_type_of_signature(instantiated_signature.clone()),
             );
             if let Some(return_signature) = return_signature {
-                let mut new_return_signature = self.clone_signature(&return_signature);
+                let new_return_signature = self.clone_signature(&return_signature);
                 *new_return_signature.maybe_type_parameters_mut() =
                     Some(inferred_type_parameters.to_owned());
                 let new_instantiated_signature = self.clone_signature(&instantiated_signature);
@@ -934,7 +932,8 @@ impl TypeChecker {
                 .into();
             type_.as_resolvable_type().resolve(
                 self.empty_symbols(),
-                vec![],
+                // TODO: seems doable to hav per-type "empty vec singletons" for GcVec?
+                vec![].into(),
                 if !is_constructor {
                     vec![signature.clone()]
                 } else {

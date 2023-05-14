@@ -1,12 +1,8 @@
-#![allow(non_upper_case_globals)]
-
 use gc::{Gc, GcCell};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::cmp;
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
@@ -15,7 +11,7 @@ use crate::{
     InternalSymbolName, Node, Number, ObjectTypeInterface, ResolvedTypeInterface, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, __String,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -229,27 +225,30 @@ impl TypeChecker {
             if every(types, |t: &Gc<Type>, _| {
                 self.get_index_info_of_type_(t, index_type).is_some()
             }) {
-                result.push(Gc::new(self.create_index_info(
-                    index_type.clone(),
-                    self.get_union_type(
-                        map(types, |t: &Gc<Type>, _| {
-                            self.get_index_type_of_type_(t, index_type).unwrap()
-                        }),
+                result.push(Gc::new(
+                    self.create_index_info(
+                        index_type.clone(),
+                        self.get_union_type(
+                            &types
+                                .into_iter()
+                                .map(|t| self.get_index_type_of_type_(t, index_type).unwrap())
+                                .collect::<Vec<_>>(),
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
+                        ),
+                        some(
+                            Some(types),
+                            Some(|t: &Gc<Type>| {
+                                self.get_index_info_of_type_(t, index_type)
+                                    .unwrap()
+                                    .is_readonly
+                            }),
+                        ),
                         None,
-                        Option::<&Symbol>::None,
-                        None,
-                        Option::<&Type>::None,
                     ),
-                    some(
-                        Some(types),
-                        Some(|t: &Gc<Type>| {
-                            self.get_index_info_of_type_(t, index_type)
-                                .unwrap()
-                                .is_readonly
-                        }),
-                    ),
-                    None,
-                )));
+                ));
             }
         }
         result
@@ -425,7 +424,7 @@ impl TypeChecker {
                     info.key_type.clone(),
                     if union {
                         self.get_union_type(
-                            vec![info.type_.clone(), new_info.type_.clone()],
+                            &[info.type_.clone(), new_info.type_.clone()],
                             None,
                             Option::<&Symbol>::None,
                             None,
@@ -465,7 +464,7 @@ impl TypeChecker {
                 vec![],
             );
             let members = self.create_instantiated_symbol_table(
-                &self.get_properties_of_object_type(&type_target),
+                self.get_properties_of_object_type(&type_target),
                 type_as_object_type.maybe_mapper().unwrap(),
                 false,
             );
@@ -514,8 +513,7 @@ impl TypeChecker {
         } else {
             let mut members = self.empty_symbols();
             let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
-            let symbol_exports = symbol.maybe_exports();
-            if let Some(symbol_exports) = symbol_exports.as_ref() {
+            if symbol.maybe_exports().is_some() {
                 members = self.get_exports_of_symbol(&symbol);
                 if Gc::ptr_eq(&symbol, &self.global_this_symbol()) {
                     let mut vars_only = SymbolTable::new();
@@ -547,7 +545,7 @@ impl TypeChecker {
                     members = members_new;
                     self.add_inherited_members(
                         &mut members.borrow_mut(),
-                        &self.get_properties_of_type(&base_constructor_type),
+                        self.get_properties_of_type(&base_constructor_type),
                     );
                 } else if Gc::ptr_eq(&base_constructor_type, &self.any_type()) {
                     base_constructor_index_info = Some(Gc::new(self.create_index_info(
@@ -699,7 +697,7 @@ impl TypeChecker {
         } else {
             vec![]
         };
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         for prop in self.get_properties_of_type(&type_as_reverse_mapped_type.source) {
             let check_flags = CheckFlags::ReverseMapped
                 | if readonly_mask && self.is_readonly_symbol(&prop) {
@@ -850,7 +848,7 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_mapped_type_members(&self, type_: &Type /*MappedType*/) {
-        let mut members = create_symbol_table(None);
+        let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         let type_as_mapped_type = type_.as_mapped_type();
         self.set_structured_type_members(
@@ -995,14 +993,14 @@ impl TypeChecker {
                     .symbol_links()
                     .borrow_mut()
                     .name_type = Some(self.get_union_type(
-                    vec![existing_prop_name_type, prop_name_type.type_wrapper()],
+                    &[existing_prop_name_type, prop_name_type.type_wrapper()],
                     None,
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
                 ));
                 existing_prop_as_mapped_symbol.set_key_type(self.get_union_type(
-                    vec![
+                    &[
                         existing_prop_as_mapped_symbol.key_type(),
                         key_type.type_wrapper(),
                     ],

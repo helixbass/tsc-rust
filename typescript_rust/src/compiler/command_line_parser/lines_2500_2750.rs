@@ -82,9 +82,9 @@ pub(super) fn convert_to_option_value_with_absolute_paths<TToAbsolutePath: Fn(&s
     value
 }
 
-pub fn parse_json_config_file_content<THost: ParseConfigHost>(
+pub fn parse_json_config_file_content(
     json: Option<serde_json::Value>,
-    host: &THost,
+    host: &impl ParseConfigHost,
     base_path: &str,
     existing_options: Option<Gc<CompilerOptions>>,
     config_file_name: Option<&str>,
@@ -107,9 +107,9 @@ pub fn parse_json_config_file_content<THost: ParseConfigHost>(
     )
 }
 
-pub fn parse_json_source_file_config_file_content<THost: ParseConfigHost>(
+pub fn parse_json_source_file_config_file_content(
     source_file: &Node, /*TsConfigSourceFile*/
-    host: &THost,
+    host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     existing_options: Option<Gc<CompilerOptions>>,
     config_file_name: Option<&str>,
@@ -156,7 +156,7 @@ pub(super) fn parse_json_config_file_content_worker(
         impl Borrow<Node> + Clone,
         /*TsConfigSourceFile*/
     >,
-    host: &impl ParseConfigHost,
+    host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     existing_options: Option<Gc<CompilerOptions>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
@@ -281,9 +281,9 @@ pub(super) fn parse_json_config_file_content_worker(
     }
 }
 
-pub(super) fn get_config_file_specs<TSourceFile: Borrow<Node> + Clone>(
+pub(super) fn get_config_file_specs(
     raw: Option<&serde_json::Value>,
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
+    source_file: Option<impl Borrow<Node> + Clone /*TsConfigSourceFile*/>,
     errors: &mut Vec<Gc<Diagnostic>>,
     config_file_name: Option<&str>,
 ) -> ConfigFileSpecs {
@@ -434,7 +434,7 @@ pub(super) fn get_config_file_specs<TSourceFile: Borrow<Node> + Clone>(
 pub(super) fn get_file_names(
     config_file_specs: &ConfigFileSpecs,
     options: &CompilerOptions,
-    host: &impl ParseConfigHost,
+    host: &(impl ParseConfigHost + ?Sized),
     extra_file_extensions: &[FileExtensionInfo],
     raw: Option<&serde_json::Value>,
     resolution_stack: &[Path],

@@ -1,39 +1,37 @@
-#![allow(non_upper_case_globals)]
-
-use gc::Gc;
-use std::borrow::Borrow;
+use gc::{Finalize, Gc, Trace};
+use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    are_option_gcs_equal, every, has_node_array_changed, is_outer_expression,
-    is_statement_or_block, set_original_node, single_or_undefined, BaseNodeFactory,
-    BaseUnparsedNode, Bundle, CommaListExpression, Debug_, EnumMember, FileReference,
-    HasInitializerInterface, HasStatementsInterface, InputFiles, LanguageVariant,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, OuterExpressionKinds, PartiallyEmittedExpression, PropertyAssignment,
-    ReadonlyTextRange, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
-    SpreadAssignment, StrOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags, Type,
-    UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike, VisitResult,
+    are_option_gcs_equal, are_option_rcs_equal, every, has_node_array_changed,
+    is_binary_expression, is_comma_list_expression, is_comma_token, is_outer_expression,
+    is_parse_tree_node, is_statement_or_block, node_is_synthesized, same_flat_map_rc_node,
+    set_original_node, single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle,
+    CommaListExpression, Debug_, EnumMember, FileReference, HasInitializerInterface,
+    HasStatementsInterface, InputFiles, LanguageVariant, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
+    PartiallyEmittedExpression, PropertyAssignment, ReadonlyTextRange, ScriptKind, ScriptTarget,
+    ShorthandPropertyAssignment, SingleOrVec, SourceFile, SpreadAssignment, StrOrRcNode,
+    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike, VisitResult,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
     pub fn create_property_assignment<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         name: impl Into<StrOrRcNode<'name> /*PropertyName*/>,
         initializer: Gc<Node /*Expression*/>,
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(
-            base_factory,
             SyntaxKind::PropertyAssignment,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             Some(name),
         );
-        let mut node = PropertyAssignment::new(
+        let node = PropertyAssignment::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(base_factory, &initializer),
+                .parenthesize_expression_for_disallowed_comma(&initializer),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.name()))
@@ -64,12 +62,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             updated.exclamation_token = Some(original_exclamation_token.clone());
         }
-        self.update(updated.into(), original)
+        self.update(updated.wrap(), original)
     }
 
     pub fn update_property_assignment(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node,    /*PropertyAssignment*/
         name: Gc<Node>, /*PropertyName*/
         initializer: Gc<Node /*Expression*/>,
@@ -82,7 +79,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             )
         {
             self.finish_update_property_assignment(
-                self.create_property_assignment(base_factory, name, initializer),
+                self.create_property_assignment(name, initializer),
                 node,
             )
         } else {
@@ -92,25 +89,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_shorthand_property_assignment<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
         object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
-            base_factory,
             SyntaxKind::ShorthandPropertyAssignment,
             Option::<Gc<NodeArray>>::None,
             Option::<Gc<NodeArray>>::None,
             Some(name),
         );
-        let mut node = ShorthandPropertyAssignment::new(
+        let node = ShorthandPropertyAssignment::new(
             node,
             object_assignment_initializer.map(|object_assignment_initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(
-                        base_factory,
-                        &object_assignment_initializer,
-                    )
+                    .parenthesize_expression_for_disallowed_comma(&object_assignment_initializer)
             }),
         );
         node.add_transform_flags(
@@ -150,12 +142,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         {
             updated.exclamation_token = Some(original_exclamation_token.clone());
         }
-        self.update(updated.into(), original)
+        self.update(updated.wrap(), original)
     }
 
     pub fn update_shorthand_property_assignment(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node,    /*ShorthandPropertyAssignment*/
         name: Gc<Node>, /*Identifier*/
         object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
@@ -170,11 +161,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             )
         {
             self.finish_update_shorthand_property_assignment(
-                self.create_shorthand_property_assignment(
-                    base_factory,
-                    name,
-                    object_assignment_initializer,
-                ),
+                self.create_shorthand_property_assignment(name, object_assignment_initializer),
                 node,
             )
         } else {
@@ -184,14 +171,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_spread_assignment(
         &self,
-        base_factory: &TBaseNodeFactory,
         expression: Gc<Node /*Expression*/>,
     ) -> SpreadAssignment {
-        let node = self.create_base_node(base_factory, SyntaxKind::SpreadAssignment);
-        let mut node = SpreadAssignment::new(
+        let node = self.create_base_node(SyntaxKind::SpreadAssignment);
+        let node = SpreadAssignment::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+                .parenthesize_expression_for_disallowed_comma(&expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression.clone()))
@@ -203,17 +189,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_spread_assignment(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*SpreadAssignment*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
         let node_as_spread_assignment = node.as_spread_assignment();
         if !Gc::ptr_eq(&node_as_spread_assignment.expression, &expression) {
-            self.update(
-                self.create_spread_assignment(base_factory, expression)
-                    .into(),
-                node,
-            )
+            self.update(self.create_spread_assignment(expression).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -221,17 +202,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_enum_member<'name>(
         &self,
-        base_factory: &TBaseNodeFactory,
         name: impl Into<StrOrRcNode<'name>>, /*Identifier*/
         initializer: Option<Gc<Node /*Expression*/>>,
     ) -> EnumMember {
-        let node = self.create_base_node(base_factory, SyntaxKind::EnumMember);
-        let mut node = EnumMember::new(
+        let node = self.create_base_node(SyntaxKind::EnumMember);
+        let node = EnumMember::new(
             node,
-            self.as_name(base_factory, Some(name)).unwrap(),
+            self.as_name(Some(name)).unwrap(),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(base_factory, &initializer)
+                    .parenthesize_expression_for_disallowed_comma(&initializer)
             }),
         );
         node.add_transform_flags(
@@ -244,7 +224,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn update_enum_member(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*EnumMember*/
         name: Gc<Node>,
         initializer: Option<Gc<Node /*Expression*/>>,
@@ -256,11 +235,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 initializer.as_ref(),
             )
         {
-            self.update(
-                self.create_enum_member(base_factory, name, initializer)
-                    .into(),
-                node,
-            )
+            self.update(self.create_enum_member(name, initializer).wrap(), node)
         } else {
             node.node_wrapper()
         }
@@ -268,12 +243,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_source_file(
         &self,
-        base_factory: &TBaseNodeFactory,
         statements: impl Into<NodeArrayOrVec>,
         end_of_file_token: Gc<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
     ) -> SourceFile {
-        let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
+        let node = self
+            .base_factory
+            .create_base_source_file_node(SyntaxKind::SourceFile);
         let node = SourceFile::new(
             node,
             self.create_node_array(Some(statements), None),
@@ -294,69 +270,120 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn clone_source_file_with_changes(
+        &self,
+        source: &Node, /*SourceFile*/
+        statements: NodeArrayOrVec,
+        is_declaration_file: bool,
+        referenced_files: Rc<RefCell<Vec<FileReference>>>,
+        type_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+        has_no_default_lib: bool,
+        lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
+    ) -> Gc<Node> {
+        let source_as_source_file = source.as_source_file();
+        let mut node = source_as_source_file.clone();
+        node.set_pos(-1);
+        node.set_end(-1);
+        node.set_id(0);
+        node.set_modifier_flags_cache(ModifierFlags::None);
+        node.set_parent(None);
+        node.set_flags(NodeFlags::None);
+        node.set_transform_flags(TransformFlags::None);
+        node.set_original(None);
+        node.set_emit_node(None);
+        self.base_factory.update_cloned_node(&node);
+
+        node.set_statements(self.create_node_array(Some(statements), None));
+        node.set_end_of_file_token(source_as_source_file.end_of_file_token());
+        node.set_is_declaration_file(is_declaration_file);
+        node.set_referenced_files(referenced_files);
+        node.set_type_reference_directives(type_reference_directives);
+        node.set_has_no_default_lib(has_no_default_lib);
+        node.set_lib_reference_directives(lib_reference_directives);
+        node.set_transform_flags(
+            propagate_children_flags(Some(&node.statements()))
+                | propagate_child_flags(Some(node.end_of_file_token())),
+        );
+        node.set_implied_node_format(source_as_source_file.maybe_implied_node_format());
+        node.wrap()
+    }
+
     pub fn update_source_file(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*SourceFile*/
         statements: impl Into<NodeArrayOrVec>,
         is_declaration_file: Option<bool>,
-        referenced_files: Option<Vec<FileReference>>,
-        type_reference_directives: Option<Vec<FileReference>>,
+        referenced_files: Option<Rc<RefCell<Vec<FileReference>>>>,
+        type_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
         has_no_default_lib: Option<bool>,
-        lib_reference_directives: Option<Vec<FileReference>>,
-    ) -> Gc<Node /*SourceFile*/> {
-        // TODO
-        // let node_as_source_file = node.as_source_file();
-        // let is_declaration_file = is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
-        // let referenced_files = referenced_files.unwrap_or_else(|| node_as_source_file.referenced_files().clone());
-        // let type_reference_directives = type_reference_directives.unwrap_or_else(|| node_as_source_file.type_reference_directives().clone());
-        // let has_no_default_lib = has_no_default_lib.unwrap_or_else(|| node_as_source_file.has_no_default_lib());
-        // let lib_reference_directives = lib_reference_directives.unwrap_or_else(|| node_as_source_file.lib_reference_directives().clone());
-        // let statements = statements.into();
-        // let statements_as_vec = match statements.clone() {
-        //     NodeArrayOrVec::NodeArray(statements) => statements.to_vec(),
-        //     NodeArrayOrVec::Vec(statements) => statements,
-        // };
-        //     if !(node_as_source_file.statements.len() == statements_as_vec.len()
-        //         && node_as_source_file.statements.iter().enumerate().all(
-        //             |(index, node_statement)| Rc::ptr_eq(node_statement, &statements_as_vec[index]),
-        //         ))
-        // {
-        //     // self.update(
-        //     //     self.create_call_expression(
-        //     //         base_factory,
-        //     //         expression.node_wrapper(),
-        //     //         type_arguments.map(|type_arguments| type_arguments.to_vec()),
-        //     //         Some(arguments_array.to_vec()),
-        //     //     )
-        //     //     .into(),
-        //     //     node,
-        //     // )
-        // } else {
-        //     node.node_wrapper()
-        // }
-        node.node_wrapper()
+        lib_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
+    ) -> Gc<Node> {
+        let node_as_source_file = node.as_source_file();
+        let is_declaration_file =
+            is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
+        let referenced_files =
+            referenced_files.unwrap_or_else(|| node_as_source_file.referenced_files());
+        let type_reference_directives = type_reference_directives
+            .unwrap_or_else(|| node_as_source_file.type_reference_directives());
+        let has_no_default_lib =
+            has_no_default_lib.unwrap_or_else(|| node_as_source_file.has_no_default_lib());
+        let lib_reference_directives = lib_reference_directives
+            .unwrap_or_else(|| node_as_source_file.lib_reference_directives());
+        let statements = statements.into();
+        if has_node_array_changed(&node_as_source_file.statements(), &statements)
+            || node_as_source_file.is_declaration_file() != is_declaration_file
+            || !are_option_rcs_equal(
+                node_as_source_file.maybe_referenced_files().as_ref(),
+                Some(&referenced_files),
+            )
+            || !are_option_rcs_equal(
+                node_as_source_file
+                    .maybe_type_reference_directives()
+                    .as_ref(),
+                Some(&type_reference_directives),
+            )
+            || node_as_source_file.has_no_default_lib() != has_no_default_lib
+            || !are_option_rcs_equal(
+                node_as_source_file
+                    .maybe_lib_reference_directives()
+                    .as_ref(),
+                Some(&lib_reference_directives),
+            )
+        {
+            self.update(
+                self.clone_source_file_with_changes(
+                    node,
+                    statements,
+                    is_declaration_file,
+                    referenced_files,
+                    type_reference_directives,
+                    has_no_default_lib,
+                    lib_reference_directives,
+                ),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_bundle(
         &self,
-        base_factory: &TBaseNodeFactory,
         source_files: Vec<Option<Gc<Node /*<SourceFile>*/>>>,
         prepends: Option<Vec<Gc<Node /*<UnparsedSource | InputFiles>*/>>>,
     ) -> Bundle {
         let prepends = prepends.unwrap_or_else(|| vec![]);
-        let node = self.create_base_node(base_factory, SyntaxKind::Bundle);
+        let node = self.create_base_node(SyntaxKind::Bundle);
         Bundle::new(node, prepends, source_files)
     }
 
     pub fn create_unparsed_source(
         &self,
-        base_factory: &TBaseNodeFactory,
         prologues: Vec<Gc<Node /*<UnparsedPrologue>*/>>,
         synthetic_references: Option<Vec<Gc<Node /*<UnparsedSyntheticReference*/>>>,
         texts: Vec<Gc<Node /*<UnparsedSourceText>*/>>,
     ) -> UnparsedSource {
-        let node = self.create_base_node(base_factory, SyntaxKind::UnparsedSource);
+        let node = self.create_base_node(SyntaxKind::UnparsedSource);
         UnparsedSource::new(
             node,
             prologues,
@@ -371,41 +398,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     fn create_base_unparsed_node(
         &self,
-        base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         data: Option<String>,
     ) -> BaseUnparsedNode {
-        let node = self.create_base_node(base_factory, kind);
+        let node = self.create_base_node(kind);
         BaseUnparsedNode::new(node, data)
     }
 
-    fn create_unparsed_prologue(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        data: Option<String>,
-    ) -> UnparsedPrologue {
-        let node = self.create_base_unparsed_node(base_factory, SyntaxKind::UnparsedPrologue, data);
+    pub fn create_unparsed_prologue(&self, data: Option<String>) -> UnparsedPrologue {
+        let node = self.create_base_unparsed_node(SyntaxKind::UnparsedPrologue, data);
         UnparsedPrologue::new(node)
     }
 
-    fn create_unparsed_prepend(
+    pub fn create_unparsed_prepend(
         &self,
-        base_factory: &TBaseNodeFactory,
         data: Option<String>,
         texts: Vec<Gc<Node /*UnparsedTextLike*/>>,
     ) -> UnparsedPrepend {
-        let node = self.create_base_unparsed_node(base_factory, SyntaxKind::UnparsedPrepend, data);
+        let node = self.create_base_unparsed_node(SyntaxKind::UnparsedPrepend, data);
         UnparsedPrepend::new(node, texts)
     }
 
-    fn create_unparsed_text_like(
+    pub fn create_unparsed_text_like(
         &self,
-        base_factory: &TBaseNodeFactory,
         data: Option<String>,
         internal: bool,
     ) -> UnparsedTextLike {
         let node = self.create_base_unparsed_node(
-            base_factory,
             if internal {
                 SyntaxKind::UnparsedInternalText
             } else {
@@ -416,36 +435,37 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         UnparsedTextLike::new(node)
     }
 
-    pub fn create_input_files(&self, base_factory: &TBaseNodeFactory) -> InputFiles {
-        let node = self.create_base_node(base_factory, SyntaxKind::InputFiles);
+    pub fn create_input_files(&self) -> InputFiles {
+        let node = self.create_base_node(SyntaxKind::InputFiles);
         InputFiles::new(node, "".to_owned(), "".to_owned())
     }
 
     pub fn create_synthetic_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         type_: Gc<Type>,
         is_spread: Option<bool>,
         tuple_name_source: Option<Gc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
     ) -> SyntheticExpression {
         let is_spread = is_spread.unwrap_or(false);
-        let node = self.create_base_node(base_factory, SyntaxKind::SyntheticExpression);
+        let node = self.create_base_node(SyntaxKind::SyntheticExpression);
         let node = SyntheticExpression::new(node, is_spread, type_, tuple_name_source);
         node
     }
 
+    pub fn create_not_emitted_statement(&self, _original: Gc<Node>) -> Gc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_partially_emitted_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
-        expression: Gc<Node /*Expression*/>,
-        original: Option<Gc<Node>>,
+        _expression: Gc<Node /*Expression*/>,
+        _original: Option<Gc<Node>>,
     ) -> PartiallyEmittedExpression {
         unimplemented!()
     }
 
     pub fn update_partially_emitted_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*PartiallyEmittedExpression*/
         expression: Gc<Node /*Expression*/>,
     ) -> Gc<Node> {
@@ -456,11 +476,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         ) {
             self.update(
                 self.create_partially_emitted_expression(
-                    base_factory,
                     expression,
                     node_as_partially_emitted_expression.maybe_original(),
                 )
-                .into(),
+                .wrap(),
                 node,
             )
         } else {
@@ -468,34 +487,77 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
+    fn flatten_comma_elements(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> SingleOrVec<Gc<Node /*Expression*/>> {
+        if node_is_synthesized(node)
+            && !is_parse_tree_node(node)
+            && node.maybe_original().is_none()
+            && node.maybe_emit_node().is_none()
+            && node.maybe_id().is_none()
+        {
+            if is_comma_list_expression(node) {
+                return node.as_comma_list_expression().elements.to_vec().into();
+            }
+            if is_binary_expression(node) {
+                let node_as_binary_expression = node.as_binary_expression();
+                if is_comma_token(&node_as_binary_expression.operator_token) {
+                    return vec![
+                        node_as_binary_expression.left.clone(),
+                        node_as_binary_expression.right.clone(),
+                    ]
+                    .into();
+                }
+            }
+        }
+        node.node_wrapper().into()
+    }
+
     pub fn create_comma_list_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> CommaListExpression {
-        unimplemented!()
+        let elements = elements.into();
+        let node = self.create_base_node(SyntaxKind::CommaListExpression);
+        let node = CommaListExpression::new(
+            node,
+            self.create_node_array(
+                Some(same_flat_map_rc_node(elements, |element: &Gc<Node>, _| {
+                    self.flatten_comma_elements(element)
+                })),
+                None,
+            ),
+        );
+        node.set_transform_flags(
+            node.transform_flags() | propagate_children_flags(Some(&node.elements)),
+        );
+        node
     }
 
     pub fn update_comma_list_expression(
         &self,
-        base_factory: &TBaseNodeFactory,
         node: &Node, /*CommaListExpression*/
         elements: impl Into<NodeArrayOrVec /*<Expression>*/>,
     ) -> Gc<Node> {
         let node_as_comma_list_expression = node.as_comma_list_expression();
         let elements = elements.into();
         if has_node_array_changed(&node_as_comma_list_expression.elements, &elements) {
-            self.update(
-                self.create_comma_list_expression(base_factory, elements)
-                    .into(),
-                node,
-            )
+            self.update(self.create_comma_list_expression(elements).wrap(), node)
         } else {
             node.node_wrapper()
         }
     }
 
-    pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Gc<Node> {
+    pub fn create_end_of_declaration_marker(&self, _original: Gc<Node>) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_merge_declaration_marker(&self, _original: Gc<Node>) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn clone_node(&self, node: &Node) -> Gc<Node> {
         // if (node === undefined) {
         //     return node;
         //  }
@@ -503,6 +565,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let clone = node.clone().wrap();
         clone.set_pos(-1);
         clone.set_end(-1);
+        clone.set_id(0);
+        clone.set_modifier_flags_cache(ModifierFlags::None);
+        clone.set_parent(None);
+        self.base_factory.update_cloned_node(&*clone);
 
         clone.set_flags(clone.flags() | (node.flags() & !NodeFlags::Synthesized));
         clone.set_transform_flags(node.transform_flags());
@@ -511,17 +577,54 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         clone
     }
 
-    pub fn create_global_method_call(
+    pub fn create_immediately_invoked_arrow_function(
         &self,
-        base_factory: &TBaseNodeFactory,
-        global_object_name: String,
-        method_name: String,
-        arguments_list: Vec<Gc<Node /*Expression*/>>,
+        _statements: impl Into<NodeArrayOrVec>,
+        _param: Option<Gc<Node /*ParameterDeclaration*/>>,
+        _param_value: Option<Gc<Node /*Expression*/>>,
     ) -> Gc<Node> {
         unimplemented!()
     }
 
-    fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
+    pub fn create_void_zero(&self) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_export_default(&self, _expression: Gc<Node /*Expression*/>) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_external_module_export(&self, _export_name: Gc<Node /*Identifier*/>) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_type_check(
+        &self,
+        _value: Gc<Node /*Expression*/>,
+        _tag: &str, /*TypeOfTag*/
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_function_call_call(
+        &self,
+        _target: Gc<Node /*Expression*/>,
+        _this_arg: Gc<Node /*Expression*/>,
+        _arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn create_global_method_call(
+        &self,
+        _global_object_name: String,
+        _method_name: String,
+        _arguments_list: Vec<Gc<Node /*Expression*/>>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    fn is_ignorable_paren(&self, _node: &Node /*Expression*/) -> bool {
         unimplemented!()
     }
 
@@ -532,7 +635,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         kinds: Option<OuterExpressionKinds>,
     ) -> Gc<Node /*Expression*/> {
         let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
-        if let Some(outer_expression) = outer_expression.filter(|outer_expression| {
+        if let Some(_outer_expression) = outer_expression.filter(|outer_expression| {
             let outer_expression = outer_expression.borrow();
             is_outer_expression(outer_expression, Some(kinds))
                 && !self.is_ignorable_paren(outer_expression)
@@ -542,48 +645,81 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         inner_expression.node_wrapper()
     }
 
-    pub fn inline_expressions(
+    pub fn restore_enclosing_label(
         &self,
-        base_factory: &TBaseNodeFactory,
-        expressions: &[Gc<Node /*Expression*/>],
+        _node: &Node, /*Statement*/
+        _outermost_labeled_statement: Option<impl Borrow<Node /*LabeledStatement*/>>,
+        _after_restore_label_callback: Option<impl FnMut(&Node /*LabeledStatement*/)>,
+    ) -> Gc<Node /*Statement*/> {
+        unimplemented!()
+    }
+
+    pub fn inline_expressions(&self, _expressions: &[Gc<Node /*Expression*/>]) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn get_internal_name(
+        &self,
+        _node: &Node, /*Declaration*/
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
+    ) -> Gc<Node> {
+        unimplemented!()
+    }
+
+    pub fn get_local_name(
+        &self,
+        _node: &Node, /*Declaration*/
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
     ) -> Gc<Node> {
         unimplemented!()
     }
 
     pub fn get_declaration_name(
         &self,
-        node: Option<impl Borrow<Node> /*Declaration*/>,
-        allow_comments: Option<bool>,
-        allow_source_maps: Option<bool>,
+        _node: Option<impl Borrow<Node> /*Declaration*/>,
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
     ) -> Gc<Node /*Identifier*/> {
+        unimplemented!()
+    }
+
+    pub fn get_external_module_or_namespace_export_name(
+        &self,
+        _ns: Option<impl Borrow<Node> /*Identifier*/>,
+        _node: &Node, /*Declaration*/
+        _allow_comments: Option<bool>,
+        _allow_source_maps: Option<bool>,
+    ) -> Gc<Node /*Identifier | PropertyAccessExpression*/> {
         unimplemented!()
     }
 
     pub fn copy_prologue(
         &self,
-        base_factory: &TBaseNodeFactory,
-        source: &[Gc<Node /*Statement*/>],
-        target: &mut Vec<Gc<Node /*Statement*/>>,
-        ensure_use_strict: Option<bool>,
-        visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
+        _source: &[Gc<Node /*Statement*/>],
+        _target: &mut Vec<Gc<Node /*Statement*/>>,
+        _ensure_use_strict: Option<bool>,
+        _visitor: Option<impl FnMut(&Node) -> VisitResult /*<Node>*/>,
     ) -> usize {
         unimplemented!()
     }
 
-    pub fn lift_to_block(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        nodes: &[Gc<Node>],
-    ) -> Gc<Node /*Statement*/> {
+    pub fn lift_to_block(&self, nodes: &[Gc<Node>]) -> Gc<Node /*Statement*/> {
         Debug_.assert(
             every(nodes, |node: &Gc<Node>, _| is_statement_or_block(node)),
             Some("Cannot lift nodes to a Block."),
         );
         single_or_undefined(Some(nodes))
             .cloned()
-            .unwrap_or_else(|| {
-                self.create_block(base_factory, nodes.to_owned(), None)
-                    .into()
-            })
+            .unwrap_or_else(|| self.create_block(nodes.to_owned(), None).wrap())
+    }
+
+    pub fn merge_lexical_environment(
+        &self,
+        _statements: impl Into<NodeArrayOrVec>,
+        _declarations: Option<&[Gc<Node /*Statement*/>]>,
+    ) -> NodeArrayOrVec {
+        unimplemented!()
     }
 }

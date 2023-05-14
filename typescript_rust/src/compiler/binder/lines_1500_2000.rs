@@ -69,8 +69,8 @@ impl BinderType {
         } else {
             None
         };
-        if is_binding_pattern(Some(node)) {
-            for child in &node.as_has_elements().elements() {
+        if is_binding_pattern(name.as_deref()) {
+            for child in &name.unwrap().as_has_elements().elements() {
                 self.bind_initialized_variable_flow(child);
             }
         } else {

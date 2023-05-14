@@ -160,10 +160,10 @@ impl ops::Rem for Number {
     }
 }
 
-pub fn is_finite(value: &Number) -> bool {
+pub fn is_finite(_value: &Number) -> bool {
     unimplemented!()
 }
 
-pub fn is_nan(value: &Number) -> bool {
+pub fn is_nan(_value: &Number) -> bool {
     unimplemented!()
 }

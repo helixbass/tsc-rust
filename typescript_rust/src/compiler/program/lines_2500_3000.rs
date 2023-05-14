@@ -12,13 +12,12 @@ use crate::{
     get_normalized_absolute_path_without_root, get_output_declaration_file_name, has_extension,
     has_js_file_extension, has_jsdoc_nodes, is_declaration_file_name, maybe_for_each, maybe_map,
     node_modules_path_part, out_file, package_id_to_string, resolve_module_name,
-    set_resolved_type_reference_directive, string_contains, to_file_name_lower_case, AsDoubleDeref,
-    CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
+    set_resolved_type_reference_directive, some, string_contains, to_file_name_lower_case,
+    AsDoubleDeref, CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
     FileIncludeKind, FileIncludeReason, FileReference, ModuleResolutionKind, Node, NodeArray,
     NodeId, NodeIdOverride, NodeInterface, NodeSymbolOverride, PackageId, Path, Program,
-    ReadonlyTextRange, RedirectInfo, ReferencedFile, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile, SourceFileLike,
-    SourceOfProjectReferenceRedirect, Symbol, SyntaxKind,
+    RedirectInfo, ReferencedFile, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ScriptReferenceHost, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
 };
 
 impl Program {
@@ -53,7 +52,7 @@ impl Program {
 
     pub(super) fn get_lib_file_from_reference(
         &self,
-        ref_: &FileReference,
+        _ref_: &FileReference,
     ) -> Option<Gc<Node /*SourceFile*/>> {
         unimplemented!()
     }
@@ -189,7 +188,7 @@ impl Program {
         is_default_lib: bool,
         ignore_no_default_lib: bool,
         package_id: Option<&PackageId>,
-        reason: &FileIncludeReason,
+        reason: Gc<FileIncludeReason>,
     ) {
         self.get_source_file_from_reference_worker(
             file_name,
@@ -198,7 +197,7 @@ impl Program {
                     file_name,
                     is_default_lib,
                     ignore_no_default_lib,
-                    reason,
+                    reason.clone(),
                     package_id,
                 )
             },
@@ -206,23 +205,60 @@ impl Program {
                 |diagnostic: &'static DiagnosticMessage, args: Option<Vec<String>>| {
                     self.add_file_preprocessing_file_explaining_diagnostic(
                         Option::<&Node>::None,
-                        reason,
+                        reason.clone(),
                         diagnostic,
                         args,
                     )
                 },
             ),
-            Some(reason),
+            Some(&reason),
         );
+    }
+
+    pub fn process_project_reference_file(
+        &self,
+        file_name: &str,
+        reason: Gc<FileIncludeReason /*ProjectReferenceFile*/>,
+    ) {
+        self.process_source_file(file_name, false, false, None, reason)
     }
 
     pub fn report_file_names_differ_only_in_casing_error(
         &self,
         file_name: &str,
         existing_file: &Node, /*SourceFile*/
-        reason: &FileIncludeReason,
+        reason: Gc<FileIncludeReason>,
     ) {
-        unimplemented!()
+        let existing_file_as_source_file = existing_file.as_source_file();
+        let has_existing_reason_to_report_error_on = !is_referenced_file(Some(&reason))
+            && some(
+                (*self.file_reasons())
+                    .borrow()
+                    .get(&*existing_file_as_source_file.path())
+                    .as_deref(),
+                Some(|reason: &Gc<FileIncludeReason>| is_referenced_file(Some(reason))),
+            );
+        if has_existing_reason_to_report_error_on {
+            self.add_file_preprocessing_file_explaining_diagnostic(
+                Some(existing_file),
+                reason,
+                &Diagnostics::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
+                Some(vec![
+                    existing_file_as_source_file.file_name().clone(),
+                    file_name.to_owned(),
+                ]),
+            );
+        } else {
+            self.add_file_preprocessing_file_explaining_diagnostic(
+                Some(existing_file),
+                reason,
+                &Diagnostics::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
+                Some(vec![
+                    file_name.to_owned(),
+                    existing_file_as_source_file.file_name().clone(),
+                ]),
+            );
+        }
     }
 
     pub fn create_redirect_source_file(
@@ -245,7 +281,7 @@ impl Program {
         });
         self.source_files_found_searching_node_modules_mut()
             .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
-        let redirect: Gc<Node> = redirect.into();
+        let redirect = redirect.wrap();
         redirect.set_id_override(Gc::new(Box::new(RedirectSourceFileIdOverride::new(
             redirect.clone(),
         ))));
@@ -260,7 +296,7 @@ impl Program {
         file_name: &str,
         is_default_lib: bool,
         ignore_no_default_lib: bool,
-        reason: &FileIncludeReason,
+        reason: Gc<FileIncludeReason>,
         package_id: Option<&PackageId>,
     ) -> Option<Gc<Node>> {
         // tracing?.push(tracing.Phase.Program, "findSourceFile", {
@@ -284,7 +320,7 @@ impl Program {
         file_name: &str,
         is_default_lib: bool,
         ignore_no_default_lib: bool,
-        reason: &FileIncludeReason,
+        reason: Gc<FileIncludeReason>,
         package_id: Option<&PackageId>,
     ) -> Option<Gc<Node>> {
         let path = self.to_path(file_name);
@@ -307,7 +343,7 @@ impl Program {
                         source,
                         is_default_lib,
                         ignore_no_default_lib,
-                        reason,
+                        reason.clone(),
                         package_id,
                     ),
                     _ => None,
@@ -326,7 +362,7 @@ impl Program {
                 FilesByNameValue::SourceFile(file) => Some(file),
                 _ => None,
             };
-            self.add_file_include_reason(file.as_deref(), reason);
+            self.add_file_include_reason(file.as_deref(), reason.clone());
             if let Some(file) = file.as_ref() {
                 if self.options.force_consistent_casing_in_file_names == Some(true) {
                     let ref checked_name = file.as_source_file().file_name();
@@ -346,7 +382,9 @@ impl Program {
                     );
                     if checked_absolute_path != input_absolute_path {
                         self.report_file_names_differ_only_in_casing_error(
-                            &file_name, file, reason,
+                            &file_name,
+                            file,
+                            reason.clone(),
                         );
                     }
                 }
@@ -392,7 +430,7 @@ impl Program {
         }
 
         let mut redirected_path: Option<Path> = None;
-        if is_referenced_file(Some(reason)) && !self.use_source_of_project_reference_redirect() {
+        if is_referenced_file(Some(&reason)) && !self.use_source_of_project_reference_redirect() {
             let redirect_project = self.get_project_reference_redirect_project(&file_name);
             if let Some(redirect_project) = redirect_project.as_ref() {
                 if matches!(
@@ -413,7 +451,7 @@ impl Program {
             Some(&mut |host_error_message| {
                 self.add_file_preprocessing_file_explaining_diagnostic(
                     Option::<&Node>::None,
-                    reason,
+                    reason.clone(),
                     &Diagnostics::Cannot_read_file_0_Colon_1,
                     Some(vec![file_name.clone(), host_error_message.to_owned()]),
                 );
@@ -436,12 +474,12 @@ impl Program {
                     &self.to_path(&file_name),
                     original_file_name,
                 );
-                self.redirect_targets_map().add(
+                (*self.redirect_targets_map()).borrow_mut().add(
                     file_from_package_id.as_source_file().path().clone(),
                     file_name.clone(),
                 );
                 self.add_file_to_files_by_name(Some(&*dup_file), &path, redirected_path.as_ref());
-                self.add_file_include_reason(Some(&*dup_file), reason);
+                self.add_file_include_reason(Some(&*dup_file), reason.clone());
                 self.source_file_to_package_name()
                     .insert(path.clone(), package_id.name.clone());
                 self.processing_other_files
@@ -478,7 +516,7 @@ impl Program {
                 self.host().as_dyn_module_resolution_host(),
                 self.options.clone(),
             ));
-            self.add_file_include_reason(Some(&**file), reason);
+            self.add_file_include_reason(Some(&**file), reason.clone());
 
             if CompilerHost::use_case_sensitive_file_names(&**self.host()) {
                 let path_lower_case = to_file_name_lower_case(&path);
@@ -530,21 +568,22 @@ impl Program {
         file
     }
 
-    pub(super) fn add_file_include_reason<TFile: Borrow<Node>>(
+    pub(super) fn add_file_include_reason(
         &self,
-        file: Option<TFile /*SourceFile*/>,
-        reason: &FileIncludeReason,
+        file: Option<impl Borrow<Node> /*SourceFile*/>,
+        reason: Gc<FileIncludeReason>,
     ) {
         if let Some(file) = file {
             let file = file.borrow();
-            self.file_reasons_mut()
+            (*self.file_reasons())
+                .borrow_mut()
                 .add(file.as_source_file().path().clone(), reason.clone());
         }
     }
 
-    pub(super) fn add_file_to_files_by_name<TFile: Borrow<Node>>(
+    pub(super) fn add_file_to_files_by_name(
         &self,
-        file: Option<TFile /*SourceFile*/>,
+        file: Option<impl Borrow<Node> /*SourceFile*/>,
         path: &Path,
         redirected_path: Option<&Path>,
     ) {
@@ -586,7 +625,7 @@ impl Program {
         &self,
         file_name: &str,
     ) -> Option<Gc<ResolvedProjectReference>> {
-        if match self.maybe_resolved_project_references().as_ref() {
+        if match self.maybe_resolved_project_references_mut().as_ref() {
             None => true,
             Some(resolved_project_references) => resolved_project_references.is_empty(),
         } || file_extension_is(file_name, Extension::Dts.to_str())
@@ -600,8 +639,8 @@ impl Program {
 
     pub fn get_project_reference_output_name(
         &self,
-        referenced_project: &ResolvedProjectReference,
-        file_name: &str,
+        _referenced_project: &ResolvedProjectReference,
+        _file_name: &str,
     ) -> String {
         unimplemented!()
     }
@@ -654,7 +693,7 @@ impl Program {
         mut cb: TCallback,
     ) -> Option<TReturn> {
         for_each_resolved_project_reference(
-            self.maybe_resolved_project_references().as_deref(),
+            self.maybe_resolved_project_references_mut().as_deref(),
             |resolved_project_reference, _parent| cb(resolved_project_reference),
         )
     }
@@ -694,7 +733,7 @@ impl Program {
                                 {
                                     return got_common_source_directory.clone();
                                 }
-                                let got_common_source_directory =
+                                got_common_source_directory =
                                     Some(get_common_source_directory_of_config(
                                         &resolved_ref.command_line,
                                         !CompilerHost::use_case_sensitive_file_names(
@@ -744,7 +783,7 @@ impl Program {
 
     pub(super) fn get_resolved_project_reference_by_path(
         &self,
-        project_reference_path: &Path,
+        _project_reference_path: &Path,
     ) -> Option<Gc<ResolvedProjectReference>> {
         unimplemented!()
     }
@@ -752,7 +791,11 @@ impl Program {
     pub fn process_referenced_files(&self, file: &Node /*SourceFile*/, is_default_lib: bool) {
         let file_as_source_file = file.as_source_file();
         maybe_for_each(
-            file_as_source_file.maybe_referenced_files().as_ref(),
+            file_as_source_file
+                .maybe_referenced_files()
+                .as_ref()
+                .map(|file_referenced_files| (**file_referenced_files).borrow())
+                .as_deref(),
             |ref_: &FileReference, index| -> Option<()> {
                 self.process_source_file(
                     &resolve_tripleslash_reference(
@@ -762,11 +805,11 @@ impl Program {
                     is_default_lib,
                     false,
                     None,
-                    &FileIncludeReason::ReferencedFile(ReferencedFile {
+                    Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
                         kind: FileIncludeKind::ReferenceFile,
                         file: file_as_source_file.path().clone(),
                         index,
-                    }),
+                    })),
                 );
                 None
             },
@@ -777,14 +820,18 @@ impl Program {
         let file_as_source_file = file.as_source_file();
         let file_type_reference_directives = file_as_source_file.maybe_type_reference_directives();
         let type_directives = maybe_map(
-            file_type_reference_directives.as_ref(),
+            file_type_reference_directives
+                .as_ref()
+                .map(|file_type_reference_directives| (**file_type_reference_directives).borrow())
+                .as_deref(),
             |ref_: &FileReference, _| to_file_name_lower_case(&ref_.file_name),
         );
         if type_directives.is_none() {
             return;
         }
         let type_directives = type_directives.unwrap();
-        let file_type_reference_directives = file_type_reference_directives.as_ref().unwrap();
+        let file_type_reference_directives = file_type_reference_directives.unwrap();
+        let file_type_reference_directives = (*file_type_reference_directives).borrow();
 
         let resolutions = self
             .resolve_type_reference_directive_names_worker(&type_directives, file.node_wrapper());
@@ -800,11 +847,11 @@ impl Program {
             self.process_type_reference_directive(
                 &file_name,
                 resolved_type_reference_directive.clone(),
-                &FileIncludeReason::ReferencedFile(ReferencedFile {
+                Gc::new(FileIncludeReason::ReferencedFile(ReferencedFile {
                     kind: FileIncludeKind::TypeReferenceDirective,
                     file: file_as_source_file.path().clone(),
                     index,
-                }),
+                })),
             );
         }
     }
@@ -813,7 +860,7 @@ impl Program {
         &self,
         type_reference_directive: &str,
         resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
-        reason: &FileIncludeReason,
+        reason: Gc<FileIncludeReason>,
     ) {
         // tracing?.push(tracing.Phase.Program, "processTypeReferenceDirective", { directive: typeReferenceDirective, hasResolved: !!resolveModuleNamesReusingOldState, refKind: reason.kind, refPath: isReferencedFile(reason) ? reason.file : undefined });
         self.process_type_reference_directive_worker(
@@ -828,9 +875,10 @@ impl Program {
         &self,
         type_reference_directive: &str,
         resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
-        reason: &FileIncludeReason,
+        reason: Gc<FileIncludeReason>,
     ) {
-        let previous_resolution = (*self.resolved_type_reference_directives().borrow())
+        let previous_resolution = (*self.resolved_type_reference_directives())
+            .borrow()
             .get(type_reference_directive)
             .cloned()
             .flatten();
@@ -922,10 +970,12 @@ impl Program {
         }
 
         if save_resolution {
-            self.resolved_type_reference_directives_mut().insert(
-                type_reference_directive.to_owned(),
-                resolved_type_reference_directive,
-            );
+            (*self.resolved_type_reference_directives())
+                .borrow_mut()
+                .insert(
+                    type_reference_directive.to_owned(),
+                    resolved_type_reference_directive,
+                );
         }
     }
 
@@ -959,7 +1009,7 @@ impl Program {
             &resolve_from,
             Gc::new(
                 CompilerOptionsBuilder::default()
-                    .module_resolution(Some(ModuleResolutionKind::NodeJs))
+                    .module_resolution(ModuleResolutionKind::NodeJs)
                     .build()
                     .unwrap(),
             ),
@@ -1063,7 +1113,9 @@ impl ProgramForEachResolvedProjectReference {
 impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference {
     fn call(&self, cb: &mut dyn FnMut(Gc<ResolvedProjectReference>)) {
         for_each_resolved_project_reference(
-            self.program.maybe_resolved_project_references().as_deref(),
+            self.program
+                .maybe_resolved_project_references_mut()
+                .as_deref(),
             |resolved_project_reference, _parent| -> Option<()> {
                 cb(resolved_project_reference);
                 None
