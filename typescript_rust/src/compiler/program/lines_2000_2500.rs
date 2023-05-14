@@ -31,8 +31,8 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
-        self.get_and_cache_diagnostics(
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+        self.try_get_and_cache_diagnostics(
             Some(source_file),
             cancellation_token,
             &mut self.cached_bind_and_check_diagnostics_for_file_mut(),
@@ -707,8 +707,8 @@ impl Program {
         &self,
         source_file: Option<&Node>, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
-        self.get_and_cache_diagnostics(
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+        self.try_get_and_cache_diagnostics(
             source_file,
             cancellation_token,
             &mut self.cached_declaration_diagnostics_for_file_mut(),
@@ -732,7 +732,7 @@ impl Program {
                 self.get_emit_host(None),
                 resolver,
                 source_file,
-            )
+            )?
             .unwrap_or_default())
         })
     }
@@ -747,6 +747,22 @@ impl Program {
             Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> Vec<Gc<Diagnostic>>,
     ) -> Vec<Gc<Diagnostic>> {
+        self.try_get_and_cache_diagnostics(source_file, cancellation_token, cache, |a, b| {
+            Ok(get_diagnostics(a, b))
+        })
+        .unwrap()
+    }
+
+    pub(super) fn try_get_and_cache_diagnostics(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cache: &mut DiagnosticCache,
+        mut get_diagnostics: impl FnMut(
+            Option<&Node>, /*SourceFile*/
+            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ) -> io::Result<Vec<Gc<Diagnostic>>>,
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
         let cached_result = if let Some(source_file) = source_file {
             cache.per_file.as_ref().and_then(|cache_per_file| {
                 cache_per_file
@@ -758,9 +774,9 @@ impl Program {
         };
 
         if let Some(cached_result) = cached_result {
-            return cached_result;
+            return Ok(cached_result);
         }
-        let result = get_diagnostics(source_file, cancellation_token);
+        let result = get_diagnostics(source_file, cancellation_token)?;
         if let Some(source_file) = source_file {
             cache
                 .per_file
@@ -769,19 +785,19 @@ impl Program {
         } else {
             cache.all_diagnostics = Some(result.clone());
         }
-        result
+        Ok(result)
     }
 
     pub fn get_declaration_diagnostics_for_file(
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
-        if source_file.as_source_file().is_declaration_file() {
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
+        Ok(if source_file.as_source_file().is_declaration_file() {
             vec![]
         } else {
-            self.get_declaration_diagnostics_worker(Some(source_file), cancellation_token)
-        }
+            self.get_declaration_diagnostics_worker(Some(source_file), cancellation_token)?
+        })
     }
 
     pub fn get_options_diagnostics(

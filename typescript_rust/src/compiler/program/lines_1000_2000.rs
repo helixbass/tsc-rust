@@ -21,10 +21,11 @@ use crate::{
     node_modules_path_part, not_implemented_resolver, out_file, package_id_to_string,
     project_reference_is_equal_to, ref_unwrapped, remove_prefix, remove_suffix, skip_type_checking,
     sort_and_deduplicate_diagnostics, source_file_may_be_emitted, string_contains,
-    to_file_name_lower_case, to_path as to_path_helper, trace, type_directive_is_equal_to,
-    zip_to_mode_aware_cache, AsDoubleDeref, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult,
-    Extension, FileIncludeReason, FileReference, FilesByNameValue, ModuleSpecifierResolutionHost,
+    to_file_name_lower_case, to_path as to_path_helper, trace, try_flat_map,
+    type_directive_is_equal_to, zip_to_mode_aware_cache, AsDoubleDeref,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
+    Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
+    FileReference, FilesByNameValue, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeFlags,
     NodeInterface, NonEmpty, Path, Program, ProgramBuildInfo, ProjectReference, ReadFileCallback,
     RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
@@ -266,8 +267,8 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
-        self.get_diagnostics_helper(
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+        self.try_get_diagnostics_helper(
             source_file,
             |source_file, cancellation_token| {
                 self.get_semantic_diagnostics_for_file(source_file, cancellation_token)
@@ -284,7 +285,7 @@ impl Program {
         emit_only_dts_files: Option<bool>,
         transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
-    ) -> EmitResult {
+    ) -> io::Result<EmitResult> {
         // return super::emit_skipped_with_no_diagnostics();
         // tracing?.push(tracing.Phase.Emit, "emit", { path: sourceFile?.path }, /*separateBeginAndEnd*/ true);
         let result = self.run_with_cancellation_token(|| {
@@ -296,9 +297,9 @@ impl Program {
                 transformers,
                 force_dts_emit,
             )
-        });
+        })?;
         // tracing?.pop();
-        result
+        Ok(result)
     }
 
     pub(super) fn is_emit_blocked(&self, emit_file_name: &str) -> bool {
@@ -321,7 +322,7 @@ impl Program {
                 source_file,
                 write_file_callback.clone(),
                 cancellation_token.clone(),
-            );
+            )?;
             if let Some(result) = result {
                 return Ok(result);
             }
@@ -351,7 +352,7 @@ impl Program {
             emit_only_dts_files,
             Some(false),
             force_dts_emit,
-        );
+        )?;
 
         // performance.mark("afterEmit");
         // performance.measure("Emit", "beforeEmit", "afterEmit");
@@ -1156,7 +1157,7 @@ impl Program {
         &self,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
         _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> EmitResult {
+    ) -> io::Result<EmitResult> {
         Debug_.assert(out_file(&self.options).non_empty().is_none(), None);
         // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeEmit");
@@ -1168,12 +1169,12 @@ impl Program {
             Some(false),
             Some(true),
             None,
-        );
+        )?;
 
         // performance.mark("afterEmit");
         // performance.measure("Emit", "beforeEmit", "afterEmit");
         // tracing?.pop();
-        emit_result
+        Ok(emit_result)
     }
 
     pub fn get_resolved_project_references(
@@ -1247,22 +1248,36 @@ impl Program {
         ) -> Vec<Gc<Diagnostic>>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
+        self.try_get_diagnostics_helper(
+            source_file,
+            |a, b| Ok(get_diagnostics(a, b)),
+            cancellation_token,
+        )
+        .unwrap()
+    }
+
+    pub(super) fn try_get_diagnostics_helper(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        mut get_diagnostics: impl FnMut(
+            &Node, /*SourceFile*/
+            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ) -> io::Result<Vec<Gc<Diagnostic>>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
         if let Some(source_file) = source_file {
             return get_diagnostics(source_file, cancellation_token);
         }
-        sort_and_deduplicate_diagnostics(
-            &self
-                .get_source_files()
-                .iter()
-                .flat_map(|source_file| {
-                    // if (cancellationToken) {
-                    //     cancellationToken.throwIfCancellationRequested();
-                    // }
-                    get_diagnostics(source_file, cancellation_token.clone())
-                })
-                .collect::<Vec<_>>(),
-        )
-        .into()
+        Ok(sort_and_deduplicate_diagnostics(&try_flat_map(
+            Some(&*self.get_source_files()),
+            |source_file: &Gc<Node>, _| {
+                // if (cancellationToken) {
+                //     cancellationToken.throwIfCancellationRequested();
+                // }
+                get_diagnostics(source_file, cancellation_token.clone())
+            },
+        )?)
+        .into())
     }
 
     pub(super) fn get_program_diagnostics(
@@ -1301,19 +1316,21 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
+    ) -> io::Result<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         let ref options = self.get_compiler_options();
-        if source_file.is_none() || out_file(options).is_non_empty() {
-            self.get_declaration_diagnostics_worker(source_file, cancellation_token)
-        } else {
-            self.get_diagnostics_helper(
-                source_file,
-                |source_file, cancellation_token| {
-                    self.get_declaration_diagnostics_for_file(source_file, cancellation_token)
-                },
-                cancellation_token,
-            )
-        }
+        Ok(
+            if source_file.is_none() || out_file(options).is_non_empty() {
+                self.get_declaration_diagnostics_worker(source_file, cancellation_token)?
+            } else {
+                self.try_get_diagnostics_helper(
+                    source_file,
+                    |source_file, cancellation_token| {
+                        self.get_declaration_diagnostics_for_file(source_file, cancellation_token)
+                    },
+                    cancellation_token,
+                )?
+            },
+        )
     }
 
     pub(super) fn run_with_cancellation_token<TReturn>(
@@ -1353,14 +1370,14 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> Vec<Gc<Diagnostic>> {
-        concatenate(
+    ) -> io::Result<Vec<Gc<Diagnostic>>> {
+        Ok(concatenate(
             filter_semantic_diagnostics(
-                self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token),
+                self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token)?,
                 &self.options,
             ),
             self.get_program_diagnostics(source_file),
-        )
+        ))
     }
 }
 

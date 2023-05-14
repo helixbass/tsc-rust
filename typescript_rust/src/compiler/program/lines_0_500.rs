@@ -873,7 +873,7 @@ pub fn get_pre_emit_diagnostics(
     program: &ProgramOrBuilderProgram,
     source_file: Option<impl Borrow<Node>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-) -> Vec<Gc<Diagnostic>> {
+) -> io::Result<Vec<Gc<Diagnostic>>> {
     let program = match program {
         ProgramOrBuilderProgram::Program(program) => program,
         _ => unimplemented!(),
@@ -902,13 +902,16 @@ pub fn get_pre_emit_diagnostics(
     );
     add_range(
         &mut diagnostics,
-        Some(&program.get_global_diagnostics(cancellation_token.clone())),
+        Some(&program.get_global_diagnostics(cancellation_token.clone())?),
         None,
         None,
     );
     add_range(
         &mut diagnostics,
-        Some(&program.get_semantic_diagnostics(source_file.as_deref(), cancellation_token.clone())),
+        Some(
+            &program
+                .get_semantic_diagnostics(source_file.as_deref(), cancellation_token.clone())?,
+        ),
         None,
         None,
     );
@@ -920,14 +923,14 @@ pub fn get_pre_emit_diagnostics(
                 &program.get_declaration_diagnostics(
                     source_file.as_deref(),
                     cancellation_token.clone(),
-                ),
+                )?,
             ),
             None,
             None,
         );
     }
 
-    sort_and_deduplicate_diagnostics(&diagnostics).into()
+    Ok(sort_and_deduplicate_diagnostics(&diagnostics).into())
 }
 
 pub trait FormatDiagnosticsHost {
@@ -1012,13 +1015,13 @@ pub(crate) fn format_color_and_reset(text: &str, format_style: &str) -> String {
     format!("{}{}{}", format_style, text, reset_escape_sequence)
 }
 
-fn format_code_span<THost: FormatDiagnosticsHost>(
+fn format_code_span(
     file: &Node, /*SourceFile*/
     start: isize,
     length: isize,
     indent: &str,
     squiggle_color: &str, /*ForegroundColorEscapeSequences*/
-    host: &THost,
+    host: &impl FormatDiagnosticsHost,
 ) -> String {
     let start_as_usize: usize = start.try_into().unwrap();
     let length_as_usize: usize = length.try_into().unwrap();

@@ -457,7 +457,7 @@ impl TypeChecker {
                 .into_iter()
                 .position(|type_argument| ptr::eq(&**type_argument, node))
                 .unwrap()],
-        ));
+        )?);
         Ok(Some(self.instantiate_type(
             &constraint,
             Some(Gc::new(self.create_type_mapper(

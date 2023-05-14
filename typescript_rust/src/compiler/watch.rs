@@ -865,7 +865,7 @@ fn emit_files_and_report_errors(
             if all_diagnostics.len() == config_file_parsing_diagnostics_length {
                 add_range(
                     &mut all_diagnostics,
-                    Some(&program.get_semantic_diagnostics(None, cancellation_token.clone())),
+                    Some(&program.get_semantic_diagnostics(None, cancellation_token.clone())?),
                     None,
                     None,
                 );
@@ -889,7 +889,7 @@ fn emit_files_and_report_errors(
             emit_only_dts_files,
             custom_transformers,
             None,
-        )
+        )?
     };
     let emitted_files = emit_result.emitted_files.as_ref();
     let emit_diagnostics = &emit_result.diagnostics;

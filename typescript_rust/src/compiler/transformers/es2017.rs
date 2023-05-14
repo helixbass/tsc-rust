@@ -623,8 +623,8 @@ impl TransformES2017 {
                 Some(node),
                 |node: &Node| self.visitor(node),
                 &**self.context,
-            ))?
-            .unwrap();
+            )?
+            .unwrap());
         }
         Ok(set_original_node(
             set_text_range_rc_node(

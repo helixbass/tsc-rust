@@ -110,7 +110,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Gc<Type>>> {
         let pattern = declaration.parent();
         let mut parent_type =
-            return_ok_none_if_none!(self.get_type_for_binding_element_parent(&pattern.parent()));
+            return_ok_none_if_none!(self.get_type_for_binding_element_parent(&pattern.parent())?);
         if self.is_type_any(Some(&*parent_type)) {
             return Ok(Some(parent_type));
         }
@@ -118,7 +118,7 @@ impl TypeChecker {
             && declaration.flags().intersects(NodeFlags::Ambient)
             && is_parameter_declaration(declaration)
         {
-            parent_type = self.get_non_nullable_type(&parent_type);
+            parent_type = self.get_non_nullable_type(&parent_type)?;
         } else if self.strict_null_checks
             && matches!(
                 pattern.parent().as_has_initializer().maybe_initializer(),
@@ -134,7 +134,7 @@ impl TypeChecker {
         let declaration_as_binding_element = declaration.as_binding_element();
         if pattern.kind() == SyntaxKind::ObjectBindingPattern {
             if declaration_as_binding_element.dot_dot_dot_token.is_some() {
-                parent_type = self.get_reduced_type(&parent_type);
+                parent_type = self.get_reduced_type(&parent_type)?;
                 if parent_type.flags().intersects(TypeFlags::Unknown)
                     || !self.is_valid_spread_type(&parent_type)?
                 {

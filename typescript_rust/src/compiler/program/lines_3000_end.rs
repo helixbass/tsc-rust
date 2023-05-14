@@ -2259,11 +2259,11 @@ pub(crate) fn handle_no_emit_options(
     source_file: Option<&Node /*SourceFile*/>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-) -> Option<EmitResult> {
+) -> io::Result<Option<EmitResult>> {
     let options = program.get_compiler_options();
     if options.no_emit == Some(true) {
-        program.get_semantic_diagnostics(source_file, cancellation_token.clone());
-        return Some(
+        program.get_semantic_diagnostics(source_file, cancellation_token.clone())?;
+        return Ok(Some(
             if source_file.is_some()
                 || out_file(&options)
                     .filter(|out_file| !out_file.is_empty())
@@ -2271,13 +2271,13 @@ pub(crate) fn handle_no_emit_options(
             {
                 emit_skipped_with_no_diagnostics()
             } else {
-                program.emit_build_info(write_file, cancellation_token)
+                program.emit_build_info(write_file, cancellation_token)?
             },
-        );
+        ));
     }
 
     if options.no_emit_on_error != Some(true) {
-        return None;
+        return Ok(None);
     }
     let mut diagnostics: Vec<Gc<Diagnostic>> = [
         program
@@ -2285,18 +2285,18 @@ pub(crate) fn handle_no_emit_options(
             .into(),
         program.get_syntactic_diagnostics(source_file, cancellation_token.clone()),
         program
-            .get_global_diagnostics(cancellation_token.clone())
+            .get_global_diagnostics(cancellation_token.clone())?
             .into(),
-        program.get_semantic_diagnostics(source_file, cancellation_token.clone()),
+        program.get_semantic_diagnostics(source_file, cancellation_token.clone())?,
     ]
     .concat();
 
     if diagnostics.is_empty() && get_emit_declarations(&program.get_compiler_options()) {
-        diagnostics = program.get_declaration_diagnostics(None, cancellation_token.clone());
+        diagnostics = program.get_declaration_diagnostics(None, cancellation_token.clone())?;
     }
 
     if diagnostics.is_empty() {
-        return None;
+        return Ok(None);
     }
     let mut emitted_files: Option<Vec<String>> = None;
     if source_file.is_none()
@@ -2304,7 +2304,7 @@ pub(crate) fn handle_no_emit_options(
             .filter(|out_file| !out_file.is_empty())
             .is_none()
     {
-        let emit_result = program.emit_build_info(write_file, cancellation_token);
+        let emit_result = program.emit_build_info(write_file, cancellation_token)?;
         let EmitResult {
             diagnostics: mut emit_result_diagnostics,
             emitted_files: emit_result_emitted_files,
@@ -2315,13 +2315,13 @@ pub(crate) fn handle_no_emit_options(
         // }
         emitted_files = emit_result_emitted_files;
     }
-    Some(EmitResult {
+    Ok(Some(EmitResult {
         emit_skipped: true,
         diagnostics,
         emitted_files,
         source_maps: Default::default(),
         exported_modules_from_declaration_emit: Default::default(),
-    })
+    }))
 }
 
 pub(super) fn filter_semantic_diagnostics(

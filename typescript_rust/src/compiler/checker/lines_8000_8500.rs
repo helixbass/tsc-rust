@@ -898,7 +898,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> io::Result<Option<Gc<Node /*ElementAccessExpression*/>>> {
-        let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node));
+        let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node)?);
         let ret = parent_access.maybe_flow_node().clone().try_and_then(
             |parent_access_flow_node| -> io::Result<_> {
                 let prop_name =

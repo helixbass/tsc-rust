@@ -427,7 +427,7 @@ impl TypeChecker {
                             &contextual_return_type,
                             use_,
                             Option::<&Node>::None,
-                        ));
+                        )?);
                     contextual_return_type = iteration_types.return_type();
                 }
 

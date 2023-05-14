@@ -443,7 +443,7 @@ impl TypeChecker {
         include_this_types: Option<bool>,
     ) -> io::Result<Option<Vec<Gc<Type /*TypeParameter*/>>>> {
         let mut node = Some(node.node_wrapper());
-        Ok(loop {
+        loop {
             node = node.unwrap().maybe_parent();
             if let Some(node_present) = node.as_ref() {
                 if is_binary_expression(node_present) {
@@ -584,7 +584,7 @@ impl TypeChecker {
                 }
                 _ => (),
             }
-        })
+        }
     }
 
     pub(super) fn get_outer_type_parameters_of_class_or_interface(
