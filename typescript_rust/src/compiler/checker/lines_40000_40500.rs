@@ -604,7 +604,7 @@ impl TypeChecker {
             if skip_type_checking(node, &self.compiler_options, |file_name| {
                 TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
             }) {
-                return;
+                return Ok(());
             }
 
             self.check_grammar_source_file(node);

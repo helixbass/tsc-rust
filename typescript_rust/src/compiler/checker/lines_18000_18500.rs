@@ -807,6 +807,8 @@ impl CheckTypeRelatedTo {
         let mut report_error = |message: Cow<'static, DiagnosticMessage>,
                                 args: Option<Vec<String>>| {
             self.report_error(message, args)?;
+
+            Ok(())
         };
 
         if original_source.flags().intersects(TypeFlags::Object)
@@ -943,7 +945,7 @@ impl CheckTypeRelatedTo {
                 && target
                     .flags()
                     .intersects(TypeFlags::Object | TypeFlags::Intersection)
-                && self.type_checker.is_weak_type(&target)
+                && self.type_checker.is_weak_type(&target)?
                 && (!self.type_checker.get_properties_of_type(&source)?.len() == 0
                     || self
                         .type_checker

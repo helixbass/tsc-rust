@@ -304,7 +304,7 @@ impl TypeChecker {
                         self.combine_symbol_tables(
                             early_symbols.clone(),
                             Some(Gc::new(GcCell::new(late_symbols))),
-                        )
+                        )?
                         .unwrap_or_else(|| self.empty_symbols()),
                     ),
                 )

@@ -832,27 +832,27 @@ impl TypeChecker {
         &self,
         first: Option<Gc<GcCell<SymbolTable>>>,
         second: Option<Gc<GcCell<SymbolTable>>>,
-    ) -> Option<Gc<GcCell<SymbolTable>>> {
+    ) -> io::Result<Option<Gc<GcCell<SymbolTable>>>> {
         if first.is_none() {
-            return second;
+            return Ok(second);
         }
         if second.is_none() {
-            return first;
+            return Ok(first);
         }
         let first = first.unwrap();
         let second = second.unwrap();
         if (*first).borrow().is_empty() {
-            return Some(second);
+            return Ok(Some(second));
         }
         if (*second).borrow().is_empty() {
-            return Some(first);
+            return Ok(Some(first));
         }
         let combined = Gc::new(GcCell::new(create_symbol_table(
             Option::<&[Gc<Symbol>]>::None,
         )));
         self.merge_symbol_table(combined.clone(), &(*first).borrow(), None)?;
         self.merge_symbol_table(combined.clone(), &(*second).borrow(), None)?;
-        Some(combined)
+        Ok(Some(combined))
     }
 
     pub(super) fn merge_symbol_table(

@@ -237,7 +237,7 @@ impl TypeChecker {
         node: &Node, /*EnumMember | AccessExpression*/
     ) -> io::Result<Option<StringOrNumber>> {
         if node.kind() == SyntaxKind::EnumMember {
-            return Ok(self.get_enum_member_value(node))?;
+            return self.get_enum_member_value(node);
         }
 
         let symbol = (*self.get_node_links(node))

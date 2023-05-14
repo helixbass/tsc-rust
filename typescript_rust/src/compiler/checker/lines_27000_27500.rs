@@ -488,7 +488,7 @@ impl TypeChecker {
                     );
                     spread = self.get_spread_type(
                         &spread,
-                        &self.create_anonymous_type(
+                        &*self.create_anonymous_type(
                             attributes.maybe_symbol(),
                             Gc::new(GcCell::new(child_prop_map)),
                             vec![],
@@ -515,8 +515,8 @@ impl TypeChecker {
                 );
             }
         }
-        Ok(type_to_intersect.unwrap_or_else(|| {
-            if Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
+        type_to_intersect.try_unwrap_or_else(|| -> io::Result<_> {
+            Ok(if Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
                 self.create_jsx_attributes_type(
                     &mut object_flags,
                     &attributes,
@@ -524,8 +524,8 @@ impl TypeChecker {
                 )?
             } else {
                 spread
-            }
-        }))
+            })
+        })
     }
 
     pub(super) fn create_jsx_attributes_type(

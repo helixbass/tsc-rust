@@ -504,7 +504,7 @@ impl TypeChecker {
                 Some(|t: &Gc<Type>| -> io::Result<_> {
                     Ok(t.flags().intersects(TypeFlags::Object)
                         && !self.is_generic_mapped_type(t)?
-                        && self.is_empty_resolved_type(&self.resolve_structured_type_members(t)?))
+                        && self.is_empty_resolved_type(&*self.resolve_structured_type_members(t)?))
                 }),
             )?;
         let len = types.len();

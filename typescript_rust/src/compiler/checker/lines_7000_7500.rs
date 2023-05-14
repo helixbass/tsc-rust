@@ -532,7 +532,7 @@ impl SymbolTableToDeclarationStatements {
                                 &*self.type_checker.get_type_of_symbol(symbol)?,
                             )?
                             .filter(|p| p.flags().intersects(SymbolFlags::EnumMember))
-                            .map(|p| -> Gc<Node> {
+                            .map(|p| -> io::Result<Gc<Node>> {
                                 let initialized_value = p
                                     .maybe_declarations()
                                     .as_ref()
@@ -542,7 +542,7 @@ impl SymbolTableToDeclarationStatements {
                                     .try_and_then(|p_declarations_0| {
                                         self.type_checker.get_constant_value_(p_declarations_0)
                                     })?;
-                                get_factory()
+                                Ok(get_factory()
                                     .create_enum_member(
                                         unescape_leading_underscores(p.escaped_name()),
                                         initialized_value.map(|initialized_value| {
@@ -567,9 +567,9 @@ impl SymbolTableToDeclarationStatements {
                                             }
                                         }),
                                     )
-                                    .wrap()
+                                    .wrap())
                             })
-                            .collect::<Vec<_>>(),
+                            .collect::<Result<Vec<_>, _>>()?,
                     ),
                 )
                 .wrap(),

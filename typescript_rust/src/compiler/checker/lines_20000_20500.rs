@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::{io, ptr};
 
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
+use crate::try_every;
 use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot,
     OutofbandVarianceMarkerHandler, SymbolLinks, TransientSymbolInterface, __String, every,
@@ -406,26 +407,26 @@ impl TypeChecker {
         Ok(Some(target_types[match_].clone()))
     }
 
-    pub(super) fn is_weak_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_weak_type(&self, type_: &Type) -> io::Result<bool> {
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
             let resolved_as_resolved_type = resolved.as_resolved_type();
-            return resolved_as_resolved_type.call_signatures().is_empty()
+            return Ok(resolved_as_resolved_type.call_signatures().is_empty()
                 && resolved_as_resolved_type.construct_signatures().is_empty()
                 && resolved_as_resolved_type.index_infos().is_empty()
                 && !resolved_as_resolved_type.properties().is_empty()
                 && every(
                     &*resolved_as_resolved_type.properties(),
                     |p: &Gc<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
-                );
+                ));
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
-            return every(
+            return try_every(
                 type_.as_union_or_intersection_type_interface().types(),
                 |type_: &Gc<Type>, _| self.is_weak_type(type_),
             );
         }
-        false
+        Ok(false)
     }
 
     pub(super) fn has_common_properties(

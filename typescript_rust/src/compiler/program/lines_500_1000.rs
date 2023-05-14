@@ -1084,7 +1084,7 @@ impl Program {
                         })?;
                 }
                 if !self.root_names().is_empty() {
-                    self.maybe_resolved_project_references().as_ref().map(|resolved_project_references| {
+                    self.maybe_resolved_project_references().as_ref().try_map(|resolved_project_references| -> io::Result<_> {
                         resolved_project_references.iter().enumerate().for_each(|(index, parsed_ref)| {
                             if parsed_ref.is_none() {
                                 return;
@@ -1148,7 +1148,9 @@ impl Program {
                                 }
                             }
                         });
-                    });
+
+    Ok(())
+                    })?;
                 }
             }
 

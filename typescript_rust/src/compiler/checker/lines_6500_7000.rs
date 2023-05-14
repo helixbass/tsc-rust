@@ -671,9 +671,14 @@ impl SymbolTableToDeclarationStatements {
         if suppress_new_private_context != Some(true) {
             self.deferred_privates_stack_mut().push(Default::default());
         }
-        (*symbol_table).borrow().values().for_each(|symbol| {
-            self.serialize_symbol(symbol, false, property_as_alias == Some(true))?;
-        });
+        (*symbol_table)
+            .borrow()
+            .values()
+            .try_for_each(|symbol| -> io::Result<_> {
+                self.serialize_symbol(symbol, false, property_as_alias == Some(true))?;
+
+                Ok(())
+            })?;
         if suppress_new_private_context != Some(true) {
             let deferred_privates_stack_last_values = {
                 let deferred_privates_stack = self.deferred_privates_stack();
@@ -685,7 +690,7 @@ impl SymbolTableToDeclarationStatements {
             deferred_privates_stack_last_values
                 .iter()
                 .try_for_each(|symbol| -> io::Result<_> {
-                    self.sirialize_symbol(symbol, true, property_as_alias == Some(true))?;
+                    self.serialize_symbol(symbol, true, property_as_alias == Some(true))?;
 
                     Ok(())
                 })?;
@@ -731,7 +736,7 @@ impl SymbolTableToDeclarationStatements {
                     .set_reported_diagnostic(self.context().reported_diagnostic());
             }
             self.set_context(old_context);
-            return /*result*/;
+            return Ok(()) /*result*/;
         }
 
         Ok(())

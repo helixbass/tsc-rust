@@ -1088,7 +1088,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         operator_token: &Node, /*BinaryOperatorToken*/
         _state: Rc<RefCell<WorkArea>>,
         node: &Node, /*BinaryExpression*/
-    ) {
+    ) -> io::Result<()> {
         let is_comma_operator = operator_token.kind() != SyntaxKind::CommaToken;
         let node_as_binary_expression = node.as_binary_expression();
         let lines_before_operator = self.printer.get_lines_between_nodes(
@@ -1117,6 +1117,8 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             .emit_trailing_comments_of_position(operator_token.end(), Some(true), None);
         self.printer
             .write_lines_and_indent(lines_after_operator, true);
+
+        Ok(())
     }
 
     fn on_right(

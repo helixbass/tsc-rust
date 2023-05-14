@@ -146,7 +146,7 @@ impl TypeChecker {
     pub(super) fn is_empty_object_type(&self, type_: &Type) -> io::Result<bool> {
         Ok(if type_.flags().intersects(TypeFlags::Object) {
             !self.is_generic_mapped_type(type_)?
-                && self.is_empty_resolved_type(&self.resolve_structured_type_members(type_)?)
+                && self.is_empty_resolved_type(&*self.resolve_structured_type_members(type_)?)
         } else if type_.flags().intersects(TypeFlags::NonPrimitive) {
             true
         } else if type_.flags().intersects(TypeFlags::Union) {

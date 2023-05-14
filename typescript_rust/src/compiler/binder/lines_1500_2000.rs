@@ -775,7 +775,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         operator_token: &Node, /*BinaryOperatorToken*/
         state: Rc<RefCell<WorkArea>>,
         node: &Node, /*BinaryExpression*/
-    ) {
+    ) -> io::Result<()> {
         if !(*state).borrow().skip {
             if operator_token.kind() == SyntaxKind::CommaToken {
                 self.binder
@@ -783,6 +783,8 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
             }
             self.binder.bind(Some(operator_token));
         }
+
+        Ok(())
     }
 
     fn on_right(

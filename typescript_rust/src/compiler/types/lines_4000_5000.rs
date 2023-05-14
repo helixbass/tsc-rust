@@ -783,7 +783,7 @@ pub trait EmitResolver: Trace + Finalize {
     fn get_constant_value(
         &self,
         node: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
-    ) -> Option<StringOrNumber>;
+    ) -> io::Result<Option<StringOrNumber>>;
     fn get_referenced_value_declaration(
         &self,
         reference: &Node, /*Identifier*/

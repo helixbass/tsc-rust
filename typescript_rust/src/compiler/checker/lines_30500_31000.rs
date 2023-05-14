@@ -582,7 +582,7 @@ impl TypeChecker {
         target: &Symbol,
         source: Option<impl Borrow<Symbol>>,
     ) -> io::Result<Option<Gc<Symbol>>> {
-        let source = source?;
+        let source = return_ok_default_if_none!(source);
         let source = source.borrow();
         let links = self.get_symbol_links(source);
         if !matches!(

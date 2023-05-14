@@ -1883,7 +1883,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Gc<Symbol>>> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
         location.try_map_or_else(
-            || vec![],
+            || Ok(Default::default()),
             |location| self.get_symbols_in_scope_(&location, meaning),
         )
     }
@@ -2219,10 +2219,10 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
     ) -> io::Result<Option<StringOrNumber>> {
-        let node = get_parse_tree_node(
+        let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| self.can_have_constant_value(node)),
-        )?;
+        ));
         self.get_constant_value_(&node)
     }
 

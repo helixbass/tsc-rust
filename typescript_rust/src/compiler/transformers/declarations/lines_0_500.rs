@@ -38,6 +38,7 @@ use crate::{
     TransformerInterface, VisitResult, try_maybe_for_each, try_visit_nodes,
 };
 use crate::try_map;
+use crate::try_map_defined;
 
 pub fn get_declaration_diagnostics(
     host: Gc<Box<dyn EmitHost>>,
@@ -703,9 +704,9 @@ impl TransformDeclarations {
                             ))
                         }
                     )?,
-                    Some(map_defined(
+                    Some(try_map_defined(
                         Some(&node_as_bundle.prepends),
-                        |prepend: &Gc<Node>, _| -> Option<Gc<Node>> {
+                        |prepend: &Gc<Node>, _| -> io::Result<Option<Gc<Node>>> {
                             if prepend.kind() == SyntaxKind::InputFiles {
                                 let source_file = create_unparsed_source_file(
                                     prepend.clone(),
@@ -725,11 +726,11 @@ impl TransformDeclarations {
                                     &source_file,
                                     &mut self.libs_mut(),
                                 );
-                                return Some(source_file);
+                                return Ok(Some(source_file));
                             }
-                            Some(prepend.clone())
+                            Ok(Some(prepend.clone()))
                         }
-                    )),
+                    )?),
                 )
             ;
             bundle.synthetic_file_references = Some(vec![]);

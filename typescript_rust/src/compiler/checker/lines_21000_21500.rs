@@ -916,7 +916,7 @@ impl TypeChecker {
         let mut members = create_symbol_table(Option::<&[Gc<Symbol>]>::None);
         self.for_each_type(type_, |t: &Type| -> Option<()> {
             if !t.flags().intersects(TypeFlags::StringLiteral) {
-                return Ok(None);
+                return None;
             }
             let name = escape_leading_underscores(&t.as_string_literal_type().value).into_owned();
             let literal_prop: Gc<Symbol> = self

@@ -3,6 +3,7 @@ use std::{borrow::Borrow, io, ptr};
 
 use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::try_for_each;
+use crate::try_maybe_for_each;
 use crate::{
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, __String,
     are_option_gcs_equal, cast_present, declaration_name_to_string, escape_leading_underscores,
@@ -212,9 +213,9 @@ impl TypeChecker {
             }
             self.check_object_type_for_duplicate_declarations(node);
         }
-        maybe_for_each(
+        try_maybe_for_each(
             get_interface_base_type_nodes(node).as_ref(),
-            |heritage_element: &Gc<Node>, _| -> Option<()> {
+            |heritage_element: &Gc<Node>, _| -> io::Result<Option<()>> {
                 let heritage_element_as_expression_with_type_arguments =
                     heritage_element.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
@@ -229,7 +230,7 @@ impl TypeChecker {
                     );
                 }
                 self.check_type_reference_node(heritage_element)?;
-                None
+                Ok(None)
             },
         )?;
 
